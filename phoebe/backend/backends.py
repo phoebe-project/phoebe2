@@ -149,9 +149,6 @@ def _extract_from_bundle_by_time(b, compute, times=None, allow_oversample=False,
     # but packetlist may be longer than infolist (since mesh passband-columns allow
     # now have their own entries.)
 
-    # we will need access to all datasets@mesh which are enabled
-    mesh_datasets_parameters = [b.get_parameter(qualifier='datasets', context='dataset', dataset=ds) for ds in b.filter(kind='mesh', context='dataset').datasets if b.get_value(qualifier='enabled', compute=compute, dataset=ds)]
-
     for dataset in b.filter(qualifier='enabled', compute=compute, value=True).datasets:
         dataset_ps = b.filter(context='dataset', dataset=dataset).exclude(kind='*_dep')
         dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, check_visible=False)
