@@ -89,7 +89,7 @@ def _expand_mesh_times(b, dataset_ps, component):
                 # then we need to concatenate over all components_
                 # (times@rv@primary and times@rv@secondary are not necessarily
                 # identical)
-                add_times = np.unique(np.append(*[add_ps.get_value(qualifier='times', component=c) for c in add_ps_components]))
+                add_times = np.unique(np.append(*[add_ps.get_value(qualifier=add_timequalifier, component=c) for c in add_ps_components]))
             else:
                 # then we're adding from some dataset at the system-level (like lcs)
                 # that have component=None
@@ -211,12 +211,12 @@ def _extract_from_bundle_by_time(b, compute, times=None, allow_oversample=False,
                 if dataset_kind == 'mesh':
                     # then we may be requesting passband-dependent columns be
                     # copied to the mesh from other datasets based on the values
-                    # of datasets@mesh and columns@mesh.  Let's store the needed
-                    # information here, where mesh_datasets and mesh_kinds correspond
-                    # to each other (but mesh_columns does not).
-                    info['mesh_datasets'] = dataset_ps.get_value('datasets')
+                    # of columns@mesh.  Let's store the needed information here,
+                    # where mesh_datasets and mesh_kinds correspond to each
+                    # other (but mesh_columns does not).
+                    info['mesh_columns'] = dataset_ps.get_value('columns', expand=True)
+                    info['mesh_datasets'] = list(set([c.split('@')[1] for c in info['mesh_columns'] if len(c.split('@'))>1]))
                     info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').exclude(kind='*_dep').kind for ds in info['mesh_datasets']]
-                    info['mesh_columns'] = dataset_ps.get_value('columns')
 
                 for time_ in this_times:
                     # TODO: handle some deltatime allowance here?
@@ -884,15 +884,15 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 #         packet[k]['horizon_analytic_zs'] = ha['zs']
 
                 # Dataset-dependent quantities
-                for mesh_dataset, mesh_kind in zip(info['mesh_datasets'], info['mesh_kinds']):
-                    if 'pblum' in info['mesh_columns']:
+                for mesh_dataset in info['mesh_datasets']:
+                    if 'pblum@{}'.format(mesh_dataset) in info['mesh_columns']:
                         packetlist.append(make_packet('pblum',
                                                       body.compute_luminosity(mesh_dataset),
                                                       time, info,
                                                       dataset=mesh_dataset,
                                                       component=info['component']))
 
-                    if 'ptfarea' in info['mesh_columns']:
+                    if 'ptfarea@{}'.format(mesh_dataset) in info['mesh_columns']:
                         packetlist.append(make_packet('ptfarea',
                                                       body.get_ptfarea(mesh_dataset),
                                                       time, info,
@@ -903,13 +903,10 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                                   'abs_intensities', 'abs_normal_intensities',
                                   'boost_factors', 'ldint']:
 
-                        if indep in info['mesh_columns']:
+                        if "{}@{}".format(indep, mesh_dataset) in info['mesh_columns']:
                             key = "{}:{}".format(indep, mesh_dataset)
 
-                            if indep=='rvs' and mesh_kind != 'rv':
-                                continue
-                            else:
-                                value = body.mesh[key].centers
+                            value = body.mesh[key].centers
 
                             packetlist.append(make_packet(indep,
                                                           value,

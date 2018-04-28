@@ -806,7 +806,15 @@ class Bundle(ParameterSet):
         changed_param = self.run_delayed_constraints()
 
         pbdep_datasets = self.filter(context='dataset',
-                                     kind=_dataset._pbdep_kinds).datasets
+                                     kind=_dataset._pbdep_columns.keys()).datasets
+
+        pbdep_columns = _dataset._mesh_columns
+        for pbdep_dataset in pbdep_datasets:
+            pbdep_kind = self.filter(context='dataset',
+                                     dataset=pbdep_dataset,
+                                     kind=_dataset._pbdep_columns.keys()).kind
+
+            pbdep_columns += ["{}@{}".format(column, pbdep_dataset) for column in _dataset._pbdep_columns[pbdep_kind]]
 
         time_datasets = (self.filter(context='dataset')-
                          self.filter(context='dataset', kind='mesh')).datasets
@@ -814,18 +822,18 @@ class Bundle(ParameterSet):
         t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component']).to_list()]
         t0s += ["t0@system"]
 
-        for param in self.filter(qualifier='datasets',
+        for param in self.filter(qualifier='columns',
                                  context='dataset').to_list():
 
-            param._choices = pbdep_datasets
-            param.remove_not_in_choices()
+            param._choices = pbdep_columns
+            param.remove_not_valid_selections()
 
         for param in self.filter(qualifier='include_times',
                                  context='dataset').to_list():
 
             # NOTE: existing value is updated in change_component
             param._choices = time_datasets + t0s
-            param.remove_not_in_choices()
+            param.remove_not_valid_selections()
 
 
     def set_hierarchy(self, *args, **kwargs):

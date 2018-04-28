@@ -7,8 +7,34 @@ from phoebe import conf
 
 _ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power']
 
-global _pbdep_kinds
-_pbdep_kinds = ['lc', 'rv']
+global _mesh_columns
+global _pbdep_columns
+
+_mesh_columns = []
+_mesh_columns += ['pot', 'rpole', 'volume']
+
+_mesh_columns += ['xs', 'ys', 'zs']
+_mesh_columns += ['roche_xs', 'roche_ys', 'roche_zs']
+_mesh_columns += ['vxs', 'vys', 'vzs']
+# _mesh_columns += ['horizon_xs', 'horizon_ys', 'horizon_zs', 'horizon_analytic_xs', 'horizon_analytic_ys', 'horizon_analytic_zs']
+_mesh_columns += ['areas'] #, 'tareas']
+_mesh_columns += ['normals', 'nxs', 'nys', 'nzs']
+_mesh_columns += ['loggs', 'teffs']
+
+_mesh_columns += ['rprojs', 'mus', 'visibilities', 'visible_centroids']
+_mesh_columns += ['rs'] #, 'cosbetas']
+
+lc_columns = []
+lc_columns += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_normal_intensities']
+lc_columns += ['boost_factors', 'ldint']
+lc_columns += ['pblum', 'ptfarea']
+
+rv_columns = lc_columns[:]
+rv_columns += ['rvs']
+
+
+_pbdep_columns = {'lc': lc_columns,
+                  'rv': rv_columns}
 
 def _empty_array(kwargs, qualifier):
     if qualifier in kwargs.keys():
@@ -263,28 +289,8 @@ def mesh(**kwargs):
     obs_params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', ['t0@system']), description='append to times from the following datasets/time standards', choices=['t0@system'])]
 
     obs_params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', []), description='datasets to expose as mesh columns', choices=[])]
-    columns_choices = []
 
-    columns_choices += ['pot', 'rpole', 'volume']
-
-    columns_choices += ['xs', 'ys', 'zs']
-    columns_choices += ['roche_xs', 'roche_ys', 'roche_zs']
-    columns_choices += ['vxs', 'vys', 'vzs']
-    # columns_choices += ['horizon_xs', 'horizon_ys', 'horizon_zs', 'horizon_analytic_xs', 'horizon_analytic_ys', 'horizon_analytic_zs']
-    columns_choices += ['areas'] #, 'tareas']
-    columns_choices += ['normals', 'nxs', 'nys', 'nzs']
-    columns_choices += ['loggs', 'teffs']
-
-    columns_choices += ['rprojs', 'mus', 'visibilities', 'visible_centroids']
-    columns_choices += ['rs'] #, 'cosbetas']
-
-    columns_choices += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_normal_intensities']
-    columns_choices += ['boost_factors', 'ldint']
-    columns_choices += ['rvs']
-    columns_choices += ['pblum', 'ptfarea']
-
-    # TODO: split this into columns and dataset_columns???
-    obs_params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', ['teffs']), description='columns to expose within the mesh', choices=columns_choices)]
+    obs_params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', ['teffs']), description='columns to expose within the mesh', choices=_mesh_columns)]
     #obs_params += mesh_dep(**kwargs).to_list()
 
     return ParameterSet(obs_params), constraints
@@ -300,8 +306,7 @@ def mesh_syn(syn=True, **kwargs):
     # the following will all be arrays (value per triangle) per time
     if syn:
         columns = kwargs.get('mesh_columns', [])
-        datasets = kwargs.get('mesh_datasets', [])
-        dataset_kinds = kwargs.get('mesh_kinds', [])
+        mesh_datasets = kwargs.get('mesh_datasets', [])
 
         for t in times:
             if not isinstance(t, float):
@@ -388,25 +393,25 @@ def mesh_syn(syn=True, **kwargs):
             # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_ys', time=t, value=kwargs.get('horizon_analytic_ys', []), default_unit=u.solRad, description='Analytic horizon (interpolated, y component)')]
             # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
 
-            for dataset, kind in zip(datasets, dataset_kinds):
-                if 'rvs' in columns and kind=='rv':
+            for dataset in mesh_datasets:
+                if 'rvs@{}'.format(dataset) in columns:
                     syn_params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.solRad/u.d, description='Per-element value of rvs for {} dataset'.format(dataset))]
-                if 'intensities' in columns:
+                if 'intensities@{}'.format(dataset) in columns:
                     syn_params += [FloatArrayParameter(qualifier='intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of intensities for {} dataset'.format(dataset))]
-                if 'normal_intensities' in columns:
+                if 'normal_intensities@{}'.format(dataset) in columns:
                     syn_params += [FloatArrayParameter(qualifier='normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of normal_intensities for {} dataset'.format(dataset))]
-                if 'abs_intensities' in columns:
+                if 'abs_intensities@{}'.format(dataset) in columns:
                     syn_params += [FloatArrayParameter(qualifier='abs_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_intensities for {} dataset'.format(dataset))]
-                if 'abs_normal_intensities' in columns:
+                if 'abs_normal_intensities@{}'.format(dataset) in columns:
                     syn_params += [FloatArrayParameter(qualifier='abs_normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_normal_intensities for {} dataset'.format(dataset))]
-                if 'boost_factors' in columns:
+                if 'boost_factors@{}'.format(dataset) in columns:
                     syn_params += [FloatArrayParameter(qualifier='boost_factors', dataset=dataset, time=t, value=[], default_unit=u.dimensionless_unscaled, description='Per-element value of boost_factors for {} dataset'.format(dataset))]
-                if 'ldint' in columns:
+                if 'ldint@{}'.format(dataset) in columns:
                     syn_params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
 
-                if 'ptfarea' in columns:
+                if 'ptfarea@{}'.format(dataset) in columns:
                     syn_params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), default_unit=u.m, description='Area of the passband transmission function')]
-                if 'pblum' in columns:
+                if 'pblum@{}'.format(dataset) in columns:
                     syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star')]
 
     constraints = []
