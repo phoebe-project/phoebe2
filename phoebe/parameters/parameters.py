@@ -3907,14 +3907,42 @@ class SelectParameter(Parameter):
     def get_choices(self):
         return self._choices
 
+    def valid_selection(self, value):
+        if value in self.choices:
+            return True
+
+        # allow for wildcards
+        for choice in self.choices:
+            if fnmatch(choice, value):
+                return True
+
+        return False
+
     @update_if_client
-    def get_value(self, **kwargs):
+    def get_value(self, expand=False, **kwargs):
         """
 
         """
+        if expand:
+            return self.expand_value(**kwargs)
+
         default = super(SelectParameter, self).get_value(**kwargs)
         if default is not None: return default
         return self._value
+
+    def expand_value(self, **kwargs):
+        """
+        expand the selection to account for wildcards
+        """
+        selection = []
+        for v in self.get_value(**kwargs):
+            for choice in self.choices:
+                if v==choice and choice not in selection:
+                    selection.append(choice)
+                elif fnmatch(choice, v) and choice not in selection:
+                    selection.append(choice)
+
+        return selection
 
     @send_if_client
     def set_value(self, value, run_checks=None, **kwargs):
@@ -3922,6 +3950,9 @@ class SelectParameter(Parameter):
 
         """
         _orig_value = deepcopy(self.get_value())
+
+        if isinstance(value, str):
+            value = [value]
 
         if not isinstance(value, list):
             raise TypeError("value must be a list of strings, received {}".format(type(value)))
@@ -3931,9 +3962,13 @@ class SelectParameter(Parameter):
         except:
             raise ValueError("could not cast to list of strings")
 
+        invalid_selections = []
         for v in value:
-            if v not in self.choices:
-                raise ValueError("all entries must be one of {}".format(self.choices))
+            if not self.valid_selection(v):
+                invalid_selections.append(v)
+
+        if len(invalid_selections):
+            raise ValueError("{} are not valid selections.  Choices: {}".format(invalid_selections, self.choices))
 
         self._value = value
 
@@ -3948,14 +3983,17 @@ class SelectParameter(Parameter):
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
-    def remove_not_in_choices(self):
+    def remove_not_valid_selections(self):
         """
-        update the value to remove any that are (no longer) in choices
+        update the value to remove any that are (no longer) valid
         """
-        value = [v for v in self.get_value() if v in self.get_choices()]
+        value = [v for v in self.get_value() if self.valid_selection(v)]
         self.set_value(value)
 
     def __add__(self, other):
+        if isinstance(other, str):
+            other = [other]
+
         if not isinstance(other, list):
             return super(SelectParameter, self).__add__(self, other)
 
@@ -3963,6 +4001,9 @@ class SelectParameter(Parameter):
         return list(set(self.get_value()+other))
 
     def __sub__(self, other):
+        if isinstance(other, str):
+            other = [other]
+
         if not isinstance(other, list):
             return super(SelectParameter, self).__sub__(self, other)
 
