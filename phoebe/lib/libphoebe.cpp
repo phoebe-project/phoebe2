@@ -1549,7 +1549,7 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
    
     case 1:
     report_error(fname + 
-      "::There is no solution for equator. t is not in [0,1]\n" +
+      "::The lobe does not exist. t is not in [0,1]\n" +
       "Omega0=" + std::to_string(Omega0) +
       " omega=" + std::to_string(omega) +
       " t=" + std::to_string(27*omega*omega/(Omega0*Omega0*Omega0)/8)
@@ -1681,7 +1681,7 @@ static PyObject *rotstar_misaligned_area_volume(PyObject *self, PyObject *args, 
    
     case 1:
     report_error(fname + 
-      "::There is no solution for equator. t is not in [0,1]\n" +
+      "::The lobe does not exist. t is not in [0,1]\n" +
       "Omega0=" + std::to_string(Omega0) +
       " omega=" + std::to_string(omega) +
       " t=" + std::to_string(27*omega*omega/(Omega0*Omega0*Omega0)/8)
@@ -4252,6 +4252,14 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   }
 
   //
+  // Check if the lobe exists
+  //
+  if (27*utils::sqr(omega)/(8*utils::cube(Omega0)) > 1){
+    report_error(fname + "::The lobe does not exist.");
+    return NULL;
+  }
+  
+  //
   // Storing results in dictioonary
   // https://docs.python.org/2/c-api/dict.html
   //
@@ -4632,6 +4640,14 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
     double *p = (double*)PyArray_DATA(o_init_dir);
     init_dir[0] = p[0];
     init_dir[1] = p[1];
+  }
+
+  //
+  // Check if the lobe exists
+  //
+  if (27*utils::sqr(omega)/(8*utils::cube(Omega0)) > 1){
+    report_error(fname + "::The lobe does not exist.");
+    return NULL;
   }
 
   //
