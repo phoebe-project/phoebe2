@@ -927,8 +927,10 @@ class ScaledProtoMesh(ProtoMesh):
         # store needed copies in the Roche coordinates
         self._roche_vertices    = None  # Vx3
         self._roche_centers     = None  # Nx3
+        self._roche_cvelocities = None  # Vx3
+        self._roche_tnormals    = None  # Nx3
 
-        keys = ['roche_vertices', 'roche_centers']
+        keys = ['roche_vertices', 'roche_centers', 'roche_cvelocities', 'roche_tnormals']
         keys += kwargs.pop('keys', [])
 
         scale = kwargs.pop('scale', None)
@@ -959,6 +961,8 @@ class ScaledProtoMesh(ProtoMesh):
         # make necessary copies
         self._roche_vertices = self._vertices.copy()
         self._roche_centers = self._centers.copy()
+        self._roche_cvelocities = self._velocities.centers.copy()
+        self._roche_tnormals = self._tnormals.copy()
 
     def _scale_mesh(self, scale):
         """
@@ -1004,6 +1008,25 @@ class ScaledProtoMesh(ProtoMesh):
         :return: numpy array
         """
         return self._roche_centers
+
+    @property
+    def roche_cvelocities(self):
+        """
+        Access to the velocities (compute at the centers of each triangle)
+        in Roche coordinates
+
+        :return: numpy array
+        """
+        return self._roche_cvelocities
+
+    @property
+    def roche_tnormals(self):
+        """
+        Access to the tnormals in Roche coordinates
+
+        :return: numpy array
+        """
+        return self._roche_tnormals
 
 class Mesh(ScaledProtoMesh):
     """

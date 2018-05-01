@@ -693,27 +693,27 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
                 # times array was set when creating the synthetic ParameterSet
 
-                packetlist.append(make_packet('xs',
+                packetlist.append(make_packet('us',
                                               xi[cind],
                                               time, info))
 
-                packetlist.append(make_packet('ys',
+                packetlist.append(make_packet('vs',
                                               yi[cind],
                                               time, info))
 
-                packetlist.append(make_packet('zs',
+                packetlist.append(make_packet('ws',
                                               zi[cind],
                                               time, info))
 
-                packetlist.append(make_packet('vxs',
+                packetlist.append(make_packet('vus',
                                               vxi[cind],
                                               time, info))
 
-                packetlist.append(make_packet('vys',
+                packetlist.append(make_packet('vvs',
                                               vyi[cind],
                                               time, info))
 
-                packetlist.append(make_packet('vzs',
+                packetlist.append(make_packet('vws',
                                               vzi[cind],
                                               time, info))
 
@@ -722,10 +722,10 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 # print "*** this_syn.twigs", this_syn.twigs
                 body = system.get_body(info['component'])
 
-                packetlist.append(make_packet('vertices',
+                packetlist.append(make_packet('uvw_elements',
                                               body.mesh.vertices_per_triangle,
                                               time, info))
-                packetlist.append(make_packet('roche_vertices',
+                packetlist.append(make_packet('xyz_elements',
                                               body.mesh.roche_vertices_per_triangle,
                                               time, info))
 
@@ -742,47 +742,98 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                                                   body.volume,
                                                   time, info))
 
-                if 'xs' in info['mesh_columns']:
+                if 'us' in info['mesh_columns']:
                     # UNIT: u.solRad
-                    packetlist.append(make_packet('xs',
+                    packetlist.append(make_packet('us',
                                                   body.mesh.centers[:,0],
                                                   time, info))
-                if 'ys' in info['mesh_columns']:
+                if 'vs' in info['mesh_columns']:
                     # UNIT: u.solRad
-                    packetlist.append(make_packet('ys',
+                    packetlist.append(make_packet('vs',
                                                   body.mesh.centers[:,1],
                                                   time, info))
-                if 'zs' in info['mesh_columns']:
+                if 'ws' in info['mesh_columns']:
                     # UNIT: u.solRad
-                    packetlist.append(make_packet('zs',
+                    packetlist.append(make_packet('ws',
                                                   body.mesh.centers[:,2],
                                                   time, info))
 
-                if 'roche_xs' in info['mesh_columns']:
-                    packetlist.append(make_packet('roche_xs',
+                if 'vus' in info['mesh_columns']:
+                    packetlist.append(make_packet('vus',
+                                                  body.mesh.velocities.centers[:,0] * u.solRad/u.d,
+                                                  time, info))
+                if 'vvs' in info['mesh_columns']:
+                    packetlist.append(make_packet('vvs',
+                                                  body.mesh.velocities.centers[:,1] * u.solRad/u.d,
+                                                  time, info))
+                if 'vws' in info['mesh_columns']:
+                    packetlist.append(make_packet('vws',
+                                                  body.mesh.velocities.centers[:,2] * u.solRad/u.d,
+                                                  time, info))
+
+                # if 'uvw_normals' in info['mesh_columns']:
+                #     packetlist.append(make_packet('uvw_normals',
+                #                                   body.mesh.tnormals,
+                #                                   time, info))
+
+                if 'nus' in info['mesh_columns']:
+                    packetlist.append(make_packet('nus',
+                                                  body.mesh.tnormals[:,0],
+                                                  time, info))
+                if 'nvs' in info['mesh_columns']:
+                    packetlist.append(make_packet('nvs',
+                                                  body.mesh.tnormals[:,1],
+                                                  time, info))
+                if 'nws' in info['mesh_columns']:
+                    packetlist.append(make_packet('nws',
+                                                  body.mesh.tnormals[:,2],
+                                                  time, info))
+
+
+                if 'xs' in info['mesh_columns']:
+                    packetlist.append(make_packet('xs',
                                                   body.mesh.roche_centers[:,0],
                                                   time, info))
-                if 'roche_ys' in info['mesh_columns']:
-                    packetlist.append(make_packet('roche_ys',
+                if 'ys' in info['mesh_columns']:
+                    packetlist.append(make_packet('ys',
                                                   body.mesh.roche_centers[:,1],
                                                   time, info))
-                if 'roche_zs' in info['mesh_columns']:
-                    packetlist.append(make_packet('roche_zs',
+                if 'zs' in info['mesh_columns']:
+                    packetlist.append(make_packet('zs',
                                                   body.mesh.roche_centers[:,2],
                                                   time, info))
 
                 if 'vxs' in info['mesh_columns']:
                     packetlist.append(make_packet('vxs',
-                                                  body.mesh.velocities.centers[:,0] * u.solRad/u.d,
+                                                  body.mesh.roche_cvelocities[:,0] * u.solRad/u.d,
                                                   time, info))
                 if 'vys' in info['mesh_columns']:
                     packetlist.append(make_packet('vys',
-                                                  body.mesh.velocities.centers[:,1] * u.solRad/u.d,
+                                                  body.mesh.roche_cvelocities[:,1] * u.solRad/u.d,
                                                   time, info))
                 if 'vzs' in info['mesh_columns']:
                     packetlist.append(make_packet('vzs',
-                                                  body.mesh.velocities.centers[:,2] * u.solRad/u.d,
+                                                  body.mesh.roche_cvelocities[:,2] * u.solRad/u.d,
                                                   time, info))
+
+                # if 'xyz_normals' in info['mesh_columns']:
+                #     packetlist.append(make_packet('xyz_normals',
+                #                                   body.mesh.tnormals,
+                #                                   time, info))
+
+                if 'nxs' in info['mesh_columns']:
+                    packetlist.append(make_packet('nxs',
+                                                  body.mesh.roche_tnormals[:,0],
+                                                  time, info))
+                if 'nys' in info['mesh_columns']:
+                    packetlist.append(make_packet('nys',
+                                                  body.mesh.roche_tnormals[:,1],
+                                                  time, info))
+                if 'nzs' in info['mesh_columns']:
+                    packetlist.append(make_packet('nzs',
+                                                  body.mesh.roche_tnormals[:,2],
+                                                  time, info))
+
 
                 if 'areas' in info['mesh_columns']:
                     # UNIT: u.solRad**2
@@ -794,22 +845,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                                                   # body.mesh.tareas,
                                                   # time, info))
 
-                if 'normals' in info['mesh_columns']:
-                    packetlist.append(make_packet('normals',
-                                                  body.mesh.tnormals,
-                                                  time, info))
-                if 'nxs' in info['mesh_columns']:
-                    packetlist.append(make_packet('nxs',
-                                                  body.mesh.tnormals[:,0],
-                                                  time, info))
-                if 'nys' in info['mesh_columns']:
-                    packetlist.append(make_packet('nys',
-                                                  body.mesh.tnormals[:,1],
-                                                  time, info))
-                if 'nzs' in info['mesh_columns']:
-                    packetlist.append(make_packet('nzs',
-                                                  body.mesh.tnormals[:,2],
-                                                  time, info))
+
+
 
                 if 'rs' in info['mesh_columns']:
                     packetlist.append(make_packet('rs',
