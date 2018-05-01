@@ -288,7 +288,7 @@ def mesh(**kwargs):
 
     obs_params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', ['t0@system']), description='append to times from the following datasets/time standards', choices=['t0@system'])]
 
-    obs_params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', ['teffs']), description='columns to expose within the mesh', choices=_mesh_columns)]
+    obs_params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', []), description='columns to expose within the mesh', choices=_mesh_columns)]
     #obs_params += mesh_dep(**kwargs).to_list()
 
     return ParameterSet(obs_params), constraints
