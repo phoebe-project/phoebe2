@@ -895,8 +895,7 @@ class Body(object):
 
             elif self.distortion_method in ['rotstar']:
                 Phi = libphoebe.rotstar_Omega_at_vol(target_volume,
-                                                     omega,
-                                                     Omega0=Phi if Phi>self.Phi else self.Phi)
+                                                     omega)
 
                 F = self.F
 

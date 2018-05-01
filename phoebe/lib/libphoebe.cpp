@@ -1542,7 +1542,20 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
 
   double av[2] = {0,0};
 
-  rot_star::area_volume(av, res_choice, Omega0, omega);
+  switch (rot_star::area_volume(av, res_choice, Omega0, omega)) {
+    case -1: 
+    report_error(fname + "::No calculations are requested");
+    return NULL;
+   
+    case 1:
+    report_error(fname + 
+      "::There is no solution for equator." +
+      " Omega0=" + std::to_string(Omega0) +
+      " omega=" + std::to_string(omega) +
+      " t=" + std::to_string(27*omega*omega/(Omega0*Omega0*Omega0)/8)
+      );
+    return NULL;
+  }
 
   PyObject *results = PyDict_New();
 
@@ -1661,7 +1674,20 @@ static PyObject *rotstar_misaligned_area_volume(PyObject *self, PyObject *args, 
 
   double av[2] = {0,0};
 
-  rot_star::area_volume(av, res_choice, Omega0, omega);
+  switch (rot_star::area_volume(av, res_choice, Omega0, omega)) {
+    case -1: 
+    report_error(fname + "::No calculations are requested");
+    return NULL;
+   
+    case 1:
+    report_error(fname + 
+      "::There is no solution for equator." +
+      " Omega0=" + std::to_string(Omega0) +
+      " omega=" + std::to_string(omega) +
+      " t=" + std::to_string(27*omega*omega/(Omega0*Omega0*Omega0)/8)
+      );
+    return NULL;
+  }
 
   PyObject *results = PyDict_New();
 
@@ -2268,16 +2294,6 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     vol: float - volume of the star's lobe
     omega: float  - parameter of the potential
   
-  keywords: (optional)
-    Omega0: float
-      guess for value potential Omega1
-    precision: float, default 1e-12
-      aka relative precision
-    accuracy: float, default 1e-12
-      aka absolute precision
-    max_iter: integer, default 100
-      maximal number of iterations in the Newton-Raphson
-
   Returns:
 
     Omega1 : float
@@ -2297,71 +2313,25 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
   char *kwlist[] = {
     (char*)"vol",
     (char*)"omega",
-    (char*)"Omega0",
-    (char*)"precision",
-    (char*)"accuracy",
-    (char*)"max_iter",
     NULL};
 
-  double
-    vol, omega,
-    Omega0 = nan(""),
-    precision = 1e-12,
-    accuracy = 1e-12;
-
-  int max_iter = 100;
+  double vol, omega;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dd|dddi", kwlist,
-      &vol, &omega, 
-      &Omega0,
-      &precision,
-      &accuracy,
-      &max_iter
-      )
+      args, keywds,  "dd", kwlist,
+      &vol, &omega)
     ) {
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
-
-  // if Omega0 == NaN  then Omega1 estimate not given 
-  // therefore we  estimate Omega1 
-  if (std::isnan(Omega0)) {
-    double r1 = std::cbrt(vol*3/utils::m_4pi);
-    Omega0 = 1/r1 + 0.5*utils::sqr(omega*r1);
-  }
-
-  int it = 0;
-
-  double Omega = Omega0, dOmega, V[2] = {0,0};
-
-  #if defined(DEBUG)
-  std::cout.precision(16); std::cout << std::scientific;
-  #endif
-  do {
-
-    rot_star::volume(V, 3, Omega, omega);
-
-    Omega -= (dOmega = (V[0] - vol)/V[1]);
- 
-    #if defined(DEBUG)
-    std::cout
-      << "Omega=" << Omega
-      << "\tvol=" << vol
-      << "\tV[0]= " << V[0]
-      << "\tV[1]= " << V[1]
-      << "\tdOmega=" << dOmega << '\n';
-    #endif
   
-  } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
-
-  if (!(it < max_iter)){
-    report_error(fname + "::Maximum number of iterations exceeded");
+  double Omega = rot_star::Omega_at_vol(vol, omega);
+  
+  if (std::isnan(Omega)){
+    report_error(fname + "::Problem determining Omega. See cerr outputs.");
     return NULL;
   }
-  // We use the condition on the argument (= Omega) ~ constraining backward error,
-  // but we could also use condition on the value (= Volume) ~ constraing forward error
-
+  
   return PyFloat_FromDouble(Omega);
 }
 #if defined(DEBUG)
@@ -2404,8 +2374,6 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
       s = [sin(angle), 0, cos(angle)]
     or in canonical coordinate system:
       1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
-    Omega0:float
-      guess for value potential Omega1
     precision: float, default 1e-12
       aka relative precision
     accuracy: float, default 1e-12
@@ -2433,75 +2401,31 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
     (char*)"vol",
     (char*)"omega",
     (char*)"misalignment",
-    (char*)"Omega0",
-    (char*)"precision",
-    (char*)"accuracy",
-    (char*)"max_iter",
     NULL};
 
-  double
-    vol, omega,
-    Omega0 = nan(""),
-    precision = 1e-12,
-    accuracy = 1e-12;
+  double vol, omega;
 
   PyObject *o_misalignment;
 
-  int max_iter = 100;
-
   if (!PyArg_ParseTupleAndKeywords(
-        args, keywds,  "dd|Odddi", kwlist,
+        args, keywds,  "dd|O", kwlist,
         &vol,
         &omega,
-        &o_misalignment,
-        &Omega0,
-        &precision,
-        &accuracy,
-        &max_iter)
+        &o_misalignment)
     ) {
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
 
   // Volume is independent of the spin orientation and is not read.
-
-  // if Omega0 == NaN then Omega1 estimate not given 
-  // therefore we  estimate Omega1 
-  if (std::isnan(Omega0)) {
-    double r1 = std::cbrt(vol*3/utils::m_4pi);
-    Omega0 = 1/r1 + 0.5*utils::sqr(omega*r1);
-  }
-
-  int it = 0;
-
-  double Omega = Omega0, dOmega, V[2] = {0,0};
-
-  #if defined(DEBUG)
-  std::cout.precision(16); std::cout << std::scientific;
-  #endif
-  do {
-
-    rot_star::volume(V, 3, Omega, omega);
-
-    Omega -= (dOmega = (V[0] - vol)/V[1]);
-
-    #if defined(DEBUG)
-    std::cout
-      << "Omega=" << Omega
-      << "\tvol=" << vol
-      << "\tV[0]= " << V[0]
-      << "\tdOmega=" << dOmega << '\n';
-    #endif
-
-  } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
-
-  if (!(it < max_iter)){
-    report_error(fname + "::Maximum number of iterations exceeded");
+  
+  double Omega = rot_star::Omega_at_vol(vol, omega);
+  
+  if (std::isnan(Omega)){
+    report_error(fname + "::Problem determining Omega. See cerr outputs.");
     return NULL;
   }
-  // We use the condition on the argument (= Omega) ~ constraining backward error,
-  // but we could also use condition on the value (= Volume) ~ constraing forward error
-
+  
   return PyFloat_FromDouble(Omega);
 }
 
@@ -4732,8 +4656,6 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
     return NULL;
   }
 
-  std::cout << "rot. star spin=" << spin[0] <<' ' << spin[1] << ' ' << spin[2] << '\n';
-  
   //
   // Storing results in dictioonary
   // https://docs.python.org/2/c-api/dict.html

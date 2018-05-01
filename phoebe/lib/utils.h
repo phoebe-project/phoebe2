@@ -36,6 +36,17 @@ namespace utils {
   T sqr(const T &x){ return x*x; }
   
   /*
+    Return cube of the value.
+    
+    Input: x
+    
+    Return: x^3
+  */
+  template <class T>
+  T cube(const T &x){ return x*x*x; }
+  
+
+  /*
     Calculate the max of 3D vector.
     
     Input:
@@ -842,33 +853,33 @@ namespace utils {
     First element in an sorted array in ascending order larger than target value.
     
     Input:
-      target: comparison value
-      arr: array to be searched
-      numElems: array length
+      t: comparison value
+      a: array to be searched
+      n: array length
       
     Return:
-      index of the first element larger than target, or -1 if 
-      target is out of bounds. if the lower boundary is
-      breached 0 is returned.
+      index of the first element larger than target, or 
+      -1 if target is out of bounds. 
+      0  if the lower boundary is breached 0
   */
-
-  int flt(const double & target, double *arr, const int &numElems) {
+  template <class T>
+  int flt(const T & t, const T *a, const int &n) {
        
     /* We only need to test the upper boundary; if the lower boundary is
      * breached if 0 is returned. The calling functions thus must test
      * against flt index < 1. */
     
-    if (target > arr[numElems-1]) return -1;
+    if (t > a[n-1]) return -1;
     
-    if (target < arr[0]) return 0;
+    if (t < a[0]) return 0;
    
-    int low = 0, high = numElems, mid;
+    int low = 0, high = n, mid;
  
     while (low != high) {
       
       mid = (low + high) >> 1;
       
-      if (arr[mid] <= target)
+      if (a[mid] <= t)
         low = mid + 1;
       else
         high = mid;
@@ -878,6 +889,30 @@ namespace utils {
   }
   
   
+  /*
+    Linear interpolation of points
+    
+      (x_i,y_i) i = 0, ..., n -1
+        
+    Input:
+      t: target value
+      n: number of points
+      x: array of independent values sorted in ascending order 
+      y: array of independent values
+    
+    Return:
+      linearly interpolated value of y at t
+  */
+  template <class T>
+  T lin_interp(const T & t, const int & n, const T *x, const T *y){
+    
+    int i  = flt(t, x, n);
+    
+    if (i == 0 || i == -1) return std::nan("");
+    
+    return (y[i]*(x[i] - t) + y[i-1]*(t - x[i-1]))/(x[i] - x[i-1]);
+  }
+
   /* 
    Giving the principal solution -- upper branch of the solution
    of the Lambert equation
