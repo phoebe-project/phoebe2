@@ -808,7 +808,7 @@ class Bundle(ParameterSet):
         pbdep_datasets = self.filter(context='dataset',
                                      kind=_dataset._pbdep_columns.keys()).datasets
 
-        pbdep_columns = _dataset._mesh_columns
+        pbdep_columns = _dataset._mesh_columns[:] # force deepcopy
         for pbdep_dataset in pbdep_datasets:
             pbdep_kind = self.filter(context='dataset',
                                      dataset=pbdep_dataset,
