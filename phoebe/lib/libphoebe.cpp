@@ -1549,8 +1549,8 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
    
     case 1:
     report_error(fname + 
-      "::There is no solution for equator." +
-      " Omega0=" + std::to_string(Omega0) +
+      "::There is no solution for equator. t is not in [0,1]\n" +
+      "Omega0=" + std::to_string(Omega0) +
       " omega=" + std::to_string(omega) +
       " t=" + std::to_string(27*omega*omega/(Omega0*Omega0*Omega0)/8)
       );
@@ -1681,8 +1681,8 @@ static PyObject *rotstar_misaligned_area_volume(PyObject *self, PyObject *args, 
    
     case 1:
     report_error(fname + 
-      "::There is no solution for equator." +
-      " Omega0=" + std::to_string(Omega0) +
+      "::There is no solution for equator. t is not in [0,1]\n" +
+      "Omega0=" + std::to_string(Omega0) +
       " omega=" + std::to_string(omega) +
       " t=" + std::to_string(27*omega*omega/(Omega0*Omega0*Omega0)/8)
       );
