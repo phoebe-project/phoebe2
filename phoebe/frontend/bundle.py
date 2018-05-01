@@ -370,7 +370,8 @@ class Bundle(ParameterSet):
 
         return b
 
-    def save(self, filename, clear_history=True, incl_uniqueid=False):
+    def save(self, filename, clear_history=True, incl_uniqueid=False,
+             compact=False):
         """Save the bundle to a JSON-formatted ASCII file.
 
         :parameter str filename: relative or full path to the file
@@ -379,6 +380,8 @@ class Bundle(ParameterSet):
         :parameter bool incl_uniqueid: whether to including uniqueids in the
             file (only needed if its necessary to maintain the uniqueids when
             reloading)
+        :parameter bool compact: whether to use compact file-formatting (maybe
+            be quicker to save/load, but not as easily readable)
         :return: the filename
         """
         if clear_history:
@@ -388,7 +391,8 @@ class Bundle(ParameterSet):
 
         # TODO: add option for clear_models, clear_feedback
 
-        return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid)
+        return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
+                                        compact=compact)
 
     def export_legacy(self, filename):
         """

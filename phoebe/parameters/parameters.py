@@ -14,7 +14,6 @@ import string
 import functools
 import itertools
 import re
-import json
 import sys
 import os
 import difflib
@@ -24,6 +23,14 @@ from fnmatch import fnmatch
 from copy import deepcopy
 import readline
 import numpy as np
+
+import json
+try:
+    import ujson
+except ImportError:
+    _can_ujson = False
+else:
+    _can_ujson = True
 
 import webbrowser
 from datetime import datetime
@@ -937,22 +944,39 @@ class ParameterSet(object):
         :return: instantiated :class:`ParameterSet` object
         """
         f = open(filename, 'r')
-        data = json.load(f)
+        if _can_ujson:
+            data = ujson.load(f)
+        else:
+            data = json.load(f)
         f.close()
         return cls(data)
 
-    def save(self, filename, incl_uniqueid=False):
+    def save(self, filename, incl_uniqueid=False, compact=False):
         """
         Save the ParameterSet to a JSON-formatted ASCII file
 
         :parameter str filename: relative or fullpath to the file
+        :parameter bool incl_uniqueid: whether to including uniqueids in the
+            file (only needed if its necessary to maintain the uniqueids when
+            reloading)
+        :parameter bool compact: whether to use compact file-formatting (maybe
+            be quicker to save/load, but not as easily readable)
         :return: filename
         :rtype: str
         """
 
         f = open(filename, 'w')
-        f.write(json.dumps(self.to_json(incl_uniqueid=incl_uniqueid),
-                           sort_keys=True, indent=0, separators=(',', ': ')))
+        if compact:
+            if _can_ujson:
+                ujson.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                           sort_keys=False, indent=0)
+            else:
+                logger.warning("for faster compact saving, install ujson")
+                json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                          sort_keys=False, indent=0)
+        else:
+            json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                      sort_keys=True, indent=0, separators=(',', ': '))
         f.close()
 
         return filename
@@ -3051,7 +3075,9 @@ class Parameter(object):
     def __dict__(self):
         """
         """
-        d =  {k: getattr(self,k) for k in self._dict_fields}
+        # including uniquetwig for everything can be VERY SLOW, so let's not
+        # include that in the dictionary
+        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig']}
         d['Class'] = self.__class__.__name__
         return d
 
@@ -3100,8 +3126,8 @@ class Parameter(object):
         """
 
         f = open(filename, 'w')
-        f.write(json.dumps(self.to_json(incl_uniqueid=incl_uniqueid),
-                           sort_keys=True, indent=0, separators=(',', ': ')))
+        json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                   sort_keys=True, indent=0, separators=(',', ': '))
         f.close()
 
         return filename
