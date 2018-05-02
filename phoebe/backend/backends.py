@@ -413,8 +413,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     # TODO: move as much of this pblum logic into mesh.py as possible
 
     enabled_ps = b.filter(qualifier='enabled', compute=compute, value=True)
-    kinds = enabled_ps.kinds
     datasets = enabled_ps.datasets
+    kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
 
     if 'lc' in kinds or 'rv' in kinds:  # TODO this needs to be WAY more general
 
@@ -430,17 +430,11 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
         system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
         for dataset in datasets:
-            ds = b.get_dataset(dataset=dataset).exclude(kind='*_dep')
-            kind = ds.kind
-
+            ds = b.get_dataset(dataset=dataset)
+            kind = ds.exclude(kind='*_dep').kind
             if kind not in ['lc']:
                 # only LCs need pblum scaling
                 continue
-
-            # TODO: remove this for-loop... it really doesn't do anything
-            # for component in ds.components:
-                # if component=='_default':
-                    # continue
 
             system.populate_observables(t0, [kind], [dataset],
                                         ignore_effects=True)
@@ -448,7 +442,6 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
             pblum_copy = {}
-            # for component in meshablerefs:
             for component in ds.filter(qualifier='pblum_ref').components:
                 if component=='_default':
                     continue
