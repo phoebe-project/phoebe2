@@ -1076,6 +1076,13 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
     1/gen_roche::poleL(Omega0, q, F, delta)
   };
 
+
+  if (utils::sqr(data[0])/utils::cube(data[1])> 8./27) {
+    report_error(fname + "::The lobe does not exist.");
+    return NULL;
+  }
+  
+
   return PyArray_FromVector(2, data);
 }
 
@@ -1190,6 +1197,12 @@ static PyObject *rotstar_misaligned_from_roche_misaligned(
     r_omega = F*std::sqrt(1 + q),
     r_Omega = 1/misaligned_roche::poleL_height(Omega0, q, F, delta, spin, 0);
 
+
+  if (utils::sqr(r_omega)/utils::cube(r_Omega)> 8./27) {
+    report_error(fname + "::The lobe does not exist.");
+    return NULL;
+  }
+  
   PyObject *results = PyDict_New();
 
   PyDict_SetItemStringStealRef(results, "omega", PyFloat_FromDouble(r_omega));
