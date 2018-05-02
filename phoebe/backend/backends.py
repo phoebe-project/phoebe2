@@ -1466,12 +1466,12 @@ def photodynam(b, compute, times=[], **kwargs):
         elif info['kind']=='orb':
             cind = starrefs.index(info['component'])
             this_syn['times'] = stuff[0] * u.d
-            this_syn['xs'] = -1*stuff[2+(cind*3)] * u.AU
-            this_syn['ys'] = -1*stuff[3+(cind*3)] * u.AU
-            this_syn['zs'] = stuff[4+(cind*3)] * u.AU
-            this_syn['vxs'] = -1*stuff[3*nbodies+2+(cind*3)] * u.AU/u.d
-            this_syn['vys'] = -1*stuff[3*nbodies+3+(cind*3)] * u.AU/u.d
-            this_syn['vzs'] = stuff[3*nbodies+4+(cind*3)] * u.AU/u.d
+            this_syn['us'] = -1*stuff[2+(cind*3)] * u.AU
+            this_syn['vs'] = -1*stuff[3+(cind*3)] * u.AU
+            this_syn['ws'] = stuff[4+(cind*3)] * u.AU
+            this_syn['vus'] = -1*stuff[3*nbodies+2+(cind*3)] * u.AU/u.d
+            this_syn['vvs'] = -1*stuff[3*nbodies+3+(cind*3)] * u.AU/u.d
+            this_syn['vws'] = stuff[3*nbodies+4+(cind*3)] * u.AU/u.d
         elif info['kind']=='rv':
             cind = starrefs.index(info['component'])
             this_syn['times'] = stuff[0] * u.d
