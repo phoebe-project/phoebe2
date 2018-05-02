@@ -6,7 +6,7 @@ invlam, Klam55, dKdR = np.loadtxt('fm18.txt', unpack=True)
 
 extinct_func = interpolate.splrep(invlam, Klam55, k=3, s=0)
 dKdR_func = interpolate.splrep(invlam, dKdR, k=3, s=0)
-extinct = lambda invwl, R: interpolate.splev(invwl, extinct_func) + interpolate.splev(invwl, dKdR_func) * (R-3.1)
+extinct = lambda invwl, R: interpolate.splev(invwl, extinct_func) + 0.9934*interpolate.splev(invwl, dKdR_func) * (R-3.1)
 
 invl = np.linspace(invlam[0], invlam[-1], 1000)
 
