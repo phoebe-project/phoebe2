@@ -382,9 +382,9 @@ def mesh_syn(syn=True, **kwargs):
 
 
             if 'rs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Distance of each triangle from center of mass')]
+                syn_params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), default_unit=u.solRad, description='Distance of each triangle from center of mass')]
             # if 'cosbetas' in columns:
-            #     syn_params += [FloatArrayParameter(qualifier='cosbetas', time=t, value=kwargs.get('cosbetas', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='')]
+            #     syn_params += [FloatArrayParameter(qualifier='cosbetas', time=t, value=kwargs.get('cosbetas', []), default_unit=u.solRad, description='')]
 
 
             if 'loggs' in columns:
