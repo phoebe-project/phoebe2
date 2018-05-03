@@ -1144,7 +1144,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                                                 component=info['component'],
                                                 dataset=info['dataset'])
 
-            phb1.setpar(proximity_par, rv_method=='numerical')
+            phb1.setpar(proximity_par, rv_method=='flux-weighted')
 
             rvs = np.array(rv_call(tuple(info['times'].tolist()), rvind))
             this_syn.set_value('rvs', rvs*u.km/u.s)
