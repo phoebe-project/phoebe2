@@ -156,9 +156,9 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
     # now have their own entries.)
 
     for dataset in b.filter(qualifier='enabled', compute=compute, value=True).datasets:
-        dataset_ps = b.filter(context='dataset', dataset=dataset).exclude(kind='*_dep')
+        dataset_ps = b.filter(context='dataset', dataset=dataset)
         dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, check_visible=False)
-        dataset_kind = dataset_ps.kind
+        dataset_kind = dataset_ps.exclude(kind='*_dep').kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
         if dataset_kind in ['lc']:
             dataset_components = [None]
