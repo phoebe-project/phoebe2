@@ -449,7 +449,7 @@ static PyObject *roche_misaligned_transf(PyObject *self, PyObject *args) {
 
   and returns a float
 
-    omega:  float
+    Omega_critical:  float
 */
 
 static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
@@ -505,7 +505,7 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
 
   and returns a float
 
-    omega:  float
+    Omega_critical:  float
 */
 
 static PyObject *rotstar_misaligned_critical_potential(PyObject *self, PyObject *args) {
@@ -2319,8 +2319,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   Returns:
 
     Omega1 : float
-      value of the Kopal potential for (q,F,d1) such that volume
-      is equal to the case (q,F,d,Omega0)
+    value of the Kopal potential at omega and lobe volume
 */
 
 //#define DEBUG
@@ -2398,12 +2397,12 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
       s = [sin(angle), 0, cos(angle)]
     or in canonical coordinate system:
       1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
-
+    Note:
+      misaligned does not affect the volume and therefore is ignored
   Returns:
 
     Omega1 : float
-      value of the Kopal potential for (q,F,d1) such that volume
-      is equal to the case (q,F,d,Omega0)
+      value of the Kopal potential at omega and lobe volume
 */
 
 //#define DEBUG
@@ -2434,8 +2433,6 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
-
-  // Volume is independent of the spin orientation and is not read.
   
   double Omega = rot_star::Omega_at_vol(vol, omega);
   
@@ -2715,8 +2712,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   Returns:
 
     Omega1 : float
-      value of the Kopal potential for (q,F,d1) such that volume
-      is equal to the case (q,F,d,Omega0)
+      value of the Kopal potential at volume vol
 */
 
 //#define DEBUG
