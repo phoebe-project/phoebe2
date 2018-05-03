@@ -493,6 +493,10 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
   where parameters are
 
     omega: float - parameter of the potential
+           Note: 
+           for comparison to Roche model (a=1) : omega = F sqrt(1+q), 
+           for independent star of mass M : omega = angular velocity/sqrt(G M)
+          
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
               s = [sin(angle), 0, cos(angle)]
@@ -916,6 +920,9 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
 
   positionals:
     omega: float - parameter of the potential
+           Note: 
+           for comparison to Roche model (a=1): omega = F sqrt(1+q), 
+           for independent star of mass M : omega = angular velocity/sqrt(G M)
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
       s = [sin(angle), 0, cos(angle)]
@@ -1604,6 +1611,8 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
 
   positionals:
     omega: float - parameter of the potential
+      Note: for comparison to roche : omega = F sqrt(1+q), 
+          for independent star of mass M : omega = angular velocity/sqrt(G M)
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
               s = [sin(angle), 0, cos(angle)]
@@ -2354,7 +2363,7 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
 /*
   C++ wrapper for Python code:
 
-  Calculate the value of potential Omega1 of arotating star with
+  Calculate the value of potential Omega1 of a rotating star with
   misalignment at parameter omega, spin s and star's volume equal to vol.
 
   The  rotating star is defined as equipotential of the generalized
@@ -2379,7 +2388,9 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
 
   positionals:
     vol: float - volume of the star's lobe
-    omega: float  - parameter of the potential
+    omega: float  - parameter of the potential 
+    Note: for comparison to roche : omega = F sqrt(1+q), 
+          for independent star of mass M : omega = angular velocity/sqrt(G M)
    
   keywords: (optional)
    misalignment:  in rotated coordinate system:
@@ -2387,12 +2398,6 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
       s = [sin(angle), 0, cos(angle)]
     or in canonical coordinate system:
       1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
-    precision: float, default 1e-12
-      aka relative precision
-    accuracy: float, default 1e-12
-      aka absolute precision
-    max_iter: integer, default 100
-      maximal number of iterations in the Newton-Raphson
 
   Returns:
 
@@ -2688,6 +2693,65 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 /*
   C++ wrapper for Python code:
 
+  Calculate the value of potential Omega1 of spherical star with 
+  volume equal to vol. The star has the Kopal potential:
+
+    Omega(x,y,z) = 1/|r|
+    
+  with
+    r = {x, y, z}
+  
+  Note: Misalignment does not make sense in spherical stars.
+
+  Python:
+
+    Omega1 = sphere_Omega_at_vol(vol)
+
+  where parameters are
+
+  positionals:
+    vol: float - volume of the star's lobe, vol = 4 Pi/3 r^3
+  
+  Returns:
+
+    Omega1 : float
+      value of the Kopal potential for (q,F,d1) such that volume
+      is equal to the case (q,F,d,Omega0)
+*/
+
+//#define DEBUG
+static PyObject *sphere_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  auto fname = "sphere_Omega_at_vol"_s;
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"vol",
+    NULL};
+
+  double vol;
+
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds,  "d", kwlist,
+        &vol)
+    ) {
+    report_error(fname + "::Problem reading arguments");
+    return NULL;
+  }
+  
+  double r = std::cbrt(0.75*vol/(utils::m_pi));   // radius = 3 V/(4 Pi)
+  
+  return PyFloat_FromDouble(1/r);
+}
+
+
+
+/*
+  C++ wrapper for Python code:
+
   Calculate the gradient and the value of the potential of the generalized
   Kopal potential Omega at a given point
 
@@ -2830,6 +2894,9 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
   with parameters
 
     omega: float - parameter of the potential
+          Note: 
+          for comparison to Roche model (a=1) : omega = F sqrt(1+q), 
+          for independent star of mass M : omega = angular velocity/sqrt(G M)
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
       s = [sin(angle), 0, cos(angle)]
@@ -3182,6 +3249,9 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
   with parameters
 
     omega: float - parameter of the potential
+          Note: 
+          for comparison to Roche model (a=1): omega = F sqrt(1+q), 
+          for independent star of mass M : omega = angular velocity/sqrt(G M)
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
               s = [sin(angle), 0, cos(angle)]
@@ -4452,6 +4522,9 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
 
     positional:
       omega: float - parameter of the potential
+          Note: 
+          for comparison to Roche model (a=1): omega = F sqrt(1+q), 
+          for independent star of mass M : omega = angular velocity/sqrt(G M)
       misalignment:  in rotated coordinate system:
         float - angle between spin and orbital angular velocity vectors [rad]
               s = [sin(angle), 0, cos(angle)]
@@ -8048,6 +8121,9 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
   positionals: necessary
     v[3] - 1-rank numpy array of floats: direction of the viewer
     omega: float - parameter of the potential
+           Note: 
+           for comparison to Roche model (a=1): omega = F sqrt(1+q), 
+           for independent star of mass M : omega = angular velocity/sqrt(G M)
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
               s = [sin(angle), 0, cos(angle)]
@@ -10126,7 +10202,6 @@ static PyMethodDef Methods[] = {
     "Determine the value of the generalized Kopal potential at "
     "values of q, F, d and volume."},
 
-
   { "rotstar_Omega_at_vol",
     (PyCFunction)rotstar_Omega_at_vol,
     METH_VARARGS|METH_KEYWORDS,
@@ -10146,6 +10221,11 @@ static PyMethodDef Methods[] = {
     "Roche lobes with with misaligned spin and orbtal angular "
     "velocity vectors at values of q, F, d, misalignment(theta or direction) "
     "and volume."},
+
+  { "sphere_Omega_at_vol",
+    (PyCFunction)sphere_Omega_at_vol,
+    METH_VARARGS|METH_KEYWORDS,
+    "Determine the value of the spherical star potential at given volume."},
 
 // --------------------------------------------------------------------
 
