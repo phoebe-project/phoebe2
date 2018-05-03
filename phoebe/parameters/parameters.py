@@ -14,7 +14,6 @@ import string
 import functools
 import itertools
 import re
-import json
 import sys
 import os
 import difflib
@@ -24,6 +23,14 @@ from fnmatch import fnmatch
 from copy import deepcopy
 import readline
 import numpy as np
+
+import json
+try:
+    import ujson
+except ImportError:
+    _can_ujson = False
+else:
+    _can_ujson = True
 
 import webbrowser
 from datetime import datetime
@@ -118,7 +125,7 @@ _forbidden_labels += ['lc', 'lc_dep', 'lc_syn',
 
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
-                      'unit', 'timederiv', 'visible_if', 'description']
+                      'unit', 'timederiv', 'visible_if', 'description', 'result']
 # _forbidden_labels += ['parent', 'child']
 _forbidden_labels += ['protomesh', 'pbmesh']
 _forbidden_labels += ['component']
@@ -939,22 +946,39 @@ class ParameterSet(object):
         :return: instantiated :class:`ParameterSet` object
         """
         f = open(filename, 'r')
-        data = json.load(f)
+        if _can_ujson:
+            data = ujson.load(f)
+        else:
+            data = json.load(f)
         f.close()
         return cls(data)
 
-    def save(self, filename, incl_uniqueid=False):
+    def save(self, filename, incl_uniqueid=False, compact=False):
         """
         Save the ParameterSet to a JSON-formatted ASCII file
 
         :parameter str filename: relative or fullpath to the file
+        :parameter bool incl_uniqueid: whether to including uniqueids in the
+            file (only needed if its necessary to maintain the uniqueids when
+            reloading)
+        :parameter bool compact: whether to use compact file-formatting (maybe
+            be quicker to save/load, but not as easily readable)
         :return: filename
         :rtype: str
         """
 
         f = open(filename, 'w')
-        f.write(json.dumps(self.to_json(incl_uniqueid=incl_uniqueid),
-                           sort_keys=True, indent=0, separators=(',', ': ')))
+        if compact:
+            if _can_ujson:
+                ujson.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                           sort_keys=False, indent=0)
+            else:
+                logger.warning("for faster compact saving, install ujson")
+                json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                          sort_keys=False, indent=0)
+        else:
+            json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                      sort_keys=True, indent=0, separators=(',', ': '))
         f.close()
 
         return filename
@@ -1421,6 +1445,9 @@ class ParameterSet(object):
             elif twigsplit[0] == 'choices':
                 twig = '@'.join(twigsplit[1:])
                 method = 'get_choices'
+            elif twigsplit[0] == 'result':
+                twig = '@'.join(twigsplit[1:])
+                method = 'get_result'
 
             # twigsplit = re.findall(r"[\w']+", twig)
             twigsplit = twig.split('@')
@@ -3097,7 +3124,9 @@ class Parameter(object):
     def __dict__(self):
         """
         """
-        d =  {k: getattr(self,k) for k in self._dict_fields}
+        # including uniquetwig for everything can be VERY SLOW, so let's not
+        # include that in the dictionary
+        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig']}
         d['Class'] = self.__class__.__name__
         return d
 
@@ -3146,8 +3175,8 @@ class Parameter(object):
         """
 
         f = open(filename, 'w')
-        f.write(json.dumps(self.to_json(incl_uniqueid=incl_uniqueid),
-                           sort_keys=True, indent=0, separators=(',', ': ')))
+        json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                   sort_keys=True, indent=0, separators=(',', ': '))
         f.close()
 
         return filename
@@ -3237,7 +3266,7 @@ class Parameter(object):
         """
         # need to force formatting because of the different way numpy.float64 is
         # handled before numpy 1.14.  See https://github.com/phoebe-project/phoebe2/issues/247
-        return '{:09f}'.format(self._time) if self._time is not None else None
+        return '{:09f}'.format(float(self._time)) if self._time is not None else None
 
     @property
     def history(self):
@@ -3885,7 +3914,15 @@ class ChoiceParameter(Parameter):
             logger.info("downloading passband: {}".format(value))
             download_passband(value)
 
-        self._value = value
+            # run_checks if requested (default)
+            if run_checks is None:
+                run_checks = conf.interactive_checks
+            if run_checks and self._bundle:
+                passed, msg = self._bundle.run_checks()
+                if not passed:
+                    # passed is either False (failed) or None (raise Warning)
+                    msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
+                    logger.warning(msg)
 
         # run_checks if requested (default)
         if run_checks is None:
@@ -4426,6 +4463,10 @@ class FloatParameter(Parameter):
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
 
+        if isinstance(value, tuple) and (len(value) !=2 or isinstance(value[1], float) or isinstance(value[1], int)):
+            # allow passing tuples (this could be a FloatArrayParameter - if it isn't
+            # then this array will fail _check_type below)
+            value = np.asarray(value)
         # accept tuples (ie 1.2, 'rad') from dictionary access
         if isinstance(value, tuple) and unit is None:
             value, unit = value
@@ -4485,7 +4526,7 @@ class FloatParameter(Parameter):
             self._value = value
 
         if run_constraints is None:
-            run_constraints = conf.interactive
+            run_constraints = conf.interactive_constraints
         if run_constraints:
             for constraint_id in self._in_constraints:
                 #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
@@ -4499,11 +4540,12 @@ class FloatParameter(Parameter):
 
         # run_checks if requested (default)
         if run_checks is None:
-            run_checks = conf.interactive
+            run_checks = conf.interactive_checks
         if run_checks and self._bundle:
             passed, msg = self._bundle.run_checks()
             if not passed:
                 # passed is either False (failed) or None (raise Warning)
+                msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                 logger.warning(msg)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
@@ -4799,7 +4841,7 @@ class FloatArrayParameter(FloatParameter):
         elif isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
 
-        elif not (isinstance(value, list) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
+        elif not (isinstance(value, list) or isinstance(value, tuple) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise TypeError("value '{}' ({}) could not be cast to array".format(value, type(value)))
 

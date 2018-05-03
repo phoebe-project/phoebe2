@@ -8,8 +8,10 @@ except ImportError:
 
 from numpy.distutils.core import setup, Extension
 from numpy.distutils.command.build_ext import build_ext
+from numpy.distutils.command.build_py import build_py
 
 from distutils.version import LooseVersion, StrictVersion
+from distutils.cmd import Command
 
 import platform
 import os
@@ -68,8 +70,8 @@ def check_compiler(compiler, extensions, compiler_name):
   plat = platform.system()
   plat_ver = platform.release();
   
-  print("**platform=%s***" %(plat))
-  print("**platform_version=%s***" %(plat_ver))
+  print("OS: %s" %(plat))
+  print("OS version: %s" %(plat_ver))
   
   if plat == 'Windows':
     
@@ -82,8 +84,8 @@ def check_compiler(compiler, extensions, compiler_name):
     s = os.popen(compiler_name + " --version").readline().strip()
     
     # debug output
-    print("***compiler_name=%s***"%(compiler_name))
-    print("***version=%s***"%(s))
+    print("Compiler: %s"%(compiler_name))
+    print("Compiler version: %s"%(s))
 
     compiler_found = False;
     version_ok = False;
@@ -180,7 +182,7 @@ def check_compiler(compiler, extensions, compiler_name):
             version_ok = LooseVersion(ver) >= LooseVersion("1600")
             compiler_found = True
       except:
-        print("Unable to make a test program to determine compiler.")
+        print("Unable to build a test program to determine the compiler.")
         status = False
       
       # Cleanup
@@ -190,17 +192,17 @@ def check_compiler(compiler, extensions, compiler_name):
     
     if compiler_found:  
       if version_ok:
-        print("Ready to compile. Compiler: name=%s, version=%s"%(name, ver))
+        print("Ready to compile with %s %s." % (name, ver))
         status = True
       else:
-        print("Compiler is too old. Compiler: name=%s, version=%s"%(name, ver))
+        print("Compiler is too old. PHOEBE requires gcc 5.0, clang 3.3, or icc 1600 or above.\nThe found compiler is %s %s." % (name, ver))
         status = False
     else:
-      print("Did not recognize compiler name=%s" % (compiler_name))
+      print("Did not recognize the compiler %s." % (compiler_name))
       status = False
   
   else:
-    print("Unknown architecture. Hope it goes well.")
+    print("Unknown architecture, so no pre-checks done. Please report in the case of build failure.")
     status = True
   
   return status
@@ -216,15 +218,76 @@ class build_check(build_ext):
        ):
       
       for e in self.extensions:
-        print("***extra_args=%s***"%(e.extra_compile_args))
+        print("  extra_args=%s"%(e.extra_compile_args))
         
       build_ext.build_extensions(self)
     else:
-      print("Quitting setup.py of phoebe2.")
+      print("Cannot build phoebe2. Please check the dependencies and try again.")
       sys.exit(1) 
 #
 # Setting up the external modules
 #
+
+class import_check(Command):
+  description = "Checks python modules needed to successfully import phoebe"
+  user_options = []
+
+  def initialize_options(self):
+    pass
+  
+  def finalize_options(self):
+    pass
+  
+  def run(self):
+    required, optional = [], []
+    try:
+      import astropy
+      astropy_version = astropy.__version__
+      if LooseVersion(astropy_version) < LooseVersion('1.0'):
+        required.append('astropy 1.0+')
+    except:
+      required.append('astropy')
+    try:
+      import scipy
+      scipy_version = scipy.__version__
+      if LooseVersion(scipy_version) < LooseVersion('0.1'):
+        required.append('scipy 0.1+')
+    except:
+      required.append('scipy')
+    try:
+      import matplotlib
+      mpl_version = matplotlib.__version__
+      if LooseVersion(mpl_version) < LooseVersion('1.4.3'):
+        optional.append('matplotlib 1.4.3+')
+    except:
+      optional.append('matplotlib')
+    try:
+      import sympy
+      sympy_version = sympy.__version__
+      if LooseVersion(sympy_version) < StrictVersion('1.0'):
+        optional.append('sympy 1.0+')
+    except:
+      optional.append('sympy')
+
+    if required == []:
+      print('All required import dependencies satisfied.')
+    else:
+      print('NOTE: while all the build dependencies are satisfied, the following import dependencies')
+      print('      are still missing: %s.' % required)
+      print('      You will not be able to import phoebe before you install those dependencies.')
+
+    if optional == []:
+      print('All optional import dependencies satisfied.')
+    else:
+      print('NOTE: while all the build dependencies are satisfied, the following optional dependencies')
+      print('      are still missing: %s.' % optional)
+      print('      Some of the core phoebe functionality will be missing until you install those dependencies.')
+
+class PhoebeBuildCommand(build_py):
+  def run(self):
+    build_py.run(self)
+    self.run_command('build_ext')
+    self.run_command('check_imports')
 
 ext_modules = [
     Extension('libphoebe',
@@ -249,12 +312,16 @@ setup (name = 'phoebe',
        description = 'PHOEBE devel',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
-       url = 'http://github.com/phoebe-project/phoebe2',
+       url = 'http://phoebe-project.org',
        download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.0.5',
        packages = ['phoebe', 'phoebe.constants', 'phoebe.parameters', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.utils'],
        install_requires=['numpy>=1.10','scipy>=0.17','astropy>=1.0'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                     },
        ext_modules = ext_modules,
-       cmdclass = {'build_ext': build_check}
-       )
+       cmdclass = {
+         'build_ext': build_check,
+         'check_imports': import_check,
+         'build_py': PhoebeBuildCommand
+        }
+      )
