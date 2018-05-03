@@ -2508,6 +2508,11 @@ class Bundle(ParameterSet):
             self.as_client(False)
             return self.get_model(model)
 
+        # distortion_method was a compute option in 2.0.x but is now a Parameter
+        # of the star@component
+        if 'distortion_method' in kwargs.keys():
+            raise ValueError("distortion_method is no longer a compute option")
+
         if model is None:
             model = 'latest'
 
