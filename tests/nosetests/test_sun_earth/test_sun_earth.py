@@ -16,11 +16,12 @@ BLACKBODY = True
 
 
 def initiate_sun_earth_system(pb_str):
-  
+
     b = phoebe.Bundle.default_binary()
-  
+
     b.add_dataset('lc', times=[0.75,], dataset='lc01', passband=pb_str)
-      
+    b.add_dataset('mesh', columns=['areas', 'mus', 'visibilities', 'abs_intensities@lc01'], dataset='mesh01')
+
     b['pblum@primary'] = 1.*u.solLum #* 0.99 # 0.99 is bolometric correction
     b['teff@primary'] = 1.*u.solTeff
     b['rpole@primary'] = 1.*u.solRad
@@ -35,7 +36,7 @@ def initiate_sun_earth_system(pb_str):
     b['syncpar@secondary'] = 365.25
 
     b['distance@system'] = (1, 'au')
-    
+
     b.set_value_all('irrad_method', 'none')
 
     if BLACKBODY:
@@ -51,32 +52,32 @@ def initiate_sun_earth_system(pb_str):
     return b
 
 def integrated_flux(b, pb):
-  
+
   r = b['value@abs_intensities@primary']
-  r *= b['areas@primary@pbmesh'].get_value(unit=u.m**2)
-  r *= b['value@mus@primary@pbmesh']
-  r *= b['value@visibilities@primary@pbmesh']
-  
+  r *= b['areas@primary@mesh01'].get_value(unit=u.m**2)
+  r *= b['value@mus@primary@mesh01']
+  r *= b['value@visibilities@primary@mesh01']
+
   return np.sum(r)*pb.ptf_area/b['value@distance@system']**2
-  
+
 
 def _planck(lam, Teff):
     return 2*c.h.si.value*c.c.si.value*c.c.si.value/lam**5 * 1./(np.exp(c.h.si.value*c.c.si.value/lam/c.k_B.si.value/Teff)-1)
-    
+
 
 def sun_earth_result():
 
   pb_str = 'Bolometric:900-40000'
   mypb = phoebe.atmospheres.passbands.get_passband(pb_str)
 
-  # theoretical result: Planck formula + passband, no limb-darkening 
+  # theoretical result: Planck formula + passband, no limb-darkening
   sedptf = lambda w: _planck(w, c.T_sun.si.value)*mypb.ptf(w)
   sb_flux = np.pi*integrate.quad(sedptf, mypb.ptf_table['wl'][0], mypb.ptf_table['wl'][-1])[0] # Stefan-Boltzmann flux
- 
+
   # fixed point observer
   #~ xi = ((1*u.solRad).si.value/c.au.si.value)**2
   #~ iflux0 = sb_flux*xi*2/(1 + np.sqrt(1 - xi))
-  
+
   # fixed direction of observation
   #~ xi = (1*u.solRad).si.value/c.au.si.value
   #~ iflux0 = sb_flux*(xi**2)*(1 + 4*xi/3 + xi**2)
@@ -93,34 +94,33 @@ def sun_earth_result():
     b['ntriangles@primary'] = Nt
     b['ntriangles@secondary'] = Nt
 
-    b.run_compute(protomesh=False, pbmesh=True, mesh_offset=True)
-    
+    b.run_compute(mesh_offset=True)
+
     opts = (b['value@q@orbit'], b['value@syncpar@primary'], 1., b['value@pot@primary@component'])
     area0 = libphoebe.roche_area_volume(*opts)['larea']
     area0 *= b['value@sma@orbit']**2
-    
-    area = np.sum(b['value@areas@primary@pbmesh'])
+
+    area = np.sum(b['value@areas@primary@mesh01'])
     iflux = integrated_flux(b, mypb)
-    
+
     res.append([Nt, area/area0-1, iflux/iflux0-1])
-  
-  return np.array(res)  
+
+  return np.array(res)
 
 
 def test_sun_earth(print_results = False, save_results = False):
   res = sun_earth_result()
-  
+
   if print_results:
     print(res)
 
   if save_results:
     np.savetxt("res.txt", res)
-  
+
   assert(np.abs(res[:,1]).max > 1e-14)
   assert(np.abs(res[:,2]).max > 1e-5)
-    
+
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
-    
-    res = test_sun_earth(print_results = True, save_results = True)
 
+    res = test_sun_earth(print_results = True, save_results = True)
