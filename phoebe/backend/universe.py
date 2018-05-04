@@ -93,8 +93,6 @@ class System(object):
                 compute_ps = compute
             eclipse_method = compute_ps.get_value(qualifier='eclipse_method', **kwargs)
             horizon_method = compute_ps.get_value(qualifier='horizon_method', check_visible=False, **kwargs)
-            # subdiv_alg = 'edge' #compute_ps.get_value(qualifier='subdiv_alg', **kwargs)
-            # subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             irrad_method = compute_ps.get_value(qualifier='irrad_method', **kwargs)
             boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
@@ -105,8 +103,6 @@ class System(object):
         else:
             eclipse_method = 'native'
             horizon_method = 'boolean'
-            # subdiv_alg = 'edge'
-            # subdiv_num = 3
             dynamics_method = 'keplerian'
             irrad_method = 'none'
             boosting_method = 'none'
@@ -118,9 +114,6 @@ class System(object):
         if 'dynamics_method' in kwargs.keys():
             # already set as default above
             _dump = kwargs.pop('dynamics_method')
-
-        #starrefs  = hier.get_stars()
-        #bodies_dict = {star: globals()['Star'].from_bundle(b, star, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for star in starrefs}
 
         meshables = hier.get_meshables()
         bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
@@ -227,7 +220,6 @@ class System(object):
         self.zs = np.array(_value(zs))
 
         for starref,body in self.items():
-            #logger.debug("updating position of mesh for {}".format(starref))
             body.update_position(time, xs, ys, zs, vxs, vys, vzs,
                                  ethetas, elongans, eincls,
                                  ds=ds, Fs=Fs, ignore_effects=ignore_effects)
@@ -241,7 +233,9 @@ class System(object):
         """
 
 
-        if self.irrad_method is not 'none' and not ignore_effects:  # and kinds includes a kind that requires fluxes
+        if self.irrad_method is not 'none' and not ignore_effects:
+            # TODO: only for kinds that require intensities (i.e. not orbit or
+            # dynamical RVs, etc)
             self.handle_reflection()
 
         for kind, dataset in zip(kinds, datasets):
@@ -255,22 +249,7 @@ class System(object):
             return
 
         if 'wd' in [body.mesh_method for body in self.bodies]:
-            raise NotImplementedError("reflection not yet supported for WD-style meshing")
-
-            # TODO: to support this, each call to libphoebe (both for convex
-            # and general case) needs to have an if statement to be replaced by
-            # something like the following:
-
-            # fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_triangles_nbody_convex(vertices_per_body,
-            #                                                                            triangles_per_body,
-            #                                                                            normals_per_body,
-            #                                                                            areas_per_body,
-            #                                                                            frac_refls_per_body,
-            #                                                                            fluxes_intrins_per_body,
-            #                                                                            ld_func_and_coeffs,
-            #                                                                            self.reflection_method.title()
-            #                                                                            )
-
+            raise NotImplementedError("reflection not supported for WD-style meshing")
 
         # meshes is an object which allows us to easily access and update columns
         # in the meshes *in memory*.  That is meshes.update_columns will propagate
@@ -346,8 +325,6 @@ class System(object):
         # then be used for all passband intensities.
         teffs_intrins_and_refl_flat = teffs_intrins_flat * (fluxes_intrins_and_refl_flat / fluxes_intrins_flat) ** (1./4)
 
-        # TODO: set to triangles if WD mesh_method (note: WD mesh will
-        # currently raise NotImplementedError)
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
     def handle_eclipses(self, expose_horizon=True, **kwargs):
@@ -365,8 +342,6 @@ class System(object):
 
         eclipse_method = kwargs.get('eclipse_method', self.eclipse_method)
         horizon_method = kwargs.get('horizon_method', self.horizon_method)
-        # subdiv_alg = kwargs.get('subdiv_alg', self.subdiv_alg)
-        # subdiv_num = int(kwargs.get('subdiv_num', self.subdiv_num))
 
         # Let's first check to see if eclipses are even possible at these
         # positions.  If they are not, then we only have to do horizon
@@ -444,7 +419,6 @@ class System(object):
 
             if np.all(visibilities==0):
                 # then no triangles are visible, so we should return nan
-                #print "NO VISIBLE TRIANGLES!!!"
                 return {'rv': np.nan}
 
             rvs = meshes.get_column_flat("rvs:{}".format(dataset), components)
@@ -454,9 +428,10 @@ class System(object):
             mus = meshes.get_column_flat('mus', components)
             areas = meshes.get_column_flat('areas_si', components)
             ldint = meshes.get_column_flat('ldint:{}'.format(dataset), components)
-            # don't need ptfarea because its a float (same for all elements, regardless of component)
+            # NOTE: don't need ptfarea because its a float (same for all
+            # elements, regardless of component)
 
-            # note that the intensities are already projected but are per unit area
+            # NOTE: the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
             return {'rv': np.average(rvs, weights=abs_intensities*areas*mus*ldint*visibilities)}
 
@@ -464,7 +439,8 @@ class System(object):
             visibilities = meshes.get_column_flat('visibilities')
 
             if np.all(visibilities==0):
-                # then no triangles are visible, so we should return nan - probably shouldn't ever happen for lcs
+                # then no triangles are visible, so we should return nan -
+                # probably shouldn't ever happen for lcs
                 return {'flux': np.nan}
 
             intensities = meshes.get_column_flat("intensities:{}".format(dataset), components)
@@ -492,21 +468,6 @@ class System(object):
 
             return {'flux': np.sum(intensities*areas*mus*visibilities)*ptfarea/(distance**2)+l3}
 
-
-        elif kind == 'ifm':
-            # so far the function is kinda hollow
-            vis2 = []
-            vphase = []
-            if len(dataset['ucoord_2']) == 0:
-                vis2_2 = []
-                vphase_2 = []
-                vis2_3 = []
-                vphase_3 = []
-                t3_ampl = []
-                t3_phase = []
-            return dict(vis2=vis2, vphase=vphase, vis2_2=vis2_2,
-                     vphase_2=vphase_2, vis2_3=vis2_3, vphase_3=vphase_3,
-                     t3_ampl=t3_ampl, t3_phase=t3_phase)
         else:
             raise NotImplementedError("observe for dataset with kind '{}' not implemented".format(kind))
 
@@ -514,6 +475,10 @@ class System(object):
 
 
 class Body(object):
+    """
+    Body is the base Class for all "bodies" of the System.
+
+    """
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl, long_an, t0,
                  atm='blackbody',
                  datasets=[], passband = {}, intens_weighting='energy',
@@ -711,7 +676,8 @@ class Body(object):
         if hasattr(index, '__iter__'):
             # then we want the center-of-mass coordinates
             # TODO: clean this up
-            return np.average([_value(coords_array[i]) for i in index], weights=[self._get_mass_by_index(i) for i in index])
+            return np.average([_value(coords_array[i]) for i in index],
+                              weights=[self._get_mass_by_index(i) for i in index])
         else:
             return coords_array[index]
 
@@ -719,7 +685,10 @@ class Body(object):
         """
         TODO: add documentation
         """
-        return np.sqrt(sum([(_value(self._get_coords_by_index(c, self.ind_self)) - _value(self._get_coords_by_index(c, self.ind_sibling)))**2 for c in (xs,ys,zs)])) / _value(sma)
+        return np.sqrt(sum([(_value(self._get_coords_by_index(c, self.ind_self)) -
+                             _value(self._get_coords_by_index(c, self.ind_sibling)))**2
+                             for c in (xs,ys,zs)])) /
+                       _value(sma)
 
     def initialize_mesh(self, **kwargs):
         """
@@ -727,7 +696,8 @@ class Body(object):
 
         optional kwargs for BRS marching if time-dependent: (masses, sma)
         """
-        # TODO: accept theta as an argument (compute d instead of assume d=1-e), for now will assume at periastron
+        # TODO: accept theta as an argument (compute d instead of assume d=1-e),
+        # for now will assume at periastron
 
         mesh_method = kwargs.get('mesh_method', self.mesh_method)
 
@@ -828,6 +798,9 @@ class Body(object):
         :parameter list Fs: (optional) a list/array of instantaneous syncpars of ALL COMPONENTS in the :class:`System`
         :raises NotImplementedError: if the dynamics_method is not supported
         """
+
+        #TODO: move most of this into the subclasses
+
         if not self.mesh_initialized:
             self.initialize_mesh()
 
@@ -973,16 +946,10 @@ class Body(object):
                     raise NotImplementedError("areas are not updated for changed mesh")
 
 
-        # print "*** scaledprotomesh.vz", scaledprotomesh.velocities.for_computations[:,2].min(), scaledprotomesh.velocities.for_computations[:,2].max(), scaledprotomesh.velocities.for_computations[:,2].mean()
         # TODO NOW [OPTIMIZE]: get rid of the deepcopy here - but without it the mesh velocities build-up and do terrible things
         self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh.copy(),
                                                 pos, vel, euler,
                                                 s*self.freq_rot)
-
-        # print "time: {}\npos: {}\nvel: {}\neuler: {}".format(time, pos, vel, euler)
-        # print "*** mesh.vz", self._mesh.velocities.for_computations[:,2].min(), self._mesh.velocities.for_computations[:,2].max(), self._mesh.velocities.for_computations[:,2].mean()
-
-
 
 
         # Lastly, we'll recompute physical quantities (not observables) if
@@ -1112,204 +1079,93 @@ class Body(object):
 
         self.populated_at_time.append(dataset)
 
-    # def _populate_lc_pblum(self, dataset, **kwargs):
-
-    #     abs_normal_intensities = self.mesh.observables['abs_normal_intensities:{}'.format(dataset)].for_computations
-    #     abs_intensities = self.mesh.observables['abs_intensities:{}'.format(dataset)].for_computations
-
-
-    #     intensities = abs_intensities * self.get_pblum_scale(dataset)
-
-    #     return {'normal_intensities': normal_intensities,
-    #             'intensities': intensities}
-
-class CustomBody(Body):
-    def __init__(self, masses, sma, ecc, incl, long_an, t0, freq_rot, teff, abun,
-                 dynamics_method='keplerian',
-                 ind_self=0, ind_sibling=1, comp_no=1,
-                 atm='blackbody', datasets=[], passband={},
-                 intens_weighting={}, ld_func={}, ld_coeffs={}, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        :parameter masses: mass of each component (solMass)
-        :type masses: list of floats
-        :parameter float sma: sma of this component's parent orbit (solRad)
-        :parameter float freq_rot: rotation frequency (1/d)
-        :parameter float abun: abundance of this star
-        :parameter int ind_self: index in all arrays (positions, masses, etc) for this object
-        :parameter int ind_sibling: index in all arrays (positions, masses, etc)
-            for the sibling of this object
-        :return: instantiated :class:`CustomBody` object
-        :raises NotImplementedError: because it isn't
-        """
-        super(CustomBody, self).__init__(comp_no, ind_self, ind_sibling,
-                                         masses, ecc, incl, long_an, t0,
-                                         atm, datasets, passband,
-                                         intens_weighting,
-                                         ld_func, ld_coeffs,
-                                         dynamics_method=dynamics_method)
-
-
-        self.teff = teff
-        self.abun = abun
-
-
-        self.sma = sma
-
-
-        raise NotImplementedError
-
-
-    @classmethod
-    def from_bundle(cls, b, component, compute=None,
-                    dynamics_method='keplerian', datasets=[], **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        :raises NotImplementedError: because it isn't
-        """
-        # TODO: handle overriding options from kwargs
-
-
-        hier = b.hierarchy
-
-        if not len(hier.get_value()):
-            raise NotImplementedError("Star meshing requires a hierarchy to exist")
-
-
-        label_self = component
-        label_sibling = hier.get_stars_of_sibling_of(component)
-        label_orbit = hier.get_parent_of(component)
-        starrefs  = hier.get_stars()
-
-        ind_self = starrefs.index(label_self)
-        # for the sibling, we may need to handle a list of stars (ie in the case of a hierarchical triple)
-        ind_sibling = starrefs.index(label_sibling) if isinstance(label_sibling, str) else [starrefs.index(l) for l in label_sibling]
-        comp_no = ['primary', 'secondary'].index(hier.get_primary_or_secondary(component))+1
-
-        self_ps = b.filter(component=component, context='component')
-        freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
-
-        teff = b.get_value('teff', component=component, context='component', unit=u.K)
-
-        abun = b.get_value('abun', component=component, context='component')
-
-        masses = [b.get_value('mass', component=star, context='component', unit=u.solMass) for star in starrefs]
-        sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
-        ecc = b.get_value('ecc', component=label_orbit, context='component')
-
-        incl = b.get_value('incl', component=label_orbit, context='component', unit=u.rad)
-        long_an = b.get_value('long_an', component=label_orbit, context='component', unit=u.rad)
-
-        # TODO: retrieve atm, ld_func, ld_coeffs
-        atm = 'blackbody'
-        ld_func = {}
-        ld_coeffs = {}
-        passband = {}
-        intens_weighting = {}
-
-        return cls(masses, sma, ecc, incl, long_an, t0, freq_rot, teff, abun, dynamics_method,
-                   ind_self, ind_sibling, comp_no,
-                   atm, datasets, passband, intens_weighting, ld_func, ld_coeffs)
-
-
-    @property
-    def needs_recompute_instantaneous(self):
-        """
-        CustomBody has all values fixed by default, so this always returns False
-
-        :return: False
-        """
-        return False
-
-    @property
-    def needs_volume_conservation(self):
-        """
-        CustomBody will never reproject to handle volume conservation
-
-        :return: False
-        """
-        return False
-
-
-    def _build_mesh(self, d, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
-        the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
-
-        :raises NotImplementedError: because it isn't
-        """
-
-        # if we don't provide instantaneous masses or smas, then assume they are
-        # not time dependent - in which case they were already stored in the init
-        masses = kwargs.get('masses', self.masses)  #solMass
-        sma = kwargs.get('sma', self.sma)  # Rsol (same units as coordinates)
-        q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
-
-        raise NotImplementedError
-
-        return new_mesh, sma, mesh_args
-
-    def _fill_teffs(self, ignore_effects=False, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        :raises NotImplementedError: because it isn't
-        """
-
-        self.mesh.update_columns(teffs=self.teff)
-
-    def _populate_ifm(self, dataset, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        This should not be called directly, but rather via :meth:`Body.populate_observable`
-        or :meth:`System.populate_observables`
-
-        :raises NotImplementedError: because it isn't
-        """
-
-        raise NotImplementedError
-
-    def _populate_rv(self, dataset, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-
-        This should not be called directly, but rather via :meth:`Body.populate_observable`
-        or :meth:`System.populate_observables`
-
-        :raises NotImplementedError: because it isn't
-        """
-
-        raise NotImplementedError
-
-
-    def _populate_lc(self, dataset, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        This should not be called directly, but rather via :meth:`Body.populate_observable`
-        or :meth:`System.populate_observables`
-
-        :raises NotImplementedError: because it isn't
-        """
-
-        raise NotImplementedError
-
-        self.set_ptfarea(dataset, ptfarea)
-
-        return {'abs_normal_intensities': abs_normal_intensities,
-                'normal_intensities': normal_intensities,
-                'abs_intensities': abs_intensities,
-                'intensities': intensities,
-                'ldint': ldint}
-
-
 class Star(Body):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                 long_an, t0, atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs,
+                 dynamics_method, mesh_init_phi,
+
+                 **kwargs):
+        """
+        """
+        super(Star, self).__init__(comp_no, ind_self, ind_sibling,
+                                   masses, ecc,
+                                   incl, long_an, t0,
+                                   atm, datasets, passband,
+                                   intens_weighting, ld_func, ld_coeffs,
+                                   dynamics_method=dynamics_method,
+                                   mesh_init_phi=mesh_init_phi)
+
+class RocheStar(Star):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                 long_an, t0, atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs,
+                 dynamics_method, mesh_init_phi,
+
+                 **kwargs):
+        """
+        """
+        super(RocheStar, self).__init__(comp_no, ind_self, ind_sibling,
+                                        masses, ecc,
+                                        incl, long_an, t0,
+                                        atm, datasets, passband,
+                                        intens_weighting, ld_func, ld_coeffs,
+                                        dynamics_method=dynamics_method,
+                                        mesh_init_phi=mesh_init_phi)
+
+class RotStar(Star):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                 long_an, t0, atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs,
+                 dynamics_method, mesh_init_phi,
+
+                 **kwargs):
+        """
+        """
+        super(RotStar, self).__init__(comp_no, ind_self, ind_sibling,
+                                      masses, ecc,
+                                      incl, long_an, t0,
+                                      atm, datasets, passband,
+                                      intens_weighting, ld_func, ld_coeffs,
+                                      dynamics_method=dynamics_method,
+                                      mesh_init_phi=mesh_init_phi)
+class SphereStar(Star):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                 long_an, t0, atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs,
+                 dynamics_method, mesh_init_phi,
+
+                 **kwargs):
+        """
+        """
+        super(SphereStar, self).__init__(comp_no, ind_self, ind_sibling,
+                                         masses, ecc,
+                                         incl, long_an, t0,
+                                         atm, datasets, passband,
+                                         intens_weighting, ld_func, ld_coeffs,
+                                         dynamics_method=dynamics_method,
+                                         mesh_init_phi=mesh_init_phi)
+
+
+
+
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+
+
+
+
+class StarOld(Body):
     def __init__(self, F, Phi, masses, sma, ecc, incl, long_an, t0,
                  freq_rot, spin,
                  teff, gravb_bol,
@@ -1501,7 +1357,7 @@ class Star(Body):
         else:
             do_mesh_offset = True
 
-        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'ifm'], context='dataset').datasets if ds != '_default']
+        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv'], context='dataset').datasets if ds != '_default']
         atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
         passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
@@ -1563,6 +1419,11 @@ class Star(Body):
         """
         return self.ecc != 0 or (self.dynamics_method != 'keplerian' and self.distortion_method == 'roche') or self.is_misaligned
 
+    @property
+    def polar_direction(self):
+        """polar direction in the roche frame"""
+        #~ print "*** polar_direction spin: time: {} comp_no: {} spin: {} true_anom: {}, polar_direction: {}".format(self.time, self.comp_no, self.spin, self.true_anom, mesh.spin_in_roche(self.spin, self.true_anom, self.elongan, self.eincl))
+        return mesh.spin_in_roche(self.spin, self.true_anom, self.elongan, self.eincl)
 
     def get_target_volume(self, etheta, scaled=False):
         """
@@ -1585,12 +1446,6 @@ class Star(Body):
         else:
             # return self.volume_at_periastron
             return self.volume_at_periastron*self._scale**3
-
-    @property
-    def polar_direction(self):
-        """polar direction in the roche frame"""
-        #~ print "*** polar_direction spin: time: {} comp_no: {} spin: {} true_anom: {}, polar_direction: {}".format(self.time, self.comp_no, self.spin, self.true_anom, mesh.spin_in_roche(self.spin, self.true_anom, self.elongan, self.eincl))
-        return mesh.spin_in_roche(self.spin, self.true_anom, self.elongan, self.eincl)
 
     def get_north_pole(self, rpole=1.0):
         """location of the north pole in the global/system frame"""
@@ -2008,32 +1863,6 @@ class Star(Body):
 
         mesh.update_columns(teffs=teffs)
 
-    def _populate_ifm(self, dataset, **kwargs):
-        """
-        TODO: add documentation
-
-        This should not be called directly, but rather via :meth:`Body.populate_observable`
-        or :meth:`System.populate_observables`
-        """
-
-        # TODO
-        # this is not correct - we need to compute ld for a
-        # given effective wavelength, i.e
-        # eff_wave = kwargs.get('eff_wave', 6562e-7)
-        # passband = kwargs.get('passband', eff_wave)
-        passband = kwargs.get('passband', self.passband[dataset])
-        intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
-        ld_func = kwargs.get('ld_func', self.ld_func[dataset])
-        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs[dataset]) if ld_func != 'interp' else None
-        atm = kwargs.get('atm', self.atm)
-
-        lc_cols = self._populate_lc(dataset, **kwargs)
-
-        # lc cols should do for interferometry - at least for continuum
-        cols = lc_cols
-
-        return cols
-
     def _populate_rv(self, dataset, **kwargs):
         """
         TODO: add documentation
@@ -2410,7 +2239,7 @@ class Envelope(Body):
             do_mesh_offset = True
 
 
-        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'ifm'], context='dataset').datasets if ds != '_default']
+        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv'], context='dataset').datasets if ds != '_default']
         atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
         passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
@@ -2935,15 +2764,6 @@ class Envelope(Body):
             return self._pblum_scale[component][dataset]
         else:
             return 1.
-
-    def _populate_ifm(self, dataset, **kwargs):
-        """
-        TODO: add documentation
-
-        This should not be called directly, but rather via :meth:`Body.populate_observable`
-        or :meth:`System.populate_observables`
-        """
-        raise NotImplementedError
 
     def _populate_rv(self, dataset, **kwargs):
         """
