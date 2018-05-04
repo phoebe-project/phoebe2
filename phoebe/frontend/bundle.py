@@ -939,27 +939,6 @@ class Bundle(ParameterSet):
                                             constraint=self._default_label('yaw', context='constraint'))
 
 
-            if (not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope'):
-                # potential constraint shouldn't be done for STARS in OVERCONTACTS
-                # but DOES need to be done for single stars
-
-                logger.info('re-creating potential constraint for {}'.format(component))
-                # TODO: will this cause problems if the constraint has been flipped?
-                if len(self.filter(context='constraint',
-                                   constraint_func='potential',
-                                   component=component)):
-                    constraint_param = self.get_constraint(constraint_func='potential',
-                                                           component=component)
-                    self.remove_constraint(constraint_func='potential',
-                                           component=component)
-                    self.add_constraint(constraint.potential, component,
-                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                        constraint=constraint_param.constraint)
-                else:
-                    self.add_constraint(constraint.potential, component,
-                                        constraint=self._default_label('potential', context='constraint'))
-
-
         redo_kwargs = {k: v for k, v in hier_param.to_dict().items()
                        if v not in [None, ''] and
                        k not in ['uniqueid', 'uniquetwig', 'twig',
@@ -1135,8 +1114,8 @@ class Bundle(ParameterSet):
                     long_an = parent_ps.get_value('long_an', unit=u.rad)
                     s_roche = mesh.spin_in_roche(s_sys, 0.0, long_an, incl)
 
-                    F = comp_ps.get_value('syncpar', **kwargs) 
-                    d = 1 - parent_ps.get_value('ecc', **kwargs) 
+                    F = comp_ps.get_value('syncpar', **kwargs)
+                    d = 1 - parent_ps.get_value('ecc', **kwargs)
                     critical_pot = libphoebe.roche_misaligned_Omega_min(q, F, d, s_roche)
                     # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
 

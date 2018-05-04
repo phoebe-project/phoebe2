@@ -85,8 +85,6 @@ def star(component, **kwargs):
 
     #~ params += [ObjrefParameter(value=component)]
     params += [FloatParameter(qualifier='requiv', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('requiv', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Equivalent radius')]
-    params += [FloatParameter(qualifier='pot', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('pot', 4.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Equipotential of the star\'s surface at periastron')]
-    params += [ChoiceParameter(qualifier='pot_type', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('pot_type', 'roche'), choices=['roche', 'rotstar', 'sphere'], description='Type of potential used to describe the surface of the star')]
     params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
     params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 

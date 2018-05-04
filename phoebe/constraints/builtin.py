@@ -1,28 +1,5 @@
 import numpy as np
-# from phoebe.distortions.roche import potential2rpole as _potential2rpole
-# from phoebe.distortions.roche import rpole2potential as _rpole2potential
 from phoebe.distortions import roche as _roche
-from phoebe.distortions import rotstar as _rotstar
-
-def rochepotential2rpole(*args, **kwargs):
-    """
-    """
-    return _roche.potential2rpole(*args, **kwargs)
-
-def rocherpole2potential(*args, **kwargs):
-    """
-    """
-    return _roche.rpole2potential(*args, **kwargs)
-
-def rotstarpotential2rpole(*args, **kwargs):
-    """
-    """
-    return _rotstar.potential2rpole(*args, **kwargs)
-
-def rotstarrpole2potential(*args, **kwargs):
-    """
-    """
-    return _rotstar.rpole2potential(*args, **kwargs)
 
 def rochecriticalL12potential(*args, **kwargs):
     """
