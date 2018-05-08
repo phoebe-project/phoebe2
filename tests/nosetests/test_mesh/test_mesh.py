@@ -61,14 +61,13 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
             phoebe2_val = b.get_value(section='model', model='phoebe2model', component=component, dataset=dataset, qualifier=qualifier)
 
 
-            if dataset=='mesh01':
-                # phoebe2 wd-style mesh duplicates each trapezoid into two
-                # triangles, so we only need every other.  It also handles
-                # duplicating quadrants per-element, whereas the phoebe1
-                # wrapper duplicates per-quadrant.  So we also need to reshape.
-                # TODO: move this into the order that these are actually
-                # exposed by PHOEBE to the user
-                phoebe2_val = phoebe2_val[::2].reshape(-1,4).flatten(order='F')
+            # phoebe2 wd-style mesh duplicates each trapezoid into two
+            # triangles, so we only need every other.  It also handles
+            # duplicating quadrants per-element, whereas the phoebe1
+            # wrapper duplicates per-quadrant.  So we also need to reshape.
+            # TODO: move this into the order that these are actually
+            # exposed by PHOEBE to the user
+            phoebe2_val = phoebe2_val[::2].reshape(-1,4).flatten(order='F')
 
             if component=='secondary':
                 # TODO: this logic should /REALLY/ be moved into the legacy backend wrapper
@@ -83,7 +82,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
             if plot:
                 print "{}@{}@{} max diff: {}".format(qualifier, component, dataset, max(np.abs(phoebe1_val-phoebe2_val)))
 
-            if plot and dataset=='mesh01':
+            if plot:
                 x1 = b.get_value(section='model', model='phoebe1model', component=component, dataset='mesh01', qualifier='xs')
                 # x2 = b.get_value(section='model', model='phoebe2model', component=component, dataset='mesh01', qualifier='xs')[::2]
 
