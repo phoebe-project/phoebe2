@@ -597,6 +597,12 @@ class Bundle(ParameterSet):
             for k, v in param.constraint_kwargs.items():
                 if v == old_component:
                     param._constraint_kwargs[k] = new_component
+        for param in self.filter(qualifier='include_times').to_list():
+            old_value = param._value
+            new_value = [v.replace('@{}'.format(old_component), '@{}'.format(new_component)) for v in old_value]
+            param._value = new_value
+
+        self._handle_dataset_selectparams()
 
 
 
@@ -797,6 +803,43 @@ class Bundle(ParameterSet):
                 else:
                     param.set_value(starrefs[0])
 
+    def _handle_dataset_selectparams(self):
+        """
+        """
+
+        changed_param = self.run_delayed_constraints()
+
+        pbdep_datasets = self.filter(context='dataset',
+                                     kind=_dataset._pbdep_columns.keys()).datasets
+
+        pbdep_columns = _dataset._mesh_columns[:] # force deepcopy
+        for pbdep_dataset in pbdep_datasets:
+            pbdep_kind = self.filter(context='dataset',
+                                     dataset=pbdep_dataset,
+                                     kind=_dataset._pbdep_columns.keys()).kind
+
+            pbdep_columns += ["{}@{}".format(column, pbdep_dataset) for column in _dataset._pbdep_columns[pbdep_kind]]
+
+        time_datasets = (self.filter(context='dataset')-
+                         self.filter(context='dataset', kind='mesh')).datasets
+
+        t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component']).to_list()]
+        t0s += ["t0@system"]
+
+        for param in self.filter(qualifier='columns',
+                                 context='dataset').to_list():
+
+            param._choices = pbdep_columns
+            param.remove_not_valid_selections()
+
+        for param in self.filter(qualifier='include_times',
+                                 context='dataset').to_list():
+
+            # NOTE: existing value is updated in change_component
+            param._choices = time_datasets + t0s
+            param.remove_not_valid_selections()
+
+
     def set_hierarchy(self, *args, **kwargs):
         """
         Set the hierarchy of the system.
@@ -848,6 +891,7 @@ class Bundle(ParameterSet):
         self._hierarchy_param = hier_param
 
         self._handle_pblum_defaults()
+        # self._handle_dataset_selectparams()
 
         # Handle inter-PS constraints
         starrefs = hier_param.get_stars()
@@ -1856,13 +1900,10 @@ class Bundle(ParameterSet):
         #    individually requested parameters.  We won't touch _default unless
         #    its included in the dictionary
 
-        # set default for times - this way the times array for "attached"
-        # components will not be empty
-        kwargs.setdefault('times', [0.])
-
         # this needs to happen before kwargs get applied so that the default
         # values can be overridden by the supplied kwargs
         self._handle_pblum_defaults()
+        self._handle_dataset_selectparams()
 
         for k, v in kwargs.items():
             if isinstance(v, dict):
@@ -1993,6 +2034,8 @@ class Bundle(ParameterSet):
         # not really sure why we need to call this twice, but it seems to do
         # the trick
         self.remove_parameters_all(**kwargs)
+
+        self._handle_dataset_selectparams()
 
         # TODO: check to make sure that trying to undo this
         # will raise an error saying this is not undo-able
@@ -2487,6 +2530,13 @@ class Bundle(ParameterSet):
             self.run_compute(compute=compute, model=model, time=time, **kwargs)
             self.as_client(False)
             return self.get_model(model)
+
+        # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
+        # so let's raise an error if they're passed here
+        if 'protomesh' in kwargs.keys():
+            raise ValueError("protomesh is no longer a valid option")
+        if 'pbmesh' in kwargs.keys():
+            raise ValueError("pbmesh is no longer a valid option")
 
         if model is None:
             model = 'latest'

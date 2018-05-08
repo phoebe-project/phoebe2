@@ -103,7 +103,7 @@ _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
-_meta_fields_filter = _meta_fields_all + ['constraint_func']
+_meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['history', 'system', 'component', 'feature',
              'dataset', 'constraint', 'compute', 'model', 'fitting',
@@ -140,6 +140,8 @@ _singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
                        'time_ephem': 'time_ephems', 'N': 'Ns', 'x': 'xs',
                        'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
                        'vz': 'vzs', 'nx': 'nxs', 'ny': 'nys', 'nz': 'nzs',
+                       'u': 'us', 'v': 'vs', 'w': 'ws', 'vu': 'vus', 'vv': 'vvs',
+                       'vw': 'vws', 'nu': 'nus', 'nv': 'nvs', 'nw': 'nws',
                        'cosbeta': 'cosbetas', 'logg': 'loggs', 'teff': 'teffs',
                        'r': 'rs', 'r_proj': 'r_projs', 'mu': 'mus',
                        'visibility': 'visibilities'}
@@ -1373,6 +1375,16 @@ class ParameterSet(object):
 
         params = self.to_list()
 
+        def string_to_time(time):
+            try:
+                return float(time)
+            except ValueError:
+                # allow for passing a twig that needs to resolve a float
+                if self._bundle is None:
+                    return self.get_value(time, context=['system', 'component'])
+                else:
+                    return self._bundle.get_value(time, context=['system', 'component'])
+
         # TODO: replace with key,value in kwargs.items()... unless there was
         # some reason that won't work?
         for key in kwargs.keys():
@@ -1389,7 +1401,7 @@ class ParameterSet(object):
                     (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and fnmatch(getattr(pi,key),kwargs[key])) or
                     (key=='kind' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
                     (key=='kind' and isinstance(kwargs[key],list) and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
-                    (key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<1e-6))]
+                    (key=='time' and abs(float(getattr(pi,key))-string_to_time(kwargs[key]))<1e-6))]
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
         # handle hiding _default (cheaper than visible_if so let's do first)
@@ -1703,6 +1715,30 @@ class ParameterSet(object):
             return self.get_parameter(twig=twig,
                                       **kwargs).set_index_value(value=value,
                                                                 **kwargs)
+
+        if "time" in kwargs.keys():
+            if not len(self.filter(**kwargs)):
+                # then let's try filtering without time and seeing if we get a
+                # FloatArrayParameter so that we can use set_index_value instead
+                time = kwargs.pop("time")
+
+                param = self.get_parameter(twig=twig, **kwargs)
+                if not isinstance(param, FloatArrayParameter):
+                    raise TypeError
+
+                # TODO: do we need to be more clever about time qualifier for
+                # ETV datasets? TODO: is this robust enough... this won't search
+                # for times outside the existing ParameterSet.  We could also
+                # try param.get_parent_ps().get_parameter('time'), but this
+                # won't work when outside the bundle (which is used within
+                # backends.py to set fluxes, etc) print "***
+                # get_parameter(qualifier='times', **kwargs)", {k:v for k,v in
+                # kwargs.items() if k not in ['qualifier']}
+                time_param = self.get_parameter(qualifier='times', **{k:v for k,v in kwargs.items() if k not in ['qualifier']})
+                index = np.where(time_param.get_value()==time)[0]
+
+                return param.set_index_value(value=value, index=index, **kwargs)
+
         return self.get_parameter(twig=twig,
                                   **kwargs).set_value(value=value,
                                                       **kwargs)
@@ -1929,10 +1965,6 @@ class ParameterSet(object):
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             return_ = []
             for dataset in ps.datasets:
-                if dataset in ['protomesh']:
-                    # let's not automatically plot the protomesh unless its
-                    # requested in which case we'll never enter this loop
-                    continue
                 this_return = ps.filter(dataset=dataset).get_plotting_info(**kwargs)
                 return_ += this_return
             return return_
@@ -1992,19 +2024,45 @@ class ParameterSet(object):
         # and z are all the coordinates (then we'll plot the triangles).
         # Otherwise, we will continue and can use the generic x, y plotting (ie
         # for flux vs r_proj)
+        do_plot_mesh_coordinates = None
         if ps.kind in ['mesh', 'mesh_syn'] and \
+                kwargs.get('x', 'us') in ['us', 'vs', 'ws'] and \
+                kwargs.get('y', 'vs') in ['us', 'vs', 'ws'] and \
+                kwargs.get('z', 'ws') in ['us', 'vs', 'ws']:
+
+            do_plot_mesh_coordinates = 'uvw'
+
+            # NOTE: even though we are calling these u, v, w - we really mean
+            # to get those components from the uvw_elements array
+            xqualifier = kwargs.get('x', 'us')
+            yqualifier = kwargs.get('y', 'vs')
+            if axes_3d:
+                zqualifier = kwargs.get('z', 'ws')
+
+
+            # All our arrays will need to be sorted front to back, so we need
+            # the centers from the coordinates not covered by xqualifier,
+            # yqualifier. We don't really care the units here, but in case the
+            # user has changed the default units on some of the components to
+            # be different than others, we'll request them all in the same
+            # units.
+
+            # TODO: should we skip this for axes_3d?
+            mesh_coordinates = ['us', 'vs', 'ws']
+            sortqualifier = ['us', 'vs', 'ws']
+            sortqualifier.remove(xqualifier)
+            sortqualifier.remove(yqualifier)
+            sortqualifier = sortqualifier[0]
+
+        elif ps.kind in ['mesh', 'mesh_syn'] and \
                 kwargs.get('x', 'xs') in ['xs', 'ys', 'zs'] and \
                 kwargs.get('y', 'ys') in ['xs', 'ys', 'zs'] and \
                 kwargs.get('z', 'zs') in ['xs', 'ys', 'zs']:
 
-            # TODO: here we want to call a different plotting function - note
-            # that meshes don't need to iterate over components like everything
-            # else will Keep in mind that we still want this to be plotting-
-            # backend dependent, so perhaps there will be a plotting.mpl_mesh
-            # function which will handle the output from preparing the arrays
+            do_plot_mesh_coordinates = 'xyz'
 
             # NOTE: even though we are calling these x, y, z - we really mean
-            # to get those components from the triangles array
+            # to get those components from the xyz_elements array
             xqualifier = kwargs.get('x', 'xs')
             yqualifier = kwargs.get('y', 'ys')
             if axes_3d:
@@ -2019,25 +2077,14 @@ class ParameterSet(object):
             # units.
 
             # TODO: should we skip this for axes_3d?
+            mesh_coordinates = ['xs', 'ys', 'zs']
             sortqualifier = ['xs', 'ys', 'zs']
             sortqualifier.remove(xqualifier)
             sortqualifier.remove(yqualifier)
             sortqualifier = sortqualifier[0]
 
-            if kwargs.get('loop_times', False) or len(ps.times) <= 1:
-                center_sort = np.concatenate([ps.get_value(sortqualifier,
-                                                           component=c,
-                                                           unit=u.solRad if ps.dataset!='protomesh' else None)
-                                              for c in ps.components if c != '_default'])
-            else:
-                center_sort = np.concatenate([ps.get_value(sortqualifier,
-                                                           component=c,
-                                                           time=t,
-                                                           unit=u.solRad if ps.dataset!='protomesh' else None)
-                                              for c in ps.components if c != '_default'
-                                              for t in ps.times])
 
-            plot_inds = np.argsort(center_sort)
+        if do_plot_mesh_coordinates is not None:
 
             # if color is provided, it should be used for facecolor and
             # edgecolor, but if either of those two values are provided, they
@@ -2070,14 +2117,14 @@ class ParameterSet(object):
             # TODO: do the same logic with cmap, facecmap, edgecmap as colors
             # above
 
-            if ps.dataset == 'protomesh':
+            if do_plot_mesh_coordinates=='xyz':
                 # then the array are dimensionless - which really means in
                 # units of sma
                 kwargs.setdefault('xunit', None)
                 kwargs.setdefault('yunit', None)
                 if axes_3d:
                     kwargs.setdefault('zunit', None)
-            else:
+            else: # uvw
                 kwargs.setdefault('xunit', 'solRad')
                 kwargs.setdefault('yunit', 'solRad')
                 if axes_3d:
@@ -2114,30 +2161,32 @@ class ParameterSet(object):
             if kwargs.get('edgecolorbar', False) or kwargs.get('colorbar', False):
                 kwargs.setdefault('edgecolorlabel', r"{} ({})".format(_qualifier_to_label(edgecolorqualifier), _unit_to_str(kwargs['edgecolorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['edgecolorunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(edgecolorqualifier))
 
-            # vertices_xyz are the REAL x, y, z coordinates.  Later we'll convert
-            # to the quantities we want to plot along the x and y axes
-
-            #vertices_xyz = np.concatenate([ps.get_value('vertices', component=c, time=t, unit=kwargs['xunit']) for c in ps.components for t in ps.times]).reshape((-1, 3, 3))[:, :, :]
-
             if kwargs.get('loop_times', False) or len(ps.times) <= 1:
-                vertices_xyz = np.concatenate([ps.get_value('vertices',
+                elements_xyz = np.concatenate([ps.get_value('{}_elements'.format(do_plot_mesh_coordinates),
                                                             component=c,
                                                             unit=kwargs['xunit'])
                                                for c in ps.components]).reshape((-1, 3, 3))[:, :, :]
             else:
-                vertices_xyz = np.concatenate([ps.get_value('vertices',
+                elements_xyz = np.concatenate([ps.get_value('{}_elements'.format(do_plot_mesh_coordinates),
                                                             component=c,
                                                             time=t,
                                                             unit=kwargs['xunit'])
                                                for c in ps.components for t in ps.times]).reshape((-1, 3, 3))[:, :, :]
 
+            center_sort = np.mean(elements_xyz[:, :, mesh_coordinates.index(sortqualifier)], axis=1)
+            plot_inds = np.argsort(center_sort)
+
+            # vertices_xyz are the REAL x, y, z coordinates.  Later we'll convert
+            # to the quantities we want to plot along the x and y axes
+            vertices_xyz = elements_xyz.reshape((-1, 3, 3))[:, :, :]
+
             # TODO: make this handle 3d by just iterating over zqualifier as
             # well (but only if 3d)
             if axes_3d:
-                coordinate_inds = [['xs', 'ys', 'zs'].index(q)
+                coordinate_inds = [mesh_coordinates.index(q)
                                    for q in [xqualifier, yqualifier, zqualifier]]
             else:
-                coordinate_inds = [['xs', 'ys', 'zs'].index(q)
+                coordinate_inds = [mesh_coordinates.index(q)
                                    for q in [xqualifier, yqualifier]]
 
             data = vertices_xyz[:, :, coordinate_inds]
@@ -2171,13 +2220,13 @@ class ParameterSet(object):
         # now we can use ps.kind to guess what columns need plotting
         if ps.kind in ['orb', 'orb_syn']:
             if axes_3d:
-                xqualifier = kwargs.get('x', 'xs')
-                yqualifier = kwargs.get('y', 'ys')
-                zqualifier = kwargs.get('z', 'zs')
+                xqualifier = kwargs.get('x', 'us')
+                yqualifier = kwargs.get('y', 'vs')
+                zqualifier = kwargs.get('z', 'ws')
             else:
-                xqualifier = kwargs.get('x', 'xs')
-                yqualifier = kwargs.get('y', 'zs')
-                zqualifier = kwargs.get('z', 'ys')
+                xqualifier = kwargs.get('x', 'us')
+                yqualifier = kwargs.get('y', 'ws')
+                zqualifier = kwargs.get('z', 'vs')
             timequalifier = 'times'
         elif ps.kind in ['mesh', 'mesh_syn']:
             xqualifier = kwargs.get('x', 'r_projs')
@@ -3809,7 +3858,6 @@ class TwigParameter(Parameter):
 
 
 class ChoiceParameter(Parameter):
-    # TODO: rename to ComboParameter?
     """
     Parameter in which the value has to match one of the pre-defined choices
     """
@@ -3853,31 +3901,158 @@ class ChoiceParameter(Parameter):
             value = str(value)
         except:
             raise ValueError("could not cast value to string")
-        else:
-            if self.qualifier=='passband':
-                if value not in self.choices:
-                    self._choices = list_passbands(refresh=True)
 
+        if self.qualifier=='passband':
             if value not in self.choices:
-                raise ValueError("value must be one of {}".format(self.choices))
+                self._choices = list_passbands(refresh=True)
 
-            if self.qualifier=='passband' and value not in list_installed_passbands():
-                # then we need to download and install before setting
-                download_passband(value)
+        if value not in self.choices:
+            raise ValueError("value must be one of {}".format(self.choices))
 
-            self._value = value
+        if self.qualifier=='passband' and value not in list_installed_passbands():
+            # then we need to download and install before setting
+            logger.info("downloading passband: {}".format(value))
+            download_passband(value)
 
-            # run_checks if requested (default)
-            if run_checks is None:
-                run_checks = conf.interactive_checks
-            if run_checks and self._bundle:
-                passed, msg = self._bundle.run_checks()
-                if not passed:
-                    # passed is either False (failed) or None (raise Warning)
-                    msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
-                    logger.warning(msg)
+        self._value = value
 
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+        # run_checks if requested (default)
+        if run_checks is None:
+            run_checks = conf.interactive_checks
+        if run_checks and self._bundle:
+            passed, msg = self._bundle.run_checks()
+            if not passed:
+                # passed is either False (failed) or None (raise Warning)
+                msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
+                logger.warning(msg)
+
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+
+class SelectParameter(Parameter):
+    """
+    Parameter in which the value is a list of pre-defined choices
+    """
+    def __init__(self, *args, **kwargs):
+        """
+        see :meth:`Parameter.__init__`
+        """
+        super(SelectParameter, self).__init__(*args, **kwargs)
+
+        self._choices = kwargs.get('choices', [])
+
+        self.set_value(kwargs.get('value', []))
+
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for']
+        self._dict_fields = _meta_fields_all + self._dict_fields_other
+
+    @property
+    def choices(self):
+        return self._choices
+
+    def get_choices(self):
+        return self._choices
+
+    def valid_selection(self, value):
+        if value in self.choices:
+            return True
+
+        # allow for wildcards
+        for choice in self.choices:
+            if fnmatch(choice, value):
+                return True
+
+        return False
+
+    @update_if_client
+    def get_value(self, expand=False, **kwargs):
+        """
+
+        """
+        if expand:
+            return self.expand_value(**kwargs)
+
+        default = super(SelectParameter, self).get_value(**kwargs)
+        if default is not None: return default
+        return self._value
+
+    def expand_value(self, **kwargs):
+        """
+        expand the selection to account for wildcards
+        """
+        selection = []
+        for v in self.get_value(**kwargs):
+            for choice in self.choices:
+                if v==choice and choice not in selection:
+                    selection.append(choice)
+                elif fnmatch(choice, v) and choice not in selection:
+                    selection.append(choice)
+
+        return selection
+
+    @send_if_client
+    def set_value(self, value, run_checks=None, **kwargs):
+        """
+
+        """
+        _orig_value = deepcopy(self.get_value())
+
+        if isinstance(value, str):
+            value = [value]
+
+        if not isinstance(value, list):
+            raise TypeError("value must be a list of strings, received {}".format(type(value)))
+
+        try:
+            value = [str(v) for v in value]
+        except:
+            raise ValueError("could not cast to list of strings")
+
+        invalid_selections = []
+        for v in value:
+            if not self.valid_selection(v):
+                invalid_selections.append(v)
+
+        if len(invalid_selections):
+            raise ValueError("{} are not valid selections.  Choices: {}".format(invalid_selections, self.choices))
+
+        self._value = value
+
+        # run_checks if requested (default)
+        if run_checks is None:
+            run_checks = conf.interactive_checks
+        if run_checks and self._bundle:
+            passed, msg = self._bundle.run_checks()
+            if not passed:
+                # passed is either False (failed) or None (raise Warning)
+                logger.warning(msg)
+
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+
+    def remove_not_valid_selections(self):
+        """
+        update the value to remove any that are (no longer) valid
+        """
+        value = [v for v in self.get_value() if self.valid_selection(v)]
+        self.set_value(value)
+
+    def __add__(self, other):
+        if isinstance(other, str):
+            other = [other]
+
+        if not isinstance(other, list):
+            return super(SelectParameter, self).__add__(self, other)
+
+        # then we have a list, so we want to append to the existing value
+        return list(set(self.get_value()+other))
+
+    def __sub__(self, other):
+        if isinstance(other, str):
+            other = [other]
+
+        if not isinstance(other, list):
+            return super(SelectParameter, self).__sub__(self, other)
+
+        return [v for v in self.get_value() if v not in other]
 
 class BoolParameter(Parameter):
     def __init__(self, *args, **kwargs):
@@ -4539,7 +4714,7 @@ class FloatArrayParameter(FloatParameter):
 
         Example:
 
-        >>> b['flux@lc01@model'].interp_value(time=10.2)
+        >>> b['flux@lc01@model'].interp_value(times=10.2)
 
         NOTE: Interpolation by phase is not currently supported - but you can use
         :meth:`phoebe.frontend.bundle.Bundle.to_time` to convert to a valid
@@ -4567,9 +4742,16 @@ class FloatArrayParameter(FloatParameter):
 
         qualifier, qualifier_interp_value = kwargs.items()[0]
 
+        if isinstance(qualifier_interp_value, str):
+            # then assume its a twig and try to resolve
+            # for example: time='t0_supconj'
+            qualifier_interp_value = self._bundle.get_value(qualifier_interp_value, context=['system', 'component'])
+
         parent_ps = self.get_parent_ps()
 
         if qualifier not in parent_ps.qualifiers:
+            # TODO: handle plural to singular (having to say
+            # interp_value(times=5) is awkward)
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
 
         qualifier_parameter = parent_ps.get(qualifier=qualifier)
@@ -4605,6 +4787,20 @@ class FloatArrayParameter(FloatParameter):
         lst =self.get_value()#.value
         lst[index] = value
         self.set_value(lst)
+
+    def __add__(self, other):
+        if not (isinstance(other, list) or isinstance(other, np.ndarray)):
+            return super(FloatArrayParameter, self).__add__(self, other)
+
+        # then we have a list, so we want to append to the existing value
+        return np.append(self.get_value(), np.asarray(other))
+
+    def __sub__(self, other):
+        if not (isinstance(other, list) or isinstance(other, np.ndarray)):
+            return super(FloatArrayParameter, self).__add__(self, other)
+
+        # then we have a list, so we want to append to the existing value
+        return np.array([v for v in self.get_value() if v not in other])
 
     # def set_value_at_time(self, time, value, **kwargs):
     #     """
