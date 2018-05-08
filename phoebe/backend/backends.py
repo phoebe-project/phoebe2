@@ -1062,20 +1062,19 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 
         # direction is either 'x', 'y', 'z' or None and gives the component
         # of the current array.
-        # Plan for quadrants: no flip, flip x, flip y, flip x&y
-        #                     flip z, flip z&x, flip z&y, flip z&x&y
+        # Plan for quadrants: no flip, flip y, flip z, flip y&z (must be same
+        # order as in potentials.discretize_wd_style so we can compare meshes)
         if direction=='x':
-            a = [+1,-1,+1,-1,+1,-1,+1,-1]
+            a = [+1,+1,+1,+1]
         elif direction=='y':
-            a = [+1,+1,-1,-1,+1,+1,-1,-1]
+            a = [+1,-1,+1,-1]
         elif direction=='z':
-            a = [+1,+1,+1,+1,-1,-1,-1,-1]
+            a = [+1,+1,-1,-1]
         else:
-            # non-vector-component (like teffs)
-            a = [1,1,1,1,1,1,1,1]
+            # non-vector-component (like teffs/loggs)
+            a = [1,1,1,1]
 
-        return np.concatenate([a[0]*value, a[1]*value, a[2]*value, a[3]*value,
-                               a[4]*value, a[5]*value, a[6]*value, a[7]*value])
+        return np.concatenate([a[0]*value, a[1]*value, a[2]*value, a[3]*value])
 
 
     # check whether phoebe legacy is installed
