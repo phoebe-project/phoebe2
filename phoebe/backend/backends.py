@@ -793,7 +793,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 rpole = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
                 packet[k]['rpole'] = rpole
                 packet[k]['north_pole'] = body.get_north_pole(rpole=rpole)
-                packet[k]['volume'] = body.volume
+                packet[k]['volume'] = body.mesh.lvolume
 
 
                 # TODO: should x, y, z be computed columns of the vertices???

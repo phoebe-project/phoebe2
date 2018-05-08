@@ -21,6 +21,51 @@ logger.addHandler(logging.NullHandler())
 _basedir = os.path.dirname(os.path.abspath(__file__))
 _pbdir = os.path.abspath(os.path.join(_basedir, '..', 'atmospheres', 'tables', 'passbands'))
 
+"""
+Class/SubClass Structure of Universe.py:
+
+System - container for all Bodies
+
+Body - general Class for all Bodies
+    any new type of object needs to subclass Body and override the following:
+        * is_convex
+        * needs_remesh
+        * needs_recompute_instantaneous
+        * _build_mesh
+        * _populate_lc
+        * _populate_rv
++ Star(Body) - subclass of Body that acts as a general class for any type of deformed star defined by requiv
+    any new type of Star needs to subclass Star and override the following:
+        * _rpole_func
+        * _gradOmega_func
+        * instantaneous_mesh_args
+        * _build_mesh
+  + Star_roche(Star) [not allowed as single star]
+    + Star_envelope(Star_roche)
+  + Star_rotstar(Star)
+  + Star_sphere(Star)
+
+If creating a new subclass of Body, make sure to add it to top-level
+_get_classname function if the class is not simply the title-case of the
+component kind in the Bundle
+
+Feature - general Class of all features: any new type of feature needs to subclass Feature
++ Spot(Feature)
++ Pulsation(Feature)
+
+"""
+
+g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
+
+def _get_classname(kind, distortion_method):
+    kind = kind.title()
+    if kind == 'Envelope':
+        return 'Star_envelope'
+    elif kind == 'Star':
+        # Star_roche, Star_rotstar, Star_sphere
+        return 'Star_{}'.format(distortion_method)
+    else:
+        return kind
 
 def _value(obj):
     """
@@ -35,6 +80,13 @@ def _value(obj):
     elif hasattr(obj, '__iter__'):
         return [_value(o) for o in obj]
     return obj
+
+def _estimate_delta(ntriangles, area):
+    """
+    estimate the value for delta to send to marching based on the number of
+    requested triangles and the expected surface area of mesh
+    """
+    return np.sqrt(4./np.sqrt(3) * area / ntriangles)
 
 
 class System(object):
@@ -116,7 +168,7 @@ class System(object):
             _dump = kwargs.pop('dynamics_method')
 
         meshables = hier.get_meshables()
-        bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
+        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), compute_ps.get_value('distortion_method', component=comp))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
 
         # envelopes need to know their relationships with the underlying stars
         parent_envelope_of = {}
@@ -186,25 +238,6 @@ class System(object):
         # rather than calling self.meshes repeatedly
 
         return mesh.Meshes(self._bodies, self._parent_envelope_of)
-
-
-    def initialize_meshes(self):
-        """
-        TODO: add documentation
-        """
-        # TODO: allow for passing theta, for now its assumed at periastron
-
-        for starref,body in self.items():
-            if not body.mesh_initialized:
-                # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
-                logger.info("initializing mesh for {}".format(starref))
-
-                # This function will create the initial protomesh - centered
-                # at each star's own coordinate system and not scaled by sma.
-                # It will then store this mesh as a "standard" for a given theta,
-                # each time can then call on one of these standards, scale using sma,
-                # and reproject if necessary (for eccentricity/volume conservation)
-                body.initialize_mesh()
 
 
     def update_positions(self, time, xs, ys, zs, vxs, vys, vzs,
@@ -482,17 +515,10 @@ class Body(object):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl, long_an, t0,
                  atm='blackbody',
                  datasets=[], passband = {}, intens_weighting='energy',
-                 ld_func={}, ld_coeffs={},
-                 dynamics_method='keplerian',
-                 mesh_init_phi=0.0):
+                 ld_func={}, ld_coeffs={}, mesh_init_phi=0.0):
         """
         TODO: add documentation
         """
-        self._is_convex = False
-
-        self._mesh_initialized = False
-        self.dynamics_method = dynamics_method
-
 
         # TODO: eventually some of this stuff that assumes a BINARY orbit may need to be moved into
         # some subclass of Body (maybe BinaryBody).  These will want to be shared by Star and CustomBody,
@@ -557,7 +583,6 @@ class Body(object):
         self.mesh_init_phi = mesh_init_phi
 
         # TODO: allow custom meshes (see alpha:universe.Body.__init__)
-        # TODO: reconsider partial/hidden/visible into opacity/visibility
 
     def copy(self):
         """
@@ -584,64 +609,39 @@ class Body(object):
         :return: whether the mesh can be assumed to be convex
         :rtype: bool
         """
-        return self._is_convex
-
-
-    @property
-    def mesh_initialized(self):
-        """
-        :return: whether the mesh has already been initialized
-        :rtype: bool
-        """
-        return self._mesh_initialized
+        return False
 
     @property
     def needs_recompute_instantaneous(self):
         """
-        TODO: add documentation
-        """
-        # should be defined for any class that subclasses body if that body
-        # can ever optimize by return false.
+        whether the Body needs local quantities recomputed at each time, even
+        if needs_remesh == False (instantaneous local quantities will be recomputed
+        if needs_remesh=True, whether or not this is True)
 
-        # For example: stars can return False if they're in circular orbits
+        this should be overridden by any subclass of Body
+        """
         return True
 
     @property
-    def needs_volume_conservation(self):
+    def needs_remesh(self):
         """
-        TODO: add documentation
+        whether the Body needs to be re-meshed (for any reason)
+
+        this should be overridden by any subclass of Body
         """
-        # should be defined for any class that subclasses body if that body
-        # ever needs volume conservation (reprojection)
+        return True
 
-        # by default this will be False, but stars in non-circular orbits
-        # need to return True
-
-        # for any Body that does return True, a get_target_volume(self, etheta) must also be implemented
-        return False
-
-    @property
-    def is_misaligned(self):
-        """
-        TODO: add documentation
-        """
-        # should be defined for any class that subclasses body that supports
-        # misalignment
-        return False
-
-
-    @property
-    def volume(self):
-        """
-        Compute volume of a mesh AT ITS CURRENT TIME/PROJECTION - this should be
-        subclassed as needed for optimization or special cases
-
-        :return: the current volume
-        :rtype: float
-        """
-
-        return self.mesh.volume
-        # return compute_volume(self.mesh['size'], self.mesh['center'], self.mesh['normal_'])
+    # @property
+    # def lvolume(self):
+    #     """
+    #     Compute volume of a mesh AT ITS CURRENT TIME/PROJECTION - this should be
+    #     subclassed as needed for optimization or special cases
+    #
+    #     :return: the current volume
+    #     :rtype: float
+    #     """
+    #
+    #     return self.mesh.lvolume
 
     @property
     def max_r(self):
@@ -652,6 +652,8 @@ class Body(object):
         :return: maximum r
         :rtype: float
         """
+        # NOTE: this is currently done based on the mesh standard at etheta=0.0
+        # and may not be robust
         return self._max_r
 
     @property
@@ -681,67 +683,58 @@ class Body(object):
         else:
             return coords_array[index]
 
-    def instantaneous_distance(self, xs, ys, zs, sma):
+    # def get_instantaneous_distance(self, xs, ys, zs, sma):
+    #     """
+    #     TODO: add documentation
+    #     """
+    #     return np.sqrt(sum([(_value(self._get_coords_by_index(c, self.ind_self)) -
+    #                          _value(self._get_coords_by_index(c, self.ind_sibling)))**2
+    #                          for c in (xs,ys,zs)])) /
+    #                    _value(sma)
+
+    def _offset_mesh(self, new_mesh):
+        if self._do_mesh_offset and self.mesh_method=='marching':
+            # vertices directly from meshing are placed directly on the
+            # potential, causing the volume and surface area to always
+            # (for convex surfaces) be underestimated.  Now let's jitter
+            # each of the vertices along their normals to recover the
+            # expected volume/surface area.  Since they are moved along
+            # their normals, vnormals applies to both vertices and
+            # pvertices.
+            new_mesh['pvertices'] = new_mesh.pop('vertices')
+            # TODO: fall back on curvature=False if we know the body
+            # is relatively spherical
+            mo = libphoebe.mesh_offseting(new_mesh['larea'],
+                                          new_mesh['pvertices'],
+                                          new_mesh['vnormals'],
+                                          new_mesh['triangles'],
+                                          curvature=True,
+                                          vertices=True,
+                                          tnormals=True,
+                                          areas=True,
+                                          volume=False)
+
+            new_mesh['vertices'] = mo['vertices']
+            new_mesh['areas'] = mo['areas']
+            new_mesh['tnormals'] = mo['tnormals']
+
+            # TODO: need to update centers (so that they get passed
+            # to the frontend as x, y, z)
+            # new_mesh['centers'] = mo['centers']
+
+
+        else:
+            # pvertices should just be a copy of vertice
+            new_mesh['pvertices'] = new_mesh['vertices']
+
+        return new_mesh
+
+    def save_as_standard_mesh(self, protomesh):
         """
         TODO: add documentation
         """
-        return np.sqrt(sum([(_value(self._get_coords_by_index(c, self.ind_self)) -
-                             _value(self._get_coords_by_index(c, self.ind_sibling)))**2
-                             for c in (xs,ys,zs)])) /
-                       _value(sma)
-
-    def initialize_mesh(self, **kwargs):
-        """
-        TODO: add documentation
-
-        optional kwargs for BRS marching if time-dependent: (masses, sma)
-        """
-        # TODO: accept theta as an argument (compute d instead of assume d=1-e),
-        # for now will assume at periastron
-
-        mesh_method = kwargs.get('mesh_method', self.mesh_method)
-
-        # now let's do all the stuff that is potential-dependent
-        d = 1 - self.ecc
-        new_mesh_dict, scale, mesh_args = self._build_mesh(d=d,
-                                                      mesh_method=mesh_method,
-                                                      **kwargs)
-        self._scale = scale
-        self._mesh_args = mesh_args
-
-
-        N = len(new_mesh_dict['triangles'])
-
-        logger.info("covered surface with %d triangles"%(N))
-
-        protomesh = mesh.ProtoMesh(**new_mesh_dict)
-
-        self.save_as_standard_mesh(protomesh, theta=0.0)
-
-        # TODO NOW: should these be done on the scaled or unscaled protomesh?
-        # self._mesh = self.get_standard_mesh(theta=0.0, scaled=True)
-        # self._fill_abuns(kwargs.get('abun', self.abun))  # subclassed objects must set self.abun before calling initialize_mesh
-        # self._compute_instantaneous_quantities([], [], [], d=d) # TODO: is this Star-specific?
-        # self._fill_loggs([], [], [], d=d)
-        # self._fill_gravs()
-        # self._fill_teffs()
-
-        self._mesh_initialized = True
-
-        mesh_peri = mesh.ScaledProtoMesh.from_proto(protomesh, self._scale)
-        # NOTE: this mesh is not placed in orbit, but that is fine since we
-        # only need to get the volume (scaled)
-        # TODO: use new_mesh['volume'] instead
-        self.volume_at_periastron = new_mesh_dict['volume'] #  NOTE: this is the unscaled volume
-        # self.volume_at_periastron = mesh_peri.volume
-
-        return
-
-    def save_as_standard_mesh(self, protomesh, theta=0.0):
-        """
-        TODO: add documentation
-        """
-        # TODO: change from theta to d?
+        # TODO: allow this to take theta or separation
+        theta=0.0
 
         self._standard_meshes[theta] = protomesh.copy()
 
@@ -754,13 +747,25 @@ class Body(object):
 
             self._max_r = np.sqrt(max([x**2+y**2+z**2 for x,y,z in mesh.centers]))
 
-    def get_standard_mesh(self, theta=0.0, scaled=True):
+    def has_standard_mesh(self):
+        """
+        whether a standard mesh is available
+        """
+        # TODO: allow this to take etheta and look to see if we have an existing
+        # standard close enough
+        theta = 0.0
+        return theta in self._standard_meshes.keys()
+
+    def get_standard_mesh(self, scaled=True):
         """
         TODO: add documentation
         """
+        # TODO: allow this to take etheta and retreive a mesh at that true anomaly
+        theta = 0.0
         protomesh = self._standard_meshes[theta] #.copy() # if theta in self._standard_meshes.keys() else self.mesh.copy()
 
         if scaled:
+            # TODO: be careful about self._scale... we may want self._instantaneous_scale
             return mesh.ScaledProtoMesh.from_proto(protomesh, self._scale)
         else:
             return protomesh.copy()
@@ -780,6 +785,12 @@ class Body(object):
 
         return
 
+    def _build_mesh(self, *args, **kwargs):
+        """
+        """
+        # return new_mesh_dict, scale
+        raise NotImplementedError("_build_mesh must be overridden by the subclass of Body")
+
     def update_position(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=None, Fs=None, ignore_effects=False, **kwargs):
         """
         Update the position of the star into its orbit
@@ -796,115 +807,69 @@ class Body(object):
         :parameter list eincls: a list/array of euler-incls of ALL COMPONENTS in the :class:`System`
         :parameter list ds: (optional) a list/array of instantaneous distances of ALL COMPONENTS in the :class:`System`
         :parameter list Fs: (optional) a list/array of instantaneous syncpars of ALL COMPONENTS in the :class:`System`
-        :raises NotImplementedError: if the dynamics_method is not supported
         """
-
-        #TODO: move most of this into the subclasses
-
-        if not self.mesh_initialized:
-            self.initialize_mesh()
 
         self.reset_time(time, ethetas[self.ind_self], elongans[self.ind_self], eincls[self.ind_self])
 
         #-- Get current position/euler information
-        # TODO: remove this if/else if all dynamics method now support eulerian elements
-        if self.dynamics_method in ['keplerian', 'nbody', 'rebound', 'bs']:
-            # TODO: get rid of this ugly _value stuff
-            pos = (_value(xs[self.ind_self]), _value(ys[self.ind_self]), _value(zs[self.ind_self]))
-            vel = (_value(vxs[self.ind_self]), _value(vys[self.ind_self]), _value(vzs[self.ind_self]))
-            euler = (_value(ethetas[self.ind_self]), _value(elongans[self.ind_self]), _value(eincls[self.ind_self]))
-        else:
-            raise NotImplementedError("update_position does not support dynamics_method={}".format(self.dynamics_method))
+        # TODO: get rid of this ugly _value stuff
+        pos = (_value(xs[self.ind_self]), _value(ys[self.ind_self]), _value(zs[self.ind_self]))
+        vel = (_value(vxs[self.ind_self]), _value(vys[self.ind_self]), _value(vzs[self.ind_self]))
+        euler = (_value(ethetas[self.ind_self]), _value(elongans[self.ind_self]), _value(eincls[self.ind_self]))
 
-        if isinstance(self, Envelope):
-            q, F, d, Phi = self._mesh_args
-            # envelopes MUST be aligned
-            s = np.array([0. ,0., 1.])
-        elif self.distortion_method == 'rotstar':
-            omega, s, Phi = self._mesh_args
-            # update spin axis for current time
-            s = self.polar_direction
-        elif self.distortion_method == 'sphere':
-            omega, = self._mesh_args
-            s = self.polar_direction
-        else:
-            q, F, d, s, Phi = self._mesh_args
-            # update spin axis for current time
-            s = self.polar_direction
+        # TODO: eventually pass etheta to has_standard_mesh
+        # TODO: implement reprojection as an option based on a nearby standard?
+        if self.needs_remesh or not self.has_standard_mesh():
+            # track whether we did the remesh or not, so we know if we should
+            # compute local quantities if not otherwise necessary
+            did_remesh = True
 
-        #-- Volume Conservation
-        if (self.needs_volume_conservation or self.is_misaligned) and self.distortion_method != 'sphere':
-            # override d to be the current value
-            if ds is not None:
-                # then the instantaneous sma was likely changing (ie roche geometry but nbody orbits)
-                d = ds[self.ind_self]
-                # TODO: if we change d here based on the new sma, do we need to update self._scale?
-            else:
-                d = self.instantaneous_distance(xs, ys, zs, self.sma)
+            d = _value(ds[self.ind_self])
+            F = _value(Fs[self.ind_self])
 
-            # TODO: TESTING should this be unscaled with the new scale or old scale?
-            # self._scale = d
-            target_volume = self.get_target_volume(ethetas[self.ind_self], scaled=False)
-            logger.info("volume conservation: target_volume={}".format(target_volume))
+            new_mesh_dict, scale = self._build_mesh(d=d, F=F,
+                                                    mesh_method=self.mesh_method)
 
-            if self.distortion_method in ['roche']:
-                # TODO: this seems Star/Roche-specific - should it be moved to that class or can it be generalized?
-                if Fs is not None:
-                    # then the instantaneous F was likely changing (ie roche geometry but nbody orbits)
-                    F = Fs[self.ind_self]
+            new_mesh_dict = self._offset_mesh(new_mesh_dict)
 
-                # TODO: need to send a better guess for Omega0
-                Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
-                                                   q, F, d, s.astype(float),
-                                                   Omega0=Phi if Phi>self.Phi else self.Phi)
-                # if Phi < self.Phi:
-                    # then for some reason we passed the value defined at periastron...
-                    # NOTE: this logic may not make sense for dynamical system
-                    # logger.warning("Pot falling back to value defined at periastron")
-                    # Phi = self.Phi
+            # We only need the gradients where we'll compute local
+            # quantities which, for a marching mesh, is at the vertices.
+            new_mesh_dict['normgrads'] = new_mesh_dict.pop('vnormgrads')
 
-                # to store this as instantaneous pot, we need to translate back to the secondary ref frame if necessary
-                self._instantaneous_pot = roche.pot_for_component(Phi, self.q, self.comp_no)
+            # And lastly, let's fill the velocities column - with zeros
+            # at each of the vertices
+            new_mesh_dict['velocities'] = np.zeros(new_mesh_dict['vertices'].shape)
 
-            elif self.distortion_method in ['rotstar']:
-                Phi = libphoebe.rotstar_Omega_at_vol(target_volume,
-                                                     omega)
+            new_mesh_dict['tareas'] = np.array([])
 
-                F = self.F
 
-            else:
-                raise NotImplementedError()
-
-            logger.info("rebuilding mesh with Phi={} and d={}".format(Phi, d))
-
-            # TODO: implement reprojection as an option instead of rebuilding
-            # the mesh??
-
-            # NOTE: Phi is not Phi_user so doesn't need to be flipped for the
-            # secondary component
-            new_mesh_dict, scale, mesh_args = self._build_mesh(d=d,
-                                                               F=F,
-                                                               mesh_method=self.mesh_method,
-                                                               Phi=Phi)
-            # TODO: do we need to update self.scale or self._mesh_args???
             # TODO: need to be very careful about self.sma vs self._scale - maybe need to make a self._instantaneous_scale???
             self._scale = scale
-            self._mesh_args = mesh_args
 
+            if not self.needs_remesh:
+                # then we only computed this because we didn't already have a
+                # standard_mesh... so let's save this for future use
+                # TODO: eventually pass etheta to save_as_standard_mesh
+                protomesh = mesh.ProtoMesh(**new_mesh_dict)
+                self.save_as_standard_mesh(protomesh)
 
             # Here we'll build a scaledprotomesh directly from the newly
-            # marched mesh since we don't need to store the protomesh itself
-            # as a new standard.  NOTE that we're using scale from the new
+            # marched mesh
+            # NOTE that we're using scale from the new
             # mesh rather than self._scale since the instantaneous separation
             # has likely changed since periastron
             scaledprotomesh = mesh.ScaledProtoMesh(scale=scale, **new_mesh_dict)
 
-
         else:
+            # track whether we did the remesh or not, so we know if we should
+            # compute local quantities if not otherwise necessary
+            did_remesh = False
 
             # We still need to go through scaledprotomesh instead of directly
             # to mesh since features may want to process the body-centric
             # coordinates before placing in orbit
+
+            # TODO: eventually pass etheta to get_standard_mesh
             scaledprotomesh = self.get_standard_mesh(scaled=True)
             # TODO: can we avoid an extra copy here?
 
@@ -931,7 +896,7 @@ class Body(object):
                 if scaledprotomesh._compute_at_vertices:
                     scaledprotomesh.update_columns(vertices=coords_for_observations)
 
-                    # TODO: centers either need to be supported or we need to report
+                    # TODO [DONE?]: centers either need to be supported or we need to report
                     # vertices in the frontend as x, y, z instead of centers
 
                     updated_props = libphoebe.mesh_properties(scaledprotomesh.vertices,
@@ -946,27 +911,443 @@ class Body(object):
                     raise NotImplementedError("areas are not updated for changed mesh")
 
 
-        # TODO NOW [OPTIMIZE]: get rid of the deepcopy here - but without it the mesh velocities build-up and do terrible things
+        # TODO NOW [OPTIMIZE]: get rid of the deepcopy here - but without it the
+        # mesh velocities build-up and do terrible things.  It may be possible
+        # to just clear the velocities in get_standard_mesh()?
+        # TODO: check to make sure we want polar_direction_xyz not uvw
         self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh.copy(),
                                                 pos, vel, euler,
-                                                s*self.freq_rot)
+                                                self.polar_direction_xyz*self.freq_rot)
 
 
         # Lastly, we'll recompute physical quantities (not observables) if
         # needed for this time-step.
-        # TODO: make sure features smartly trigger needs_recompute_instantaneous
-        if self.mesh.loggs.for_computations is None or self.needs_recompute_instantaneous:
-            self._compute_instantaneous_quantities(xs, ys, zs)
-
-            # Now fill local instantaneous quantities
-            self._fill_loggs(ignore_effects=ignore_effects)
-            self._fill_gravs()
-            self._fill_teffs(ignore_effects=ignore_effects)
-            self._fill_abuns(abun=self.abun)
-            self._fill_albedos(irrad_frac_refl=self.irrad_frac_refl)
-
+        # TODO [DONE?]: make sure features smartly trigger needs_recompute_instantaneous
+        if self.needs_recompute_instantaneous or did_remesh:
+            self.compute_local_quantities(xs, ys, zs, ignore_effects)
 
         return
+
+    def compute_local_quantities(self, xs, ys, zs, ignore_effects=False, **kwargs):
+        """
+        """
+        raise NotImplementedError("compute_local_quantities needs to be overridden by the subclass of Star")
+
+    def populate_observable(self, time, kind, dataset, **kwargs):
+        """
+        TODO: add documentation
+        """
+
+        if kind in ['mesh']:
+            return
+
+        if time==self.time and dataset in self.populated_at_time and 'pblum' not in kind:
+            # then we've already computed the needed columns
+
+            # TODO: handle the case of intensities already computed by
+            # /different/ dataset (ie RVs computed first and filling intensities
+            # and then lc requesting intensities with SAME passband/atm)
+            return
+
+        new_mesh_cols = getattr(self, '_populate_{}'.format(kind.lower()))(dataset, **kwargs)
+
+        for key, col in new_mesh_cols.items():
+
+            self.mesh.update_columns_dict({'{}:{}'.format(key, dataset): col})
+
+        self.populated_at_time.append(dataset)
+
+class Star(Body):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                 long_an, t0, atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs, mesh_init_phi,
+
+                 requiv, sma,
+                 polar_direction_uvw,
+                 teff, gravb_bol, abun,
+                 irrad_frac_refl,
+                 mesh_method, is_single,
+                 intens_weighting,
+                 ld_func, ld_coeffs,
+                 do_rv_grav,
+                 features,
+                 do_mesh_offset,
+
+                 **kwargs):
+        """
+        """
+        super(Star, self).__init__(comp_no, ind_self, ind_sibling,
+                                   masses, ecc,
+                                   incl, long_an, t0,
+                                   atm, datasets, passband,
+                                   intens_weighting, ld_func, ld_coeffs,
+                                   mesh_init_phi=mesh_init_phi)
+
+        # store everything that is needed by Star but not passed to Body
+        self.requiv = requiv
+        self.sma = sma
+
+        self.polar_direction_uvw = polar_direction_uvw
+        self.teff = teff
+        self.gravb_bol = gravb_bol
+        self.abun = abun
+        self.irrad_frac_refl = irrad_frac_refl
+        self.mesh_method = mesh_method
+        self.ntriangles = kwargs.get('ntriangles', 1000)                    # Marching
+        self.distortion_method = kwargs.get('distortion_method', 'roche')   # Marching (WD assumes roche)
+        self.gridsize = kwargs.get('gridsize', 90)                          # WD
+        self.is_single = is_single
+        self.intens_weighting = intens_weighting
+        self.ld_func = ld_func
+        self.ld_coeffs = ld_coeffs
+        self.do_rv_grav = do_rv_grav
+        self.features = features
+        self.do_mesh_offset = do_mesh_offset
+
+    @classmethod
+    def from_bundle(cls, b, component, compute=None,
+                    mesh_init_phi=0.0, datasets=[], **kwargs):
+        """
+        Build a star from the :class:`phoebe.frontend.bundle.Bundle` and its
+        hierarchy.
+
+        Usually it makes more sense to call :meth:`System.from_bundle` directly.
+
+        :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+        :parameter str component: label of the component in the bundle
+        :parameter str compute: name of the computeoptions in the bundle
+        :parameter list datasets: list of names of datasets
+        :parameter **kwargs: temporary overrides for computeoptions
+        :return: an instantiated :class:`Star` object
+        """
+        # TODO [DONE?]: handle overriding options from kwargs
+        # TODO [DONE?]: do we need dynamics method???
+
+        hier = b.hierarchy
+
+        if not len(hier.get_value()):
+            raise NotImplementedError("Star meshing requires a hierarchy to exist")
+
+
+        label_self = component
+        label_sibling = hier.get_stars_of_sibling_of(component)
+        label_orbit = hier.get_parent_of(component)
+        starrefs  = hier.get_stars()
+
+        ind_self = starrefs.index(label_self)
+        # for the sibling, we may need to handle a list of stars (ie in the case of a hierarchical triple)
+        ind_sibling = starrefs.index(label_sibling) if isinstance(label_sibling, str) else [starrefs.index(l) for l in label_sibling]
+        comp_no = ['primary', 'secondary'].index(hier.get_primary_or_secondary(component))+1
+
+        self_ps = b.filter(component=component, context='component', check_visible=False)
+        requiv = self_ps.get_value('requiv', unit=u.solRad)
+
+
+        masses = [b.get_value('mass', component=star, context='component', unit=u.solMass) for star in starrefs]
+        if b.hierarchy.get_parent_of(component) is not None:
+            sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
+            ecc = b.get_value('ecc', component=label_orbit, context='component')
+            is_single = False
+        else:
+            # single star case
+            sma = 1.0
+            ecc = 0.0
+            is_single = True
+
+        incl = b.get_value('incl', component=label_orbit, context='component', unit=u.rad)
+        long_an = b.get_value('long_an', component=label_orbit, context='component', unit=u.rad)
+
+        incl_star = self_ps.get_value('incl', unit=u.rad)
+        long_an_star = self_ps.get_value('long_an', unit=u.rad)
+        polar_direction_uvw = mesh.spin_in_system(incl_star, long_an_star)
+
+        t0 = b.get_value('t0', context='system', unit=u.d)
+
+        teff = b.get_value('teff', component=component, context='component', unit=u.K)
+        gravb_bol= b.get_value('gravb_bol', component=component, context='component')
+
+        abun = b.get_value('abun', component=component, context='component')
+        irrad_frac_refl = b.get_value('irrad_frac_refl_bol', component=component, context='component')
+
+        try:
+            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, **kwargs) if compute is not None else False
+        except ValueError:
+            # rv_grav may not have been copied to this component if no rvs are attached
+            do_rv_grav = False
+
+        mesh_method = b.get_value('mesh_method', component=component, compute=compute, **kwargs) if compute is not None else 'marching'
+
+        if mesh_method == 'marching':
+            kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, **kwargs) if compute is not None else 1000
+            kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, **kwargs) if compute is not None else 'roche'
+        elif mesh_method == 'wd':
+            kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, **kwargs) if compute is not None else 30
+        else:
+            raise NotImplementedError
+
+        features = []
+        for feature in b.filter(component=component).features:
+            feature_ps = b.filter(feature=feature, component=component)
+            feature_cls = globals()[feature_ps.kind.title()]
+            features.append(feature_cls.from_bundle(b, feature))
+
+        if conf.devel:
+            do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
+        else:
+            do_mesh_offset = True
+
+        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv'], context='dataset').datasets if ds != '_default']
+        atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
+        passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
+        intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
+        ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
+        ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
+        ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
+        ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
+
+        # we'll pass kwargs on here so they can be overridden by the classmethod
+        # of any subclass and then intercepted again by the __init__ by the
+        # same subclass.  Note: kwargs also hold meshing kwargs which are used
+        # by Star.__init__
+        return cls(comp_no, ind_self, ind_sibling,
+                   masses, ecc,
+                   incl, long_an, t0,
+                   atm, datasets, passband,
+                   intens_weighting, ld_func, ld_coeffs,
+                   mesh_init_phi,
+
+                   requiv=requiv,
+                   sma=sma,
+                   polar_direction_uvw=polar_direction_uvw,
+                   teff=teff,
+                   gravb_bol=gravb_bol,
+                   abun=abun,
+                   irrad_frac_refl=irrad_frac_refl,
+                   mesh_method=mesh_method,
+                   is_single=is_single,
+                   intens_weighting=intens_weighting,
+                   ld_func=ld_func,
+                   ld_coeffs=ld_coeffs,
+                   do_rv_grav=do_rv_grav,
+                   feature=features,
+                   do_mesh_offset=do_mesh_offset,
+                   **kwargs
+                   )
+
+    @property
+    def is_convex(self):
+        """
+        """
+        # in general this is False, subclasses can override this to True
+        # if they can guarantee that their mesh will be strictly convex
+        return False
+
+    @property
+    def needs_recompute_instantaneous(self):
+        """
+        whether the Body needs local quantities recomputed at each time, even
+        if needs_remesh == False (instantaneous local quantities will be recomputed
+        if needs_remesh=True, whether or not this is True)
+
+        this should be overridden by any subclass of Star, if necessary
+        """
+        return len(self.features) > 0
+
+    @property
+    def needs_remesh(self):
+        """
+        whether the star needs to be re-meshed (for any reason)
+        """
+        return True
+
+    @property
+    def is_misaligned(self):
+        """
+        whether the star is misaligned wrt its orbit.  This probably does not
+        need to be overridden by subclasses, but can be useful to use within
+        the overriden methods for needs_remesh and needs_recompute_instantaneous
+        """
+        # should be defined for any class that subclasses Star that supports
+        # misalignment
+        if self._is_single:
+            return False
+
+        return self.spin[1] != 1.0
+
+    @property
+    def spots(self):
+        return [f for f in self.features if f.__class__.__name__=='Spot']
+
+    @property
+    def polar_direction_xyz(self):
+        """
+        get current polar direction in Roche (xyz) coordinates
+        """
+        return mesh.spin_in_roche(self.polar_direction_uvw,
+                                  self.true_anom, self.elongan, self.eincl)
+
+    def get_target_volume(self, etheta=0.0, scaled=False):
+        """
+        TODO: add documentation
+
+        get the volume that the Star should have at a given euler theta
+        """
+        # TODO: make this a function of d instead of etheta?
+        logger.info("determining target volume at theta={}".format(etheta))
+
+        # TODO: eventually this could allow us to "break" volume conservation
+        # and have volume be a function of d, with some scaling factor provided
+        # by the user as a parameter.  Until then, we'll assume volume is
+        # conserved which means the volume should always be the same
+
+        volume = 4./3 * np.pi * self.requiv**3
+
+        if not scaled:
+            return volume / self._scale**3
+        else:
+            return volume
+
+    @property
+    def north_pole_uvw(self):
+        """location of the north pole in the global/system frame"""
+        # TODO: is this rpole scaling true for all distortion_methods??
+        rpole = self.instantaneous_rpole*self.sma
+        return self.polar_direction_uvw*rpole+self.mesh._pos
+
+    def _build_mesh(self, *args, **kwargs):
+        """
+        """
+        # return new_mesh_dict, scale
+        raise NotImplementedError("_build_mesh must be overridden by the subclass of Star")
+
+    def compute_local_quantities(self, xs, ys, zs, ignore_effects=False, **kwargs):
+        self._compute_instantaneous_quantities(xs, ys, zs)
+
+        # Now fill local instantaneous quantities
+        self._fill_loggs(ignore_effects=ignore_effects)
+        self._fill_gravs()
+        self._fill_teffs(ignore_effects=ignore_effects)
+        self._fill_abuns(abun=self.abun)
+        self._fill_albedos(irrad_frac_refl=self.irrad_frac_refl)
+
+    @property
+    def _rpole_func(self):
+        """
+        """
+        # the provided function must take *self.instantaneous_mesh_args as the
+        # only arguments.  If this is not the case, the subclass must also override
+        # instantaneous_rpole
+        # pole_func = getattr(libphoebe, '{}_pole'.format('{}_misaligned'.format(self.distortion_method) if self.distortion_method in ['roche', 'rotstar'] else self.distortion_method))
+        raise NotImplementedError("rpole_func must be overriden by the subclass of Star")
+
+    @property
+    def _gradOmega_func(self):
+        """
+        """
+        # the provided function must take *self.instantaneous_mesh_args as the
+        # only arguments.  If this is not the case, the subclass must also override
+        # instantaneous_gpole
+        # gradOmega_func = getattr(libphoebe, '{}_gradOmega_only'.format('{}_misaligned'.format(self.distortion_method) if self.distortion_method in ['roche', 'rotstar'] else self.distortion_method))
+        raise NotImplementedError("gradOmega_func must be overriden by the subclass of Star")
+
+    @property
+    def instantaneous_rpole(self):
+        return self._rpole_func(*self.instantaneous_mesh_args)
+
+    @property
+    def instantaneous_gpole(self):
+        rpole_ = np.array([0., 0., self.rpole])
+
+        # TODO: this is a little ugly as it assumes Phi is the last argument in mesh_args
+        args = list(self.instantaneous_mesh_args)[:-1]+[rpole_]
+        grads = self._gradOmega_func(*args)
+        gpole = np.linalg.norm(grads)
+
+        return gpole * g_rel_to_abs
+
+    @property
+    def instantaneous_tpole(self):
+        """
+        compute the instantaenous temperature at the pole to achieve the mean
+        effective temperature (teff) provided by the user
+        """
+        # get the user-defined mean effective temperatures
+        Teff = kwargs.get('teff', self.teff)
+
+        # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
+        # see PHOEBE Legacy scientific reference eq 5.20
+        return Teff*(np.sum(mesh.areas) / np.sum(mesh.gravs.centers*mesh.areas))**(0.25)
+
+    @property
+    def instantaneous_mesh_args(self):
+        """
+        determine instantaneous parameters needed for meshing
+        """
+        raise NotImplementedError("instantaneous_mesh_args must be overridden by the subclass of Sar")
+
+    def _fill_loggs(self, mesh=None, ignore_effects=False):
+        """
+        TODO: add documentation
+
+        Calculate local surface gravity
+
+        GMSunNom = 1.3271244e20 m**3 s**-2
+        RSunNom = 6.597e8 m
+        """
+        if mesh is None:
+            mesh = self.mesh
+
+        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs)
+
+        if not ignore_effects:
+            for feature in self.features:
+                if feature.proto_coords:
+                    loggs = feature.process_teffs(loggs, self.get_standard_mesh().coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                else:
+                    loggs = feature.process_teffs(loggs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+
+        mesh.update_columns(loggs=loggs)
+
+    def _fill_gravs(self, mesh=None, **kwargs):
+        """
+        TODO: add documentation
+
+        requires _fill_loggs to have been called
+        """
+        if mesh is None:
+            mesh = self.mesh
+
+        # TODO: rename 'gravs' to 'gdcs' (gravity darkening corrections)
+
+        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
+        gravs = ((mesh.normgrads.for_computations * g_rel_to_abs)/self.instantaneous_gpole)**self.gravb_bol
+
+        mesh.update_columns(gravs=gravs)
+
+
+    def _fill_teffs(self, mesh=None, ignore_effects=False, **kwargs):
+        r"""
+
+        requires _fill_loggs and _fill_gravs to have been called
+
+        Calculate local temperature of a Star.
+        """
+        if mesh is None:
+            mesh = self.mesh
+
+
+        # Now we can compute the local temperatures.
+        # see PHOEBE Legacy scientific reference eq 5.23
+        teffs = self.instantaneous_tpole*mesh.gravs.for_computations**0.25
+
+        if not ignore_effects:
+            for feature in self.features:
+                if feature.proto_coords:
+                    teffs = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                else:
+                    teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+
+        mesh.update_columns(teffs=teffs)
 
     def _fill_abuns(self, mesh=None, abun=0.0):
         """
@@ -987,7 +1368,6 @@ class Body(object):
             mesh = self.mesh
 
         mesh.update_columns(irrad_frac_refl=irrad_frac_refl)
-
 
     def compute_luminosity(self, dataset, **kwargs):
         """
@@ -1031,6 +1411,8 @@ class Body(object):
         self.set_pblum_scale(dataset, pblum_scale)
 
     def set_pblum_scale(self, dataset, pblum_scale, **kwargs):
+        """
+        """
         self._pblum_scale[dataset] = pblum_scale
 
     def get_pblum_scale(self, dataset, **kwargs):
@@ -1056,816 +1438,9 @@ class Body(object):
 
         return self._ptfarea[dataset]
 
-
-    def populate_observable(self, time, kind, dataset, **kwargs):
-        """
-        TODO: add documentation
-        """
-
-        if kind in ['mesh']:
-            return
-
-        if time==self.time and dataset in self.populated_at_time and 'pblum' not in kind:
-            # then we've already computed the needed columns
-
-            # TODO: handle the case of intensities already computed by /different/ dataset (ie RVs computed first and filling intensities and then lc requesting intensities with SAME passband/atm)
-            return
-
-        new_mesh_cols = getattr(self, '_populate_{}'.format(kind.lower()))(dataset, **kwargs)
-
-        for key, col in new_mesh_cols.items():
-
-            self.mesh.update_columns_dict({'{}:{}'.format(key, dataset): col})
-
-        self.populated_at_time.append(dataset)
-
-class Star(Body):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
-                 dynamics_method, mesh_init_phi,
-
-                 **kwargs):
-        """
-        """
-        super(Star, self).__init__(comp_no, ind_self, ind_sibling,
-                                   masses, ecc,
-                                   incl, long_an, t0,
-                                   atm, datasets, passband,
-                                   intens_weighting, ld_func, ld_coeffs,
-                                   dynamics_method=dynamics_method,
-                                   mesh_init_phi=mesh_init_phi)
-
-class RocheStar(Star):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
-                 dynamics_method, mesh_init_phi,
-
-                 **kwargs):
-        """
-        """
-        super(RocheStar, self).__init__(comp_no, ind_self, ind_sibling,
-                                        masses, ecc,
-                                        incl, long_an, t0,
-                                        atm, datasets, passband,
-                                        intens_weighting, ld_func, ld_coeffs,
-                                        dynamics_method=dynamics_method,
-                                        mesh_init_phi=mesh_init_phi)
-
-class RotStar(Star):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
-                 dynamics_method, mesh_init_phi,
-
-                 **kwargs):
-        """
-        """
-        super(RotStar, self).__init__(comp_no, ind_self, ind_sibling,
-                                      masses, ecc,
-                                      incl, long_an, t0,
-                                      atm, datasets, passband,
-                                      intens_weighting, ld_func, ld_coeffs,
-                                      dynamics_method=dynamics_method,
-                                      mesh_init_phi=mesh_init_phi)
-class SphereStar(Star):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
-                 dynamics_method, mesh_init_phi,
-
-                 **kwargs):
-        """
-        """
-        super(SphereStar, self).__init__(comp_no, ind_self, ind_sibling,
-                                         masses, ecc,
-                                         incl, long_an, t0,
-                                         atm, datasets, passband,
-                                         intens_weighting, ld_func, ld_coeffs,
-                                         dynamics_method=dynamics_method,
-                                         mesh_init_phi=mesh_init_phi)
-
-
-
-
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-#############################################################################################################################################################################
-
-
-
-
-class StarOld(Body):
-    def __init__(self, F, Phi, masses, sma, ecc, incl, long_an, t0,
-                 freq_rot, spin,
-                 teff, gravb_bol,
-                 abun, irrad_frac_refl,
-                 mesh_method='marching',
-                 dynamics_method='keplerian',
-                 mesh_init_phi=0.0,
-                 ind_self=0, ind_sibling=1,
-                 comp_no=1, is_single=False,
-                 atm='blackbody', datasets=[], passband={},
-                 intens_weighting={}, ld_func={}, ld_coeffs={},
-                 do_rv_grav=False,
-                 features=[], do_mesh_offset=True, **kwargs):
-        """
-
-        :parameter float F: syncpar
-        :parameter float Phi: equipotential of this star at periastron
-        :parameter masses: mass of each component in the system (solMass)
-        :type masses: list of floats
-        :parameter float sma: sma of this component's parent orbit (solRad)
-        :parameter float freq_rot: rotation frequency (rad/d)
-        :parameter float spin: direction of the spin axes in the global/system frame (array with length 3)
-        :parameter float abun: abundance of this star
-        :parameter int ind_self: index in all arrays (positions, masses, etc) for this object
-        :parameter int ind_sibling: index in all arrays (positions, masses, etc)
-            for the sibling of this object
-        :return: instantiated :class:`Star` object
-        """
-        super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc,
-                                   incl, long_an, t0,
-                                   atm, datasets, passband,
-                                   intens_weighting, ld_func, ld_coeffs,
-                                   dynamics_method=dynamics_method,
-                                   mesh_init_phi=mesh_init_phi)
-
-        self._is_convex = True
-
-        # Remember how to compute the mesh
-        self.mesh_method = mesh_method
-        self.ntriangles = kwargs.get('ntriangles', 1000)                    # Marching
-        self.distortion_method = kwargs.get('distortion_method', 'roche')   # Marching (WD assumes roche)
-        self.gridsize = kwargs.get('gridsize', 90)                          # WD
-
-        self.do_rv_grav = do_rv_grav
-
-        # Remember things we need to know about this star - these will all be used
-        # as defaults if they are not passed in future calls.  If for some reason
-        # they are time dependent, then the instantaneous values need to be passed
-        # for each call to update_position
-        self.F = F
-        self.freq_rot = freq_rot
-        self.sma = sma
-
-
-        # compute Phi (Omega/pot): here again if we're the secondary star we have
-        # to translate Phi since all meshing methods assume a primary component
-        self.Phi_user = Phi  # this is the value set by the user (not translated)
-        self._instantaneous_pot = Phi  # this is again the value set by the user but will be updated for eccentric orbits at each time
-        # NOTE: self.q may be flipped her for the secondary
-        self.Phi = roche.pot_for_component(Phi, self.q, self.comp_no)
-
-        # spin direction in the global/system coordinates
-        self.spin = spin
-
-        self.teff = teff
-        self.gravb_bol = gravb_bol
-        # self.gravb_law = gravb_law
-        self.abun = abun
-        self.irrad_frac_refl = irrad_frac_refl
-
-        # self.frac_heat = frac_heat
-        # self.frac_scatt = frac_scatt
-
-        self.features = features
-
-        self._is_single = is_single # TODO: move to Body class?
-        self._do_mesh_offset = do_mesh_offset
-
-        # Volume "conservation"
-        self.volume_factor = 1.0  # TODO: eventually make this a parameter (currently defined to be the ratio between volumes at apastron/periastron)
-
-
-    @classmethod
-    def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian',
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
-        """
-        Build a star from the :class:`phoebe.frontend.bundle.Bundle` and its
-        hierarchy.
-
-        Usually it makes more sense to call :meth:`System.from_bundle` directly.
-
-        :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-        :parameter str component: label of the component in the bundle
-        :parameter str compute: name of the computeoptions in the bundle
-        :parameter str dynamics_method: method to use for computing the position
-            of this star in the orbit
-        :parameter list datasets: list of names of datasets
-        :parameter **kwargs: temporary overrides for computeoptions
-        :return: an instantiated :class:`Star` object
-        """
-        # TODO: handle overriding options from kwargs
-        # TODO: do we need dynamics method???
-
-        hier = b.hierarchy
-
-        if not len(hier.get_value()):
-            raise NotImplementedError("Star meshing requires a hierarchy to exist")
-
-
-        label_self = component
-        label_sibling = hier.get_stars_of_sibling_of(component)
-        label_orbit = hier.get_parent_of(component)
-        starrefs  = hier.get_stars()
-
-        ind_self = starrefs.index(label_self)
-        # for the sibling, we may need to handle a list of stars (ie in the case of a hierarchical triple)
-        ind_sibling = starrefs.index(label_sibling) if isinstance(label_sibling, str) else [starrefs.index(l) for l in label_sibling]
-        comp_no = ['primary', 'secondary'].index(hier.get_primary_or_secondary(component))+1
-
-        # meshing for BRS needs d,q,F,Phi
-        # d is instantaneous based on x,y,z of self and sibling
-        # q is instantaneous based on masses of self and sibling
-        # F we can get now
-        # Phi we can get now
-
-        self_ps = b.filter(component=component, context='component', check_visible=False)
-        F = self_ps.get_value('syncpar', check_visible=False) # not relevant for single stars... but doesn't hurt to load
-        Phi = self_ps.get_value('pot')
-        freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
-        # NOTE: we need F for roche geometry (marching, reprojection), but freq_rot for ctrans.place_in_orbit and rotstar.marching
-
-
-        masses = [b.get_value('mass', component=star, context='component', unit=u.solMass) for star in starrefs]
-        if b.hierarchy.get_parent_of(component) is not None:
-            sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
-            ecc = b.get_value('ecc', component=label_orbit, context='component')
-            is_single = False
-        else:
-            # single star case
-            # here sma is meaningless, but we'll compute the mesh using the polar radius as the scaling factor
-            sma = 1.0 #b.get_value('rpole', component=star, context='component', unit=u.solRad)
-            ecc = 0.0
-            is_single = True
-
-        incl = b.get_value('incl', component=label_orbit, context='component', unit=u.rad)
-        long_an = b.get_value('long_an', component=label_orbit, context='component', unit=u.rad)
-
-        incl_star = self_ps.get_value('incl', unit=u.rad)
-        long_an_star = self_ps.get_value('long_an', unit=u.rad)
-        spin = mesh.spin_in_system(incl_star, long_an_star)
-
-        t0 = b.get_value('t0', context='system', unit=u.d)
-
-        teff = b.get_value('teff', component=component, context='component', unit=u.K)
-        # gravb_law = b.get_value('gravblaw_bol', component=component, context='component')
-        gravb_bol= b.get_value('gravb_bol', component=component, context='component')
-
-        abun = b.get_value('abun', component=component, context='component')
-        irrad_frac_refl = b.get_value('irrad_frac_refl_bol', component=component, context='component')
-
-        try:
-            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, **kwargs) if compute is not None else False
-        except ValueError:
-            # rv_grav may not have been copied to this component if no rvs are attached
-            do_rv_grav = False
-
-        # pass kwargs in case mesh_method was temporarily overriden
-        mesh_method = b.get_value('mesh_method', component=component, compute=compute, **kwargs) if compute is not None else 'marching'
-
-        mesh_kwargs = {}
-        if mesh_method == 'marching':
-            mesh_kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, **kwargs) if compute is not None else 1000
-            mesh_kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, **kwargs) if compute is not None else 'roche'
-        elif mesh_method == 'wd':
-            mesh_kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, **kwargs) if compute is not None else 30
-        else:
-            raise NotImplementedError
-
-        features = []
-        # print "*** checking for features of", component, b.filter(component=component).features
-        for feature in b.filter(component=component).features:
-            # print "*** creating features", star, feature
-            feature_ps = b.filter(feature=feature, component=component)
-            feature_cls = globals()[feature_ps.kind.title()]
-            features.append(feature_cls.from_bundle(b, feature))
-
-        if conf.devel:
-            do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
-        else:
-            do_mesh_offset = True
-
-        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv'], context='dataset').datasets if ds != '_default']
-        atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
-        passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
-        intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
-        ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
-        ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
-        ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
-        ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
-
-        return cls(F, Phi, masses, sma, ecc, incl, long_an, t0,
-                freq_rot, spin,
-                teff, gravb_bol,
-                abun, irrad_frac_refl,
-                mesh_method, dynamics_method,
-                mesh_init_phi, ind_self, ind_sibling, comp_no,
-                is_single=is_single, atm=atm, datasets=datasets,
-                passband=passband, intens_weighting=intens_weighting,
-                ld_func=ld_func, ld_coeffs=ld_coeffs,
-                do_rv_grav=do_rv_grav,
-                features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
-
-    @property
-    def spots(self):
-        return [f for f in self.features if f.__class__.__name__=='Spot']
-
-    @property
-    def is_misaligned(self):
-        """
-        """
-        # is aligned, spin should be (0,1,0).  Since spin must have length 1,
-        # we can just check the y-direction
-        if self._is_single:
-            return False
-
-        return self.spin[1] != 1.0
-
-    @property
-    def needs_recompute_instantaneous(self):
-        """
-        TODO: add documentation
-        """
-        if self.ecc != 0.0:
-            # for eccentric orbits we need to recompute values at every time-step
-            return True
-        else:
-            # In circular orbits we should be safe to assume these quantities
-            # remain constant
-
-            # TODO: may need to add conditions here for reflection/heating or
-            # if time-dependent parameters are passed
-            return False
-
-    @property
-    def needs_volume_conservation(self):
-        """
-        TODO: add documentation
-
-        we can skip volume conservation only for circular orbits
-        even for circular orbits - if we're using nbody but roche distortion, we must remesh to handle instantaneous changes to d or F
-        """
-        return self.ecc != 0 or (self.dynamics_method != 'keplerian' and self.distortion_method == 'roche') or self.is_misaligned
-
-    @property
-    def polar_direction(self):
-        """polar direction in the roche frame"""
-        #~ print "*** polar_direction spin: time: {} comp_no: {} spin: {} true_anom: {}, polar_direction: {}".format(self.time, self.comp_no, self.spin, self.true_anom, mesh.spin_in_roche(self.spin, self.true_anom, self.elongan, self.eincl))
-        return mesh.spin_in_roche(self.spin, self.true_anom, self.elongan, self.eincl)
-
-    def get_target_volume(self, etheta, scaled=False):
-        """
-        TODO: add documentation
-
-        get the volume that the BRS should have at a given euler theta
-        """
-        # TODO: make this a function of d instead of etheta?
-        logger.info("determining target volume at theta={}".format(etheta))
-
-        # TODO: eventually this could allow us to "break" volume conservation and have volume be a function of d,
-        # with some scaling factor provided by the user as a parameter.  Until then, we'll assume volume is conserved
-        # which means the volume should always be the same as it was defined at periaston.
-
-        # volumes are stored internally in real units.  So if we want the
-        # "protomesh" volume we need to divide by scale^3
-        if not scaled:
-            # return self.volume_at_periastron/self._scale**3
-            return self.volume_at_periastron
-        else:
-            # return self.volume_at_periastron
-            return self.volume_at_periastron*self._scale**3
-
-    def get_north_pole(self, rpole=1.0):
-        """location of the north pole in the global/system frame"""
-        #print "*** north_pole", self.spin, self.spin*rpole+self.mesh._pos
-        return self.spin*rpole+self.mesh._pos
-        #return mesh.transform_position_array(self.spin*rpole, self.mesh._pos, self.mesh._euler, is_normal=False)
-
-    def _build_mesh(self, d, mesh_method, **kwargs):
-        """
-        this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
-        the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
-        """
-
-        # if we don't provide instantaneous masses or smas, then assume they are
-        # not time dependent - in which case they were already stored in the init
-        masses = kwargs.get('masses', self.masses)  #solMass
-        sma = kwargs.get('sma', self.sma)  # Rsol (same units as coordinates)
-        F = kwargs.get('F', self.F)
-
-
-        Phi = kwargs.get('Phi', self.Phi)  # NOTE: self.Phi automatically corrects for the secondary star
-        q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
-
-        # polar direction is instantaneous based on current true_anom
-        s = self.polar_direction
-
-        mesh_args = (q, F, d, s, Phi)
-
-        if mesh_method == 'marching':
-            ntriangles = kwargs.get('ntriangles', self.ntriangles)
-
-            if self.distortion_method == 'roche':
-                # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
-
-                av = libphoebe.roche_misaligned_area_volume(*mesh_args,
-                                                            choice=0,
-                                                            larea=True,
-                                                            lvolume=True)
-                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
-
-                # print "*** libphoebe.roche_misaligned_marching_mesh args: {}, delta: {}".format(mesh_args, delta)
-
-                new_mesh = libphoebe.roche_misaligned_marching_mesh(*mesh_args,
-                                                                    delta=delta,
-                                                                    choice=0,
-                                                                    full=True,
-                                                                    max_triangles=ntriangles*2,
-                                                                    vertices=True,
-                                                                    triangles=True,
-                                                                    centers=True,
-                                                                    vnormals=True,
-                                                                    tnormals=True,
-                                                                    cnormals=False,
-                                                                    vnormgrads=True,
-                                                                    cnormgrads=False,
-                                                                    areas=True,
-                                                                    volume=False,
-                                                                    init_phi=self.mesh_init_phi)
-
-
-                # Now we'll get the area and volume of the Roche potential
-                # itself (not the mesh).
-                # TODO: which volume(s) do we want to report?  Either way, make
-                # sure to do the same for the OC case and rotstar
-
-
-                new_mesh['volume'] = av['lvolume']
-
-                if self._do_mesh_offset:
-                    # vertices directly from meshing are placed directly on the
-                    # potential, causing the volume and surface area to always
-                    # (for convex surfaces) be underestimated.  Now let's jitter
-                    # each of the vertices along their normals to recover the
-                    # expected volume/surface area.  Since they are moved along
-                    # their normals, vnormals applies to both vertices and
-                    # pvertices.
-                    new_mesh['pvertices'] = new_mesh.pop('vertices')
-                    # TODO: fall back on curvature=False if we know the body
-                    # is relatively spherical
-                    mo = libphoebe.mesh_offseting(av['larea'],
-                                                  new_mesh['pvertices'],
-                                                  new_mesh['vnormals'],
-                                                  new_mesh['triangles'],
-                                                  curvature=True,
-                                                  vertices=True,
-                                                  tnormals=True,
-                                                  areas=True,
-                                                  volume=False)
-
-                    new_mesh['vertices'] = mo['vertices']
-                    new_mesh['areas'] = mo['areas']
-                    new_mesh['tnormals'] = mo['tnormals']
-
-                    # TODO: need to update centers (so that they get passed
-                    # to the frontend as x, y, z)
-                    # new_mesh['centers'] = mo['centers']
-
-
-                else:
-                    # pvertices should just be a copy of vertice
-                    new_mesh['pvertices'] = new_mesh['vertices']
-
-
-
-                # We only need the gradients where we'll compute local
-                # quantities which, for a marching mesh, is at the vertices.
-                new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
-
-                # And lastly, let's fill the velocities column - with zeros
-                # at each of the vertices
-                new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
-
-                new_mesh['tareas'] = np.array([])
-
-                scale = sma
-
-
-            elif self.distortion_method == 'rotstar':
-
-                if not self._is_single:
-                    # Then we're in a binary that is using the roche
-                    # pot<->rpole constraint.  So, let's get the Phi that
-                    # would match the same polar radius as if it were a roche
-                    # potential.
-                    # rpole = roche.potential2rpole(Phi, q, 0.0, F)  # TODO: REMOVE
-                    # print "*** before rotstar_from_roche", Phi, F, sma, rpole*sma
-                    # print "*** libphoebe.rotstar_misaligned_from_roche_misaligned", mesh_args
-                    info = libphoebe.rotstar_misaligned_from_roche_misaligned(*mesh_args)
-                    omega = info['omega']
-                    s = info['misalignment']
-                    Phi = info['Omega']
-                    # rpole = rotstar.potential2rpole(Phi, self.freq_rot, solar_units=True)  # TODO: REMOVE
-                    # print "*** after rotstar_from_roche", Phi, omega, sma, rpole*sma
-
-                else:
-                    # then we used the rotstar pot<->rpole constraint and
-                    # can directly pass Phi and omega (from freq_rot)
-                    # freq_rot (1./d)
-                    omega = rotstar.rotfreq_to_omega(self.freq_rot, scale=sma, solar_units=True)
-                    Phi = self.Phi_user # because we don't want to do conversion for secondary
-
-
-                mesh_args = (omega, s, Phi)
-
-                av = libphoebe.rotstar_misaligned_area_volume(*mesh_args,
-                                                   larea=True,
-                                                   lvolume=True)
-
-                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
-
-
-                # print "*** rotstar_marching_mesh omega: {}, Phi: {}, freq_rot:{}, sma:{}, rpole:{}, delta:{}".format(mesh_args[0], mesh_args[1], self.freq_rot, sma, rpole, delta)
-
-                new_mesh = libphoebe.rotstar_misaligned_marching_mesh(*mesh_args,
-                                               delta=delta,
-                                               full=True,
-                                               max_triangles=ntriangles*2,
-                                               vertices=True,
-                                               triangles=True,
-                                               centers=True,
-                                               vnormals=True,
-                                               tnormals=True,
-                                               cnormals=False,
-                                               vnormgrads=True,
-                                               cnormgrads=False,
-                                               areas=True,
-                                               volume=True,
-                                               init_phi=self.mesh_init_phi)
-
-
-
-                new_mesh['volume'] = av['lvolume']
-
-                if self._do_mesh_offset:
-                    # vertices directly from meshing are placed directly on the
-                    # potential, causing the volume and surface area to always
-                    # (for convex surfaces) be underestimated.  Now let's jitter
-                    # each of the vertices along their normals to recover the
-                    # expected volume/surface area.  Since they are moved along
-                    # their normals, vnormals applies to both vertices and
-                    # pvertices.
-                    new_mesh['pvertices'] = new_mesh.pop('vertices')
-                    mo = libphoebe.mesh_offseting(av['larea'],
-                                                  new_mesh['pvertices'],
-                                                  new_mesh['vnormals'],
-                                                  new_mesh['triangles'],
-                                                  curvature=True,
-                                                  vertices=True,
-                                                  tnormals=False,
-                                                  areas=True,
-                                                  volume=False)
-
-                    new_mesh['vertices'] = mo['vertices']
-                    new_mesh['areas'] = mo['areas']
-
-                    # TODO: need to update centers (so that they get passed
-                    # to the frontend as x, y, z)
-                    # new_mesh['centers'] = mo['centers']
-
-                else:
-                    # pvertices should just be a copy of vertices
-                    new_mesh['pvertices'] = new_mesh['vertices']
-
-                # We only need the gradients where we'll compute local
-                # quantities which, for a marching mesh, is at the vertices.
-                new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
-
-                # And lastly, let's fill the velocities column - with zeros
-                # at each of the vertices
-                new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
-
-                new_mesh['tareas'] = np.array([])
-
-                scale = sma
-
-            elif self.distortion_method == 'sphere':
-
-                if self._is_single:
-                    raise NotImplementedError()
-                    # TODO: need to use rpole directly?
-
-                rpole = libphoebe.roche_misaligned_pole(*mesh_args)
-                omega = 1./rpole
-                # sphere doesn't care about spin axis for marching, we'll deal
-                # with the spin axis for spots/velocities later
-                mesh_args = (omega,)
-
-                av = libphoebe.sphere_area_volume(*mesh_args,
-                                                   larea=True,
-                                                   lvolume=True)
-
-                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
-
-                # print "*** sphere_marching_mesh rpole:{} omega:{} delta:{}".format(rpole, mesh_args[0], delta)
-
-                new_mesh = libphoebe.sphere_marching_mesh(*mesh_args,
-                                               delta=delta,
-                                               full=True,
-                                               max_triangles=ntriangles*2,
-                                               vertices=True,
-                                               triangles=True,
-                                               centers=True,
-                                               vnormals=True,
-                                               tnormals=True,
-                                               cnormals=False,
-                                               vnormgrads=True,
-                                               cnormgrads=False,
-                                               areas=True,
-                                               volume=True,
-                                               init_phi=self.mesh_init_phi)
-
-
-
-                new_mesh['volume'] = av['lvolume']
-
-                if self._do_mesh_offset:
-                    # vertices directly from meshing are placed directly on the
-                    # potential, causing the volume and surface area to always
-                    # (for convex surfaces) be underestimated.  Now let's jitter
-                    # each of the vertices along their normals to recover the
-                    # expected volume/surface area.  Since they are moved along
-                    # their normals, vnormals applies to both vertices and
-                    # pvertices.
-                    new_mesh['pvertices'] = new_mesh.pop('vertices')
-                    mo = libphoebe.mesh_offseting(av['larea'],
-                                                  new_mesh['pvertices'],
-                                                  new_mesh['vnormals'],
-                                                  new_mesh['triangles'],
-                                                  curvature=True,
-                                                  vertices=True,
-                                                  tnormals=False,
-                                                  areas=True,
-                                                  volume=False)
-
-                    new_mesh['vertices'] = mo['vertices']
-                    new_mesh['areas'] = mo['areas']
-
-                    # TODO: need to update centers (so that they get passed
-                    # to the frontend as x, y, z)
-                    # new_mesh['centers'] = mo['centers']
-
-                else:
-                    # pvertices should just be a copy of vertices
-                    new_mesh['pvertices'] = new_mesh['vertices']
-
-                # We only need the gradients where we'll compute local
-                # quantities which, for a marching mesh, is at the vertices.
-                new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
-
-                # And lastly, let's fill the velocities column - with zeros
-                # at each of the vertices
-                new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
-
-                new_mesh['tareas'] = np.array([])
-
-                scale = sma
-
-            elif self.distortion_method == 'sphere':
-                pass
-            elif self.distortion_method == 'nbody':
-                # TODO: implement this (discretize and save mesh_args)
-                raise NotImplementedError("'nbody' distortion_method not yet supported - try roche")
-            else:
-                raise NotImplementedError
-
-        elif mesh_method == 'wd':
-
-            N = int(kwargs.get('gridsize', self.gridsize))
-
-            the_grid = potentials.discretize_wd_style(N, q, F, d, Phi)
-            new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
-            scale = sma
-
-        else:
-            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
-
-        return new_mesh, scale, mesh_args
-
-    def _compute_instantaneous_quantities(self, xs, ys, zs, **kwargs):
-        """
-        TODO: add documentation
-        """
-        pole_func = getattr(libphoebe, '{}_pole'.format('{}_misaligned'.format(self.distortion_method) if self.distortion_method in ['roche', 'rotstar'] else self.distortion_method))
-        gradOmega_func = getattr(libphoebe, '{}_gradOmega_only'.format('{}_misaligned'.format(self.distortion_method) if self.distortion_method in ['roche', 'rotstar'] else self.distortion_method))
-
-        r_pole = pole_func(*self._mesh_args)
-        r_pole_ = np.array([0., 0., r_pole])
-        args = list(self._mesh_args)[:-1]+[r_pole_]
-        grads = gradOmega_func(*args)
-        g_pole = np.linalg.norm(grads)
-
-        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
-
-        self._instantaneous_gpole = g_pole * g_rel_to_abs
-        # TODO NOW: check whether r_pole is in absolute units (scaled/not scaled)
-        self._instantaneous_rpole = r_pole
-
-    def _fill_loggs(self, mesh=None, ignore_effects=False):
-        """
-        TODO: add documentation
-
-        Calculate local surface gravity
-
-        GMSunNom = 1.3271244e20 m**3 s**-2
-        RSunNom = 6.597e8 m
-        """
-        if mesh is None:
-            mesh = self.mesh
-
-        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
-
-        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs)
-
-        if not ignore_effects:
-            for feature in self.features:
-                if feature.proto_coords:
-                    loggs = feature.process_teffs(loggs, self.get_standard_mesh().coords_for_computations, s=self.polar_direction, t=self.time)
-                else:
-                    loggs = feature.process_teffs(loggs, mesh.coords_for_computations, s=self.polar_direction, t=self.time)
-
-        mesh.update_columns(loggs=loggs)
-
-        # logger.info("derived surface gravity: %.3f <= log g<= %.3f (g_p=%s and Rp=%s Rsol)"%(loggs.min(), loggs.max(), self._instantaneous_gpole, self._instantaneous_rpole*self._scale))
-
-    def _fill_gravs(self, mesh=None, **kwargs):
-        """
-        TODO: add documentation
-
-        requires _fill_loggs to have been called
-        """
-        if mesh is None:
-            mesh = self.mesh
-
-
-        # TODO: rename 'gravs' to 'gdcs' (gravity darkening corrections)
-
-        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
-        # TODO: check the division by 100 - is this just to change units back to m?
-        gravs = ((mesh.normgrads.for_computations * g_rel_to_abs)/self._instantaneous_gpole)**self.gravb_bol
-
-        # TODO: make sure equivalent to the old way here
-        # gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
-
-        mesh.update_columns(gravs=gravs)
-
-
-    def _fill_teffs(self, mesh=None, ignore_effects=False, **kwargs):
-        r"""
-
-        requires _fill_loggs and _fill_gravs to have been called
-
-        Calculate local temperature of a Star.
-        """
-        if mesh is None:
-            mesh = self.mesh
-
-        # get the user-defined mean effective temperatures
-        Teff = kwargs.get('teff', self.teff)
-
-        # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
-        # see PHOEBE Legacy scientific reference eq 5.20
-        Tpole = Teff*(np.sum(mesh.areas) / np.sum(mesh.gravs.centers*mesh.areas))**(0.25)
-        self._instantaneous_teffpole = Tpole
-
-        # Now we can compute the local temperatures.
-        # see PHOEBE Legacy scientific reference eq 5.23
-        teffs = Tpole*mesh.gravs.for_computations**0.25
-
-        if not ignore_effects:
-            for feature in self.features:
-                if feature.proto_coords:
-                    teffs = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations, s=self.polar_direction, t=self.time)
-                else:
-                    teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction, t=self.time)
-
-        mesh.update_columns(teffs=teffs)
-
     def _populate_rv(self, dataset, **kwargs):
         """
-        TODO: add documentation
+        Populate columns necessary for an RV dataset
 
         This should not be called directly, but rather via :meth:`Body.populate_observable`
         or :meth:`System.populate_observables`
@@ -1884,8 +1459,8 @@ class StarOld(Body):
 
         # Gravitational redshift
         if self.do_rv_grav:
-            rv_grav = c.G*(self.mass*u.solMass)/(self._instantaneous_rpole*u.solRad)/c.c
-            # rvs are in solrad/d internally
+            rv_grav = c.G*(self.mass*u.solMass)/(self.instantaneous_rpole*u.solRad)/c.c
+            # rvs are in solRad/d internally
             rv_grav = rv_grav.to('solRad/d').value
 
             rvs += rv_grav
@@ -1897,7 +1472,7 @@ class StarOld(Body):
 
     def _populate_lc(self, dataset, **kwargs):
         """
-        TODO: add documentation
+        Populate columns necessary for an LC dataset
 
         This should not be called directly, but rather via :meth:`Body.populate_observable`
         or :meth:`System.populate_observables`
@@ -1982,57 +1557,753 @@ class StarOld(Body):
             normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset)
             intensities = abs_intensities * self.get_pblum_scale(dataset)
 
-
-
         elif lc_method=='analytical':
-            raise NotImplementedError("analytical fluxes not yet ported to beta")
-            #lcdep, ref = system.get_parset(ref)
-            # The projected intensity is normalised with the distance in cm, we need
-            # to reconvert that into solar radii.
-            #intens_proj = limbdark.sphere_intensity(body,lcdep)[1]/(c.Rsol)**2
-
+            raise NotImplementedError("analytical fluxes not yet supported")
             # TODO: this probably needs to be moved into observe or backends.phoebe
             # (assuming it doesn't result in per-triangle quantities)
 
         else:
             raise NotImplementedError("lc_method '{}' not recognized".format(lc_method))
 
-
-        # Take reddening into account (if given), but only for non-bolometric
-        # passbands and nonzero extinction
-
-        # TODO: reddening
-        #logger.warning("reddening for fluxes not yet ported to beta")
-        # if dataset != '__bol':
-
-        #     # if there is a global reddening law
-        #     red_parset = system.get_globals('reddening')
-        #     if (red_parset is not None) and (red_parset['extinction'] > 0):
-        #         ebv = red_parset['extinction'] / red_parset['Rv']
-        #         proj_intens = reddening.redden(proj_intens,
-        #                      passbands=[idep['passband']], ebv=ebv, rtype='flux',
-        #                      law=red_parset['law'])[0]
-        #         logger.info("Projected intensity is reddened with E(B-V)={} following {}".format(ebv, red_parset['law']))
-
-        #     # if there is passband reddening
-        #     if 'extinction' in idep and (idep['extinction'] > 0):
-        #         extinction = idep['extinction']
-        #         proj_intens = proj_intens / 10**(extinction/2.5)
-        #         logger.info("Projected intensity is reddened with extinction={} (passband reddening)".format(extinction))
-
-
-
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
-        return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
-            'abs_intensities': abs_intensities, 'intensities': intensities,
-            'ldint': ldint,
-            'boost_factors': boost_factors}
+        return {'abs_normal_intensities': abs_normal_intensities,
+                'normal_intensities': normal_intensities,
+                'abs_intensities': abs_intensities,
+                'intensities': intensities,
+                'ldint': ldint,
+                'boost_factors': boost_factors}
+
+
+class Star_roche(Star):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                 long_an, t0, atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs, mesh_init_phi,
+
+                 requiv, sma,
+                 polar_direction_uvw,
+                 teff, gravb_bol, abun,
+                 irrad_frac_refl,
+                 mesh_method, is_single,
+                 intens_weighting,
+                 ld_func, ld_coeffs,
+                 do_rv_grav,
+                 features,
+                 do_mesh_offset,
+
+                 **kwargs):
+        """
+        """
+        # extra things (not used by Star) will be stored in kwargs
+        self.F = kwargs.pop('F', 1.0)
+
+        super(Star_roche, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                                         long_an, t0, atm, datasets, passband, intens_weighting,
+                                         ld_func, ld_coeffs, mesh_init_phi,
+
+                                         requiv, sma,
+                                         polar_direction_uvw,
+                                         teff, gravb_bol, abun,
+                                         irrad_frac_refl,
+                                         mesh_method, is_single,
+                                         intens_weighting,
+                                         ld_func, ld_coeffs,
+                                         do_rv_grav,
+                                         features,
+                                         do_mesh_offset, **kwargs)
+
+    @classmethod
+    def from_bundle(cls, b, component, compute=None,
+                    mesh_init_phi=0.0, datasets=[], **kwargs):
+
+        F = self_ps.get_value('syncpar', check_visible=False)
+        #freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
+
+        super(Star_roche, cls).from_bundle(b, component, compute, mesh_init_phi,
+                                           datasets, F=F, **kwargs)
+
+
+    @property
+    def is_convex(self):
+        return True
+
+    @property
+    def needs_remesh(self):
+        """
+        whether the star needs to be re-meshed (for any reason)
+        """
+        return self.is_misaligned or self.ecc != 0 or self.distortion_method != 'keplerian'
+
+    @property
+    def _rpole_func(self):
+        """
+        """
+        # the provided function must take *self.instantaneous_mesh_args as the
+        # only arguments.  If this is not the case, the subclass must also override
+        # instantaneous_rpole
+        return getattr(libphoebe, 'roche_misaligned_pole')
+
+    @property
+    def _gradOmega_func(self):
+        """
+        """
+        # the provided function must take *self.instantaneous_mesh_args as the
+        # only arguments.  If this is not the case, the subclass must also override
+        # instantaneous_gpole
+        return getattr(libphoebe, 'roche_misaligned_gradOmega_only')
+
+    @property
+    def instantaneous_mesh_args(self):
+        # self.q is automatically flipped to be 1./q for secondary components
+        q = self.q
+
+        F = self.F
+
+        # d passed as argument to _build_mesh by self.update_position
+        d = d
+
+        # polar_direction_xyz is instantaneous based on current true_anom
+        s = self.polar_direction_xyz
+
+        # NOTE: if we ever want to break volume conservation in time,
+        # get_target_volume will need to take time or true anomaly
+        Phi = libphoebe.roche_misaligned_Omega_at_vol(self.get_target_volume(scaled=False),
+                                                      q, F, d, s)
+        # this is assuming that we're in the reference frame of our current star,
+        # so we don't need to worry about flipping Phi for the secondary.
+
+        return q, F, d, s, Phi
+
+    def _build_mesh(self, d, mesh_method, **kwargs):
+        """
+        this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
+        the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
+        """
+
+        # need the sma to scale between Roche and real units
+        sma = kwargs.get('sma', self.sma)  # Rsol (same units as coordinates)
+
+        mesh_args = self.instantaneous_mesh_args
+
+        if mesh_method == 'marching':
+            # TODO: do this during mesh initialization only and then keep delta fixed in time??
+            ntriangles = kwargs.get('ntriangles', self.ntriangles)
+
+            # we need the surface area of the lobe to estimate the correct value
+            # to pass for delta to marching.  We will later need the volume to
+            # expose its value
+            av = libphoebe.roche_misaligned_area_volume(*mesh_args,
+                                                        choice=0,
+                                                        larea=True,
+                                                        lvolume=True)
+
+            delta = _estimate_delta(ntriangles, av['larea'])
+
+            new_mesh = libphoebe.roche_misaligned_marching_mesh(*mesh_args,
+                                                                delta=delta,
+                                                                choice=0,
+                                                                full=True,
+                                                                max_triangles=ntriangles*2,
+                                                                vertices=True,
+                                                                triangles=True,
+                                                                centers=True,
+                                                                vnormals=True,
+                                                                tnormals=True,
+                                                                cnormals=False,
+                                                                vnormgrads=True,
+                                                                cnormgrads=False,
+                                                                areas=True,
+                                                                volume=False,
+                                                                init_phi=self.mesh_init_phi)
+
+
+            # In addition to the values exposed by the mesh itself, let's report
+            # the volume and surface area of the lobe.  The lobe area is used
+            # if mesh_offseting is required, and the volume is optionally exposed
+            # to the user.
+            new_mesh['lvolume'] = av['lvolume']  # * sma**3
+            new_mesh['larea'] = av['larea']      # * sma**2
+
+            scale = sma
+
+        elif mesh_method == 'wd':
+            if self.is_misaligned:
+                raise NotImplementedError("misaligned orbits not suported by mesh_method='wd'")
+
+            N = int(kwargs.get('gridsize', self.gridsize))
+
+            # unpack mesh_args so we can ignore s
+            q, F, d, s, Phi = mesh_args
+
+            the_grid = potentials.discretize_wd_style(N, q, F, d, Phi)
+            new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
+            scale = sma
+
+        else:
+            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
+
+        return new_mesh, scale
+
+class Star_rotstar(Star):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                 long_an, t0, atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs, mesh_init_phi,
+
+                 requiv, sma,
+                 polar_direction_uvw,
+                 teff, gravb_bol, abun,
+                 irrad_frac_refl,
+                 mesh_method, is_single,
+                 intens_weighting,
+                 ld_func, ld_coeffs,
+                 do_rv_grav,
+                 features,
+                 do_mesh_offset,
+
+                 **kwargs):
+        """
+        """
+        # extra things (not used by Star) will be stored in kwargs
+        self.freq_rot = kwargs.pop('freq_rot', 1.0)
+
+        super(Star_rotstar, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                                           long_an, t0, atm, datasets, passband, intens_weighting,
+                                           ld_func, ld_coeffs, mesh_init_phi,
+
+                                           requiv, sma,
+                                           polar_direction_uvw,
+                                           teff, gravb_bol, abun,
+                                           irrad_frac_refl,
+                                           mesh_method, is_single,
+                                           intens_weighting,
+                                           ld_func, ld_coeffs,
+                                           do_rv_grav,
+                                           features,
+                                           do_mesh_offset, **kwargs)
+
+    @classmethod
+    def from_bundle(cls, b, component, compute=None,
+                    mesh_init_phi=0.0, datasets=[], **kwargs):
+
+        freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
+
+        super(Star_rotstar, cls).from_bundle(b, component, compute, mesh_init_phi,
+                                             datasets, freq_rot=freq_rot, **kwargs)
 
 
 
+    @property
+    def is_convex(self):
+        return True
 
-class Envelope(Body):
+    @property
+    def needs_remesh(self):
+        """
+        whether the star needs to be re-meshed (for any reason)
+        """
+        # TODO: or self.distortion_method != 'keplerian'?? If Nbody orbits can change freq_rot in time, then we need to remesh
+        return self.is_misaligned
+
+    @property
+    def _rpole_func(self):
+        """
+        """
+        # the provided function must take *self.instantaneous_mesh_args as the
+        # only arguments.  If this is not the case, the subclass must also override
+        # instantaneous_rpole
+        return getattr(libphoebe, 'rotstar_misaligned_pole')
+
+    @property
+    def _gradOmega_func(self):
+        """
+        """
+        # the provided function must take *self.instantaneous_mesh_args as the
+        # only arguments.  If this is not the case, the subclass must also override
+        # instantaneous_gpole
+        return getattr(libphoebe, 'rotstar_misaligned_gradOmega_only')
+
+    @property
+    def instantaneous_mesh_args(self):
+
+        # TODO: we need a different scale if self._is_single==True
+        freq_rot = self.freq_rot
+        omega = rotstar.rotfreq_to_omega(freq_rot, scale=self.sma, solar_units=True)
+
+        # polar_direction_xyz is instantaneous based on current true_anom
+        s = self.polar_direction_xyz
+
+        # NOTE: if we ever want to break volume conservation in time,
+        # get_target_volume will need to take time or true anomaly
+        # TODO: not sure if scaled should be True or False here
+        Phi = libphoebe.rotstar_misaligned_Omega_at_vol(self.get_target_volume(scaled=False),
+                                                        omega, s)
+
+        return omega, s, Phi
+
+
+    def _build_mesh(self, d, mesh_method, **kwargs):
+        """
+        this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
+        the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
+        """
+
+        # need the sma to scale between Roche and real units
+        sma = kwargs.get('sma', self.sma)  # Rsol (same units as coordinates)
+
+        mesh_args = self.instantaneous_mesh_args
+
+        if mesh_method == 'marching':
+            ntriangles = kwargs.get('ntriangles', self.ntriangles)
+
+            av = libphoebe.rotstar_misaligned_area_volume(*mesh_args,
+                                                          larea=True,
+                                                          lvolume=True)
+
+            delta = _estimate_delta(ntriangles, av['larea'])
+
+            new_mesh = libphoebe.rotstar_misaligned_marching_mesh(*mesh_args,
+                                                                  delta=delta,
+                                                                  full=True,
+                                                                  max_triangles=ntriangles*2,
+                                                                  vertices=True,
+                                                                  triangles=True,
+                                                                  centers=True,
+                                                                  vnormals=True,
+                                                                  tnormals=True,
+                                                                  cnormals=False,
+                                                                  vnormgrads=True,
+                                                                  cnormgrads=False,
+                                                                  areas=True,
+                                                                  volume=True,
+                                                                  init_phi=self.mesh_init_phi)
+
+
+
+            # In addition to the values exposed by the mesh itself, let's report
+            # the volume and surface area of the lobe.  The lobe area is used
+            # if mesh_offseting is required, and the volume is optionally exposed
+            # to the user.
+            # NOTE: I changed this from storing as volume to lvolume to be consistent
+            new_mesh['lvolume'] = av['lvolume']
+            new_mesh['larea'] = av['larea']
+
+            scale = sma
+
+        else:
+            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
+
+        return new_mesh, scale
+
+
+class Star_sphere(Star):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                 long_an, t0, atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs, mesh_init_phi,
+
+                 requiv, sma,
+                 polar_direction_uvw,
+                 teff, gravb_bol, abun,
+                 irrad_frac_refl,
+                 mesh_method, is_single,
+                 intens_weighting,
+                 ld_func, ld_coeffs,
+                 do_rv_grav,
+                 features,
+                 do_mesh_offset,
+
+                 **kwargs):
+        """
+        """
+        # extra things (not used by Star) will be stored in kwargs
+        # NOTHING EXTRA FOR SPHERE AT THE MOMENT
+
+        super(Star_sphere, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                                         long_an, t0, atm, datasets, passband, intens_weighting,
+                                         ld_func, ld_coeffs, mesh_init_phi,
+
+                                         requiv, sma,
+                                         polar_direction_uvw,
+                                         teff, gravb_bol, abun,
+                                         irrad_frac_refl,
+                                         mesh_method, is_single,
+                                         intens_weighting,
+                                         ld_func, ld_coeffs,
+                                         do_rv_grav,
+                                         features,
+                                         do_mesh_offset, **kwargs)
+
+    @classmethod
+    def from_bundle(cls, b, component, compute=None,
+                    mesh_init_phi=0.0, datasets=[], **kwargs):
+
+        super(Star_sphere, cls).from_bundle(b, component, compute, mesh_init_phi,
+                                           datasets, **kwargs)
+
+
+    @property
+    def is_convex(self):
+        return True
+
+    @property
+    def needs_remesh(self):
+        """
+        whether the star needs to be re-meshed (for any reason)
+        """
+        return False
+
+    @property
+    def _rpole_func(self):
+        """
+        """
+        # the provided function must take *self.instantaneous_mesh_args as the
+        # only arguments.  If this is not the case, the subclass must also override
+        # instantaneous_rpole
+        return getattr(libphoebe, 'sphere_misaligned_pole')
+
+    @property
+    def _gradOmega_func(self):
+        """
+        """
+        # the provided function must take *self.instantaneous_mesh_args as the
+        # only arguments.  If this is not the case, the subclass must also override
+        # instantaneous_gpole
+        return getattr(libphoebe, 'sphere_gradOmega_only')
+
+    @property
+    def instantaneous_mesh_args(self):
+
+        # NOTE: if we ever want to break volume conservation in time,
+        # get_target_volume will need to take time or true anomaly
+        Phi = libphoebe.sphere_Omega_at_vol(self.get_target_volume())
+
+        return (Phi,)
+
+
+    def _build_mesh(self, d, mesh_method, **kwargs):
+        """
+        this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
+        the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
+        """
+
+        # if we don't provide instantaneous masses or smas, then assume they are
+        # not time dependent - in which case they were already stored in the init
+        sma = kwargs.get('sma', self.sma)  # Rsol (same units as coordinates)
+
+        mesh_args = self.instantaneous_mesh_args
+
+        if mesh_method == 'marching':
+            ntriangles = kwargs.get('ntriangles', self.ntriangles)
+
+            av = libphoebe.sphere_area_volume(Phi,
+                                              larea=True,
+                                              lvolume=True)
+
+            delta = _estimate_delta(ntriangles, av['larea'])
+
+            new_mesh = libphoebe.sphere_marching_mesh(*mesh_args,
+                                                      delta=delta,
+                                                      full=True,
+                                                      max_triangles=ntriangles*2,
+                                                      vertices=True,
+                                                      triangles=True,
+                                                      centers=True,
+                                                      vnormals=True,
+                                                      tnormals=True,
+                                                      cnormals=False,
+                                                      vnormgrads=True,
+                                                      cnormgrads=False,
+                                                      areas=True,
+                                                      volume=True,
+                                                      init_phi=self.mesh_init_phi)
+
+            # In addition to the values exposed by the mesh itself, let's report
+            # the volume and surface area of the lobe.  The lobe area is used
+            # if mesh_offseting is required, and the volume is optionally exposed
+            # to the user.
+            # NOTE: I changed this from storing as volume to lvolume to be consistent
+            new_mesh['lvolume'] = av['lvolume']
+            new_mesh['larea'] = av['larea']
+
+            scale = sma
+
+        else:
+            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
+
+        return new_mesh, scale
+
+
+class Star_envelope(Star):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                 long_an, t0, atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs, mesh_init_phi,
+
+                 **kwargs):
+        """
+        """
+        super(Star_envelope, self).__init__(comp_no, ind_self, ind_sibling,
+                                            masses, ecc,
+                                            incl, long_an, t0,
+                                            atm, datasets, passband,
+                                            intens_weighting, ld_func, ld_coeffs,
+                                            mesh_init_phi=mesh_init_phi)
+
+    @property
+    def is_convex(self):
+        return False
+
+    @property
+    def needs_remesh(self):
+        """
+        whether the star needs to be re-meshed (for any reason)
+        """
+        return self.ecc != 0
+
+    @property
+    def polar_direction_xyz(self):
+        """
+        get current polar direction in Roche (xyz) coordinates
+        """
+        # envelopes MUST be aligned
+        return np.array([0. ,0., 1.])
+
+
+    def _build_mesh(self, d, mesh_method, **kwargs):
+        """
+        this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
+        the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
+        """
+
+        # if we don't provide instantaneous masses or smas, then assume they are
+        # not time dependent - in which case they were already stored in the init
+        masses = kwargs.get('masses', self.masses)  #solMass
+        sma = kwargs.get('sma', self.sma)  # Rsol (same units as coordinates)
+        F = kwargs.get('F', self.F)
+        # TODO: should F be fixed at 1 - is this the job of the frontend or backend?
+
+        q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
+
+
+        if mesh_method == 'marching':
+            # Phi = kwargs.get('Phi', self.Phi_user)  # NOTE: self.Phi_user is not corrected for the secondary star, but that's fine because we pass primary vs secondary as choice
+            # q = 1./self.q if self.comp_no == 2 else self.q  # NOTE: undo the inversion so this is ALWAYS Mp/Ms
+
+            ntriangles = kwargs.get('ntriangles', self.ntriangles)
+
+            av = libphoebe.roche_area_volume(*mesh_args,
+                                             choice=2,
+                                             larea=True,
+                                             lvolume=True)
+
+            delta = _estimate_delta(ntriangles, av['larea'])
+
+            new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
+                                                     delta=delta,
+                                                     choice=2,
+                                                     full=True,
+                                                     max_triangles=ntriangles*2,
+                                                     vertices=True,
+                                                     triangles=True,
+                                                     centers=True,
+                                                     vnormals=True,
+                                                     tnormals=True,
+                                                     cnormals=False,
+                                                     vnormgrads=True,
+                                                     cnormgrads=False,
+                                                     areas=True,
+                                                     volume=False)
+
+
+            # Now we'll get the area and volume of the Roche potential
+            # itself (not the mesh).
+            # TODO: which volume(s) do we want to report?  Either way, make
+            # sure to do the same for the OC case and rotstar
+            new_mesh['volume'] = av['lvolume']
+
+            if self._do_mesh_offset:
+                # vertices directly from meshing are placed directly on the
+                # potential, causing the volume and surface area to always
+                # (for convex surfaces) be underestimated.  Now let's jitter
+                # each of the vertices along their normals to recover the
+                # expected volume/surface area.  Since they are moved along
+                # their normals, vnormals applies to both vertices and
+                # pvertices.
+                new_mesh['pvertices'] = new_mesh.pop('vertices')
+                mo = libphoebe.mesh_offseting(av['larea'],
+                                              new_mesh['pvertices'],
+                                              new_mesh['vnormals'],
+                                              new_mesh['triangles'],
+                                              curvature=True,
+                                              vertices=True,
+                                              tnormals=True,
+                                              areas=True,
+                                              volume=False)
+
+                new_mesh['vertices'] = mo['vertices']
+                new_mesh['areas'] = mo['areas']
+                new_mesh['tnormals'] = mo['tnormals']
+
+                # TODO: need to update centers (so that they get passed
+                # to the frontend as x, y, z)
+                # new_mesh['centers'] = mo['centers']
+
+
+            else:
+                # pvertices should just be a copy of vertice
+                new_mesh['pvertices'] = new_mesh['vertices']
+
+            # We only need the gradients where we'll compute local
+            # quantities which, for a marching mesh, is at the vertices.
+            new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
+
+            # And lastly, let's fill the velocities column - with zeros
+            # at each of the vertices
+            new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
+
+            new_mesh['tareas'] = np.array([])
+
+            # WD style overcontacts require splitting of the mesh into two components
+            # env_comp = 0 for primary part of the envelope, 1 for secondary
+
+            # compute the positions of the minimum radii of the neck in the xy and xz planes
+            # when temperature_method becomes available, wrap this with if tmethod='wd':
+            L1 = potentials.Lag1(q)
+            xz,z = potentials.nekmin(Phi,q,L1,0.05)
+            # choose which value of x to use as the minimum (maybe extend to average of both?
+            xmin = xz
+
+            # create the env_comp array and change the values of all where vertices x>xmin to 1
+            env_comp = np.zeros(len(new_mesh['vertices']))
+
+            env_comp[new_mesh['vertices'][:,0]>xmin] = 1
+            #
+            new_mesh['env_comp'] = env_comp
+            # print new_mesh['env_comp']
+
+            # do the similar for triangles
+            env_comp3 = np.zeros(len(new_mesh['triangles']))
+
+            # Uncomment this is we want to average over vertices and comment below :/
+            # for i in range(len(new_mesh['triangles'])):
+            #
+            #     #take the vertex indices of each triangle
+            #     vind = new_mesh['triangles'][i]
+            #     print 'vind: ', vind
+            #     env_comp3[i] = np.average([new_mesh['env_comp'][vind[0]],new_mesh['env_comp'][vind[1]],new_mesh['env_comp'][vind[2]]])
+            #
+
+            new_mesh['env_comp3']=env_comp3
+
+            # Comment this is we want to average over vertices
+            N = len(new_mesh['vertices'])
+            for i in range(len(new_mesh['triangles'])):
+
+                #take the vertex indices of each triangle
+                vind = new_mesh['triangles'][i]
+                center = new_mesh['centers'][i]
+
+                # the adding of vertices and vertex parameters should go in a function
+
+                def add_vertex_to_mesh(i,j,vind,comp):
+
+                    N = len(new_mesh['vertices'])
+                    # add vertex params
+                    new_mesh['vertices'] = np.vstack((new_mesh['vertices'],new_mesh['vertices'][vind]))
+                    new_mesh['pvertices'] = np.vstack((new_mesh['pvertices'],new_mesh['pvertices'][vind]))
+                    new_mesh['vnormals'] = np.vstack((new_mesh['vnormals'],new_mesh['vnormals'][vind]))
+                    new_mesh['normgrads'] = np.hstack((new_mesh['normgrads'],new_mesh['normgrads'][vind]))
+                    new_mesh['velocities'] = np.vstack((new_mesh['velocities'],np.zeros(3)))
+                    new_mesh['env_comp'] = np.hstack((new_mesh['env_comp'],comp))
+                    new_mesh['triangles'][i][j] = N
+
+                if center[0] <= xmin:
+                    new_mesh['env_comp3'][i] = 0
+                    if new_mesh['vertices'][vind[0]][0] > xmin:
+                        add_vertex_to_mesh(i,0,vind[0],0)
+                    else:
+                        new_mesh['env_comp'][vind[0]] = 0
+
+                    if new_mesh['vertices'][vind[1]][0] > xmin:
+                        add_vertex_to_mesh(i,1,vind[1],0)
+                    else:
+                        new_mesh['env_comp'][vind[1]] = 0
+
+                    if new_mesh['vertices'][vind[2]][0] > xmin:
+                        add_vertex_to_mesh(i,2,vind[2],0)
+                    else:
+                        new_mesh['env_comp'][vind[2]] = 0
+
+                else:
+                    new_mesh['env_comp3'][i] = 1
+                    if new_mesh['vertices'][vind[0]][0] <= xmin:
+                        add_vertex_to_mesh(i,0,vind[0],1)
+                    else:
+                        new_mesh['env_comp'][vind[0]] = 1
+
+                    if new_mesh['vertices'][vind[1]][0] <=xmin:
+                        add_vertex_to_mesh(i,1,vind[1],1)
+                    else:
+                        new_mesh['env_comp'][vind[1]] = 1
+
+                    if new_mesh['vertices'][vind[2]][0] <= xmin:
+                        add_vertex_to_mesh(i,2,vind[2],1)
+                    else:
+                        new_mesh['env_comp'][vind[2]] = 1
+
+            # compute fractional areas of vertices
+
+            # new_mesh['frac_areas']=potentials.compute_frac_areas(new_mesh,xmin)
+
+
+        elif mesh_method == 'wd':
+
+            N = int(kwargs.get('gridsize', self.gridsize))
+
+            the_grid = potentials.discretize_wd_style_oc(N, *mesh_args)
+            new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
+            scale = sma
+
+            # WD style overcontacts require splitting of the mesh into two components
+            # env_comp = 0 for primary part of the envelope, 1 for secondary
+
+            # compute the positions of the minimum radii of the neck in the xy and xz planes
+            xz,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
+            # choose which value of x to use as the minimum (maybe extend to average of both?
+            xmin = xz
+
+            # create the env_comp array and change the values of all where vertices x>xmin to 1
+            env_comp = np.zeros(len(new_mesh['centers']))
+            env_comp[new_mesh['centers'][:,0]>xmin] = 1
+
+            new_mesh['env_comp'] = env_comp
+            new_mesh['env_comp3']=env_comp
+
+        else:
+            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
+
+
+        new_mesh['label_envelope'] = self.label_envelope
+        new_mesh['label_primary'] = self.label_primary
+        new_mesh['label_secondary'] = self.label_secondary
+
+        return new_mesh, sma
+
+
+
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+
+
+class EnvelopeOld(Body):
     def __init__(self, Phi, masses, sma, ecc, incl, long_an, t0, freq_rot, teff1, teff2,
             abun, irrad_frac_refl1, irrad_frac_refl2, gravb_bol1, gravb_bol2, mesh_method='marching',
             dynamics_method='keplerian', mesh_init_phi=0.0, ind_self=0, ind_sibling=1, comp_no=1,
@@ -2262,276 +2533,6 @@ class Envelope(Body):
                 label_primary=label_self, label_secondary=label_sibling,
                 **mesh_kwargs)
 
-    @property
-    def needs_recompute_instantaneous(self):
-        """
-        TODO: add documentation
-        """
-        if self.ecc != 0.0:
-            # for eccentric orbits we need to recompute values at every time-step
-            return True
-        else:
-            # In circular orbits we should be safe to assume these quantities
-            # remain constant
-
-            # TODO: may need to add conditions here for reflection/heating or
-            # if time-dependent parameters are passed
-            return False
-
-    @property
-    def needs_volume_conservation(self):
-        """
-        TODO: add documentation
-
-        we can skip volume conservation only for circular orbits
-        """
-        return self.ecc != 0.0
-
-    def get_target_volume(self, etheta):
-        """
-        TODO: add documentation
-
-        get the volume that the BRS should have at a given euler theta
-        """
-        # TODO: make this a function of d instead of etheta?
-        logger.info("determining target volume at theta={}".format(etheta))
-
-        # TODO: eventually this could allow us to "break" volume conservation and have volume be a function of d,
-        # with some scaling factor provided by the user as a parameter.  Until then, we'll assume volume is conserved
-        # which means the volume should always be the same as it was defined at periaston.
-
-        return self.volume_at_periastron
-
-    def _build_mesh(self, d, mesh_method, **kwargs):
-        """
-        this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
-        the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
-        """
-
-        # if we don't provide instantaneous masses or smas, then assume they are
-        # not time dependent - in which case they were already stored in the init
-        masses = kwargs.get('masses', self.masses)  #solMass
-        sma = kwargs.get('sma', self.sma)  # Rsol (same units as coordinates)
-        F = kwargs.get('F', self.F)
-        # TODO: should F be fixed at 1 - is this the job of the frontend or backend?
-
-        Phi = kwargs.get('Phi', self.Phi)  # NOTE: self.Phi automatically corrects for the secondary star
-        q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
-
-        mesh_args = (q, F, d, Phi)
-
-        if mesh_method == 'marching':
-            # Phi = kwargs.get('Phi', self.Phi_user)  # NOTE: self.Phi_user is not corrected for the secondary star, but that's fine because we pass primary vs secondary as choice
-            # q = 1./self.q if self.comp_no == 2 else self.q  # NOTE: undo the inversion so this is ALWAYS Mp/Ms
-
-            ntriangles = kwargs.get('ntriangles', self.ntriangles)
-
-
-            if self.distortion_method == 'roche':
-                # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
-
-                av = libphoebe.roche_area_volume(*mesh_args,
-                                                 choice=2,
-                                                 larea=True,
-                                                 lvolume=True)
-
-                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
-
-                new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
-                                                         delta=delta,
-                                                         choice=2,
-                                                         full=True,
-                                                         max_triangles=ntriangles*2,
-                                                         vertices=True,
-                                                         triangles=True,
-                                                         centers=True,
-                                                         vnormals=True,
-                                                         tnormals=True,
-                                                         cnormals=False,
-                                                         vnormgrads=True,
-                                                         cnormgrads=False,
-                                                         areas=True,
-                                                         volume=False)
-
-
-                # Now we'll get the area and volume of the Roche potential
-                # itself (not the mesh).
-                # TODO: which volume(s) do we want to report?  Either way, make
-                # sure to do the same for the OC case and rotstar
-                new_mesh['volume'] = av['lvolume']
-
-                if self._do_mesh_offset:
-                    # vertices directly from meshing are placed directly on the
-                    # potential, causing the volume and surface area to always
-                    # (for convex surfaces) be underestimated.  Now let's jitter
-                    # each of the vertices along their normals to recover the
-                    # expected volume/surface area.  Since they are moved along
-                    # their normals, vnormals applies to both vertices and
-                    # pvertices.
-                    new_mesh['pvertices'] = new_mesh.pop('vertices')
-                    mo = libphoebe.mesh_offseting(av['larea'],
-                                                  new_mesh['pvertices'],
-                                                  new_mesh['vnormals'],
-                                                  new_mesh['triangles'],
-                                                  curvature=True,
-                                                  vertices=True,
-                                                  tnormals=True,
-                                                  areas=True,
-                                                  volume=False)
-
-                    new_mesh['vertices'] = mo['vertices']
-                    new_mesh['areas'] = mo['areas']
-                    new_mesh['tnormals'] = mo['tnormals']
-
-                    # TODO: need to update centers (so that they get passed
-                    # to the frontend as x, y, z)
-                    # new_mesh['centers'] = mo['centers']
-
-
-                else:
-                    # pvertices should just be a copy of vertice
-                    new_mesh['pvertices'] = new_mesh['vertices']
-
-                # We only need the gradients where we'll compute local
-                # quantities which, for a marching mesh, is at the vertices.
-                new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
-
-                # And lastly, let's fill the velocities column - with zeros
-                # at each of the vertices
-                new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
-
-                new_mesh['tareas'] = np.array([])
-
-                # WD style overcontacts require splitting of the mesh into two components
-                # env_comp = 0 for primary part of the envelope, 1 for secondary
-
-                # compute the positions of the minimum radii of the neck in the xy and xz planes
-                # when temperature_method becomes available, wrap this with if tmethod='wd':
-                L1 = potentials.Lag1(q)
-                xz,z = potentials.nekmin(Phi,q,L1,0.05)
-                # choose which value of x to use as the minimum (maybe extend to average of both?
-                xmin = xz
-
-                # create the env_comp array and change the values of all where vertices x>xmin to 1
-                env_comp = np.zeros(len(new_mesh['vertices']))
-
-                env_comp[new_mesh['vertices'][:,0]>xmin] = 1
-                #
-                new_mesh['env_comp'] = env_comp
-                # print new_mesh['env_comp']
-
-                # do the similar for triangles
-                env_comp3 = np.zeros(len(new_mesh['triangles']))
-
-                # Uncomment this is we want to average over vertices and comment below :/
-                # for i in range(len(new_mesh['triangles'])):
-                #
-                #     #take the vertex indices of each triangle
-                #     vind = new_mesh['triangles'][i]
-                #     print 'vind: ', vind
-                #     env_comp3[i] = np.average([new_mesh['env_comp'][vind[0]],new_mesh['env_comp'][vind[1]],new_mesh['env_comp'][vind[2]]])
-                #
-
-                new_mesh['env_comp3']=env_comp3
-
-                # Comment this is we want to average over vertices
-                N = len(new_mesh['vertices'])
-                for i in range(len(new_mesh['triangles'])):
-
-                    #take the vertex indices of each triangle
-                    vind = new_mesh['triangles'][i]
-                    center = new_mesh['centers'][i]
-
-                    # the adding of vertices and vertex parameters should go in a function
-
-                    def add_vertex_to_mesh(i,j,vind,comp):
-
-                        N = len(new_mesh['vertices'])
-                        # add vertex params
-                        new_mesh['vertices'] = np.vstack((new_mesh['vertices'],new_mesh['vertices'][vind]))
-                        new_mesh['pvertices'] = np.vstack((new_mesh['pvertices'],new_mesh['pvertices'][vind]))
-                        new_mesh['vnormals'] = np.vstack((new_mesh['vnormals'],new_mesh['vnormals'][vind]))
-                        new_mesh['normgrads'] = np.hstack((new_mesh['normgrads'],new_mesh['normgrads'][vind]))
-                        new_mesh['velocities'] = np.vstack((new_mesh['velocities'],np.zeros(3)))
-                        new_mesh['env_comp'] = np.hstack((new_mesh['env_comp'],comp))
-                        new_mesh['triangles'][i][j] = N
-
-                    if center[0] <= xmin:
-                        new_mesh['env_comp3'][i] = 0
-                        if new_mesh['vertices'][vind[0]][0] > xmin:
-                            add_vertex_to_mesh(i,0,vind[0],0)
-                        else:
-                            new_mesh['env_comp'][vind[0]] = 0
-
-                        if new_mesh['vertices'][vind[1]][0] > xmin:
-                            add_vertex_to_mesh(i,1,vind[1],0)
-                        else:
-                            new_mesh['env_comp'][vind[1]] = 0
-
-                        if new_mesh['vertices'][vind[2]][0] > xmin:
-                            add_vertex_to_mesh(i,2,vind[2],0)
-                        else:
-                            new_mesh['env_comp'][vind[2]] = 0
-
-                    else:
-                        new_mesh['env_comp3'][i] = 1
-                        if new_mesh['vertices'][vind[0]][0] <= xmin:
-                            add_vertex_to_mesh(i,0,vind[0],1)
-                        else:
-                            new_mesh['env_comp'][vind[0]] = 1
-
-                        if new_mesh['vertices'][vind[1]][0] <=xmin:
-                            add_vertex_to_mesh(i,1,vind[1],1)
-                        else:
-                            new_mesh['env_comp'][vind[1]] = 1
-
-                        if new_mesh['vertices'][vind[2]][0] <= xmin:
-                            add_vertex_to_mesh(i,2,vind[2],1)
-                        else:
-                            new_mesh['env_comp'][vind[2]] = 1
-
-                # compute fractional areas of vertices
-
-                # new_mesh['frac_areas']=potentials.compute_frac_areas(new_mesh,xmin)
-
-            elif self.distortion_method == 'nbody':
-                # TODO: implement this? - can OCs be done in NBody mode?
-                raise NotImplementedError("'nbody' distortion_method not yet supported - try roche")
-            else:
-                raise NotImplementedError
-
-        elif mesh_method == 'wd':
-
-            N = int(kwargs.get('gridsize', self.gridsize))
-
-            the_grid = potentials.discretize_wd_style_oc(N, *mesh_args)
-            new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
-            scale = sma
-
-            # WD style overcontacts require splitting of the mesh into two components
-            # env_comp = 0 for primary part of the envelope, 1 for secondary
-
-            # compute the positions of the minimum radii of the neck in the xy and xz planes
-            xz,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
-            # choose which value of x to use as the minimum (maybe extend to average of both?
-            xmin = xz
-
-            # create the env_comp array and change the values of all where vertices x>xmin to 1
-            env_comp = np.zeros(len(new_mesh['centers']))
-            env_comp[new_mesh['centers'][:,0]>xmin] = 1
-
-            new_mesh['env_comp'] = env_comp
-            new_mesh['env_comp3']=env_comp
-
-        else:
-            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
-
-
-        new_mesh['label_envelope'] = self.label_envelope
-        new_mesh['label_primary'] = self.label_primary
-        new_mesh['label_secondary'] = self.label_secondary
-
-        return new_mesh, sma, mesh_args
 
 
     def _compute_instantaneous_quantities(self, xs, ys, zs, **kwargs):
@@ -2657,11 +2658,11 @@ class Envelope(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    teffs1 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==0], s=self.polar_direction, t=self.time)
-                    teffs2 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==1], s=self.polar_direction, t=self.time)
+                    teffs1 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==0], s=self.polar_direction_xyz, t=self.time)
+                    teffs2 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==1], s=self.polar_direction_xyz, t=self.time)
                 else:
-                    teffs1 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==0], s=self.polar_direction, t=self.time)
-                    teffs2 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==1], s=self.polar_direction, t=self.time)
+                    teffs1 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==0], s=self.polar_direction_xyz, t=self.time)
+                    teffs2 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==1], s=self.polar_direction_xyz, t=self.time)
 
         teffs = np.zeros(len(mesh.env_comp))
         teffs[mesh.env_comp==0]=teffs1

@@ -485,7 +485,7 @@ class ProtoMesh(object):
 
         self._normgrads         = ComputedColumn(mesh=self)
 
-        self._volume            = None  # scalar
+        self._lvolume            = None  # scalar
 
         ### TESTING FOR WD METHOD ###
         self._phis               = None # Nx1
@@ -906,13 +906,13 @@ class ProtoMesh(object):
         return self._normgrads
 
     @property
-    def volume(self):
+    def lvolume(self):
         """
         Return the volume of the ENTIRE MESH.
 
         (scalar/float)
         """
-        return self._volume
+        return self._lvolume
 
     @property
     def phis(self):
