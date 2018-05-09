@@ -2498,11 +2498,6 @@ class Bundle(ParameterSet):
         if 'pbmesh' in kwargs.keys():
             raise ValueError("pbmesh is no longer a valid option")
 
-        # distortion_method was a compute option in 2.0.x but is now a Parameter
-        # of the star@component
-        if 'distortion_method' in kwargs.keys():
-            raise ValueError("distortion_method is no longer a compute option")
-
         if model is None:
             model = 'latest'
 

@@ -107,6 +107,7 @@ class System(object):
         self.dynamics_method = dynamics_method
         self.irrad_method = irrad_method
         for body in self._bodies.values():
+            body.system = self
             body.boosting_method = boosting_method
 
         return
@@ -169,7 +170,7 @@ class System(object):
             _dump = kwargs.pop('dynamics_method')
 
         meshables = hier.get_meshables()
-        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), compute_ps.get_value('distortion_method', component=comp))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
+        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), compute_ps.get_value('distortion_method', component=comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
 
         # envelopes need to know their relationships with the underlying stars
         parent_envelope_of = {}
@@ -515,6 +516,7 @@ class Body(object):
     """
     def __init__(self, comp_no, ind_self, ind_sibling, masses,
                  ecc, incl, long_an, t0,
+                 do_mesh_offset=True,
                  mesh_init_phi=0.0):
         """
         TODO: add documentation
@@ -568,6 +570,7 @@ class Body(object):
         self._max_r = None
 
         self.mesh_init_phi = mesh_init_phi
+        self.do_mesh_offset = do_mesh_offset
 
         # TODO: allow custom meshes (see alpha:universe.Body.__init__)
 
@@ -647,7 +650,6 @@ class Body(object):
     def mass(self):
         return self._get_mass_by_index(self.ind_self)
 
-
     def _get_mass_by_index(self, index):
         """
         where index can either by an integer or a list of integers (returns some of masses)
@@ -680,7 +682,7 @@ class Body(object):
     #                    _value(sma)
 
     def _offset_mesh(self, new_mesh):
-        if self._do_mesh_offset and self.mesh_method=='marching':
+        if self.do_mesh_offset and self.mesh_method=='marching':
             # vertices directly from meshing are placed directly on the
             # potential, causing the volume and surface area to always
             # (for convex surfaces) be underestimated.  Now let's jitter
@@ -811,11 +813,11 @@ class Body(object):
             # compute local quantities if not otherwise necessary
             did_remesh = True
 
-            d = _value(ds[self.ind_self])
-            F = _value(Fs[self.ind_self])
+            # TODO: allow time dependence on d and F from dynamics
+            # d = _value(ds[self.ind_self])
+            # F = _value(Fs[self.ind_self])
 
-            new_mesh_dict, scale = self._build_mesh(d=d, F=F,
-                                                    mesh_method=self.mesh_method)
+            new_mesh_dict, scale = self._build_mesh(mesh_method=self.mesh_method)
 
             new_mesh_dict = self._offset_mesh(new_mesh_dict)
 
@@ -831,7 +833,7 @@ class Body(object):
 
 
             # TODO: need to be very careful about self.sma vs self._scale - maybe need to make a self._instantaneous_scale???
-            self._scale = scale
+            # self._scale = scale
 
             if not self.needs_remesh:
                 # then we only computed this because we didn't already have a
@@ -946,7 +948,7 @@ class Body(object):
 
 class Star(Body):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, mesh_init_phi,
+                 long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
                  ld_func, ld_coeffs,
@@ -957,20 +959,22 @@ class Star(Body):
                  mesh_method, is_single,
                  do_rv_grav,
                  features,
-                 do_mesh_offset,
                  **kwargs):
         """
         """
         super(Star, self).__init__(comp_no, ind_self, ind_sibling,
                                    masses, ecc,
                                    incl, long_an, t0,
+                                   do_mesh_offset,
                                    mesh_init_phi)
 
         # store everything that is needed by Star but not passed to Body
         self.requiv = requiv
         self.sma = sma
+        # TODO: this may not always be the case: i.e. for single stars
+        self._scale = sma
 
-        self.polar_direction_uvw = polar_direction_uvw
+        self.polar_direction_uvw = polar_direction_uvw.astype(float)
         self.teff = teff
         self.gravb_bol = gravb_bol
         self.abun = abun
@@ -995,7 +999,7 @@ class Star(Body):
 
         self.do_rv_grav = do_rv_grav
         self.features = features
-        self.do_mesh_offset = do_mesh_offset
+
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
@@ -1105,6 +1109,7 @@ class Star(Body):
         return cls(comp_no, ind_self, ind_sibling,
                    masses, ecc,
                    incl, long_an, t0,
+                   do_mesh_offset,
                    mesh_init_phi,
 
                    atm,
@@ -1124,7 +1129,6 @@ class Star(Body):
                    is_single,
                    do_rv_grav,
                    features,
-                   do_mesh_offset,
                    **kwargs
                    )
 
@@ -1178,7 +1182,7 @@ class Star(Body):
         get current polar direction in Roche (xyz) coordinates
         """
         return mesh.spin_in_roche(self.polar_direction_uvw,
-                                  self.true_anom, self.elongan, self.eincl)
+                                  self.true_anom, self.elongan, self.eincl).astype(float)
 
     def get_target_volume(self, etheta=0.0, scaled=False):
         """
@@ -1243,6 +1247,12 @@ class Star(Body):
         # instantaneous_gpole
         # gradOmega_func = getattr(libphoebe, '{}_gradOmega_only'.format('{}_misaligned'.format(self.distortion_method) if self.distortion_method in ['roche', 'rotstar'] else self.distortion_method))
         raise NotImplementedError("gradOmega_func must be overriden by the subclass of Star")
+
+    @property
+    def instantaneous_d(self):
+        return np.sqrt(sum([(_value(self._get_coords_by_index(c, self.ind_self)) -
+                             _value(self._get_coords_by_index(c, self.ind_sibling)))**2
+                             for c in (self.system.xs,self.system.ys,self.system.zs)])) / self._scale
 
     @property
     def instantaneous_rpole(self):
@@ -1570,7 +1580,7 @@ class Star(Body):
 
 class Star_roche(Star):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, mesh_init_phi,
+                 long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
                  ld_func, ld_coeffs,
@@ -1581,7 +1591,6 @@ class Star_roche(Star):
                  mesh_method, is_single,
                  do_rv_grav,
                  features,
-                 do_mesh_offset,
 
                  **kwargs):
         """
@@ -1590,7 +1599,8 @@ class Star_roche(Star):
         self.F = kwargs.pop('F', 1.0)
 
         super(Star_roche, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                                         long_an, t0, mesh_init_phi,
+                                         long_an, t0,
+                                         do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
                                          ld_func, ld_coeffs,
@@ -1601,7 +1611,7 @@ class Star_roche(Star):
                                          mesh_method, is_single,
                                          do_rv_grav,
                                          features,
-                                         do_mesh_offset, **kwargs)
+                                         **kwargs)
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
@@ -1651,14 +1661,15 @@ class Star_roche(Star):
 
         F = self.F
 
-        # d passed as argument to _build_mesh by self.update_position
-        d = d
+        d = self.instantaneous_d
 
         # polar_direction_xyz is instantaneous based on current true_anom
         s = self.polar_direction_xyz
 
         # NOTE: if we ever want to break volume conservation in time,
         # get_target_volume will need to take time or true anomaly
+        print "*** libphoebe.roche_misaligned_Omega_at_vol", self.get_target_volume(scaled=False), q, F, d, s
+        # TODO: roche_misaligned_Omega_at_vol currently requires a guess for Phi
         Phi = libphoebe.roche_misaligned_Omega_at_vol(self.get_target_volume(scaled=False),
                                                       q, F, d, s)
         # this is assuming that we're in the reference frame of our current star,
@@ -1666,7 +1677,7 @@ class Star_roche(Star):
 
         return q, F, d, s, Phi
 
-    def _build_mesh(self, d, mesh_method, **kwargs):
+    def _build_mesh(self, mesh_method, **kwargs):
         """
         this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
         the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
@@ -1738,7 +1749,7 @@ class Star_roche(Star):
 
 class Star_rotstar(Star):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, mesh_init_phi,
+                 long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
                  ld_func, ld_coeffs,
@@ -1749,7 +1760,6 @@ class Star_rotstar(Star):
                  mesh_method, is_single,
                  do_rv_grav,
                  features,
-                 do_mesh_offset,
 
                  **kwargs):
         """
@@ -1758,7 +1768,8 @@ class Star_rotstar(Star):
         self.freq_rot = kwargs.pop('freq_rot', 1.0)
 
         super(Star_rotstar, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                                           long_an, t0, mesh_init_phi,
+                                           long_an, t0,
+                                           do_mesh_offset, mesh_init_phi,
 
                                            atm, datasets, passband, intens_weighting,
                                            ld_func, ld_coeffs,
@@ -1769,7 +1780,7 @@ class Star_rotstar(Star):
                                            mesh_method, is_single,
                                            do_rv_grav,
                                            features,
-                                           do_mesh_offset, **kwargs)
+                                           **kwargs)
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
@@ -1827,13 +1838,14 @@ class Star_rotstar(Star):
         # NOTE: if we ever want to break volume conservation in time,
         # get_target_volume will need to take time or true anomaly
         # TODO: not sure if scaled should be True or False here
+        print "*** libphoebe.rotstar_misaligned_Omega_at_vol", self.get_target_volume(scaled=False), omega, s
         Phi = libphoebe.rotstar_misaligned_Omega_at_vol(self.get_target_volume(scaled=False),
                                                         omega, s)
 
         return omega, s, Phi
 
 
-    def _build_mesh(self, d, mesh_method, **kwargs):
+    def _build_mesh(self, mesh_method, **kwargs):
         """
         this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
         the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
@@ -1890,7 +1902,7 @@ class Star_rotstar(Star):
 class Star_sphere(Star):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
                  long_an, t0, atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, mesh_init_phi,
+                 ld_func, ld_coeffs, do_mesh_offset, mesh_init_phi,
 
                  requiv, sma,
                  polar_direction_uvw,
@@ -1899,7 +1911,6 @@ class Star_sphere(Star):
                  mesh_method, is_single,
                  do_rv_grav,
                  features,
-                 do_mesh_offset,
 
                  **kwargs):
         """
@@ -1909,7 +1920,8 @@ class Star_sphere(Star):
 
         super(Star_sphere, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
                                          long_an, t0, atm, datasets, passband, intens_weighting,
-                                         ld_func, ld_coeffs, mesh_init_phi,
+                                         ld_func, ld_coeffs,
+                                         do_mesh_offset, mesh_init_phi,
 
                                          requiv, sma,
                                          polar_direction_uvw,
@@ -1918,7 +1930,7 @@ class Star_sphere(Star):
                                          mesh_method, is_single,
                                          do_rv_grav,
                                          features,
-                                         do_mesh_offset, **kwargs)
+                                         **kwargs)
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
@@ -1969,7 +1981,7 @@ class Star_sphere(Star):
         return (Phi,)
 
 
-    def _build_mesh(self, d, mesh_method, **kwargs):
+    def _build_mesh(self, mesh_method, **kwargs):
         """
         this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
         the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
@@ -2054,10 +2066,10 @@ class Star_envelope(Star):
         get current polar direction in Roche (xyz) coordinates
         """
         # envelopes MUST be aligned
-        return np.array([0. ,0., 1.])
+        return np.array([0. ,0., 1.]).astype(float)
 
 
-    def _build_mesh(self, d, mesh_method, **kwargs):
+    def _build_mesh(self, mesh_method, **kwargs):
         """
         this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
         the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
@@ -2109,7 +2121,7 @@ class Star_envelope(Star):
             # sure to do the same for the OC case and rotstar
             new_mesh['volume'] = av['lvolume']
 
-            if self._do_mesh_offset:
+            if self.do_mesh_offset:
                 # vertices directly from meshing are placed directly on the
                 # potential, causing the volume and surface area to always
                 # (for convex surfaces) be underestimated.  Now let's jitter
@@ -2374,7 +2386,7 @@ class EnvelopeOld(Body):
         # Volume "conservation"
         self.volume_factor = 1.0  # TODO: eventually make this a parameter (currently defined to be the ratio between volumes at apastron/periastron)
 
-        self._do_mesh_offset = do_mesh_offset
+        self.do_mesh_offset = do_mesh_offset
 
         # pblum scale needs to be different for envelopes - we need to actually
         # track the pblum per-component (envelope, primary, secondary) separately
@@ -2480,7 +2492,6 @@ class EnvelopeOld(Body):
         mesh_kwargs = {}
         if mesh_method == 'marching':
             mesh_kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute) if compute is not None else 1000
-            mesh_kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute) if compute is not None else 'roche'
         elif mesh_method == 'wd':
             mesh_kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute) if compute is not None else 30
         else:
