@@ -15,6 +15,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     b = phoebe.Bundle.default_binary()
 
     b.add_dataset('lc', times=[0], dataset='lc01')
+    b.add_dataset('mesh', include_times='lc01', dataset='mesh01', columns=['abs_normal_intensities@*', 'loggs', 'teffs', 'xs'])
 
     b.add_compute('legacy', compute='phoebe1')
     b.add_compute('phoebe', compute='phoebe2')
@@ -29,22 +30,23 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     # TODO: also compare phoebe1:kurucz to phoebe:extern_atmx
     b.set_value_all('atm', 'extern_planckint')
 
-    b.run_compute('phoebe1', model='phoebe1model', protomesh=True, pbmesh=True, refl_num=0)
-    b.run_compute('phoebe2', model='phoebe2model', protomesh=True, pbmesh=True, irrad_method='none')
+    b.run_compute('phoebe1', model='phoebe1model', refl_num=0)
+    b.run_compute('phoebe2', model='phoebe2model', irrad_method='none')
 
 
     compares = []
-    # compares += [{'qualifier': 'xs', 'dataset': 'protomesh', 'atol': 1e-10}]
-    # compares += [{'qualifier': 'ys', 'dataset': 'protomesh', 'atol': 1e-12}]
-    # compares += [{'qualifier': 'zs', 'dataset': 'protomesh', 'atol': 1e-11}]
-    # compares += [{'qualifier': 'rs', 'dataset': 'protomesh', 'atol': 1e-10}]
-    # compares += [{'qualifier': 'nxs', 'dataset': 'protomesh', 'atol': 1e-7}]
-    # compares += [{'qualifier': 'nys', 'dataset': 'protomesh', 'atol': 1e-9}]
-    # compares += [{'qualifier': 'nzs', 'dataset': 'protomesh', 'atol': 1e-8}]
-    # compares += [{'qualifier': 'cosbetas', 'dataset': 'protomesh', 'atol': 1e-14}]
+    # compares += [{'qualifier': 'us', 'dataset': 'mesh01', 'atol': 1e-10}]
+    # compares += [{'qualifier': 'vs', 'dataset': 'mesh01', 'atol': 1e-12}]
+    # compares += [{'qualifier': 'ws', 'dataset': 'mesh01', 'atol': 1e-11}]
+    # compares += [{'qualifier': 'rs', 'dataset': 'mesh01', 'atol': 1e-10}]
+    # compares += [{'qualifier': 'nus', 'dataset': 'mesh01', 'atol': 1e-7}]
+    # compares += [{'qualifier': 'nvs', 'dataset': 'mesh01', 'atol': 1e-9}]
+    # compares += [{'qualifier': 'nws', 'dataset': 'mesh01', 'atol': 1e-8}]
+    # compares += [{'qualifier': 'cosbetas', 'dataset': 'mesh01', 'atol': 1e-14}]
 
-    compares += [{'qualifier': 'loggs', 'dataset': 'protomesh', 'atol': 2e-4}]
-    compares += [{'qualifier': 'teffs', 'dataset': 'protomesh', 'atol': 1e-5}]
+    compares += [{'qualifier': 'xs', 'dataset': 'mesh01', 'atol': 1e-4}]
+    compares += [{'qualifier': 'loggs', 'dataset': 'mesh01', 'atol': 2e-4}]
+    compares += [{'qualifier': 'teffs', 'dataset': 'mesh01', 'atol': 1e-5}]
 
     compares += [{'qualifier': 'abs_normal_intensities', 'dataset': 'lc01', 'atol': 2e5}] # NOTE: these values are of order 1E14
 
@@ -59,40 +61,40 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
             phoebe2_val = b.get_value(section='model', model='phoebe2model', component=component, dataset=dataset, qualifier=qualifier)
 
 
+            # phoebe2 wd-style mesh duplicates each trapezoid into two
+            # triangles, so we only need every other.  It also handles
+            # duplicating quadrants per-element, whereas the phoebe1
+            # wrapper duplicates per-quadrant.  So we also need to reshape.
+            # TODO: move this into the order that these are actually
+            # exposed by PHOEBE to the user
+            phoebe2_val = phoebe2_val[::2].reshape(-1,4).flatten(order='F')
+
             if component=='secondary':
                 # TODO: this logic should /REALLY/ be moved into the legacy backend wrapper
                 if qualifier in ['xs']:
-                    # the secondary star from phoebe 1 is at (d=a=1, 0, 0)
+                    # the secondary star from phoebe 1 is at (d=1, 0, 0)
                     phoebe2_val -= 1
                 if qualifier in ['xs', 'ys', 'nxs', 'nys']:
                     # the secondary star from phoebe1 is rotated about the z-axis
                     phoebe2_val *= -1
 
 
-            # TODO: handle the hemispheres correctly in the legacy backend and remove this [::8] stuff (also below in plotting)
-            if dataset=='protomesh':
-                phoebe1_val = phoebe1_val[::4]
-                phoebe2_val = phoebe2_val[::8]
-
-
             if plot:
                 print "{}@{}@{} max diff: {}".format(qualifier, component, dataset, max(np.abs(phoebe1_val-phoebe2_val)))
 
             if plot:
-                x = b.get_value(section='model', model='phoebe2model', component=component, dataset='protomesh', qualifier='xs')
-
-                if dataset=='protomesh':
-                    x = x[::8]
+                x1 = b.get_value(section='model', model='phoebe1model', component=component, dataset='mesh01', qualifier='xs')
+                # x2 = b.get_value(section='model', model='phoebe2model', component=component, dataset='mesh01', qualifier='xs')[::2]
 
                 fig, (ax1, ax2) = plt.subplots(1,2)
-                print 'comps', len(x), len(phoebe1_val)
-                ax1.plot(x, phoebe1_val, 'bo')
-                ax1.plot(x, phoebe2_val, 'r.')
+                # print 'comps', len(x), len(phoebe1_val), len(phoebe2_val)
+                ax1.plot(x1, phoebe1_val, 'bo')
+                ax1.plot(x1, phoebe2_val, 'r.')
 
-                ax2.plot(x, phoebe1_val-phoebe2_val, 'k.')
+                ax2.plot(x1, phoebe1_val-phoebe2_val, 'k.')
 
-                ax1.set_xlabel('{}@{} (phoebe2)'.format('x', component))
-                ax2.set_xlabel('{}@{} (phoebe2)'.format('x', component))
+                ax1.set_xlabel('{}@{} (phoebe1)'.format('x', component))
+                ax2.set_xlabel('{}@{} (phoebe1)'.format('x', component))
 
                 ax1.set_ylabel('{}@{} (blue=phoebe1, red=phoebe2)'.format(qualifier, component))
                 ax2.set_ylabel('{}@{} (phoebe1-phoebe2)'.format(qualifier, component))
