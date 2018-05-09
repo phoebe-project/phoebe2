@@ -1140,62 +1140,18 @@ class Bundle(ParameterSet):
             parent_ps = self.get_component(parent)
             if kind in ['star']:
                     # ignore the single star case
-                if parent:
+                if False and parent:
                     # MUST NOT be overflowing at PERIASTRON (1-ecc)
-                    # TODO: implement this check based of fillout factor or crit_pots constrained parameter?
-                    # TODO: only do this if distortion_method == 'roche'
-                    pot = comp_ps.get_value('pot', **kwargs)
-                    q = parent_ps.get_value('q', **kwargs)
-
-                    comp = hier.get_primary_or_secondary(component, return_ind=True)
-                    q = roche.q_for_component(q, comp)
-                    pot = roche.pot_for_component(pot, q, comp)
-
-                    critical_pots = self.compute_critical_pots(component, L1=True, L2=True, **kwargs)
-
-                    # TODO: this needs to be generalized once other potentials are supported
-                    incl_star = comp_ps.get_value('incl', unit=u.rad)
-                    long_an_star = comp_ps.get_value('long_an', unit=u.rad)
-                    s_sys = mesh.spin_in_system(incl_star, long_an_star)
-
-                    incl = parent_ps.get_value('incl', unit=u.rad)
-                    long_an = parent_ps.get_value('long_an', unit=u.rad)
-                    s_roche = mesh.spin_in_roche(s_sys, 0.0, long_an, incl)
-
-                    F = comp_ps.get_value('syncpar', **kwargs)
-                    d = 1 - parent_ps.get_value('ecc', **kwargs)
-                    critical_pot = libphoebe.roche_misaligned_Omega_min(q, F, d, s_roche)
-                    # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
+                    # TODO: reimplement overflow checks
 
                     if pot < critical_pot:
                         return False,\
                             '{} is overflowing at periastron (critical_pot={}, pot={})'.format(component, critical_pot, pot)
 
-            elif kind in ['envelope']:
+            elif False and kind in ['envelope']:
                 # MUST be overflowing at APASTRON (1+ecc)
-                # TODO: implement this check based of fillout factor or crit_pots constrained parameter
-                # TODO: only do this if distortion_method == 'roche' (which probably will be required for envelope?)
-                # TODO: use self.compute_critical_pots
-                pot = comp_ps.get_value('pot', **kwargs)
-                q = parent_ps.get_value('q', **kwargs)
-                # NOTE: pot for envelope will always be as if primary, so no need to invert
-                F = 1.0
-                # NOTE: syncpar is fixed at 1.0 for envelopes
 
-                # TODO: this is technically cheating since our pot is defined at periastron.
-                # We'll either need to transform the pot (using volume conservation??) or
-                # force OCs to be in circular orbits, in which case this test can be done at
-                # periastron as well
-                d = 1 + parent_ps.get_value('ecc', **kwargs)
-                critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, style = 1)
-
-                if pot > critical_pots['L1']:
-                    return False,\
-                        '{} is not overflowing L1 at apastron.'.format(component)
-
-                # BUT MUST NOT be overflowing L2 or L3 at periastron
-                d = 1 - parent_ps.get_value('ecc', **kwargs)
-                critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True, style = 1)
+                # TODO: rewrite overflow check_kwargs
 
                 if pot < critical_pots['L2'] or pot < critical_pots['L3']:
                     return False,\
@@ -1206,7 +1162,8 @@ class Bundle(ParameterSet):
 
         # we also need to make sure that stars don't overlap each other
         # so we'll check for each pair of stars (see issue #70 on github)
-        for orbitref in hier.get_orbits():
+        # TODO: rewrite overlap checks
+        for orbitref in []: #hier.get_orbits():
             if len(hier.get_children_of(orbitref)) == 2:
                 q = self.get_value(qualifier='q', component=orbitref, context='component', **kwargs)
                 ecc = self.get_value(qualifier='ecc', component=orbitref, context='component', **kwargs)
