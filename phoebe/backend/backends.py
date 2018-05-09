@@ -401,13 +401,6 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     # TODO: skip initializing system if we NEVER need meshes
     system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
 
-
-    # We need to create the mesh at periastron for any of the following reasons:
-    # - protomesh
-    # - volume-conservation for eccentric orbits
-    # We'll assume that this is always done - so even for circular orbits, the initial mesh will just be a scaled version of this mesh
-    system.initialize_meshes()
-
     # Now we need to compute intensities at t0 in order to scale pblums for all future times
     # TODO: only do this if we need the mesh for actual computations
     # TODO: move as much of this pblum logic into mesh.py as possible
