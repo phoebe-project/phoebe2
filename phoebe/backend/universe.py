@@ -55,8 +55,8 @@ Feature - general Class of all features: any new type of feature needs to subcla
 
 """
 
-def g_rel_to_abs(mass):
-    return c.G.si.value*c.M_sun.si.value*mass/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
+def g_rel_to_abs(mass, sma):
+    return c.G.si.value*c.M_sun.si.value*mass/(sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
 
 def _get_classname(kind, distortion_method):
     kind = kind.title()
@@ -1219,8 +1219,6 @@ class Star(Body):
         raise NotImplementedError("_build_mesh must be overridden by the subclass of Star")
 
     def compute_local_quantities(self, xs, ys, zs, ignore_effects=False, **kwargs):
-        self._compute_instantaneous_quantities(xs, ys, zs)
-
         # Now fill local instantaneous quantities
         self._fill_loggs(ignore_effects=ignore_effects)
         self._fill_gravs()
@@ -1260,14 +1258,14 @@ class Star(Body):
 
     @property
     def instantaneous_gpole(self):
-        rpole_ = np.array([0., 0., self.rpole])
+        rpole_ = np.array([0., 0., self.instantaneous_rpole])
 
         # TODO: this is a little ugly as it assumes Phi is the last argument in mesh_args
         args = list(self.instantaneous_mesh_args)[:-1]+[rpole_]
         grads = self._gradOmega_func(*args)
         gpole = np.linalg.norm(grads)
 
-        return gpole * g_rel_to_abs(self.masses[self.ind_self])
+        return gpole * g_rel_to_abs(self.masses[self.ind_self], self.sma)
 
     @property
     def instantaneous_tpole(self):
@@ -1275,12 +1273,11 @@ class Star(Body):
         compute the instantaenous temperature at the pole to achieve the mean
         effective temperature (teff) provided by the user
         """
-        # get the user-defined mean effective temperatures
-        Teff = kwargs.get('teff', self.teff)
-
+        if self.mesh is None:
+            raise ValueError("mesh must be computed before determining tpole")
         # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
         # see PHOEBE Legacy scientific reference eq 5.20
-        return Teff*(np.sum(mesh.areas) / np.sum(mesh.gravs.centers*mesh.areas))**(0.25)
+        return self.teff*(np.sum(self.mesh.areas) / np.sum(self.mesh.gravs.centers*self.mesh.areas))**(0.25)
 
     @property
     def instantaneous_mesh_args(self):
@@ -1301,7 +1298,7 @@ class Star(Body):
         if mesh is None:
             mesh = self.mesh
 
-        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self]))
+        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self], self.sma))
 
         if not ignore_effects:
             for feature in self.features:
@@ -1323,7 +1320,7 @@ class Star(Body):
 
         # TODO: rename 'gravs' to 'gdcs' (gravity darkening corrections)
 
-        gravs = ((mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self]))/self.instantaneous_gpole)**self.gravb_bol
+        gravs = ((mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self], self.sma))/self.instantaneous_gpole)**self.gravb_bol
 
         mesh.update_columns(gravs=gravs)
 
@@ -1668,7 +1665,7 @@ class Star_roche(Star):
 
         # NOTE: if we ever want to break volume conservation in time,
         # get_target_volume will need to take time or true anomaly
-        print "*** libphoebe.roche_misaligned_Omega_at_vol", self.get_target_volume(scaled=False), q, F, d, s
+        logger.debug("libphoebe.roche_misaligned_Omega_at_vol({}, {}, {}, {})".format(self.get_target_volume(scaled=False), q, F, d, s))
         # TODO: roche_misaligned_Omega_at_vol currently requires a guess for Phi
         Phi = libphoebe.roche_misaligned_Omega_at_vol(self.get_target_volume(scaled=False),
                                                       q, F, d, s)
@@ -1838,7 +1835,7 @@ class Star_rotstar(Star):
         # NOTE: if we ever want to break volume conservation in time,
         # get_target_volume will need to take time or true anomaly
         # TODO: not sure if scaled should be True or False here
-        print "*** libphoebe.rotstar_misaligned_Omega_at_vol", self.get_target_volume(scaled=False), omega, s
+        logger.debug("libphoebe.rotstar_misaligned_Omega_at_vol({}, {}, {})".format(self.get_target_volume(scaled=False), omega, s))
         Phi = libphoebe.rotstar_misaligned_Omega_at_vol(self.get_target_volume(scaled=False),
                                                         omega, s)
 
@@ -2556,8 +2553,8 @@ class EnvelopeOld(Body):
         g_pole1 = np.linalg.norm(grads1)
         g_pole2 = np.linalg.norm(grads2)
 
-        self._instantaneous_gpole1 = g_pole1 * g_rel_to_abs(self.masses[self.ind_self])
-        self._instantaneous_gpole2 = g_pole2 * g_rel_to_abs(self.masses[self.ind_self])
+        self._instantaneous_gpole1 = g_pole1 * g_rel_to_abs(self.masses[self.ind_self], self.sma)
+        self._instantaneous_gpole2 = g_pole2 * g_rel_to_abs(self.masses[self.ind_self], self.sma)
         # TODO NOW: check whether r_pole is in absolute units (scaled/not scaled)
         self._instantaneous_rpole1 = r_pole1
         self._instantaneous_rpole2 = r_pole2
@@ -2575,7 +2572,7 @@ class EnvelopeOld(Body):
         if mesh is None:
             mesh = self.mesh
 
-        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self]))
+        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self], self.sma))
 
         if not ignore_effects:
             for feature in self.features:
@@ -2599,8 +2596,8 @@ class EnvelopeOld(Body):
 
         # TODO: rename 'gravs' to 'gdcs' (gravity darkening corrections)
 
-        gravs1 = ((mesh.normgrads.for_computations[mesh.env_comp==0] * g_rel_to_abs(self.masses[self.ind_self]))/self._instantaneous_gpole1)**self.gravb_bol1
-        gravs2 = ((mesh.normgrads.for_computations[mesh.env_comp==1] * g_rel_to_abs(self.masses[self.ind_self]))/self._instantaneous_gpole2)**self.gravb_bol2
+        gravs1 = ((mesh.normgrads.for_computations[mesh.env_comp==0] * g_rel_to_abs(self.masses[self.ind_self], self.sma))/self._instantaneous_gpole1)**self.gravb_bol1
+        gravs2 = ((mesh.normgrads.for_computations[mesh.env_comp==1] * g_rel_to_abs(self.masses[self.ind_self], self.sma))/self._instantaneous_gpole2)**self.gravb_bol2
 
         # TODO: make sure equivalent to the old way here
         # gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
