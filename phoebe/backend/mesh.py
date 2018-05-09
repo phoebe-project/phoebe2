@@ -275,6 +275,7 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
 
     # TODO: actually compute the numerical volume (find old code)
     new_mesh['volume'] = compute_volume(new_mesh['areas'], new_mesh['centers'], new_mesh['tnormals'])
+    # new_mesh['area'] # TODO: compute surface area??? (not sure if needed)
     new_mesh['velocities'] = np.zeros(new_mesh['centers'].shape)
 
     return new_mesh
@@ -485,7 +486,8 @@ class ProtoMesh(object):
 
         self._normgrads         = ComputedColumn(mesh=self)
 
-        self._lvolume            = None  # scalar
+        self._volume            = None  # scalar
+        self._area              = None  # scalar
 
         ### TESTING FOR WD METHOD ###
         self._phis               = None # Nx1
@@ -507,7 +509,7 @@ class ProtoMesh(object):
 
 
         self._pos               = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
-        self._scalar_fields     = ['volume']
+        self._scalar_fields     = ['volume', 'area']
 
         if 'label_envelope' in kwargs.keys():
             self._label_envelope = kwargs.pop('label_envelope')
@@ -524,7 +526,7 @@ class ProtoMesh(object):
                   'rs', 'rprojs', 'cosbetas',
                   'areas', 'tareas', 'areas_si',
                   'velocities', 'vnormals', 'tnormals',
-                  'normgrads', 'volume',
+                  'normgrads', 'volume', 'area',
                   'phis', 'thetas', 'env_comp','env_comp3',
                   'compute_at_vertices',
                   'loggs', 'gravs', 'teffs', 'abuns', 'frac_refls'] # frac_heats, frac_scatts
@@ -906,13 +908,22 @@ class ProtoMesh(object):
         return self._normgrads
 
     @property
-    def lvolume(self):
+    def volume(self):
         """
         Return the volume of the ENTIRE MESH.
 
         (scalar/float)
         """
-        return self._lvolume
+        return self._volume
+
+    @property
+    def area(self):
+        """
+        Return the surface area of the ENTIRE MESH.
+
+        (scalar/float)
+        """
+        return self._area
 
     @property
     def phis(self):
@@ -1084,7 +1095,7 @@ class ScaledProtoMesh(ProtoMesh):
 
         self.update_columns(areas=self.areas*(scale**2))
         self._volume *= scale**3
-        # TODO NOW: scale volume
+        self._area += scale**2
 
     @property
     def roche_vertices(self):

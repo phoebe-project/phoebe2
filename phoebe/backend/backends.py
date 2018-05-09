@@ -670,7 +670,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                                                   time, info))
                 if 'volume' in info['mesh_columns']:
                     packetlist.append(make_packet('volume',
-                                                  body.mesh.lvolume,
+                                                  body.mesh.volume,
                                                   time, info))
 
                 if 'us' in info['mesh_columns']:

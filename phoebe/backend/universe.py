@@ -693,7 +693,7 @@ class Body(object):
             new_mesh['pvertices'] = new_mesh.pop('vertices')
             # TODO: fall back on curvature=False if we know the body
             # is relatively spherical
-            mo = libphoebe.mesh_offseting(new_mesh['larea'],
+            mo = libphoebe.mesh_offseting(new_mesh['area'],
                                           new_mesh['pvertices'],
                                           new_mesh['vnormals'],
                                           new_mesh['triangles'],
@@ -1724,8 +1724,8 @@ class Star_roche(Star):
             # the volume and surface area of the lobe.  The lobe area is used
             # if mesh_offseting is required, and the volume is optionally exposed
             # to the user.
-            new_mesh['lvolume'] = av['lvolume']  # * sma**3
-            new_mesh['larea'] = av['larea']      # * sma**2
+            new_mesh['volume'] = av['lvolume']  # * sma**3
+            new_mesh['area'] = av['larea']      # * sma**2
 
             scale = sma
 
@@ -1887,9 +1887,8 @@ class Star_rotstar(Star):
             # the volume and surface area of the lobe.  The lobe area is used
             # if mesh_offseting is required, and the volume is optionally exposed
             # to the user.
-            # NOTE: I changed this from storing as volume to lvolume to be consistent
-            new_mesh['lvolume'] = av['lvolume']
-            new_mesh['larea'] = av['larea']
+            new_mesh['volume'] = av['lvolume']
+            new_mesh['area'] = av['larea']
 
             scale = sma
 
@@ -2022,9 +2021,8 @@ class Star_sphere(Star):
             # the volume and surface area of the lobe.  The lobe area is used
             # if mesh_offseting is required, and the volume is optionally exposed
             # to the user.
-            # NOTE: I changed this from storing as volume to lvolume to be consistent
-            new_mesh['lvolume'] = av['lvolume']
-            new_mesh['larea'] = av['larea']
+            new_mesh['volume'] = av['lvolume']
+            new_mesh['area'] = av['larea']
 
             scale = sma
 
