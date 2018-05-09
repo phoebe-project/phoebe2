@@ -5789,10 +5789,7 @@ class ConstraintParameter(Parameter):
 
                 from phoebe.constraints.builtin import ecosw2per0, esinw2per0,\
                         t0_perpass_to_supconj, t0_supconj_to_perpass,\
-                        t0_ref_to_supconj, t0_supconj_to_ref,\
-                        rochepotential2rpole, rocherpole2potential,\
-                        rotstarpotential2rpole, rotstarrpole2potential,\
-                        rochecriticalL12potential, rochecriticalL12rpole
+                        t0_ref_to_supconj, t0_supconj_to_ref
 
                 value = float(eval(eq.format(**values)))
 
