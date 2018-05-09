@@ -55,7 +55,8 @@ Feature - general Class of all features: any new type of feature needs to subcla
 
 """
 
-g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
+def g_rel_to_abs(mass):
+    return c.G.si.value*c.M_sun.si.value*mass/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
 
 def _get_classname(kind, distortion_method):
     kind = kind.title()
@@ -512,10 +513,9 @@ class Body(object):
     Body is the base Class for all "bodies" of the System.
 
     """
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl, long_an, t0,
-                 atm='blackbody',
-                 datasets=[], passband = {}, intens_weighting='energy',
-                 ld_func={}, ld_coeffs={}, mesh_init_phi=0.0):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses,
+                 ecc, incl, long_an, t0,
+                 mesh_init_phi=0.0):
         """
         TODO: add documentation
         """
@@ -562,19 +562,6 @@ class Body(object):
         # for reprojection for volume conservation in eccentric orbits.
         # Storing meshes should only be done through self.save_as_standard_mesh(theta)
         self._standard_meshes = {}
-
-        self.atm = atm
-
-        # DATSET-DEPENDENT DICTS
-        self.passband = passband
-        self.intens_weighting = intens_weighting
-        self.ld_coeffs = ld_coeffs
-        self.ld_func = ld_func
-
-        # Let's create a dictionary to handle how each dataset should scale between
-        # absolute and relative intensities.
-        self._pblum_scale = {}
-        self._ptfarea = {}
 
         # We'll also keep track of a conservative maximum r (from center of star to triangle, in real units).
         # This will be computed and stored when the periastron mesh is added as a standard
@@ -959,16 +946,15 @@ class Body(object):
 
 class Star(Body):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, mesh_init_phi,
+                 long_an, t0, mesh_init_phi,
 
+                 atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs,
                  requiv, sma,
                  polar_direction_uvw,
                  teff, gravb_bol, abun,
                  irrad_frac_refl,
                  mesh_method, is_single,
-                 intens_weighting,
-                 ld_func, ld_coeffs,
                  do_rv_grav,
                  features,
                  do_mesh_offset,
@@ -979,9 +965,7 @@ class Star(Body):
         super(Star, self).__init__(comp_no, ind_self, ind_sibling,
                                    masses, ecc,
                                    incl, long_an, t0,
-                                   atm, datasets, passband,
-                                   intens_weighting, ld_func, ld_coeffs,
-                                   mesh_init_phi=mesh_init_phi)
+                                   mesh_init_phi)
 
         # store everything that is needed by Star but not passed to Body
         self.requiv = requiv
@@ -997,9 +981,19 @@ class Star(Body):
         self.distortion_method = kwargs.get('distortion_method', 'roche')   # Marching (WD assumes roche)
         self.gridsize = kwargs.get('gridsize', 90)                          # WD
         self.is_single = is_single
+        self.atm = atm
+
+        # DATSET-DEPENDENT DICTS
+        self.passband = passband
         self.intens_weighting = intens_weighting
-        self.ld_func = ld_func
         self.ld_coeffs = ld_coeffs
+        self.ld_func = ld_func
+
+        # Let's create a dictionary to handle how each dataset should scale between
+        # absolute and relative intensities.
+        self._pblum_scale = {}
+        self._ptfarea = {}
+
         self.do_rv_grav = do_rv_grav
         self.features = features
         self.do_mesh_offset = do_mesh_offset
@@ -1112,10 +1106,14 @@ class Star(Body):
         return cls(comp_no, ind_self, ind_sibling,
                    masses, ecc,
                    incl, long_an, t0,
-                   atm, datasets, passband,
-                   intens_weighting, ld_func, ld_coeffs,
                    mesh_init_phi,
 
+                   atm=atm,
+                   datasets=datasets,
+                   passband=passband,
+                   intens_weighting=intens_weighting,
+                   ld_func=ld_func,
+                   ld_coeffs=ld_coeffs,
                    requiv=requiv,
                    sma=sma,
                    polar_direction_uvw=polar_direction_uvw,
@@ -1125,9 +1123,6 @@ class Star(Body):
                    irrad_frac_refl=irrad_frac_refl,
                    mesh_method=mesh_method,
                    is_single=is_single,
-                   intens_weighting=intens_weighting,
-                   ld_func=ld_func,
-                   ld_coeffs=ld_coeffs,
                    do_rv_grav=do_rv_grav,
                    feature=features,
                    do_mesh_offset=do_mesh_offset,
@@ -1263,7 +1258,7 @@ class Star(Body):
         grads = self._gradOmega_func(*args)
         gpole = np.linalg.norm(grads)
 
-        return gpole * g_rel_to_abs
+        return gpole * g_rel_to_abs(self.masses[self.ind_self])
 
     @property
     def instantaneous_tpole(self):
@@ -1297,7 +1292,7 @@ class Star(Body):
         if mesh is None:
             mesh = self.mesh
 
-        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs)
+        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self]))
 
         if not ignore_effects:
             for feature in self.features:
@@ -1319,8 +1314,7 @@ class Star(Body):
 
         # TODO: rename 'gravs' to 'gdcs' (gravity darkening corrections)
 
-        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
-        gravs = ((mesh.normgrads.for_computations * g_rel_to_abs)/self.instantaneous_gpole)**self.gravb_bol
+        gravs = ((mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self]))/self.instantaneous_gpole)**self.gravb_bol
 
         mesh.update_columns(gravs=gravs)
 
@@ -1577,16 +1571,15 @@ class Star(Body):
 
 class Star_roche(Star):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, mesh_init_phi,
+                 long_an, t0, mesh_init_phi,
 
+                 atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs,
                  requiv, sma,
                  polar_direction_uvw,
                  teff, gravb_bol, abun,
                  irrad_frac_refl,
                  mesh_method, is_single,
-                 intens_weighting,
-                 ld_func, ld_coeffs,
                  do_rv_grav,
                  features,
                  do_mesh_offset,
@@ -1598,15 +1591,15 @@ class Star_roche(Star):
         self.F = kwargs.pop('F', 1.0)
 
         super(Star_roche, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                                         long_an, t0, atm, datasets, passband, intens_weighting,
-                                         ld_func, ld_coeffs, mesh_init_phi,
+                                         long_an, t0, mesh_init_phi,
 
+                                         atm, datasets, passband, intens_weighting,
+                                         ld_func, ld_coeffs,
                                          requiv, sma,
                                          polar_direction_uvw,
                                          teff, gravb_bol, abun,
                                          irrad_frac_refl,
                                          mesh_method, is_single,
-                                         intens_weighting,
                                          ld_func, ld_coeffs,
                                          do_rv_grav,
                                          features,
@@ -1746,16 +1739,15 @@ class Star_roche(Star):
 
 class Star_rotstar(Star):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, mesh_init_phi,
+                 long_an, t0, mesh_init_phi,
 
+                 atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs,
                  requiv, sma,
                  polar_direction_uvw,
                  teff, gravb_bol, abun,
                  irrad_frac_refl,
                  mesh_method, is_single,
-                 intens_weighting,
-                 ld_func, ld_coeffs,
                  do_rv_grav,
                  features,
                  do_mesh_offset,
@@ -1767,15 +1759,15 @@ class Star_rotstar(Star):
         self.freq_rot = kwargs.pop('freq_rot', 1.0)
 
         super(Star_rotstar, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                                           long_an, t0, atm, datasets, passband, intens_weighting,
-                                           ld_func, ld_coeffs, mesh_init_phi,
+                                           long_an, t0, mesh_init_phi,
 
+                                           atm, datasets, passband, intens_weighting,
+                                           ld_func, ld_coeffs,
                                            requiv, sma,
                                            polar_direction_uvw,
                                            teff, gravb_bol, abun,
                                            irrad_frac_refl,
                                            mesh_method, is_single,
-                                           intens_weighting,
                                            ld_func, ld_coeffs,
                                            do_rv_grav,
                                            features,
@@ -1905,8 +1897,6 @@ class Star_sphere(Star):
                  teff, gravb_bol, abun,
                  irrad_frac_refl,
                  mesh_method, is_single,
-                 intens_weighting,
-                 ld_func, ld_coeffs,
                  do_rv_grav,
                  features,
                  do_mesh_offset,
@@ -1926,7 +1916,6 @@ class Star_sphere(Star):
                                          teff, gravb_bol, abun,
                                          irrad_frac_refl,
                                          mesh_method, is_single,
-                                         intens_weighting,
                                          ld_func, ld_coeffs,
                                          do_rv_grav,
                                          features,
@@ -2557,10 +2546,8 @@ class EnvelopeOld(Body):
         g_pole1 = np.linalg.norm(grads1)
         g_pole2 = np.linalg.norm(grads2)
 
-        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
-
-        self._instantaneous_gpole1 = g_pole1 * g_rel_to_abs
-        self._instantaneous_gpole2 = g_pole2 * g_rel_to_abs
+        self._instantaneous_gpole1 = g_pole1 * g_rel_to_abs(self.masses[self.ind_self])
+        self._instantaneous_gpole2 = g_pole2 * g_rel_to_abs(self.masses[self.ind_self])
         # TODO NOW: check whether r_pole is in absolute units (scaled/not scaled)
         self._instantaneous_rpole1 = r_pole1
         self._instantaneous_rpole2 = r_pole2
@@ -2578,9 +2565,7 @@ class EnvelopeOld(Body):
         if mesh is None:
             mesh = self.mesh
 
-        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
-
-        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs)
+        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self]))
 
         if not ignore_effects:
             for feature in self.features:
@@ -2604,10 +2589,8 @@ class EnvelopeOld(Body):
 
         # TODO: rename 'gravs' to 'gdcs' (gravity darkening corrections)
 
-        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
-        # TODO: check the division by 100 - is this just to change units back to m?
-        gravs1 = ((mesh.normgrads.for_computations[mesh.env_comp==0] * g_rel_to_abs)/self._instantaneous_gpole1)**self.gravb_bol1
-        gravs2 = ((mesh.normgrads.for_computations[mesh.env_comp==1] * g_rel_to_abs)/self._instantaneous_gpole2)**self.gravb_bol2
+        gravs1 = ((mesh.normgrads.for_computations[mesh.env_comp==0] * g_rel_to_abs(self.masses[self.ind_self]))/self._instantaneous_gpole1)**self.gravb_bol1
+        gravs2 = ((mesh.normgrads.for_computations[mesh.env_comp==1] * g_rel_to_abs(self.masses[self.ind_self]))/self._instantaneous_gpole2)**self.gravb_bol2
 
         # TODO: make sure equivalent to the old way here
         # gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
