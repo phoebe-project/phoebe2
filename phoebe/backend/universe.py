@@ -958,7 +958,6 @@ class Star(Body):
                  do_rv_grav,
                  features,
                  do_mesh_offset,
-
                  **kwargs):
         """
         """
@@ -1108,24 +1107,24 @@ class Star(Body):
                    incl, long_an, t0,
                    mesh_init_phi,
 
-                   atm=atm,
-                   datasets=datasets,
-                   passband=passband,
-                   intens_weighting=intens_weighting,
-                   ld_func=ld_func,
-                   ld_coeffs=ld_coeffs,
-                   requiv=requiv,
-                   sma=sma,
-                   polar_direction_uvw=polar_direction_uvw,
-                   teff=teff,
-                   gravb_bol=gravb_bol,
-                   abun=abun,
-                   irrad_frac_refl=irrad_frac_refl,
-                   mesh_method=mesh_method,
-                   is_single=is_single,
-                   do_rv_grav=do_rv_grav,
-                   feature=features,
-                   do_mesh_offset=do_mesh_offset,
+                   atm,
+                   datasets,
+                   passband,
+                   intens_weighting,
+                   ld_func,
+                   ld_coeffs,
+                   requiv,
+                   sma,
+                   polar_direction_uvw,
+                   teff,
+                   gravb_bol,
+                   abun,
+                   irrad_frac_refl,
+                   mesh_method,
+                   is_single,
+                   do_rv_grav,
+                   features,
+                   do_mesh_offset,
                    **kwargs
                    )
 
@@ -1600,7 +1599,6 @@ class Star_roche(Star):
                                          teff, gravb_bol, abun,
                                          irrad_frac_refl,
                                          mesh_method, is_single,
-                                         ld_func, ld_coeffs,
                                          do_rv_grav,
                                          features,
                                          do_mesh_offset, **kwargs)
@@ -1609,11 +1607,12 @@ class Star_roche(Star):
     def from_bundle(cls, b, component, compute=None,
                     mesh_init_phi=0.0, datasets=[], **kwargs):
 
+        self_ps = b.filter(component=component, context='component', check_visible=False)
         F = self_ps.get_value('syncpar', check_visible=False)
-        #freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
 
-        super(Star_roche, cls).from_bundle(b, component, compute, mesh_init_phi,
-                                           datasets, F=F, **kwargs)
+        return super(Star_roche, cls).from_bundle(b, component, compute,
+                                                  mesh_init_phi, datasets,
+                                                  F=F, **kwargs)
 
 
     @property
@@ -1768,7 +1767,6 @@ class Star_rotstar(Star):
                                            teff, gravb_bol, abun,
                                            irrad_frac_refl,
                                            mesh_method, is_single,
-                                           ld_func, ld_coeffs,
                                            do_rv_grav,
                                            features,
                                            do_mesh_offset, **kwargs)
@@ -1777,10 +1775,12 @@ class Star_rotstar(Star):
     def from_bundle(cls, b, component, compute=None,
                     mesh_init_phi=0.0, datasets=[], **kwargs):
 
+        self_ps = b.filter(component=component, context='component', check_visible=False)
         freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
 
-        super(Star_rotstar, cls).from_bundle(b, component, compute, mesh_init_phi,
-                                             datasets, freq_rot=freq_rot, **kwargs)
+        return super(Star_rotstar, cls).from_bundle(b, component, compute,
+                                                    mesh_init_phi, datasets,
+                                                    freq_rot=freq_rot, **kwargs)
 
 
 
@@ -1916,7 +1916,6 @@ class Star_sphere(Star):
                                          teff, gravb_bol, abun,
                                          irrad_frac_refl,
                                          mesh_method, is_single,
-                                         ld_func, ld_coeffs,
                                          do_rv_grav,
                                          features,
                                          do_mesh_offset, **kwargs)
@@ -1925,8 +1924,10 @@ class Star_sphere(Star):
     def from_bundle(cls, b, component, compute=None,
                     mesh_init_phi=0.0, datasets=[], **kwargs):
 
-        super(Star_sphere, cls).from_bundle(b, component, compute, mesh_init_phi,
-                                           datasets, **kwargs)
+        self_ps = b.filter(component=component, context='component', check_visible=False)
+        return super(Star_sphere, cls).from_bundle(b, component, compute,
+                                                   mesh_init_phi, datasets,
+                                                   **kwargs)
 
 
     @property
