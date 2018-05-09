@@ -1163,10 +1163,10 @@ class Star(Body):
         """
         # should be defined for any class that subclasses Star that supports
         # misalignment
-        if self._is_single:
+        if self.is_single:
             return False
 
-        return self.spin[1] != 1.0
+        return self.polar_direction_xyz[1] != 1.0
 
     @property
     def spots(self):
