@@ -951,6 +951,7 @@ class Star(Body):
                  ld_func, ld_coeffs,
                  requiv, sma,
                  polar_direction_uvw,
+                 freq_rot,
                  teff, gravb_bol, abun,
                  irrad_frac_refl,
                  mesh_method, is_single,
@@ -972,6 +973,7 @@ class Star(Body):
         self._scale = sma
 
         self.polar_direction_uvw = polar_direction_uvw.astype(float)
+        self.freq_rot = freq_rot
         self.teff = teff
         self.gravb_bol = gravb_bol
         self.abun = abun
@@ -1054,6 +1056,7 @@ class Star(Body):
         incl_star = self_ps.get_value('incl', unit=u.rad)
         long_an_star = self_ps.get_value('long_an', unit=u.rad)
         polar_direction_uvw = mesh.spin_in_system(incl_star, long_an_star)
+        freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
 
         t0 = b.get_value('t0', context='system', unit=u.d)
 
@@ -1118,6 +1121,7 @@ class Star(Body):
                    requiv,
                    sma,
                    polar_direction_uvw,
+                   freq_rot,
                    teff,
                    gravb_bol,
                    abun,
@@ -1580,6 +1584,7 @@ class Star_roche(Star):
                  ld_func, ld_coeffs,
                  requiv, sma,
                  polar_direction_uvw,
+                 freq_rot,
                  teff, gravb_bol, abun,
                  irrad_frac_refl,
                  mesh_method, is_single,
@@ -1600,6 +1605,7 @@ class Star_roche(Star):
                                          ld_func, ld_coeffs,
                                          requiv, sma,
                                          polar_direction_uvw,
+                                         freq_rot,
                                          teff, gravb_bol, abun,
                                          irrad_frac_refl,
                                          mesh_method, is_single,
@@ -1749,6 +1755,7 @@ class Star_rotstar(Star):
                  ld_func, ld_coeffs,
                  requiv, sma,
                  polar_direction_uvw,
+                 freq_rot,
                  teff, gravb_bol, abun,
                  irrad_frac_refl,
                  mesh_method, is_single,
@@ -1759,7 +1766,6 @@ class Star_rotstar(Star):
         """
         """
         # extra things (not used by Star) will be stored in kwargs
-        self.freq_rot = kwargs.pop('freq_rot', 1.0)
 
         super(Star_rotstar, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
                                            long_an, t0,
@@ -1769,6 +1775,7 @@ class Star_rotstar(Star):
                                            ld_func, ld_coeffs,
                                            requiv, sma,
                                            polar_direction_uvw,
+                                           freq_rot,
                                            teff, gravb_bol, abun,
                                            irrad_frac_refl,
                                            mesh_method, is_single,
@@ -1780,12 +1787,10 @@ class Star_rotstar(Star):
     def from_bundle(cls, b, component, compute=None,
                     mesh_init_phi=0.0, datasets=[], **kwargs):
 
-        self_ps = b.filter(component=component, context='component', check_visible=False)
-        freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
 
         return super(Star_rotstar, cls).from_bundle(b, component, compute,
                                                     mesh_init_phi, datasets,
-                                                    freq_rot=freq_rot, **kwargs)
+                                                    **kwargs)
 
 
 
@@ -1899,6 +1904,7 @@ class Star_sphere(Star):
 
                  requiv, sma,
                  polar_direction_uvw,
+                 freq_rot,
                  teff, gravb_bol, abun,
                  irrad_frac_refl,
                  mesh_method, is_single,
@@ -1918,6 +1924,7 @@ class Star_sphere(Star):
 
                                          requiv, sma,
                                          polar_direction_uvw,
+                                         freq_rot,
                                          teff, gravb_bol, abun,
                                          irrad_frac_refl,
                                          mesh_method, is_single,
@@ -1930,6 +1937,7 @@ class Star_sphere(Star):
                     mesh_init_phi=0.0, datasets=[], **kwargs):
 
         self_ps = b.filter(component=component, context='component', check_visible=False)
+
         return super(Star_sphere, cls).from_bundle(b, component, compute,
                                                    mesh_init_phi, datasets,
                                                    **kwargs)
