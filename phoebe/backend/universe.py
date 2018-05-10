@@ -1961,7 +1961,7 @@ class Star_sphere(Star):
         # the provided function must take *self.instantaneous_mesh_args as the
         # only arguments.  If this is not the case, the subclass must also override
         # instantaneous_rpole
-        return getattr(libphoebe, 'sphere_misaligned_pole')
+        return getattr(libphoebe, 'sphere_pole')
 
     @property
     def _gradOmega_func(self):
@@ -1997,7 +1997,7 @@ class Star_sphere(Star):
         if mesh_method == 'marching':
             ntriangles = kwargs.get('ntriangles', self.ntriangles)
 
-            av = libphoebe.sphere_area_volume(Phi,
+            av = libphoebe.sphere_area_volume(*mesh_args,
                                               larea=True,
                                               lvolume=True)
 
