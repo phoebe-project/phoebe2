@@ -7,7 +7,7 @@ import copy
 
 from phoebe.atmospheres import passbands
 from phoebe.distortions import roche, rotstar
-from phoebe.backend import eclipse, potentials, mesh
+from phoebe.backend import eclipse, oc_geometry, mesh, mesh_wd
 import libphoebe
 
 from phoebe import u
@@ -1730,7 +1730,7 @@ class Star_roche(Star):
             # unpack mesh_args so we can ignore s
             q, F, d, s, Phi = mesh_args
 
-            the_grid = potentials.discretize_wd_style(N, q, F, d, Phi)
+            the_grid = mesh_wd.discretize_wd_style(N, q, F, d, Phi)
             new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
             scale = sma
 
@@ -2161,8 +2161,8 @@ class Star_envelope(Star):
 
             # compute the positions of the minimum radii of the neck in the xy and xz planes
             # when temperature_method becomes available, wrap this with if tmethod='wd':
-            L1 = potentials.Lag1(q)
-            xz,z = potentials.nekmin(Phi,q,L1,0.05)
+            L1 = oc_geometry.Lag1(q)
+            xz,z = oc_geometry.nekmin(Phi,q,L1,0.05)
             # choose which value of x to use as the minimum (maybe extend to average of both?
             xmin = xz
 
@@ -2253,7 +2253,7 @@ class Star_envelope(Star):
 
             N = int(kwargs.get('gridsize', self.gridsize))
 
-            the_grid = potentials.discretize_wd_style_oc(N, *mesh_args)
+            the_grid = mesh_wd.discretize_wd_style_oc(N, *mesh_args)
             new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
             scale = sma
 
@@ -2261,7 +2261,7 @@ class Star_envelope(Star):
             # env_comp = 0 for primary part of the envelope, 1 for secondary
 
             # compute the positions of the minimum radii of the neck in the xy and xz planes
-            xz,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
+            xz,z = oc_geometry.nekmin(Phi,q,0.5,0.05,0.05)
             # choose which value of x to use as the minimum (maybe extend to average of both?
             xmin = xz
 

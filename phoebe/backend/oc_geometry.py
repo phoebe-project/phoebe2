@@ -1,171 +1,119 @@
 import numpy as np
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
 
-# from potentials import dBinaryRochedx,dBinaryRochedy,dBinaryRochedz as dpdx,dpdy,dpdz
-def BinaryRoche (r, D, q, F, Omega=0.0):
-    r"""
-    Computes a value of the asynchronous, eccentric Roche potential.
 
-    If :envvar:`Omega` is passed, it computes the difference.
 
-    The asynchronous, eccentric Roche potential is given by [Wilson1979]_
+def wd_mesh_fill(xmin,y1,z1,r1,r2,r3,r4):
+    # a simple sorting of the rs array by the value of the x coordinate will do the trick
+    # will only need to take the two vertices with highest x value -> this will also work
+    # for trapezoids that are not crossing the boundary but are the last ones
 
-    .. math::
+    rxs = [r1[0],r2[0],r3[0],r4[0]]
+    rxs.sort()
 
-        \Omega = \frac{1}{\sqrt{x^2 + y^2 + z^2}} + q\left(\frac{1}{\sqrt{(x-D)^2+y^2+z^2}} - \frac{x}{D^2}\right) + \frac{1}{2}F^2(1+q)(x^2+y^2)
+    # take the two vertices with largest x-value and shift them to the neck
+    for rx in [rxs[2],rxs[3]]:
+        for r in [r1,r2,r3,r4]:
 
-    @param r:      relative radius vector (3 components)
-    @type r: 3-tuple
-    @param D:      instantaneous separation
-    @type D: float
-    @param q:      mass ratio
-    @type q: float
-    @param F:      synchronicity parameter
-    @type F: float
-    @param Omega:  value of the potential
-    @type Omega: float
-    """
-    return 1.0/sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]) + q*(1.0/sqrt((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])-r[0]/D/D) + 0.5*F*F*(1+q)*(r[0]*r[0]+r[1]*r[1]) - Omega
+            if r[0]==rx:
+                r[0] = xmin
 
-def dBinaryRochedx (r, D, q, F):
-    """
-    Computes a derivative of the potential with respect to x.
+                # compute angle of point (as seen from the ellipse center) in the yz plane
+                tan_theta = r[2]/r[1]
+                # compute the eccentric anomaly of the point on the ellipse
+                t = np.arctan(y1/z1*tan_theta)
+                # project the point on the neck ellipse
+                r[1] = y1*np.cos(t)
+                r[2] = z1*np.sin(t)
 
-    @param r:      relative radius vector (3 components)
-    @param D:      instantaneous separation
-    @param q:      mass ratio
-    @param F:      synchronicity parameter
-    """
-    return -r[0]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*(r[0]-D)*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5 -q/D/D + F*F*(1+q)*r[0]
+    # compute the new triangle areas
+    side1 = sqrt((r1[0]-r2[0])**2 + (r1[1]-r2[1])**2 + (r1[2]-r2[2])**2)
+    side2 = sqrt((r1[0]-r3[0])**2 + (r1[1]-r3[1])**2 + (r1[2]-r3[2])**2)
+    side3 = sqrt((r2[0]-r3[0])**2 + (r2[1]-r3[1])**2 + (r2[2]-r3[2])**2)
+    s = 0.5*(side1 + side2 + side3)
 
-def d2BinaryRochedx2(r, D, q, F):
-    """
-    Computes second derivative of the potential with respect to x.
+    dsigma_t_sq = s*(s-side1)*(s-side2)*(s-side3)
+    dsigma_t = sqrt(dsigma_t_sq) if dsigma_t_sq > 0 else 0.0
 
-    @param r:      relative radius vector (3 components)
-    @param D:      instantaneous separation
-    @param q:      mass ratio
-    @param F:      synchronicity parameter
-    """
-    return (2*r[0]*r[0]-r[1]*r[1]-r[2]*r[2])/(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**2.5 +\
-          q*(2*(r[0]-D)*(r[0]-D)-r[1]*r[1]-r[2]*r[2])/((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**2.5 +\
-          F*F*(1+q)
+    # compute the fractional change in area based on the new triangle area
 
-def dBinaryRochedy (r, D, q, F):
-    """
-    Computes a derivative of the potential with respect to y.
+    return r1,r2,r3,r4,dsigma_t
 
-    @param r:      relative radius vector (3 components)
-    @param D:      instantaneous separation
-    @param q:      mass ratio
-    @param F:      synchronicity parameter
-    """
-    return -r[1]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*r[1]*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5 + F*F*(1+q)*r[1]
+def wd_recompute_neck(r0,xmin,y1,z1,r01,r02,r03,r04,theta,dtheta,potential,d,q,F,Phi):
 
-def  dBinaryRochedz(r, D, q, F):
-    """
-    Computes a derivative of the potential with respect to z.
+    side1 = sqrt((r01[0]-r02[0])**2 + (r01[1]-r02[1])**2 + (r01[2]-r02[2])**2)
+    side2 = sqrt((r01[0]-r03[0])**2 + (r01[1]-r03[1])**2 + (r01[2]-r03[2])**2)
+    side3 = sqrt((r02[0]-r03[0])**2 + (r02[1]-r03[1])**2 + (r02[2]-r03[2])**2)
 
-    @param r:      relative radius vector (3 components)
-    @param D:      instantaneous separation
-    @param q:      mass ratio
-    @param F:      synchronicity parameter
-    """
-    return -r[2]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*r[2]*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5
+    sidemax = max(side1,side2,side3)
+    if sidemax==side1:
+        point1,point2 = r01,r02
+    elif sidemax==side2:
+        point1,point2 = r01,r03
+    else:
+        point1,point2 = r02,r03
 
-def dBinaryRochedr (r, D, q, F):
-    """
-    Computes a derivative of the potential with respect to r.
+    x_half, y_half = (point1[0]+point2[0])/2., (point1[1]+point2[1])/2.
+    #r = np.sqrt(x_half**2+y_half**2+z_half**2)
+    phi_half = np.arctan(y_half/x_half)
+    phi_1 = np.arctan(point1[1]/point1[0])
+    phi_2 = np.arctan(point2[1]/point2[0])
 
-    @param r:      relative radius vector (3 components)
-    @param D:      instantaneous separation
-    @param q:      mass ratio
-    @param F:      synchronicity parameter
-    """
+    dphi = abs(phi_2-phi_1)
+    rc = np.array((r0*sin(theta)*cos(phi_half), r0*sin(theta)*sin(phi_half), r0*cos(theta)))
+    vc = project_onto_potential(rc, potential, d, q, F, Phi).r
 
-    r2 = (r*r).sum()
-    r1 = np.sqrt(r2)
+    # Next we need to find the tangential plane, which we'll get by finding the normal,
+    # which is the negative of the gradient:
+    dpdx,dpdy,dpdz = dBinaryRochedx,dBinaryRochedy,dBinaryRochedz
+    nc = np.array((-dpdx(vc, d, q, F), -dpdy(vc, d, q, F), -dpdz(vc, d, q, F)))
 
-    return -1./r2 - q*(r1-r[0]/r1*D)/((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**1.5 - q*r[0]/r1/D/D + F*F*(1+q)*(1-r[2]*r[2]/r2)*r1
+    # Then we need to find the intercontext of +/-dtheta/dphi-deflected
+    # radius vectors with the tangential plane. We do that by solving
+    #
+    #   d = [(p0 - l0) \dot n] / (l \dot n),
+    #
+    # where p0 and l0 are reference points on the plane and on the line,
+    # respectively, n is the normal vector, and l is the line direction
+    # vector. For convenience l0 can be set to 0, and p0 is just vc. d
+    # then measures the distance from the origin along l.
 
-class MeshVertex:
-    def __init__(self, r, dpdx, dpdy, dpdz, *args):
-        """
-        """
-        # Normalized normal:
-        #~ n = np.array([dpdx(r, *args), dpdy(r, *args), dpdz(r, *args)])
-        #~ n /= np.sqrt(np.sum(n*n))
-        nx = dpdx(r, *args)
-        ny = dpdy(r, *args)
-        nz = dpdz(r, *args)
-        nn = sqrt(nx*nx+ny*ny+nz*nz)
-        nx /= nn
-        ny /= nn
-        nz /= nn
+    l1 = np.array((sin(theta-dtheta/2)*cos(phi_half-dphi/2), sin(theta-dtheta/2)*sin(phi_half-dphi/2), cos(theta-dtheta/2)))
+    l2 = np.array((sin(theta-dtheta/2)*cos(phi_half+dphi/2), sin(theta-dtheta/2)*sin(phi_half+dphi/2), cos(theta-dtheta/2)))
+    l3 = np.array((sin(theta+dtheta/2)*cos(phi_half+dphi/2), sin(theta+dtheta/2)*sin(phi_half+dphi/2), cos(theta+dtheta/2)))
+    l4 = np.array((sin(theta+dtheta/2)*cos(phi_half-dphi/2), sin(theta+dtheta/2)*sin(phi_half-dphi/2), cos(theta+dtheta/2)))
 
-        # Now we choose the first tangential direction. We have a whole
-        # plane to choose from, so we'll choose something convenient.
-        # The choice here is to set one tangential coordinate to 0. From
-        # n \dot t=0: nx tx + ny ty = 0 => tx = -ny, ty = nx.
-        # Since we are normalizing, we need to be careful that we don't
-        # divide by a small number, hence the two prescriptions, either
-        # for tz = 0 or for ty = 0.
+    r1 = np.dot(vc, nc) / np.dot(l1, nc) * l1
+    r2 = np.dot(vc, nc) / np.dot(l2, nc) * l2
+    r3 = np.dot(vc, nc) / np.dot(l3, nc) * l3
+    r4 = np.dot(vc, nc) / np.dot(l4, nc) * l4
 
-        if nx > 0.5 or ny > 0.5:
-            nn = sqrt(ny*ny+nx*nx)
-            t1x = ny/nn
-            t1y = -nx/nn
-            t1z = 0.0
-        else:
-            nn = sqrt(nx*nx+nz*nz)
-            t1x = -nz/nn
-            t1y = 0.0
-            t1z = nx/nn
+    # This sorts out the vertices, now we need to fudge the surface
+    # area. WD does not take curvature of the equipotential at vc
+    # into account, so the surface area computed from these vertex-
+    # delimited surfaces will generally be different from what WD
+    # computes. Thus, we compute the surface area the same way WD
+    # does it and assign it to each element even though that isn't
+    # quite its area:
+    #
+    #   dsigma = || r^2 sin(theta)/cos(gamma) dtheta dphi ||,
+    #
+    # where gamma is the angle between l and n.
 
-        t2x = ny*t1z - nz*t1y
-        t2y = nz*t1x - nx*t1z
-        t2z = nx*t1y - ny*t1x
+    cosgamma = np.dot(vc, nc)/np.sqrt(np.dot(vc, vc))/np.sqrt(np.dot(nc, nc))
+    dsigma = np.abs(np.dot(vc, vc)*np.sin(theta)/cosgamma*dtheta*dphi)
 
-        self.r = r
-        self.n = np.array((nx, ny, nz))
-        self.t1 = np.array((t1x, t1y, t1z))
-        self.t2 = np.array((t2x, t2y, t2z))
+    side1 = sqrt((r1[0]-r2[0])**2 + (r1[1]-r2[1])**2 + (r1[2]-r2[2])**2)
+    side2 = sqrt((r1[0]-r3[0])**2 + (r1[1]-r3[1])**2 + (r1[2]-r3[2])**2)
+    side3 = sqrt((r2[0]-r3[0])**2 + (r2[1]-r3[1])**2 + (r2[2]-r3[2])**2)
+    s = 0.5*(side1 + side2 + side3)
 
-    def __repr__(self):
-        repstr  = " r = (% 3.3f, % 3.3f, % 3.3f)\t" % (self.r[0],  self.r[1], self.r[2])
-        repstr += " n = (% 3.3f, % 3.3f, % 3.3f)\t" % (self.n[0],  self.n[1], self.n[2])
-        repstr += "t1 = (% 3.3f, % 3.3f, % 3.3f)\t" % (self.t1[0], self.t1[1], self.t1[2])
-        repstr += "t2 = (% 3.3f, % 3.3f, % 3.3f)"   % (self.t2[0], self.t2[1], self.t2[2])
-        return repstr
+    dsigma_t_sq = s*(s-side1)*(s-side2)*(s-side3)
+    dsigma_t = sqrt(dsigma_t_sq) if dsigma_t_sq > 0 else 0.0
 
-def project_onto_potential(r, pot_name, *args):
-    """
-    TODO: add documentation
-    """
-
-    pot = globals()[pot_name]
-    dpdx = globals()['d%sdx'%(pot_name)]
-    dpdy = globals()['d%sdy'%(pot_name)]
-    dpdz = globals()['d%sdz'%(pot_name)]
-    dpdr = globals()['d%sdr'%(pot_name)]
-
-    n_iter = 0
-
-    rmag, rmag0 = np.sqrt((r*r).sum()), 0
-    lam, nu = r[0]/rmag, r[2]/rmag
-    dc = np.array((lam, np.sqrt(1-lam*lam-nu*nu), nu)) # direction cosines -- must not change during reprojection
-    D, q, F, p0 = args
-
-    while np.abs(rmag-rmag0) > 1e-12 and n_iter < 100:
-        rmag0 = rmag
-        rmag = rmag0 - pot(rmag0*dc, *args)/dpdr(rmag0*dc, *args[:-1])
-        n_iter += 1
-    if n_iter == 100:
-        logger.warning('projection did not converge')
-
-    r = rmag*dc
-
-    return MeshVertex(r, dpdx, dpdy, dpdz, *args[:-1])
+    #return vc,nc,r1,r2,r3,r4,dsigma,dsigma_t,phi_half,dphi
+    # for now, we don't want to recompute everything, just change the area assigned to the vertex
+    return dsigma
 
 def nekmin(omega_in,q,x0=0.5,z0=0.5):
 
@@ -350,116 +298,3 @@ def compute_frac_areas(new_mesh,xmin):
                 frac_areas[i]=[area1/area0,0.5*(area2+area3)/area0,0.5*(area2+area3)/area0]
             if (env1==0 and env2==1 and env3==0) or (env1==1 and env2==0 and env3==1):
                 frac_areas[i]=[0.5*(area1+area3)/area0,area2/area0,0.5*(area1+area3)/area0]
-
-
-def wd_mesh_fill(xmin,y1,z1,r1,r2,r3,r4):
-    # a simple sorting of the rs array by the value of the x coordinate will do the trick
-    # will only need to take the two vertices with highest x value -> this will also work
-    # for trapezoids that are not crossing the boundary but are the last ones
-
-    rxs = [r1[0],r2[0],r3[0],r4[0]]
-    rxs.sort()
-
-    # take the two vertices with largest x-value and shift them to the neck
-    for rx in [rxs[2],rxs[3]]:
-        for r in [r1,r2,r3,r4]:
-
-            if r[0]==rx:
-                r[0] = xmin
-
-                # compute angle of point (as seen from the ellipse center) in the yz plane
-                tan_theta = r[2]/r[1]
-                # compute the eccentric anomaly of the point on the ellipse
-                t = np.arctan(y1/z1*tan_theta)
-                # project the point on the neck ellipse
-                r[1] = y1*np.cos(t)
-                r[2] = z1*np.sin(t)
-
-    # compute the new triangle areas
-    side1 = sqrt((r1[0]-r2[0])**2 + (r1[1]-r2[1])**2 + (r1[2]-r2[2])**2)
-    side2 = sqrt((r1[0]-r3[0])**2 + (r1[1]-r3[1])**2 + (r1[2]-r3[2])**2)
-    side3 = sqrt((r2[0]-r3[0])**2 + (r2[1]-r3[1])**2 + (r2[2]-r3[2])**2)
-    s = 0.5*(side1 + side2 + side3)
-
-    dsigma_t_sq = s*(s-side1)*(s-side2)*(s-side3)
-    dsigma_t = sqrt(dsigma_t_sq) if dsigma_t_sq > 0 else 0.0
-
-    # compute the fractional change in area based on the new triangle area
-
-    return r1,r2,r3,r4,dsigma_t
-
-def wd_recompute_neck(r0,xmin,y1,z1,r01,r02,r03,r04,theta,dtheta,potential,d,q,F,Phi):
-
-    side1 = sqrt((r01[0]-r02[0])**2 + (r01[1]-r02[1])**2 + (r01[2]-r02[2])**2)
-    side2 = sqrt((r01[0]-r03[0])**2 + (r01[1]-r03[1])**2 + (r01[2]-r03[2])**2)
-    side3 = sqrt((r02[0]-r03[0])**2 + (r02[1]-r03[1])**2 + (r02[2]-r03[2])**2)
-
-    sidemax = max(side1,side2,side3)
-    if sidemax==side1:
-        point1,point2 = r01,r02
-    elif sidemax==side2:
-        point1,point2 = r01,r03
-    else:
-        point1,point2 = r02,r03
-
-    x_half, y_half = (point1[0]+point2[0])/2., (point1[1]+point2[1])/2.
-    #r = np.sqrt(x_half**2+y_half**2+z_half**2)
-    phi_half = np.arctan(y_half/x_half)
-    phi_1 = np.arctan(point1[1]/point1[0])
-    phi_2 = np.arctan(point2[1]/point2[0])
-
-    dphi = abs(phi_2-phi_1)
-    rc = np.array((r0*sin(theta)*cos(phi_half), r0*sin(theta)*sin(phi_half), r0*cos(theta)))
-    vc = project_onto_potential(rc, potential, d, q, F, Phi).r
-
-    # Next we need to find the tangential plane, which we'll get by finding the normal,
-    # which is the negative of the gradient:
-    dpdx,dpdy,dpdz = dBinaryRochedx,dBinaryRochedy,dBinaryRochedz
-    nc = np.array((-dpdx(vc, d, q, F), -dpdy(vc, d, q, F), -dpdz(vc, d, q, F)))
-
-    # Then we need to find the intercontext of +/-dtheta/dphi-deflected
-    # radius vectors with the tangential plane. We do that by solving
-    #
-    #   d = [(p0 - l0) \dot n] / (l \dot n),
-    #
-    # where p0 and l0 are reference points on the plane and on the line,
-    # respectively, n is the normal vector, and l is the line direction
-    # vector. For convenience l0 can be set to 0, and p0 is just vc. d
-    # then measures the distance from the origin along l.
-
-    l1 = np.array((sin(theta-dtheta/2)*cos(phi_half-dphi/2), sin(theta-dtheta/2)*sin(phi_half-dphi/2), cos(theta-dtheta/2)))
-    l2 = np.array((sin(theta-dtheta/2)*cos(phi_half+dphi/2), sin(theta-dtheta/2)*sin(phi_half+dphi/2), cos(theta-dtheta/2)))
-    l3 = np.array((sin(theta+dtheta/2)*cos(phi_half+dphi/2), sin(theta+dtheta/2)*sin(phi_half+dphi/2), cos(theta+dtheta/2)))
-    l4 = np.array((sin(theta+dtheta/2)*cos(phi_half-dphi/2), sin(theta+dtheta/2)*sin(phi_half-dphi/2), cos(theta+dtheta/2)))
-
-    r1 = np.dot(vc, nc) / np.dot(l1, nc) * l1
-    r2 = np.dot(vc, nc) / np.dot(l2, nc) * l2
-    r3 = np.dot(vc, nc) / np.dot(l3, nc) * l3
-    r4 = np.dot(vc, nc) / np.dot(l4, nc) * l4
-
-    # This sorts out the vertices, now we need to fudge the surface
-    # area. WD does not take curvature of the equipotential at vc
-    # into account, so the surface area computed from these vertex-
-    # delimited surfaces will generally be different from what WD
-    # computes. Thus, we compute the surface area the same way WD
-    # does it and assign it to each element even though that isn't
-    # quite its area:
-    #
-    #   dsigma = || r^2 sin(theta)/cos(gamma) dtheta dphi ||,
-    #
-    # where gamma is the angle between l and n.
-
-    cosgamma = np.dot(vc, nc)/np.sqrt(np.dot(vc, vc))/np.sqrt(np.dot(nc, nc))
-    dsigma = np.abs(np.dot(vc, vc)*np.sin(theta)/cosgamma*dtheta*dphi)
-
-    side1 = sqrt((r1[0]-r2[0])**2 + (r1[1]-r2[1])**2 + (r1[2]-r2[2])**2)
-    side2 = sqrt((r1[0]-r3[0])**2 + (r1[1]-r3[1])**2 + (r1[2]-r3[2])**2)
-    side3 = sqrt((r2[0]-r3[0])**2 + (r2[1]-r3[1])**2 + (r2[2]-r3[2])**2)
-    s = 0.5*(side1 + side2 + side3)
-
-    dsigma_t_sq = s*(s-side1)*(s-side2)*(s-side3)
-    dsigma_t = sqrt(dsigma_t_sq) if dsigma_t_sq > 0 else 0.0
-
-    #return vc,nc,r1,r2,r3,r4,dsigma,dsigma_t,phi_half,dphi
-    # for now, we don't want to recompute everything, just change the area assigned to the vertex
-    return dsigma
