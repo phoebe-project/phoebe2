@@ -1657,8 +1657,8 @@ class Star_roche(Star):
         # get_target_volume will need to take time or true anomaly
 
         requiv_ = np.array([0, 0, self.requiv/self._scale])
-        logger.debug("Phi_guess = libphoebe.roche_Omega(q={}, F={}, d={}, r={})".format(q, F, d, requiv_))
-        Phi_guess = libphoebe.roche_Omega(q, F, d, requiv_)
+        logger.debug("Phi_guess = libphoebe.roche_misaligned_Omega(q={}, F={}, d={}, s={}, r={})".format(q, F, d, s, requiv_))
+        Phi_guess = libphoebe.roche_misaligned_Omega(q, F, d, s, requiv_)
 
         logger.debug("libphoebe.roche_misaligned_Omega_at_vol(vol={}, q={}, F={}, d={}, s={}, Phi_guess={})".format(self.get_target_volume(scaled=False), q, F, d, s, Phi_guess))
         # TODO: roche_misaligned_Omega_at_vol currently requires a guess for Phi
