@@ -396,31 +396,37 @@ static PyObject *roche_misaligned_transf(PyObject *self, PyObject *args) {
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
+  
+  double s[3];
 
-  double
-    *S = (double*) PyArray_DATA(o_S),
-    t, s[3],
-    *res = new double [2];
+  if (PyArray_Check(o_S) && PyArray_TYPE((PyArrayObject *) o_S) == NPY_DOUBLE) {
 
-  switch (fnv1a_32::hash(PyString_AsString(o_type))) {
+    double *S = (double*) PyArray_DATA(o_S), t;
+     
 
-    case "cartesian"_hash32:
-      t = 1/utils::hypot3(S);
-      for (int i = 0; i < 3; ++i) s[i] = t*S[i];
-    break;
+    switch (fnv1a_32::hash(PyString_AsString(o_type))) {
 
-    case "spherical"_hash32:
-      s[0] = std::sin(S[0])*std::cos(S[1]);
-      s[1] = std::sin(S[0])*std::sin(S[1]);
-      s[2] = std::cos(S[0]);
-    break;
+      case "cartesian"_hash32:
+        t = 1/utils::hypot3(S);
+        for (int i = 0; i < 3; ++i) s[i] = t*S[i];
+      break;
 
-    default:
-      report_error(fname + "::This type is not supported");
-      return NULL;
+      case "spherical"_hash32:
+        s[0] = std::sin(S[0])*std::cos(S[1]);
+        s[1] = std::sin(S[0])*std::sin(S[1]);
+        s[2] = std::cos(S[0]);
+      break;
+
+      default:
+        report_error(fname + "::This type is not supported");
+        return NULL;
+    }
+  } else {
+    report_error(fname + "::This type of misalignment is not supported");
+    return NULL;
   }
 
-
+  double *res = new double [2];
   res[0] = std::atan2(-s[1], s[2]);
   res[1] = std::atan2(s[0], std::sqrt(1 - s[0]*s[0]));
 
@@ -675,7 +681,8 @@ static PyObject *roche_misaligned_pole(
 
   if (PyFloat_Check(o_misalignment)) {
     s = std::sin(PyFloat_AsDouble(o_misalignment));
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
     s = ((double*) PyArray_DATA((PyArrayObject*)o_misalignment))[0];
   } else {
     report_error(fname + "::This type of misalignment is not supported.");
@@ -822,7 +829,8 @@ static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyOb
   if (PyFloat_Check(o_misalignment)) {
     double theta = PyFloat_AsDouble(o_misalignment);
     Omega_min = misaligned_roche::calc_Omega_min(q, F, d, theta);
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
     double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
     Omega_min = misaligned_roche::calc_Omega_min(q, F, d, std::asin(s[0]));
   } else {
@@ -1940,7 +1948,8 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
     aligned = (std::sin(theta) == 0); // theta ~0 => aligned
 
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
     
@@ -2107,9 +2116,9 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-    Omega0: float - guess for value potential Omega1
 
   keywords: (optional)
+    Omega0: float - guess for value potential Omega1
     choice: integer, default 0
             0 for discussing left lobe
             1 for discussing right lobe
@@ -2124,8 +2133,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   Returns:
 
     Omega1 : float
-      value of the Kopal potential for (q,F,d1) such that volume
-      is equal to the case (q,F,d,Omega0)
+      value of the Kopal potential for (q,F,d) at which the lobe has the given volume
 */
 
 //#define DEBUG
@@ -2162,7 +2170,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   int max_iter = 100;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddddd|iddi", kwlist,
+      args, keywds,  "dddd|diddi", kwlist,
       &vol, &q, &F, &delta, &Omega0,
       &choice,
       &precision,
@@ -2174,11 +2182,25 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     return NULL;
   }
 
-  bool b_Omega0 = !std::isnan(Omega0);
-
-  if (!b_Omega0) {
-    report_error(fname + "::Currently not supporting lack of guessed Omega.");
-    return NULL;
+  if (std::isnan(Omega0)) {
+    // equivalent radius
+    double  r = std::cbrt(0.75*vol/utils::m_pi);
+    
+    #if defined(DEBUG)
+    std::cerr.precision(16);
+    std::cerr << "r=" << r << '\n';
+    #endif
+      
+  /* Omega[x_, y_, z_, {q_, F_, d_, theta_}] = 1/Sqrt[x^2 + y^2 + z^2] + 
+      q (-(x/d^2) + 1/Sqrt[(d - x)^2 + y^2 + z^2]) + 
+      1/2 F^2 (1 + q) (y^2 + (x Cos[theta] - z Sin[theta])^2)
+  */
+  
+    // = Omega[r,0,0]
+    Omega0 = 
+      1/r  + 
+      q*(1/std::abs(r - delta) - (r/delta)/delta) + 
+      0.5*(1 + q)*utils::sqr(F*r); 
   }
 
   const int m_min = 1 << 6;  // minimal number of points along x-axis
@@ -2293,7 +2315,9 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
 
   return PyFloat_FromDouble(Omega);
 }
-//#undef DEBUG
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
@@ -2474,9 +2498,8 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
     or in canonical coordinate system:
         1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
 
-    Omega0: float - guess for value potential Omega1
-
   keywords: (optional)
+    Omega0: float - guess for value potential Omega1
     choice: integer, default 0
             0 for discussing left lobe
             1 for discussing right lobe
@@ -2491,11 +2514,10 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
   Returns:
 
     Omega1 : float
-      value of the Kopal potential for (q,F,d1) such that volume
-      is equal to the case (q,F,d,Omega0)
+      value of the Kopal potential for (q,F,d1,spin) at which the lobe has the given volume
 */
 
-//#define DEBUG
+#define DEBUG
 static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_Omega_at_vol"_s;
@@ -2533,10 +2555,10 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
   PyObject *o_misalignment;
 
-  int max_iter = 100;
+  int max_iter = 10;
 
   if (!PyArg_ParseTupleAndKeywords(
-        args, keywds,  "ddddOd|iddi", kwlist,
+        args, keywds,  "ddddO|diddi", kwlist,
         &vol, &q, &F, &delta, &o_misalignment, &Omega0,
         &choice,
         &precision,
@@ -2562,7 +2584,8 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     theta = PyFloat_AsDouble(o_misalignment);
     aligned = (std::sin(theta) == 0); // theta ~0, pi => aligned
 
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
     aligned = (s[0] == 0);
@@ -2573,11 +2596,24 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     return NULL;
   }
 
-  bool b_Omega0 = !std::isnan(Omega0);
-
-  if (!b_Omega0) {
-    report_error(fname + "::Currently not supporting lack of guessed Omega.");
-    return NULL;
+  if (std::isnan(Omega0)) {
+    // equivalent radius
+    double  r = std::cbrt(0.75*vol/utils::m_pi);
+    
+    #if defined(DEBUG)
+    std::cerr.precision(16);
+    std::cerr << "r=" << r << '\n';
+    #endif
+      
+   /* Omega[x_, y_, z_, {q_, F_, d_, theta_}] = 1/Sqrt[x^2 + y^2 + z^2] + 
+ q (-(x/d^2) + 1/Sqrt[(d - x)^2 + y^2 + z^2]) + 
+ 1/2 F^2 (1 + q) (y^2 + (x Cos[theta] - z Sin[theta])^2)
+  */
+    // = Omega[r,0,0]
+    Omega0 = 
+      1/r  + 
+      q*(1/std::abs(r - delta) - (r/delta)/delta) + 
+      0.5*(1 + q)*utils::sqr(F*r*std::cos(theta)); 
   }
 
   #if defined(DEBUG)
@@ -2651,6 +2687,10 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
               adjust = true;
             }
           }
+          
+          #if defined(DEBUG)
+          std::cerr << "V[i]=" << V[i] << " e =" << e << '\n';
+          #endif 
         }
 
         if (adjust) m0 = m0_next; else break;
@@ -3077,7 +3117,8 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
     Tmisaligned_rotated_roche<double> b(p);
     b.grad(x, g);
 
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
 
@@ -3417,7 +3458,8 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
 
     Tmisaligned_rotated_roche<double> b(p);
     b.grad_only(x, g);
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
 
@@ -3713,7 +3755,9 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
 
     Tmisaligned_rotated_roche<double> b(p);
     return PyFloat_FromDouble(-b.constrain(x));
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
+      
     double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
 
     p[3] = s[0];
@@ -3736,6 +3780,9 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
   report_error(fname + "::This type of misalignment is not supported");
   return NULL;
 }
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
@@ -5513,7 +5560,8 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, theta);
     rotated = true;
 
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
     aligned  = (s[0] == 0 && s[1] == 0);
@@ -8317,7 +8365,8 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
     ok = misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, theta, max_iter);
     rotated = true;
 
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
     aligned = (s[0] == 0 && s[1] == 0);
