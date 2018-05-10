@@ -292,6 +292,7 @@ class System(object):
         meshes = self.meshes
 
         # reflection needs bolometric, energy weighted, normal intensities.
+        logger.debug("reflection: computing bolometric intensities")
         fluxes_intrins_per_body = []
         for starref, body in self.items():
             abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
@@ -617,18 +618,6 @@ class Body(object):
         """
         return True
 
-    # @property
-    # def lvolume(self):
-    #     """
-    #     Compute volume of a mesh AT ITS CURRENT TIME/PROJECTION - this should be
-    #     subclassed as needed for optimization or special cases
-    #
-    #     :return: the current volume
-    #     :rtype: float
-    #     """
-    #
-    #     return self.mesh.lvolume
-
     @property
     def instantaneous_maxr(self):
         """
@@ -666,15 +655,6 @@ class Body(object):
                               weights=[self._get_mass_by_index(i) for i in index])
         else:
             return coords_array[index]
-
-    # def get_instantaneous_distance(self, xs, ys, zs, sma):
-    #     """
-    #     TODO: add documentation
-    #     """
-    #     return np.sqrt(sum([(_value(self._get_coords_by_index(c, self.ind_self)) -
-    #                          _value(self._get_coords_by_index(c, self.ind_sibling)))**2
-    #                          for c in (xs,ys,zs)])) /
-    #                    _value(sma)
 
     def _offset_mesh(self, new_mesh):
         if self.do_mesh_offset and self.mesh_method=='marching':
@@ -1296,6 +1276,7 @@ class Star(Body):
         GMSunNom = 1.3271244e20 m**3 s**-2
         RSunNom = 6.597e8 m
         """
+        # logger.debug("filling loggs")
         if mesh is None:
             mesh = self.mesh
 
@@ -1316,6 +1297,7 @@ class Star(Body):
 
         requires _fill_loggs to have been called
         """
+        # logger.debug("filling gravs")
         if mesh is None:
             mesh = self.mesh
 
@@ -1333,6 +1315,7 @@ class Star(Body):
 
         Calculate local temperature of a Star.
         """
+        # logger.debug("filling teffs")
         if mesh is None:
             mesh = self.mesh
 
@@ -1354,6 +1337,7 @@ class Star(Body):
         """
         TODO: add documentation
         """
+        # logger.debug("filling abuns")
         if mesh is None:
             mesh = self.mesh
 
@@ -1365,6 +1349,7 @@ class Star(Body):
         """
         TODO: add documentation
         """
+        # logger.debug("filling albedos")
         if mesh is None:
             mesh = self.mesh
 
