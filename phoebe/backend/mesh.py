@@ -1056,6 +1056,7 @@ class ScaledProtoMesh(ProtoMesh):
         super(ScaledProtoMesh, self).__init__(keys=keys, **kwargs)
 
         if scale is not None:
+            self._copy_roche_values()
             self._scale_mesh(scale)
 
     @classmethod
@@ -1077,6 +1078,7 @@ class ScaledProtoMesh(ProtoMesh):
 
     def _copy_roche_values(self):
         # make necessary copies
+        # logger.debug("copying roche values")
         self._roche_vertices = self._vertices.copy()
         self._roche_centers = self._centers.copy()
         self._roche_cvelocities = self._velocities.centers.copy()

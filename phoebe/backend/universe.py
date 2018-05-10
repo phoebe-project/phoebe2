@@ -391,7 +391,7 @@ class System(object):
             else:
                 possible_eclipse = False
         else:
-            max_rs = [body.max_r for body in self.bodies]
+            max_rs = [body.instantaneous_maxr for body in self.bodies]
             for i in range(0, len(self.xs)-1):
                 for j in range(i+1, len(self.xs)):
                     proj_sep_sq = sum([(c[i]-c[j])**2 for c in (self.xs,self.ys)])
@@ -565,10 +565,6 @@ class Body(object):
         # Storing meshes should only be done through self.save_as_standard_mesh(theta)
         self._standard_meshes = {}
 
-        # We'll also keep track of a conservative maximum r (from center of star to triangle, in real units).
-        # This will be computed and stored when the periastron mesh is added as a standard
-        self._max_r = None
-
         self.mesh_init_phi = mesh_init_phi
         self.do_mesh_offset = do_mesh_offset
 
@@ -634,7 +630,7 @@ class Body(object):
     #     return self.mesh.lvolume
 
     @property
-    def max_r(self):
+    def instantaneous_maxr(self):
         """
         Recall the maximum r (triangle furthest from the center of the star) of
         this star at periastron (when it is most deformed)
@@ -642,9 +638,8 @@ class Body(object):
         :return: maximum r
         :rtype: float
         """
-        # NOTE: this is currently done based on the mesh standard at etheta=0.0
-        # and may not be robust
-        return self._max_r
+
+        return np.sqrt(max([x**2+y**2+z**2 for x,y,z in self.mesh.centers]))
 
     @property
     def mass(self):
@@ -727,14 +722,14 @@ class Body(object):
 
         self._standard_meshes[theta] = protomesh.copy()
 
-        if theta==0.0:
+        # if theta==0.0:
             # then this is when the object could be most inflated, so let's
             # store the maximum distance to a triangle.  This is then used to
             # conservatively and efficiently estimate whether an eclipse is
             # possible at any given combination of positions
-            mesh = self.get_standard_mesh(theta=0.0, scaled=True)
+            # mesh = self.get_standard_mesh(theta=0.0, scaled=True)
 
-            self._max_r = np.sqrt(max([x**2+y**2+z**2 for x,y,z in mesh.centers]))
+            # self._max_r = np.sqrt(max([x**2+y**2+z**2 for x,y,z in mesh.centers]))
 
     def has_standard_mesh(self):
         """
@@ -809,6 +804,7 @@ class Body(object):
         # TODO: eventually pass etheta to has_standard_mesh
         # TODO: implement reprojection as an option based on a nearby standard?
         if self.needs_remesh or not self.has_standard_mesh():
+            logger.debug("update_position: remeshing at t={}".format(time))
             # track whether we did the remesh or not, so we know if we should
             # compute local quantities if not otherwise necessary
             did_remesh = True
@@ -850,6 +846,7 @@ class Body(object):
             scaledprotomesh = mesh.ScaledProtoMesh(scale=scale, **new_mesh_dict)
 
         else:
+            logger.debug("update_position: accessing standard mesh at t={}".format(self.time))
             # track whether we did the remesh or not, so we know if we should
             # compute local quantities if not otherwise necessary
             did_remesh = False
@@ -1191,7 +1188,7 @@ class Star(Body):
         get the volume that the Star should have at a given euler theta
         """
         # TODO: make this a function of d instead of etheta?
-        logger.info("determining target volume at theta={}".format(etheta))
+        logger.debug("determining target volume at t={}, theta={}".format(self.time, etheta))
 
         # TODO: eventually this could allow us to "break" volume conservation
         # and have volume be a function of d, with some scaling factor provided
