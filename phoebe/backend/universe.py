@@ -889,7 +889,8 @@ class Body(object):
         # Lastly, we'll recompute physical quantities (not observables) if
         # needed for this time-step.
         # TODO [DONE?]: make sure features smartly trigger needs_recompute_instantaneous
-        if self.needs_recompute_instantaneous or did_remesh:
+        # TODO: get rid of the or True here... the problem is that we're saving the standard mesh before filling local quantities
+        if self.needs_recompute_instantaneous or did_remesh or True:
             self.compute_local_quantities(xs, ys, zs, ignore_effects)
 
         return
