@@ -1236,6 +1236,7 @@ class Star(Body):
 
     @property
     def instantaneous_rpole(self):
+        # NOTE: unscaled... should we make this a get_instantaneous_rpole(scaled=False)?
         return self._rpole_func(*self.instantaneous_mesh_args)
 
     @property
@@ -1654,10 +1655,15 @@ class Star_roche(Star):
 
         # NOTE: if we ever want to break volume conservation in time,
         # get_target_volume will need to take time or true anomaly
-        logger.debug("libphoebe.roche_misaligned_Omega_at_vol({}, {}, {}, {})".format(self.get_target_volume(scaled=False), q, F, d, s))
+
+        requiv_ = np.array([0, 0, self.requiv/self._scale])
+        logger.debug("Phi_guess = libphoebe.roche_Omega(q={}, F={}, d={}, r={})".format(q, F, d, requiv_))
+        Phi_guess = libphoebe.roche_Omega(q, F, d, requiv_)
+
+        logger.debug("libphoebe.roche_misaligned_Omega_at_vol(vol={}, q={}, F={}, d={}, s={}, Phi_guess={})".format(self.get_target_volume(scaled=False), q, F, d, s, Phi_guess))
         # TODO: roche_misaligned_Omega_at_vol currently requires a guess for Phi
         Phi = libphoebe.roche_misaligned_Omega_at_vol(self.get_target_volume(scaled=False),
-                                                      q, F, d, s)
+                                                      q, F, d, s, Phi_guess)
         # this is assuming that we're in the reference frame of our current star,
         # so we don't need to worry about flipping Phi for the secondary.
 
@@ -1823,7 +1829,7 @@ class Star_rotstar(Star):
         # NOTE: if we ever want to break volume conservation in time,
         # get_target_volume will need to take time or true anomaly
         # TODO: not sure if scaled should be True or False here
-        logger.debug("libphoebe.rotstar_misaligned_Omega_at_vol({}, {}, {})".format(self.get_target_volume(scaled=False), omega, s))
+        logger.debug("libphoebe.rotstar_misaligned_Omega_at_vol(vol={}, omega={}, s={})".format(self.get_target_volume(scaled=False), omega, s))
         Phi = libphoebe.rotstar_misaligned_Omega_at_vol(self.get_target_volume(scaled=False),
                                                         omega, s)
 
@@ -1963,6 +1969,7 @@ class Star_sphere(Star):
 
         # NOTE: if we ever want to break volume conservation in time,
         # get_target_volume will need to take time or true anomaly
+        logger.debug("libphoebe.sphere_Omega_at_vol(vol={})".format(self.get_target_volume()))
         Phi = libphoebe.sphere_Omega_at_vol(self.get_target_volume())
 
         return (Phi,)
