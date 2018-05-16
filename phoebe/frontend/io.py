@@ -1140,23 +1140,24 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 # check for semi_detached
 
 # grab all possible constraints that could affect semi_detached status
-    sd_constraints = eb.filter(context='constraint', qualifier='pot')+eb.filter(context='constraint', qualifier='rpole')
-    no_sd_constraints = 0 #keep track of number of constraints as phoebe 1 can't
+    # sd_constraints = eb.filter(context='constraint', qualifier='pot')+eb.filter(context='constraint', qualifier='rpole')
+    # no_sd_constraints = 0 #keep track of number of constraints as phoebe 1 can't
     #handle two semi_detached stars
 
-    for i in range(len(sd_constraints)):
-        if sd_constraints[i].constraint_func =='critical_rpole' or sd_constraints[i].constraint_func =='critical_potential':
-            no_sd_constraints = no_sd_constraints+1
-            semi_detached = True
-            if primary == sd_constraints[i].component:
-                semid_comp = 'primary' #semidatched is primary
-            if secondary == sd_constraints[i].component:
-                    semid_comp = 'secondary'
-            if no_sd_constraints > 1:
-                semid_comp = 'primary'
-                logger.warning('Phoebe 1 does not support double Roche lobe overflow system. Defaulting to Primary star only.')
-        else:
-            semi_detached = False
+    # for i in range(len(sd_constraints)):
+    #     if sd_constraints[i].constraint_func =='critical_rpole' or sd_constraints[i].constraint_func =='critical_potential':
+    #         no_sd_constraints = no_sd_constraints+1
+    #         semi_detached = True
+    #         if primary == sd_constraints[i].component:
+    #             semid_comp = 'primary' #semidatched is primary
+    #         if secondary == sd_constraints[i].component:
+    #                 semid_comp = 'secondary'
+    #         if no_sd_constraints > 1:
+    #             semid_comp = 'primary'
+    #             logger.warning('Phoebe 1 does not support double Roche lobe overflow system. Defaulting to Primary star only.')
+    #     else:
+    #         semi_detached = False
+    semi_detached = False
 
 #    if 'rpole' in eb['constraint'].qualifiers:
 #        semi_detached = eb.get_parameter('rpole', context='constraint').constraint_func == 'critical_rpole'
