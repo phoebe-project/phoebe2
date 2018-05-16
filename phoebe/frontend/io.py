@@ -20,14 +20,11 @@ _1to2par = {'ld_model':'ld_func',
 #            'model': 'morphology',
             'filter': 'passband',
             'hjd0':'t0_ref',
-#            'hjd0': 't0_supconj',
             'period': 'period',
             'dpdt': 'dpdt',
-#            'pshift':'phshift',
             'sma':'sma',
             'rm': 'q',
             'incl': 'incl',
-            'pot':'pot',
             'met':'abun',
             'f': 'syncpar',
             'alb': 'irrad_frac_refl_bol',
@@ -1209,6 +1206,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
     if contact_binary:
+        raise NotImplementedError
         #note system
         parnames.append('phoebe_model')
         parvals.append('"Overcontact binary not in thermal contact"')
@@ -1225,6 +1223,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         parnames.extend(pname)
         parvals.extend(val)
     elif semi_detached:
+        raise NotImplementedError
         parnames.append('phoebe_model')
         parvals.append('"Semi-detached binary, '+semid_comp+' star fills Roche lobe')
         types.append('choice')
