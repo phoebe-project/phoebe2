@@ -3,7 +3,8 @@ import phoebe as phb
 import os.path
 import logging
 from phoebe import conf
-from libphoebe import roche_critical_potential
+from phoebe.distortions import roche
+import libphoebe
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
 
@@ -25,6 +26,7 @@ _1to2par = {'ld_model':'ld_func',
             'sma':'sma',
             'rm': 'q',
             'incl': 'incl',
+            'pot':'requiv',
             'met':'abun',
             'f': 'syncpar',
             'alb': 'irrad_frac_refl_bol',
@@ -379,9 +381,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # load an empty legacy bundle and initialize obvious parameter sets
     if 'Overcontact' in morphology:
+        raise NotImplementedError
         contact_binary= True
         eb = phb.Bundle.default_binary(contact_binary=True)
     elif 'Semi-detached' in morphology:
+        raise NotImplementedError
         semi_detached = True
         contact_binary = False
         eb = phb.Bundle.default_binary()
@@ -873,6 +877,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
     if semi_detached:
+        raise NotImplementedError
         q = eb.get_value(qualifier ='q')
         d = 1. - eb.get_value(qualifier='ecc')
         if 'primary' in morphology:
@@ -880,13 +885,13 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             eb.add_constraint('critical_rpole', component='primary')
 #            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='primary')
 #            f = eb.get_value(qualifier='syncpar', component='primary')
-#            crit_pots = roche_critical_potential(q,f,d)
+#            crit_pots = libphoebe.roche_critical_potential(q,f,d)
 #            eb.set_value(qualifier='pot', component='primary', context='component', value=crit_pots['L1'])
         elif 'secondary' in morphology:
             eb.add_constraint('critical_rpole', component='secondary')
 #            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='secondary')
 #            f = eb.get_value(qualifier='syncpar', component='secondary')
-#            crit_pots = roche_critical_potential(1/q,f,d)
+#            crit_pots = libphoebe.roche_critical_potential(1/q,f,d)
 #            eb.set_value(qualifier='pot', component='secondary', context='component', value=crit_pots['L1'])
 
 #flip back all constraints
@@ -962,7 +967,32 @@ def par_value(param, index=None, **kwargs):
 
         # else:
             # val = [val]
-        val = [val]
+        if param.qualifier == 'requiv':
+            # NOTE: for the parent orbit, we can assume a single orbit if we've gotten this far
+            b = param._bundle
+            comp_no = b.hierarchy.get_primary_or_secondary(param.component, return_ind=True)
+
+            sma = b.get_value('sma', kind='orbit', context='component')
+            requiv_ = np.array([0, 0, val/sma])
+            # TODO: do we need to flip q for secondary and then flip Phi back?
+            q = b.get_value('q', kind='orbit', context='component')
+            q = roche.q_for_component(q, component=comp_no)
+            F = b.get_value('syncpar', component=param.component, context='component')
+            e = b.get_value('ecc', kind='orbit', context='component')
+            d = 1-e # at periastron
+            s = np.array([0,0,1]).astype(float) # aligned
+
+            logger.debug("roche_misaligned_Omega(q={}, F={}, d={}, s={}, requiv_={}) for {}".format(q, F, d, s, requiv_, param.component))
+            Phi_guess = libphoebe.roche_misaligned_Omega(q, F, d, s, requiv_)
+            volume = 4./3*np.pi*(val/sma)**3
+            logger.debug("roche_misaligned_Omega_at_vol(volume={}, q={}, F={}, d={}, s={}, Phi_guess={}) for {}".format(volume, q, F, d, s, Phi_guess, param.component))
+            Phi = libphoebe.roche_misaligned_Omega_at_vol(volume,
+                                                          q, F, d, s, Phi_guess)
+
+            val = [roche.pot_for_component(Phi, q, component=comp_no, reverse=True)]
+        else:
+            val = [val]
+
     elif isinstance(param, phb.parameters.ChoiceParameter):
         ptype = 'choice'
         val = [param.get_value(**kwargs)]

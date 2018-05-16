@@ -19,17 +19,20 @@ def q_for_component(q, component=1):
     else:
         raise NotImplementedError
 
-# def pot_for_component(pot, q, component=1):
-#     """
-#
-#     q for secondaries should already be flipped (via q_for_component)
-#     """
-#     if component==1:
-#         return pot
-#     elif component==2:
-#         return q*pot - 0.5 * (q-1)
-#     else:
-#         raise NotImplementedError
+def pot_for_component(pot, q, component=1, reverse=False):
+    """
+
+    q for secondaries should already be flipped (via q_for_component)
+    """
+    if component==1:
+        return pot
+    elif component==2:
+        if reverse:
+            return pot/q + 0.5*(q-1)/q
+        else:
+            return q*pot - 0.5 * (q-1)
+    else:
+        raise NotImplementedError
 #
 # def rpole2potential(rpole, q, e, F, sma=1.0, component=1):
 #     """
