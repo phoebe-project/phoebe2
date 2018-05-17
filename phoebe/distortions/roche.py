@@ -3,11 +3,13 @@ import numpy as np
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
 
 # from phoebe import c
-# import libphoebe
+import libphoebe
 
 # from scipy.optimize import newton
 
-
+import logging
+logger = logging.getLogger("ROCHE")
+logger.addHandler(logging.NullHandler())
 
 def q_for_component(q, component=1):
     """
@@ -33,6 +35,28 @@ def pot_for_component(pot, q, component=1, reverse=False):
             return q*pot - 0.5 * (q-1)
     else:
         raise NotImplementedError
+
+def roche_misaligned_critical_requiv(q, F, d, s, scale=1.0):
+    """
+    NOTE: q should already be flipped (i.e. the output of q_for_component) if necessary
+    NOTE: s should be in roche coordinates at the applicable time/true anomaly
+    """
+    requiv_critical = {}
+    # TODO: use misaligned versions!!!
+    logger.debug("libphoebe.roche_misaligned_Omega_min(q={}, F={}, d={}, s={})".format(q, F, d, s))
+    Omega_critical = libphoebe.roche_misaligned_Omega_min(q, F, d, s)
+    logger.debug("critical potentials: {}".format(Omega_critical))
+
+    logger.debug("libphoebe.roche_misaligned_area_volume(q={}, F={}, d={}, s={}, Omega={})".format(q, F, d, s, Omega_critical))
+    volume_critical = libphoebe.roche_misaligned_area_volume(q, F, d, s,
+                                                             Omega_critical,
+                                                             choice=0,
+                                                             larea=False,
+                                                             lvolume=True)['lvolume']
+
+    return scale * (volume_critical * 3./4 * 1./np.pi)**(1./3)
+
+
 #
 # def rpole2potential(rpole, q, e, F, sma=1.0, component=1):
 #     """

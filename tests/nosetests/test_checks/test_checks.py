@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 phoebe.devel_on()
-
+phoebe.logger('DEBUG')
 
 def test_checks():
     b = phoebe.Bundle.default_binary()

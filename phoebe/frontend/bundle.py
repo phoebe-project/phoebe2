@@ -1140,16 +1140,58 @@ class Bundle(ParameterSet):
             parent_ps = self.get_component(parent)
             if kind in ['star']:
                     # ignore the single star case
-                if False and parent:
-                    # MUST NOT be overflowing at PERIASTRON (1-ecc)
-                    # TODO: reimplement overflow checks
+                if parent:
+                    # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
-                    if pot < critical_pot:
+                    requiv_param = comp_ps.get_parameter('requiv')
+
+                    comp_no = hier.get_primary_or_secondary(component, return_ind=True)
+                    requiv = comp_ps.get_value('requiv', unit=u.solRad, **kwargs)
+                    q = roche.q_for_component(parent_ps.get_value('q', **kwargs), comp_no)
+                    F = comp_ps.get_value('syncpar', **kwargs)
+                    e = parent_ps.get_value('ecc', **kwargs)
+                    d = 1-e
+                    incl_star = comp_ps.get_value('incl', **kwargs)
+                    long_an_star = comp_ps.get_value('long_an', **kwargs)
+                    spin_xyz = mesh.spin_in_system(incl_star, long_an_star)
+                    incl_orbit = parent_ps.get_value('incl', **kwargs)
+                    long_an_orbit = parent_ps.get_value('long_an', **kwargs)
+                    s = mesh.spin_in_roche(spin_xyz, 0.0, long_an_orbit, incl_orbit)
+                    a = parent_ps.get_value('sma', unit=u.solRad, **kwargs)
+
+                    if not hasattr(requiv_param, '_cache_critical') or\
+                            requiv_param._cache_critical['q'] != q or\
+                            requiv_param._cache_critical['F'] != F or\
+                            requiv_param._cache_critical['d'] != d or\
+                            np.any(requiv_param._cache_critical['s'] != s) or\
+                            requiv_param._cache_critical['a'] != a:
+
+                        logger.debug("roche.roche_misaligned_critical_requiv(q={}, F={}, d={}, s={}, scale={})".format(q, F, d, s, a))
+                        critical_requiv = roche.roche_misaligned_critical_requiv(q, F, d, s, a)
+
+                        # now store these in the cache, so next time if none
+                        # of these parameters have changed value, we can simply
+                        # lookup this critical value
+                        requiv_param._cache_critical = {'q': q,
+                                                        'F': F,
+                                                        'd': d,
+                                                        's': s,
+                                                        'a': a,
+                                                        'critical_requiv': critical_requiv}
+
+                    else:
+                        logger.debug("accessing cached value for critical requiv (no change in q, F, d, s, or a)")
+                        critical_requiv = requiv_param._cache_critical.get('critical_requiv')
+
+                    logger.debug("requiv: {}, critical requiv: {}".format(requiv, critical_requiv))
+
+                    if requiv > critical_requiv:
                         return False,\
-                            '{} is overflowing at periastron (critical_pot={}, pot={})'.format(component, critical_pot, pot)
+                            '{} is overflowing at periastron (requiv={}, critical_requiv={})'.format(component, requiv, critical_requiv)
 
-            elif False and kind in ['envelope']:
+            elif kind in ['envelope']:
                 # MUST be overflowing at APASTRON (1+ecc)
+                raise NotImplementedError("overflow checks for envelope not yet implemented")
 
                 # TODO: rewrite overflow check_kwargs
 
