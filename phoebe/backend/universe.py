@@ -848,7 +848,7 @@ class Body(object):
             # perturbed as well, unless there is a good reason not to.
             for feature in self.features:
                 # NOTE: these are ALWAYS done on the protomesh
-                coords_for_observations = feature.process_coords_for_computations(scaledprotomesh.coords_for_computations, t=self.time)
+                coords_for_observations = feature.process_coords_for_computations(scaledprotomesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 if scaledprotomesh._compute_at_vertices:
                     scaledprotomesh.update_columns(pvertices=coords_for_observations)
 
@@ -858,7 +858,7 @@ class Body(object):
 
 
             for feature in self.features:
-                coords_for_observations = feature.process_coords_for_observations(scaledprotomesh.coords_for_computations, scaledprotomesh.coords_for_observations, t=self.time)
+                coords_for_observations = feature.process_coords_for_observations(scaledprotomesh.coords_for_computations, scaledprotomesh.coords_for_observations, s=self.polar_direction_xyz, t=self.time)
                 if scaledprotomesh._compute_at_vertices:
                     scaledprotomesh.update_columns(vertices=coords_for_observations)
 
@@ -1287,9 +1287,9 @@ class Star(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    loggs = feature.process_teffs(loggs, self.get_standard_mesh().coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    loggs = feature.process_loggs(loggs, mesh.roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 else:
-                    loggs = feature.process_teffs(loggs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    loggs = feature.process_loggs(loggs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
         mesh.update_columns(loggs=loggs)
 
@@ -1329,7 +1329,7 @@ class Star(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    teffs = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+                    teffs = feature.process_teffs(teffs, mesh.roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 else:
                     teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
@@ -2575,9 +2575,9 @@ class EnvelopeOld(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    teffs = feature.process_loggs(loggs, self.get_standard_mesh().coords_for_computations, t=self.time)
+                    teffs = feature.process_loggs(loggs, mesh.roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 else:
-                    teffs = feature.process_loggs(loggs, mesh.coords_for_computations, t=self.time)
+                    teffs = feature.process_loggs(loggs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
         mesh.update_columns(loggs=loggs)
 
@@ -2646,8 +2646,8 @@ class EnvelopeOld(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    teffs1 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==0], s=self.polar_direction_xyz, t=self.time)
-                    teffs2 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==1], s=self.polar_direction_xyz, t=self.time)
+                    teffs1 = feature.process_teffs(teffs, mesh.roche_coords_for_computations[mesh.env_comp==0], s=self.polar_direction_xyz, t=self.time)
+                    teffs2 = feature.process_teffs(teffs, mesh.roche_coords_for_computations[mesh.env_comp==1], s=self.polar_direction_xyz, t=self.time)
                 else:
                     teffs1 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==0], s=self.polar_direction_xyz, t=self.time)
                     teffs2 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==1], s=self.polar_direction_xyz, t=self.time)
@@ -2944,7 +2944,7 @@ class Feature(object):
         """
         return False
 
-    def process_coords_for_computations(self, coords_for_computations, t):
+    def process_coords_for_computations(self, coords_for_computations, s, t):
         """
         Method for a feature to process the coordinates.  Coordinates are
         processed AFTER scaling but BEFORE being placed in orbit.
@@ -2959,7 +2959,7 @@ class Feature(object):
         """
         return coords_for_computations
 
-    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, t):
+    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, s, t):
         """
         Method for a feature to process the coordinates.  Coordinates are
         processed AFTER scaling but BEFORE being placed in orbit.
@@ -2974,7 +2974,7 @@ class Feature(object):
         """
         return coords_for_observations
 
-    def process_loggs(self, loggs, coords, t=None):
+    def process_loggs(self, loggs, coords, s=np.array([0., 0., 1.]), t=None):
         """
         Method for a feature to process the loggs.
 
@@ -3134,7 +3134,7 @@ class Pulsation(Feature):
     def dYdphi(self, m, l, theta, phi):
         return 1j*m*Y(m, l, theta, phi)
 
-    def process_coords_for_computations(self, coords_for_computations, t):
+    def process_coords_for_computations(self, coords_for_computations, s, t):
         """
         """
         if self._teffext:
@@ -3155,7 +3155,7 @@ class Pulsation(Feature):
 
         return new_coords
 
-    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, t):
+    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, s, t):
         """
         Displacement equations:
 

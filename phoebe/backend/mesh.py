@@ -1100,6 +1100,22 @@ class ScaledProtoMesh(ProtoMesh):
         self._area += scale**2
 
     @property
+    def roche_coords_for_computations(self):
+        """
+        Return the coordinates from the center of the star for each element
+        (either centers or vertices depending on the setting in the mesh).
+        """
+
+        # TODO: need to subtract the position offset if a Mesh (in orbit)
+        if self._compute_at_vertices:
+            # if self.pvertices is not None:
+                # return self.pvertices - self._pos
+            # else:
+            return self.roche_vertices - self._pos
+        else:
+            return self.roche_centers - self._pos
+
+    @property
     def roche_vertices(self):
         """
         Return the array of vertices in Roche coordinates, where each item is a
