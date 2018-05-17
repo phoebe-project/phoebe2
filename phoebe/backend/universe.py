@@ -1152,7 +1152,7 @@ class Star(Body):
         if self.is_single:
             return False
 
-        return self.polar_direction_xyz[1] != 1.0
+        return self.polar_direction_xyz[2] != 1.0
 
     @property
     def spots(self):
