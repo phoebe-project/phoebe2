@@ -20,12 +20,12 @@ def test_checks():
     if not passed:
         raise AssertionError(msg)
 
-    b.set_value('rpole', component='primary', value=9.0)
+    b.set_value('requiv', component='primary', value=9.0)
     passed, msg = b.run_checks()
     if passed:
         raise AssertionError
 
-    b.set_value('rpole', component='primary', value=1.0)
+    b.set_value('requiv', component='primary', value=1.0)
 
     # TODO: test overlap scenario
 
