@@ -170,7 +170,7 @@ class System(object):
             _dump = kwargs.pop('dynamics_method')
 
         meshables = hier.get_meshables()
-        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), compute_ps.get_value('distortion_method', component=comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
+        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), 'roche' if compute_ps.get_value('mesh_method', component=comp, **kwargs)=='wd' else compute_ps.get_value('distortion_method', component=comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
 
         # envelopes need to know their relationships with the underlying stars
         parent_envelope_of = {}
