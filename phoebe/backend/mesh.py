@@ -1097,7 +1097,9 @@ class ScaledProtoMesh(ProtoMesh):
 
         self.update_columns(areas=self.areas*(scale**2))
         self._volume *= scale**3
-        self._area += scale**2
+        if self._area is not None:
+            # self._area is None for wd meshes
+            self._area += scale**2
 
     @property
     def roche_coords_for_computations(self):

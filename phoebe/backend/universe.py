@@ -799,7 +799,7 @@ class Body(object):
 
             # We only need the gradients where we'll compute local
             # quantities which, for a marching mesh, is at the vertices.
-            new_mesh_dict['normgrads'] = new_mesh_dict.pop('vnormgrads')
+            new_mesh_dict['normgrads'] = new_mesh_dict.pop('vnormgrads', np.array([]))
 
             # And lastly, let's fill the velocities column - with zeros
             # at each of the vertices
