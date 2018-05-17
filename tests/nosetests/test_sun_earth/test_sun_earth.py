@@ -24,7 +24,7 @@ def initiate_sun_earth_system(pb_str):
 
     b['pblum@primary'] = 1.*u.solLum #* 0.99 # 0.99 is bolometric correction
     b['teff@primary'] = 1.*u.solTeff
-    b['rpole@primary'] = 1.*u.solRad
+    b['requiv@primary'] = 1.*u.solRad
     b['syncpar@primary'] = 14.61
 
     b['period@orbit'] = 1.*u.yr
@@ -32,7 +32,7 @@ def initiate_sun_earth_system(pb_str):
     b['sma@orbit'] = 1.*u.au
 
     b['teff@secondary'] = (300, 'K')
-    b['rpole@secondary'] = 1.*c.R_earth
+    b['requiv@secondary'] = 1.*c.R_earth
     b['syncpar@secondary'] = 365.25
 
     b['distance@system'] = (1, 'au')
