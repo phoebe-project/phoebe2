@@ -801,18 +801,32 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         if pnew == 'pot':
             #print "dict", d
             d['kind'] = 'star'
-            d.pop('qualifier') #remove qualifier from dictionary to avoid conflicts in the future
+            d['qualifier'] = 'requiv'
             d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
 
-            if not contact_binary:
-                eb.flip_constraint(solve_for='rpole', qualifier='pot', **d)
-#                eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
-            #print "val", val
-            else:
-                d['component'] = 'contact_envelope'
-            d['value'] = val
-            d['qualifier'] = 'pot'
+            comp_no = ['', 'primary', 'secondary'].index(d['component'])
+            q_in = list(params[:,0]).index('phoebe_rm.VAL')
+            q = roche.q_for_component(np.float(params[:,1][q_in]), comp_no)
+            F_in = list(params[:,0]).index('phoebe_f{}.VAL'.format(comp_no))
+            F = np.float(params[:,1][F_in])
+            a_in = list(params[:,0]).index('phoebe_sma.VAL')
+            a = np.float(params[:,1][a_in])
+            e_in = list(params[:,0]).index('phoebe_ecc.VAL')
+            e = np.float(params[:,1][e_in])
+            delta = 1-e # defined at periastron
+            Omega = roche.pot_for_component(float(val), q, comp_no)
+            logger.debug("libphoebe.roche_area_volume(q={}, F={}, d={}, Omega={})".format(q, F, delta, Omega))
+            volume = libphoebe.roche_area_volume(q, F, delta, Omega,
+                                                 choice=0,
+                                                 lvolume=True,
+                                                 larea=False)['lvolume']
+
+            volume *= a**3
+
+            d['value'] = (volume * 3./4 * 1./np.pi)**(1./3)
             d['kind'] = None
+            if contact_binary:
+                d['component'] = 'contact_envelope'
             d['context'] = 'component'
     # change t0_ref and set hjd0
         if pnew == 'hjd0':
@@ -874,8 +888,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         if len(d) > 0:
 #            print d
             eb.set_value_all(check_visible=False, **d)
-    #print "before", eb['pot@secondary']
-    #print "rpole before", eb['rpole@secondary']
     if semi_detached:
         raise NotImplementedError
         q = eb.get_value(qualifier ='q')
@@ -895,18 +907,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #            eb.set_value(qualifier='pot', component='secondary', context='component', value=crit_pots['L1'])
 
 #flip back all constraints
-    if not contact_binary:
-        #avoid semi_detached where constraint hasn't been flipped
-        if semi_detached and 'primary' not in morphology:
-            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
-        elif semi_detached and 'secondary' not in morphology:
-            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
-        else:
-            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
-            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
-
-#        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
-#        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
     # get rid of seconddary coefficient if ldlaw  is linear
     eb.flip_constraint(solve_for='t0_ref', constraint_func='t0_ref_supconj')
 
@@ -927,8 +927,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         conf.interactive_constraints_on()
     if conf_interactive_checks_state:
         conf.interactive_checks_on()
-    #print eb['pot@secondary']
-    #print "rpole after", eb['rpole@secondary']
     # turn on relevant switches like heating. If
     return eb
 
