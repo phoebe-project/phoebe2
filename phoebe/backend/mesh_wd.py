@@ -4,7 +4,7 @@ from math import sqrt, sin, cos, acos, atan2, trunc, pi
 from oc_geometry import nekmin, wd_mesh_fill, wd_recompute_neck
 import libphoebe
 import os
-from phoebe.distortions.roche import BinaryRoche
+from phoebe.distortions.roche import *
 # from scipy.spatial import KDTree
 
 import logging
