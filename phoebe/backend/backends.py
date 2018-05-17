@@ -1371,7 +1371,7 @@ def photodynam(b, compute, times=[], **kwargs):
                 context='component', unit=u.solMass) * c.G.to('AU3 / (Msun d2)').value)
                 for star in starrefs])+'\n') # GM
 
-        fi.write(' '.join([str(b.get_value('rpole', component=star,
+        fi.write(' '.join([str(b.get_value('requiv', component=star,
                 context='component', unit=u.AU))
                 for star in starrefs])+'\n')
 
