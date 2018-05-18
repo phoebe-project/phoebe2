@@ -385,7 +385,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         contact_binary= True
         eb = phb.Bundle.default_binary(contact_binary=True)
     elif 'Semi-detached' in morphology:
-        raise NotImplementedError
         semi_detached = True
         contact_binary = False
         eb = phb.Bundle.default_binary()
@@ -889,22 +888,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #            print d
             eb.set_value_all(check_visible=False, **d)
     if semi_detached:
-        raise NotImplementedError
-        q = eb.get_value(qualifier ='q')
-        d = 1. - eb.get_value(qualifier='ecc')
         if 'primary' in morphology:
-
-            eb.add_constraint('critical_rpole', component='primary')
-#            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='primary')
-#            f = eb.get_value(qualifier='syncpar', component='primary')
-#            crit_pots = libphoebe.roche_critical_potential(q,f,d)
-#            eb.set_value(qualifier='pot', component='primary', context='component', value=crit_pots['L1'])
+            eb.add_constraint('semidetached', component='primary')
         elif 'secondary' in morphology:
-            eb.add_constraint('critical_rpole', component='secondary')
-#            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='secondary')
-#            f = eb.get_value(qualifier='syncpar', component='secondary')
-#            crit_pots = libphoebe.roche_critical_potential(1/q,f,d)
-#            eb.set_value(qualifier='pot', component='secondary', context='component', value=crit_pots['L1'])
+            eb.add_constraint('semidetached', component='secondary')
 
 #flip back all constraints
     # get rid of seconddary coefficient if ldlaw  is linear
@@ -1162,30 +1149,20 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         raise ValueError("Phoebe 1 only supports binaries. Either provide a different system or edit the hierarchy.")
 # check for contact_binary
     contact_binary = eb.hierarchy.is_contact_binary(primary)
+
 # check for semi_detached
-
-# grab all possible constraints that could affect semi_detached status
-    # sd_constraints = eb.filter(context='constraint', qualifier='pot')+eb.filter(context='constraint', qualifier='rpole')
-    # no_sd_constraints = 0 #keep track of number of constraints as phoebe 1 can't
+    semi_detached = None #keep track of which component is in semidetached
     #handle two semi_detached stars
+    requiv_primary_constraint = eb.get_parameter(qualifier='requiv', component=primary, context='component').is_constraint
+    requiv_secondary_constraint = eb.get_parameter(qualifier='requiv', component=secondary, context='component').is_constraint
+    if requiv_primary_constraint and requiv_primary_constraint.constraint_func == 'semidetached':
+        semi_detached = 'primary'
+    if requiv_secondary_constraint and requiv_secondary_constraint.constraint_func == 'semidetached':
+        if semi_detached:
+            logger.warning('Phoebe 1 does not support double Roche lobe overflow system. Defaulting to Primary star only.')
+        else:
+            semi_detached = 'secondary'
 
-    # for i in range(len(sd_constraints)):
-    #     if sd_constraints[i].constraint_func =='critical_rpole' or sd_constraints[i].constraint_func =='critical_potential':
-    #         no_sd_constraints = no_sd_constraints+1
-    #         semi_detached = True
-    #         if primary == sd_constraints[i].component:
-    #             semid_comp = 'primary' #semidatched is primary
-    #         if secondary == sd_constraints[i].component:
-    #                 semid_comp = 'secondary'
-    #         if no_sd_constraints > 1:
-    #             semid_comp = 'primary'
-    #             logger.warning('Phoebe 1 does not support double Roche lobe overflow system. Defaulting to Primary star only.')
-    #     else:
-    #         semi_detached = False
-    semi_detached = False
-
-#    if 'rpole' in eb['constraint'].qualifiers:
-#        semi_detached = eb.get_parameter('rpole', context='constraint').constraint_func == 'critical_rpole'
 #  catch all the datasets
 # Find if there is more than one limb darkening law
     ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
@@ -1251,9 +1228,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         parnames.extend(pname)
         parvals.extend(val)
     elif semi_detached:
-        raise NotImplementedError
         parnames.append('phoebe_model')
-        parvals.append('"Semi-detached binary, '+semid_comp+' star fills Roche lobe')
+        parvals.append('"Semi-detached binary, '+semi_detached+' star fills Roche lobe')
         types.append('choice')
 
 #   pblum
