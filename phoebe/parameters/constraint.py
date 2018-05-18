@@ -640,6 +640,24 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, {'component': component}
 
+def semidetached(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to force requiv to be semidetached
+    """
+    comp_ps = b.get_component(component=component)
+
+    requiv = comp_ps.get_parameter(qualifier='requiv')
+    requiv_critical = comp_ps.get_parameter(qualifier='requiv_critical')
+
+    if solve_for in [requiv, None]:
+        lhs = requiv
+        rhs = 1.0*requiv_critical
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'component': component}
+
+
 #}
 #{ Inter-component constraints
 
