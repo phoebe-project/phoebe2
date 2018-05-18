@@ -85,6 +85,7 @@ def star(component, **kwargs):
 
     #~ params += [ObjrefParameter(value=component)]
     params += [FloatParameter(qualifier='requiv', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('requiv', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Equivalent radius')]
+    params += [FloatParameter(qualifier='requiv_critical', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('requiv_critical', 1.0), default_unit=u.solRad, limits=(0.0, None), description='Critical value of the equivalent radius at which Roche overflow begins')]
     params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
     params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
@@ -120,7 +121,7 @@ def star(component, **kwargs):
 
     constraints = []
     # constraints handled by set_hierarchy:
-    # - potential
+    # - requiv_critical
     # - mass
     # - comp_sma
     # - rotation_period

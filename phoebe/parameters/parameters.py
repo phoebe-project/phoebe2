@@ -78,12 +78,7 @@ import logging
 logger = logging.getLogger("PARAMETERS")
 logger.addHandler(logging.NullHandler())
 
-_constraint_builtin_funcs = ['rocherpole2potential',
-                             'rochepotential2rpole',
-                             'rotstarrpole2potential',
-                             'rotstarpotential2rpole',
-                             'rochecriticalL12potential',
-                             'rochecriticalL12rpole',
+_constraint_builtin_funcs = ['requiv_critical',
                              'esinw2per0',
                              'ecosw2per0',
                              't0_supconj_to_perpass',
@@ -5787,7 +5782,8 @@ class ConstraintParameter(Parameter):
 
                 values = get_values(self._vars, safe_label=False)
 
-                from phoebe.constraints.builtin import ecosw2per0, esinw2per0,\
+                from phoebe.constraints.builtin import requiv_critical,\
+                        ecosw2per0, esinw2per0,\
                         t0_perpass_to_supconj, t0_supconj_to_perpass,\
                         t0_ref_to_supconj, t0_supconj_to_ref
 

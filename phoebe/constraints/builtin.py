@@ -1,16 +1,24 @@
 import numpy as np
 from phoebe.distortions import roche as _roche
+from phoebe.backend import mesh as _mesh
 
-def rochecriticalL12potential(*args, **kwargs):
-    """
-    """
-    return _roche.criticalL1(*args, **kwargs)
+import logging
+logger = logging.getLogger("BUILTIN")
+logger.addHandler(logging.NullHandler())
 
-def rochecriticalL12rpole(q, e, F, sma, compno, **kwargs):
+def requiv_critical(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno, **kwargs):
     """
     """
-    critical_pot =  _roche.criticalL1(q, e, F, compno, **kwargs)
-    return _roche.potential2rpole(critical_pot, q, e, F, sma, compno)
+    d = 1-ecc # compute at periastron
+    true_anom = 0.0 # compute at periastron
+
+    spin_xyz = _mesh.spin_in_system(incl_star, long_an_star)
+    s = _mesh.spin_in_roche(spin_xyz, true_anom, long_an_orb, incl_orb)
+
+    logger.debug("roche.roche_misaligned_critical_requiv(q={}, F={}, d={}, s={}, scale={})".format(q, syncpar, d, s, sma))
+    critical_requiv = _roche.roche_misaligned_critical_requiv(q, syncpar, d, s, sma)
+
+    return critical_requiv
 
 
 def esinw2per0(ecc, esinw):

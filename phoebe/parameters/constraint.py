@@ -113,11 +113,11 @@ def sqrt(param):
 
 #}
 #{ Built-in functions (see phoebe.constraints.builtin for actual functions)
-def rochecriticalL12rpole(q, e, syncpar, sma, compno=1):
+def roche_requiv_critical(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(q._bundle, "rochecriticalL12rpole(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q,e,syncpar,sma)]), compno))
+    return ConstraintParameter(q._bundle, "requiv_critical(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb)]), compno))
 
 def esinw2per0(ecc, esinw):
     """
@@ -793,15 +793,15 @@ def comp_sma(b, component, solve_for=None, **kwargs):
     return lhs, rhs, {'component': component}
 
 
-def critical_rpole(b, component, solve_for=None, **kwargs):
+def requiv_critical(b, component, solve_for=None, **kwargs):
     """
-    Create a constraint for the rpole of a star to match the critical
-    rpole at L1
+    Create a constraint to determine the critical (roche overflow) value of
+    requiv
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
     :parameter str component: the label of the star in which this
         constraint should be built
-    :parameter str solve_for:  if 'rpole' should not be the derived/constrained
+    :parameter str solve_for:  if 'requiv' should not be the derived/constrained
         parameter, provide which other parameter should be derived
     :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
@@ -811,7 +811,7 @@ def critical_rpole(b, component, solve_for=None, **kwargs):
     if not len(hier.get_value()):
         # TODO: change to custom error type to catch in bundle.add_component
         # TODO: check whether the problem is 0 hierarchies or more than 1
-        raise NotImplementedError("constraint for comp_sma requires hierarchy")
+        raise NotImplementedError("constraint for requiv_critical requires hierarchy")
 
 
     component_ps = _get_system_ps(b, component)
@@ -820,23 +820,29 @@ def critical_rpole(b, component, solve_for=None, **kwargs):
 
 
     if parentorbit == 'component':
-        raise ValueError("cannot constrain critical rpole for single star")
+        raise ValueError("cannot constrain requiv_critical for single star")
 
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
-    rpole = component_ps.get_parameter(qualifier='rpole')
-    syncpar = component_ps.get_parameter(qualifier='syncpar')
+    requiv_critical = component_ps.get_parameter(qualifier='requiv_critical')
     q = parentorbit_ps.get_parameter(qualifier='q')
+    syncpar = component_ps.get_parameter(qualifier='syncpar')
     ecc = parentorbit_ps.get_parameter(qualifier='ecc')
     sma = parentorbit_ps.get_parameter(qualifier='sma')
+    incl_star = component_ps.get_parameter(qualifier='incl')
+    long_an_star = component_ps.get_parameter(qualifier='long_an')
+    incl_orbit = parentorbit_ps.get_parameter(qualifier='incl')
+    long_an_orbit = parentorbit_ps.get_parameter(qualifier='long_an')
 
-    if solve_for in [None, rpole]:
-        lhs = rpole
+    if solve_for in [None, requiv_critical]:
+        lhs = requiv_critical
 
-        compno = {'primary': 1, 'secondary': 2}
-        rhs = rochecriticalL12rpole(q, ecc, syncpar, sma, compno[hier.get_primary_or_secondary(component)])
+        rhs = roche_requiv_critical(q, syncpar, ecc, sma,
+                                    incl_star, long_an_star,
+                                    incl_orbit, long_an_orbit,
+                                    hier.get_primary_or_secondary(component, return_ind=True))
     else:
-        raise NotImplementedError
+        raise NotImplementedError("requiv_critical can only be solved for requiv_critical")
 
     return lhs, rhs, {'component': component}
 

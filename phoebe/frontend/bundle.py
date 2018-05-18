@@ -935,6 +935,20 @@ class Bundle(ParameterSet):
 
 
                 if not self.hierarchy.is_contact_binary(component):
+                    logger.info('re-creating requiv_critical constraint for {}'.format(component))
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_critical',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_func='requiv_critical',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='requiv_critical',
+                                               component=component)
+                        self.add_constraint(constraint.requiv_critical, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.requiv_critical, component,
+                                            constraint=self._default_label('requiv_critical', context='constraint'))
 
                     logger.info('re-creating rotation_period constraint for {}'.format(component))
                     # TODO: will this cause problems if the constraint has been flipped?
@@ -1061,58 +1075,6 @@ class Bundle(ParameterSet):
                 else:
                     raise KeyError(msg)
 
-    def compute_critical_pots(self, component, L1=True, L2=True, L3=True, **kwargs):
-        hier = self.hierarchy
-        kind = hier.get_kind_of(component)
-        if kind not in ['star', 'envelope']:
-            raise ValueError("component must be a star or envelope")
-
-        comp_ps = self.get_component(component)
-        parent = hier.get_parent_of(component)
-        if parent == 'component':
-            raise ValueError("single star doesn't have critical potentials")
-
-        parent_ps = self.get_component(parent)
-
-        q = parent_ps.get_value('q', **kwargs)
-
-        # Check if the component is primary or secondary; if the
-        # latter, flip q and transform pot.
-        comp = hier.get_primary_or_secondary(component, return_ind=True)
-        q = roche.q_for_component(q, comp)
-
-        F = comp_ps.get_value('syncpar', **kwargs)
-        d = 1 - parent_ps.get_value('ecc', **kwargs)
-
-        # TODO: this needs to be generalized once other potentials are supported
-        critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=L1, L2=L2, L3=L3, style=1)
-
-        return critical_pots
-
-    def compute_critical_rpoles(self, component, L1=True, L2=True, L3=True, **kwargs):
-        """
-        returns in solRad
-        """
-        critical_pots = self.compute_critical_pots(component, L1, L2, L3, **kwargs)
-
-        hier = self.hierarchy
-        comp_ps = self.get_component(component)
-        parent = hier.get_parent_of(component)
-        parent_ps = self.get_component(parent)
-
-        q = parent_ps.get_value('q', **kwargs)
-        e = parent_ps.get_value('ecc', **kwargs)
-        F = comp_ps.get_value('syncpar', **kwargs)
-        sma = parent_ps.get_value('sma', unit='solRad', **kwargs)
-
-        comp = hier.get_primary_or_secondary(component, return_ind=True)
-
-        critical_rpoles = {}
-        for l,pot in critical_pots.items():
-            critical_rpoles[l] = roche.potential2rpole(pot, q, e, F, sma, comp)
-
-        return critical_rpoles
-
     def run_checks(self, **kwargs):
         """
         Check to see whether the system is expected to be computable.
@@ -1143,51 +1105,12 @@ class Bundle(ParameterSet):
                 if parent:
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
-                    requiv_param = comp_ps.get_parameter('requiv')
-
-                    comp_no = hier.get_primary_or_secondary(component, return_ind=True)
                     requiv = comp_ps.get_value('requiv', unit=u.solRad, **kwargs)
-                    q = roche.q_for_component(parent_ps.get_value('q', **kwargs), comp_no)
-                    F = comp_ps.get_value('syncpar', **kwargs)
-                    e = parent_ps.get_value('ecc', **kwargs)
-                    d = 1-e
-                    incl_star = comp_ps.get_value('incl', **kwargs)
-                    long_an_star = comp_ps.get_value('long_an', **kwargs)
-                    spin_xyz = mesh.spin_in_system(incl_star, long_an_star)
-                    incl_orbit = parent_ps.get_value('incl', **kwargs)
-                    long_an_orbit = parent_ps.get_value('long_an', **kwargs)
-                    s = mesh.spin_in_roche(spin_xyz, 0.0, long_an_orbit, incl_orbit)
-                    a = parent_ps.get_value('sma', unit=u.solRad, **kwargs)
+                    requiv_critical = comp_ps.get_value('requiv_critical', unit=u.solRad, **kwargs)
 
-                    if not hasattr(requiv_param, '_cache_critical') or\
-                            requiv_param._cache_critical['q'] != q or\
-                            requiv_param._cache_critical['F'] != F or\
-                            requiv_param._cache_critical['d'] != d or\
-                            np.any(requiv_param._cache_critical['s'] != s) or\
-                            requiv_param._cache_critical['a'] != a:
-
-                        logger.debug("roche.roche_misaligned_critical_requiv(q={}, F={}, d={}, s={}, scale={})".format(q, F, d, s, a))
-                        critical_requiv = roche.roche_misaligned_critical_requiv(q, F, d, s, a)
-
-                        # now store these in the cache, so next time if none
-                        # of these parameters have changed value, we can simply
-                        # lookup this critical value
-                        requiv_param._cache_critical = {'q': q,
-                                                        'F': F,
-                                                        'd': d,
-                                                        's': s,
-                                                        'a': a,
-                                                        'critical_requiv': critical_requiv}
-
-                    else:
-                        logger.debug("accessing cached value for critical requiv (no change in q, F, d, s, or a)")
-                        critical_requiv = requiv_param._cache_critical.get('critical_requiv')
-
-                    logger.debug("requiv: {}, critical requiv: {}".format(requiv, critical_requiv))
-
-                    if requiv > critical_requiv:
+                    if requiv > requiv_critical:
                         return False,\
-                            '{} is overflowing at periastron (requiv={}, critical_requiv={})'.format(component, requiv, critical_requiv)
+                            '{} is overflowing at periastron (requiv={}, requiv_critical={})'.format(component, requiv, requiv_critical)
 
             elif kind in ['envelope']:
                 # MUST be overflowing at APASTRON (1+ecc)
