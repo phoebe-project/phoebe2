@@ -131,6 +131,7 @@ PyObject *PyArray_FromVector(std::vector<T> &V){
 
   #if defined(USING_SimpleNewFromData)
   T *p = new T [N];
+  
   std::copy(V.begin(), V.end(), p);
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
@@ -191,6 +192,7 @@ PyObject *PyArray_From3DPointVector(std::vector<T3Dpoint<T>> &V){
 
   return pya;
 }
+
 
 template <typename T>
 void PyArray_To3DPointVector(
