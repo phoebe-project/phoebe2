@@ -446,15 +446,20 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         pass
 
 #pull out global values for fti
+    try:
+        fti = _bool1to2[int(params[:,1][list(params[:,0]).index('phoebe_cadence_switch')])]
+        fti_exp = params[:,1][list(params[:,0]).index('phoebe_cadence')]
+        fti_ovs = params[:,1][list(params[:,0]).index('phoebe_cadence_rate')]
+        fti_ts = params[:,1][list(params[:,0]).index('phoebe_cadence_timestamp')].strip('"')
+        params = np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch'), list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
 
-    fti = _bool1to2[int(params[:,1][list(params[:,0]).index('phoebe_cadence_switch')])]
-    fti_exp = params[:,1][list(params[:,0]).index('phoebe_cadence')]
-    fti_ovs = params[:,1][list(params[:,0]).index('phoebe_cadence_rate')]
-    fti_ts = params[:,1][list(params[:,0]).index('phoebe_cadence_timestamp')].strip('"')
+    except:
 
-
+        fti = False
+        fti_exp = '1766'
+        fti_ovs = '0'
+        fti_ts = 'Mid-exposure'
 #    params =  np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch')], axis=0)#, list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
-    params = np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch'), list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
 
 #    fti_type = params[:,1][list(params[:,0]).index('phoebe_cadenc_rate')]
 # create mzero and grab it if it exists
@@ -462,8 +467,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     if 'phoebe_mnorm' in params:
         mzero = np.float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
 # determine if luminosities are decoupled and set pblum_ref accordingly
-
-    decoupled_luminosity = np.int(params[:,1][list(params[:,0]).index('phoebe_usecla_switch')])
+    try:
+        decoupled_luminosity = np.int(params[:,1][list(params[:,0]).index('phoebe_usecla_switch')])
+    except:
+        pass
 #    if decoupled_luminosity == 0:
 #        eb.set_value(qualifier='pblum_ref', component='secondary', value='primary')
 #    else:
@@ -475,11 +482,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 # FORCE hla and cla to follow conventions so the parser doesn't freak out.
     for x in range(1,lcno+1):
         hlain = list(params[:,0]).index('phoebe_hla['+str(x)+'].VAL')
-        clain = list(params[:,0]).index('phoebe_cla['+str(x)+'].VAL')
+#        clain = list(params[:,0]).index('phoebe_cla['+str(x)+'].VAL')
         params[:,0][hlain] = 'phoebe_lc_hla1['+str(x)+'].VAL'
-        params[:,0][clain] = 'phoebe_lc_cla2['+str(x)+'].VAL'
+#        params[:,0][clain] = 'phoebe_lc_cla2['+str(x)+'].VAL'
         hla = np.float(params[:,1][hlain]) #pull for possible conversion of l3
-        cla = np.float(params[:,1][clain]) #pull for possible conversion of l3
+#        cla = np.float(params[:,1][clain]) #pull for possible conversion of l3
 
         if contact_binary:
             params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
@@ -519,6 +526,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #            print "i shouldn't go here"
 
 #            logger.warning('Phoebe 2 only uses Mid-Exposure for calculating finite exposure times.')
+
+
         try:
             fti_ind = _bool1to2[int(lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_switch['+str(x)+']')])]
             fti_ts_ind = lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_timestamp['+str(x)+']')].strip('"')
@@ -580,12 +589,26 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
     # Determine the correct dataset to open
     # create rv data dictionary
-        indweight = lc_dict['phoebe_lc_indweight']
+#        indweight = lc_dict['phoebe_lc_indweight']
 
-        if indweight == 'Unavailable':
-            indweight = None
+#        if indweight == 'Unavailable':
+#            indweight = None
+
+        #make sure filename parameter exists and if not add it
+
+        try:
+            lc_dict['phoebe_lc_filename']
+        except:
+            lc_dict['phoebe_lc_filename'] = 'Undefined'
+
+
 
         if mzero != None and lc_dict['phoebe_lc_filename'] != 'Undefined':
+
+            indweight = lc_dict['phoebe_lc_indweight']
+
+            if indweight == 'Unavailable':
+                indweight = None
 
             data_dict = load_lc_data(filename=lc_dict['phoebe_lc_filename'],  indep=lc_dict['phoebe_lc_indep'], dep=lc_dict['phoebe_lc_dep'], indweight=indweight, mzero=mzero, dir=legacy_file_dir)
 
@@ -695,6 +718,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             rv_dict[parameter] = rvpt[:,1][x].strip('"')
     # grab some parameters we'll need
+    
         passband = rv_dict['phoebe_rv_filter']
         time = []
         dataid = rv_dict['phoebe_rv_id']
@@ -703,12 +727,23 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         comp = rv_dict['phoebe_rv_dep'].split(' ')[0].lower()
 
     # create rv data dictionary
-        indweight = rv_dict['phoebe_rv_indweight']
+#        indweight = rv_dict['phoebe_rv_indweight']
 
-        if indweight == 'Unavailable':
-            indweight = None
+#        if indweight == 'Unavailable':
+#            indweight = None
+        try:
+            rc_dict['phoebe_rv_filename']
+        except:
+            rv_dict['phoebe_rv_filename'] = 'Undefined'
+
+
 
         if rv_dict['phoebe_rv_filename'] != 'Undefined':
+            indweight = rv_dict['phoebe_rv_indweight']
+
+            if indweight == 'Unavailable':
+                indweight = None
+
             data_dict = load_rv_data(filename=rv_dict['phoebe_rv_filename'], indep=rv_dict['phoebe_rv_indep'], dep=rv_dict['phoebe_rv_dep'], indweight=indweight, dir=legacy_file_dir)
 
             rv_dict.update(data_dict)
@@ -822,11 +857,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             eb.flip_constraint(solve_for='t0_supconj', constraint_func='t0_ref_supconj', **d)
     #        elif pnew == 'filter':
     #       make sure t0 accounts for any phase shift present in phoebe 1
+            try:
+                #if being reimported after phoebe2 save this parameter won't exist
+                pshift_in = list(params[:,0]).index('phoebe_pshift.VAL')
+                pshift = np.float(params[:,1][pshift_in])
+            except:
+                pshift = 0.0
 
-            pshift_in = list(params[:,0]).index('phoebe_pshift.VAL')
             period_in = list(params[:,0]).index('phoebe_period.VAL')
-    #
-            pshift = np.float(params[:,1][pshift_in])
             period = np.float(params[:,1][period_in])
 
             t0 = float(val)+pshift*period
@@ -977,7 +1015,7 @@ def par_value(param, index=None, **kwargs):
 
             ptype='boolean'
 
-        if d['qualifier'] == 'ld_func':
+        if d['qualifier'] == 'ld_func' or d['qualifier'] == 'ld_func_bol':
 
             ldlaws_2to1= {'linear':'Linear cosine law', 'logarithmic':'Logarithmic law', 'square_root':'Square root law'}
             val = ldlaws_2to1[val[0]]
@@ -1026,6 +1064,7 @@ Return phoebe1 parameter name from phoebe 2 info
 
 def ret_ldparname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=None):
     if 'bol' in param:
+
         if ptype=='array':
             pnew1 = 'xbol'
             pnew2 = 'ybol'
@@ -1055,6 +1094,7 @@ def ret_ldparname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index
 def ret_parname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=None):
 
 # separate lds from everything because they suck
+
     if 'ld' in param:
 
         pname = ret_ldparname(param, comp_int=comp_int, dtype=dtype, dnum=dnum, ptype=ptype, index=index)
@@ -1164,19 +1204,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #    if 'rpole' in eb['constraint'].qualifiers:
 #        semi_detached = eb.get_parameter('rpole', context='constraint').constraint_func == 'critical_rpole'
 #  catch all the datasets
-# Find if there is more than one limb darkening law
-    ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
-    if len(set(ldlaws)) > 1:
-        raise ValueError("Phoebe 1 takes only one limb darkening law.")
+    # define datasets
+
 
     lcs = eb.get_dataset(kind='lc').datasets
     rvs = eb.get_dataset(kind='rv').datasets
     spots = eb.features
-
-    if len(ldlaws) == 0:
-        pass
-    elif list(ldlaws)[0] not in ['linear', 'logarithmic', 'square_root']:
-        raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square_root'")
 
     #make lists to put results with important things already added
 
@@ -1192,6 +1225,41 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     parnames.append('phoebe_el3_units')
     parvals.append('"Flux"')
     types.append('choice')
+
+# add limb darkening law first because it exists many places in phoebe2
+
+
+
+    ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func*').to_list()])
+
+
+    if list(ldlaws)[0] not in ['linear', 'logarithmic', 'square_root']:
+        raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square_root'")
+
+    #no else
+    if len(ldlaws) == 1:
+        #define choices
+
+        param = eb.filter('ld_func_bol', component=primary)[0]
+        val, ptype = par_value(param)
+        pname = ret_parname(param.qualifier)
+        #load to array
+        parnames.extend(pname)
+        parvals.extend(val)
+        types.append(ptype)
+
+    elif len(set(ldlaws)) > 1:
+        raise ValueError("Phoebe 1 takes only one limb darkening law.")
+
+    else:
+        raise ValueError("You have not defined a valid limb darkening law.")
+
+
+#    if len(ldlaws) == 0:
+#        pass
+
+
+
     if len(lcs) != 0:
 
         pblum_ref = eb.get_value(dataset = lcs[0], qualifier = 'pblum_ref', component=secondary)
@@ -1477,7 +1545,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 parnames.append('phoebe_rv_dep['+str(i+1)+']')
                 parvals.append('"'+comp[i][0].upper()+comp[i][1::]+' RV"')
                 types.append('choice')
-                parnames.append('phoebe_rv_id['+str(y+1)+']')
+                parnames.append('phoebe_rv_id['+str(i+1)+']')
                 parvals.append(rvs[y])
                 types.append('choice')
 
@@ -1686,6 +1754,23 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 parvals.extend(val)
                 types.append(ptype)
 
+# Phoebe1 has certain parameters that do not have phoebe 2 corollaries. If you did
+#not load a phoebe1 compute parameter set these must be set to defaults
+    kinds = []
+
+    for x in eb.computes:
+        kinds.append(eb[x].meta['kind'])
+    if 'legacy' not in kinds:
+        #phoebe 1 defaults
+        namep = ['phoebe_reffect_reflections'] ; val = ['1'] ; ptype = 'int'
+        parnames.extend(namep); parvals.extend(val) ; types.append(ptype)
+        namep = ['phoebe_reffect_switch'] ; val = ['0'] ; ptype = 'boolean'
+        parnames.extend(namep); parvals.extend(val) ; types.append(ptype)
+        namep = ['phoebe_ie_switch'] ; val = ['0'] ; ptype = 'boolean'
+        parnames.extend(namep); parvals.extend(val) ; types.append(ptype)
+
+    #add default parameters that phoebe1
+#        print(parnames)
 # Now loop through all the ld_coeffs because they are such a pain that they need their own context
 
 #    ldquals = eb.filter(qualifier='ld_*')
@@ -1724,7 +1809,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
     # write to file
     f = open(filename, 'w')
-    f.write('# Phoebe 1 file created from phoebe 2 bundle\n')
+    f.write('# Phoebe 1 file created from phoebe 2 bundle. Some functionality may be lost\n')
     # print "***", len(parnames), len(parvals)
     for x in range(len(parnames)):
 #        if types[x] == 'float':
