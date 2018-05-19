@@ -938,6 +938,7 @@ class ScaledProtoMesh(ProtoMesh):
         super(ScaledProtoMesh, self).__init__(keys=keys, **kwargs)
 
         if scale is not None:
+            self._copy_roche_values()
             self._scale_mesh(scale)
 
     @classmethod
@@ -1088,8 +1089,8 @@ class Mesh(ScaledProtoMesh):
 
         mesh = cls(**scaledproto_mesh.items())
 
-        # roche coordinates have already been copied
-        mesh._copy_roche_values()
+        # roche coordinates have already been copied,
+        # so do NOT call mesh._copy_roche_values() here
         mesh._place_in_orbit(pos, vel, euler, rotation_vel)
 
         if hasattr(scaledproto_mesh, '_label_envelope'):
