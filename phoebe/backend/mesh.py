@@ -1089,6 +1089,7 @@ class Mesh(ScaledProtoMesh):
         mesh = cls(**scaledproto_mesh.items())
 
         # roche coordinates have already been copied
+        mesh._copy_roche_values()
         mesh._place_in_orbit(pos, vel, euler, rotation_vel)
 
         if hasattr(scaledproto_mesh, '_label_envelope'):
