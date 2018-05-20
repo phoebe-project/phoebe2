@@ -24,26 +24,26 @@ def test_reimport(filename=None):
     # must be equal
     assert(N==N2)
 
-    if N > 1:
-        b.run_compute(kind='phoebe')
-        b2.run_compute(kind='phoebe')
+# check to make sure parameters are the same
 
-        lcs = b.get_dataset(kind='lc').datasets
-        lcs = lcs[::-1]
-        rvs = b.get_dataset(kind='rv').datasets
-        rvs = rvs[::-1]
+    pars = b.filter()
+    pars2 = b.filter()
 
-        for x in range(lcs):
-            lc = b.filter('fluxes', context='model', dataset=lcs[x]).get_value()
-            lc2 = b2.filter('fluxes', context='model', dataset=lcs[x]).get_value()
-            print("checking lc"+str(lcs[x]))
-            assert(np.allclose(lc, lc2, atol=1e-5))
+    #checking parameters
+    for x in range(len(pars)):
+        val1 = pars[x].value
+        val2 = pars2[x].value
+        if pars[x].qualifier not in ['times', 'fluxes', 'sigmas', 'rvs']:
+#            print pars[x].qualifier
+#            print pars[x]
+            try:
+                assert(val1==val2)
+            except:
+                assert(all(val1==val2))
 
-            for x in range(rvs):
-                rv = b.filter('rvs', component=comp_name, context='model').get_value()
-                rv2 = b2.filter('rvs', component=comp_name, context='model').get_value()
-                print("checking rv"+str(rvs[x]))
-                assert(np.allclose(rv, rv2, atol=1e-5))
+
+
+
 
 if __name__ == '__main__':
 #    logger= phb2.logger()

@@ -80,6 +80,8 @@ def legacy_test(filename='default.phoebe'):
         datafile = phb1.getpar('phoebe_rv_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
         time = b.filter(dataset=rvs[a], qualifier='times', component=comp_name).get_value()
+        print time
+        print data[:,0]
         print("checking time in "+str(rvs[a]))
         assert(np.all(time==data[:,0]))
         rv = b.filter(dataset=rvs[a], qualifier='rvs', component=comp_name).get_value()
@@ -104,7 +106,7 @@ def legacy_test(filename='default.phoebe'):
         else:
             rv2 = np.array(phb1.rv2(tuple(data[:,0].tolist()), sec))
             vels2.append(rv2)
-            
+
             ld_coeffs1 =[phb1.getpar('phoebe_ld_rvx1', sec), phb1.getpar('phoebe_ld_rvy1', sec), phb1.getpar('phoebe_ld_rvx2', sec), phb1.getpar('phoebe_ld_rvy2', sec)]
             ldx1, ldy1 = b.filter(dataset=rvs[a], qualifier='ld_coeffs', component='cow').get_value()
             ldx2, ldy2 = b.filter(dataset=rvs[a], qualifier='ld_coeffs', component='pig').get_value()
@@ -165,5 +167,3 @@ if __name__ == '__main__':
     legacy_test(detached)
 #    print "checking contact system"
 #    legacy_test(contact)
-  
-

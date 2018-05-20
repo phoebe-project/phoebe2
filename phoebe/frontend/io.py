@@ -262,13 +262,14 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, dir='./'):
     d = {}
     d['phoebe_lc_time'] = lcdata[:,0]
     d['phoebe_lc_flux'] = lcdata[:,1]
-    if indweight:
+    if indweight=="Standard deviation":
         if ncol >= 3:
             d['phoebe_lc_sigmalc'] = lcdata[:,2]
         else:
             logger.warning('A sigma column was mentioned in the .phoebe file but is not present in the lc data file')
 
-
+    else:
+        logger.warning('Phoebe 2 currently only supports standard deviaton')
 
 #    dataset.set_value(check_visible=False, **d)
 
@@ -293,13 +294,14 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
     d['phoebe_rv_vel'] = rvdata[:,1]
     ncol = len(rvdata[0])
 
-    if indweight:
+    if indweight=="Standard deviation":
 
         if ncol >= 3:
             d['phoebe_rv_sigmarv'] = rvdata[:,2]
         else:
             logger.warning('A sigma column is mentioned in the .phoebe file but is not present in the rv data file')
-
+    else:
+        logger.warning('Phoebe 2 currently only supports standard deviaton')
 
     return d
 
@@ -718,7 +720,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             rv_dict[parameter] = rvpt[:,1][x].strip('"')
     # grab some parameters we'll need
-    
+
         passband = rv_dict['phoebe_rv_filter']
         time = []
         dataid = rv_dict['phoebe_rv_id']
@@ -731,11 +733,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 #        if indweight == 'Unavailable':
 #            indweight = None
+
         try:
-            rc_dict['phoebe_rv_filename']
+            rv_dict['phoebe_rv_filename']
         except:
             rv_dict['phoebe_rv_filename'] = 'Undefined'
-
 
 
         if rv_dict['phoebe_rv_filename'] != 'Undefined':
