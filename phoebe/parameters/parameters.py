@@ -5327,6 +5327,9 @@ class ConstraintParameter(Parameter):
         self._kind = newly_constrained_param.kind
 
         self._value = str(expression)
+        # reset the default_unit so that set_default_unit doesn't complain
+        # about incompatible units
+        self._default_unit = None
         self.set_default_unit(newly_constrained_param.default_unit)
 
         self._update_bookkeeping()
