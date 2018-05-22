@@ -4037,10 +4037,8 @@ class FloatParameter(Parameter):
         if unit is None or value is None:
             return value
         else:
-            try:
-                return value.to(unit)
-            except:
-                return value
+            # NOTE: astropy will raise an error if units not compatible
+            return value.to(unit)
 
     def _check_type(self, value):
         # we do this separately so that FloatArrayParameter can keep this set_value
