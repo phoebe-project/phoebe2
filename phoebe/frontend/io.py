@@ -267,7 +267,14 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, dir='./'):
             d['phoebe_lc_sigmalc'] = lcdata[:,2]
         else:
             logger.warning('A sigma column was mentioned in the .phoebe file but is not present in the lc data file')
+    elif indweight =="Standard weight":
+                if ncol >= 3:
+                    sigma = np.sqrt(1/lcdata[:,2])
+                    d['phoebe_lc_sigmalc'] = sigma
+                    logger.warning('Standard weight has been converted to Standard deviation.')
 
+                else:
+                    logger.warning('A sigma column was mentioned in the .phoebe file but is not present in the lc data file')
     else:
         logger.warning('Phoebe 2 currently only supports standard deviaton')
 
