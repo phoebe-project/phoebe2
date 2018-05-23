@@ -5615,7 +5615,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     if (rotated)
       std::cerr << " theta=" << theta << '\n';
     else
-      std::cerr << " s=(" << s[0] << ',' s[1] << ',' s[2] << ")\n";
+      std::cerr << " s=(" << s[0] << ',' << s[1] << ',' << s[2] << ")\n";
        
     report_error(fname +"::There are too many triangles");
     
