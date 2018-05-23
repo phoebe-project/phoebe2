@@ -80,6 +80,7 @@ install:
   - source ci-helpers/travis/setup_conda.sh
   - python setup.py build
   - python setup.py install --user
+  - cp tests/travis/phoebe.config ~/.phoebe-svn/
   - git clone --depth 1 git://github.com/phoebe-project/phoebe1.git
   - cd phoebe1/phoebe-lib
   - ./configure
