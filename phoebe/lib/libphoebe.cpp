@@ -5610,7 +5610,8 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     
     std::cerr 
       << "Parameters: q=" << q << " F=" << F 
-      << " d=" << d << " Omega0=" << Omega0;
+      << " d=" << d << " Omega0=" << Omega0 
+      << " delta=" << delta;
     
     if (rotated)
       std::cerr << " theta=" << theta << '\n';
