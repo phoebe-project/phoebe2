@@ -54,7 +54,7 @@ def legacy_test(filename='default.phoebe'):
         assert(np.all(flux==data[:,1]))
         sigma = b.filter(dataset=lcs[x], qualifier='sigmas').get_value()
         print("checking sigma in "+str(lcs[x]))
-        print "sigma", sigma
+
         if err_val == 'Standard deviation':
             assert(np.all(sigma==data[:,2]))
         else:
@@ -89,7 +89,6 @@ def legacy_test(filename='default.phoebe'):
         datafile = phb1.getpar('phoebe_rv_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
         time = b.filter(dataset=rvs[a], qualifier='times', component=comp_name).get_value()
-        print data[:,0]
         print("checking time in "+str(rvs[a]))
         assert(np.all(time==data[:,0]))
         rv = b.filter(dataset=rvs[a], qualifier='rvs', component=comp_name).get_value()
