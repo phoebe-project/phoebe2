@@ -24,6 +24,7 @@ def legacy_test(filename='default.phoebe'):
 
 
     per = b['period@orbit'].value
+
 #    time_rv = np.linspace(0, per, 4)
 #    time_lc = np.linspace(0, per, 100)
 
@@ -44,6 +45,8 @@ def legacy_test(filename='default.phoebe'):
         datafile = phb1.getpar('phoebe_lc_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
         time = b.filter(dataset=lcs[x], qualifier='times').get_value()
+        # get third column value
+        err_val = phb1.getpar('phoebe_lc_indweight', x)
         print("checking time in "+str(lcs[x]))
         assert(np.all(time==data[:,0]))
         flux = b.filter(dataset=lcs[x], qualifier='fluxes').get_value()
@@ -51,7 +54,12 @@ def legacy_test(filename='default.phoebe'):
         assert(np.all(flux==data[:,1]))
         sigma = b.filter(dataset=lcs[x], qualifier='sigmas').get_value()
         print("checking sigma in "+str(lcs[x]))
-        assert(np.all(sigma==data[:,2]))
+        print "sigma", sigma
+        if err_val == 'Standard deviation':
+            assert(np.all(sigma==data[:,2]))
+        else:
+            val = np.sqrt(1/data[:,2])
+            assert(np.allclose(sigma, val, atol=1e-7))
         #calculate lc
         flux, mesh = phb1.lc(tuple(data[:,0].tolist()), x, 1)
         fluxes.append(flux)
@@ -70,6 +78,7 @@ def legacy_test(filename='default.phoebe'):
     sec = 0
     for x in range(rvno):
         print 'rvs'
+        err_val = phb1.getpar('phoebe_rv_indweight', x)
         comp = phb1.getpar('phoebe_rv_dep', x).split(' ')[0].lower()
         if comp == 'primary':
             comp_name = 'cow'
@@ -80,7 +89,6 @@ def legacy_test(filename='default.phoebe'):
         datafile = phb1.getpar('phoebe_rv_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
         time = b.filter(dataset=rvs[a], qualifier='times', component=comp_name).get_value()
-        print time
         print data[:,0]
         print("checking time in "+str(rvs[a]))
         assert(np.all(time==data[:,0]))
@@ -89,8 +97,12 @@ def legacy_test(filename='default.phoebe'):
         assert(np.all(rv==data[:,1]))
         sigma = b.filter(dataset=rvs[a], qualifier='sigmas', component=comp_name).get_value()
         print("checking sigma in "+str(rvs[a]))
-        assert(np.all(sigma==data[:,2]))
 
+        if err_val == 'Standard deviation':
+            assert(np.all(sigma==data[:,2]))
+        else:
+            val = np.sqrt(1/data[:,2])
+            assert(np.allclose(sigma, val, atol=1e-7))
 
         if comp_name == 'cow':
 
@@ -120,7 +132,7 @@ def legacy_test(filename='default.phoebe'):
         lc2 = b.filter('fluxes', context='model', dataset=lcs[x]).get_value()
         time = b.filter('times', context='model', dataset=lcs[x]).get_value()
         print("comparing lightcurve "+str(lcs[x]))
-        print fluxes[x]-lc2
+
         assert(np.allclose(fluxes[x], lc2, atol=1e-5))
 
     for x in range(rvno):
@@ -162,8 +174,10 @@ if __name__ == '__main__':
 
 #    logger= phb2.logger()
     detached = 'default.phoebe'
+    weighted = 'weight.phoebe'
 #    contact = 'contact.phoebe'
 #    print "checking detached system"
+    legacy_test(weighted)
     legacy_test(detached)
 #    print "checking contact system"
 #    legacy_test(contact)

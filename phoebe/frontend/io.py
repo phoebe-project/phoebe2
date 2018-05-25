@@ -307,6 +307,11 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
             d['phoebe_rv_sigmarv'] = rvdata[:,2]
         else:
             logger.warning('A sigma column is mentioned in the .phoebe file but is not present in the rv data file')
+    elif indweight =="Standard weight":
+                if ncol >= 3:
+                    sigma = np.sqrt(1/rvdata[:,2])
+                    d['phoebe_rv_sigmarv'] = sigma
+                    logger.warning('Standard weight has been converted to Standard deviation.')
     else:
         logger.warning('Phoebe 2 currently only supports standard deviaton')
 
@@ -1239,8 +1244,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
 
 
-    ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func*').to_list()])
-
+    ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
+    ldlaws_bol = set([p.get_value() for p in eb.filter(qualifier='ld_func_bol').to_list()])
 
     if list(ldlaws)[0] not in ['linear', 'logarithmic', 'square_root']:
         raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square_root'")
@@ -1248,8 +1253,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     #no else
     if len(ldlaws) == 1:
         #define choices
+        if ldlaws != ldlaws_bol:
+            logger.warning('ld_func_bol does not match ld_func. ld_func will be chosen')
 
-        param = eb.filter('ld_func_bol', component=primary)[0]
+        param = eb.filter('ld_func', component=primary)[0]
         val, ptype = par_value(param)
         pname = ret_parname(param.qualifier)
         #load to array
