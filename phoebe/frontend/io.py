@@ -1245,13 +1245,16 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
 
     ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
+
     ldlaws_bol = set([p.get_value() for p in eb.filter(qualifier='ld_func_bol').to_list()])
 
-    if list(ldlaws)[0] not in ['linear', 'logarithmic', 'square_root']:
-        raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square_root'")
 
     #no else
     if len(ldlaws) == 1:
+
+        #check values
+        if list(ldlaws)[0] not in ['linear', 'logarithmic', 'square_root']:
+            raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square_root'")
         #define choices
         if ldlaws != ldlaws_bol:
             logger.warning('ld_func_bol does not match ld_func. ld_func will be chosen')
@@ -1268,7 +1271,17 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         raise ValueError("Phoebe 1 takes only one limb darkening law.")
 
     else:
-        raise ValueError("You have not defined a valid limb darkening law.")
+        if list(ldlaws_bol)[0] not in ['linear', 'logarithmic', 'square_root']:
+            raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square_root'")
+
+        param = eb.filter('ld_func_bol', component=primary)[0]
+        val, ptype = par_value(param)
+        pname = ret_parname(param.qualifier)
+        #load to array
+        parnames.extend(pname)
+        parvals.extend(val)
+        types.append(ptype)
+#        raise ValueError("You have not defined a valid limb darkening law.")
 
 
 #    if len(ldlaws) == 0:
