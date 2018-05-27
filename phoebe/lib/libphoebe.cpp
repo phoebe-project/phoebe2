@@ -92,8 +92,8 @@ template<>  NPY_TYPES PyArray_TypeNum<int>() { return NPY_INT;}
 template<>  NPY_TYPES PyArray_TypeNum<double>() { return NPY_DOUBLE;}
 
 /*
-  Report error with or without Python exception 
-*/ 
+  Report error with or without Python exception
+*/
 void report_error(const char *str, bool py_exception = true){
   std::cerr << str << '\n';
   if (py_exception) PyErr_SetString(PyExc_TypeError, str);
@@ -131,6 +131,7 @@ PyObject *PyArray_FromVector(std::vector<T> &V){
 
   #if defined(USING_SimpleNewFromData)
   T *p = new T [N];
+
   std::copy(V.begin(), V.end(), p);
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
@@ -191,6 +192,7 @@ PyObject *PyArray_From3DPointVector(std::vector<T3Dpoint<T>> &V){
 
   return pya;
 }
+
 
 template <typename T>
 void PyArray_To3DPointVector(
@@ -397,30 +399,36 @@ static PyObject *roche_misaligned_transf(PyObject *self, PyObject *args) {
     return NULL;
   }
 
-  double
-    *S = (double*) PyArray_DATA(o_S),
-    t, s[3],
-    *res = new double [2];
+  double s[3];
 
-  switch (fnv1a_32::hash(PyString_AsString(o_type))) {
+  if (PyArray_Check(o_S) && PyArray_TYPE((PyArrayObject *) o_S) == NPY_DOUBLE) {
 
-    case "cartesian"_hash32:
-      t = 1/utils::hypot3(S);
-      for (int i = 0; i < 3; ++i) s[i] = t*S[i];
-    break;
+    double *S = (double*) PyArray_DATA(o_S), t;
 
-    case "spherical"_hash32:
-      s[0] = std::sin(S[0])*std::cos(S[1]);
-      s[1] = std::sin(S[0])*std::sin(S[1]);
-      s[2] = std::cos(S[0]);
-    break;
 
-    default:
-      report_error(fname + "::This type is not supported");
-      return NULL;
+    switch (fnv1a_32::hash(PyString_AsString(o_type))) {
+
+      case "cartesian"_hash32:
+        t = 1/utils::hypot3(S);
+        for (int i = 0; i < 3; ++i) s[i] = t*S[i];
+      break;
+
+      case "spherical"_hash32:
+        s[0] = std::sin(S[0])*std::cos(S[1]);
+        s[1] = std::sin(S[0])*std::sin(S[1]);
+        s[2] = std::cos(S[0]);
+      break;
+
+      default:
+        report_error(fname + "::This type is not supported");
+        return NULL;
+    }
+  } else {
+    report_error(fname + "::This type of misalignment is not supported");
+    return NULL;
   }
 
-
+  double *res = new double [2];
   res[0] = std::atan2(-s[1], s[2]);
   res[1] = std::atan2(s[0], std::sqrt(1 - s[0]*s[0]));
 
@@ -493,10 +501,10 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
   where parameters are
 
     omega: float - parameter of the potential
-           Note: 
-           for comparison to Roche model (a=1) : omega = F sqrt(1+q), 
+           Note:
+           for comparison to Roche model (a=1) : omega = F sqrt(1+q),
            for independent star of mass M : omega = angular velocity/sqrt(G M)
-          
+
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
               s = [sin(angle), 0, cos(angle)]
@@ -675,7 +683,8 @@ static PyObject *roche_misaligned_pole(
 
   if (PyFloat_Check(o_misalignment)) {
     s = std::sin(PyFloat_AsDouble(o_misalignment));
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
     s = ((double*) PyArray_DATA((PyArrayObject*)o_misalignment))[0];
   } else {
     report_error(fname + "::This type of misalignment is not supported.");
@@ -822,7 +831,8 @@ static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyOb
   if (PyFloat_Check(o_misalignment)) {
     double theta = PyFloat_AsDouble(o_misalignment);
     Omega_min = misaligned_roche::calc_Omega_min(q, F, d, theta);
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
     double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
     Omega_min = misaligned_roche::calc_Omega_min(q, F, d, std::asin(s[0]));
   } else {
@@ -920,8 +930,8 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
 
   positionals:
     omega: float - parameter of the potential
-           Note: 
-           for comparison to Roche model (a=1): omega = F sqrt(1+q), 
+           Note:
+           for comparison to Roche model (a=1): omega = F sqrt(1+q),
            for independent star of mass M : omega = angular velocity/sqrt(G M)
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
@@ -1046,7 +1056,7 @@ static PyObject *sphere_pole(PyObject *self, PyObject *args, PyObject *keywds) {
 */
 
 static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *keywds) {
-  
+
   auto fname = "rotstar_from_roche"_s;
   //
   // Reading arguments
@@ -1088,7 +1098,7 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
     report_error(fname + "::The lobe does not exist.");
     return NULL;
   }
-  
+
 
   return PyArray_FromVector(2, data);
 }
@@ -1209,7 +1219,7 @@ static PyObject *rotstar_misaligned_from_roche_misaligned(
     report_error(fname + "::The lobe does not exist.");
     return NULL;
   }
-  
+
   PyObject *results = PyDict_New();
 
   PyDict_SetItemStringStealRef(results, "omega", PyFloat_FromDouble(r_omega));
@@ -1270,9 +1280,9 @@ static PyObject *rotstar_misaligned_from_roche_misaligned(
 
 //#define DEBUG
 static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
-  
+
   auto fname = "roche_area_volume"_s;
-  
+
   //
   // Reading arguments
   //
@@ -1308,7 +1318,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
       eps, eps + 1
       )
     ) {
-      
+
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
@@ -1563,12 +1573,12 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
   double av[2] = {0,0};
 
   switch (rot_star::area_volume(av, res_choice, Omega0, omega)) {
-    case -1: 
+    case -1:
     report_error(fname + "::No calculations are requested");
     return NULL;
-   
+
     case 1:
-    report_error(fname + 
+    report_error(fname +
       "::The lobe does not exist. t is not in [0,1]\n" +
       "Omega0=" + std::to_string(Omega0) +
       " omega=" + std::to_string(omega) +
@@ -1611,7 +1621,7 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
 
   positionals:
     omega: float - parameter of the potential
-      Note: for comparison to roche : omega = F sqrt(1+q), 
+      Note: for comparison to roche : omega = F sqrt(1+q),
           for independent star of mass M : omega = angular velocity/sqrt(G M)
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
@@ -1697,12 +1707,12 @@ static PyObject *rotstar_misaligned_area_volume(PyObject *self, PyObject *args, 
   double av[2] = {0,0};
 
   switch (rot_star::area_volume(av, res_choice, Omega0, omega)) {
-    case -1: 
+    case -1:
     report_error(fname + "::No calculations are requested");
     return NULL;
-   
+
     case 1:
-    report_error(fname + 
+    report_error(fname +
       "::The lobe does not exist. t is not in [0,1]\n" +
       "Omega0=" + std::to_string(Omega0) +
       " omega=" + std::to_string(omega) +
@@ -1940,23 +1950,24 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
     aligned = (std::sin(theta) == 0); // theta ~0 => aligned
 
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
-    
-    
+
+
     #if defined(DEBUG)
     std::cerr << "spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
     #endif
-    
-    if (s[0] == 0) { 
+
+    if (s[0] == 0) {
       aligned = true;
       theta = 0;
     } else {
       aligned = false;
       theta = std::asin(std::abs(s[0])); // in [0, pi/2]
     }
-    
+
   } else {
     report_error(fname + ":: This type of misalignment if not supported");
     return NULL;
@@ -1974,11 +1985,11 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   }
 
   if (res_choice == 0) return NULL;
-  
+
   #if defined(DEBUG)
   std::cerr << "res_choice=" << res_choice << '\n';
   #endif
-  
+
   //
   // Calculate area and volume:
   //
@@ -2015,11 +2026,11 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
       else {
         misaligned_roche::area_volume_integration
           (p[i], res_choice, Omega0, q, F, delta, theta, m);
-        #if defined(DEBUG) 
+        #if defined(DEBUG)
         std::cerr << "m=" << m << " p[" << i  << "]=" << p[i][0] << ' ' << p[i][1] << '\n';
         #endif
       }
-      
+
     if (adjust) {
 
       // extrapolation based on assumption
@@ -2068,7 +2079,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     #if defined(DEBUG)
     std::cerr << "av[" << i << "]=" << av[i] << '\n';
     #endif
-    
+
     PyDict_SetItemStringStealRef(results, str[i], PyFloat_FromDouble(av[i]));
   }
 
@@ -2107,9 +2118,9 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-    Omega0: float - guess for value potential Omega1
 
   keywords: (optional)
+    Omega0: float - guess for value potential Omega1
     choice: integer, default 0
             0 for discussing left lobe
             1 for discussing right lobe
@@ -2124,8 +2135,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   Returns:
 
     Omega1 : float
-      value of the Kopal potential for (q,F,d1) such that volume
-      is equal to the case (q,F,d,Omega0)
+      value of the Kopal potential for (q,F,d) at which the lobe has the given volume
 */
 
 //#define DEBUG
@@ -2162,7 +2172,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   int max_iter = 100;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddddd|iddi", kwlist,
+      args, keywds,  "dddd|diddi", kwlist,
       &vol, &q, &F, &delta, &Omega0,
       &choice,
       &precision,
@@ -2174,11 +2184,25 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     return NULL;
   }
 
-  bool b_Omega0 = !std::isnan(Omega0);
+  if (std::isnan(Omega0)) {
+    // equivalent radius
+    double  r = std::cbrt(0.75*vol/utils::m_pi);
 
-  if (!b_Omega0) {
-    report_error(fname + "::Currently not supporting lack of guessed Omega.");
-    return NULL;
+    #if defined(DEBUG)
+    std::cerr.precision(16);
+    std::cerr << "r=" << r << '\n';
+    #endif
+
+  /* Omega[x_, y_, z_, {q_, F_, d_, theta_}] = 1/Sqrt[x^2 + y^2 + z^2] +
+      q (-(x/d^2) + 1/Sqrt[(d - x)^2 + y^2 + z^2]) +
+      1/2 F^2 (1 + q) (y^2 + (x Cos[theta] - z Sin[theta])^2)
+  */
+
+    // = Omega[r,0,0]
+    Omega0 =
+      1/r  +
+      q*(1/std::abs(r - delta) - (r/delta)/delta) +
+      0.5*(1 + q)*utils::sqr(F*r);
   }
 
   const int m_min = 1 << 6;  // minimal number of points along x-axis
@@ -2293,7 +2317,9 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
 
   return PyFloat_FromDouble(Omega);
 }
-//#undef DEBUG
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
@@ -2315,7 +2341,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   positionals:
     vol: float - volume of the star's lobe
     omega: float  - parameter of the potential
-  
+
   Returns:
 
     Omega1 : float
@@ -2345,14 +2371,14 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
-  
+
   double Omega = rot_star::Omega_at_vol(vol, omega);
-  
+
   if (std::isnan(Omega)){
     report_error(fname + "::Problem determining Omega. See cerr outputs.");
     return NULL;
   }
-  
+
   return PyFloat_FromDouble(Omega);
 }
 #if defined(DEBUG)
@@ -2387,10 +2413,10 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
 
   positionals:
     vol: float - volume of the star's lobe
-    omega: float  - parameter of the potential 
-    Note: for comparison to roche : omega = F sqrt(1+q), 
+    omega: float  - parameter of the potential
+    Note: for comparison to roche : omega = F sqrt(1+q),
           for independent star of mass M : omega = angular velocity/sqrt(G M)
-   
+
   keywords: (optional)
    misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
@@ -2433,14 +2459,14 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
-  
+
   double Omega = rot_star::Omega_at_vol(vol, omega);
-  
+
   if (std::isnan(Omega)){
     report_error(fname + "::Problem determining Omega. See cerr outputs.");
     return NULL;
   }
-  
+
   return PyFloat_FromDouble(Omega);
 }
 
@@ -2474,9 +2500,8 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
     or in canonical coordinate system:
         1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
 
-    Omega0: float - guess for value potential Omega1
-
   keywords: (optional)
+    Omega0: float - guess for value potential Omega1
     choice: integer, default 0
             0 for discussing left lobe
             1 for discussing right lobe
@@ -2491,11 +2516,10 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
   Returns:
 
     Omega1 : float
-      value of the Kopal potential for (q,F,d1) such that volume
-      is equal to the case (q,F,d,Omega0)
+      value of the Kopal potential for (q,F,d1,spin) at which the lobe has the given volume
 */
 
-//#define DEBUG
+#define DEBUG
 static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_Omega_at_vol"_s;
@@ -2533,10 +2557,10 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
   PyObject *o_misalignment;
 
-  int max_iter = 100;
+  int max_iter = 10;
 
   if (!PyArg_ParseTupleAndKeywords(
-        args, keywds,  "ddddOd|iddi", kwlist,
+        args, keywds,  "ddddO|diddi", kwlist,
         &vol, &q, &F, &delta, &o_misalignment, &Omega0,
         &choice,
         &precision,
@@ -2562,7 +2586,8 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     theta = PyFloat_AsDouble(o_misalignment);
     aligned = (std::sin(theta) == 0); // theta ~0, pi => aligned
 
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
     aligned = (s[0] == 0);
@@ -2573,11 +2598,24 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     return NULL;
   }
 
-  bool b_Omega0 = !std::isnan(Omega0);
+  if (std::isnan(Omega0)) {
+    // equivalent radius
+    double  r = std::cbrt(0.75*vol/utils::m_pi);
 
-  if (!b_Omega0) {
-    report_error(fname + "::Currently not supporting lack of guessed Omega.");
-    return NULL;
+    #if defined(DEBUG)
+    std::cerr.precision(16);
+    std::cerr << "r=" << r << '\n';
+    #endif
+
+   /* Omega[x_, y_, z_, {q_, F_, d_, theta_}] = 1/Sqrt[x^2 + y^2 + z^2] +
+ q (-(x/d^2) + 1/Sqrt[(d - x)^2 + y^2 + z^2]) +
+ 1/2 F^2 (1 + q) (y^2 + (x Cos[theta] - z Sin[theta])^2)
+  */
+    // = Omega[r,0,0]
+    Omega0 =
+      1/r  +
+      q*(1/std::abs(r - delta) - (r/delta)/delta) +
+      0.5*(1 + q)*utils::sqr(F*r*std::cos(theta));
   }
 
   #if defined(DEBUG)
@@ -2651,6 +2689,10 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
               adjust = true;
             }
           }
+
+          #if defined(DEBUG)
+          std::cerr << "V[i]=" << V[i] << " e =" << e << '\n';
+          #endif
         }
 
         if (adjust) m0 = m0_next; else break;
@@ -2690,14 +2732,14 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 /*
   C++ wrapper for Python code:
 
-  Calculate the value of potential Omega1 of spherical star with 
+  Calculate the value of potential Omega1 of spherical star with
   volume equal to vol. The star has the Kopal potential:
 
     Omega(x,y,z) = 1/|r|
-    
+
   with
     r = {x, y, z}
-  
+
   Note: Misalignment does not make sense in spherical stars.
 
   Python:
@@ -2708,7 +2750,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
   positionals:
     vol: float - volume of the star's lobe, vol = 4 Pi/3 r^3
-  
+
   Returns:
 
     Omega1 : float
@@ -2737,9 +2779,9 @@ static PyObject *sphere_Omega_at_vol(PyObject *self, PyObject *args, PyObject *k
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
-  
+
   double r = std::cbrt(0.75*vol/(utils::m_pi));   // radius = 3 V/(4 Pi)
-  
+
   return PyFloat_FromDouble(1/r);
 }
 
@@ -2890,8 +2932,8 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
   with parameters
 
     omega: float - parameter of the potential
-          Note: 
-          for comparison to Roche model (a=1) : omega = F sqrt(1+q), 
+          Note:
+          for comparison to Roche model (a=1) : omega = F sqrt(1+q),
           for independent star of mass M : omega = angular velocity/sqrt(G M)
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
@@ -3077,7 +3119,8 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
     Tmisaligned_rotated_roche<double> b(p);
     b.grad(x, g);
 
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
 
@@ -3135,9 +3178,9 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
 */
 
 static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
-  
+
   auto fname = "roche_gradOmega_only"_s;
-  
+
   double p[4];
 
   PyArrayObject *X;
@@ -3186,9 +3229,9 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
 */
 
 static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
-  
+
   auto fname = "rotstar_gradOmega_only"_s;
-  
+
   double p[2];
 
   PyArrayObject *X;
@@ -3245,8 +3288,8 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
   with parameters
 
     omega: float - parameter of the potential
-          Note: 
-          for comparison to Roche model (a=1): omega = F sqrt(1+q), 
+          Note:
+          for comparison to Roche model (a=1): omega = F sqrt(1+q),
           for independent star of mass M : omega = angular velocity/sqrt(G M)
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
@@ -3417,7 +3460,8 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
 
     Tmisaligned_rotated_roche<double> b(p);
     b.grad_only(x, g);
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
 
@@ -3713,7 +3757,9 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
 
     Tmisaligned_rotated_roche<double> b(p);
     return PyFloat_FromDouble(-b.constrain(x));
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
+
     double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
 
     p[3] = s[0];
@@ -3736,6 +3782,9 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
   report_error(fname + "::This type of misalignment is not supported");
   return NULL;
 }
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
@@ -3977,8 +4026,8 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
 
   #if defined(DEBUG)
   std::cerr.precision(16);
-  std::cerr 
-    << "choice=" << choice << '\n' 
+  std::cerr
+    << "choice=" << choice << '\n'
     << "r=" << r[0] << " " <<  r[1] << " " << r[2] << '\n'
     << "g=" << g[0] << " " <<  g[1] << " " << g[2] << '\n';
   #endif
@@ -4337,7 +4386,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     report_error(fname + "::The lobe does not exist.");
     return NULL;
   }
-  
+
   //
   // Storing results in dictioonary
   // https://docs.python.org/2/c-api/dict.html
@@ -4518,8 +4567,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
 
     positional:
       omega: float - parameter of the potential
-          Note: 
-          for comparison to Roche model (a=1): omega = F sqrt(1+q), 
+          Note:
+          for comparison to Roche model (a=1): omega = F sqrt(1+q),
           for independent star of mass M : omega = angular velocity/sqrt(G M)
       misalignment:  in rotated coordinate system:
         float - angle between spin and orbital angular velocity vectors [rad]
@@ -5469,11 +5518,11 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
         &PyBool_Type, &o_volume,
         &init_phi
       )) {
-    
+
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
-  
+
   if (o_full) b_full = PyObject_IsTrue(o_full);
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
   if (o_vnormals) b_vnormals = PyObject_IsTrue(o_vnormals);
@@ -5513,7 +5562,8 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, theta);
     rotated = true;
 
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
     aligned  = (s[0] == 0 && s[1] == 0);
@@ -5527,20 +5577,20 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
       << " Omega:" <<  Omega0
       << " q=" << q
       << " F=" << F
-      << " d=" << d 
+      << " d=" << d
       << " delta =" << delta << '\n';
     #endif
- 
+
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, s);
     rotated = false;
-    
+
     #if defined(DEBUG)
       std::cerr << "r="
         << r[0] << ' ' << r[1] << ' ' << r[2]
         << " g="
         << g[0] << ' ' << g[1] << ' ' << g[2] << '\n';
     #endif
-    
+
   } else {
     report_error(fname + "::This type of misalignment is not supported.");
     return NULL;
@@ -5617,7 +5667,13 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
       std::cerr << " theta=" << theta << '\n';
     else
       std::cerr << " s=(" << s[0] << ',' << s[1] << ',' << s[2] << ")\n";
-       
+    /*
+    std::cerr << "Vertices:\n"; 
+    for (auto &v : V) std::cerr << v << '\n';
+    
+    std::cerr << "Triangle:\n"; 
+    for (auto &t : Tr) std::cerr << t << '\n';
+    */
     report_error(fname +"::There are too many triangles");
     
     return NULL;
@@ -5752,9 +5808,9 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
 */
 
 static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywds){
-  
+
   auto fname = "mesh_visibility"_s;
-  
+
   //
   // Reading arguments
   //
@@ -5926,7 +5982,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
         &PyArray_Type, &oV,
         &PyArray_Type, &oT,
         &PyArray_Type, &oN)){
-          
+
     report_error("mesh_rough_visibility::Problem reading arguments");
     return NULL;
   }
@@ -6022,7 +6078,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
 static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywds){
 
   auto fname = "mesh_offseting"_s;
-  
+
   //
   // Reading arguments
   //
@@ -6390,7 +6446,7 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
       &PyString_Type, &o_body_color,   // optional
       &PyBool_Type, &o_plane_enable,
       &PyFloat_Type, &o_plane_height)){
-    
+
     report_error("mesh_export_povray::Problem reading arguments");
     return NULL;
   }
@@ -6527,9 +6583,6 @@ bool LDmodelFromTuple(
       par = (double*)PyArray_DATA((PyArrayObject*)PyTuple_GetItem(p, 1));
       pmodel = new TLDpower<double>(par);
       return true;
-
-    case "interp"_hash32:
-      return true;
   }
 
   std::cerr << "LDmodelFromTuple::Don't know to handle this LD model.\n";
@@ -6601,7 +6654,6 @@ bool LDmodelFromListOfTuples(
               "logarithmic" 2 parameters
               "square_root" 2 parameters
               "power"       4 parameters
-              "interp"      interpolation data  TODO !!!!
 
     LDidx[]: 1-rank numpy array of indices of LD models used on each triangle/vertex
 
@@ -6695,16 +6747,6 @@ static PyObject *mesh_radiosity_problem(
     return NULL;
   }
 
-  //
-  // Check is there is interpolation is used
-  //
-
-  bool st_interp = false;
-
-  for (auto && pld : LDmod) if (pld == 0) {
-    st_interp = true;
-    break;
-  }
 
   std::vector<int> LDidx;
   PyArray_ToVector(oLDidx, LDidx);
@@ -6745,7 +6787,6 @@ static PyObject *mesh_radiosity_problem(
     }
   }
 
-
   for (auto && ld: LDmod) delete ld;
   LDmod.clear();
 
@@ -6769,33 +6810,12 @@ static PyObject *mesh_radiosity_problem(
     switch (fnv1a_32::hash(s)) {
 
       case "Wilson"_hash32:
-
-        if (st_interp) {
-          report_error(fname + "::Interpolation isn't supported with Wilson's reflection model");
-          return NULL;
-        }
-
         success = solve_radiosity_equation_Wilson(Fmat, R, F0, F);
 
         break;
 
       case "Horvat"_hash32:
-
-        if (st_interp) {
-          #if 0
-          std::vector<double> S0;
-
-          // calculate F0, S0 ?????
-
-          success = solve_radiosity_equation_Horvat(Fmat, R, F0, S0, F);
-          #endif
-
-          report_error(fname + "::This is not yet implemented");
-          return NULL;
-        } else {
-          success = solve_radiosity_equation_Horvat(Fmat, R, F0, F);
-        }
-
+        success = solve_radiosity_equation_Horvat(Fmat, R, F0, F);
         break;
 
       default:
@@ -6858,7 +6878,6 @@ static PyObject *mesh_radiosity_problem(
               "logarithmic" 2 parameters
               "square_root" 2 parameters
               "power"       4 parameters
-              "interp"      interpolation data  TODO !!!!
 
 
      model : string - name of the reflection model in use
@@ -6962,14 +6981,6 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
   //
   // Check is there is interpolation is used
   //
-
-  bool st_interp = false;
-
-  for (auto && pld : LDmod) if (pld == 0) {
-    st_interp = true;
-    break;
-  }
-
   std::vector<std::vector<T3Dpoint<double>>> V(n), N(n);
   std::vector<std::vector<T3Dpoint<int>>> Tr(n);
   std::vector<std::vector<double>> A(n), R(n), F0(n), F;
@@ -7027,26 +7038,11 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
     switch (fnv1a_32::hash(s)) {
 
       case "Wilson"_hash32:
-        if (st_interp) {
-          report_error(fname + "::Interpolation isn't supported with Wilson's reflection model");
-          return NULL;
-        }
         success = solve_radiosity_equation_Wilson_nbody(Fmat, R, F0, F);
       break;
 
       case "Horvat"_hash32:
-       if (st_interp) {
-          #if 0
-          std::vector<std::vector<double>> S0;
-
-          // calculating F0, S0
-
-          success = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, S0, F);
-          #endif
-          report_error(fname + "::This is not yet implemented");
-          return NULL;
-        } else
-          success = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, F);
+      	success = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, F);
       break;
 
       default:
@@ -7166,28 +7162,41 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
 struct Tmesh_radiosity_redistrib_problem_nbody {
 
   bool
-    use_stored,
-    redistr_stored,
-    reflect_stored;
+    use,
+    stored,
+    only_reflection;
 
-  int
-    process_type;
+  int nb;
 
-  std::vector<Tview_factor_nbody<double>> Fmat;
-  std::vector<std::vector<Tsparse_mat_elem<double>>> Dmat;
+  Tsupport_type support;
 
-  Tmesh_radiosity_redistrib_problem_nbody() {
+  std::vector<Tview_factor_nbody<double>> Lmat;
 
-    use_stored = false,     // whether we use this structure to store
-                            // redistr metrices
-    redistr_stored = false, // true - needs to be set, false - it is already set
-    reflect_stored = false; // true - needs to be set, false - it is already set
+  std::vector<Tredistribution<double>> Dmat;
 
-    process_type = -1;
+  Tmesh_radiosity_redistrib_problem_nbody() { clear();}
+
+
+  void clear(bool _use = false) {
+
+    use = _use;      // whether we use this structure to store
+
+    stored = false;  // true - needs to be set, false - it is already set
+
+    only_reflection = false;
+
+    nb = 0;           // number of bodies
+
+    support = triangles;
+
+    Lmat.clear();
+
+    Dmat.clear();
   }
 
 } __redistrib_problem_nbody;
 
+//#define DEBUG
 static PyObject *mesh_radiosity_redistrib_problem_nbody_convex_setup(
   PyObject *self, PyObject *args, PyObject *keywds){
 
@@ -7203,7 +7212,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex_setup(
 
   if (!PyArg_ParseTupleAndKeywords(
         args, keywds,  "O!O!", kwlist,
-        &PyBool_Type, &o_use_stored,         // neccesary
+        &PyBool_Type, &o_use_stored,      // neccesary
         &PyBool_Type, &o_reset)
       ) {
     report_error(fname + "::Problem reading arguments");
@@ -7214,23 +7223,19 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex_setup(
     b_use_stored = PyObject_IsTrue(o_use_stored),
     b_reset = PyObject_IsTrue(o_reset);
 
-  __redistrib_problem_nbody.use_stored = b_use_stored;
-
-  if (b_reset) {
-    __redistrib_problem_nbody.redistr_stored = false;
-    __redistrib_problem_nbody.reflect_stored = false;
-    __redistrib_problem_nbody.process_type = -1;
-
-    __redistrib_problem_nbody.Dmat.clear();
-    __redistrib_problem_nbody.Fmat.clear();
-  }
+  if (b_reset) __redistrib_problem_nbody.clear(b_use_stored);
 
   Py_INCREF(Py_None);
 
   return Py_None;
 
 }
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
+
+//#define DEBUG
 static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
   PyObject *self, PyObject *args, PyObject *keywds) {
 
@@ -7284,316 +7289,217 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
       &epsC,                     // optional
       &epsF,
       &max_iter)){
-        
+
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
 
   //
-  // Reading LD models
+  // Number of bodies
   //
 
-  std::vector<TLDmodel<double>*> LDmod;
+  int nb = PyList_Size(oF0);
 
-  if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-    report_error(fname + "::Not able to read LD models");
-    return NULL;
-  }
-
-  #if 0
-  {
-    int i = 0;
-    for (auto && pld: LDmod)
-      std::cerr << i++ << " LD:type=" << pld->type << '\n';
-  }
-  #endif
-
-  //
-  // Checking number of bodies
-  //
-
-  int n = LDmod.size();
-
-  if (n <= 1){
-    report_error(fname + "::There seem to just n=" + std::to_string(n) + " bodies.");
+  if (nb <= 1){
+    report_error(fname + "::There seem to just n=" + std::to_string(nb) + " bodies.");
     return NULL;
   }
 
   //
-  // Check is there is interpolation is used
+  // Reading input intensities arrays and reflection : ALWAYS READ
   //
 
-  bool st_interp = false;
+  std::vector<std::vector<double>> F0(nb), R(nb);
 
-  for (auto && pld : LDmod) if (pld == 0) {
-    st_interp = true;
-    break;
-  }
-
-  if (st_interp) {
-    report_error(fname + "::This is not yet implemented");
-    return NULL;
-  }
-
-  //
-  // Reading support type
-  //
-
-  int support;
-  {
-    char *s = PyString_AsString(osupport);
-
-    switch (fnv1a_32::hash(s)) {
-      case "triangles"_hash32: support = 0; break;
-      case "vertices"_hash32: support = 1; break;
-
-      default:
-        report_error(fname + "::This support type = " + std::string(s) + "is not supported");
-        return NULL;
-    }
-  }
-
-  //
-  // Reading arrays
-  //
-
-  std::vector<std::vector<T3Dpoint<double>>> V(n), N(n);
-  std::vector<std::vector<T3Dpoint<int>>> Tr(n);
-  std::vector<std::vector<double>> A(n), R(n), F0(n), F1, Fout;
-
-  for (int b = 0; b < n; ++b){
-    PyArray_To3DPointVector((PyArrayObject *)PyList_GetItem(oV, b), V[b]);
-    PyArray_To3DPointVector((PyArrayObject *)PyList_GetItem(oN, b), N[b]);
-    PyArray_To3DPointVector((PyArrayObject *)PyList_GetItem(oTr, b), Tr[b]);
-
-    PyArray_ToVector((PyArrayObject *)PyList_GetItem(oA, b), A[b]);
-    PyArray_ToVector((PyArrayObject *)PyList_GetItem(oR, b), R[b]);
+  for (int b = 0; b < nb; ++b) {
     PyArray_ToVector((PyArrayObject *)PyList_GetItem(oF0, b), F0[b]);
+    PyArray_ToVector((PyArrayObject *)PyList_GetItem(oR, b), R[b]);
   }
 
   //
-  // Reading redistribution models
+  // Matrices needed to reflection-redistribution processes
   //
+  Tsupport_type support;
 
-  bool only_reflection;
+  bool only_reflection = true;
 
-  std::vector<std::vector<Tsparse_mat_elem<double>>> Dmat;
+  std::vector<Tredistribution<double>> Dmat(nb);
 
-  if (!__redistrib_problem_nbody.use_stored || (__redistrib_problem_nbody.use_stored && __redistrib_problem_nbody.process_type < 0)) {
+  std::vector<Tview_factor_nbody<double>> Lmat;
 
-    std::vector<std::map<fnv1a_32::hash_t, std::vector<double>>> Dpars(n);
-    std::vector<std::map<fnv1a_32::hash_t, double>> Dweights(n);
+  if (__redistrib_problem_nbody.use && __redistrib_problem_nbody.stored) {
+
+    only_reflection = __redistrib_problem_nbody.only_reflection;
+
+    Lmat = __redistrib_problem_nbody.Lmat;
+    Dmat = __redistrib_problem_nbody.Dmat;
+
+    support =  __redistrib_problem_nbody.support;
+
+  } else {
+
+    //
+    // Reading support type
+    //
+
+    {
+      char *s = PyString_AsString(osupport);
+
+      switch (fnv1a_32::hash(s)) {
+        case "triangles"_hash32: support = triangles; break;
+        case "vertices"_hash32: support = vertices; break;
+
+        default:
+          report_error(fname + "::This support type = " + std::string(s) + "is not supported");
+          return NULL;
+      }
+    }
+
+    //
+    // Reading geometry of the bodies
+    //
+
+    std::vector<std::vector<T3Dpoint<double>>> V(nb), N(nb);
+    std::vector<std::vector<T3Dpoint<int>>> Tr(nb);
+    std::vector<std::vector<double>> A(nb);
+
+    for (int b = 0; b < nb; ++b){
+
+      PyArray_To3DPointVector((PyArrayObject *)PyList_GetItem(oV, b), V[b]);
+      PyArray_To3DPointVector((PyArrayObject *)PyList_GetItem(oN, b), N[b]);
+      PyArray_To3DPointVector((PyArrayObject *)PyList_GetItem(oTr, b), Tr[b]);
+      PyArray_ToVector((PyArrayObject *)PyList_GetItem(oA, b), A[b]);
+    }
+
+    //
+    // Calculate redistribution matrices
+    //
+
+    struct Tlinear_edge {
+      double operator()(const double &x , const double &thresh) const {
+        if (std::abs(x) <= thresh) return 1.0 - std::abs(x)/thresh;
+        return 0.0;
+      }
+    };
 
     {
       Py_ssize_t pos;
 
       PyObject *o, *key, *value;
 
-      auto dp = Dpars.begin();
-      auto dw = Dweights.begin();
+      for (int b = 0; b < nb; ++b){
 
-      for (int b = 0; b < n; ++b){
+        std::map<fnv1a_32::hash_t, std::vector<double>> Dpars;
+        std::map<fnv1a_32::hash_t, double> Dweights;
 
         // reading redistribution model parameters
         o = PyList_GetItem(oDmod, b);
         pos = 0;
         while (PyDict_Next(o, &pos, &key, &value))
-          PyArray_ToVector((PyArrayObject*)value, (*dp)[fnv1a_32::hash(PyString_AsString(key))]);
+          PyArray_ToVector((PyArrayObject*)value, Dpars[fnv1a_32::hash(PyString_AsString(key))]);
 
         // reading weights for redistribution model
         o = PyList_GetItem(oDweight, b);
         pos = 0;
         while (PyDict_Next(o, &pos, &key, &value))
-          (*dw)[fnv1a_32::hash(PyString_AsString(key))] = PyFloat_AsDouble(value);
-        ++dp;
-        ++dw;
+          Dweights[fnv1a_32::hash(PyString_AsString(key))] = PyFloat_AsDouble(value);
+
+
+        if (!Dmat[b].init<Tlinear_edge> (support, V[b], Tr[b], N[b], A[b], Dpars, Dweights)){
+           report_error(fname + "::Redistribution matrix calculation failed");
+           return NULL;
+        }
+
+        if (!Dmat[b].is_trivial()) only_reflection = false;
       }
     }
+    //
+    // Reading LD models
+    //
 
-    // Clean list of models that need to be calculated for each objects
+    std::vector<TLDmodel<double>*> LDmod;
+
+    if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
+      report_error(fname + "::Not able to read LD models");
+      return NULL;
+    }
+
+    #if defined(DEBUG)
     {
-      auto h_none = "none"_hash32;
-
-      for (int b = 0; b < n; ++b) {
-
-        std::map<fnv1a_32::hash_t, std::vector<double>> Dpars1;
-
-        for (auto && w : Dweights[b])
-          if (w.first != h_none && w.second != 0)
-            Dpars1[w.first] = Dpars[b][w.first];
-
-        Dpars[b] = Dpars1;
-      }
+      int i = 0;
+      for (auto && pld: LDmod)
+        std::cerr << i++ << " LD:type=" << pld->type << '\n';
     }
+    #endif
 
     //
-    // If only none is used as redistribution model
-    // we internally switch to reflection
+    // Calculate view-factor matrices
     //
-    only_reflection = true;
-    for (int b = 0; b < n; ++b)
-      if (Dweights[b].size() != 0) {
-        only_reflection = false;
-        break;
-      }
 
-    __redistrib_problem_nbody.process_type = (only_reflection ? 1 : 0);
-
-
-    if (!only_reflection) {
-
-      Dmat.resize(n);
-
-      //
-      // Calculate redistribution matrices
-      //
-
-      std::vector<std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<double>>>> Dmats(n);
-
-      {
-        bool st = true;
-
-        if (0) {
-
-          for (int b = 0; st && b < n; ++b)
-            st = (support == 0 ?
-              triangle_mesh_redistribution_matrix_triangles(V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
-              triangle_mesh_redistribution_matrix_vertices(V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
-            );
-
-        } else {
-
-          struct Tlinear_edge {
-            double operator()(const double &x , const double &thresh) const {
-              if (std::abs(x) <= thresh) return 1.0 - std::abs(x)/thresh;
-              return 0.0;
-            }
-          };
-
-          for (int b = 0; st && b < n; ++b)
-            st = (support == 0 ?
-              triangle_mesh_redistribution_matrix_triangles<double, Tlinear_edge >(V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
-              triangle_mesh_redistribution_matrix_vertices<double, Tlinear_edge >(V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
-            );
-        }
-
-        if (!st) {
-          report_error(fname + "::Redistribution matrix calculation failed");
-          return NULL;
-        }
-      }
-
-      //
-      // Determine the final redistribution matrix
-      //
-      for (int b = 0; b < n; ++b)
-        if (support == 0)
-          add_sparse_matrices(Tr[b].size(), Dweights[b], Dmats[b], Dmat[b]);
-        else
-          add_sparse_matrices(V[b].size(), Dweights[b], Dmats[b], Dmat[b]);
-
-      if (__redistrib_problem_nbody.use_stored && !__redistrib_problem_nbody.redistr_stored) {
-        __redistrib_problem_nbody.Dmat = Dmat;
-        __redistrib_problem_nbody.redistr_stored = true;
-      }
-    }
-
-  } else {
-    only_reflection = (__redistrib_problem_nbody.process_type == 1);
-    if (!only_reflection) Dmat = __redistrib_problem_nbody.Dmat;
-  }
-
-  //
-  // Determine the LD view-factor matrix
-  //
-
-  std::vector<Tview_factor_nbody<double>> Fmat;
-
-  if (__redistrib_problem_nbody.use_stored && __redistrib_problem_nbody.reflect_stored)
-    Fmat = __redistrib_problem_nbody.Fmat;
-  else {
-
-    if (support == 0)
-      triangle_mesh_radiosity_matrix_triangles_nbody_convex(V, Tr, N, A, LDmod, Fmat);
+    if (support == triangles)
+      triangle_mesh_radiosity_matrix_triangles_nbody_convex(V, Tr, N, A, LDmod, Lmat);
     else
-      triangle_mesh_radiosity_matrix_vertices_nbody_convex(V, Tr, N, A, LDmod, Fmat);
+      triangle_mesh_radiosity_matrix_vertices_nbody_convex(V, Tr, N, A, LDmod, Lmat);
 
-    if (__redistrib_problem_nbody.use_stored && !__redistrib_problem_nbody.reflect_stored) {
-      __redistrib_problem_nbody.Fmat = Fmat;
-      __redistrib_problem_nbody.reflect_stored = true;
+
+    for (auto && ld: LDmod) delete ld;
+    LDmod.clear();
+
+    //
+    // storing matrices if needed
+    //
+
+    if (__redistrib_problem_nbody.use) {
+      __redistrib_problem_nbody.Lmat = Lmat;
+      __redistrib_problem_nbody.Dmat = Dmat;
+      __redistrib_problem_nbody.only_reflection = only_reflection;
+      __redistrib_problem_nbody.support = support;
+      __redistrib_problem_nbody.nb = nb;
+      __redistrib_problem_nbody.stored = true;
     }
   }
 
-  for (auto && ld: LDmod) delete ld;
-  LDmod.clear();
-
   //
-  //  Solving radiosity equations
+  // Solving the irradiation equations depending on the model
   //
-  if (!only_reflection) {
 
-    //
-    // Solving the radiosity-redistribution equation depending on the model
-    //
-    {
-      bool st = false;
+  std::vector<std::vector<double>> F1, Fout;
+  {
+    bool st = false;
 
-      char *s = PyString_AsString(omodel);
+    char *s = PyString_AsString(omodel);
 
-      switch (fnv1a_32::hash(s)) {
+    switch (fnv1a_32::hash(s)) {
 
-        case "Wilson"_hash32:
-          st = solve_radiosity_equation_with_redistribution_Wilson_nbody(Fmat, Dmat, R, F0, F1, Fout);
-        break;
+      case "Wilson"_hash32:
+        st = only_reflection ?
+          solve_radiosity_equation_Wilson_nbody(Lmat, R, F0, Fout):
+          solve_radiosity_equation_with_redistribution_Wilson_nbody(Lmat, Dmat, R, F0, F1, Fout);
+      break;
 
-        case "Horvat"_hash32:
-          st = solve_radiosity_equation_with_redistribution_Horvat_nbody(Fmat, Dmat, R, F0, F1, Fout);
-        break;
+      case "Horvat"_hash32:
+         st = only_reflection ?
+          solve_radiosity_equation_Horvat_nbody(Lmat, R, F0, Fout):
+          solve_radiosity_equation_with_redistribution_Horvat_nbody(Lmat, Dmat, R, F0, F1, Fout);
+      break;
 
-        default:
-          report_error(fname + "::This radiosity-redistribution model =" + std::string(s) + " does not exist");
-          return NULL;
-      }
-
-      if (!st) report_error(fname + "::slow convergence");
-    }
-  } else {
-
-    //
-    // Solving the radiosity equation depending on the model
-    //
-    {
-      bool st = false;
-
-      char *s = PyString_AsString(omodel);
-
-      switch (fnv1a_32::hash(s)) {
-
-        case "Wilson"_hash32:
-        st = solve_radiosity_equation_Wilson_nbody(Fmat, R, F0, Fout);
-        break;
-
-        case "Horvat"_hash32:
-        st = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, Fout);
-        break;
-
-        default:
-          report_error(fname + "::This radiosity model =" + std::string(s) + " does not exist");
-          return NULL;
-      }
-
-      if (!st) report_error(fname + "::slow convergence");
+      default:
+        report_error(fname + 
+          "::This radiosity-redistribution model =" +
+          std::string(s) + " does not exist");
+        return NULL;
     }
 
-    // nothing happens to exitance !!!!
-    F1 = F0;
+    if (only_reflection) F1 = F0;  // nothing happens to exitance !!!!
+
+    if (!st) report_error(fname + "::slow convergence");
   }
 
   PyObject *results = PyDict_New();
 
-  PyObject *oFout = PyList_New(n), *oF1 = PyList_New(n);
+  PyObject *oFout = PyList_New(nb), *oF1 = PyList_New(nb);
 
-  for (int b = 0; b < n; ++b) {
+  for (int b = 0; b < nb; ++b) {
     PyList_SetItem(oFout, b, PyArray_FromVector(Fout[b]));
     PyList_SetItem(oF1, b, PyArray_FromVector(F1[b]));
   }
@@ -7606,7 +7512,9 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
 
   return results;
 }
-
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
@@ -7845,7 +7753,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
       &PyBool_Type, &o_vnormals,
       &PyBool_Type, &o_vnormgrads,
       &max_iter)){
-        
+
     report_error("roche_reprojecting_vertices::Problem reading arguments");
     return NULL;
   }
@@ -8131,8 +8039,8 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
   positionals: necessary
     v[3] - 1-rank numpy array of floats: direction of the viewer
     omega: float - parameter of the potential
-           Note: 
-           for comparison to Roche model (a=1): omega = F sqrt(1+q), 
+           Note:
+           for comparison to Roche model (a=1): omega = F sqrt(1+q),
            for independent star of mass M : omega = angular velocity/sqrt(G M)
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
@@ -8331,7 +8239,8 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
     ok = misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, theta, max_iter);
     rotated = true;
 
-  } else if (PyArray_Check(o_misalignment)) {
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
     aligned = (s[0] == 0 && s[1] == 0);
@@ -8378,7 +8287,7 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
       ok = horizon.calc(H, view, p, dt);
     }
   }
-  
+
   if (!ok) {
     report_error(fname + "::Finding horizon failed.");
     return NULL;
@@ -8416,9 +8325,9 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
 */
 
 static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) {
-  
+
   auto fname = "roche_xrange"_s;
-  
+
   //
   // Reading arguments
   //
@@ -8439,7 +8348,7 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "dddd|i", kwlist,
       &q, &F, &d, &Omega0, &choice)){
-        
+
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
@@ -8526,9 +8435,9 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
 
 
 static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *keywds) {
-  
+
   auto fname = "roche_square_grid"_s;
-  
+
   //
   // Reading arguments
   //
@@ -9273,7 +9182,7 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
       &PyString_Type, &ofilename_planck,
       &PyString_Type, &ofilename_atm)
       ) {
-        
+
     report_error(fname + "::Problem reading arguments");
     return NULL;
   }
@@ -9407,7 +9316,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     result = wd_planckint(t, ifil, planck_table)
 
   Minimal testing script:
-  
+
     import libphoebe as lph
     import numpy as np
 
@@ -9421,9 +9330,9 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     print lph.wd_planckint(temps, 1, d["planck_table"])
 
     returns:
-    
+
     [-0.28885608  8.45013452]
-  
+
   Input:
 
   positional: necessary
@@ -9444,9 +9353,9 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
       In the case of errors in calculations ylog/entry in numpy array is NaN.
 */
 static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) {
-  
+
   auto fname = "wd_planckint"_s;
-  
+
   //
   // Reading arguments
   //
@@ -9457,7 +9366,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     (char*)"planck_table",
     NULL
   };
-   
+
   int ifil;
 
   PyObject *ot;
@@ -9468,9 +9377,9 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
         args, keywds, "OiO!", kwlist,
         &ot, &ifil, &PyArray_Type, &oplanck_table)
       ) {
-    
+
     report_error(fname + "::Problem reading arguments");
-    
+
     return NULL;
   }
 
@@ -9495,7 +9404,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     PyArray_Check(ot) &&
     PyArray_TYPE((PyArrayObject *) ot) == NPY_DOUBLE
     ) {  // argument is a numpy array of float(double)
-    
+
     int n = PyArray_DIM((PyArrayObject *)ot, 0);
 
     if (n == 0) {
@@ -9534,7 +9443,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
 
     if (!ok)
       report_error(fname + "::Failed to calculate Planck central intensity at least once");
-    
+
     return oresults;
   }
 
@@ -9675,9 +9584,9 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     abunin -  allowed value nearest to the input value.
 */
 static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
-  
+
   auto fname = "wd_atmint"_s;
-  
+
   //
   // Reading arguments
   //
