@@ -1543,7 +1543,7 @@ struct Tmarching: public Tbody {
     //  Triangulization of genus 0 surfaces
     //
     
-    T delta2 = 0.5*delta*delta;    // TODO: should be more dynamical
+    T delta2 = delta*delta; // TODO: should be more dynamical
     
     bool st_triang = true; // status whether there are to many triangles
         
@@ -1797,7 +1797,7 @@ struct Tmarching: public Tbody {
             P.erase(it_min);            
           }
         }
-
+        
         st_triang = Tr.size() < max_triangles;
         
       } while (st_triang);
