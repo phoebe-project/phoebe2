@@ -202,6 +202,9 @@ def _uniqueid(n=30):
                    string.ascii_uppercase + string.ascii_lowercase)
                    for _ in range(n))
 
+def _is_unit(unit):
+    return isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit) or isinstance(unit, u.IrreducibleUnit)
+
 
 def parameter_from_json(dictionary, bundle=None):
     """Load a single parameter from a JSON dictionary.
@@ -3210,7 +3213,7 @@ class Parameter(object):
                 return v
             elif isinstance(v, float) or isinstance(v, int) or isinstance(v, list):
                 return v
-            elif isinstance(v, u.Unit) or isinstance(v, u.CompositeUnit):
+            elif _is_unit(v):
                 return str(v.to_string())
             else:
                 try:
@@ -4267,6 +4270,13 @@ class FloatParameter(Parameter):
         elif unit is None:
             unit = u.dimensionless_unscaled
 
+        if not _is_unit(unit):
+            raise TypeError("unit must be a Unit")
+
+        if hasattr(self, '_default_unit') and self._default_unit is not None:
+            # we won't use a try except here so that the error comes from astropy
+            check_convert = self._default_unit.to(unit)
+
         self._default_unit = unit
 
     @property
@@ -4408,12 +4418,8 @@ class FloatParameter(Parameter):
         if unit is None or value is None:
             return value
         else:
-            try:
-                return value.to(unit)
-            except u.core.UnitConversionError as err:
-                raise ValueError(err)
-            except:
-                return value
+            # NOTE: astropy will raise an error if units not compatible
+            return value.to(unit)
 
     def _check_type(self, value):
         # we do this separately so that FloatArrayParameter can keep this set_value
@@ -4472,7 +4478,7 @@ class FloatParameter(Parameter):
         if isinstance(unit, str):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
-        elif unit is not None and not (isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit)):
+        elif unit is not None and not _is_unit(unit):
             raise TypeError("unit must be an phoebe.u.Unit or None, got {}".format(unit))
 
         value = self._check_type(value)
@@ -5582,10 +5588,17 @@ class ConstraintParameter(Parameter):
         """
 
         """
-        # TODO: check to make sure isinstance(unit, astropy.units.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
         if isinstance(unit, str) or isinstance(unit, unicode):
             unit = u.Unit(str(unit))
+
+        if not _is_unit(unit):
+            raise TypeError("unit must be a Unit")
+
+        if hasattr(self, '_default_unit') and self._default_unit is not None:
+            # we won't use a try except here so that the error comes from astropy
+            check_convert = self._default_unit.to(unit)
+
 
         self._default_unit = unit
 
@@ -5677,7 +5690,7 @@ class ConstraintParameter(Parameter):
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
             return ConstraintParameter(self._bundle, "(%s) %s %f" % (self.expr, symbol, other.si.value), default_unit=(getattr(self.result, mathfunc)(other).unit))
-        elif (isinstance(other, u.Unit) or isinstance(other, u.CompositeUnit) or isinstance(other, u.IrreducibleUnit)) and mathfunc=='__mul__':
+        elif _is_unit(other) and mathfunc=='__mul__':
             # here we'll fake the unit to become a quantity so that we still return a ConstraintParameter
             return self*(1*other)
         else:
@@ -5701,7 +5714,7 @@ class ConstraintParameter(Parameter):
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
             return ConstraintParameter(self._bundle, "%f %s (%s)" % (other.si.value, symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other).unit))
-        elif (isinstance(other, u.Unit) or isinstance(other, u.CompositeUnit) or isinstance(other, u.IrreducibleUnit)) and mathfunc=='__mul__':
+        elif _is_unit(other) and mathfunc=='__mul__':
             # here we'll fake the unit to become a quantity so that we still return a ConstraintParameter
             return self*(1*other)
         else:
@@ -5897,6 +5910,9 @@ class ConstraintParameter(Parameter):
         self._kind = newly_constrained_param.kind
 
         self._value = str(expression)
+        # reset the default_unit so that set_default_unit doesn't complain
+        # about incompatible units
+        self._default_unit = None
         self.set_default_unit(newly_constrained_param.default_unit)
 
         self._update_bookkeeping()
