@@ -1243,7 +1243,7 @@ class Bundle(ParameterSet):
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol
         for component in self.hierarchy.get_stars():
-            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.k)
+            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K)
             gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component')
 
             if teff >= 8000. and gravb_bol < 0.9:

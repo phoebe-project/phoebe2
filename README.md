@@ -62,6 +62,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.0.6 - unit conversion hotfix
+
+* When requesting unit conversion from the frontend, astropy will now raise an error if the units are not compatible.
+
 ### 2.0.5 - semi-detached hotfix
 
 * Fixed bug in which importing a PHOEBE legacy file of a semi-detached system failed to set the correct potential for the star filling its roche lobe.  This only affects the importer itself.
