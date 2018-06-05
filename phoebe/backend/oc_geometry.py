@@ -167,7 +167,7 @@ def project_onto_potential(r, pot_name, *args):
 
     return MeshVertex(r, dpdx, dpdy, dpdz, *args[:-1])
 
-def nekmin(omega_in,q,x0=0.5,y0=0.05,z0=0.5):
+def nekmin(omega_in,q,x0=0.5,z0=0.5):
 
     '''Computes the position of the neck (minimal radius) in an contact_binary star1'''
 
