@@ -167,7 +167,7 @@ def project_onto_potential(r, pot_name, *args):
 
     return MeshVertex(r, dpdx, dpdy, dpdz, *args[:-1])
 
-def nekmin(omega_in,q,x0=0.5,y0=0.05,z0=0.5):
+def nekmin(omega_in,q,x0=0.5,z0=0.5):
 
     '''Computes the position of the neck (minimal radius) in an contact_binary star1'''
 
@@ -201,9 +201,7 @@ def nekmin(omega_in,q,x0=0.5,y0=0.05,z0=0.5):
     def d2Omegadxdy(q,x,y):
             return 3*x*y/(x**2+y**2)**(5./2)-3*q*x*(1-x)/((1-x)**2+y**2)**(5./2)
 
-    xy,y = x0,y0
     xz,z = x0,z0
-    dxy, dy = 1.,1.
     dxz, dz = 1.,1.
 
     # find solution in xz plane
@@ -236,37 +234,7 @@ def nekmin(omega_in,q,x0=0.5,y0=0.05,z0=0.5):
                     dxz = 1.
                     dz = 1.
 
-    # find solution in xy plane
-    while abs(dxy)>1e-8 and abs(dy)>1e-8:
-
-            dely = 1.
-            y=0.05
-            while abs(dely) > 0.000001:
-                    delom = omega_in - Omega_xy(q,xy,y)
-                    dely = delom/dOmegady(q,xy,y)
-                    y = abs(y+dely)
-
-            DN = np.array([[dOmegadx_y(q,xy,y),dOmegady(q,xy,y)],[d2Omegadx2_y(q,xy,y),d2Omegadxdy(q,xy,y)]])
-            EN = np.array([omega_in-Omega_xy(q,xy,y),(-1)*dOmegadx_y(q,xy,y)])
-
-            a,b,c,d = DN[0][0],DN[0][1],DN[1][0],DN[1][1]
-
-            if (a*d-b*c)!=0.:
-                    DNINV = 1./(a*d-b*c)*np.array([[d,(-1)*b],[(-1)*c,d]])
-                    #DNINV = inv(DN)
-
-                    dd = np.dot(DNINV,EN)
-                    dxy,dy = dd[0],dd[1]
-                    # print dxy,dy
-                    xy=xy+dxy
-                    y=y+dy
-            else:
-                    xy = xy+0.5
-                    y = y+0.5
-                    dxy = 1.
-                    dy = 1.
-
-    return xy,xz,y,z
+    return xz,z
 
 def compute_frac_areas(new_mesh,xmin):
 
