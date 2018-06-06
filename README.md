@@ -62,6 +62,16 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.0.8 - contacts hotfix
+
+* Remove unused Parameters from the Bundle
+* Improvement in finding the boundary between the two components of a contact system
+
+### 2.0.7 - legacy import/export hotfix
+
+* Handle missing parameters when importing/exporting so that a Bundle exported to a PHOEBE legacy file can successfully be reimported
+* Handle importing standard weight from datasets and converting to sigma
+
 ### 2.0.6 - unit conversion hotfix
 
 * When requesting unit conversion from the frontend, astropy will now raise an error if the units are not compatible.

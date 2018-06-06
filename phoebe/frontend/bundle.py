@@ -1083,10 +1083,14 @@ class Bundle(ParameterSet):
         # Check if the component is primary or secondary; if the
         # latter, flip q and transform pot.
         comp = hier.get_primary_or_secondary(component, return_ind=True)
-        q = roche.q_for_component(q, comp)
 
-        F = comp_ps.get_value('syncpar', **kwargs)
-        d = 1 - parent_ps.get_value('ecc', **kwargs)
+        if kind == 'envelope':
+            F = 1.
+            d = 1.
+        else:
+            q = roche.q_for_component(q, comp)
+            F = comp_ps.get_value('syncpar', **kwargs)
+            d = 1 - parent_ps.get_value('ecc', **kwargs)
 
         # TODO: this needs to be generalized once other potentials are supported
         critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=L1, L2=L2, L3=L3, style=1)
