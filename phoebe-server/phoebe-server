@@ -238,7 +238,7 @@ def _value_string(param):
     else:
         return '({})'.format(param_type)
 
-def _params(b, includeids=[], check_visible=True, check_default=False,
+def _params(b, ps=None, includeids=[], check_visible=True, check_default=False,
             check_advanced=False, check_single=False,
             subtract_constraint=False, sort_by='qualifier', exclude_model=False,
             **filter_):
@@ -289,8 +289,16 @@ def _params(b, includeids=[], check_visible=True, check_default=False,
         else:
             return None
 
-    ps = b.filter(check_visible=check_visible, check_default=check_default,
-                  check_advanced=check_advanced, check_single=check_single, **filter_)
+
+    if ps is None:
+        ps = b.filter(check_visible=check_visible, check_default=check_default,
+                      check_advanced=check_advanced, check_single=check_single, **filter_)
+    elif isinstance(ps, list):
+        ps = phoebe.ParameterSet(ps)
+    elif isinstance(ps, phoebe.Parameter):
+        ps = phoebe.ParameterSet([ps])
+    elif not isinstance(ps, phoebe.ParameterSet):
+        raise TypeError("ps must be of type ParameterSet not {}".format(type(ps)))
 
     if subtract_constraint:
         ps -= ps.filter(context='constraint')
@@ -309,7 +317,7 @@ def _params(b, includeids=[], check_visible=True, check_default=False,
         for p in ps.to_list():
             typ = p.__class__.__name__
             pdict = {'twig': p.uniquetwig, 'uniqueid': p.uniqueid, 'valuestr': _value_string(p), 'type': typ, 'attributes': {'value': _value(p, exclude_model=exclude_model)}}
-
+            pdict['meta'] = p.meta
             pdict['readonly'] = p.context in ['model'] or p.qualifier in ['phoebe_version']
 
             pdict['choices'] = _choices(p)
@@ -691,7 +699,7 @@ def bundle_method(msg):
             print("running b.{}(*{}, **{})".format(fctn, args, method_kwargs))
         params = getattr(b, fctn)(*args, **method_kwargs)
 
-        print "***", params
+        # print "***", params
 
         # handle the case where there are no changes by mocking an empty PS
         if params is None:
@@ -709,7 +717,9 @@ def bundle_method(msg):
         # print("params.meta", params.meta)
 
         newparamsfilter = {k: [v] for k,v in params.meta.items() if v is not None and k not in ['twig', 'uniquetwig']}
-        changes, nparams = _params(b, **newparamsfilter)
+        # print "*** newparamsfilter", newparamsfilter
+        changes, nparams = _params(b, ps=params)
+        # print "*** changes", changes
 
         if 'add_' in fctn or 'run_' in fctn:
             if 'run_' in fctn:

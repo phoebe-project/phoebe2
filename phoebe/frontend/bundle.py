@@ -449,25 +449,27 @@ class Bundle(ParameterSet):
         # TODO: handle added parameters
         # TODO: handle removed (isDeleted) parameters
 
-        for uniqueid, info in resp['data']['changes'].items():
-            if uniqueid in self.uniqueids:
-                # then we're updating something in the parameter (or deleting)
-                param = self.get_parameter(uniqueid=uniqueid)
-                for attr, value in info['attributes'].items():
-                    if hasattr(param, "_{}".format(attr)):
-                        logger.info("updates from server: setting {}@{}={}".
-                                    format(attr, param.twig, value))
+        # print "*** resp['data']['changes']", resp['data']['changes']
+        for qualifier, infos in resp['data']['changes'].items():
+            for uniqueid, info in infos.items():
+                if uniqueid in self.uniqueids:
+                    # then we're updating something in the parameter (or deleting)
+                    param = self.get_parameter(uniqueid=uniqueid)
+                    for attr, value in info.get('attributes', {}).items():
+                        if hasattr(param, "_{}".format(attr)):
+                            logger.info("updates from server: setting {}@{}={}".
+                                        format(attr, param.twig, value))
 
-                        # we cannot call param.set_value because that will
-                        # emit another signal to the server.  So we do need
-                        # to hardcode some special cases here
-                        if isinstance(value, dict):
-                            if 'nphelper' in value.keys():
-                                value = nphelpers.from_json(value)
+                            # we cannot call param.set_value because that will
+                            # emit another signal to the server.  So we do need
+                            # to hardcode some special cases here
+                            if isinstance(value, dict):
+                                if 'nphelper' in value.keys():
+                                    value = nphelpers.from_json(value)
 
-                        setattr(param, "_{}".format(attr), value)
-            else:
-                self._attach_param_from_server(info)
+                            setattr(param, "_{}".format(attr), value)
+                else:
+                    self._attach_param_from_server(info)
 
     def _attach_param_from_server(self, item):
         """
@@ -478,8 +480,20 @@ class Bundle(ParameterSet):
                 self._attach_param_from_server(itemi)
         else:
             # then we need to add a new parameter
-            d = item['attributes']
-            d['uniqueid'] = item['id']
+            d = item
+
+            d['Class'] = d.pop('type')
+            for attr, value in d.pop('attributes', {}).items():
+                d[attr] = value
+            for tag, value in d.pop('meta', {}).items():
+                d[tag] = value
+
+            _dump = d.pop('readonly', None)
+            _dump = d.pop('valuestr', None)
+            _dump = d.pop('twig', None)
+            _dump = d.pop('valueunit', None)  # TODO: may need to account for unit?
+
+            # print "*** _attach_param_from_server", d
             param = parameters.parameter_from_json(d, bundle=self)
 
             metawargs = {}
