@@ -198,7 +198,7 @@ def lp_syn(syn=True, **kwargs):
         syn_params += [FloatArrayParameter(qualifier='wavelengths',  time=time, value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
         syn_params += [FloatArrayParameter(qualifier='flux_densities', time=time, value=_empty_array(kwargs, 'flux_densities'), default_unit=u.W/(u.m**2*u.nm), description='Flux density per wavelength (must be same length as wavelengths or empty)')]
         if not syn:
-            syn_params += [FloatArrayParameter(qualifier='sigmas', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on flux_densities')]
+            syn_params += [FloatArrayParameter(qualifier='sigmas', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
 
     constraints = []
 
