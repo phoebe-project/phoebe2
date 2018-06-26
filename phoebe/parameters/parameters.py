@@ -114,6 +114,7 @@ _forbidden_labels = deepcopy(_meta_fields_all)
 _forbidden_labels += _contexts
 _forbidden_labels += ['lc', 'lc_dep', 'lc_syn',
                       'rv', 'rv_dep', 'rv_syn',
+                      'lp', 'lp_dep', 'lp_syn',
                       'sp', 'sp_dep', 'sp_syn',
                       'orb', 'orb_dep', 'orb_syn',
                       'mesh', 'mesh_dep', 'mesh_syn']
