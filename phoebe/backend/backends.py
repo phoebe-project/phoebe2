@@ -160,7 +160,9 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
         dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, check_visible=False)
         dataset_kind = dataset_ps.exclude(kind='*_dep').kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
-        if dataset_kind in ['lc']:
+        if dataset_kind in ['lc', 'lp']:
+            # then the Parameters in the model only exist at the system-level
+            # and are not tagged by component
             dataset_components = [None]
         else:
             dataset_components = b.hierarchy.get_stars()
@@ -571,14 +573,39 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             kind = info['kind']
 
             # now check the kind to see what we need to fill
-            if kind=='rv':
+            if kind=='lp':
+                profile_func = b.get_value(qualifier='profile_func', dataset=info['dataset'], context='dataset')
+                profile_rest = b.get_value(qualifier='profile_rest', dataset=info['dataset'], context='dataset')
+                profile_sv = b.get_value(qualifier='profile_sv', dataset=info['dataset'], context='dataset')  # UNITS???
+                wavelengths = b.get_value(qualifier='wavelengths', time=time, dataset=info['dataset'], context='dataset', unit=u.nm)
+
+                obs = system.observe(info['dataset'],
+                                     kind=kind,
+                                     component=info['component'],
+                                     profile_func=profile_func,
+                                     profile_rest=profile_rest,
+                                     profile_sv=profile_sv,
+                                     wavelengths=wavelengths)
+
+                packetlist.append(make_packet('wavelengths',
+                                              wavelengths*u.nm,
+                                              time, info))
+
+                packetlist.append(make_packet('flux_densities',
+                                              obs['flux_densities']*u.W/(u.m**2*u.nm),
+                                              time, info))
+            elif kind=='rv':
                 ### this_syn['times'].append(time) # time array was set when initializing the syns
                 if info['needs_mesh']:
                     # TODO: we have to call get here because twig access will trigger on kind=rv and qualifier=rv
                     # print "***", this_syn.filter(qualifier='rv').twigs, this_syn.filter(qualifier='rv').kinds, this_syn.filter(qualifier='rv').components
                     # if len(this_syn.filter(qualifier='rv').twigs)>1:
                         # print "***2", this_syn.filter(qualifier='rv')[1].kind, this_syn.filter(qualifier='rv')[1].component
-                    rv = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance)['rv']
+                    obs = system.observe(info['dataset'],
+                                         kind=kind,
+                                         components=info['component'])
+
+                    rv = obs['rv']
                 else:
                     # then rv_method == 'dynamical'
                     rv = -1*vzi[cind]
@@ -590,8 +617,14 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             elif kind=='lc':
                 l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
 
+                obs = system.observe(info['dataset'],
+                                     kind=kind,
+                                     components=info['component'],
+                                     distance=distance,
+                                     l3=l3)
+
                 packetlist.append(make_packet('fluxes',
-                                              system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance, l3=l3)['flux']*u.W/u.m**2,
+                                              obs['flux']*u.W/u.m**2,
                                               time, info))
 
             elif kind=='etv':

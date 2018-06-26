@@ -440,7 +440,7 @@ class System(object):
         return horizon
 
 
-    def observe(self, dataset, kind, components=None, distance=1.0, l3=0.0):
+    def observe(self, dataset, kind, components=None, distance=1.0, l3=0.0, **kwargs):
         """
         TODO: add documentation
 
@@ -450,7 +450,47 @@ class System(object):
         """
 
         meshes = self.meshes
-        if kind=='rv':
+        if kind=='lp':
+            def sv(p, p0, w):
+                # Subsidiary variable:
+                return (p0-p)/(w/2)
+
+            def lorentzian(sv):
+                return 1-1./(1+sv**2)
+
+            def gaussian(sv):
+                return 1-np.exp(-np.log(2)*sv**2)
+
+            visibilities = meshes.get_column_flat('visibilities', components)
+
+            abs_intensities = meshes.get_column_flat('abs_intensities:{}'.format(dataset), components)
+            # mus here will be from the tnormals of the triangle and will not
+            # be weighted by the visibility of the triangle
+            mus = meshes.get_column_flat('mus', components)
+            areas = meshes.get_column_flat('areas_si', components)
+            ldint = meshes.get_column_flat('ldint:{}'.format(dataset), components)
+
+            dls = meshes.get_column_flat("dls:{}".format(dataset), components)
+
+            profile_func = kwargs.get('profile_func')
+            profile_rest = kwargs.get('profile_rest')
+            profile_sv = kwargs.get('profile_sv')
+            wavelengths = kwargs.get('wavelengths')
+            if profile_func == 'gaussian':
+                func = gaussian
+            elif profile_func == 'lorentzian':
+                func = lorentzian
+            else:
+                raise NotImplementedError("profile_func='{}' not supported".format(profile_func))
+
+            line = func(sv(wavelengths, profile_rest, profile_sv))
+            lines = np.array([np.interp(wavelengths, wavelengths+dl, line) for dl in dls])
+            avg_line = np.average(lines, axis=0, weights=abs_intensities*areas*mus*ldint*visibilities)
+
+            return {'flux_densities': avg_line}
+
+
+        elif kind=='rv':
             visibilities = meshes.get_column_flat('visibilities', components)
 
             if np.all(visibilities==0):
@@ -1085,7 +1125,7 @@ class Star(Body):
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
         ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
-        lp_profile_rest = {ds: b.get_value('profile_rest', dataset=ds, **kwargs) for ds in datasets_lp}
+        lp_profile_rest = {ds: b.get_value('profile_rest', dataset=ds, unit=u.nm, **kwargs) for ds in datasets_lp}
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
         # of any subclass and then intercepted again by the __init__ by the
@@ -1443,7 +1483,8 @@ class Star(Body):
         rv_cols = self._populate_rv(dataset, **kwargs)
 
         cols = rv_cols
-        cols['dls'] = rv_cols['rvs']*profile_rest/c.c
+        rvs = (rv_cols['rvs']*u.solRad/u.d).to(u.m/u.s).value
+        cols['dls'] = rv_cols['rvs']*profile_rest/c.c.si.value
 
         return cols
 
