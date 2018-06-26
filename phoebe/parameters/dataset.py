@@ -36,8 +36,8 @@ lc_columns += ['pblum', 'ptfarea']
 rv_columns = lc_columns[:]
 rv_columns += ['rvs']
 
-lp_columns = lc_columns[:]
-lp_columns += ['rvs']
+lp_columns = rv_columns[:]
+lp_columns += ['dls']
 
 
 _pbdep_columns = {'lc': lc_columns,

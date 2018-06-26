@@ -930,6 +930,7 @@ class Star(Body):
 
                  atm, datasets, passband, intens_weighting,
                  ld_func, ld_coeffs,
+                 lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
@@ -971,6 +972,7 @@ class Star(Body):
         self.intens_weighting = intens_weighting
         self.ld_coeffs = ld_coeffs
         self.ld_func = ld_func
+        self.lp_profile_rest = lp_profile_rest
 
         # Let's create a dictionary to handle how each dataset should scale between
         # absolute and relative intensities.
@@ -1074,7 +1076,8 @@ class Star(Body):
         else:
             do_mesh_offset = True
 
-        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv'], context='dataset').datasets if ds != '_default']
+        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
+        datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
         atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
         passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
@@ -1082,6 +1085,7 @@ class Star(Body):
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
         ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
+        lp_profile_rest = {ds: b.get_value('profile_rest', dataset=ds, **kwargs) for ds in datasets_lp}
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
         # of any subclass and then intercepted again by the __init__ by the
@@ -1099,6 +1103,7 @@ class Star(Body):
                    intens_weighting,
                    ld_func,
                    ld_coeffs,
+                   lp_profile_rest,
                    requiv,
                    sma,
                    polar_direction_uvw,
@@ -1426,6 +1431,22 @@ class Star(Body):
 
         return self._ptfarea[dataset]
 
+    def _populate_lp(self, dataset, **kwargs):
+        """
+        Populate columns necessary for an LP dataset
+
+        This should not be called directly, but rather via :meth:`Body.populate_observable`
+        or :meth:`System.populate_observables`
+        """
+        profile_rest = kwargs.get('profile_rest', self.lp_profile_rest.get(dataset))
+
+        rv_cols = self._populate_rv(dataset, **kwargs)
+
+        cols = rv_cols
+        cols['dls'] = rv_cols['rvs']*profile_rest/c.c
+
+        return cols
+
     def _populate_rv(self, dataset, **kwargs):
         """
         Populate columns necessary for an RV dataset
@@ -1569,6 +1590,7 @@ class Star_roche(Star):
 
                  atm, datasets, passband, intens_weighting,
                  ld_func, ld_coeffs,
+                 lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
@@ -1590,6 +1612,7 @@ class Star_roche(Star):
 
                                          atm, datasets, passband, intens_weighting,
                                          ld_func, ld_coeffs,
+                                         lp_profile_rest,
                                          requiv, sma,
                                          polar_direction_uvw,
                                          freq_rot,
@@ -1745,6 +1768,7 @@ class Star_rotstar(Star):
 
                  atm, datasets, passband, intens_weighting,
                  ld_func, ld_coeffs,
+                 lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
@@ -1765,6 +1789,7 @@ class Star_rotstar(Star):
 
                                            atm, datasets, passband, intens_weighting,
                                            ld_func, ld_coeffs,
+                                           lp_profile_rest,
                                            requiv, sma,
                                            polar_direction_uvw,
                                            freq_rot,
@@ -1891,9 +1916,11 @@ class Star_rotstar(Star):
 
 class Star_sphere(Star):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, do_mesh_offset, mesh_init_phi,
+                 long_an, t0, do_mesh_offset, mesh_init_phi,
 
+                 atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs,
+                 lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
                  freq_rot,
@@ -1910,19 +1937,21 @@ class Star_sphere(Star):
         # NOTHING EXTRA FOR SPHERE AT THE MOMENT
 
         super(Star_sphere, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                                         long_an, t0, atm, datasets, passband, intens_weighting,
-                                         ld_func, ld_coeffs,
-                                         do_mesh_offset, mesh_init_phi,
+                                          long_an, t0,
+                                          do_mesh_offset, mesh_init_phi,
 
-                                         requiv, sma,
-                                         polar_direction_uvw,
-                                         freq_rot,
-                                         teff, gravb_bol, abun,
-                                         irrad_frac_refl,
-                                         mesh_method, is_single,
-                                         do_rv_grav,
-                                         features,
-                                         **kwargs)
+                                          atm, datasets, passband, intens_weighting,
+                                          ld_func, ld_coeffs,
+                                          lp_profile_rest,
+                                          requiv, sma,
+                                          polar_direction_uvw,
+                                          freq_rot,
+                                          teff, gravb_bol, abun,
+                                          irrad_frac_refl,
+                                          mesh_method, is_single,
+                                          do_rv_grav,
+                                          features,
+                                          **kwargs)
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
