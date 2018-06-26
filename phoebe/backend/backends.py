@@ -60,7 +60,7 @@ def _needs_mesh(b, dataset, kind, component, compute):
         # then we don't have meshes for this backend, so all should be False
         return False
 
-    if kind not in ['mesh', 'lc', 'rv']:
+    if kind not in ['mesh', 'lc', 'rv', 'lp']:
         return False
 
     if kind == 'lc' and compute_kind=='phoebe' and b.get_value(qualifier='lc_method', compute=compute, dataset=dataset, context='compute')=='analytical':
@@ -85,7 +85,9 @@ def _expand_mesh_times(b, dataset_ps, component):
             add_timequalifier = _timequalifier_by_kind(add_ps.kind)
             add_ps_components = add_ps.filter(qualifier=add_timequalifier).components
             # print "*** add_ps_components", add_dataset, add_ps_components
-            if len(add_ps_components):
+            if len(add_ps.times):
+                add_times = np.array([float(t) for t in add_ps.times])
+            elif len(add_ps_components):
                 # then we need to concatenate over all components_
                 # (times@rv@primary and times@rv@secondary are not necessarily
                 # identical)
@@ -178,7 +180,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 this_times = [float(t) for t in dataset_ps.times]
             else:
                 timequalifier = _timequalifier_by_kind(dataset_kind)
-                timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
+                timecomponent = component if dataset_kind not in ['mesh', 'lc', 'lp'] else None
                 # print "*****", dataset_kind, dataset_ps.kinds, timequalifier, timecomponent
                 this_times = dataset_ps.get_value(qualifier=timequalifier, component=timecomponent, unit=u.d)
 
@@ -413,7 +415,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     datasets = enabled_ps.datasets
     kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
 
-    if 'lc' in kinds or 'rv' in kinds:  # TODO this needs to be WAY more general
+    if 'lc' in kinds or 'rv' in kinds or 'sp' in kinds:  # TODO this needs to be WAY more general
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
@@ -899,7 +901,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                                                       dataset=mesh_dataset,
                                                       component=info['component']))
 
-                    for indep in ['rvs', 'intensities', 'normal_intensities',
+                    for indep in ['rvs', 'dls',
+                                  'intensities', 'normal_intensities',
                                   'abs_intensities', 'abs_normal_intensities',
                                   'boost_factors', 'ldint']:
 

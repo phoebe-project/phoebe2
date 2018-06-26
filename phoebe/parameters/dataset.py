@@ -467,6 +467,8 @@ def mesh_syn(syn=True, **kwargs):
             # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
 
             for dataset in mesh_datasets:
+                if 'dls@{}'.format(dataset) in columns:
+                    syn_params += [FloatArrayParameter(qualifier='dls', dataset=dataset, time=t, value=[], default_unit=u.nm, description='Per-element delta-lambda caused by doppler shift'.format(dataset))]
                 if 'rvs@{}'.format(dataset) in columns:
                     syn_params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.solRad/u.d, description='Per-element value of rvs for {} dataset'.format(dataset))]
                 if 'intensities@{}'.format(dataset) in columns:
