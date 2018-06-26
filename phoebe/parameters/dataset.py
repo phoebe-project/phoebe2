@@ -36,9 +36,13 @@ lc_columns += ['pblum', 'ptfarea']
 rv_columns = lc_columns[:]
 rv_columns += ['rvs']
 
+lp_columns = lc_columns[:]
+lp_columns += ['rvs']
+
 
 _pbdep_columns = {'lc': lc_columns,
-                  'rv': rv_columns}
+                  'rv': rv_columns,
+                  'lp': lp_columns}
 
 def _empty_array(kwargs, qualifier):
     if qualifier in kwargs.keys():
@@ -157,6 +161,60 @@ def rv_dep(**kwargs):
 
     dep_params += lc_dep(is_lc=False, **kwargs).to_list()
 
+
+    return ParameterSet(dep_params)
+
+def lp(**kwargs):
+    """
+    Create parameters for a new line profile dataset.
+
+    Generally, this will be used as an input to the kind argument in
+    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+
+    :parameter **kwargs: defaults for the values of any of the parameters
+    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
+        created :class:`phoebe.parameters.parameters.Parameter`s
+    """
+
+    obs_params = []
+
+    #obs_params += [FloatParameter(qualifier='statweight', value = kwargs.get('statweight', 1.0), default_unit=u.dimensionless_unscaled, description='Statistical weight in overall fitting')]
+    syn_params, constraints = lp_syn(syn=False, **kwargs)
+    obs_params += syn_params.to_list()
+    #obs_params += rv_dep(**kwargs).to_list()
+
+    return ParameterSet(obs_params), constraints
+
+def lp_syn(syn=True, **kwargs):
+    """
+    """
+
+    times = kwargs.get('times', [])
+
+    syn_params = []
+
+    # syn_params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Observed times')]
+    for time in times:
+        syn_params += [FloatArrayParameter(qualifier='wavelengths',  time=time, value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
+        syn_params += [FloatArrayParameter(qualifier='flux_densities', time=time, value=_empty_array(kwargs, 'flux_densities'), default_unit=u.nm, description='Flux density per wavelength (must be same length as wavelengths or empty)')]
+        if not syn:
+            syn_params += [FloatArrayParameter(qualifier='sigmas', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on flux_densities')]
+
+    constraints = []
+
+    return ParameterSet(syn_params), constraints
+
+def lp_dep(**kwargs):
+    """
+    """
+
+    dep_params = []
+
+    dep_params += lc_dep(is_lc=False, **kwargs).to_list()
+
+    dep_params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
+    dep_params += [FloatParameter(qualifier='profile_rest', value=kwargs.get('profile_rest', 550), default_unit=u.nm, limits=(0, None), description='Rest central wavelength of the profile')]
+    dep_params += [FloatParameter(qualifier='profile_sv', value=kwargs.get('profile_sv', 1e-4), default_unit=u.dimensionless_unscaled, limits=(0, None), description='Subsidiary variable of the profile')]
 
     return ParameterSet(dep_params)
 

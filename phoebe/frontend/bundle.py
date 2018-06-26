@@ -1796,7 +1796,15 @@ class Bundle(ParameterSet):
         obs_metawargs = {'context': 'dataset',
                          'kind': kind,
                          'dataset': kwargs['dataset']}
-        obs_params, constraints = func()
+
+        if kind in ['lp']:
+            # then times needs to be passed now to duplicate and tag the Parameters
+            # correctly
+            obs_kwargs = {'times': kwargs.pop('times', [])}
+        else:
+            obs_kwargs = {}
+
+        obs_params, constraints = func(**obs_kwargs)
         self._attach_params(obs_params, **obs_metawargs)
 
         for constraint in constraints:
