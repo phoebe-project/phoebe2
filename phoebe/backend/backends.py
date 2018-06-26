@@ -170,6 +170,10 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 this_times = provided_times
             elif dataset_kind == 'mesh':
                 this_times = _expand_mesh_times(b, dataset_ps, component)
+            elif dataset_kind in ['lp']:
+                # then we have Parameters tagged by times, this will probably
+                # also apply to spectra.
+                this_times = [float(t) for t in dataset_ps.times]
             else:
                 timequalifier = _timequalifier_by_kind(dataset_kind)
                 timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
@@ -185,8 +189,6 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                         # mesh_times = _expand_mesh_times(b, mesh_obs_ps, component=None)
                         # this_times = np.unique(np.append(this_times, mesh_times))
 
-            # TODO: also copy this logic for _extract_from_bundle_by_dataset if
-            # we decide to support oversamling with other backends
             if allow_oversample and \
                     dataset_kind in ['lc'] and \
                     b.get_value(qualifier='exptime', dataset=dataset, check_visible=False) > 0 and \
