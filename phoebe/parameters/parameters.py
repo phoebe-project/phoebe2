@@ -2239,6 +2239,11 @@ class ParameterSet(object):
             yqualifier = kwargs.get('y', 'rvs')
             zqualifier = kwargs.get('z', 0)
             timequalifier = 'times'
+        elif ps.kind in ['lp', 'lp_syn']:
+            xqualifier = kwargs.get('x', 'wavelengths')
+            yqualifier = kwargs.get('y', 'flux_densities')
+            zqualifier = kwargs.get('z', 'flux_densities')
+            timequalifier = 'times'
         elif ps.kind in ['etv', 'etv_syn']:
             xqualifier = kwargs.get('x', 'time_ecls')
             yqualifier = kwargs.get('y', 'etvs')
@@ -2298,7 +2303,7 @@ class ParameterSet(object):
         # If the user provides unit(s), they can either give the unit object or
         # the string representation, so long as get_value(unit) succeeds
         # xunit = kwargs.get('xunit', xparam.default_unit)
-        if ps.kind in ['mesh', 'mesh_syn']:  # TODO: add sp and sp_syn
+        if ps.kind in ['mesh', 'mesh_syn', 'lp', 'lp_syn']:  # TODO: add sp and sp_syn
             # then we're plotting at a single time so the time array doesn't
             # really make sense (we won't be able to plot anything vs phase or
             # color by time/phase)
