@@ -1229,6 +1229,8 @@ def init_passband(fullpath):
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
     _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.atmlist, 'pb': None}
+    del pb
+
 
 def init_passbands(refresh=False):
     """
