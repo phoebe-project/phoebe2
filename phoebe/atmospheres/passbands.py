@@ -45,6 +45,12 @@ else:
 if not os.path.exists(_pbdir_local):
     logger.info("creating directory {}".format(_pbdir_local))
     os.makedirs(_pbdir_local)
+    
+if not os.getenv('PHOEBE_PBDIR','False')=='False':
+    _pbdir_env = os.getenv('PHOEBE_PBDIR')
+else:
+    _pbdir_env = None
+	
 
 
 class Passband:
@@ -1229,8 +1235,6 @@ def init_passband(fullpath):
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
     _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.atmlist, 'pb': None}
-    del pb
-
 
 def init_passbands(refresh=False):
     """
@@ -1256,6 +1260,14 @@ def init_passbands(refresh=False):
                 if f=='README':
                     continue
                 init_passband(path+f)
+        
+        #Check if _pbdir_env has been set and load those passbands too
+        if not _pbdir_env == None:
+            for path in [_pbdir_env]:
+                for f in os.listdir(path):
+                    if f=='README':
+                        continue
+                    init_passband(path+f)                    
 
         _initialized = True
 
