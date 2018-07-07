@@ -755,51 +755,47 @@ template<class T>
     
     Input:
       r - radial distance 
-      theta - azimuthal angle 
-      phi - polar angle
+      sc_theta - sinus and cosine azimuthal angle 
+      sc_phi - sinus and cosine polar angle
       q - mass ratio M2/M1
       b = F^2 d^3 - 
-      th - angle between z axis in spin of the object in [0, pi]
-           spin in plane (x, z) 
+      sc_th - sinus and cosine angle between z axis in spin of the object in [0, pi]
+              spin in plane (x, z) 
     Output:
       W[3] = {Wr, Wtheta, Wphi}
       
   */ 
+  
+  
   template <class T> void calc_dOmega(
     unsigned mask,
     T W[3],
-    const T &r,
-    const T &theta,
-    const T &phi,
+    const T r[2],
+    const T sc_nu[2],
+    const T sc_phi[2],
     const T &q,
     const T &b,
-    const T &th
+    const T sc_th[2]
   ){
     
-    T st, ct, 
-      sp, cp,
-      s1, c1, 
-      r2 = r*r;
-    
-    utils::sincos(theta, &st, &ct);
-    utils::sincos(phi, &sp, &cp);
-    utils::sincos(th, &s1, &c1);
-    
-    T t1 = c1*cp*st - ct*s1, 
-      t2 = c1*cp*ct + st*s1, 
-      t3 = std::pow(1 + 2*r*t1 + r2, -1.5);
+    T t = sc_th[1]*sc_phi[1],
+      t1 = t*sc_nu[0] - sc_nu[1]*sc_th[0], 
+      t2 = t*sc_nu[1] + sc_nu[0]*sc_th[0], 
+      t3 = 1/(1 + 2*r[0]*t1 + r[1]);
+      
+    t3 *= std::sqrt(t3);
       
     // partial_r W
     if ((mask & 1U) == 1U) 
-      W[0] = -1/r2 + b*r*st*st + q*(t1 - t3*(r + t1));
+      W[0] = -1/r[1] + b*r[0]*sc_nu[0]*sc_nu[0] + q*(t1 - t3*(r[0] + t1));
         
     // partial_theta W
     if ((mask & 2U) == 2U) 
-      W[1] = r*(r*b*ct*st - q*t2*(-1 + t3));
+      W[1] = r[0]*(r[0]*b*sc_nu[1]*sc_nu[0] - q*t2*(-1 + t3));
    
     // partial_phi W
     if ((mask & 4U) == 4U) 
-      W[2] = q*r*c1*sp*st*(-1 + t3);
+      W[2] = q*r[0]*sc_th[1]*sc_phi[0]*sc_nu[0]*(-1 + t3);
   }
   
   //
@@ -812,6 +808,9 @@ template<class T>
   // Gauss-Lagrange nodes x_i in [0, Pi] 
   const double glq_phi[]={0.04098752915855404645614279849,0.21195796795501301950049770970,0.50358227252148264361980251927,0.890020433646848629194248947918,1.336945061968532022939709383344,1.804647591621261215522933999936,2.251572219942944609268394435362,2.63801038106831059484284086401,2.92963468563478021896214567357,3.10060512443123919200650058479};
 
+  // sin and cos of nodes  x_i
+  const double glq_sc_phi[]={0.04097605376773743163322240975,0.9991601288170097367845030391481,0.2103744522327794774210133837,0.977620882473240741252534327489,0.482566195624121249707483164557,0.87585950177003979410936443884,0.777084608547669349628856397297,0.629396148032632538417667407578,0.9727811745399645767183604177668,0.231725670698451046669980417349,0.9727811745399645767183604177668,-0.231725670698451046669980417349,0.777084608547669349628856397297,-0.629396148032632538417667407578,0.482566195624121249707483164557,-0.87585950177003979410936443884,0.2103744522327794774210133837,-0.977620882473240741252534327489,0.04097605376773743163322240975,-0.9991601288170097367845030391481};
+
   // Gauss-Lagrange weights
   const double glq_weights[]={0.104727102742565162602343989,0.23475763028027358865964263,0.344140053490959719873798523,0.422963173620254734501715992,0.46420836666084341359382055662,0.46420836666084341359382055662,0.422963173620254734501715992,0.344140053490959719873798523,0.23475763028027358865964263,0.104727102742565162602343989};
 
@@ -820,6 +819,9 @@ template<class T>
 
   // Gauss-Lagrange nodes x_i in [0, Pi] 
   const double glq_phi[]={0.01886130858747740302305159111,0.09853072480927601402339328008,0.23843654121054845237023696531,0.43288361530924932044530786709,0.673915335359302111609881595248,0.951664838604199667507182945785,1.25476138297089931304806023055,1.57079632679489661923132169164,1.88683127061889392541458315273,2.18992781498559357095546043749,2.46767731823049112685276178803,2.70870903828054391801733551619,2.90315611237924478609240641797,3.04306192878051722443925010320,3.12273134500231583543959179217};
+  
+    // sin and cos of  nodes x_i
+  const double glq_sc_phi[]={0.01886019029221170454895920332,0.999822130792343265472014507036,0.09837137447946246258546963059,0.995149773995362650465809060199,0.23618368963102833465466676737,0.971708425790511543157796159189,0.41949017315942443170777562913,0.907759877182658974839321181669,0.624050144074110653072553853434,0.781384295773265292561866660664,0.814382785538204297341827158319,0.580328078434117424683238917443,0.950475227124723936234712290234,0.310800325968626435374807587065,1.,0,0.950475227124723936234712290234,-0.310800325968626435374807587065,0.814382785538204297341827158319,-0.580328078434117424683238917443,0.624050144074110653072553853434,-0.781384295773265292561866660664,0.41949017315942443170777562913,-0.907759877182658974839321181669,0.23618368963102833465466676737,-0.971708425790511543157796159189,0.09837137447946246258546963059,-0.995149773995362650465809060199,0.01886019029221170454895920332,-0.999822130792343265472014507036};
   
   // Gauss-Lagrange weights
   const double glq_weights[]={0.0483070795645355594897227,0.1105307289253955042410349,0.1683253098920381811957743,0.2192371082146767564709842,0.26117505775643872877586132,0.292421015016909813450427436,0.3116954482722822893249093754,0.318209158305239572565215093812,0.3116954482722822893249093754,0.292421015016909813450427436,0.26117505775643872877586132,0.2192371082146767564709842,0.1683253098920381811957743,0.1105307289253955042410349,0.0483070795645355594897227};
@@ -862,6 +864,7 @@ template<class T>
   void area_volume_integration( 
     T v[3],
     const unsigned & choice,
+    const T & pole, 
     const T & Omega0,
     const T & q,
     const T & F = 1,
@@ -886,142 +889,394 @@ template<class T>
     
     const int dim = glq_n + 3;
     
-    T W[3], w[glq_n], y[dim], k[4][dim],
+    T W[3], w[glq_n], y[dim], k[4][dim], sc_nu[2], sc_th[2],
       d2 = delta*delta, 
       d3 = delta*d2, 
       d4 = d2*d2,
       b = (1 + q)*F*F*d3,
-      dtheta = utils::m_pi/m,
-      rt, rp, r,
-      s, theta, theta_, r2;
+      dnu = utils::m_pi/m,
+      rt, rp, r[2], nu;
     
     //
     // Setting initial values
     //
     
     { 
-      T tp = poleL_height(Omega0, q, F, delta, std::sin(th))/delta;
+      T tp = pole/delta;
       for (int i = 0; i < glq_n; ++i) {
         y[i] = tp;
-        w[i] = dtheta*glq_weights[i];
+        w[i] = dnu*glq_weights[i];
       }
       y[glq_n] = y[glq_n + 1] = y[glq_n + 2] = 0;
+      
+      utils::sincos(th, sc_th, sc_th + 1);
     }
     
     //
     // Rk integration 
     //
     
-    theta = 0;
+    nu = 0;
     for (int i = 0; i < m; ++i) {
       
       // 1. step
-      s = std::sin(theta);
+      utils::sincos(nu, sc_nu, sc_nu + 1);
       k[0][glq_n] = k[0][glq_n + 1] = k[0][glq_n + 2] = 0;
       for (int j = 0; j < glq_n; ++j){
         
-        r = y[j]; 
-        calc_dOmega(mask, W, r, theta, glq_phi[j], q, b, th);
+        r[0] = y[j], r[1] = r[0]*r[0]; 
+        calc_dOmega(mask, W, r, sc_nu, glq_sc_phi+2*j, q, b, sc_th);
         
         rt = -W[1]/W[0];      // partial_theta r
-        k[0][j] = dtheta*rt;
-        
-        r2 = r*r;
+        k[0][j] = dnu*rt;
         
         if (b_area) {
           rp = -W[2]/W[0];      // partial_phi r
-          k[0][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
+          k[0][glq_n] += w[j]*r[0]*std::sqrt(rp*rp + sc_nu[0]*sc_nu[0]*(r[1] + rt*rt));
         }
-        if (b_vol)  k[0][glq_n + 1] += w[j]*r*r2;
-        if (b_dvol) k[0][glq_n + 2] += w[j]*r2/W[0];
+        if (b_vol)  k[0][glq_n + 1] += w[j]*r[1]*r[0];
+        if (b_dvol) k[0][glq_n + 2] += w[j]*r[1]/W[0];
       }
-      if (b_vol)  k[0][glq_n + 1] *= s;
-      if (b_dvol) k[0][glq_n + 2] *= s;
+      if (b_vol)  k[0][glq_n + 1] *= sc_nu[0];
+      if (b_dvol) k[0][glq_n + 2] *= sc_nu[0];
       
       // 2. step
-      theta_ = theta + 0.5*dtheta;
-      s = std::sin(theta_);
+      utils::sincos(nu + 0.5*dnu, sc_nu, sc_nu + 1);
       k[1][glq_n] = k[1][glq_n + 1] = k[1][glq_n + 2] = 0;
       for (int j = 0; j < glq_n; ++j){
         
-        r = y[j] + 0.5*k[0][j];
-        calc_dOmega(mask, W, r, theta_, glq_phi[j], q, b, th);
+        r[0] = y[j] + 0.5*k[0][j], r[1] = r[0]*r[0];
+        calc_dOmega(mask, W, r, sc_nu, glq_sc_phi+2*j, q, b, sc_th);
         
         rt = -W[1]/W[0];      // partial_theta r
-        k[1][j] = dtheta*rt;
+        k[1][j] = dnu*rt;
     
-        r2 = r*r;
-        
         if (b_area) {
           rp = -W[2]/W[0];      // partial_phi r
-          k[1][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
+          k[1][glq_n] += w[j]*r[0]*std::sqrt(rp*rp + sc_nu[0]*sc_nu[0]*(r[1] + rt*rt));
         }
-        if (b_vol)  k[1][glq_n + 1] += w[j]*r*r2;
-        if (b_dvol) k[1][glq_n + 2] += w[j]*r2/W[0];
+        if (b_vol)  k[1][glq_n + 1] += w[j]*r[1]*r[0];
+        if (b_dvol) k[1][glq_n + 2] += w[j]*r[1]/W[0];
       }
-      if (b_vol)  k[1][glq_n + 1] *= s;
-      if (b_dvol) k[1][glq_n + 2] *= s;
+      if (b_vol)  k[1][glq_n + 1] *= sc_nu[0];
+      if (b_dvol) k[1][glq_n + 2] *= sc_nu[0];
       
       
       // 3. step
-      //theta_ = theta + 0.5*dtheta;
-      //s = std::sin(theta_);
       k[2][glq_n] = k[2][glq_n + 1] = k[2][glq_n + 2] = 0;
       for (int j = 0; j < glq_n; ++j){
         
-        r = y[j] + 0.5*k[1][j];
-        calc_dOmega(mask, W, r, theta_, glq_phi[j], q, b, th);
+        r[0] = y[j] + 0.5*k[1][j], r[1] = r[0]*r[0];
+        calc_dOmega(mask, W, r, sc_nu, glq_sc_phi+2*j, q, b, sc_th);
         
         rt = -W[1]/W[0];      // partial_theta r
-        k[2][j] = dtheta*rt;
-
-        r2 = r*r;
+        k[2][j] = dnu*rt;
         
         if (b_area) {
           rp = -W[2]/W[0];      // partial_phi r
-          k[2][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
+          k[2][glq_n] += w[j]*r[0]*std::sqrt(rp*rp + sc_nu[0]*sc_nu[0]*(r[1] + rt*rt));
         }
-        if (b_vol)  k[2][glq_n + 1] += w[j]*r*r2;
-        if (b_dvol) k[2][glq_n + 2] += w[j]*r2/W[0];
+        if (b_vol)  k[2][glq_n + 1] += w[j]*r[1]*r[0];
+        if (b_dvol) k[2][glq_n + 2] += w[j]*r[1]/W[0];
       }
-      if (b_vol)  k[2][glq_n + 1] *= s;
-      if (b_dvol) k[2][glq_n + 2] *= s;
+      if (b_vol)  k[2][glq_n + 1] *= sc_nu[0];
+      if (b_dvol) k[2][glq_n + 2] *= sc_nu[0];
       
       
       // 4. step
-      theta_ = theta + dtheta;
-      s = std::sin(theta_);
+      utils::sincos(nu + dnu, sc_nu, sc_nu + 1);
       k[3][glq_n] = k[3][glq_n + 1] = k[3][glq_n + 2] = 0;
       for (int j = 0; j < glq_n; ++j){
         
-        r = y[j] + k[2][j];
-        calc_dOmega(mask, W, r, theta_, glq_phi[j], q, b, th);
+        r[0] = y[j] + k[2][j], r[1] = r[0]*r[0];
+        calc_dOmega(mask, W, r, sc_nu, glq_sc_phi+2*j, q, b, sc_th);
         
         rt = -W[1]/W[0];      // partial_theta r
-        k[3][j] = dtheta*rt;
-
-        r2 = r*r;
+        k[3][j] = dnu*rt;
         
         if (b_area) {
          rp = -W[2]/W[0];      // partial_phi r
-         k[3][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
+         k[3][glq_n] += w[j]*r[0]*std::sqrt(rp*rp + sc_nu[0]*sc_nu[0]*(r[1] + rt*rt));
         }
-        if (b_vol)  k[3][glq_n + 1] += w[j]*r*r2;
-        if (b_dvol) k[3][glq_n + 2] += w[j]*r2/W[0];
+        if (b_vol)  k[3][glq_n + 1] += w[j]*r[1]*r[0];
+        if (b_dvol) k[3][glq_n + 2] += w[j]*r[1]/W[0];
       }
-      if (b_vol)  k[3][glq_n + 1] *= s;
-      if (b_dvol) k[3][glq_n + 2] *= s;
+      if (b_vol)  k[3][glq_n + 1] *= sc_nu[0];
+      if (b_dvol) k[3][glq_n + 2] *= sc_nu[0];
+      
       
       // final step
       for (int j = 0; j < dim; ++j)
         y[j] += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;  
             
-      theta += dtheta;
+      nu += dnu;
     }
     
     if (b_area) v[0] = 2*d2*y[glq_n];
     if (b_vol)  v[1] = 2*d3*y[glq_n + 1]/3;
     if (b_dvol) v[2] = 2*d4*y[glq_n + 2];
+  }
+
+  /*
+    Parameterize dimensionless potential
+    
+      tilde Omega 
+        = delta Omega
+        = 1/r + q(1/|vec(r) - vec{i}| 
+          - i.vec{r}) + 1/2 b | vec{r} - vec{S}(vec{r}.vec{S})|^2
+    
+    in spherical coordinates (r, nu, phi) with 
+    
+      vec{r} = r [sin(nu) cos(phi), sin(nu) sin(phi), cos(nu)]
+            
+    with the
+  
+      x - axis in the plane of vec{S} and line connecting centers 
+      z - axis connecting origin and L1 point 
+      b = F^2 (1+q) delta^3
+    
+      vec{i} = (a', 0, b') 
+      vec{S} = (c', 0, d')
+      
+    The routine returns
+  
+      {dOmega/d(r), dOmega/d(nu)}
+    
+    Input:
+      r - radius
+      sc_nu[2] - [sin(nu), cos(nu)] - sinus and cosine of azimuthal angle
+      sc_phi[2] - [sin(phi), cos(phi)] - sinus and cosine of polar angle
+      q - mass ratio
+      b - parameter of the potential
+      p[4] = {a', b', c', d') - parameters of vectors
+    
+    Output:
+      W[2] =   {dOmega/d(r), dOmega/d(nu)}
+  */
+  template <class T>
+  void calc_dOmega2(
+    T W[2],
+    const T r[2], 
+    const T sc_nu[2],
+    const T sc_phi[2], 
+    const T &q, 
+    const T &b, 
+    T p[4]){
+
+    T t = sc_nu[0]*sc_phi[1],         // sin(nu) cos(phi)
+      A = p[0]*t + p[1]*sc_nu[1],     // a' sin(nu) cos(phi) + b' cos(nu)
+      B = p[2]*t + p[3]*sc_nu[1];     // c' sin(nu) cos(phi) + d' cos(nu)
+      
+    t = sc_nu[1]*sc_phi[1];           // cos(nu) cos(phi)
+    
+    T C = p[0]*t - p[1]*sc_nu[0],     // = partial_nu A
+      D = p[2]*t - p[3]*sc_nu[0];     // = partial_nu B
+
+    t = 1/(1 + r[1] - 2*r[0]*A); 
+    t *= std::sqrt(t);                // std::pow(.., -1.5);
+
+    W[0] = q*(t*(A - r[0]) - A) + b*r[0]*(1 - B*B) - 1/r[1]; // dOmega/dr
+    W[1] = q*C*r[0]*(t - 1) - b*r[1]*B*D;                    // dOmega/d(nu)
+    /*
+    std::cerr.precision(16);
+    std::cerr 
+      << "r=" << r[0] 
+      << "\n  sc_nu=" << sc_nu[0] << ':' << sc_nu[1]
+      << "\n  sc_phi=" << sc_phi[0] << ':' << sc_phi[1]
+      << "\n  W=" << W[0] << ':' << W[1]
+      << "\n  Omega=" 
+      << 1/r[0] + q*(1/std::sqrt(1 + r[1] - 2*r[0]*A) - r[0]*A) + 0.5*b*r[1]*(1 - B*B) 
+      << "\n";
+    */
+  }
+
+  template <class T>
+  T calc_dOmega2_pole(
+    const T r[2], 
+    const T sc_phi[2], 
+    const T &q, 
+    const T &b, 
+    T p[4]){
+    
+    T A[2] = {p[1], p[0]*sc_phi[1]},
+      B[2] = {p[3], p[2]*sc_phi[1]},
+      
+      B00 = B[0]*B[0], 
+      
+      t2 = 1/(1 + r[1] - 2*r[0]*A[0]), t3 = t2*std::sqrt(t2), t5 = t2*t3,
+      
+      Wrr = b + 2/(r[0]*r[1]) + q*t5*(-1 + 2*r[1] + A[0]*(3*A[0] - 4*r[0])) - b*B00,
+      Wnn = r[0]*(q*(A[0]*(1 - t3) + 3*r[0]*t5*A[1]*A[1]) + b*r[0]*(B00 - B[1]*B[1])),
+      Wnr = q*A[1]*(-1 + t5*(1 + r[0]*(A[0] - 2*r[0]))) - 2*b*r[0]*B[0]*B[1];
+   
+     return (-Wnr-std::sqrt(Wnr*Wnr-Wrr*Wnn))/Wrr;
+  }
+
+  /*
+    Computing the volume of the critical generalized Roche lobes 
+    with misaligned spin and orbital velocity vector.
+    
+    Input:
+      x[2]  = {x_0,z_0} - critical point in xz plane
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      d - separation between the two objects
+      th - angle between z axis in spin of the object in [0, pi/2]
+              spin in plane (x, z) 
+      m - number of steps in x - direction
+           
+    Using: Integrating surface in spherical coordiantes
+      a. Gauss-Lagrange integration in phi direction
+      b. RK4 in direction of theta
+                      
+    Output:
+      v[3] = {volume, d{volume}/d{Omega}}
+  
+    Ref: 
+      * https://en.wikipedia.org/wiki/Gaussian_quadrature
+      * https://en.wikipedia.org/wiki/Gauss–Kronrod_quadrature_formula
+      * http://mathworld.wolfram.com/LobattoQuadrature.html <-- this would be better  
+  */
+  
+  template<class T> 
+  void critial_volume_integration( 
+    T v[2], 
+    const T x[2],
+    const T & q,
+    const T & F = 1,
+    const T & d = 1,
+    const T & th = 0,
+    const int & m = 1 << 14)
+  {
+    
+    const int dim = glq_n + 2;
+    
+    T w[glq_n], y[dim], k[4][dim], sc[2], p[4], W[2], sum[2], 
+      r[2], nu,
+      d3 = d*d*d, 
+      b = (1 + q)*F*F*d3,
+      dnu = utils::m_pi/m;
+    
+    //
+    // Setting initial values
+    //
+    
+    { 
+      T tp = std::hypot(x[0], x[1]);
+      
+      utils::sincos(th, sc, sc+1);
+      
+      p[0] = x[1]/tp;                 // a'
+      p[1] = x[0]/tp;                 // b'
+      p[2] = p[0]*sc[0] - p[1]*sc[1]; // c'
+      p[3] = p[0]*sc[1] + p[1]*sc[0]; // d'
+       
+      tp /= d;
+      for (int i = 0; i < glq_n; ++i) {
+        y[i] = tp;
+        w[i] = dnu*glq_weights[i];
+      }
+      y[glq_n] = y[glq_n + 1] = 0;
+    }
+    
+    //
+    // Rk integration 
+    //
+    
+    nu = 0;
+    for (int i = 0; i < m; ++i) {
+    
+      // 1. step
+      if (i == 0) {
+        
+        for (int j = 0; j < glq_n; ++j){
+          r[0] = y[j], r[1] = r[0]*r[0];
+          k[0][j] = dnu*calc_dOmega2_pole(r, glq_sc_phi + 2*j, q, b, p);
+          //std::cerr << "rp=" << r[0] << " dk=" << k[0][j] << '\n';
+        }  
+        k[0][glq_n+1] = k[0][glq_n] = 0;
+      
+      } else {
+        sum[0] = sum[1] = 0;
+        utils::sincos(nu, sc, sc+1);   
+        for (int j = 0; j < glq_n; ++j){
+          r[0] = y[j], r[1] = r[0]*r[0];
+          
+          calc_dOmega2(W, r, sc, glq_sc_phi + 2*j, q, b, p);
+          k[0][j] = -dnu*W[1]/W[0];
+          
+          //std::cerr << "r0=" << r[0] << " dk=" << k[0][j] << '\n';
+          
+          sum[0] += w[j]*r[0]*r[1];
+          sum[1] += w[j]*r[1]/W[0];
+        }
+        k[0][glq_n] = sum[0]*sc[0];
+        k[0][glq_n+1] = sum[1]*sc[0];
+        //std::cerr << "---\n";
+      } 
+      // 2. step
+      sum[0] = sum[1] = 0;
+      utils::sincos(nu + 0.5*dnu, sc, sc+1);
+      for (int j = 0; j < glq_n; ++j){        
+        r[0] = y[j] + 0.5*k[0][j], r[1] = r[0]*r[0];
+        
+        calc_dOmega2(W, r, sc, glq_sc_phi + 2*j, q, b, p);
+   
+        k[1][j] = -dnu*W[1]/W[0];
+
+        //std::cerr << "r=" << r[0] << " dk=" << k[1][j] << '\n';
+
+        sum[0] += w[j]*r[0]*r[1];
+        sum[1] += w[j]*r[1]/W[0];
+      }
+      k[1][glq_n] = sum[0]*sc[0];
+      k[1][glq_n+1] = sum[1]*sc[0];
+      //std::cerr << "---\n";
+      
+      // 3. step
+      sum[0] = sum[1] = 0;
+      for (int j = 0; j < glq_n; ++j){
+        r[0] = y[j] + 0.5*k[1][j], r[1] = r[0]*r[0];
+        
+        calc_dOmega2(W, r, sc, glq_sc_phi + 2*j, q, b, p);
+        k[2][j] = -dnu*W[1]/W[0];
+
+        //std::cerr << "r=" << r[0] << " dk=" << k[2][j] << '\n';
+
+        sum[0] += w[j]*r[0]*r[1];
+        sum[1] += w[j]*r[1]/W[0];
+      }
+      k[2][glq_n] = sum[0]*sc[0];
+      k[2][glq_n+1] = sum[1]*sc[0];
+      //std::cerr << "---\n";     
+      
+      // 4. step
+      sum[0] = sum[1] = 0;
+      utils::sincos(nu + dnu, sc, sc+1);
+      for (int j = 0; j < glq_n; ++j){
+        r[0] = y[j] + k[2][j], r[1] = r[0]*r[0];
+        
+        calc_dOmega2(W, r, sc, glq_sc_phi + 2*j, q, b, p);
+        k[3][j] = -dnu*W[1]/W[0];
+
+        //std::cerr << "r=" << r[0] << " dk=" << k[3][j] << '\n';
+
+        sum[0] += w[j]*r[0]*r[1];
+        sum[1] += w[j]*r[1]/W[0];
+      }
+      k[3][glq_n] = sum[0]*sc[0];
+      k[3][glq_n+1] = sum[1]*sc[0];
+      //std::cerr << "---\n";
+      
+      // final step
+      for (int j = 0; j < dim; ++j)
+        y[j] += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;  
+            
+      nu += dnu;
+    }
+
+    v[0] = 2*d3*y[glq_n]/3;
+    v[1] = 2*d3*d*y[glq_n + 1];
   }
   
 /*
@@ -1382,6 +1637,57 @@ template<class T>
     return std::max(W[0], W[1]);  
   }
 
+  /*
+    Calculating volume and value of the potential of the critical 
+    (semi-detached) case. 
+    
+    Input:
+      Omega0 - value of the potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      d - separation between the two objects
+      th - angle between z axis in spin of the object
+    Output:
+      OmegaC - value of the Kopal potential
+      volC[2] - volume and dvolume/dOmega of the critical lobe
+    
+    Return:
+      true - if there are no problem and false otherwise
+  */ 
+  template <class T>
+  bool critical_volume(
+    const T & q,
+    const T & F,
+    const T & d,
+    const T & th,
+    T & OmegaC,
+    T volC[2]) {
+  
+    if (th == 0) 
+      return gen_roche::critical_volume(q, F, d, OmegaC, volC);
+  
+    T x[3];
+    
+    if (!lagrange_point(1, q, F, d, th, x)) {
+      std::cerr 
+        << "critical_volume::Calculation of Lagrange point L1 failed\n";
+      return false;
+    }
+    
+    #if 0
+    std::cerr << "x=" << x[0] << '\t' << x[1] << '\n';
+    #endif
+    
+    critial_volume_integration(volC, x, q, F, d, th, 1<<14);
+  
+    // calculate critical value of the potential Omega(L1)
+    x[2] = x[1];
+    x[1] = 0;
+  
+    OmegaC = calc_Omega(x, q, F, d, th);
+  
+    return true;
+  }
 
 } // namespace misaligned_roche
 

@@ -1721,7 +1721,7 @@ namespace gen_roche {
   
     Input:
       x_bounds[2] = {x0,x1} 
-      Omega0 
+      Omega0 - value of the potential
       q - mass ratio M2/M1
       F - synchronicity parameter
       delta - separation between the two objects
@@ -2028,6 +2028,49 @@ namespace gen_roche {
     area_volume_directed_integration(v, choice, +1, xrange, Omega0, q, F, d, m, polish);
     #endif
   }
+  
+  /*
+    Calculating volume and value of the potential of the critical 
+    (semi-detached) case. 
+    
+    Input:
+      Omega0 - value of the potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+    
+    Output:
+      OmegaC - value of the Kopal potential
+      volC[2]   - volume and dvolume/dOmega of the critical volume
+    
+    Return:
+      true - if there are no problem and false otherwise
+  */ 
+  template <class T>
+  bool critical_volume(
+    const T & q,
+    const T & F,
+    const T & delta,
+    T & OmegaC,
+    T volC[2]) {
+   
+    T L;
+    
+    critical_potential(&OmegaC, &L, 0, q, F, delta); 
+    
+    T xrange[2];
+    if (!lobe_xrange(xrange, 0, OmegaC, q, F, delta)) {
+      std::cerr 
+        << "gen_roche::critical_volume: Failed determining xrange.";
+      return false;
+    }
+    
+    area_volume_integration(volC - 1, 6, xrange, OmegaC, q, F, delta);
+  
+    return true;
+  }
+  
+  
   /*
     Computing surface area and the volume of the primary Roche lobe in the limit of high w=delta*Omega. It should precise at least up to 5.5 digits for
       
