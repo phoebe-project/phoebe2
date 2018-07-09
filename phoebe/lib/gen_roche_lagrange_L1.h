@@ -378,7 +378,7 @@ T lagrange_point_L1(
       //   R(t) := ((1-t)^2+qt^3(t-2))/t^3(1-t)^2 = b := a(1+q)
       // Works good for small a and q > 0.1 
           
-      T t0 = lagrange_point_L1(q, 0., 1.);  
+      T t0 = lagrange_point_L1(q, T(0), T(1));  
       
       //
       // Derivaties of R(t) at t0 /n!

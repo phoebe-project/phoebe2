@@ -2626,12 +2626,17 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   if (std::abs(vol - volC[0]) <  precision*volC[0]){
     
     return PyFloat_FromDouble(OmegaC);    // Omega at L1 point
-    
+      
   } else if (vol > volC[0]){
     report_error(fname + ":: The volume is beyond critical");
     return NULL;
-  }
-  
+  } 
+
+  // Omega very near to critical
+  double dOmega1 = (vol - volC[0])/volC[1];
+    
+  if (dOmega1 <  precision*OmegaC) 
+    return PyFloat_FromDouble(OmegaC + dOmega1);
   
   //
   // If Omega0 is not set, we estimate it
@@ -2663,7 +2668,6 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   //
   // Trying to calculate Omega at given volume 
   //
-
   const int m_min = 1 << 6;  // minimal number of points along x-axis
 
   int
@@ -2752,8 +2756,13 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
       adjust = false;
 
     } while (1);
-
+        
+    // Newton-Raphson step
     Omega -= (dOmega = (V[0] - vol)/V[1]);
+
+    #if defined(DEBUG)
+    std::cerr << "Omega=" << Omega  << " dOmega=" << dOmega << '\n';
+    #endif
 
   } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
 
