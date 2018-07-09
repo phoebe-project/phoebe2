@@ -2525,7 +2525,7 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
       value of the Kopal potential for (q,F,d1,spin) at which the lobe has the given volume
 */
 
-#define DEBUG
+//#define DEBUG
 static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_Omega_at_vol"_s;
@@ -2691,7 +2691,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
         return NULL;
       }
     } else {
-      pole = misaligned_roche::poleL_height(Omega0, q, F, delta, std::sin(theta));
+      pole = misaligned_roche::poleL_height(Omega, q, F, delta, std::sin(theta));
       if (pole < 0) {
         report_error(fname + "Determining pole failed");
         return NULL;
@@ -2740,7 +2740,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
           }
 
           #if defined(DEBUG)
-          std::cerr << "V[" << i << "]=" << V[i] << " e =" << e << '\n';
+          std::cerr << "m=" <<  m0 << " V[" << i << "]=" << V[i] << " e =" << e << '\n';
           #endif
         }
 
@@ -2757,8 +2757,11 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
     } while (1);
         
-    // Newton-Raphson step
+    // Newton-Raphson iteration step
     Omega -= (dOmega = (V[0] - vol)/V[1]);
+    
+    // correction if the values are smaller than critical
+    if (Omega < OmegaC) Omega = OmegaC - (dOmega = (volC[0] - vol)/volC[1]);
 
     #if defined(DEBUG)
     std::cerr << "Omega=" << Omega  << " dOmega=" << dOmega << '\n';
