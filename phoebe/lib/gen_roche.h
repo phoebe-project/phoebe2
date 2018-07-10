@@ -118,21 +118,21 @@ namespace gen_roche {
     const T & q, const T & F = 1, const T & delta = 1) {
     
     // note: x in [0, delta]
-    if ((choice & 1u) == 1u )
+    if ((choice & 1U) == 1U )
       omega_crit[0] = 
         potential_on_x_axis(
           L_points[0] = lagrange_point_L1(q, F, delta), 
           q, F, delta);
       
     // note: x < 0
-    if ((choice & 2u) == 2u)
+    if ((choice & 2U) == 2U)
       omega_crit[1] = 
         potential_on_x_axis(
           L_points[1] = lagrange_point_L2(q, F, delta), 
           q, F, delta);
   
     // note : x > delta
-    if ((choice & 4u) == 4u)
+    if ((choice & 4U) == 4U)
       omega_crit[2] = 
         potential_on_x_axis(
           L_points[2] = lagrange_point_L3(q, F, delta), 
@@ -2056,15 +2056,18 @@ namespace gen_roche {
    
     T L;
     
-    critical_potential(&OmegaC, &L, 0, q, F, delta); 
+    // getting data for L1
+    critical_potential(&OmegaC, &L, 1, q, F, delta);  
     
+    // finding range on x-axis
     T xrange[2];
-    if (!lobe_xrange(xrange, 0, OmegaC, q, F, delta)) {
+    if (!lobe_xrange(xrange, 0, OmegaC, q, F, delta, true)) {
       std::cerr 
         << "gen_roche::critical_volume: Failed determining xrange.";
       return false;
     }
     
+    // compute volume and d(volume)/dOmega
     area_volume_integration(volC - 1, 6, xrange, OmegaC, q, F, delta);
   
     return true;
