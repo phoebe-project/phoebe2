@@ -773,8 +773,8 @@ static PyObject *roche_Omega_min(PyObject *self, PyObject *args, PyObject *keywd
   Calculate the minimal value of the Kopal potential permitted in order to have
   compact primary Roche lobe:
 
-      Omega_{min} (x,y,z; q, F, d, misalignment) =
-        min {Omega(L1(misaligment)), Omega(L2(misalignment)) }
+      Omega_{min} (q, F, d, misalignment) =
+        min {Omega(L1(q,F,d,misaligment)), Omega(L2(q,F,d,misalignment)) }
 
   Python:
 
@@ -2000,7 +2000,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
   bool adjust = true;
 
-  double p[2][2], xrange[2], av[2], e, t;
+  double p[2][2], xrange[2], av[2], pole, e, t;
 
   //
   // Choosing boundaries on x-axis or calculating the pole
@@ -2009,6 +2009,12 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   if (aligned) {      // Non-misaligned Roche lobes
     if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, delta, true)){
       report_error(fname + "Determining lobe's boundaries failed");
+      return NULL;
+    }
+  } else {
+    pole = misaligned_roche::poleL_height(Omega0, q, F, delta, std::sin(theta));
+    if (pole < 0) {
+      report_error(fname + "Determining pole failed");
       return NULL;
     }
   }
@@ -2025,7 +2031,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
           (p[i], res_choice, xrange, Omega0, q, F, delta, m);
       else {
         misaligned_roche::area_volume_integration
-          (p[i], res_choice, Omega0, q, F, delta, theta, m);
+          (p[i], res_choice, pole, Omega0, q, F, delta, theta, m);
         #if defined(DEBUG)
         std::cerr << "m=" << m << " p[" << i  << "]=" << p[i][0] << ' ' << p[i][1] << '\n';
         #endif
@@ -2598,6 +2604,44 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     return NULL;
   }
 
+  //
+  //  Check if the volume if larger than critical
+  //
+
+  double OmegaC, volC[2];
+
+  if (aligned)
+    gen_roche::critical_volume(q, F, delta, OmegaC, volC);
+  else
+    misaligned_roche::critical_volume(q, F, delta, theta, OmegaC, volC);
+
+  #if defined(DEBUG)
+  std::cerr.precision(16);
+  std::cerr
+    << "OmegaC=" << OmegaC
+    << " volC=" << volC[0] << ":" << volC[1]
+    << " vol=" << vol << '\n';
+  #endif
+
+  if (std::abs(vol - volC[0]) <  precision*volC[0]){
+
+    return PyFloat_FromDouble(OmegaC);    // Omega at L1 point
+
+  } else if (vol > volC[0]){
+    report_error(fname + ":: The volume is beyond critical");
+    return NULL;
+  }
+
+  // Omega very near to critical
+  double dOmega1 = (vol - volC[0])/volC[1];
+
+  if (dOmega1 <  precision*OmegaC)
+    return PyFloat_FromDouble(OmegaC + dOmega1);
+
+  //
+  // If Omega0 is not set, we estimate it
+  //
+
   if (std::isnan(Omega0)) {
     // equivalent radius
     double  r = std::cbrt(0.75*vol/utils::m_pi);
@@ -2607,10 +2651,6 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     std::cerr << "r=" << r << '\n';
     #endif
 
-   /* Omega[x_, y_, z_, {q_, F_, d_, theta_}] = 1/Sqrt[x^2 + y^2 + z^2] +
- q (-(x/d^2) + 1/Sqrt[(d - x)^2 + y^2 + z^2]) +
- 1/2 F^2 (1 + q) (y^2 + (x Cos[theta] - z Sin[theta])^2)
-  */
     // = Omega[r,0,0]
     Omega0 =
       1/r  +
@@ -2625,7 +2665,9 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     << " d=" << delta << " theta=" << theta << " choice=" << choice << std::endl;
   #endif
 
-
+  //
+  // Trying to calculate Omega at given volume
+  //
   const int m_min = 1 << 6;  // minimal number of points along x-axis
 
   int
@@ -2634,7 +2676,8 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
   double
     Omega = Omega0, dOmega,
-    V[2], xrange[2], p[2][2];
+    V[2], xrange[2], p[2][2],
+    pole = -1;
 
 
   // expected precisions of the integrals
@@ -2645,6 +2688,12 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     if (aligned) {      // Non-misaligned Roche lobes
       if (!gen_roche::lobe_xrange(xrange, choice, Omega, q, F, delta, true)){
         report_error(fname + "::Determining lobe's boundaries failed");
+        return NULL;
+      }
+    } else {
+      pole = misaligned_roche::poleL_height(Omega, q, F, delta, std::sin(theta));
+      if (pole < 0) {
+        report_error(fname + "Determining pole failed");
         return NULL;
       }
     }
@@ -2659,7 +2708,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
         if (aligned)
           gen_roche::area_volume_integration(p[i]-1, 6, xrange, Omega, q, F, delta, m);
         else
-          misaligned_roche::area_volume_integration(p[i]-1, 6, Omega, q, F, delta, theta, m);
+          misaligned_roche::area_volume_integration(p[i]-1, 6, pole, Omega, q, F, delta, theta, m);
 
 
       if (adjust) {
@@ -2691,7 +2740,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
           }
 
           #if defined(DEBUG)
-          std::cerr << "V[i]=" << V[i] << " e =" << e << '\n';
+          std::cerr << "m=" <<  m0 << " V[" << i << "]=" << V[i] << " e =" << e << '\n';
           #endif
         }
 
@@ -2708,7 +2757,15 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
     } while (1);
 
+    // Newton-Raphson iteration step
     Omega -= (dOmega = (V[0] - vol)/V[1]);
+
+    // correction if the values are smaller than critical
+    if (Omega < OmegaC) Omega = OmegaC - (dOmega = (volC[0] - vol)/volC[1]);
+
+    #if defined(DEBUG)
+    std::cerr << "Omega=" << Omega  << " dOmega=" << dOmega << '\n';
+    #endif
 
   } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
 
@@ -5655,27 +5712,27 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   }
 
   if (!ok) {
-    
+
     std::cerr.precision(16);
-    
-    std::cerr 
-      << "Parameters: q=" << q << " F=" << F 
-      << " d=" << d << " Omega0=" << Omega0 
+
+    std::cerr
+      << "Parameters: q=" << q << " F=" << F
+      << " d=" << d << " Omega0=" << Omega0
       << " delta=" << delta;
-    
+
     if (rotated)
       std::cerr << " theta=" << theta << '\n';
     else
       std::cerr << " s=(" << s[0] << ',' << s[1] << ',' << s[2] << ")\n";
     /*
-    std::cerr << "Vertices:\n"; 
+    std::cerr << "Vertices:\n";
     for (auto &v : V) std::cerr << v << '\n';
-    
-    std::cerr << "Triangle:\n"; 
+
+    std::cerr << "Triangle:\n";
     for (auto &t : Tr) std::cerr << t << '\n';
     */
     report_error(fname +"::There are too many triangles");
-    
+
     return NULL;
   }
 
@@ -7484,7 +7541,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
       break;
 
       default:
-        report_error(fname + 
+        report_error(fname +
           "::This radiosity-redistribution model =" +
           std::string(s) + " does not exist");
         return NULL;
