@@ -2607,41 +2607,41 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   //
   //  Check if the volume if larger than critical
   //
-  
+
   double OmegaC, volC[2];
-  
+
   if (aligned)
     gen_roche::critical_volume(q, F, delta, OmegaC, volC);
   else
     misaligned_roche::critical_volume(q, F, delta, theta, OmegaC, volC);
-  
+
   #if defined(DEBUG)
   std::cerr.precision(16);
-  std::cerr 
-    << "OmegaC=" << OmegaC 
-    << " volC=" << volC[0] << ":" << volC[1] 
+  std::cerr
+    << "OmegaC=" << OmegaC
+    << " volC=" << volC[0] << ":" << volC[1]
     << " vol=" << vol << '\n';
   #endif
-  
+
   if (std::abs(vol - volC[0]) <  precision*volC[0]){
-    
+
     return PyFloat_FromDouble(OmegaC);    // Omega at L1 point
-      
+
   } else if (vol > volC[0]){
     report_error(fname + ":: The volume is beyond critical");
     return NULL;
-  } 
+  }
 
   // Omega very near to critical
   double dOmega1 = (vol - volC[0])/volC[1];
-    
-  if (dOmega1 <  precision*OmegaC) 
+
+  if (dOmega1 <  precision*OmegaC)
     return PyFloat_FromDouble(OmegaC + dOmega1);
-  
+
   //
   // If Omega0 is not set, we estimate it
   //
-  
+
   if (std::isnan(Omega0)) {
     // equivalent radius
     double  r = std::cbrt(0.75*vol/utils::m_pi);
@@ -2664,9 +2664,9 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     << "vol=" << vol << " q=" << q <<  " F=" << F << " Omega0=" << Omega0
     << " d=" << delta << " theta=" << theta << " choice=" << choice << std::endl;
   #endif
-  
+
   //
-  // Trying to calculate Omega at given volume 
+  // Trying to calculate Omega at given volume
   //
   const int m_min = 1 << 6;  // minimal number of points along x-axis
 
@@ -2676,7 +2676,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
   double
     Omega = Omega0, dOmega,
-    V[2], xrange[2], p[2][2], 
+    V[2], xrange[2], p[2][2],
     pole = -1;
 
 
@@ -2756,10 +2756,10 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
       adjust = false;
 
     } while (1);
-        
+
     // Newton-Raphson iteration step
     Omega -= (dOmega = (V[0] - vol)/V[1]);
-    
+
     // correction if the values are smaller than critical
     if (Omega < OmegaC) Omega = OmegaC - (dOmega = (volC[0] - vol)/volC[1]);
 
@@ -5712,27 +5712,27 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   }
 
   if (!ok) {
-    
+
     std::cerr.precision(16);
-    
-    std::cerr 
-      << "Parameters: q=" << q << " F=" << F 
-      << " d=" << d << " Omega0=" << Omega0 
+
+    std::cerr
+      << "Parameters: q=" << q << " F=" << F
+      << " d=" << d << " Omega0=" << Omega0
       << " delta=" << delta;
-    
+
     if (rotated)
       std::cerr << " theta=" << theta << '\n';
     else
       std::cerr << " s=(" << s[0] << ',' << s[1] << ',' << s[2] << ")\n";
     /*
-    std::cerr << "Vertices:\n"; 
+    std::cerr << "Vertices:\n";
     for (auto &v : V) std::cerr << v << '\n';
-    
-    std::cerr << "Triangle:\n"; 
+
+    std::cerr << "Triangle:\n";
     for (auto &t : Tr) std::cerr << t << '\n';
     */
     report_error(fname +"::There are too many triangles");
-    
+
     return NULL;
   }
 
@@ -7541,7 +7541,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
       break;
 
       default:
-        report_error(fname + 
+        report_error(fname +
           "::This radiosity-redistribution model =" +
           std::string(s) + " does not exist");
         return NULL;
