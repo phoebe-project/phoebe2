@@ -808,7 +808,7 @@ template<class T>
 
   template <class T, int N> struct glq {
     static const int n = N;
-    static const T phi[];       // Gauss-Lagrange nodes x_i in [0, Pi] 
+    static const T phi[];       // Gauss-Lagrange nodes x_i in [0, Pi]
     static const T weights[];   // Gauss-Lagrange weights
     static const T sc_phi[];    // sin and cos of nodes  x_i
   };
@@ -908,9 +908,9 @@ template<class T>
       v[3] = {area, volume, d{volume}/d{Omega}}
 
     Notes: for Omega > Omega_critical
-   
+
       A, V, dV/dOmega converge as O(m^-4)
-   
+
     Ref:
       * https://en.wikipedia.org/wiki/Gaussian_quadrature
       * https://en.wikipedia.org/wiki/Gauss–Kronrod_quadrature_formula
@@ -932,7 +932,7 @@ template<class T>
 
 
     using G = glq<T, 15>;
-    
+
     //
     // What is calculated
     //
@@ -1208,7 +1208,7 @@ template<class T>
     Notes:
       A converge as O(m^-3)
       V, dV/dOmega converge as O(m^-4)
-  
+
     Ref:
       * https://en.wikipedia.org/wiki/Gaussian_quadrature
       * https://en.wikipedia.org/wiki/Gauss–Kronrod_quadrature_formula
