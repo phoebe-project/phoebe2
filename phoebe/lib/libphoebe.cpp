@@ -2609,7 +2609,11 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   //
 
   double OmegaC, volC[2];
-
+  
+  #if defined(DEBUG)
+  std::cerr << "calculate critical volume ...\n";
+  #endif
+  
   if (aligned)
     gen_roche::critical_volume(q, F, delta, OmegaC, volC);
   else
