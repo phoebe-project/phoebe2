@@ -1836,6 +1836,128 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
 /*
   C++ wrapper for Python code:
 
+  Calculate the volume of the semi-detached Roche lobe with
+  misaligned spin and orbit velocity vectors.
+
+  Python:
+
+    critical_volume = roche_misaligned_critical_volume(q, F, d, misalignment)
+
+  where parameters are
+
+  positionals:
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    misalignment: in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+      or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
+  
+  Returns:
+
+    critical_volume: float
+*/
+
+//#define DEBUG
+static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  auto fname = "roche_misaligned_critical_volume"_s;
+
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"misalignment",
+    NULL};
+
+  int choice = 0;
+
+  double q, F, delta;
+
+  PyObject *o_misalignment;
+
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds,  "dddO", kwlist,
+        &q, &F, &delta, &o_misalignment)
+      ) {
+    report_error(fname + "::Problem reading arguments");
+    return NULL;
+  }
+
+  #if defined(DEBUG)
+  std::cerr.precision(16);
+  std::cerr << "q:" << q << " F=" << F << " Omega=" << Omega0 << " delta=" << delta << '\n';
+  #endif
+
+  bool aligned = false;
+
+  double theta;
+
+  if (PyFloat_Check(o_misalignment)) {
+
+    theta = std::abs(PyFloat_AsDouble(o_misalignment)); // in [0, pi/2]
+
+    aligned = (std::sin(theta) == 0); // theta ~0 => aligned
+
+     #if defined(DEBUG)
+    std::cerr << "theta:" << theta << '\n';
+    #endif
+
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
+
+    double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
+
+
+    #if defined(DEBUG)
+    std::cerr << "spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
+    #endif
+
+    if (s[0] == 0) {
+      aligned = true;
+      theta = 0;
+    } else {
+      aligned = false;
+      theta = std::asin(std::abs(s[0])); // in [0, pi/2]
+    }
+
+  } else {
+    report_error(fname + ":: This type of misalignment if not supported");
+    return NULL;
+  }
+  
+  //
+  // Calculate critical volume
+  //
+  double volC;
+  
+  if (aligned) {
+    double L1 = gen_roche::lagrange_point_L1(q, F, delta);
+    gen_roche::critical_area_volume_integration(&volC-1, 2U, L1, q, F, delta);
+  } else {
+    double x[2];
+    if (!misaligned_roche::lagrange_point(1, q, F, delta, theta, x)) {
+      report_error(fname + "::Calculation of Lagrange point L1 failed");
+      return NULL;
+    }
+    misaligned_roche::critical_area_volume_integration(&volC-1, 2U, x, q, F, delta, theta); 
+  }
+  
+  return PyFloat_FromDouble(volC);
+}
+
+/*
+  C++ wrapper for Python code:
+
   Calculate area and volume of the generalied Roche lobes with
   misaligned spin and orbit velocity vectors.
 
@@ -10158,7 +10280,6 @@ static PyMethodDef Methods[] = {
     "permits existance of the compact Roche lobe for given "
     "values of q, F and d."},
 
-
   { "roche_misaligned_Omega_min",
     (PyCFunction)roche_misaligned_Omega_min,
     METH_VARARGS|METH_KEYWORDS,
@@ -10166,6 +10287,13 @@ static PyMethodDef Methods[] = {
     "permits existance of the compact Roche lobe for given "
     "values of q, F, d and misalignment (theta or direction)."},
 
+// --------------------------------------------------------------------
+  { "roche_misaligned_critical_volume",
+    (PyCFunction)roche_misaligned_critical_volume,
+    METH_VARARGS|METH_KEYWORDS,
+    "Determine the volume of the semi-detached case of the misaligned "
+    "Roche lobe for given values of q, F, F and misalignment (theta or "
+    "direction)"},
 // --------------------------------------------------------------------
 
   { "rotstar_from_roche",
