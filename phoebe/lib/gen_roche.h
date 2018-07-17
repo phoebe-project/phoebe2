@@ -2166,13 +2166,10 @@ namespace gen_roche {
   
   /*
     Computing area of the surface, the volume and derivative of the
-    volume w.r.t. potential of the semi-detached Roche lobes that 
-    intersects x-axis
-
-      {x0,0,0}  {x1,0,0}
+    volume w.r.t. potential of the semi-detached Roche.
 
     Input:
-      x_bounds[2] = {x0,x1}
+      L1 - Lagrange point L1
       q - mass ratio M2/M1
       F - synchronicity parameter
       delta - separation between the two objects
@@ -2203,7 +2200,7 @@ namespace gen_roche {
   void critical_area_volume_integration(
     T v[3],
     const unsigned & choice,
-    T xrange[2],
+    const T & L1,
     const T & q,
     const T & F = 1,
     const T & d = 1,
@@ -2242,7 +2239,7 @@ namespace gen_roche {
     // Setup init point
     //
     {
-      T tp = xrange[1]/d;
+      T tp = L1/d;
       for (int i = 0; i < G::n; ++i) {
         w[i] = dnu*G::weights[i];
         y[i] = tp;
@@ -2397,37 +2394,16 @@ namespace gen_roche {
     T & OmegaC,
     T volC[2]) {
 
-    T L;
-
-    // getting data for L1
-    critical_potential(&OmegaC, &L, 1U, q, F, delta);
-    
-    #if defined(DEBUG)
-    std::cerr.precision(16);
-    std::cerr << "OmegaC=" << OmegaC << " L=" << L << '\n';
-    #endif
-    
-    // finding range on x-axis
-    T xrange[2];
-    if (!lobe_xrange(xrange, 0, OmegaC, q, F, delta, true)) {
-      std::cerr
-        << "gen_roche::critical_volume: Failed determining xrange.";
-      return false;
-    }
-
-    #if defined(DEBUG)
-    std::cerr << "xrange=" << xrange[0] << ":" << xrange[1] << '\n';
-    #endif
-    
+    T L1 = lagrange_point_L1(q, F, delta);
+        
     // compute volume and d(volume)/dOmega
-    critical_area_volume_integration(volC - 1, 6, xrange, q, F, delta);
-    //area_volume_integration(volC - 1, 6, xrange, OmegaC, q, F, delta);
-
+    critical_area_volume_integration(volC - 1, 6, L1, q, F, delta);
+    
+    OmegaC = potential_on_x_axis(L1, q, F, delta);
+     
     return true;
   }
-  #if defined(DEBUG)
-  #undef DEBUG
-  #endif
+
 
   /*
     Computing surface area and the volume of the primary Roche lobe in the limit of high w=delta*Omega. It should precise at least up to 5.5 digits for

@@ -2017,18 +2017,13 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   
   } else if (std::abs(dOmegaC) < OmegaC*eps1) {  // semi-detached case
     
-    double x[2];
+
       
     if (aligned) {
-      
-      if (!gen_roche::lobe_xrange(x, 0, OmegaC, q, F, delta, true)) {
-        report_error(fname + "::Failed determining xrange");
-        return NULL;
-      }
-      gen_roche::critical_area_volume_integration(av, res_choice, x, q, F, delta);
-      
+      double L1 = gen_roche::lagrange_point_L1(q, F, delta);
+      gen_roche::critical_area_volume_integration(av, res_choice, L1, q, F, delta);
     } else {
-      
+      double x[2];
       if (!misaligned_roche::lagrange_point(1, q, F, delta, theta, x)) {
         report_error(fname + "::Calculation of Lagrange point L1 failed");
         return NULL;
