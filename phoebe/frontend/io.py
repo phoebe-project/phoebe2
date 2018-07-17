@@ -820,8 +820,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                                                  lvolume=True,
                                                  larea=False)['lvolume']
 
+            # convert from roche units to scaled (solar) units
             volume *= a**3
-
+            # now convert from volume (in solar units) to requiv
             d['value'] = (volume * 3./4 * 1./np.pi)**(1./3)
             d['kind'] = None
             if contact_binary:
@@ -954,25 +955,24 @@ def par_value(param, index=None, **kwargs):
             # val = [val]
         if param.qualifier == 'requiv':
             # NOTE: for the parent orbit, we can assume a single orbit if we've gotten this far
+            # NOTE: mapping between the qualifier is handled by the 2to1 dictionary
             b = param._bundle
             comp_no = b.hierarchy.get_primary_or_secondary(param.component, return_ind=True)
 
-            sma = b.get_value('sma', kind='orbit', context='component')
-            requiv_ = np.array([0, 0, val/sma])
-            # TODO: do we need to flip q for secondary and then flip Phi back?
+            sma = b.get_value('sma', kind='orbit', context='component', unit='solRad')
+
             q = b.get_value('q', kind='orbit', context='component')
             q = roche.q_for_component(q, component=comp_no)
             F = b.get_value('syncpar', component=param.component, context='component')
             e = b.get_value('ecc', kind='orbit', context='component')
             d = 1-e # at periastron
-            s = np.array([0,0,1]).astype(float) # aligned
+            s = np.array([0,0,1]).astype(float) # aligned case, we would already have thrown an error if misaligned
 
-            logger.debug("roche_misaligned_Omega(q={}, F={}, d={}, s={}, requiv_={}) for {}".format(q, F, d, s, requiv_, param.component))
-            Phi_guess = libphoebe.roche_misaligned_Omega(q, F, d, s, requiv_)
-            volume = 4./3*np.pi*(val/sma)**3
-            logger.debug("roche_misaligned_Omega_at_vol(volume={}, q={}, F={}, d={}, s={}, Phi_guess={}) for {}".format(volume, q, F, d, s, Phi_guess, param.component))
+            requiv = val
+            volume = 4./3 * np.pi * requiv**3 /sma**3
+            logger.debug("roche_misaligned_Omega_at_vol(volume={}, q={}, F={}, d={}, s={}) for {}".format(volume, q, F, d, s, param.component))
             Phi = libphoebe.roche_misaligned_Omega_at_vol(volume,
-                                                          q, F, d, s, Phi_guess)
+                                                          q, F, d, s)
 
             val = [roche.pot_for_component(Phi, q, component=comp_no, reverse=True)]
         else:
@@ -1146,8 +1146,13 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     primary, secondary = stars
 
     if len(stars) != 2 or len(orbits) != 1:
-        raise ValueError("Phoebe 1 only supports binaries. Either provide a different system or edit the hierarchy.")
+        raise ValueError("PHOEBE 1 only supports binaries. Either provide a different system or edit the hierarchy.")
 # check for contact_binary
+
+    for star in stars:
+        if eb.get_value('pitch', component=star) != 0 or eb.get_value('yaw', component=star) != 0:
+            raise ValueError("PHOEBE 1 only supports aligned systems.  Edit pitch and yaw to be aligned or use another backend")
+
     contact_binary = eb.hierarchy.is_contact_binary(primary)
 
 # check for semi_detached

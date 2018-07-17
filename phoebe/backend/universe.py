@@ -1179,7 +1179,6 @@ class Star(Body):
         # and have volume be a function of d, with some scaling factor provided
         # by the user as a parameter.  Until then, we'll assume volume is
         # conserved which means the volume should always be the same
-
         volume = 4./3 * np.pi * self.requiv**3
 
         if not scaled:
@@ -1659,6 +1658,7 @@ class Star_roche(Star):
         logger.debug("libphoebe.roche_misaligned_Omega_at_vol(vol={}, q={}, F={}, d={}, s={})".format(target_volume, q, F, d, s))
         Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
                                                       q, F, d, s)
+        logger.debug("libphoebe.roche_misaligned_Omega_at_vol Omega={}".format(Phi))
         # this is assuming that we're in the reference frame of our current star,
         # so we don't need to worry about flipping Phi for the secondary.
 
