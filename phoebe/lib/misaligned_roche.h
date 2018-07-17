@@ -1781,7 +1781,7 @@ template<class T>
     Return:
       true - if there are no problem and false otherwise
   */
-  #define DEBUG
+  //#define DEBUG
   template <class T>
   bool critical_volume(
     const T & q,
@@ -1792,7 +1792,10 @@ template<class T>
     T volC[2]) {
 
     #if defined(DEBUG)
-    std::cerr << "critical_volume::START\n";
+    std::cerr.precision(16);
+    std::cerr 
+      << "critical_volume::START\n"
+      << "q=" << q << " F=" << F << " d=" << d << " th=" << th << '\n';       
     #endif
    
     if (th == 0)

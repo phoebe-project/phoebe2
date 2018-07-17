@@ -1941,6 +1941,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   }
 
   #if defined(DEBUG)
+  std::cerr.precision(16);
   std::cerr << "q:" << q << " F=" << F << " Omega=" << Omega0 << " delta=" << delta << '\n';
   #endif
 
@@ -1980,9 +1981,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     report_error(fname + ":: This type of misalignment if not supported");
     return NULL;
   }
-
-
-
+  
   //
   // Read boolean variables and define result-choice
   //
@@ -2004,88 +2003,123 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   // Calculate area and volume:
   //
 
-  const int m_min = 1 << 6;  // minimal number of points along x-axis
-
-  int m0 = m_min;            // starting number of points alomg x-axis
-
-  bool adjust = true;
-
-  double p[2][2], xrange[2], av[2], pole, e, t;
-
-  //
-  // Choosing boundaries on x-axis or calculating the pole
-  //
-
-  if (aligned) {      // Non-misaligned Roche lobes
-    if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, delta, true)){
-      report_error(fname + "Determining lobe's boundaries failed");
-      return NULL;
-    }
-  } else {
-    pole = misaligned_roche::poleL_height(Omega0, q, F, delta, std::sin(theta));
-    if (pole < 0) {
-      report_error(fname + "Determining pole failed");
-      return NULL;
-    }
-  }
-  //
-  // one step adjustment of precison for area and volume
-  // calculation
-  //
-
-  do {
-
-    for (int i = 0, m = m0; i < 2; ++i, m <<= 1)
-      if (theta == 0)
-        gen_roche::area_volume_integration
-          (p[i], res_choice, xrange, Omega0, q, F, delta, m);
-      else {
-        misaligned_roche::area_volume_integration
-          (p[i], res_choice, pole, Omega0, q, F, delta, theta, m);
-        #if defined(DEBUG)
-        std::cerr << "m=" << m << " p[" << i  << "]=" << p[i][0] << ' ' << p[i][1] << '\n';
-        #endif
+  double 
+    av[2],        // storing results
+    OmegaC = misaligned_roche::calc_Omega_min(q, F, delta, theta),
+    dOmegaC = Omega0 - OmegaC,
+    eps0 = 1e-12,
+    eps1 = 1e-12;
+        
+  if (dOmegaC < -OmegaC*eps0){
+    
+    report_error(fname + ":: Object is not detached.");
+    return NULL;
+  
+  } else if (std::abs(dOmegaC) < OmegaC*eps1) {  // semi-detached case
+    
+    double x[2];
+      
+    if (aligned) {
+      
+      if (!gen_roche::lobe_xrange(x, 0, OmegaC, q, F, delta, true)) {
+        report_error(fname + "::Failed determining xrange");
+        return NULL;
       }
+      gen_roche::critical_area_volume_integration(av, res_choice, x, q, F, delta);
+      
+    } else {
+      
+      if (!misaligned_roche::lagrange_point(1, q, F, delta, theta, x)) {
+        report_error(fname + "::Calculation of Lagrange point L1 failed");
+        return NULL;
+      }
+      misaligned_roche::critical_area_volume_integration(av, res_choice, x, q, F, delta, theta); 
+    }
+  
+  } else {                                       // detached case
+  
+    const int m_min = 1 << 6;  // minimal number of points along x-axis
 
-    if (adjust) {
+    int m0 = m_min;            // starting number of points alomg x-axis
 
-      // extrapolation based on assumption
-      //   I = I0 + a_1 h^4
-      // estimating errors
+    bool adjust = true;
 
-      int m0_next = m0;
+    double p[2][2], xrange[2], pole, e, t;
+
+    //
+    // Choosing boundaries on x-axis or calculating the pole
+    //
+
+    if (aligned) {      // Non-misaligned Roche lobes
+      if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, delta, true)){
+        report_error(fname + "Determining lobe's boundaries failed");
+        return NULL;
+      }
+    } else {            // mis-aligned Roche lobes
+      pole = misaligned_roche::poleL_height(Omega0, q, F, delta, std::sin(theta));
+      if (pole < 0) {
+        report_error(fname + "Determining pole failed");
+        return NULL;
+      }
+    }
+    //
+    // one step adjustment of precison for area and volume
+    // calculation
+    //
+
+    do {
+
+      for (int i = 0, m = m0; i < 2; ++i, m <<= 1)
+        if (theta == 0)
+          gen_roche::area_volume_integration
+            (p[i], res_choice, xrange, Omega0, q, F, delta, m);
+        else {
+          misaligned_roche::area_volume_integration
+            (p[i], res_choice, pole, Omega0, q, F, delta, theta, m);
+          #if defined(DEBUG)
+          std::cerr << "m=" << m << " p[" << i  << "]=" << p[i][0] << ' ' << p[i][1] << '\n';
+          #endif
+        }
+
+      if (adjust) {
+
+        // extrapolation based on assumption
+        //   I = I0 + a_1 h^4
+        // estimating errors
+
+        int m0_next = m0;
+
+        adjust = false;
+
+        for (int i = 0; i < 2; ++i) if (b_av[i]) {
+          // best approximation
+          av[i] = t = (16*p[1][i] - p[0][i])/15;
+
+          // relative error
+          e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
+
+          if (e > eps[i]) {
+            int k = int(1.1*m0*std::pow(e/eps[i], 0.25));
+            if (k > m0_next) {
+              m0_next = k;
+              adjust = true;
+            }
+          }
+        }
+
+        if (adjust) m0 = m0_next; else break;
+
+      } else {
+        // best approximation
+        for (int i = 0; i < 2; ++i)
+          if (b_av[i]) av[i] = (16*p[1][i] - p[0][i])/15;
+        break;
+      }
 
       adjust = false;
 
-      for (int i = 0; i < 2; ++i) if (b_av[i]) {
-        // best approximation
-        av[i] = t = (16*p[1][i] - p[0][i])/15;
-
-        // relative error
-        e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
-
-        if (e > eps[i]) {
-          int k = int(1.1*m0*std::pow(e/eps[i], 0.25));
-          if (k > m0_next) {
-            m0_next = k;
-            adjust = true;
-          }
-        }
-      }
-
-      if (adjust) m0 = m0_next; else break;
-
-    } else {
-      // best approximation
-      for (int i = 0; i < 2; ++i)
-        if (b_av[i]) av[i] = (16*p[1][i] - p[0][i])/15;
-      break;
-    }
-
-    adjust = false;
-
-  } while (1);
-
+    } while (1);
+  }
 
   PyObject *results = PyDict_New();
 

@@ -1432,7 +1432,7 @@ namespace gen_roche {
        r - position
        g - gradient
   */
-  // #define DEBUG
+  //#define DEBUG
   template <class T>
   bool meshing_start_point(
     T r[3],
@@ -2388,7 +2388,7 @@ namespace gen_roche {
     Return:
       true - if there are no problem and false otherwise
   */
-  #define DEBUG
+  //#define DEBUG
   template <class T>
   bool critical_volume(
     const T & q,
