@@ -1940,6 +1940,10 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     return NULL;
   }
 
+  #if defined(DEBUG)
+  std::cerr << "q:" << q << " F=" << F << " Omega=" << Omega0 << " delta=" << delta << '\n';
+  #endif
+
   bool aligned = false;
 
   double theta;
@@ -1949,6 +1953,10 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     theta = std::abs(PyFloat_AsDouble(o_misalignment)); // in [0, pi/2]
 
     aligned = (std::sin(theta) == 0); // theta ~0 => aligned
+
+     #if defined(DEBUG)
+    std::cerr << "theta:" << theta << '\n';
+    #endif
 
   } else if (PyArray_Check(o_misalignment) &&
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
@@ -1972,6 +1980,8 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     report_error(fname + ":: This type of misalignment if not supported");
     return NULL;
   }
+
+
 
   //
   // Read boolean variables and define result-choice

@@ -1105,7 +1105,7 @@ template<class T>
     Input:
       mask :
         1. bit set for  W[0] = partial_r W
-        2. bit set for  W[1] = partial_theta W
+        2. bit set for  W[1] = partial_nu W
         3. bit set fot  W[2] = partial_phi W
       r - radius
       sc_nu[2] - [sin(nu), cos(nu)] - sinus and cosine of azimuthal angle
@@ -1298,7 +1298,7 @@ template<class T>
         }
 
         if (b_area) k[0][G::n] = 0;
-        if (b_vol) k[0][G::n+1] = 0;
+        if (b_vol)  k[0][G::n+1] = 0;
         if (b_dvol) k[0][G::n+2] = sum[2];
 
       } else {
@@ -1781,7 +1781,7 @@ template<class T>
     Return:
       true - if there are no problem and false otherwise
   */
-  //#define DEBUG
+  #define DEBUG
   template <class T>
   bool critical_volume(
     const T & q,
@@ -1810,10 +1810,17 @@ template<class T>
       return false;
     }
     #if defined(DEBUG)
-    std::cerr << "critical_volume::critical_area_volume_integration\n";
+    std::cerr 
+      << "x=" << x[0] << ' ' << x[1] << '\n'
+      << "critical_volume::critical_area_volume_integration\n";
     #endif
     
     critical_area_volume_integration(volC-1, 6, x, q, F, d, th);
+   
+    #if defined(DEBUG)
+    std::cerr 
+      << "volC=" << volC[0] << ' ' << volC[1] << '\n';
+    #endif
     
     // calculate critical value of the potential Omega(L1)
     x[2] = x[1];
