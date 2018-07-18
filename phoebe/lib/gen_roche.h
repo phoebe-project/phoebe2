@@ -2206,7 +2206,7 @@ namespace gen_roche {
     const T & d = 1,
     const int & m = 1 << 14) {
 
-    using G = glq<T, 10>;
+
 
     //
     // What is calculated
@@ -2225,13 +2225,16 @@ namespace gen_roche {
 
     if (b_area) mask |= 4;      // + 100b
     if (b_dvol)  mask2 |= 2;    // + 010b
-
+    
+    using real = long double;
+    
+    using G = glq<real, 10>;
+    
     const int dim = G::n + 3;
-
-    T d2 = d*d, d3 = d2*d,
-      b = d3*F*F*(1 + q);
-
-    T y[dim], k[4][dim], w[G::n], W[3], sc_nu[2], sum[3], r[2],
+    
+    real 
+      d2 = d*d, d3 = d2*d, b = d3*F*F*(1 + q), q_ = q,
+      y[dim], k[4][dim], w[G::n], W[3], sc_nu[2], sum[3], r[2],
       rt, rp, nu, dnu = utils::m_pi/m;
   
     
@@ -2239,7 +2242,7 @@ namespace gen_roche {
     // Setup init point
     //
     {
-      T tp = L1/d;
+      real tp = L1/d;
       for (int i = 0; i < G::n; ++i) {
         w[i] = dnu*G::weights[i];
         y[i] = tp;
@@ -2261,7 +2264,7 @@ namespace gen_roche {
 
         for (int j = 0; j < G::n; ++j){
           r[0] = y[j], r[1] = r[0]*r[0];
-          calc_dOmega2_pole(W, mask2, r, G::sc_phi + 2*j, q, b);
+          calc_dOmega2_pole(W, mask2, r, G::sc_phi + 2*j, q_, b);
           k[0][j] = dnu*W[0];
 
           if (b_dvol) sum[2] += w[j]*r[1]*W[1];
@@ -2277,7 +2280,7 @@ namespace gen_roche {
         for (int j = 0; j < G::n; ++j){
           r[0] = y[j], r[1] = r[0]*r[0];
 
-          calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b);
+          calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b);
           rt = -W[1]/W[0];          // partial_nu r
           k[0][j] = dnu*rt;
 
@@ -2300,7 +2303,7 @@ namespace gen_roche {
       for (int j = 0; j < G::n; ++j){
         r[0] = y[j] + 0.5*k[0][j], r[1] = r[0]*r[0];
 
-        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b);
+        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b);
         rt = -W[1]/W[0];        // partial_nu r
         k[1][j] = dnu*rt;
 
@@ -2320,7 +2323,7 @@ namespace gen_roche {
       for (int j = 0; j < G::n; ++j){
         r[0] = y[j] + 0.5*k[1][j], r[1] = r[0]*r[0];
 
-        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b);
+        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b);
         rt = -W[1]/W[0];        // partial_nu r
         k[2][j] = dnu*rt;
 
@@ -2341,7 +2344,7 @@ namespace gen_roche {
       for (int j = 0; j < G::n; ++j){
         r[0] = y[j] + k[2][j], r[1] = r[0]*r[0];
 
-        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b);
+        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b);
         rt = -W[1]/W[0];         // partial_nu r
         k[3][j] = dnu*rt;
 

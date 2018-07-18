@@ -930,9 +930,6 @@ template<class T>
     const int & m = 1 << 14)
   {
 
-
-    using G = glq<T, 15>;
-
     //
     // What is calculated
     //
@@ -946,10 +943,16 @@ template<class T>
 
     unsigned mask = 3;      // = 011b
     if (b_area) mask |= 4;  // += 100b
-
+  
+    using real = long double;
+    
+    using G = glq<real, 15>;
+    
     const int dim = G::n + 3;
-
-    T W[3], w[G::n], y[dim], k[4][dim], sc_nu[2], sc_th[2],
+ 
+    real 
+      W[3], w[G::n], y[dim], k[4][dim], sc_nu[2], sc_th[2], 
+      q_ = q,
       d2 = delta*delta,
       d3 = delta*d2,
       d4 = d2*d2,
@@ -962,14 +965,14 @@ template<class T>
     //
 
     {
-      T tp = pole/delta;
+      real tp = pole/delta;
       for (int i = 0; i < G::n; ++i) {
         y[i] = tp;
         w[i] = dnu*G::weights[i];
       }
       y[G::n] = y[G::n + 1] = y[G::n + 2] = 0;
 
-      utils::sincos(th, sc_th, sc_th + 1);
+      utils::sincos(real(th), sc_th, sc_th + 1);
     }
 
     //
@@ -985,7 +988,7 @@ template<class T>
       for (int j = 0; j < G::n; ++j){
 
         r[0] = y[j], r[1] = r[0]*r[0];
-        calc_dOmega(W, mask, r, sc_nu, G::sc_phi+2*j, q, b, sc_th);
+        calc_dOmega(W, mask, r, sc_nu, G::sc_phi+2*j, q_ , b, sc_th);
 
         rt = -W[1]/W[0];      // partial_theta r
         k[0][j] = dnu*rt;
@@ -1006,7 +1009,7 @@ template<class T>
       for (int j = 0; j < G::n; ++j){
 
         r[0] = y[j] + 0.5*k[0][j], r[1] = r[0]*r[0];
-        calc_dOmega(W, mask, r, sc_nu, G::sc_phi+2*j, q, b, sc_th);
+        calc_dOmega(W, mask, r, sc_nu, G::sc_phi+2*j, q_, b, sc_th);
 
         rt = -W[1]/W[0];      // partial_theta r
         k[1][j] = dnu*rt;
@@ -1027,7 +1030,7 @@ template<class T>
       for (int j = 0; j < G::n; ++j){
 
         r[0] = y[j] + 0.5*k[1][j], r[1] = r[0]*r[0];
-        calc_dOmega(W, mask, r, sc_nu, G::sc_phi+2*j, q, b, sc_th);
+        calc_dOmega(W, mask, r, sc_nu, G::sc_phi+2*j, q_, b, sc_th);
 
         rt = -W[1]/W[0];      // partial_theta r
         k[2][j] = dnu*rt;
@@ -1049,7 +1052,7 @@ template<class T>
       for (int j = 0; j < G::n; ++j){
 
         r[0] = y[j] + k[2][j], r[1] = r[0]*r[0];
-        calc_dOmega(W, mask, r, sc_nu, G::sc_phi+2*j, q, b, sc_th);
+        calc_dOmega(W, mask, r, sc_nu, G::sc_phi+2*j, q_, b, sc_th);
 
         rt = -W[1]/W[0];      // partial_theta r
         k[3][j] = dnu*rt;
@@ -1227,9 +1230,6 @@ template<class T>
     const int & m = 1 << 14)
   {
 
-
-    using G = glq<T, 15>;
-
     //
     // What is calculated
     //
@@ -1247,12 +1247,16 @@ template<class T>
 
     if (b_area) mask |= 4;      // + 100b
     if (b_dvol)  mask2 |= 2;    // + 010b
-
+      
+    using real = long double;
+    using G = glq<real, 15>;
+    
     const int dim = G::n + 3;
-
-    T w[G::n], y[dim], k[4][dim], sc_nu[2], p[4], W[3], sum[3],
+ 
+    real 
+      w[G::n], y[dim], k[4][dim], sc_nu[2], p[4], W[3], sum[3], 
       r[2], nu, rt, rp,
-      d2 = d*d, d3 = d2*d,
+      q_ = q, d2 = d*d, d3 = d2*d,
       b = (1 + q)*F*F*d3,
       dnu = utils::m_pi/m;
 
@@ -1261,9 +1265,9 @@ template<class T>
     //
 
     {
-      T tp = std::hypot(x[0], x[1]);
+      real tp = std::hypot(real(x[0]), real(x[1]));
 
-      utils::sincos(th, sc_nu, sc_nu+1);
+      utils::sincos(real(th), sc_nu, sc_nu+1);
 
       p[0] = x[1]/tp;                 // a'
       p[1] = x[0]/tp;                 // b'
@@ -1291,7 +1295,7 @@ template<class T>
 
         for (int j = 0; j < G::n; ++j){
           r[0] = y[j], r[1] = r[0]*r[0];
-          calc_dOmega2_pole(W, mask2, r, G::sc_phi + 2*j, q, b, p);
+          calc_dOmega2_pole(W, mask2, r, G::sc_phi + 2*j, q_, b, p);
           k[0][j] = dnu*W[0];
 
           if (b_dvol) sum[2] += w[j]*r[1]*W[1];
@@ -1307,7 +1311,7 @@ template<class T>
         for (int j = 0; j < G::n; ++j){
           r[0] = y[j], r[1] = r[0]*r[0];
 
-          calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b, p);
+          calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b, p);
           rt = -W[1]/W[0];          // partial_nu r
           k[0][j] = dnu*rt;
 
@@ -1330,7 +1334,7 @@ template<class T>
       for (int j = 0; j < G::n; ++j){
         r[0] = y[j] + 0.5*k[0][j], r[1] = r[0]*r[0];
 
-        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b, p);
+        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b, p);
         rt = -W[1]/W[0];        // partial_nu r
         k[1][j] = dnu*rt;
 
@@ -1350,7 +1354,7 @@ template<class T>
       for (int j = 0; j < G::n; ++j){
         r[0] = y[j] + 0.5*k[1][j], r[1] = r[0]*r[0];
 
-        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b, p);
+        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b, p);
         rt = -W[1]/W[0];        // partial_nu r
         k[2][j] = dnu*rt;
 
@@ -1371,7 +1375,7 @@ template<class T>
       for (int j = 0; j < G::n; ++j){
         r[0] = y[j] + k[2][j], r[1] = r[0]*r[0];
 
-        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b, p);
+        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b, p);
         rt = -W[1]/W[0];         // partial_nu r
         k[3][j] = dnu*rt;
 

@@ -1879,8 +1879,6 @@ static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args
     (char*)"misalignment",
     NULL};
 
-  int choice = 0;
-
   double q, F, delta;
 
   PyObject *o_misalignment;
@@ -2146,8 +2144,6 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   
   } else if (std::abs(dOmegaC) < OmegaC*eps1) {  // semi-detached case
     
-
-      
     if (aligned) {
       double L1 = gen_roche::lagrange_point_L1(q, F, delta);
       gen_roche::critical_area_volume_integration(av, res_choice, L1, q, F, delta);
@@ -2162,7 +2158,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   
   } else {                                       // detached case
   
-    const int m_min = 1 << 6;  // minimal number of points along x-axis
+    const int m_min = 1 << 8;  // minimal number of points along x-axis
 
     int m0 = m_min;            // starting number of points alomg x-axis
     
@@ -2693,7 +2689,7 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
       value of the Kopal potential for (q,F,d1,spin) at which the lobe has the given volume
 */
 
-//#define DEBUG
+#define DEBUG
 static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_Omega_at_vol"_s;
@@ -2851,7 +2847,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   //
   // Trying to calculate Omega at given volume
   //
-  const int m_min = 1 << 6;  // minimal number of points along x-axis
+  const int m_min = 1 << 8;  // minimal number of points along x-axis
 
   int
     m0 = m_min,  // minimal number of points along x-axis
@@ -2884,7 +2880,9 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
         return NULL;
       }
     }
+    
 
+    
     do {
 
       // calculate volume and derivate volume w.r.t to Omega
