@@ -925,7 +925,7 @@ template<class T>
     const T & Omega0,
     const T & q,
     const T & F = 1,
-    const T & delta = 1,
+    const T & d = 1,
     const T & th = 0,
     const int & m = 1 << 14)
   {
@@ -952,12 +952,8 @@ template<class T>
  
     real 
       W[3], w[G::n], y[dim], k[4][dim], sc_nu[2], sc_th[2], 
-      q_ = q,
-      d2 = delta*delta,
-      d3 = delta*d2,
-      d4 = d2*d2,
-      b = (1 + q)*F*F*d3,
-      dnu = utils::m_pi/m,
+      q_ = q, d2 = d*d, d3 = d*d2,
+      b = (1 + q)*F*F*d3, dnu = utils::m_pi/m,
       rt, rp, r[2], nu;
 
     //
@@ -965,7 +961,7 @@ template<class T>
     //
 
     {
-      real tp = pole/delta;
+      real tp = pole/d;
       for (int i = 0; i < G::n; ++i) {
         y[i] = tp;
         w[i] = dnu*G::weights[i];
@@ -1077,7 +1073,7 @@ template<class T>
 
     if (b_area) v[0] = 2*d2*y[G::n];
     if (b_vol)  v[1] = 2*d3*y[G::n + 1]/3;
-    if (b_dvol) v[2] = 2*d4*y[G::n + 2];
+    if (b_dvol) v[2] = 2*d3*d*y[G::n + 2];
   }
 
   /*

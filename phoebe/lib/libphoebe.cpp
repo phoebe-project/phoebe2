@@ -2689,7 +2689,7 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
       value of the Kopal potential for (q,F,d1,spin) at which the lobe has the given volume
 */
 
-#define DEBUG
+//#define DEBUG
 static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_Omega_at_vol"_s;
@@ -2761,10 +2761,10 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
     
-    //#if defined(DEBUG)
+    #if defined(DEBUG)
     std::cerr.precision(16);
     std::cerr << fname << "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
-    //#endif
+    #endif
     
     aligned = (s[0] == 0);
     theta = std::asin(s[0]);
@@ -2835,6 +2835,17 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
       1/r  +
       q*(1/std::abs(r - delta) - (r/delta)/delta) +
       0.5*(1 + q)*utils::sqr(F*r*std::cos(theta));
+    
+    // Newton-Raphson step
+    if (Omega0 < OmegaC) Omega0 = OmegaC + (vol - volC[0])/volC[1];
+  }
+  
+  //
+  // Checking estimate of the Omega0
+  //
+  if (Omega0 < OmegaC) {
+    report_error(fname + "::The estimated Omega is beyond critical."); 
+    return NULL;
   }
 
   #if defined(DEBUG)
@@ -2879,9 +2890,11 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
         report_error(fname + "Determining pole failed");
         return NULL;
       }
+      
+      #if defined(DEBUG)
+      std::cerr << "pole=" << pole << '\n'; 
+      #endif
     }
-    
-
     
     do {
 
@@ -2922,7 +2935,9 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
           }
 
           #if defined(DEBUG)
-          std::cerr << "m=" <<  m0 << " V[" << i << "]=" << V[i] << " e =" << e << '\n';
+          std::cerr 
+            << "m=" <<  m0 << " m0_next=" << m0_next 
+            << " V[" << i << "]=" << V[i] << " e =" << e << '\n';
           #endif
         }
 
