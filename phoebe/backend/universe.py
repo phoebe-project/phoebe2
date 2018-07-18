@@ -1659,7 +1659,6 @@ class Star_roche(Star):
         Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
                                                       q, F, d, s.astype(np.float64))
 
-        # print libphoebe.roche_misaligned_Omega_at_vol(0.000810752418475, 1.15909090909, 9.83869902131, 0.511943136693, np.array([0.82624029, 0.55422384, 0.1008113 ]))
         logger.debug("libphoebe.roche_misaligned_Omega_at_vol(vol={}, q={}, F={}, d={}, s={}) => {}".format(target_volume, q, F, d, s, Phi))
 
         # this is assuming that we're in the reference frame of our current star,
