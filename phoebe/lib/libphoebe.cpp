@@ -2135,6 +2135,12 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   if (dOmegaC < -OmegaC*eps0){
     
     report_error(fname + ":: Object is not detached.");
+    
+    std::cerr.precision(16);
+    std::cerr
+      << "OmegaC=" << OmegaC << "  Omega0=" << Omega0 << '\n'
+      << "q=" << q << " F=" << F << " delta=" << delta << '\n';
+    
     return NULL;
   
   } else if (std::abs(dOmegaC) < OmegaC*eps1) {  // semi-detached case
@@ -2794,6 +2800,11 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
   } else if (vol > volC[0]){
     report_error(fname + ":: The volume is beyond critical");
+    
+    std::cerr.precision(16);
+    std::cerr
+      << "OmegaC=" << OmegaC << " volC=" << volC[0] << " dvolC/dOmega=" << volC[1] << '\n'
+      << "vol=" << vol << " q=" << q << " F=" << F << " delta=" << delta << '\n';
     return NULL;
   }
 
@@ -2938,6 +2949,11 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     report_error(fname + "::Maximum number of iterations exceeded");
     return NULL;
   }
+
+  #if defined(DEBUG)
+  std::cerr << "Final:Omega=" << Omega  << " dOmega=" << dOmega << '\n';
+  #endif
+
 
   // We use the condition on the argument (= Omega) ~ constraining backward error,
   // but we could also use condition on the value (= Volume) ~ constraing forward error
