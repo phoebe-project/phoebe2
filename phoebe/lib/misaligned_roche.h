@@ -1105,7 +1105,7 @@ template<class T>
     Input:
       mask :
         1. bit set for  W[0] = partial_r W
-        2. bit set for  W[1] = partial_theta W
+        2. bit set for  W[1] = partial_nu W
         3. bit set fot  W[2] = partial_phi W
       r - radius
       sc_nu[2] - [sin(nu), cos(nu)] - sinus and cosine of azimuthal angle
@@ -1298,7 +1298,7 @@ template<class T>
         }
 
         if (b_area) k[0][G::n] = 0;
-        if (b_vol) k[0][G::n+1] = 0;
+        if (b_vol)  k[0][G::n+1] = 0;
         if (b_dvol) k[0][G::n+2] = sum[2];
 
       } else {
@@ -1628,7 +1628,7 @@ template<class T>
   Return:
     true - if calculation succeeded, false - otherwise
   */
-
+  //#define DEBUG 
   template<class T>
   bool lagrange_point(
     int choice,
@@ -1649,7 +1649,11 @@ template<class T>
       case 3: L0 = gen_roche::lagrange_point_L3(q, F, d); break;
       default: return false;
     }
-
+    
+    #if defined(DEBUG)
+    std::cerr << "L0=" << L0 << " theta=" << theta << '\n';
+    #endif
+    
     //
     // Approximating fixed point using RK4 integration from
     // position at aligned case
@@ -1660,7 +1664,7 @@ template<class T>
     if (theta == 0) return true;
 
     {
-      int n = int(theta/0.1);
+      int n = int(std::abs(theta)/0.1);
 
       bool ok = true;
 
@@ -1717,7 +1721,10 @@ template<class T>
     }
     return true;
   }
-
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
+  
   /*
     Calculate the minimal value of the Kopal potential for which the
     primary Roche lobe exists.
@@ -1774,6 +1781,7 @@ template<class T>
     Return:
       true - if there are no problem and false otherwise
   */
+  //#define DEBUG
   template <class T>
   bool critical_volume(
     const T & q,
@@ -1783,28 +1791,56 @@ template<class T>
     T & OmegaC,
     T volC[2]) {
 
+    #if defined(DEBUG)
+    std::cerr.precision(16);
+    std::cerr 
+      << "critical_volume::START\n"
+      << "q=" << q << " F=" << F << " d=" << d << " th=" << th << '\n';       
+    #endif
+   
     if (th == 0)
       return gen_roche::critical_volume(q, F, d, OmegaC, volC);
 
     T x[3];
 
+    #if defined(DEBUG)
+    std::cerr << "critical_volume::calc lagrange points\n";
+    #endif
+        
     if (!lagrange_point(1, q, F, d, th, x)) {
       std::cerr
         << "critical_volume::Calculation of Lagrange point L1 failed\n";
       return false;
     }
-
+    #if defined(DEBUG)
+    std::cerr 
+      << "x=" << x[0] << ' ' << x[1] << '\n'
+      << "critical_volume::critical_area_volume_integration\n";
+    #endif
+    
     critical_area_volume_integration(volC-1, 6, x, q, F, d, th);
-
+   
+    #if defined(DEBUG)
+    std::cerr 
+      << "volC=" << volC[0] << ' ' << volC[1] << '\n';
+    #endif
+    
     // calculate critical value of the potential Omega(L1)
     x[2] = x[1];
     x[1] = 0;
 
     OmegaC = calc_Omega(x, q, F, d, th);
 
+    #if defined(DEBUG)
+    std::cerr << "critical_volume::END\n";
+    #endif
+
     return true;
   }
-
+  
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
 } // namespace misaligned_roche
 
 #endif //#if !defined(__misaligned_roche_h)

@@ -1836,6 +1836,128 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
 /*
   C++ wrapper for Python code:
 
+  Calculate the volume of the semi-detached Roche lobe with
+  misaligned spin and orbit velocity vectors.
+
+  Python:
+
+    critical_volume = roche_misaligned_critical_volume(q, F, d, misalignment)
+
+  where parameters are
+
+  positionals:
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    misalignment: in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+      or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
+  
+  Returns:
+
+    critical_volume: float
+*/
+
+//#define DEBUG
+static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  auto fname = "roche_misaligned_critical_volume"_s;
+
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"misalignment",
+    NULL};
+
+  int choice = 0;
+
+  double q, F, delta;
+
+  PyObject *o_misalignment;
+
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds,  "dddO", kwlist,
+        &q, &F, &delta, &o_misalignment)
+      ) {
+    report_error(fname + "::Problem reading arguments");
+    return NULL;
+  }
+
+  #if defined(DEBUG)
+  std::cerr.precision(16);
+  std::cerr << "q:" << q << " F=" << F << " Omega=" << Omega0 << " delta=" << delta << '\n';
+  #endif
+
+  bool aligned = false;
+
+  double theta;
+
+  if (PyFloat_Check(o_misalignment)) {
+
+    theta = std::abs(PyFloat_AsDouble(o_misalignment)); // in [0, pi/2]
+
+    aligned = (std::sin(theta) == 0); // theta ~0 => aligned
+
+     #if defined(DEBUG)
+    std::cerr << "theta:" << theta << '\n';
+    #endif
+
+  } else if (PyArray_Check(o_misalignment) &&
+    PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
+
+    double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
+
+
+    #if defined(DEBUG)
+    std::cerr << "spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
+    #endif
+
+    if (s[0] == 0) {
+      aligned = true;
+      theta = 0;
+    } else {
+      aligned = false;
+      theta = std::asin(std::abs(s[0])); // in [0, pi/2]
+    }
+
+  } else {
+    report_error(fname + ":: This type of misalignment if not supported");
+    return NULL;
+  }
+  
+  //
+  // Calculate critical volume
+  //
+  double volC;
+  
+  if (aligned) {
+    double L1 = gen_roche::lagrange_point_L1(q, F, delta);
+    gen_roche::critical_area_volume_integration(&volC-1, 2U, L1, q, F, delta);
+  } else {
+    double x[2];
+    if (!misaligned_roche::lagrange_point(1, q, F, delta, theta, x)) {
+      report_error(fname + "::Calculation of Lagrange point L1 failed");
+      return NULL;
+    }
+    misaligned_roche::critical_area_volume_integration(&volC-1, 2U, x, q, F, delta, theta); 
+  }
+  
+  return PyFloat_FromDouble(volC);
+}
+
+/*
+  C++ wrapper for Python code:
+
   Calculate area and volume of the generalied Roche lobes with
   misaligned spin and orbit velocity vectors.
 
@@ -1940,6 +2062,11 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     return NULL;
   }
 
+  #if defined(DEBUG)
+  std::cerr.precision(16);
+  std::cerr << "q:" << q << " F=" << F << " Omega=" << Omega0 << " delta=" << delta << '\n';
+  #endif
+
   bool aligned = false;
 
   double theta;
@@ -1949,6 +2076,10 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     theta = std::abs(PyFloat_AsDouble(o_misalignment)); // in [0, pi/2]
 
     aligned = (std::sin(theta) == 0); // theta ~0 => aligned
+
+     #if defined(DEBUG)
+    std::cerr << "theta:" << theta << '\n';
+    #endif
 
   } else if (PyArray_Check(o_misalignment) &&
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
@@ -1972,7 +2103,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     report_error(fname + ":: This type of misalignment if not supported");
     return NULL;
   }
-
+  
   //
   // Read boolean variables and define result-choice
   //
@@ -1994,88 +2125,124 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   // Calculate area and volume:
   //
 
-  const int m_min = 1 << 6;  // minimal number of points along x-axis
+  double 
+    av[2],        // storing results
+    OmegaC = misaligned_roche::calc_Omega_min(q, F, delta, theta),
+    dOmegaC = Omega0 - OmegaC,
+    eps0 = 1e-12,
+    eps1 = 1e-12;
+        
+  if (dOmegaC < -OmegaC*eps0){
+    
+    report_error(fname + ":: Object is not detached.");
+    
+    std::cerr.precision(16);
+    std::cerr
+      << "OmegaC=" << OmegaC << "  Omega0=" << Omega0 << '\n'
+      << "q=" << q << " F=" << F << " delta=" << delta << '\n';
+    
+    return NULL;
+  
+  } else if (std::abs(dOmegaC) < OmegaC*eps1) {  // semi-detached case
+    
 
-  int m0 = m_min;            // starting number of points alomg x-axis
-
-  bool adjust = true;
-
-  double p[2][2], xrange[2], av[2], pole, e, t;
-
-  //
-  // Choosing boundaries on x-axis or calculating the pole
-  //
-
-  if (aligned) {      // Non-misaligned Roche lobes
-    if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, delta, true)){
-      report_error(fname + "Determining lobe's boundaries failed");
-      return NULL;
-    }
-  } else {
-    pole = misaligned_roche::poleL_height(Omega0, q, F, delta, std::sin(theta));
-    if (pole < 0) {
-      report_error(fname + "Determining pole failed");
-      return NULL;
-    }
-  }
-  //
-  // one step adjustment of precison for area and volume
-  // calculation
-  //
-
-  do {
-
-    for (int i = 0, m = m0; i < 2; ++i, m <<= 1)
-      if (theta == 0)
-        gen_roche::area_volume_integration
-          (p[i], res_choice, xrange, Omega0, q, F, delta, m);
-      else {
-        misaligned_roche::area_volume_integration
-          (p[i], res_choice, pole, Omega0, q, F, delta, theta, m);
-        #if defined(DEBUG)
-        std::cerr << "m=" << m << " p[" << i  << "]=" << p[i][0] << ' ' << p[i][1] << '\n';
-        #endif
+      
+    if (aligned) {
+      double L1 = gen_roche::lagrange_point_L1(q, F, delta);
+      gen_roche::critical_area_volume_integration(av, res_choice, L1, q, F, delta);
+    } else {
+      double x[2];
+      if (!misaligned_roche::lagrange_point(1, q, F, delta, theta, x)) {
+        report_error(fname + "::Calculation of Lagrange point L1 failed");
+        return NULL;
       }
+      misaligned_roche::critical_area_volume_integration(av, res_choice, x, q, F, delta, theta); 
+    }
+  
+  } else {                                       // detached case
+  
+    const int m_min = 1 << 6;  // minimal number of points along x-axis
 
-    if (adjust) {
+    int m0 = m_min;            // starting number of points alomg x-axis
 
-      // extrapolation based on assumption
-      //   I = I0 + a_1 h^4
-      // estimating errors
+    bool adjust = true;
 
-      int m0_next = m0;
+    double p[2][2], xrange[2], pole, e, t;
+
+    //
+    // Choosing boundaries on x-axis or calculating the pole
+    //
+
+    if (aligned) {      // Non-misaligned Roche lobes
+      if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, delta, true)){
+        report_error(fname + "Determining lobe's boundaries failed");
+        return NULL;
+      }
+    } else {            // mis-aligned Roche lobes
+      pole = misaligned_roche::poleL_height(Omega0, q, F, delta, std::sin(theta));
+      if (pole < 0) {
+        report_error(fname + "Determining pole failed");
+        return NULL;
+      }
+    }
+    //
+    // one step adjustment of precison for area and volume
+    // calculation
+    //
+
+    do {
+
+      for (int i = 0, m = m0; i < 2; ++i, m <<= 1)
+        if (theta == 0)
+          gen_roche::area_volume_integration
+            (p[i], res_choice, xrange, Omega0, q, F, delta, m);
+        else {
+          misaligned_roche::area_volume_integration
+            (p[i], res_choice, pole, Omega0, q, F, delta, theta, m);
+          #if defined(DEBUG)
+          std::cerr << "m=" << m << " p[" << i  << "]=" << p[i][0] << ' ' << p[i][1] << '\n';
+          #endif
+        }
+
+      if (adjust) {
+
+        // extrapolation based on assumption
+        //   I = I0 + a_1 h^4
+        // estimating errors
+
+        int m0_next = m0;
+
+        adjust = false;
+
+        for (int i = 0; i < 2; ++i) if (b_av[i]) {
+          // best approximation
+          av[i] = t = (16*p[1][i] - p[0][i])/15;
+
+          // relative error
+          e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
+
+          if (e > eps[i]) {
+            int k = int(1.1*m0*std::pow(e/eps[i], 0.25));
+            if (k > m0_next) {
+              m0_next = k;
+              adjust = true;
+            }
+          }
+        }
+
+        if (adjust) m0 = m0_next; else break;
+
+      } else {
+        // best approximation
+        for (int i = 0; i < 2; ++i)
+          if (b_av[i]) av[i] = (16*p[1][i] - p[0][i])/15;
+        break;
+      }
 
       adjust = false;
 
-      for (int i = 0; i < 2; ++i) if (b_av[i]) {
-        // best approximation
-        av[i] = t = (16*p[1][i] - p[0][i])/15;
-
-        // relative error
-        e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
-
-        if (e > eps[i]) {
-          int k = int(1.1*m0*std::pow(e/eps[i], 0.25));
-          if (k > m0_next) {
-            m0_next = k;
-            adjust = true;
-          }
-        }
-      }
-
-      if (adjust) m0 = m0_next; else break;
-
-    } else {
-      // best approximation
-      for (int i = 0; i < 2; ++i)
-        if (b_av[i]) av[i] = (16*p[1][i] - p[0][i])/15;
-      break;
-    }
-
-    adjust = false;
-
-  } while (1);
-
+    } while (1);
+  }
 
   PyObject *results = PyDict_New();
 
@@ -2609,7 +2776,11 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   //
 
   double OmegaC, volC[2];
-
+  
+  #if defined(DEBUG)
+  std::cerr << "calculate critical volume ...\n";
+  #endif
+  
   if (aligned)
     gen_roche::critical_volume(q, F, delta, OmegaC, volC);
   else
@@ -2629,6 +2800,11 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
   } else if (vol > volC[0]){
     report_error(fname + ":: The volume is beyond critical");
+    
+    std::cerr.precision(16);
+    std::cerr
+      << "OmegaC=" << OmegaC << " volC=" << volC[0] << " dvolC/dOmega=" << volC[1] << '\n'
+      << "vol=" << vol << " q=" << q << " F=" << F << " delta=" << delta << '\n';
     return NULL;
   }
 
@@ -2773,6 +2949,11 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     report_error(fname + "::Maximum number of iterations exceeded");
     return NULL;
   }
+
+  #if defined(DEBUG)
+  std::cerr << "Final:Omega=" << Omega  << " dOmega=" << dOmega << '\n';
+  #endif
+
 
   // We use the condition on the argument (= Omega) ~ constraining backward error,
   // but we could also use condition on the value (= Volume) ~ constraing forward error
@@ -10115,7 +10296,6 @@ static PyMethodDef Methods[] = {
     "permits existance of the compact Roche lobe for given "
     "values of q, F and d."},
 
-
   { "roche_misaligned_Omega_min",
     (PyCFunction)roche_misaligned_Omega_min,
     METH_VARARGS|METH_KEYWORDS,
@@ -10123,6 +10303,13 @@ static PyMethodDef Methods[] = {
     "permits existance of the compact Roche lobe for given "
     "values of q, F, d and misalignment (theta or direction)."},
 
+// --------------------------------------------------------------------
+  { "roche_misaligned_critical_volume",
+    (PyCFunction)roche_misaligned_critical_volume,
+    METH_VARARGS|METH_KEYWORDS,
+    "Determine the volume of the semi-detached case of the misaligned "
+    "Roche lobe for given values of q, F, F and misalignment (theta or "
+    "direction)"},
 // --------------------------------------------------------------------
 
   { "rotstar_from_roche",

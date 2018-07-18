@@ -38,6 +38,13 @@ struct T3Dpoint {
 
   const T & operator[](const int &idx) const { return data[idx]; }
 
+  T3Dpoint & operator*=(const T &fac) {
+    data[0] *= fac;
+    data[1] *= fac;
+    data[2] *= fac;
+    return *this;
+  }
+
   T* operator & () const { return data; }
 
   void fill(const T & val){

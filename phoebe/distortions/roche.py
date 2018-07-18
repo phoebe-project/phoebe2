@@ -26,6 +26,7 @@ def pot_for_component(pot, q, component=1, reverse=False):
 
     q for secondaries should already be flipped (via q_for_component)
     """
+    # currently only used by legacy wrapper: consider moving/removing
     if component==1:
         return pot
     elif component==2:
@@ -38,14 +39,13 @@ def pot_for_component(pot, q, component=1, reverse=False):
 
 def roche_misaligned_critical_requiv(q, F, d, s, scale=1.0):
     """
+    NOTE: output is in units of scale (so constraints will use SI)
     NOTE: q should already be flipped (i.e. the output of q_for_component) if necessary
     NOTE: s should be in roche coordinates at the applicable time/true anomaly
     """
-    requiv_critical = {}
-    # TODO: use misaligned versions!!!
     logger.debug("libphoebe.roche_misaligned_Omega_min(q={}, F={}, d={}, s={})".format(q, F, d, s))
     Omega_critical = libphoebe.roche_misaligned_Omega_min(q, F, d, s)
-    logger.debug("critical potentials: {}".format(Omega_critical))
+    logger.debug("critical potential: {}".format(Omega_critical))
 
     logger.debug("libphoebe.roche_misaligned_area_volume(q={}, F={}, d={}, s={}, Omega={})".format(q, F, d, s, Omega_critical))
     volume_critical = libphoebe.roche_misaligned_area_volume(q, F, d, s,
@@ -53,6 +53,8 @@ def roche_misaligned_critical_requiv(q, F, d, s, scale=1.0):
                                                              choice=0,
                                                              larea=False,
                                                              lvolume=True)['lvolume']
+
+    logger.debug("critical volume: {} (roche units)".format(volume_critical))
 
     return scale * (volume_critical * 3./4 * 1./np.pi)**(1./3)
 
