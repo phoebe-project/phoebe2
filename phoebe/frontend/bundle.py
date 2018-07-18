@@ -900,7 +900,7 @@ class Bundle(ParameterSet):
                 pass
                 # we'll do the potential constraint either way
             else:
-                logger.info('re-creating mass constraint for {}'.format(component))
+                logger.debug('re-creating mass constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
                 if len(self.filter(context='constraint',
                                    constraint_func='mass',
@@ -917,7 +917,7 @@ class Bundle(ParameterSet):
                                         constraint=self._default_label('mass', context='constraint'))
 
 
-                logger.info('re-creating comp_sma constraint for {}'.format(component))
+                logger.debug('re-creating comp_sma constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
                 if len(self.filter(context='constraint',
                                    constraint_func='comp_sma',
@@ -935,7 +935,7 @@ class Bundle(ParameterSet):
 
 
                 if not self.hierarchy.is_contact_binary(component):
-                    logger.info('re-creating requiv_critical constraint for {}'.format(component))
+                    logger.debug('re-creating requiv_critical constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_critical',
                                        component=component)):
@@ -950,7 +950,7 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.requiv_critical, component,
                                             constraint=self._default_label('requiv_critical', context='constraint'))
 
-                    logger.info('re-creating rotation_period constraint for {}'.format(component))
+                    logger.debug('re-creating rotation_period constraint for {}'.format(component))
                     # TODO: will this cause problems if the constraint has been flipped?
                     if len(self.filter(context='constraint',
                                        constraint_func='rotation_period',
@@ -966,7 +966,7 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.rotation_period, component,
                                             constraint=self._default_label('rotation_period', context='constraint'))
 
-                    logger.info('re-creating pitch constraint for {}'.format(component))
+                    logger.debug('re-creating pitch constraint for {}'.format(component))
                     # TODO: will this cause problems if the constraint has been flipped?
                     # TODO: what if the user disabled/removed this constraint?
                     if len(self.filter(context='constraint',
@@ -983,7 +983,7 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.pitch, component,
                                             constraint=self._default_label('pitch', context='constraint'))
 
-                    logger.info('re-creating yaw constraint for {}'.format(component))
+                    logger.debug('re-creating yaw constraint for {}'.format(component))
                     # TODO: will this cause problems if the constraint has been flipped?
                     # TODO: what if the user disabled/removed this constraint?
                     if len(self.filter(context='constraint',
@@ -2278,7 +2278,7 @@ class Bundle(ParameterSet):
 
         constrained_param.set_value(result, force=True, run_constraints=True)
 
-        logger.info("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
+        logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
 
         if return_parameter:
             return constrained_param
