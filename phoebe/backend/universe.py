@@ -1643,22 +1643,25 @@ class Star_roche(Star):
     @property
     def instantaneous_mesh_args(self):
         # self.q is automatically flipped to be 1./q for secondary components
-        q = self.q
+        q = np.float64(self.q)
 
-        F = self.F
+        F = np.float64(self.F)
 
-        d = self.instantaneous_d
+        d = np.float64(self.instantaneous_d)
 
         # polar_direction_xyz is instantaneous based on current true_anom
         s = self.polar_direction_xyz
 
         # NOTE: if we ever want to break volume conservation in time,
         # get_target_volume will need to take time or true anomaly
-        target_volume = self.get_target_volume(scaled=False)
-        logger.debug("libphoebe.roche_misaligned_Omega_at_vol(vol={}, q={}, F={}, d={}, s={})".format(target_volume, q, F, d, s))
+        target_volume = np.float64(self.get_target_volume(scaled=False))
+
         Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
-                                                      q, F, d, s)
-        logger.debug("libphoebe.roche_misaligned_Omega_at_vol Omega={}".format(Phi))
+                                                      q, F, d, s.astype(np.float64))
+
+        # print libphoebe.roche_misaligned_Omega_at_vol(0.000810752418475, 1.15909090909, 9.83869902131, 0.511943136693, np.array([0.82624029, 0.55422384, 0.1008113 ]))
+        logger.debug("libphoebe.roche_misaligned_Omega_at_vol(vol={}, q={}, F={}, d={}, s={}) => {}".format(target_volume, q, F, d, s, Phi))
+
         # this is assuming that we're in the reference frame of our current star,
         # so we don't need to worry about flipping Phi for the secondary.
 
@@ -1682,6 +1685,7 @@ class Star_roche(Star):
             # we need the surface area of the lobe to estimate the correct value
             # to pass for delta to marching.  We will later need the volume to
             # expose its value
+            logger.debug("libphoebe.roche_misaligned_area_volume{}".format(mesh_args))
             av = libphoebe.roche_misaligned_area_volume(*mesh_args,
                                                         choice=0,
                                                         larea=True,
@@ -1689,6 +1693,7 @@ class Star_roche(Star):
 
             delta = _estimate_delta(ntriangles, av['larea'])
 
+            logger.debug("libphoebe.roche_misaligned_marching_mesh{}".format(mesh_args))
             new_mesh = libphoebe.roche_misaligned_marching_mesh(*mesh_args,
                                                                 delta=delta,
                                                                 choice=0,
