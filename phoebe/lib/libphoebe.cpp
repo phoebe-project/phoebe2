@@ -2866,6 +2866,10 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   // expected precisions of the integrals
   double eps = precision/2;
 
+  // adaptive calculation of the volume and its derivative, 
+  // permitting adjustment just once as it not necessary stable
+  bool adjust = true;
+  
   do {
 
     if (aligned) {      // Non-misaligned Roche lobes
@@ -2880,9 +2884,6 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
         return NULL;
       }
     }
-
-    // adaptive calculation of the volume and its derivative
-    bool adjust = true;
 
     do {
 
