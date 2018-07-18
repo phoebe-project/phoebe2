@@ -2164,7 +2164,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     const int m_min = 1 << 6;  // minimal number of points along x-axis
 
     int m0 = m_min;            // starting number of points alomg x-axis
-
+    
     bool adjust = true;
 
     double p[2][2], xrange[2], pole, e, t;
@@ -2225,7 +2225,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
             int k = int(1.1*m0*std::pow(e/eps[i], 0.25));
             if (k > m0_next) {
               m0_next = k;
-              adjust = true;
+              adjust = true;           
             }
           }
         }
@@ -2804,7 +2804,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     std::cerr.precision(16);
     std::cerr
       << "OmegaC=" << OmegaC << " volC=" << volC[0] << " dvolC/dOmega=" << volC[1] << '\n'
-      << "vol=" << vol << " q=" << q << " F=" << F << " delta=" << delta << '\n';
+      << "vol=" << vol << " q=" << q << " F=" << F << " delta=" << delta << " theta=" << theta << '\n';
     return NULL;
   }
 
