@@ -2088,7 +2088,8 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
 
    // #if defined(DEBUG)
-    std::cerr << "spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
+    std::cerr.precision(16);
+    std::cerr << fname << "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
    // #endif
 
     if (s[0] == 0) {
@@ -2763,6 +2764,12 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
+    
+    //#if defined(DEBUG)
+    std::cerr.precision(16);
+    std::cerr << fname << "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
+    //#endif
+    
     aligned = (s[0] == 0);
     theta = std::asin(s[0]);
 

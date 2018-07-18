@@ -1745,7 +1745,9 @@ template<class T>
     const T & F,
     const T & d,
     const T & th = 0){
-
+    
+    #if 0   // using L1 and L2
+   
     T W[2], r[3],
       th1 = utils::m_pi*std::abs(std::fmod(th/utils::m_pi + 0.5, 1) - 0.5);
 
@@ -1759,8 +1761,23 @@ template<class T>
       W[i] = calc_Omega(r, q, F, d, th1);
     }
 
+   return std::max(W[0], W[1]);
 
-    return std::max(W[0], W[1]);
+   #else  // using only L1
+
+   T W, r[3],
+     th1 = utils::m_pi*std::abs(std::fmod(th/utils::m_pi + 0.5, 1) - 0.5);
+
+    if (!lagrange_point(1, q, F, d, th1, r)) return std::nan("");
+
+    r[2] = r[1];
+    r[1] = 0;
+
+    W = calc_Omega(r, q, F, d, th1);
+
+   return W;
+    
+   #endif
   }
 
   /*
