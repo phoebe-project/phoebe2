@@ -43,20 +43,13 @@ def roche_misaligned_critical_requiv(q, F, d, s, scale=1.0):
     NOTE: q should already be flipped (i.e. the output of q_for_component) if necessary
     NOTE: s should be in roche coordinates at the applicable time/true anomaly
     """
-    logger.debug("libphoebe.roche_misaligned_Omega_min(q={}, F={}, d={}, s={})".format(q, F, d, s))
-    Omega_critical = libphoebe.roche_misaligned_Omega_min(q, F, d, s)
-    logger.debug("critical potential: {}".format(Omega_critical))
+    volume_critical = libphoebe.roche_misaligned_critical_volume(q, F, d, s)
+    logger.debug("libphoebe.roche_misaligned_critical_volume(q={}, F={}, d={}, s={}) => {}".format(q, F, d, s, volume_critical))
 
-    logger.debug("libphoebe.roche_misaligned_area_volume(q={}, F={}, d={}, s={}, Omega={})".format(q, F, d, s, Omega_critical))
-    volume_critical = libphoebe.roche_misaligned_area_volume(q, F, d, s,
-                                                             Omega_critical,
-                                                             choice=0,
-                                                             larea=False,
-                                                             lvolume=True)['lvolume']
+    requiv_critical = scale * (volume_critical * 3./4 * 1./np.pi)**(1./3)
+    # logger.debug("roche.roche_misaligned_critical_requiv = {}".format(requiv_critical))
 
-    logger.debug("critical volume: {} (roche units)".format(volume_critical))
-
-    return scale * (volume_critical * 3./4 * 1./np.pi)**(1./3)
+    return requiv_critical
 
 
 #
