@@ -842,7 +842,7 @@ class ParameterSet(object):
 
                     if not len(self._bundle.filter(check_visible=False, **metawargs)):
                         # then we need to make a new copy
-                        logger.info("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
+                        logger.debug("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
 
                         newparam = param.copy()
 
@@ -872,7 +872,7 @@ class ParameterSet(object):
                                 if attr in constraint_kwargs.keys():
                                     constraint_kwargs[attr] = attrvalue
 
-                            logger.info("copying constraint '{}' parameter for {}".format(param_constraint.constraint_func, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
+                            logger.debug("copying constraint '{}' parameter for {}".format(param_constraint.constraint_func, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
                             self.add_constraint(func=param_constraint.constraint_func, **constraint_kwargs)
 
         return
@@ -1568,7 +1568,7 @@ class ParameterSet(object):
         else:
             self._attach_params(ParameterSet([new_parameter]), **kwargs)
 
-            logger.info("creating and attaching new parameter: {}".format(new_parameter.qualifier))
+            logger.debug("creating and attaching new parameter: {}".format(new_parameter.qualifier))
 
             return self.filter_or_get(qualifier=qualifier, **kwargs), True
 

@@ -176,7 +176,7 @@ struct Theart {
     Reading and storing the parameters
   */
 
-  Theart(void *params){ }
+  Theart(T *params){ }
 
   /* Definition of constrain and the gradient of it
 
@@ -257,11 +257,11 @@ struct Tgen_roche {
     Reading and storing the parameters
   */
 
-  Tgen_roche(void *params)
-  : q(((T*)params)[0]),
-    F(((T*)params)[1]),
-    delta(((T*)params)[2]),
-    Omega0(((T*)params)[3])
+  Tgen_roche(T *params)
+  : q(params[0]),
+    F(params[1]),
+    delta(params[2]),
+    Omega0(params[3])
   {
 
     b = (1 + q)*F*F;
@@ -449,7 +449,7 @@ struct Trot_star {
 
   */
 
-  Trot_star(void *params) : omega(((T*)params)[0]), Omega0(((T*)params)[1]) {
+  Trot_star(T *params) : omega(params[0]), Omega0(params[1]) {
 
     w2 = omega*omega;
   }
@@ -623,12 +623,12 @@ struct Tmisaligned_rot_star {
 
   */
 
-  Tmisaligned_rot_star(void *params)
-    : omega(((T*)params)[0]),
-      Omega0(((T*)params)[4]) {
+  Tmisaligned_rot_star(T *params)
+    : omega(params[0]),
+      Omega0(params[4]) {
 
     omega2 = omega*omega;
-    for (int i = 0; i < 3; ++i) s[i] = ((T*)params)[i+1];
+    for (int i = 0; i < 3; ++i) s[i] = params[i+1];
   }
 
   /*
@@ -814,15 +814,13 @@ struct Tmisaligned_rotated_roche {
     params[4] = Omega0
   */
 
-  Tmisaligned_rotated_roche(void *params) {
+  Tmisaligned_rotated_roche(T *params) {
 
-    T *p  = (double *) params;
-
-    q = p[0];
-    F = p[1];
-    delta = p[2];
-    theta = p[3];
-    Omega0 = p[4];
+    q = params[0];
+    F = params[1];
+    delta = params[2];
+    theta = params[3];
+    Omega0 = params[4];
 
     f0 = 1/(delta*delta);
     b = (1 + q)*F*F;
@@ -1023,16 +1021,15 @@ struct Tmisaligned_roche {
     params[6] = Omega0
   */
 
-  Tmisaligned_roche(void *params) {
-    T *p =  (T*) params;
-
-    q = p[0];
-    F = p[1];
-    delta = p[2];
-    s[0] = p[3];
-    s[1] = p[4];
-    s[2] = p[5];
-    Omega0 = p[6];
+  Tmisaligned_roche(T *params) {
+   
+    q = params[0];
+    F = params[1];
+    delta = params[2];
+    s[0] = params[3];
+    s[1] = params[4];
+    s[2] = params[5];
+    Omega0 = params[6];
 
     f0 = 1/(delta*delta);
     b = (1 + q)*F*F;

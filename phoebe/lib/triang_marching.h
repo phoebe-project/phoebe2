@@ -537,7 +537,7 @@ struct Tmarching: public Tbody {
   }
 
 
-  Tmarching(void *params) : Tbody(params) { }
+  Tmarching(T *params) : Tbody(params) { }
 
   /*
     Triangulation using marching method of genus 0 closed and surfaces

@@ -2206,16 +2206,14 @@ namespace gen_roche {
     const T & d = 1,
     const int & m = 1 << 14) {
 
-    using G = glq<T, 10>;
-
     //
     // What is calculated
     //
 
     bool
-      b_area = (choice & 1u) == 1u,
-      b_vol  = (choice & 2u) == 2u,
-      b_dvol = (choice & 4u) == 4u;
+      b_area = (choice & 1U) == 1U,
+      b_vol  = (choice & 2U) == 2U,
+      b_dvol = (choice & 4U) == 4U;
 
     if (!b_area && !b_vol && !b_dvol) return;
 
@@ -2223,23 +2221,27 @@ namespace gen_roche {
       mask = 3,   // = 011b, default
       mask2 = 1;  // = 001b, default for the pole
 
-    if (b_area) mask |= 4;      // + 100b
-    if (b_dvol)  mask2 |= 2;    // + 010b
-
+    if (b_area) mask |= 4;     // + 100b
+    if (b_dvol) mask2 |= 2;    // + 010b
+    
+    using real = long double;
+    
+    using G = glq<real, 10>;
+    
     const int dim = G::n + 3;
-
-    T d2 = d*d, d3 = d2*d,
-      b = d3*F*F*(1 + q);
-
-    T y[dim], k[4][dim], w[G::n], W[3], sc_nu[2], sum[3], r[2],
-      rt, rp, nu, dnu = utils::m_pi/m;
+    
+    real 
+      y[dim], k[4][dim], w[G::n], W[3], sc_nu[2], sum[3], 
+      r[2], rt, rp, nu, 
+      q_ = q, d2 = d*d, d3 = d2*d, b = d3*F*F*(1 + q),
+      dnu = utils::m_pi/m;
   
     
     //
     // Setup init point
     //
     {
-      T tp = L1/d;
+      real tp = L1/d;
       for (int i = 0; i < G::n; ++i) {
         w[i] = dnu*G::weights[i];
         y[i] = tp;
@@ -2261,7 +2263,7 @@ namespace gen_roche {
 
         for (int j = 0; j < G::n; ++j){
           r[0] = y[j], r[1] = r[0]*r[0];
-          calc_dOmega2_pole(W, mask2, r, G::sc_phi + 2*j, q, b);
+          calc_dOmega2_pole(W, mask2, r, G::sc_phi + 2*j, q_, b);
           k[0][j] = dnu*W[0];
 
           if (b_dvol) sum[2] += w[j]*r[1]*W[1];
@@ -2277,7 +2279,7 @@ namespace gen_roche {
         for (int j = 0; j < G::n; ++j){
           r[0] = y[j], r[1] = r[0]*r[0];
 
-          calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b);
+          calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b);
           rt = -W[1]/W[0];          // partial_nu r
           k[0][j] = dnu*rt;
 
@@ -2300,7 +2302,7 @@ namespace gen_roche {
       for (int j = 0; j < G::n; ++j){
         r[0] = y[j] + 0.5*k[0][j], r[1] = r[0]*r[0];
 
-        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b);
+        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b);
         rt = -W[1]/W[0];        // partial_nu r
         k[1][j] = dnu*rt;
 
@@ -2320,7 +2322,7 @@ namespace gen_roche {
       for (int j = 0; j < G::n; ++j){
         r[0] = y[j] + 0.5*k[1][j], r[1] = r[0]*r[0];
 
-        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b);
+        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b);
         rt = -W[1]/W[0];        // partial_nu r
         k[2][j] = dnu*rt;
 
@@ -2341,7 +2343,7 @@ namespace gen_roche {
       for (int j = 0; j < G::n; ++j){
         r[0] = y[j] + k[2][j], r[1] = r[0]*r[0];
 
-        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q, b);
+        calc_dOmega2(W, mask, r, sc_nu, G::sc_phi + 2*j, q_, b);
         rt = -W[1]/W[0];         // partial_nu r
         k[3][j] = dnu*rt;
 
@@ -2373,33 +2375,37 @@ namespace gen_roche {
     (semi-detached) case.
 
     Input:
-      Omega0 - value of the potential
+      choice: calculate
+        1U  - Area , stored in v[0]
+        2U  - Volume, stored in v[1]
+        4U  - dVolume/dOmega, stored in v[2]
       q - mass ratio M2/M1
       F - synchronicity parameter
       delta - separation between the two objects
 
     Output:
       OmegaC - value of the Kopal potential
-      volC[2]   - volume and dvolume/dOmega of the critical volume
+      av[3]   - volume and dvolume/dOmega of the critical volume
 
     Return:
       true - if there are no problem and false otherwise
   */
-  //#define DEBUG
+
   template <class T>
-  bool critical_volume(
+  bool critical_area_volume(
+    const unsigned &choice, 
     const T & q,
     const T & F,
     const T & delta,
     T & OmegaC,
-    T volC[2]) {
+    T av[3]) {
 
     T L1 = lagrange_point_L1(q, F, delta);
-        
-    // compute volume and d(volume)/dOmega
-    critical_area_volume_integration(volC - 1, 6, L1, q, F, delta);
     
     OmegaC = potential_on_x_axis(L1, q, F, delta);
+        
+    // compute volume and d(volume)/dOmega
+    critical_area_volume_integration(av, choice, L1, q, F, delta, 1<<10);
      
     return true;
   }

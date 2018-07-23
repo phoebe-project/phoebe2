@@ -10,12 +10,12 @@ import phoebe
 import numpy as np
 
 
-def test_mpi(plot=False):
+def test_mpi(plot=False, npoints=8):
     phoebe.mpi_on(np=4)
 
     b = phoebe.Bundle.default_binary()
 
-    b.add_dataset('lc', times=np.linspace(0,1,1001))
+    b.add_dataset('lc', times=np.linspace(0,1,npoints))
 
     if plot: print "calling compute"
     b.run_compute(irrad_method='none', model='phoebe2model')
@@ -31,4 +31,4 @@ def test_mpi(plot=False):
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='WARNING')
 
-    b = test_mpi(plot=False)
+    b = test_mpi(plot=False, npoints=1001)
