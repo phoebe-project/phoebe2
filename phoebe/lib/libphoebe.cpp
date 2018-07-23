@@ -1931,14 +1931,14 @@ static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args
   //
   // Calculate critical volume
   //
-  double OmegaC, volC[1];
+  double OmegaC, buf[3];
   
-  if (!misaligned_roche::critical_area_volume(2, q, F, d, theta, OmegaC, volC-1)){
+  if (!misaligned_roche::critical_area_volume(2, q, F, d, theta, OmegaC, buf)){
     report_error(fname + "::Calculation of critical volume failed");
     return NULL;
   }
   
-  return PyFloat_FromDouble(volC[0]);
+  return PyFloat_FromDouble(buf[1]);
 }
 
 /*
@@ -2756,17 +2756,20 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   //  Check if the volume if larger than critical
   //
 
-  double OmegaC, volC[2];
+  double OmegaC, buf[3], volC[2];
   
   #if defined(DEBUG)
   std::cerr << fname << "::calculate critical volume ...\n";
   #endif
   
   if (aligned)
-    gen_roche::critical_area_volume(6, q, F, d, OmegaC, volC-1);
-  else if (!misaligned_roche::critical_area_volume(6, q, F, d, theta, OmegaC, volC-1)) {
+    gen_roche::critical_area_volume(6, q, F, d, OmegaC, buf);
+  else if (!misaligned_roche::critical_area_volume(6, q, F, d, theta, OmegaC, buf)) {
     report_error(fname + ":: Calculation of critical_volume failed"); 
   }
+  
+  volC[0] = buf[1];
+  volC[1] = buf[2];
   
   #if defined(DEBUG)
   std::cerr.precision(16);
