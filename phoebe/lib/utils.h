@@ -25,6 +25,9 @@ namespace utils {
   const double m_e = 2.71828182845904523533978449066641588615; // e
   const double m_1_e = 0.36787944117144232159552377016146086744; // 1/e
 
+  template<class T>
+  constexpr T pi() {return T(3.14159265358979323846264338327950419984L);};
+
   /*
     Return square of the value.
 

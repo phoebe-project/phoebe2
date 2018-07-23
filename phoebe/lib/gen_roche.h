@@ -2206,16 +2206,14 @@ namespace gen_roche {
     const T & d = 1,
     const int & m = 1 << 14) {
 
-
-
     //
     // What is calculated
     //
 
     bool
-      b_area = (choice & 1u) == 1u,
-      b_vol  = (choice & 2u) == 2u,
-      b_dvol = (choice & 4u) == 4u;
+      b_area = (choice & 1U) == 1U,
+      b_vol  = (choice & 2U) == 2U,
+      b_dvol = (choice & 4U) == 4U;
 
     if (!b_area && !b_vol && !b_dvol) return;
 
@@ -2223,8 +2221,8 @@ namespace gen_roche {
       mask = 3,   // = 011b, default
       mask2 = 1;  // = 001b, default for the pole
 
-    if (b_area) mask |= 4;      // + 100b
-    if (b_dvol)  mask2 |= 2;    // + 010b
+    if (b_area) mask |= 4;     // + 100b
+    if (b_dvol) mask2 |= 2;    // + 010b
     
     using real = long double;
     
@@ -2233,9 +2231,10 @@ namespace gen_roche {
     const int dim = G::n + 3;
     
     real 
-      d2 = d*d, d3 = d2*d, b = d3*F*F*(1 + q), q_ = q,
-      y[dim], k[4][dim], w[G::n], W[3], sc_nu[2], sum[3], r[2],
-      rt, rp, nu, dnu = utils::m_pi/m;
+      y[dim], k[4][dim], w[G::n], W[3], sc_nu[2], sum[3], 
+      r[2], rt, rp, nu, 
+      q_ = q, d2 = d*d, d3 = d2*d, b = d3*F*F*(1 + q),
+      dnu = utils::m_pi/m;
   
     
     //
@@ -2376,33 +2375,37 @@ namespace gen_roche {
     (semi-detached) case.
 
     Input:
-      Omega0 - value of the potential
+      choice: calculate
+        1U  - Area , stored in v[0]
+        2U  - Volume, stored in v[1]
+        4U  - dVolume/dOmega, stored in v[2]
       q - mass ratio M2/M1
       F - synchronicity parameter
       delta - separation between the two objects
 
     Output:
       OmegaC - value of the Kopal potential
-      volC[2]   - volume and dvolume/dOmega of the critical volume
+      av[3]   - volume and dvolume/dOmega of the critical volume
 
     Return:
       true - if there are no problem and false otherwise
   */
-  //#define DEBUG
+
   template <class T>
-  bool critical_volume(
+  bool critical_area_volume(
+    const unsigned &choice, 
     const T & q,
     const T & F,
     const T & delta,
     T & OmegaC,
-    T volC[2]) {
+    T av[3]) {
 
     T L1 = lagrange_point_L1(q, F, delta);
-        
-    // compute volume and d(volume)/dOmega
-    critical_area_volume_integration(volC - 1, 6, L1, q, F, delta);
     
     OmegaC = potential_on_x_axis(L1, q, F, delta);
+        
+    // compute volume and d(volume)/dOmega
+    critical_area_volume_integration(av, choice, L1, q, F, delta, 1<<10);
      
     return true;
   }
