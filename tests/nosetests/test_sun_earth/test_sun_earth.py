@@ -95,9 +95,16 @@ def sun_earth_result():
     b['ntriangles@secondary'] = Nt
 
     b.run_compute(mesh_offset=True)
-
-    opts = (b['value@q@orbit'], b['value@syncpar@primary'], 1., b['value@pot@primary@component'])
-    area0 = libphoebe.roche_area_volume(*opts)['larea']
+    
+    q = b['value@q@orbit']
+    F = b['value@syncpar@primary']
+    spin = np.array([0.,0.,1.])
+    req = b['value@requiv@primary']/b['value@sma@orbit']
+    V = 4*np.pi*req**3/3
+    
+    Omega0 = libphoebe.roche_misaligned_Omega_at_vol(V, q, F, 1., spin)
+    
+    area0 = libphoebe.roche_misaligned_area_volume(q, F, 1., spin, Omega0, larea=True)['larea']
     area0 *= b['value@sma@orbit']**2
 
     area = np.sum(b['value@areas@primary@mesh01'])
@@ -117,8 +124,8 @@ def test_sun_earth(print_results = False, save_results = False):
   if save_results:
     np.savetxt("res.txt", res)
 
-  assert(np.abs(res[:,1]).max > 1e-14)
-  assert(np.abs(res[:,2]).max > 1e-5)
+  assert(np.abs(res[:,1]).max() < 1e-14)
+  assert(np.abs(res[:,2]).max() < 1e-3)
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
