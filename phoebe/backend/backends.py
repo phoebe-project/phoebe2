@@ -162,10 +162,13 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
         dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, check_visible=False)
         dataset_kind = dataset_ps.exclude(kind='*_dep').kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
-        if dataset_kind in ['lc', 'lp']:
+        if dataset_kind in ['lc']:
             # then the Parameters in the model only exist at the system-level
             # and are not tagged by component
             dataset_components = [None]
+        elif dataset_kind in ['lp']:
+            # TODO: eventually spectra and RVs as well (maybe even LCs and ORBs)
+            dataset_components = b.hierarchy.get_stars() + b.hierarchy.get_orbits()
         else:
             dataset_components = b.hierarchy.get_stars()
 
@@ -180,7 +183,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 this_times = [float(t) for t in dataset_ps.times]
             else:
                 timequalifier = _timequalifier_by_kind(dataset_kind)
-                timecomponent = component if dataset_kind not in ['mesh', 'lc', 'lp'] else None
+                timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
                 # print "*****", dataset_kind, dataset_ps.kinds, timequalifier, timecomponent
                 this_times = dataset_ps.get_value(qualifier=timequalifier, component=timecomponent, unit=u.d)
 
@@ -209,8 +212,14 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 # NOTE: if changing this, also change in bundle.run_compute
                 this_times = np.array([np.linspace(t-exptime/2., t+exptime/2., fti_oversample) for t in this_times]).flatten()
 
-            if len(this_times):
+            if dataset_kind in ['lp']:
+                # for line profiles and spectra, we only need to compute synthetic
+                # model if there are defined wavelengths
+                this_wavelengths = dataset_ps.get_value(qualifier='wavelengths', component=component)
+            else:
+                this_wavelengths = None
 
+            if len(this_times) and (this_wavelengths is None or len(this_wavelengths)):
                 info = {'dataset': dataset,
                         'component': component,
                         'kind': dataset_kind,
@@ -298,11 +307,15 @@ def _create_syns(b, needed_syns):
         # TODO: do we need to handle constraints?
         these_params = these_params.to_list()
         for param in these_params:
-            param._component = needed_syn['component']
             if param._dataset is None:
                 # dataset may be set for mesh columns
                 param._dataset = needed_syn['dataset']
+
             param._kind = syn_kind
+            param._component = needed_syn['component']
+            # reset copy_for... model Parameters should never copy
+            param._copy_for = {}
+
             # context, model, etc will be handle by the bundle once these are returned
 
         params += these_params
@@ -564,6 +577,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                       'time': time
                       }
 
+            # print "*** make_packet", packet
             return packet
 
         for k, info in enumerate(infolist):
@@ -576,22 +590,45 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
             # now check the kind to see what we need to fill
             if kind=='lp':
-                profile_func = b.get_value(qualifier='profile_func', dataset=info['dataset'], context='dataset')
-                profile_rest = b.get_value(qualifier='profile_rest', dataset=info['dataset'], context='dataset')
-                profile_sv = b.get_value(qualifier='profile_sv', dataset=info['dataset'], context='dataset')  # UNITS???
-                wavelengths = b.get_value(qualifier='wavelengths', time=time, dataset=info['dataset'], context='dataset', unit=u.nm)
+                # print "*** lp", info
+                profile_func = b.get_value(qualifier='profile_func',
+                                           dataset=info['dataset'],
+                                           context='dataset')
+
+                profile_rest = b.get_value(qualifier='profile_rest',
+                                           dataset=info['dataset'],
+                                           context='dataset')
+
+                profile_sv = b.get_value(qualifier='profile_sv',
+                                         dataset=info['dataset'],
+                                         context='dataset')  # UNITS???
+
+                wavelengths = b.get_value(qualifier='wavelengths',
+                                          component=info['component'],
+                                          dataset=info['dataset'],
+                                          context='dataset',
+                                          unit=u.nm)
+
+                if info['component'] in b.hierarchy.get_stars():
+                    lp_components = info['component']
+                elif info['component'] in b.hierarchy.get_orbits():
+                    lp_components = b.hierarchy.get_stars_of_children_of(info['component'])
+                else:
+                    raise NotImplementedError
 
                 obs = system.observe(info['dataset'],
                                      kind=kind,
-                                     component=info['component'],
+                                     components=lp_components,
                                      profile_func=profile_func,
                                      profile_rest=profile_rest,
                                      profile_sv=profile_sv,
                                      wavelengths=wavelengths)
 
+                # TODO: copy the original for wavelengths just like we do with
+                # times and don't use packets at all
                 packetlist.append(make_packet('wavelengths',
                                               wavelengths*u.nm,
-                                              time, info))
+                                              None, info))
 
                 packetlist.append(make_packet('flux_densities',
                                               obs['flux_densities']*u.W/(u.m**2*u.nm),

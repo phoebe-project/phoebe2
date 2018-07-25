@@ -193,12 +193,20 @@ def lp_syn(syn=True, **kwargs):
 
     syn_params = []
 
-    # syn_params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Observed times')]
+    # if syn:
+        # wavelengths array is copied per-time for the model
+        # for time in times:
+            # syn_params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'envelope', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
+
+    # else:
+    # wavelengths is time-independent
+    syn_params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
+
     for time in times:
-        syn_params += [FloatArrayParameter(qualifier='wavelengths',  time=time, value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
-        syn_params += [FloatArrayParameter(qualifier='flux_densities', time=time, value=_empty_array(kwargs, 'flux_densities'), default_unit=u.W/(u.m**2*u.nm), description='Flux density per wavelength (must be same length as wavelengths or empty)')]
+        # but do allow per-component flux_densities and sigmas
+        syn_params += [FloatArrayParameter(qualifier='flux_densities', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'flux_densities'), default_unit=u.W/(u.m**2*u.nm), description='Flux density per wavelength (must be same length as wavelengths or empty)')]
         if not syn:
-            syn_params += [FloatArrayParameter(qualifier='sigmas', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
+            syn_params += [FloatArrayParameter(qualifier='sigmas', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
 
     constraints = []
 
