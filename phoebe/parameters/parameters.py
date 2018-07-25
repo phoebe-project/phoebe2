@@ -703,7 +703,7 @@ class ParameterSet(object):
             else:
                 setattr(self, '_'+field, None)
 
-    def _uniquetwig(self, twig, force_levels=[]):
+    def _uniquetwig(self, twig, force_levels=['qualifier']):
         """
         get the least unique twig for the parameter given by twig that
         will return this single result for THIS PS
