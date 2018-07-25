@@ -3425,10 +3425,19 @@ class Parameter(object):
         :rtype: bool
         """
         def is_visible_single(visible_if):
+            # visible_if syntax: [ignore,these]qualifier:value
+
+
             if visible_if.lower() == 'false':
                 return False
 
             # otherwise we need to find the parameter we're referencing and check its value
+            if visible_if[0]=='[':
+                remove_metawargs, visible_if = visible_if[1:].split(']')
+                remove_metawargs = remove_metawargs.split(',')
+            else:
+                remove_metawargs = []
+
             qualifier, value = visible_if.split(':')
 
             if 'hierarchy.' in qualifier:
@@ -3453,11 +3462,11 @@ class Parameter(object):
 
                 # the parameter needs to have all the same meta data except qualifier
                 # TODO: switch this to use self.get_parent_ps ?
-                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']).items() if v is not None}
+                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
                 metawargs['qualifier'] = qualifier
-                metawargs['twig'] = None
-                metawargs['uniquetwig'] = None
-                metawargs['uniqueid'] = None
+                # metawargs['twig'] = None
+                # metawargs['uniquetwig'] = None
+                # metawargs['uniqueid'] = None
                 # if metawargs.get('component', None) == '_default':
                     # metawargs['component'] = None
 
@@ -3482,6 +3491,8 @@ class Parameter(object):
 
                 if isinstance(value, str) and value[0] in ['!', '~']:
                     return param.get_value() != value[1:]
+                elif value=='<notempty>':
+                    return len(param.get_value()) > 0
                 else:
                     return param.get_value() == value
 
