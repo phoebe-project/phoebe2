@@ -494,7 +494,7 @@ class ParameterSet(object):
 
         :return: list of strings
         """
-        return self.to_dict(field='component').keys()
+        return [c for c in self.to_dict(field='component').keys() if c!='_default']
 
     @property
     def dataset(self):
@@ -513,7 +513,7 @@ class ParameterSet(object):
 
         :return: list of strings
         """
-        return self.to_dict(field='dataset').keys()
+        return [d for d in self.to_dict(field='dataset').keys() if d!='_default']
 
     @property
     def constraint(self):
