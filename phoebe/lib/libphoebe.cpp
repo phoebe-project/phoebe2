@@ -4297,7 +4297,8 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     << " d=" << d
     << " Omega0=" << Omega0
     << " delta=" << delta
-    << " full=" << b_full <<'\n';
+    << " full=" << b_full 
+    << " max_triangles=" << max_triangles <<'\n';
   #endif
 
   Tmarching<double, Tgen_roche<double>> march(params);
@@ -5097,14 +5098,19 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
   if (b_vnormgrads) GatV = new std::vector<double>;
 
 
-  if ((b_full ?
-      !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
-      !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
-      )){
-    report_error(fname +  "::There is too much triangles");
-    return NULL;
-  }
+  int error =(b_full ?
+      march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
+      march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+      );
 
+  switch(error) {
+    case 1:
+      PyErr_SetString(PyExc_TypeError, "There are too many triangles!");
+      return NULL;
+    case 2:
+      PyErr_SetString(PyExc_TypeError, "Projections are failing!");
+      return NULL;
+  }
 
   //
   // Calculate the mesh properties
@@ -5846,7 +5852,9 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
       << " q=" << q
       << " F=" << F
       << " d=" << d
-      << " delta =" << delta << '\n';
+      << " delta =" << delta << '\n'
+      << " full=" << b_full 
+      << " max_triangles=" << max_triangles <<'\n';
     #endif
 
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, s);
@@ -5882,17 +5890,19 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   if (b_cnormgrads) GatC = new std::vector<double>;
   if (b_vnormgrads) GatV = new std::vector<double>;
 
+  int error = 0;
+  
   if (aligned) {
     double params[] = {q, F, d, Omega0};
 
     Tmarching<double, Tgen_roche<double>> march(params);
 
-    ok = (b_full ?
+    error = (b_full ?
          march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
          march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
         );
 
-    if (ok) march.central_points(V, Tr, C, NatC, GatC);
+    if (error == 0) march.central_points(V, Tr, C, NatC, GatC);
 
   } else {
     if (rotated) {
@@ -5900,52 +5910,53 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
 
       Tmarching<double, Tmisaligned_rotated_roche<double>> march(params);
 
-      ok = (
+      error = (
         b_full ?
           march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
           march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
         );
 
-      if (ok) march.central_points(V, Tr, C, NatC, GatC);
+      if (error == 0) march.central_points(V, Tr, C, NatC, GatC);
     } else {
       double params[] = {q, F, d, s[0], s[1], s[2], Omega0};
 
       Tmarching<double, Tmisaligned_roche<double>> march(params);
 
-      ok = (
+      error = (
         b_full ?
           march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
           march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
         );
 
-      if (ok) march.central_points(V, Tr, C, NatC, GatC);
+      if (error == 0) march.central_points(V, Tr, C, NatC, GatC);
     }
   }
 
-  if (!ok) {
+  
+  if (error) {
 
     std::cerr.precision(16);
-
     std::cerr
       << "Parameters: q=" << q << " F=" << F
       << " d=" << d << " Omega0=" << Omega0
-      << " delta=" << delta;
+      << " delta=" << delta << " full=" << b_full 
+      << " max_triangles=" << max_triangles <<'\n';
 
     if (rotated)
       std::cerr << " theta=" << theta << '\n';
     else
       std::cerr << " s=(" << s[0] << ',' << s[1] << ',' << s[2] << ")\n";
-    /*
-    std::cerr << "Vertices:\n";
-    for (auto &v : V) std::cerr << v << '\n';
-
-    std::cerr << "Triangle:\n";
-    for (auto &t : Tr) std::cerr << t << '\n';
-    */
-    report_error(fname +"::There are too many triangles");
-
-    return NULL;
   }
+  
+  switch(error) {
+    case 1:
+      PyErr_SetString(PyExc_TypeError, "There are too many triangles!");
+      return NULL;
+    case 2:
+      PyErr_SetString(PyExc_TypeError, "Projections are failing!");
+      return NULL;
+  }
+
 
   #if defined(DEBUG)
   std::cerr
