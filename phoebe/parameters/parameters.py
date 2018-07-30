@@ -1345,6 +1345,11 @@ class ParameterSet(object):
                 #if kwargs[key] is None:
                 #    params = [pi for pi in params if getattr(pi,key) is None]
                 #else:
+                if isinstance(kwargs[key], unicode):
+                    # unicodes can cause all sorts of confusions with fnmatch,
+                    # so let's just cast now and be done with it
+                    kwargs[key] = str(kwargs[key])
+
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None) and
                     (getattr(pi,key)==kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
