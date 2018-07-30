@@ -4258,8 +4258,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   // https://docs.python.org/2/c-api/dict.html
   //
   PyObject *results = PyDict_New();
-
-
+  
   if (choice < 0 || choice > 2){
     report_error(fname + "::This choice is not supported");
     return NULL;
@@ -4308,13 +4307,20 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   std::vector<double> *GatV = 0;
 
   if (b_vnormgrads) GatV = new std::vector<double>;
+  
+  int error =
+    (b_full ? 
+      march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
+      march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+    );
 
-  if ((b_full ?
-       !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
-       !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
-      )){
-    report_error(fname + "::There are too many triangles");
-    return NULL;
+  switch(error) {
+    case 1:
+      PyErr_SetString(PyExc_TypeError, "There are too many triangles!");
+      return NULL;
+    case 2:
+      PyErr_SetString(PyExc_TypeError, "Projections are failing!");
+      return NULL;
   }
 
   #if defined(DEBUG)
@@ -4683,14 +4689,20 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   std::vector<double> *GatV = 0;
 
   if (b_vnormgrads) GatV = new std::vector<double>;
+ 
+  int error =
+    (b_full ? 
+      march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
+      march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+    );
 
-
-  if ((b_full ?
-      !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
-      !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
-      )){
-    report_error(fname + "::There is too much triangles");
-    return NULL;
+  switch(error) {
+    case 1:
+      PyErr_SetString(PyExc_TypeError, "There are too many triangles!");
+      return NULL;
+    case 2:
+      PyErr_SetString(PyExc_TypeError, "Projections are failing!");
+      return NULL;
   }
 
   #if defined(DEBUG)
@@ -5416,16 +5428,20 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   std::vector<T3Dpoint<double>> V, NatV;
   std::vector<T3Dpoint<int>> Tr;
   std::vector<double> *GatV = 0;
+  
+  int error =
+    (b_full ? 
+      march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
+      march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+    );
 
-  if (
-      ( b_full ?
-        !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
-        :
-        !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
-      )
-    ){
-    report_error(fname + "::There are too many triangles");
-    return NULL;
+  switch(error) {
+    case 1:
+      PyErr_SetString(PyExc_TypeError, "There are too many triangles!");
+      return NULL;
+    case 2:
+      PyErr_SetString(PyExc_TypeError, "Projections are failing!");
+      return NULL;
   }
 
   if (b_vnormgrads)
