@@ -2390,7 +2390,7 @@ namespace gen_roche {
     Return:
       true - if there are no problem and false otherwise
   */
-
+  //#define DEBUG
   template <class T>
   bool critical_area_volume(
     const unsigned &choice, 
@@ -2400,16 +2400,29 @@ namespace gen_roche {
     T & OmegaC,
     T av[3]) {
 
+    const char *fname = "critical_area_volume";
+    
     T L1 = lagrange_point_L1(q, F, delta);
     
     OmegaC = potential_on_x_axis(L1, q, F, delta);
-        
+     
+    #if defined (DEBUG)
+    std::cerr.precision(16);
+    std::cerr << fname << "::OmegaC=" << OmegaC << " L1=" << L1 << '\n'; 
+    #endif
+    
     // compute volume and d(volume)/dOmega
     critical_area_volume_integration(av, choice, L1, q, F, delta, 1<<10);
-     
+    
+    #if defined (DEBUG)
+    std::cerr << fname << "::av=" << av[0] << ':' << av[1] << ':' << av[2] << '\n'; 
+    #endif 
     return true;
   }
-
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
+  
 
   /*
     Computing surface area and the volume of the primary Roche lobe in the limit of high w=delta*Omega. It should precise at least up to 5.5 digits for

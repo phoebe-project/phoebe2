@@ -2667,7 +2667,7 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
       value of the Kopal potential for (q,F,d1,spin) at which the lobe has the given volume
 */
 
-//#define DEBUG
+#define DEBUG
 static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_misaligned_Omega_at_vol"_s;
@@ -2776,7 +2776,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   std::cerr << fname
     << "::OmegaC=" << OmegaC
     << " volC=" << volC[0] << ":" << volC[1]
-    << " vol=" << vol << '\n';
+    << " vol=" << vol << " aligned=" << aligned << '\n';
   #endif
 
   if (std::abs(vol - volC[0]) <  precision*volC[0]){
