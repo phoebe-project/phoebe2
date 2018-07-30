@@ -16,6 +16,7 @@ def requiv_critical(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, lon
     s = _mesh.spin_in_roche(spin_xyz, true_anom, long_an_orb, incl_orb)
 
     logger.debug("roche.roche_misaligned_critical_requiv(q={}, F={}, d={}, s={}, scale={})".format(q, syncpar, d, s, sma))
+    q = _roche.q_for_component(q, compno)
     critical_requiv = _roche.roche_misaligned_critical_requiv(q, syncpar, d, s, sma)
 
     return critical_requiv
