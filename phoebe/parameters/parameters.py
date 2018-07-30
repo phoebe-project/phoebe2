@@ -808,7 +808,9 @@ class ParameterSet(object):
                 # existing parameters so that we know whether they already exist or
                 # still need to be created
 
+                # logger.debug("_check_copy_for {}: attrs={}".format(param.twig, attrs))
                 for attrvalues in itertools.product(*(getattr(ps, '{}s'.format(attr)) for attr in attrs)):
+                    # logger.debug("_check_copy_for {}: attrvalues={}".format(param.twig, attrvalues))
                     # for each attrs[i] (ie component), attrvalues[i] (star01)
                     # we need to look for this parameter, and if it does not exist
                     # then create it by copying param
@@ -820,6 +822,7 @@ class ParameterSet(object):
                         #    continue
                         metawargs[attr] = attrvalue
 
+                    # logger.debug("_check_copy_for {}: metawargs={}".format(param.twig, metawargs))
                     if not len(self._bundle.filter(check_visible=False, **metawargs)):
                         # then we need to make a new copy
                         logger.info("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
