@@ -1182,7 +1182,8 @@ class ParameterSet(object):
         for context in _contexts:
             lst += [v.to_json(incl_uniqueid=incl_uniqueid)
                     for v in self.filter(context=context,
-                                         check_visible=False).to_list()]
+                                         check_visible=False,
+                                         check_default=False).to_list()]
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
