@@ -114,6 +114,7 @@ _forbidden_labels = deepcopy(_meta_fields_all)
 _forbidden_labels += _contexts
 _forbidden_labels += ['lc', 'lc_dep', 'lc_syn',
                       'rv', 'rv_dep', 'rv_syn',
+                      'lp', 'lp_dep', 'lp_syn',
                       'sp', 'sp_dep', 'sp_syn',
                       'orb', 'orb_dep', 'orb_syn',
                       'mesh', 'mesh_dep', 'mesh_syn']
@@ -702,7 +703,7 @@ class ParameterSet(object):
             else:
                 setattr(self, '_'+field, None)
 
-    def _uniquetwig(self, twig, force_levels=[]):
+    def _uniquetwig(self, twig, force_levels=['qualifier']):
         """
         get the least unique twig for the parameter given by twig that
         will return this single result for THIS PS
@@ -2238,6 +2239,11 @@ class ParameterSet(object):
             yqualifier = kwargs.get('y', 'rvs')
             zqualifier = kwargs.get('z', 0)
             timequalifier = 'times'
+        elif ps.kind in ['lp', 'lp_syn']:
+            xqualifier = kwargs.get('x', 'wavelengths')
+            yqualifier = kwargs.get('y', 'flux_densities')
+            zqualifier = kwargs.get('z', 'flux_densities')
+            timequalifier = 'times'
         elif ps.kind in ['etv', 'etv_syn']:
             xqualifier = kwargs.get('x', 'time_ecls')
             yqualifier = kwargs.get('y', 'etvs')
@@ -2297,7 +2303,7 @@ class ParameterSet(object):
         # If the user provides unit(s), they can either give the unit object or
         # the string representation, so long as get_value(unit) succeeds
         # xunit = kwargs.get('xunit', xparam.default_unit)
-        if ps.kind in ['mesh', 'mesh_syn']:  # TODO: add sp and sp_syn
+        if ps.kind in ['mesh', 'mesh_syn', 'lp', 'lp_syn']:  # TODO: add sp and sp_syn
             # then we're plotting at a single time so the time array doesn't
             # really make sense (we won't be able to plot anything vs phase or
             # color by time/phase)
@@ -3419,10 +3425,19 @@ class Parameter(object):
         :rtype: bool
         """
         def is_visible_single(visible_if):
+            # visible_if syntax: [ignore,these]qualifier:value
+
+
             if visible_if.lower() == 'false':
                 return False
 
             # otherwise we need to find the parameter we're referencing and check its value
+            if visible_if[0]=='[':
+                remove_metawargs, visible_if = visible_if[1:].split(']')
+                remove_metawargs = remove_metawargs.split(',')
+            else:
+                remove_metawargs = []
+
             qualifier, value = visible_if.split(':')
 
             if 'hierarchy.' in qualifier:
@@ -3447,11 +3462,11 @@ class Parameter(object):
 
                 # the parameter needs to have all the same meta data except qualifier
                 # TODO: switch this to use self.get_parent_ps ?
-                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']).items() if v is not None}
+                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
                 metawargs['qualifier'] = qualifier
-                metawargs['twig'] = None
-                metawargs['uniquetwig'] = None
-                metawargs['uniqueid'] = None
+                # metawargs['twig'] = None
+                # metawargs['uniquetwig'] = None
+                # metawargs['uniqueid'] = None
                 # if metawargs.get('component', None) == '_default':
                     # metawargs['component'] = None
 
@@ -3476,6 +3491,8 @@ class Parameter(object):
 
                 if isinstance(value, str) and value[0] in ['!', '~']:
                     return param.get_value() != value[1:]
+                elif value=='<notempty>':
+                    return len(param.get_value()) > 0
                 else:
                     return param.get_value() == value
 

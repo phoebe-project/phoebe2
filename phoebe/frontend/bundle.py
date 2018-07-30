@@ -1689,8 +1689,7 @@ class Bundle(ParameterSet):
         you and can be accessed by the 'dataset' attribute of the returned
         ParameterSet.
 
-        For light curves, if you do not provide a value for 'component',
-        the light curve will be generated for the entire system.
+        For light curves, the light curve will be generated for the entire system.
 
         For radial velocities, you need to provide a list of components
         for which values should be computed.
@@ -1701,6 +1700,7 @@ class Bundle(ParameterSet):
             * :func:`phoebe.parameters.dataset.etv`
             * :func:`phoebe.parameters.dataset.orb`
             * :func:`phoebe.parameters.dataset.mesh`
+            * :func:`phoebe.parameters.dataset.lp`
 
         :parameter kind: function to call that returns a
             ParameterSet or list of parameters.  This must either be
@@ -1746,14 +1746,17 @@ class Bundle(ParameterSet):
 
         if kind == 'lc':
             allowed_components = [None]
+            default_components = allowed_components
         elif kind in ['rv', 'orb']:
-            allowed_components = self.hierarchy.get_stars()
+            allowed_components = self.hierarchy.get_stars() # + self.hierarchy.get_orbits()
+            default_components = self.hierarchy.get_stars()
             # TODO: how are we going to handle overcontacts dynamical vs flux-weighted
         elif kind in ['mesh']:
             # allowed_components = self.hierarchy.get_meshables()
             allowed_components = [None]
             # allowed_components = self.hierarchy.get_stars()
             # TODO: how will this work when changing hierarchy to add/remove the common envelope?
+            default_components = allowed_components
         elif kind in ['etv']:
             hier = self.hierarchy
             stars = hier.get_stars()
@@ -1761,8 +1764,15 @@ class Bundle(ParameterSet):
             # means that the companion in a triple cannot be timed, because how
             # do we know who it's eclipsing?
             allowed_components = [s for s in stars if hier.get_sibling_of(s) in stars]
+            default_components = allowed_components
+        elif kind in ['lp']:
+            # TODO: need to think about what this should be for contacts...
+            allowed_components = self.hierarchy.get_stars() + self.hierarchy.get_orbits()
+            default_components = [self.hierarchy.get_top()]
+
         else:
             allowed_components = [None]
+            default_components = [None]
 
         # Let's handle the case where the user accidentally sends components
         # instead of component
@@ -1777,7 +1787,7 @@ class Bundle(ParameterSet):
         elif hasattr(components, '__iter__'):
             components = components
         elif components is None:
-            components = allowed_components
+            components = default_components
         else:
             raise NotImplementedError
 
@@ -1791,12 +1801,20 @@ class Bundle(ParameterSet):
 
         if not np.all([component in allowed_components
                        for component in components]):
-            raise ValueError("'{}' not a recognized component".format(component))
+            raise ValueError("'{}' not a recognized/allowable component".format(component))
 
         obs_metawargs = {'context': 'dataset',
                          'kind': kind,
                          'dataset': kwargs['dataset']}
-        obs_params, constraints = func()
+
+        if kind in ['lp']:
+            # then times needs to be passed now to duplicate and tag the Parameters
+            # correctly
+            obs_kwargs = {'times': kwargs.pop('times', [])}
+        else:
+            obs_kwargs = {}
+
+        obs_params, constraints = func(**obs_kwargs)
         self._attach_params(obs_params, **obs_metawargs)
 
         for constraint in constraints:
@@ -1839,22 +1857,26 @@ class Bundle(ParameterSet):
                                        value=value,
                                        check_visible=False,
                                        ignore_none=True)
+            elif k in ['dataset']:
+                pass
             else:
-                if components == [None]:
+                # for dataset kinds that include passband dependent AND
+                # independent parameters, we need to carefully default on
+                # what component to use when passing the defaults
+                if kind in ['rv', 'lp'] and k in ['ld_func', 'ld_coeffs',
+                                                  'passband', 'intens_weighting',
+                                                  'profile_rest', 'profile_func', 'profile_sv']:
+                    # passband-dependent (ie lc_dep) parameters do not have
+                    # assigned components
+                    components_ = None
+                elif components == [None]:
                     components_ = None
                 elif user_provided_components:
                     components_ = components
                 else:
-                    # for dataset kinds that include passband dependent AND
-                    # independent parameters, we need to carefully default on
-                    # what component to use when passing the defaults
-                    if kind in ['rv'] and k in ['ld_func', 'ld_coeffs', 'passband', 'intens_weighting']:
-                        # passband-dependent (ie lc_dep) parameters do not have
-                        # assigned components
-                        components_ = None
-                    else:
-                        components_ = components+['_default']
+                    components_ = components+['_default']
 
+                logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], components_, v))
                 self.set_value_all(qualifier=k,
                                    dataset=kwargs['dataset'],
                                    component=components_,
