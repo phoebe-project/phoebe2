@@ -10315,6 +10315,7 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
 
     ldvolume: dvolume/dOmega of the left or right Roche lobe
       float:
+      
     larea: area of the left or right Roche lobe
       float:
 */
@@ -10391,7 +10392,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   std::cerr
     << "q=" << q
     << " d=" << d
-    << " Omega0=" << Omega0  
+    << " Omega0=" << Omega0
     << " res_choice=" << res_choice << '\n';
   #endif
 
@@ -10405,7 +10406,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
     report_error(fname + "Determining lobe's boundaries failed");
     return NULL;
   }
-  
+
   #if defined(DEBUG)
   std::cerr << "xrange=" << xrange0[0] << ':' <<  xrange0[1] << '\n';
   #endif
@@ -10451,7 +10452,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   do {
 
     for (int i = 0, m = m0; i < 2; ++i, m <<= 1) {
-      
+
       gen_roche::area_volume_directed_integration(p[i], res_choice, dir, xrange, Omega0, q, 1., d, m, polish);
 
       #if defined(DEBUG)
@@ -10507,7 +10508,6 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
 
   } while (1);
 
-
   PyObject *results = PyDict_New();
 
   const char *str[3] =  {"larea", "lvolume", "ldvolume"};
@@ -10523,7 +10523,124 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
 #endif
 
 
+/*
+  C++ wrapper for Python code:
 
+  Calculate the minimal distance r of the neck from x axis of the contact
+  Roche lobe at angle phi from y axis:
+
+      Omega_0 = Omega(x, r cos(phi), r sin(phi))
+
+
+  assuming F = 1.
+
+  Python:
+
+    dict = roche_contact_neck_min(q, d, Omega0, phi)
+
+  where parameters are
+
+  positionals:
+    q: float = M2/M1 - mass ratio
+    d: float - separation between the two objects
+    Omega: float - value potential
+    phi: angle
+      for minimal distance in
+        xy plane phi = 0
+        xz plane phi = pi/2
+
+  Returns:
+      dictionary
+
+  with keywords
+
+    rmin: minimal distance
+      float:
+
+    xmin: position of minimum
+      float:
+  
+*/
+
+//#define DEBUG
+static PyObject *roche_contact_neck_min(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  auto fname = "roche_contact_neck_min"_s;
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"d",
+    (char*)"Omega0",
+    (char*)"phi",
+    NULL};
+
+
+  double q, d, Omega0, phi;
+
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds,  "dddd", kwlist,
+        &q, &d, &Omega0, &phi)
+    ) {
+    report_error(fname + "::Problem reading arguments");
+    return NULL;
+  }
+
+  using real = double;
+  const int it_max = 20;
+  const real eps = 4*std::numeric_limits<real>::epsilon();
+  const real min = 10*std::numeric_limits<real>::min();
+
+  int it = 0;
+  
+  real 
+    u[2] = {gen_roche::lagrange_point_L1(real(q), real(1), real(d))/real(d), 0},
+    b = (1+q)*d*d*d, W0 = Omega0*d,
+    c, t1, t2,
+    s11, s12, s13, s15, 
+    s21, s22, s23, s25, 
+    x1, du[2], det, W, Wr, Wx, Wxx, Wrx;
+
+  c = std::cos(real(phi)), c *= c;
+  
+  // Newton-Raphson iteration
+  do {
+    x1 = u[0]-1, t1 = u[0]*u[0], t2 = x1*x1;
+    
+    s12 = 1/(u[1] + t1), s11 = std::sqrt(s12), s13 = s11*s12, s15 = s13*s12;
+    s22 = 1/(u[1] + t2), s21 = std::sqrt(s22), s23 = s21*s22, s25 = s23*s22;
+    
+    W = s11 + q*(s21 - u[0]) + (b*(t1 + c*u[1]))/2 - W0;
+    Wx =-(q*(1 + s23*x1)) + b*u[0] - s13*u[0];
+    Wr = (b*c - s13 - q*s23)/2;
+    Wrx = 3*(q*s25*x1 + s15*u[0])/2;
+    Wxx = b - s13 + 3*s15*t1 + q*s23*(-1 + 3*s22*t2);
+    
+    det = Wx*Wrx - Wr*Wxx;
+    
+    u[0] -= (du[0] = (Wrx*W - Wr*Wx)/det);
+    u[1] -= (du[1] = (Wx*Wx - Wxx*W)/det);
+    
+  } while (
+    std::abs(du[0]) > eps*std::abs(u[0]) + min && 
+    std::abs(du[1]) > eps*std::abs(u[1]) + min && 
+    ++it < it_max);
+
+  if (it >= it_max){
+    report_error(fname + "::Problem reading arguments");
+    return NULL;
+  }
+  
+  PyObject *results = PyDict_New();
+
+  PyDict_SetItemStringStealRef(results, "xmin", PyFloat_FromDouble(d*u[0]));
+  PyDict_SetItemStringStealRef(results, "rmin", PyFloat_FromDouble(d*std::sqrt(u[1])));
+
+  return results;
+}
 
 
 /*
@@ -11008,11 +11125,19 @@ static PyMethodDef Methods[] = {
     METH_VARARGS,
     "Calculate normalized projections of vectors."},
 
+// --------------------------------------------------------------------
+
   {"roche_contact_partial_area_volume",
     (PyCFunction)roche_contact_partial_area_volume,
     METH_VARARGS|METH_KEYWORDS,
-    "Determine the area, volume and dvolume/dOmega of the roche contact lobe"
+    "Determine the area, volume and dvolume/dOmega of the Roche contact lobe"
     "at given mass ratio q, separation d and and Omega0"},
+
+  {"roche_contact_neck_min",
+    (PyCFunction)roche_contact_neck_min,
+    METH_VARARGS|METH_KEYWORDS,
+    "Determine the minimal distance and position from x axis of the neck "
+    "of the Roche contact lobe at given mass ratio q, separation d and Omega0"},
 
   {NULL,  NULL, 0, NULL} // terminator record
 };
