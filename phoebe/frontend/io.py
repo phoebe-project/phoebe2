@@ -1353,7 +1353,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #                param = None
 
         except:
-            logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
+            logger.warning(param.twig+' has no phoebe 1 corollary')
             param=None
         if param != None:
             val, ptype = par_value(param)
@@ -1382,7 +1382,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 param = None
 
         except:
-            logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
+            logger.warning(param.twig+' has no phoebe 1 corollary')
             param = None
 
 # get rid of confusing parameters like sma and period which only exist for orbits in phoebe 1
@@ -1447,7 +1447,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                     param = None
             except:
 
-                logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
+                logger.warning(param.twig+' has no phoebe 1 corollary')
                 param = None
 
             if param != None:
@@ -1492,7 +1492,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #                    pnew = _1to2par(param1.qualifier)
 #                except:
 #                    param1 = None
-#                    logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
+#                    logger.warning(param.twig+' has no phoebe 1 corollary')
 
 #                if param1 != None:
 
@@ -1543,7 +1543,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                         param = None
 
                 except:
-                    logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
+                    logger.warning(param.twig+' has no phoebe 1 corollary')
                     param = None
 
                 if param != None:
@@ -1591,7 +1591,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                             param = None
 
                     except:
-                        logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
+                        logger.warning(param.twig+' has no phoebe 1 corollary')
                         param = None
 
                     if param != None:
@@ -1653,7 +1653,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
         except:
 
-            logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
+            logger.warning(param.twig+' has no phoebe 1 corollary')
             param = None
         if param != None:
             val, ptype = par_value(param)
@@ -1720,7 +1720,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 param = None
         except:
 
-            logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
+            logger.warning(param.twig+' has no phoebe 1 corollary')
             param = None
 
         if param != None:
@@ -1758,7 +1758,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         try:
             pnew = _2to1par[param.qualifier]
         except:
-            logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
+            logger.warning(param.twig+' has no phoebe 1 corollary')
             param = None
 
         if param != None:
