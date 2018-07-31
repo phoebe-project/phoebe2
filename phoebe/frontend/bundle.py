@@ -1887,6 +1887,7 @@ class Bundle(ParameterSet):
                          'kind': kind,
                          'dataset': kwargs['dataset']}
         obs_params, constraints = func()
+        # NOTE: _attach_params will call _check_copy_for
         self._attach_params(obs_params, **obs_metawargs)
 
         for constraint in constraints:
