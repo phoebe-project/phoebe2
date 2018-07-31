@@ -11,9 +11,9 @@ phoebe.devel_on()
 def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
 
-    b.add_spot(component='primary', relteff=0.9, radius=20, colat=45, colon=90, feature='spot01')
+    b.add_spot(component='primary', relteff=0.9, radius=20, colat=45, long=90, feature='spot01')
 
-    b.add_dataset('lc', times=np.linspace(0,3,21))
+    b.add_dataset('lc', times=np.linspace(0,1,26))
     b.add_compute('phoebe', compute='phoebe2')
     b.add_compute('legacy', compute='phoebe1')
 
