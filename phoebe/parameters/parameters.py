@@ -8,6 +8,7 @@ from phoebe.constraints.expression import ConstraintVar
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete, plotting, mpl_animate, nphelpers
+from phoebe.utils import parse_json
 
 import random
 import string
@@ -215,7 +216,7 @@ def parameter_from_json(dictionary, bundle=None):
     :return: instantiated :class:`Parameter` object
     """
     if isinstance(dictionary, str):
-        dictionary = json.loads(dictionary)
+        dictionary = json.loads(dictionary, object_pairs_hook=parse_json)
 
     classname = dictionary.pop('Class')
 
@@ -955,7 +956,7 @@ class ParameterSet(object):
         if _can_ujson:
             data = ujson.load(f)
         else:
-            data = json.load(f)
+            data = json.load(f, object_pairs_hook=parse_json)
         f.close()
         return cls(data)
 
@@ -3173,7 +3174,7 @@ class Parameter(object):
         :return: instantiated :class:`Parameter` object
         """
         f = open(filename, 'r')
-        data = json.load(f)
+        data = json.load(f, object_pairs_hook=parse_json)
         f.close()
         return cls(data)
 
