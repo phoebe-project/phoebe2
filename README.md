@@ -62,6 +62,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.0.9 - \_default Parameters hotfix
+
+* Previously, after loading from a JSON file, new datasets were ignored by run_compute because the \_default Parameters (such as 'enabled') were not stored and loaded correctly.  This has now been fixed.
+* PS.datasets/components now hides the (somewhat confusing) \_default entries.
+* unicode handling in filtering is improved to make sure the copying rules from JSON are followed correctly when loaded as unicodes instead of strings.
+
 ### 2.0.8 - contacts hotfix
 
 * Remove unused Parameters from the Bundle

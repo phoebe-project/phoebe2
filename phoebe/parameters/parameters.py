@@ -494,7 +494,7 @@ class ParameterSet(object):
 
         :return: list of strings
         """
-        return self.to_dict(field='component').keys()
+        return [c for c in self.to_dict(field='component').keys() if c!='_default']
 
     @property
     def dataset(self):
@@ -513,7 +513,7 @@ class ParameterSet(object):
 
         :return: list of strings
         """
-        return self.to_dict(field='dataset').keys()
+        return [d for d in self.to_dict(field='dataset').keys() if d!='_default']
 
     @property
     def constraint(self):
@@ -808,7 +808,9 @@ class ParameterSet(object):
                 # existing parameters so that we know whether they already exist or
                 # still need to be created
 
+                # logger.debug("_check_copy_for {}: attrs={}".format(param.twig, attrs))
                 for attrvalues in itertools.product(*(getattr(ps, '{}s'.format(attr)) for attr in attrs)):
+                    # logger.debug("_check_copy_for {}: attrvalues={}".format(param.twig, attrvalues))
                     # for each attrs[i] (ie component), attrvalues[i] (star01)
                     # we need to look for this parameter, and if it does not exist
                     # then create it by copying param
@@ -820,6 +822,7 @@ class ParameterSet(object):
                         #    continue
                         metawargs[attr] = attrvalue
 
+                    # logger.debug("_check_copy_for {}: metawargs={}".format(param.twig, metawargs))
                     if not len(self._bundle.filter(check_visible=False, **metawargs)):
                         # then we need to make a new copy
                         logger.info("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
@@ -1182,7 +1185,8 @@ class ParameterSet(object):
         for context in _contexts:
             lst += [v.to_json(incl_uniqueid=incl_uniqueid)
                     for v in self.filter(context=context,
-                                         check_visible=False).to_list()]
+                                         check_visible=False,
+                                         check_default=False).to_list()]
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
@@ -1344,6 +1348,11 @@ class ParameterSet(object):
                 #if kwargs[key] is None:
                 #    params = [pi for pi in params if getattr(pi,key) is None]
                 #else:
+                if isinstance(kwargs[key], unicode):
+                    # unicodes can cause all sorts of confusions with fnmatch,
+                    # so let's just cast now and be done with it
+                    kwargs[key] = str(kwargs[key])
+
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None) and
                     (getattr(pi,key)==kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
