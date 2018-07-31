@@ -10338,6 +10338,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
     (char*)"lvolume",
     (char*)"epsA",
     (char*)"epsV",
+    (char*)"epsdV",
     NULL};
 
   int choice = 0;
@@ -10351,13 +10352,13 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   double x, q, d, Omega0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dddd|iO!O!dd", kwlist,
+      args, keywds,  "dddd|iO!O!ddd", kwlist,
       &x, &q, &d, &Omega0,
       &choice,
       &PyBool_Type, o_r,
       &PyBool_Type, o_r + 1,
       &PyBool_Type, o_r + 2,
-      eps, eps + 1
+      eps, eps + 1, eps + 2
       )
     ) {
 
@@ -10389,8 +10390,9 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   std::cerr.precision(16);
   std::cerr
     << "q=" << q
-    << " d=" << delta
-    << " Omega0=" << Omega0  << '\n';
+    << " d=" << d
+    << " Omega0=" << Omega0  
+    << " res_choice=" << res_choice << '\n';
   #endif
 
   //
@@ -10403,6 +10405,10 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
     report_error(fname + "Determining lobe's boundaries failed");
     return NULL;
   }
+  
+  #if defined(DEBUG)
+  std::cerr << "xrange=" << xrange0[0] << ':' <<  xrange0[1] << '\n';
+  #endif
 
   if (x < xrange0[0] || xrange0[1] < x) {
     report_error(fname + "::Plane cutting lobe is outside xrange.");
@@ -10410,11 +10416,11 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   }
 
   if (choice == 1) {
-    xrange[0] = xrange[0];
+    xrange[0] = xrange0[0];
     xrange[1] = x;
   } else {
     xrange[0] = x;
-    xrange[1] = xrange[1];
+    xrange[1] = xrange0[1];
   }
 
   //
@@ -10445,11 +10451,11 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   do {
 
     for (int i = 0, m = m0; i < 2; ++i, m <<= 1) {
-
+      
       gen_roche::area_volume_directed_integration(p[i], res_choice, dir, xrange, Omega0, q, 1., d, m, polish);
 
       #if defined(DEBUG)
-      std::cerr << "P:" << p[i][0] << '\t' << p[i][1] << '\t' << p[i][2] << '\n';
+      std::cerr << "m=" << m << " P:" << p[i][0] << '\t' << p[i][1] << '\t' << p[i][2] << '\n';
       #endif
     }
 
