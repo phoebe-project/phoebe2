@@ -889,14 +889,16 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # the synthetic parameters
             logger.debug("mpirun proc:{} is master".format(myrank))
 
-            # receive the packet from each time sent by a worker
-            req = [0]*len(times)
+            # allocate an array to hold communication bits for each worker:
+            req = np.zeros(len(times), dtype=int)
+
+            # listen for work requests from each worker:
             for i in range(len(times)):
                 req[i] = comm.irecv(source=MPI.ANY_SOURCE, tag=TAG_DATA)
 
             # send tasks to the workers
             # this is the main compute loop in MPI mode
-            for i,time,infolist in zip(range(len(times)),times,infos):
+            for i, time, infolist in zip(range(len(times)), times, infos):
                 node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
                 packet = {'i': i, 'time': time, 'infolist': infolist}
                 comm.send(packet, node, tag=TAG_DATA)
