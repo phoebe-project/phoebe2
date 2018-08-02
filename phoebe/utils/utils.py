@@ -132,3 +132,19 @@ def add_filehandler(logger,style="default",flevel='DEBUG',
     logging.getLogger(name).addHandler(fh)
     logging.getLogger(name).handlers[-1].level = flevel
     return logging.getLogger(name)
+
+def parse_json(pairs):
+    """
+    modified from:
+    https://stackoverflow.com/questions/956867/how-to-get-string-objects-instead-of-unicode-from-json#34796078
+
+    pass this to the object_pairs_hook kwarg of json.load/loads
+    """
+    new_pairs = []
+    for key, value in pairs:
+        if isinstance(value, unicode):
+            value = value.encode('utf-8')
+        if isinstance(key, unicode):
+            key = key.encode('utf-8')
+        new_pairs.append((key, value))
+    return dict(new_pairs)

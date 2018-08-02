@@ -370,7 +370,8 @@ class Bundle(ParameterSet):
 
         return b
 
-    def save(self, filename, clear_history=True, incl_uniqueid=False):
+    def save(self, filename, clear_history=True, incl_uniqueid=False,
+             compact=False):
         """Save the bundle to a JSON-formatted ASCII file.
 
         :parameter str filename: relative or full path to the file
@@ -379,6 +380,8 @@ class Bundle(ParameterSet):
         :parameter bool incl_uniqueid: whether to including uniqueids in the
             file (only needed if its necessary to maintain the uniqueids when
             reloading)
+        :parameter bool compact: whether to use compact file-formatting (maybe
+            be quicker to save/load, but not as easily readable)
         :return: the filename
         """
         if clear_history:
@@ -388,7 +391,8 @@ class Bundle(ParameterSet):
 
         # TODO: add option for clear_models, clear_feedback
 
-        return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid)
+        return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
+                                        compact=compact)
 
     def export_legacy(self, filename):
         """
@@ -593,6 +597,12 @@ class Bundle(ParameterSet):
             for k, v in param.constraint_kwargs.items():
                 if v == old_component:
                     param._constraint_kwargs[k] = new_component
+        for param in self.filter(qualifier='include_times').to_list():
+            old_value = param._value
+            new_value = [v.replace('@{}'.format(old_component), '@{}'.format(new_component)) for v in old_value]
+            param._value = new_value
+
+        self._handle_dataset_selectparams()
 
 
 
@@ -793,6 +803,43 @@ class Bundle(ParameterSet):
                 else:
                     param.set_value(starrefs[0])
 
+    def _handle_dataset_selectparams(self):
+        """
+        """
+
+        changed_param = self.run_delayed_constraints()
+
+        pbdep_datasets = self.filter(context='dataset',
+                                     kind=_dataset._pbdep_columns.keys()).datasets
+
+        pbdep_columns = _dataset._mesh_columns[:] # force deepcopy
+        for pbdep_dataset in pbdep_datasets:
+            pbdep_kind = self.filter(context='dataset',
+                                     dataset=pbdep_dataset,
+                                     kind=_dataset._pbdep_columns.keys()).kind
+
+            pbdep_columns += ["{}@{}".format(column, pbdep_dataset) for column in _dataset._pbdep_columns[pbdep_kind]]
+
+        time_datasets = (self.filter(context='dataset')-
+                         self.filter(context='dataset', kind='mesh')).datasets
+
+        t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component']).to_list()]
+        t0s += ["t0@system"]
+
+        for param in self.filter(qualifier='columns',
+                                 context='dataset').to_list():
+
+            param._choices = pbdep_columns
+            param.remove_not_valid_selections()
+
+        for param in self.filter(qualifier='include_times',
+                                 context='dataset').to_list():
+
+            # NOTE: existing value is updated in change_component
+            param._choices = time_datasets + t0s
+            param.remove_not_valid_selections()
+
+
     def set_hierarchy(self, *args, **kwargs):
         """
         Set the hierarchy of the system.
@@ -844,6 +891,7 @@ class Bundle(ParameterSet):
         self._hierarchy_param = hier_param
 
         self._handle_pblum_defaults()
+        # self._handle_dataset_selectparams()
 
         # Handle inter-PS constraints
         starrefs = hier_param.get_stars()
@@ -1035,10 +1083,14 @@ class Bundle(ParameterSet):
         # Check if the component is primary or secondary; if the
         # latter, flip q and transform pot.
         comp = hier.get_primary_or_secondary(component, return_ind=True)
-        q = roche.q_for_component(q, comp)
 
-        F = comp_ps.get_value('syncpar', **kwargs)
-        d = 1 - parent_ps.get_value('ecc', **kwargs)
+        if kind == 'envelope':
+            F = 1.
+            d = 1.
+        else:
+            q = roche.q_for_component(q, comp)
+            F = comp_ps.get_value('syncpar', **kwargs)
+            d = 1 - parent_ps.get_value('ecc', **kwargs)
 
         # TODO: this needs to be generalized once other potentials are supported
         critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=L1, L2=L2, L3=L3, style=1)
@@ -1111,7 +1163,7 @@ class Bundle(ParameterSet):
 
                     if pot < critical_pots['L1'] or pot < critical_pots['L2']:
                         return False,\
-                            '{} is overflowing at periastron (L1={:.02f}, L2={:.02f}, pot={})'.format(component,
+                            '{} is overflowing at periastron (L1={:.02f}, L2={:.02f}, pot={}).'.format(component,
                                                                                                       critical_pots['L1'],
                                                                                                       critical_pots['L2'],
                                                                                                       pot)
@@ -1136,7 +1188,7 @@ class Bundle(ParameterSet):
 
                 if pot > critical_pots['L1']:
                     return False,\
-                        '{} is not overflowing L1 at apastron'.format(component)
+                        '{} is not overflowing L1 at apastron.'.format(component)
 
                 # BUT MUST NOT be overflowing L2 or L3 at periastron
                 d = 1 - parent_ps.get_value('ecc', **kwargs)
@@ -1144,7 +1196,7 @@ class Bundle(ParameterSet):
 
                 if pot < critical_pots['L2'] or pot < critical_pots['L3']:
                     return False,\
-                        '{} is overflowing L2 or L3 at periastron'.format(component)
+                        '{} is overflowing L2 or L3 at periastron.'.format(component)
 
             else:
                 raise NotImplementedError("checks not implemented for type '{}'".format(kind))
@@ -1180,7 +1232,7 @@ class Bundle(ParameterSet):
 
                 if xrange0[1]+xrange1[1] > 1.0-ecc:
                     return False,\
-                        'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{})'.format(orbitref, orbitref, starrefs[0], starrefs[1])
+                        'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1])
 
         # check to make sure all stars are aligned (remove this once we support
         # misaligned roche binaries)
@@ -1202,7 +1254,7 @@ class Bundle(ParameterSet):
             for atmparam in self.filter(qualifier='atm', kind='phoebe').to_list():
                 atm = atmparam.get_value()
                 if atm not in pbatms:
-                    return False, "'{}' passband ({}) does not support atm='{}' ({})".format(pb, pbparam.twig, atm, atmparam.twig)
+                    return False, "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig)
 
         # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
@@ -1217,7 +1269,7 @@ class Bundle(ParameterSet):
             elif ld_func in ['power'] and len(ld_coeffs)==4:
                 return True,
             else:
-                return False, "ld_coeffs='{}' inconsistent with ld_func='{}'".format(ld_coeffs, ld_func)
+                return False, "ld_coeffs='{}' inconsistent with ld_func='{}'.".format(ld_coeffs, ld_func)
 
         for component in self.hierarchy.get_stars():
             # first check ld_coeffs_bol vs ld_func_bol
@@ -1240,27 +1292,38 @@ class Bundle(ParameterSet):
                     for compute in kwargs.get('computes', self.computes):
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         if atm != 'ck2004':
-                            return False, "ld_func='interp' only supported by atm='ck2004'"
+                            return False, "ld_func='interp' only supported by atm='ck2004'."
 
         # mesh-consistency checks
         for compute in self.computes:
             mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
-                    return False, "all (or none) components must use mesh_method='wd'"
+                    return False, "all (or none) components must use mesh_method='wd'."
 
         #### WARNINGS ONLY ####
-        # let's check teff vs gravb_bol
+        # let's check teff vs gravb_bol and irrad_frac_refl_bol
         for component in self.hierarchy.get_stars():
             teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
             gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component', **kwargs)
 
             if teff >= 8000. and gravb_bol < 0.9:
-                return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}".format(component, teff, gravb_bol)
+                return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
             elif teff <= 6600. and gravb_bol >= 0.9:
-                return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}".format(component, teff, gravb_bol)
+                return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
             elif gravb_bol < 0.32 or gravb_bol > 1.00:
-                return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}".format(component, teff, gravb_bol)
+                return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
+                
+        for component in self.hierarchy.get_stars():
+            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
+            irrad_frac_refl_bol = self.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)
+
+            if teff >= 8000. and irrad_frac_refl_bol < 0.8:
+                return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which irrad_frac_refl_bol=1.00 might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol)
+            elif teff <= 6600. and irrad_frac_refl_bol >= 0.75:
+                return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which irrad_frac_refl_bol=0.6 might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol)
+            elif irrad_frac_refl_bol < 0.6:
+                return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), irrad_frac_refl_bol might be better between 0.6-1.00 than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol)
 
         # TODO: add other checks
         # - make sure all ETV components are legal
@@ -1824,6 +1887,7 @@ class Bundle(ParameterSet):
                          'kind': kind,
                          'dataset': kwargs['dataset']}
         obs_params, constraints = func()
+        # NOTE: _attach_params will call _check_copy_for
         self._attach_params(obs_params, **obs_metawargs)
 
         for constraint in constraints:
@@ -1852,13 +1916,10 @@ class Bundle(ParameterSet):
         #    individually requested parameters.  We won't touch _default unless
         #    its included in the dictionary
 
-        # set default for times - this way the times array for "attached"
-        # components will not be empty
-        kwargs.setdefault('times', [0.])
-
         # this needs to happen before kwargs get applied so that the default
         # values can be overridden by the supplied kwargs
         self._handle_pblum_defaults()
+        self._handle_dataset_selectparams()
 
         for k, v in kwargs.items():
             if isinstance(v, dict):
@@ -1989,6 +2050,8 @@ class Bundle(ParameterSet):
         # not really sure why we need to call this twice, but it seems to do
         # the trick
         self.remove_parameters_all(**kwargs)
+
+        self._handle_dataset_selectparams()
 
         # TODO: check to make sure that trying to undo this
         # will raise an error saying this is not undo-able
@@ -2483,6 +2546,13 @@ class Bundle(ParameterSet):
             self.run_compute(compute=compute, model=model, time=time, **kwargs)
             self.as_client(False)
             return self.get_model(model)
+
+        # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
+        # so let's raise an error if they're passed here
+        if 'protomesh' in kwargs.keys():
+            raise ValueError("protomesh is no longer a valid option")
+        if 'pbmesh' in kwargs.keys():
+            raise ValueError("pbmesh is no longer a valid option")
 
         if model is None:
             model = 'latest'
