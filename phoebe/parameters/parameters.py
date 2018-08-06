@@ -5,6 +5,7 @@ framework of the PHOEBE 2.0 frontend.
 """
 
 from phoebe.constraints.expression import ConstraintVar
+# from phoebe.constraints import builtin
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete, plotting, mpl_animate, nphelpers
@@ -18,6 +19,7 @@ import sys
 import os
 import difflib
 import time
+import types
 from collections import OrderedDict
 from fnmatch import fnmatch
 from copy import deepcopy
@@ -78,16 +80,6 @@ import logging
 logger = logging.getLogger("PARAMETERS")
 logger.addHandler(logging.NullHandler())
 
-_constraint_builtin_funcs = ['requiv_critical',
-                             'esinw2per0',
-                             'ecosw2per0',
-                             't0_supconj_to_perpass',
-                             't0_perpass_to_supconj',
-                             't0_supconj_to_ref',
-                             't0_ref_to_supconj',
-                             'sin', 'cos', 'tan',
-                             'arcsin', 'arccos', 'arctan',
-                             'sqrt']
 
 _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
                                         'ConstraintParameter', 'JobParameter']
@@ -5761,6 +5753,14 @@ class ConstraintParameter(Parameter):
         # second culprit is converting everything to si
         # third culprit is the dictionary comprehensions
 
+        # in theory, it would be nice to prepare this list at the module import
+        # level, but that causes an infinite loop in the imports, so we'll
+        # do a re-import here.  If this causes significant lag, it may be worth
+        # trying to resolve the infinite loop.
+        from phoebe.constraints import builtin
+        _constraint_builtin_funcs = [f for f in dir(builtin) if isinstance(getattr(builtin, f), types.FunctionType)]
+        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'sqrt']
+
         def eq_needs_builtin(eq):
             for func in _constraint_builtin_funcs:
                 if "{}(".format(func) in eq:
@@ -5799,12 +5799,18 @@ class ConstraintParameter(Parameter):
 
                 values = get_values(self._vars, safe_label=False)
 
-                from phoebe.constraints.builtin import requiv_critical,\
-                        ecosw2per0, esinw2per0,\
-                        t0_perpass_to_supconj, t0_supconj_to_perpass,\
-                        t0_ref_to_supconj, t0_supconj_to_ref
+                # cannot do from builtin import *
+                for func in _constraint_builtin_funcs:
+                    # I should be shot for doing this...
+                    # in order for eval to work, the builtin functions need
+                    # to be imported at the top-level, but I don't really want
+                    # to do from builtin import * (and even if I did, python
+                    # yells at me for doing that), so instead we'll add them
+                    # to the locals dictionary.
+                    locals()[func] = getattr(builtin, func)
 
                 value = float(eval(eq.format(**values)))
+
 
             else:
                 # the following works for np arrays
