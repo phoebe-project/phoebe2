@@ -1108,14 +1108,10 @@ class ScaledProtoMesh(ProtoMesh):
         (either centers or vertices depending on the setting in the mesh).
         """
 
-        # TODO: need to subtract the position offset if a Mesh (in orbit)
         if self._compute_at_vertices:
-            # if self.pvertices is not None:
-                # return self.pvertices - self._pos
-            # else:
-            return self.roche_vertices - self._pos
+            return self.roche_vertices
         else:
-            return self.roche_centers - self._pos
+            return self.roche_centers
 
     @property
     def roche_vertices(self):

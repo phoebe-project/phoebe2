@@ -3146,11 +3146,13 @@ class Spot(Feature):
             # then assume at t0
             t = self._t0
 
-        cos_alpha_coords = np.dot(coords, self.pointing_vector(s, t)) / np.linalg.norm(coords, axis=1)
+        pointing_vector = self.pointing_vector(s,t)
+        logger.debug("spot.process_teffs at t={} with pointing_vector={} and radius={}".format(t, pointing_vector, self._radius))
+
+        cos_alpha_coords = np.dot(coords, pointing_vector) / np.linalg.norm(coords, axis=1)
         cos_alpha_spot = np.cos(self._radius)
 
         filter_ = cos_alpha_coords > cos_alpha_spot
-
         teffs[filter_] = teffs[filter_] * self._relteff
 
         return teffs
