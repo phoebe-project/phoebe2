@@ -1,6 +1,8 @@
 import numpy as np
 from phoebe.distortions import roche as _roche
 from phoebe.backend import mesh as _mesh
+import libphoebe
+from scipy.optimize import newton
 
 import logging
 logger = logging.getLogger("BUILTIN")
@@ -86,3 +88,45 @@ def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
     """
     """
     return t0_supconj - _delta_t_supconj_ref(period, ecc, per0)
+
+def pot_to_volume(pot, q, d, vequiv, choice):
+    """ 
+    """
+    nekmin = libphoebe.roche_contact_neck_min(q, d, pot, np.pi / 2.)['xmin']
+    volume = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, choice)['lvolume']
+    return volume - vequiv
+
+def requiv_to_pot_contact(requiv, q, sma, choice=1):
+    """
+    :param requiv: user-provided equivalent radius
+    :param q: mass ratio
+    :param sma: semi-major axis (d = sma because we explicitly assume circular orbits for contacts)
+    :param choice: 1 for primary, 2 for secondary
+    :return: potential and fillout factor
+    """
+    vequiv = 4.*np.pi*requiv**3/3.
+    pot_init = _roche.BinaryRoche([0., 0., requiv], 1., 1., 1.)
+
+    try:
+        pot_final = newton(pot_to_volume, pot_init, args=(q, sma, vequiv, choice))
+        crit_pots = libphoebe.roche_critical_potential(q=q, d=sma, F=1.)
+        ff = (pot_final - crit_pots['L1']) / (np.max(crit_pots['L2'], crit_pots['L3']) - crit_pots['L1'])
+        return pot_final, ff
+
+    except:
+        # replace this with actual check in the beginning or before function call
+        raise ValueError('requiv probably out of bounds for contact envelope')
+
+def pot_to_requiv_contact(pot, q, sma, choice=1):
+    """
+    """
+    try:
+        nekmin = libphoebe.roche_contact_neck_min(q, sma, pot, np.pi / 2.)['xmin']
+        volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, sma, pot, choice)['lvolume']
+        return (3 * volume_equiv / (4. * np.pi)) ** (1. / 3)
+    except:
+        # replace this with actual check in the beginning or before function call
+        raise ValueError('potential probably out of bounds for contact envelope')
+
+
+
