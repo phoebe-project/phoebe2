@@ -2220,10 +2220,6 @@ class Bundle(ParameterSet):
             (except twig or context)
 
         """
-
-        # if not conf.devel:
-        #     raise NotImplementedError("'flip_constraint' not officially supported for this release.  Enable developer mode to test.")
-
         self._kwargs_checks(kwargs)
 
         kwargs['twig'] = twig
