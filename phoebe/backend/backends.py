@@ -1253,7 +1253,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                     # legacy only supports binary systems
                     sma = b.get_value(qualifier='sma', kind='orbit', unit=u.solRad)
                     this_syn.set_value(time=time, qualifier='rs',
-                                       value=mqtf(mesh['rad{}'.format(cind1)])*sma*u.solRad)
+                                       value=mqtf(mesh['rad{}'.format(cind)])*sma*u.solRad)
                 # if 'cosbetas' in info['mesh_columns']:
                     # this_syn.set_value(time=time, qualifier='cosbetas', value=mesh['csbt{}'.format(cind)])
 
@@ -1484,7 +1484,7 @@ def photodynam(b, compute, times=[], **kwargs):
             this_syn['times'] = stuff[0] * u.d
             this_syn['rvs'] = -stuff[3*nbodies+4+(cind*3)] * u.AU/u.d
         else:
-            raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
+            raise NotImplementedError("kind {} not yet supported by this backend".format(info['kind']))
 
     yield new_syns
 
