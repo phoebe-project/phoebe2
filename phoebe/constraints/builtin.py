@@ -11,7 +11,7 @@ logger.addHandler(logging.NullHandler())
 # expose these at top-level so they're available to constraints
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
-def requiv_critical(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno, **kwargs):
+def requiv_L1(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno, **kwargs):
     """
     """
     d = 1-ecc # compute at periastron
@@ -25,6 +25,30 @@ def requiv_critical(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, lon
     critical_requiv = _roche.roche_misaligned_critical_requiv(q, syncpar, d, s, sma)
 
     return critical_requiv
+
+def requiv_contact_L1(q, sma, compno, **kwargs):
+    """
+    for the contact case we can make the assumption of aligned, synchronous, and circular
+    """
+    return requiv_L1(q=1, syncpar=1, ecc=0, sma=sma, incl_star=0, long_an_star=0, incl_orb=0, long_an_orb=0, compno=compno, **kwargs)
+
+def requiv_contact_L23(q, sma, compno, **kwargs):
+    """
+    for the contact case we can make the assumption of aligned, synchronous, and circular
+    """
+    logger.debug("requiv_contact_L23(q={}, sma={}, compno={})".format(q, sma, compno))
+    crit_pots = libphoebe.roche_critical_potential(q, 1., 1.)
+    crit_pot_L23 = max([crit_pots['L2'], crit_pots['L3']])
+
+    q = _roche.q_for_component(q, compno)
+    logger.debug("libphoebe.roche_contact_neck_min(q={}, d=1., crit_pot_L23={}, phi=pi/2)".format(q, crit_pot_L23))
+    nekmin = libphoebe.roche_contact_neck_min(q, 1., crit_pot_L23, np.pi/2.)['xmin']
+    logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d=1, Omega={}, compno={})".format(nekmin, q, crit_pot_L23, compno))
+    crit_vol_L23 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1., crit_pot_L23, compno)['lvolume']
+
+    logger.debug("resulting vol: {}, requiv: {}".format(crit_vol_L23, (3./4*1./np.pi*crit_vol_L23)**1./3 * sma))
+
+    return (3./4*1./np.pi*crit_vol_L23)**(1./3) * sma
 
 
 def esinw2per0(ecc, esinw):
@@ -92,30 +116,31 @@ def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
     """
     return t0_supconj - _delta_t_supconj_ref(period, ecc, per0)
 
-def pot_to_volume(pot, q, d, vequiv, choice):
-    """ 
+def pot_to_volume(pot, q, d, vequiv, compno):
+    """
     """
     nekmin = libphoebe.roche_contact_neck_min(q, d, pot, np.pi / 2.)['xmin']
-    volume = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, choice)['lvolume']
+    volume = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno)['lvolume']
     return volume - vequiv
 
-def requiv_to_pot_contact(requiv, q, sma, choice=1):
+def requiv_to_pot_contact(requiv, q, sma, compno=1):
     """
     :param requiv: user-provided equivalent radius
     :param q: mass ratio
     :param sma: semi-major axis (d = sma because we explicitly assume circular orbits for contacts)
-    :param choice: 1 for primary, 2 for secondary
+    :param compno: 1 for primary, 2 for secondary
     :return: potential and fillout factor
     """
+    logger.debug("requiv_to_pot_contact(requiv={}, q={}, sma={}, compno={})".format(requiv, q, sma, compno))
 
     # since the functions called here work with normalized r, we need to set d=D=sma=1.
     # or provide sma as a function parameter and normalize r here as requiv = requiv/sma
     requiv = requiv/sma
-    vequiv = 4.*np.pi*requiv**3/3.
+    vequiv = 4./3*np.pi*requiv**3
     pot_init = _roche.BinaryRoche([0., 0., requiv], q=q, D=1., F=1.)
     d = 1.
     try:
-        pot_final = newton(pot_to_volume, pot_init, args=(q, d, vequiv, choice))
+        pot_final = newton(pot_to_volume, pot_init, args=(q, d, vequiv, compno))
         crit_pots = libphoebe.roche_critical_potential(q=q, d=d, F=1.)
         ff = (pot_final - crit_pots['L1']) / (np.max((crit_pots['L2'], crit_pots['L3'])) - crit_pots['L1'])
         return pot_final, ff
@@ -124,18 +149,15 @@ def requiv_to_pot_contact(requiv, q, sma, choice=1):
         # replace this with actual check in the beginning or before function call
         raise ValueError('requiv probably out of bounds for contact envelope')
 
-def pot_to_requiv_contact(pot, q, sma, choice=1):
+def pot_to_requiv_contact(pot, q, sma, compno=1):
     """
     """
     d = 1.
     try:
         nekmin = libphoebe.roche_contact_neck_min(q, pot, np.pi / 2.)['xmin']
-        volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, choice)['lvolume']
+        volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno)['lvolume']
         # returns normalized vequiv, should multiply by sma back for requiv in SI
         return sma*(3 * volume_equiv / (4. * np.pi)) ** (1. / 3)
     except:
         # replace this with actual check in the beginning or before function call
         raise ValueError('potential probably out of bounds for contact envelope')
-
-
-

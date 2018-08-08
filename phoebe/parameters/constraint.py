@@ -112,11 +112,35 @@ def sqrt(param):
 
 #}
 #{ Built-in functions (see phoebe.constraints.builtin for actual functions)
-def roche_requiv_critical(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno=1):
+def roche_requiv_L1(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(q._bundle, "requiv_critical(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb)]), compno))
+    return ConstraintParameter(q._bundle, "requiv_L1(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb)]), compno))
+
+def roche_requiv_contact_L1(q, sma, compno=1):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(q._bundle, "requiv_contact_L1(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, sma)]), compno))
+
+def roche_requiv_contact_L23(q, sma, compno=1):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(q._bundle, "requiv_contact_L23(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, sma)]), compno))
+
+def requiv_to_pot_contact(requiv, q, sma, compno=1):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(requiv._bundle, "requiv_to_pot_contact({}, {}, {})".format(_get_expr(requiv), _get_expr(q), _get_expr(sma), compno))
+
+def pot_to_requiv_contact(pot, q, sma, compno=1):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(pot._bundle, "pot_to_requiv_contact({}, {}, {})".format(_get_expr(pot), _get_expr(q), _get_expr(sma), compno))
 
 def esinw2per0(ecc, esinw):
     """
@@ -155,12 +179,6 @@ def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
     """
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
 
-def requiv_to_pot_contact(requiv,q,sma,choice):
-    return ConstraintParameter(requiv._bondle, "requiv_to_pot_contact({}, {}, {})".format(_get_expr(requiv), _get_expr(q), _get_expr(sma), _get_expr(choice)))
-
-def pot_to_requiv_contact(pot, q, sma, choice):
-    return ConstraintParameter(pot._bundle, "pot_to_requiv_contact({}, {}, {})".format(_get_expr(pot), _get_expr(q), _get_expr(sma), _get_expr(choice)))
-#}
 #{ Custom constraints
 
 def custom(b, *args, **kwargs):
@@ -649,7 +667,7 @@ def semidetached(b, component, solve_for=None, **kwargs):
     comp_ps = b.get_component(component=component)
 
     requiv = comp_ps.get_parameter(qualifier='requiv')
-    requiv_critical = comp_ps.get_parameter(qualifier='requiv_critical')
+    requiv_critical = comp_ps.get_parameter(qualifier='requiv_max')
 
     if solve_for in [requiv, None]:
         lhs = requiv
@@ -813,15 +831,15 @@ def comp_sma(b, component, solve_for=None, **kwargs):
     return lhs, rhs, {'component': component}
 
 
-def requiv_critical(b, component, solve_for=None, **kwargs):
+def requiv_detached_max(b, component, solve_for=None, **kwargs):
     """
-    Create a constraint to determine the critical (roche overflow) value of
-    requiv
+    Create a constraint to determine the critical (at L1) value of
+    requiv.
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
     :parameter str component: the label of the star in which this
         constraint should be built
-    :parameter str solve_for:  if 'requiv' should not be the derived/constrained
+    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
         parameter, provide which other parameter should be derived
     :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
@@ -831,7 +849,7 @@ def requiv_critical(b, component, solve_for=None, **kwargs):
     if not len(hier.get_value()):
         # TODO: change to custom error type to catch in bundle.add_component
         # TODO: check whether the problem is 0 hierarchies or more than 1
-        raise NotImplementedError("constraint for requiv_critical requires hierarchy")
+        raise NotImplementedError("constraint for requiv_detached_max requires hierarchy")
 
 
     component_ps = _get_system_ps(b, component)
@@ -840,11 +858,11 @@ def requiv_critical(b, component, solve_for=None, **kwargs):
 
 
     if parentorbit == 'component':
-        raise ValueError("cannot constrain requiv_critical for single star")
+        raise ValueError("cannot constrain requiv_detached_max for single star")
 
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
-    requiv_critical = component_ps.get_parameter(qualifier='requiv_critical')
+    requiv_max = component_ps.get_parameter(qualifier='requiv_max')
     q = parentorbit_ps.get_parameter(qualifier='q')
     syncpar = component_ps.get_parameter(qualifier='syncpar')
     ecc = parentorbit_ps.get_parameter(qualifier='ecc')
@@ -854,18 +872,95 @@ def requiv_critical(b, component, solve_for=None, **kwargs):
     incl_orbit = parentorbit_ps.get_parameter(qualifier='incl')
     long_an_orbit = parentorbit_ps.get_parameter(qualifier='long_an')
 
-    if solve_for in [None, requiv_critical]:
-        lhs = requiv_critical
+    if solve_for in [None, requiv_max]:
+        lhs = requiv_max
 
-        rhs = roche_requiv_critical(q, syncpar, ecc, sma,
-                                    incl_star, long_an_star,
-                                    incl_orbit, long_an_orbit,
-                                    hier.get_primary_or_secondary(component, return_ind=True))
+        rhs = roche_requiv_L1(q, syncpar, ecc, sma,
+                              incl_star, long_an_star,
+                              incl_orbit, long_an_orbit,
+                              hier.get_primary_or_secondary(component, return_ind=True))
     else:
-        raise NotImplementedError("requiv_critical can only be solved for requiv_critical")
+        raise NotImplementedError("requiv_detached_max can only be solved for requiv_max")
 
     return lhs, rhs, {'component': component}
 
+def requiv_contact_min(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to determine the critical (at L1) value of
+    requiv at which a constact will underflow.  This will only be used
+    for contacts for requiv_min
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for requiv_contact_min requires hierarchy")
+
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    requiv_min = component_ps.get_parameter(qualifier='requiv_min')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+    sma = parentorbit_ps.get_parameter(qualifier='sma')
+
+    if solve_for in [None, requiv_min]:
+        lhs = requiv_min
+
+        rhs = roche_requiv_contact_L1(q, sma, hier.get_primary_or_secondary(component, return_ind=True))
+    else:
+        raise NotImplementedError("requiv_contact_max can only be solved for requiv_min")
+
+    return lhs, rhs, {'component': component}
+
+def requiv_contact_max(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to determine the critical (at L2/3) value of
+    requiv at which a constact will overflow.  This will only be used
+    for contacts for requiv_max
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for requiv_contact_max requires hierarchy")
+
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    requiv_max = component_ps.get_parameter(qualifier='requiv_max')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+    sma = parentorbit_ps.get_parameter(qualifier='sma')
+
+    if solve_for in [None, requiv_max]:
+        lhs = requiv_max
+
+        rhs = roche_requiv_contact_L23(q, sma, hier.get_primary_or_secondary(component, return_ind=True))
+    else:
+        raise NotImplementedError("requiv_contact_max can only be solved for requiv_max")
+
+    return lhs, rhs, {'component': component}
 
 def rotation_period(b, component, solve_for=None, **kwargs):
     """
@@ -1118,10 +1213,10 @@ def requiv_to_pot(b, component, solve_for=None, **kwargs):
 
     if solve_for in [None, requiv]:
         lhs = requiv
-        rhs = requiv_to_pot_contact(requiv,q,sma,hier.get_primary_or_secondary(component, return_ind=True))
+        rhs = requiv_to_pot_contact(requiv, q, sma, hier.get_primary_or_secondary(component, return_ind=True))
     elif solve_for == pot:
         lhs = pot
-        rhs = pot_to_requiv_contact(pot,q,sma,hier.get_primary_or_secondary(component, return_ind=True))
+        rhs = pot_to_requiv_contact(pot, q, sma, hier.get_primary_or_secondary(component, return_ind=True))
     else:
         raise NotImplementedError
 

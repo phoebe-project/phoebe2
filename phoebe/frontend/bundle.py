@@ -289,9 +289,15 @@ class Bundle(ParameterSet):
         :return: instantiated :class:`Bundle` object
         """
         b = cls()
-        b.add_star(component=starA)
-        b.add_star(component=starB)
-        b.add_orbit(component=orbit)
+        if contact_binary:
+            orbit_defaults = {'sma': 3.35, 'period': 0.5}
+            star_defaults = {'requiv': 1.5}
+        else:
+            orbit_defaults = {'sma': 5.3, 'period': 1.0}
+            star_defaults = {'requiv': 1.0}
+        b.add_star(component=starA, **star_defaults)
+        b.add_star(component=starB, **star_defaults)
+        b.add_orbit(component=orbit, **orbit_defaults)
         if contact_binary:
             b.add_component('envelope', component='contact_envelope')
             b.set_hierarchy(_hierarchy.binaryorbit,
@@ -934,21 +940,70 @@ class Bundle(ParameterSet):
                                         constraint=self._default_label('comp_sma', context='constraint'))
 
 
-                if not self.hierarchy.is_contact_binary(component):
-                    logger.debug('re-creating requiv_critical constraint for {}'.format(component))
+                if self.hierarchy.is_contact_binary(component):
+                    # then we're in a contact binary and need to create pot<->requiv constraints
+                    logger.debug('re-creating requiv_max (contact) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
-                                       constraint_func='requiv_critical',
+                                       constraint_func='requiv_contact_max',
                                        component=component)):
-                        constraint_param = self.get_constraint(constraint_func='requiv_critical',
+                        constraint_param = self.get_constraint(constraint_func='requiv_contact_max',
                                                                component=component)
-                        self.remove_constraint(constraint_func='requiv_critical',
+                        self.remove_constraint(constraint_func='requiv_contact_max',
                                                component=component)
-                        self.add_constraint(constraint.requiv_critical, component,
+                        self.add_constraint(constraint.requiv_contact_max, component,
                                             solve_for=constraint_param.constrained_parameter.uniquetwig,
                                             constraint=constraint_param.constraint)
                     else:
-                        self.add_constraint(constraint.requiv_critical, component,
-                                            constraint=self._default_label('requiv_critical', context='constraint'))
+                        self.add_constraint(constraint.requiv_contact_max, component,
+                                            constraint=self._default_label('requiv_max', context='constraint'))
+
+                    logger.debug('re-creating requiv_min (contact) constraint for {}'.format(component))
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_contact_min',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_func='requiv_contact_min',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='requiv_contact_min',
+                                               component=component)
+                        self.add_constraint(constraint.requiv_contact_min, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.requiv_contact_min, component,
+                                            constraint=self._default_label('requiv_min', context='constraint'))
+
+
+                    # logger.debug('re-creating requiv_to_pot constraint for {}'.format(component))
+                    # if len(self.filter(context='constraint',
+                    #                    constraint_func='requiv_to_pot',
+                    #                    component=component)):
+                    #     constraint_param = self.get_constraint(constraint_fun='requiv_to_pot',
+                    #                                            component=component)
+                    #     self.remove_constraint(constraint_func='requiv_to_pot',
+                    #                            component=component)
+                    #     self.add_constraint(constraint.requiv_to_pot, component,
+                    #                         solve_for=constraint_param.constrained_parameter.uniquetwig,
+                    #                         constraint=constraint_param.constraint)
+                    # else:
+                    #     self.add_constraint(constraint.requiv_to_pot, component,
+                    #                         constraint=self._default_label('requiv_to_pot', context='constraint'))
+
+                else:
+                    # then we're in a detached/semi-detached system
+                    logger.debug('re-creating requiv_max (detached) constraint for {}'.format(component))
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_detached_max',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_func='requiv_detached_max',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='requiv_detached_max',
+                                               component=component)
+                        self.add_constraint(constraint.requiv_detached_max, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.requiv_detached_max, component,
+                                            constraint=self._default_label('requiv_max', context='constraint'))
 
                     logger.debug('re-creating rotation_period constraint for {}'.format(component))
                     # TODO: will this cause problems if the constraint has been flipped?
@@ -1095,7 +1150,7 @@ class Bundle(ParameterSet):
         hier = self.hierarchy
         if hier is None:
             return True, ''
-        for component in hier.get_meshables():
+        for component in hier.get_stars():
             kind = hier.get_kind_of(component)
             comp_ps = self.get_component(component)
             parent = hier.get_parent_of(component)
@@ -1106,21 +1161,25 @@ class Bundle(ParameterSet):
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
                     requiv = comp_ps.get_value('requiv', unit=u.solRad, **kwargs)
-                    requiv_critical = comp_ps.get_value('requiv_critical', unit=u.solRad, **kwargs)
+                    requiv_max = comp_ps.get_value('requiv_max', unit=u.solRad, **kwargs)
 
-                    if requiv > requiv_critical:
-                        return False,\
-                            '{} is overflowing at periastron (requiv={}, requiv_critical={})'.format(component, requiv, requiv_critical)
 
-            elif kind in ['envelope']:
-                # MUST be overflowing at APASTRON (1+ecc)
-                raise NotImplementedError("overflow checks for envelope not yet implemented")
 
-                # TODO: rewrite overflow check_kwargs
+                    if hier.is_contact_binary(component):
+                        if requiv > requiv_max:
+                            return False,\
+                                '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
 
-                if pot < critical_pots['L2'] or pot < critical_pots['L3']:
-                    return False,\
-                        '{} is overflowing L2 or L3 at periastron.'.format(component)
+                        requiv_min = comp_ps.get_value('requiv_min')
+
+                        if requiv <= requiv_min:
+                            return False,\
+                                 '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min)
+
+                    else:
+                        if requiv > requiv_max:
+                            return False,\
+                                '{} is overflowing at periastron (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
 
             else:
                 raise NotImplementedError("checks not implemented for type '{}'".format(kind))
