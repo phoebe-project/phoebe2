@@ -99,7 +99,7 @@ def pot_to_volume(pot, q, d, vequiv, choice):
     volume = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, choice)['lvolume']
     return volume - vequiv
 
-def requiv_to_pot_contact(requiv, q, choice=1):
+def requiv_to_pot_contact(requiv, q, sma, choice=1):
     """
     :param requiv: user-provided equivalent radius
     :param q: mass ratio
@@ -110,14 +110,13 @@ def requiv_to_pot_contact(requiv, q, choice=1):
 
     # since the functions called here work with normalized r, we need to set d=D=sma=1.
     # or provide sma as a function parameter and normalize r here as requiv = requiv/sma
-
-    sma = 1.
+    requiv = requiv/sma
     vequiv = 4.*np.pi*requiv**3/3.
-    pot_init = _roche.BinaryRoche([0., 0., requiv], q=q, D=sma, F=1.)
-
+    pot_init = _roche.BinaryRoche([0., 0., requiv], q=q, D=1., F=1.)
+    d = 1.
     try:
-        pot_final = newton(pot_to_volume, pot_init, args=(q, sma, vequiv, choice))
-        crit_pots = libphoebe.roche_critical_potential(q=q, d=sma, F=1.)
+        pot_final = newton(pot_to_volume, pot_init, args=(q, d, vequiv, choice))
+        crit_pots = libphoebe.roche_critical_potential(q=q, d=d, F=1.)
         ff = (pot_final - crit_pots['L1']) / (np.max((crit_pots['L2'], crit_pots['L3'])) - crit_pots['L1'])
         return pot_final, ff
 
@@ -125,15 +124,15 @@ def requiv_to_pot_contact(requiv, q, choice=1):
         # replace this with actual check in the beginning or before function call
         raise ValueError('requiv probably out of bounds for contact envelope')
 
-def pot_to_requiv_contact(pot, q, choice=1):
+def pot_to_requiv_contact(pot, q, sma, choice=1):
     """
     """
-    sma = 1.
+    d = 1.
     try:
         nekmin = libphoebe.roche_contact_neck_min(q, pot, np.pi / 2.)['xmin']
-        volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, sma, pot, choice)['lvolume']
-        # returns normalized requiv
-        return (3 * volume_equiv / (4. * np.pi)) ** (1. / 3)
+        volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, choice)['lvolume']
+        # returns normalized vequiv, should multiply by sma back for requiv in SI
+        return sma*(3 * volume_equiv / (4. * np.pi)) ** (1. / 3)
     except:
         # replace this with actual check in the beginning or before function call
         raise ValueError('potential probably out of bounds for contact envelope')

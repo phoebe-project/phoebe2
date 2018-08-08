@@ -1,4 +1,3 @@
-
 import numpy as np
 #from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
@@ -156,8 +155,11 @@ def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
     """
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
 
+def requiv_to_pot_contact(requiv,q,sma,choice):
+    return ConstraintParameter(requiv._bondle, "requiv_to_pot_contact({}, {}, {})".format(_get_expr(requiv), _get_expr(q), _get_expr(sma), _get_expr(choice)))
 
-
+def pot_to_requiv_contact(pot, q, sma, choice):
+    return ConstraintParameter(pot._bundle, "pot_to_requiv_contact({}, {}, {})".format(_get_expr(pot), _get_expr(q), _get_expr(sma), _get_expr(choice)))
 #}
 #{ Custom constraints
 
@@ -1097,3 +1099,30 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
     return lhs, rhs, {'component': component, 'dataset': dataset}
 
 #}
+
+def requiv_to_pot(b, component, solve_for=None, **kwargs):
+
+    hier = b.get_hierarchy()
+    parentorbit = hier.get_parent_of(component)
+
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+    component_ps = _get_system_ps(b, component)
+
+    q = parentorbit_ps.get_parameter(qualifier='q')
+    sma = parentorbit_ps.get_parameter(qualifier='sma')
+
+    # this will fail for a double contact binary, just a temporary solution!!!
+    pot = b.get_parameter(qualifier='pot', kind='envelope')
+    # assuming component is always primary or secondary and never envelope
+    requiv = component_ps.get_parameter(qualifier='requiv')
+
+    if solve_for in [None, requiv]:
+        lhs = requiv
+        rhs = requiv_to_pot_contact(requiv,q,sma,hier.get_primary_or_secondary(component, return_ind=True))
+    elif solve_for == pot:
+        lhs = pot
+        rhs = pot_to_requiv_contact(pot,q,sma,hier.get_primary_or_secondary(component, return_ind=True))
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'component': component}
