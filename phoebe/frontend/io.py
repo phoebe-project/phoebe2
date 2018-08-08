@@ -338,7 +338,7 @@ def det_dataset(eb, passband, dataid, comp, time):
             comp_o = 'primary'
         for x in rvs:
             test_dataset = eb.get_dataset(x)
-            if len(test_dataset.get_value(qualifier='rvs', component=comp)) == 0:                #so at least it has an empty spot now check against filter and length
+            if len(test_dataset.get_value(qualifier='rvs', component=comp_o)) == 0:                #so at least it has an empty spot now check against filter and length
                 time_o = test_dataset.get_value('times', component=comp_o)
                 passband_o = test_dataset.get_value('passband')
                 if np.all(time_o == time) and (passband == passband_o):
