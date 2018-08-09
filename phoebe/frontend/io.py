@@ -388,7 +388,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # load the phoebe file
 
-    params = np.loadtxt(filename, dtype='str', delimiter = ' = ')
+#    params = np.loadtxt(filename, dtype='str', delimiter = '=')
+    params = np.loadtxt(filename, dtype='str', delimiter = '=',
+    converters = {0: lambda s: s.strip(), 1: lambda s: s.strip()})
 
     morphology = params[:,1][list(params[:,0]).index('phoebe_model')]
 
