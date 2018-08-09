@@ -1207,7 +1207,7 @@ def requiv_to_pot(b, component, solve_for=None, **kwargs):
     sma = parentorbit_ps.get_parameter(qualifier='sma')
 
     # this will fail for a double contact binary, just a temporary solution!!!
-    pot = b.get_parameter(qualifier='pot', kind='envelope')
+    pot = b.get_parameter(qualifier='pot', component=hier.get_envelope_of(component), context='component')
     # assuming component is always primary or secondary and never envelope
     requiv = component_ps.get_parameter(qualifier='requiv')
 

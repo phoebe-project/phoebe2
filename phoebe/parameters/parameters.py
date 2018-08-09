@@ -5256,6 +5256,8 @@ class HierarchyParameter(StringParameter):
         else:
             return siblings
 
+    def get_envelope_of(self, component):
+        return self.get_siblings_of(component, 'envelope')
 
     def get_stars_of_sibling_of(self, component):
         """

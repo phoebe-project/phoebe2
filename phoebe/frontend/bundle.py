@@ -973,20 +973,24 @@ class Bundle(ParameterSet):
                                             constraint=self._default_label('requiv_min', context='constraint'))
 
 
-                    # logger.debug('re-creating requiv_to_pot constraint for {}'.format(component))
-                    # if len(self.filter(context='constraint',
-                    #                    constraint_func='requiv_to_pot',
-                    #                    component=component)):
-                    #     constraint_param = self.get_constraint(constraint_fun='requiv_to_pot',
-                    #                                            component=component)
-                    #     self.remove_constraint(constraint_func='requiv_to_pot',
-                    #                            component=component)
-                    #     self.add_constraint(constraint.requiv_to_pot, component,
-                    #                         solve_for=constraint_param.constrained_parameter.uniquetwig,
-                    #                         constraint=constraint_param.constraint)
-                    # else:
-                    #     self.add_constraint(constraint.requiv_to_pot, component,
-                    #                         constraint=self._default_label('requiv_to_pot', context='constraint'))
+                    logger.debug('re-creating requiv_to_pot constraint for {}'.format(component))
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_to_pot',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_fun='requiv_to_pot',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='requiv_to_pot',
+                                               component=component)
+                        self.add_constraint(constraint.requiv_to_pot, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        pot_parameter = self.get_parameter(qualifier='pot', component=self.hierarchy.get_envelope_of(component), context='component')
+                        requiv_parameter = self.get_parameter(qualifier='requiv', component=component, context='component')
+                        solve_for = pot_parameter.uniquetwig if self.hierarchy.get_primary_or_secondary(component) == 'primary' else requiv_parameter.uniquetwig
+                        self.add_constraint(constraint.requiv_to_pot, component,
+                                            constraint=self._default_label('requiv_to_pot', context='constraint'),
+                                            solve_for=solve_for)
 
                 else:
                     # then we're in a detached/semi-detached system
@@ -1166,13 +1170,13 @@ class Bundle(ParameterSet):
 
 
                     if hier.is_contact_binary(component):
-                        if requiv > requiv_max:
+                        if np.isnan(requiv) or requiv > requiv_max:
                             return False,\
                                 '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
 
                         requiv_min = comp_ps.get_value('requiv_min')
 
-                        if requiv <= requiv_min:
+                        if np.isnan(requiv) or requiv <= requiv_min:
                             return False,\
                                  '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min)
 
