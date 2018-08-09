@@ -43,10 +43,11 @@ def requiv_contact_L23(q, sma, compno, **kwargs):
     q = _roche.q_for_component(q, compno)
     logger.debug("libphoebe.roche_contact_neck_min(q={}, d=1., crit_pot_L23={}, phi=pi/2)".format(q, crit_pot_L23))
     nekmin = libphoebe.roche_contact_neck_min(q, 1., crit_pot_L23, np.pi/2.)['xmin']
-    logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d=1, Omega={}, compno={})".format(nekmin, q, crit_pot_L23, compno))
-    crit_vol_L23 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1., crit_pot_L23, compno)['lvolume']
+    # we now have the critical potential and nekmin as if we were the primary star, so now we'll use compno=1 regardless
+    logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d=1, Omega={}, compno=1)".format(nekmin, q, crit_pot_L23))
+    crit_vol_L23 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1., crit_pot_L23, 1)['lvolume']
 
-    logger.debug("resulting vol: {}, requiv: {}".format(crit_vol_L23, (3./4*1./np.pi*crit_vol_L23)**1./3 * sma))
+    logger.debug("resulting vol: {}, requiv: {}".format(crit_vol_L23, (3./4*1./np.pi*crit_vol_L23)**(1./3) * sma))
 
     return (3./4*1./np.pi*crit_vol_L23)**(1./3) * sma
 
@@ -127,7 +128,7 @@ def requiv_to_pot_contact(requiv, q, sma, compno=1):
     def pot_to_volume(pot, q, d, vequiv, compno):
         """
         """
-        nekmin = libphoebe.roche_contact_neck_min(q, d, pot, np.pi / 2.)['xmin']
+        nekmin = libphoebe.roche_contact_neck_min(q, d, pot, np.pi/2.)['xmin']
         try:
             volume = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno)['lvolume']
         except TypeError:
@@ -145,12 +146,13 @@ def requiv_to_pot_contact(requiv, q, sma, compno=1):
     vequiv = 4./3*np.pi*requiv**3
     d = 1.
     F = 1.
-    pot_init = _roche.BinaryRoche([0., 0., requiv], q=q, D=d, F=F)
+    crit_pots = libphoebe.roche_critical_potential(q, d, F)
+    pot_init = float((crit_pots['L1'] + max(crit_pots['L2'], crit_pots['L3']))/2)
     try:
         logger.debug("newton(pot_to_volume, pot_init={}, q={}, d={}, vequiv={}, compno={})".format(pot_init, q, d, vequiv, compno))
         pot_final = newton(pot_to_volume, pot_init, args=(q, d, vequiv, compno))
         logger.debug("libphoebe.roche_critical_potential(q={}, d={}, F={})".format(q, d, F))
-        crit_pots = libphoebe.roche_critical_potential(q, d, F)
+        # crit_pots = libphoebe.roche_critical_potential(q, d, F)
         # ff = (pot_final - crit_pots['L1']) / (np.max((crit_pots['L2'], crit_pots['L3'])) - crit_pots['L1'])
         # ff is a np.float64
         return pot_final
