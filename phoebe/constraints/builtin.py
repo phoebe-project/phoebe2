@@ -26,6 +26,18 @@ def requiv_L1(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_o
 
     return critical_requiv
 
+def potential_contact_L1(q, **kwargs):
+    """
+    """
+    crit_pots = libphoebe.roche_critical_potential(q, 1., 1.)
+    return crit_pots['L1']
+
+def potential_contact_L23(q, **kwargs):
+    """
+    """
+    crit_pots = libphoebe.roche_critical_potential(q, 1., 1.)
+    return max(crit_pots['L2'], crit_pots['L3'])
+
 def requiv_contact_L1(q, sma, compno, **kwargs):
     """
     for the contact case we can make the assumption of aligned, synchronous, and circular
@@ -37,8 +49,7 @@ def requiv_contact_L23(q, sma, compno, **kwargs):
     for the contact case we can make the assumption of aligned, synchronous, and circular
     """
     logger.debug("requiv_contact_L23(q={}, sma={}, compno={})".format(q, sma, compno))
-    crit_pots = libphoebe.roche_critical_potential(q, 1., 1.)
-    crit_pot_L23 = max([crit_pots['L2'], crit_pots['L3']])
+    crit_pot_L23 = potential_contact_L23(q)
 
     logger.debug("libphoebe.roche_contact_neck_min(q={}, d=1., crit_pot_L23={}, phi=pi/2)".format(q, crit_pot_L23))
     nekmin = libphoebe.roche_contact_neck_min(q, 1., crit_pot_L23, np.pi/2.)['xmin']
@@ -49,6 +60,21 @@ def requiv_contact_L23(q, sma, compno, **kwargs):
     logger.debug("resulting vol: {}, requiv: {}".format(crit_vol_L23, (3./4*1./np.pi*crit_vol_L23)**(1./3) * sma))
 
     return (3./4*1./np.pi*crit_vol_L23)**(1./3) * sma
+
+def pot_to_fillout_factor(q, pot, **kwargs):
+    # calling libphoebe.roche_critical_potential is fairly cheap, so we'll
+    # just parameterize this directly with q and make multiple calls to
+    # critical potentials rather than having a nightmare of logics
+    # between constraints.
+
+    pot_L1 = potential_contact_L1(q)
+    pot_L23 = potential_contact_L23(q)
+    return (pot - pot_L1) / (pot_L23 - pot_L1)
+
+def fillout_factor_to_pot(q, fillout_factor, **kwargs):
+    pot_L1 = potential_contact_L1(q)
+    pot_L23 = potential_contact_L23(q)
+    return fillout_factor * (pot_L23 - pot_L1) + pot_L1
 
 
 def esinw2per0(ecc, esinw):
@@ -145,20 +171,22 @@ def requiv_to_pot_contact(requiv, q, sma, compno=1):
     vequiv = 4./3*np.pi*requiv**3
     d = 1.
     F = 1.
+
+    logger.debug("libphoebe.roche_critical_potential(q={}, d={}, F={})".format(q, d, F))
     crit_pots = libphoebe.roche_critical_potential(q, d, F)
+    crit_pot_L1 = crit_pots['L1']
+    crit_pot_L23 = max(crit_pots['L2'], crit_pots['L3'])
 
     try:
-        # logger.debug("newton(pot_to_volume, pot_init={}, q={}, d={}, vequiv={}, compno={})".format(pot_init, q, d, vequiv, compno))
         # pot_final = newton(pot_to_volume, pot_init, args=(q, d, vequiv, compno))
         try:
-            pot_final = bisect(pot_to_volume, a=max(crit_pots['L2'], crit_pots['L3']), b=crit_pots['L1'], args=(q, d, vequiv, compno))
+            logger.debug("bisect(pot_to_volume, a={}, b={}, q={}, d={}, vequiv={}, compno={})".format(crit_pot_L23, crit_pot_L1, q, d, vequiv, compno))
+            pot_final = bisect(pot_to_volume, a=crit_pot_L23, b=crit_pot_L1, args=(q, d, vequiv, compno))
         except:
-            pot_init = float((crit_pots['L1'] + max(crit_pots['L2'], crit_pots['L3'])) / 2)
+            pot_init = float(crit_pot_L1 + crit_pot_L23) / 2
+            logger.debug("newton(pot_to_volume, pot_init={}, q={}, d={}, vequiv={}, compno={})".format(pot_init, q, d, vequiv, compno))
             pot_final = newton(pot_to_volume, pot_init, args=(q, d, vequiv, compno))
 
-        logger.debug("libphoebe.roche_critical_potential(q={}, d={}, F={})".format(q, d, F))
-        # ff = (pot_final - crit_pots['L1']) / (np.max((crit_pots['L2'], crit_pots['L3'])) - crit_pots['L1'])
-        # ff is a np.float64
         return pot_final
 
     except:

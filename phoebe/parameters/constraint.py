@@ -130,6 +130,26 @@ def roche_requiv_contact_L23(q, sma, compno=1):
     """
     return ConstraintParameter(q._bundle, "requiv_contact_L23(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, sma)]), compno))
 
+def roche_potential_contact_L1(q):
+    """
+    """
+    return ConstraintParameter(q._bundle, "potential_contact_L1({})".format(_get_expr(q)))
+
+def roche_potential_contact_L23(q):
+    """
+    """
+    return ConstraintParameter(q._bundle, "potential_contact_L23({})".format(_get_expr(q)))
+
+def roche_pot_to_fillout_factor(q, pot):
+    """
+    """
+    return ConstraintParameter(q._bundle, "pot_to_fillout_factor({}, {})".format(_get_expr(q), _get_expr(pot)))
+
+def roche_fillout_factor_to_pot(q, fillout_factor):
+    """
+    """
+    return ConstraintParameter(q._bundle, "fillout_factor_to_pot({}, {})".format(_get_expr(q), _get_expr(fillout_factor)))
+
 def requiv_to_pot_contact(requiv, q, sma, compno=1):
     """
     TODO: add documentation
@@ -884,6 +904,82 @@ def requiv_detached_max(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, {'component': component}
 
+def potential_contact_min(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to determine the critical (at L23) value of
+    potential at which a constact will underflow.  This will only be used
+    for contacts for pot_min
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'pot_min' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for requiv_contact_min requires hierarchy")
+
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    pot_min = component_ps.get_parameter(qualifier='pot_min')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+
+    if solve_for in [None, pot_min]:
+        lhs = pot_min
+
+        rhs = roche_potential_contact_L23(q)
+    else:
+        raise NotImplementedError("potential_contact_min can only be solved for requiv_min")
+
+    return lhs, rhs, {'component': component}
+
+def potential_contact_max(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to determine the critical (at L1) value of
+    potential at which a constact will underflow.  This will only be used
+    for contacts for pot_min
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'pot_max' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for requiv_contact_max requires hierarchy")
+
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    pot_max = component_ps.get_parameter(qualifier='pot_max')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+
+    if solve_for in [None, pot_max]:
+        lhs = pot_max
+
+        rhs = roche_potential_contact_L1(q)
+    else:
+        raise NotImplementedError("potential_contact_max can only be solved for requiv_max")
+
+    return lhs, rhs, {'component': component}
+
 def requiv_contact_min(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L1) value of
@@ -919,7 +1015,7 @@ def requiv_contact_min(b, component, solve_for=None, **kwargs):
 
         rhs = roche_requiv_contact_L1(q, sma, hier.get_primary_or_secondary(component, return_ind=True))
     else:
-        raise NotImplementedError("requiv_contact_max can only be solved for requiv_min")
+        raise NotImplementedError("requiv_contact_min can only be solved for requiv_min")
 
     return lhs, rhs, {'component': component}
 
@@ -959,6 +1055,47 @@ def requiv_contact_max(b, component, solve_for=None, **kwargs):
         rhs = roche_requiv_contact_L23(q, sma, hier.get_primary_or_secondary(component, return_ind=True))
     else:
         raise NotImplementedError("requiv_contact_max can only be solved for requiv_max")
+
+    return lhs, rhs, {'component': component}
+
+def fillout_factor(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to determine the fillout factor of a contact envelope.
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for requiv_contact_max requires hierarchy")
+
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    pot = component_ps.get_parameter(qualifier='pot')
+    fillout_factor = component_ps.get_parameter(qualifier='fillout_factor')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+
+    if solve_for in [None, fillout_factor]:
+        lhs = fillout_factor
+
+        rhs = roche_pot_to_fillout_factor(q, pot)
+    elif solve_for in [pot]:
+        lhs = pot
+
+        rhs = roche_fillout_factor_to_pot(q, fillout_factor)
+    else:
+        raise NotImplementedError("fillout_factor can not be solved for {}".format(solve_for))
 
     return lhs, rhs, {'component': component}
 

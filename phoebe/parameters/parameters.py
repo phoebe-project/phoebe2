@@ -5189,6 +5189,13 @@ class HierarchyParameter(StringParameter):
         # now search for indices of star and take the next entry from this flat list
         return [l[i+1] for i,s in enumerate(l) if s=='star']
 
+    def get_envelopes(self):
+        """
+        get 'component' of all envelopes
+        """
+        l = re.findall(r"[\w']+", self.get_value())
+        # now search for indices of star and take the next entry from this flat list
+        return [l[i+1] for i,s in enumerate(l) if s=='envelope']
 
     def get_orbits(self):
         """

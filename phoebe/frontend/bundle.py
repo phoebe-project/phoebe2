@@ -901,6 +901,53 @@ class Bundle(ParameterSet):
 
         # Handle inter-PS constraints
         starrefs = hier_param.get_stars()
+
+        for component in self.hierarchy.get_envelopes():
+            logger.debug('re-creating fillout_factor (contact) constraint for {}'.format(component))
+            if len(self.filter(context='constraint',
+                               constraint_func='fillout_factor',
+                               component=component)):
+                constraint_param = self.get_constraint(constraint_func='fillout_factor',
+                                                       component=component)
+                self.remove_constraint(constraint_func='fillout_factor',
+                                       component=component)
+                self.add_constraint(constraint.fillout_factor, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.fillout_factor, component,
+                                    constraint=self._default_label('fillout_factor', context='constraint'))
+
+            logger.debug('re-creating pot_min (contact) constraint for {}'.format(component))
+            if len(self.filter(context='constraint',
+                               constraint_func='potential_contact_min',
+                               component=component)):
+                constraint_param = self.get_constraint(constraint_func='potential_contact_min',
+                                                       component=component)
+                self.remove_constraint(constraint_func='potential_contact_min',
+                                       component=component)
+                self.add_constraint(constraint.potential_contact_min, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.potential_contact_min, component,
+                                    constraint=self._default_label('pot_min', context='constraint'))
+
+            logger.debug('re-creating pot_max (contact) constraint for {}'.format(component))
+            if len(self.filter(context='constraint',
+                               constraint_func='potential_contact_max',
+                               component=component)):
+                constraint_param = self.get_constraint(constraint_func='potential_contact_max',
+                                                       component=component)
+                self.remove_constraint(constraint_func='potential_contact_max',
+                                       component=component)
+                self.add_constraint(constraint.potential_contact_min, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.potential_contact_max, component,
+                                    constraint=self._default_label('pot_max', context='constraint'))
+
         for component in self.hierarchy.get_stars():
             if len(starrefs)==1:
                 pass
@@ -942,6 +989,7 @@ class Bundle(ParameterSet):
 
                 if self.hierarchy.is_contact_binary(component):
                     # then we're in a contact binary and need to create pot<->requiv constraints
+                    # NOTE: pot_min and pot_max are handled above at the envelope level
                     logger.debug('re-creating requiv_max (contact) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_contact_max',

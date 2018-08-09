@@ -122,7 +122,7 @@ def star(component, **kwargs):
 
     constraints = []
     # constraints handled by set_hierarchy:
-    # - requiv_critical
+    # - requiv_detached_max
     # - mass
     # - comp_sma
     # - rotation_period
@@ -156,7 +156,10 @@ def envelope(component, **kwargs):
     # params += [FloatParameter(qualifier='frac_lost_bol', value=kwargs.get('frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
 
-    params += [FloatParameter(qualifier='pot', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential at periastron (in the primary component\'s reference frame)')]   # TODO: correct units???
+    params += [FloatParameter(qualifier='fillout_factor', value=kwargs.get('fillout_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Fillout-factor of the envelope')]
+    params += [FloatParameter(qualifier='pot', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential of the envelope (from the primary component\s reference)')]
+    params += [FloatParameter(qualifier='pot_min', value=kwargs.get('pot_min', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (minimum) value of the potential to remain a contact')]
+    params += [FloatParameter(qualifier='pot_max', value=kwargs.get('pot_max', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (maximum) value of the potential to remain a contact')]
     # params += [FloatParameter(qualifier='intens_coeff1', value=kwargs.get('intens_coeff1', 1.0), default_unit=u.dimensionless_unscaled, description='')]
     # params += [FloatParameter(qualifier='intens_coeff2', value=kwargs.get('intens_coeff2', 1.0), default_unit=u.dimensionless_unscaled, description='')]
     # params += [FloatParameter(qualifier='intens_coeff3', value=kwargs.get('intens_coeff3', 1.0), default_unit=u.dimensionless_unscaled, description='')]
@@ -167,5 +170,9 @@ def envelope(component, **kwargs):
     params += [FloatArrayParameter(qualifier='ld_coeffs_bol', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
 
     constraints = []
+
+    # constraints handled by set hierarchy:
+    # potential_contact_min/max
+    # requiv_contact_min/max
 
     return ParameterSet(params), constraints
