@@ -4507,8 +4507,8 @@ class FloatParameter(Parameter):
                 value = value % (360*u.deg)
                 logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
 
-        # make sure the value is within the limits
-        if not self.within_limits(value):
+        # make sure the value is within the limits, if this isn't an array or nan
+        if isinstance(value, float) and not self.within_limits(value):
             raise ValueError("value of {} must be within limits of {}".format(self.qualifier, self.limits))
 
         # make sure we can convert back to the default_unit
@@ -5809,7 +5809,10 @@ class ConstraintParameter(Parameter):
                     # to the locals dictionary.
                     locals()[func] = getattr(builtin, func)
 
-                value = float(eval(eq.format(**values)))
+                try:
+                    value = float(eval(eq.format(**values)))
+                except ValueError:
+                    value = np.nan
 
 
             else:
