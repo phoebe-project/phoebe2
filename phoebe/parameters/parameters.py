@@ -5257,7 +5257,11 @@ class HierarchyParameter(StringParameter):
             return siblings
 
     def get_envelope_of(self, component):
-        return self.get_siblings_of(component, 'envelope')
+        envelopes = self.get_siblings_of(component, 'envelope')
+        if not len(envelopes):
+            return []
+        else:
+            return envelopes[0]
 
     def get_stars_of_sibling_of(self, component):
         """
@@ -5813,7 +5817,7 @@ class ConstraintParameter(Parameter):
 
                 try:
                     value = float(eval(eq.format(**values)))
-                except ValueError:
+                except:
                     value = np.nan
 
 

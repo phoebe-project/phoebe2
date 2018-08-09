@@ -134,13 +134,13 @@ def requiv_to_pot_contact(requiv, q, sma, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(requiv._bundle, "requiv_to_pot_contact({}, {}, {})".format(_get_expr(requiv), _get_expr(q), _get_expr(sma), compno))
+    return ConstraintParameter(requiv._bundle, "requiv_to_pot_contact({}, {}, {}, {})".format(_get_expr(requiv), _get_expr(q), _get_expr(sma), compno))
 
 def pot_to_requiv_contact(pot, q, sma, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(pot._bundle, "pot_to_requiv_contact({}, {}, {})".format(_get_expr(pot), _get_expr(q), _get_expr(sma), compno))
+    return ConstraintParameter(pot._bundle, "pot_to_requiv_contact({}, {}, {}, {})".format(_get_expr(pot), _get_expr(q), _get_expr(sma), compno))
 
 def esinw2per0(ecc, esinw):
     """
@@ -1202,21 +1202,23 @@ def requiv_to_pot(b, component, solve_for=None, **kwargs):
 
     parentorbit_ps = _get_system_ps(b, parentorbit)
     component_ps = _get_system_ps(b, component)
+    envelope_ps = _get_system_ps(b, hier.get_envelope_of(component))
 
     q = parentorbit_ps.get_parameter(qualifier='q')
     sma = parentorbit_ps.get_parameter(qualifier='sma')
 
-    # this will fail for a double contact binary, just a temporary solution!!!
-    pot = b.get_parameter(qualifier='pot', component=hier.get_envelope_of(component), context='component')
     # assuming component is always primary or secondary and never envelope
+    pot = envelope_ps.get_parameter(qualifier='pot')
     requiv = component_ps.get_parameter(qualifier='requiv')
+
+    compno = hier.get_primary_or_secondary(component, return_ind=True)
 
     if solve_for in [None, requiv]:
         lhs = requiv
-        rhs = requiv_to_pot_contact(requiv, q, sma, hier.get_primary_or_secondary(component, return_ind=True))
+        rhs = pot_to_requiv_contact(pot, q, sma, compno)
     elif solve_for == pot:
         lhs = pot
-        rhs = pot_to_requiv_contact(pot, q, sma, hier.get_primary_or_secondary(component, return_ind=True))
+        rhs = requiv_to_pot_contact(requiv, q, sma, compno)
     else:
         raise NotImplementedError
 

@@ -116,13 +116,6 @@ def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
     """
     return t0_supconj - _delta_t_supconj_ref(period, ecc, per0)
 
-def pot_to_volume(pot, q, d, vequiv, compno):
-    """
-    """
-    nekmin = libphoebe.roche_contact_neck_min(q, d, pot, np.pi / 2.)['xmin']
-    volume = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno)['lvolume']
-    return volume - vequiv
-
 def requiv_to_pot_contact(requiv, q, sma, compno=1):
     """
     :param requiv: user-provided equivalent radius
@@ -131,19 +124,36 @@ def requiv_to_pot_contact(requiv, q, sma, compno=1):
     :param compno: 1 for primary, 2 for secondary
     :return: potential and fillout factor
     """
+    def pot_to_volume(pot, q, d, vequiv, compno):
+        """
+        """
+        nekmin = libphoebe.roche_contact_neck_min(q, d, pot, np.pi / 2.)['xmin']
+        try:
+            volume = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno)['lvolume']
+        except TypeError:
+            # then lobe boundaries probably failed, since this is only used for converging
+            # let's return inf
+            return np.inf
+        else:
+            return volume - vequiv
+
     logger.debug("requiv_to_pot_contact(requiv={}, q={}, sma={}, compno={})".format(requiv, q, sma, compno))
 
     # since the functions called here work with normalized r, we need to set d=D=sma=1.
     # or provide sma as a function parameter and normalize r here as requiv = requiv/sma
     requiv = requiv/sma
     vequiv = 4./3*np.pi*requiv**3
-    pot_init = _roche.BinaryRoche([0., 0., requiv], q=q, D=1., F=1.)
     d = 1.
+    F = 1.
+    pot_init = _roche.BinaryRoche([0., 0., requiv], q=q, D=d, F=F)
     try:
+        logger.debug("newton(pot_to_volume, pot_init={}, q={}, d={}, vequiv={}, compno={})".format(pot_init, q, d, vequiv, compno))
         pot_final = newton(pot_to_volume, pot_init, args=(q, d, vequiv, compno))
-        crit_pots = libphoebe.roche_critical_potential(q=q, d=d, F=1.)
-        ff = (pot_final - crit_pots['L1']) / (np.max((crit_pots['L2'], crit_pots['L3'])) - crit_pots['L1'])
-        return pot_final, ff
+        logger.debug("libphoebe.roche_critical_potential(q={}, d={}, F={})".format(q, d, F))
+        crit_pots = libphoebe.roche_critical_potential(q, d, F)
+        # ff = (pot_final - crit_pots['L1']) / (np.max((crit_pots['L2'], crit_pots['L3'])) - crit_pots['L1'])
+        # ff is a np.float64
+        return pot_final
 
     except:
         # replace this with actual check in the beginning or before function call
@@ -152,12 +162,15 @@ def requiv_to_pot_contact(requiv, q, sma, compno=1):
 def pot_to_requiv_contact(pot, q, sma, compno=1):
     """
     """
+    logger.debug("pot_to_requiv_contact(pot={}, q={}, sma={}, compno={})".format(pot, q, sma, compno))
     d = 1.
     try:
-        nekmin = libphoebe.roche_contact_neck_min(q, pot, np.pi / 2.)['xmin']
+        logger.debug("libphoebe.roche_contact_neck_min(q={}, d={}, pot={}, pi/2)".format(q, d, pot))
+        nekmin = libphoebe.roche_contact_neck_min(q, d, pot, np.pi / 2.)['xmin']
+        logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d={}, pot={}, compno={})".format(nekmin, q, d, pot, compno))
         volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno)['lvolume']
         # returns normalized vequiv, should multiply by sma back for requiv in SI
-        return sma*(3 * volume_equiv / (4. * np.pi)) ** (1. / 3)
+        return sma * (3./4 * 1./np.pi * volume_equiv)**(1./3)
     except:
         # replace this with actual check in the beginning or before function call
         raise ValueError('potential probably out of bounds for contact envelope')
