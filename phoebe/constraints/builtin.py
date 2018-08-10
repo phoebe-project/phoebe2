@@ -198,6 +198,15 @@ def pot_to_requiv_contact(pot, q, sma, compno=1):
     """
     logger.debug("pot_to_requiv_contact(pot={}, q={}, sma={}, compno={})".format(pot, q, sma, compno))
     d = 1.
+    F = 1.
+    crit_pots = libphoebe.roche_critical_potential(q, d, F)
+    crit_pot_L1 = crit_pots['L1']
+    crit_pot_L23 = max(crit_pots['L2'], crit_pots['L3'])
+    if pot > crit_pot_L1:
+        raise ValueError("potential > L1 critical value")
+    if pot < crit_pot_L23:
+        raise ValueError("potential < L2/L3 critical value")
+
     try:
         logger.debug("libphoebe.roche_contact_neck_min(q={}, d={}, pot={}, pi/2)".format(q, d, pot))
         nekmin = libphoebe.roche_contact_neck_min(q, d, pot, np.pi / 2.)['xmin']
