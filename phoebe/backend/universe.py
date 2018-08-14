@@ -41,9 +41,10 @@ Body - general Class for all Bodies
         * instantaneous_mesh_args
         * _build_mesh
   + Star_roche(Star) [not allowed as single star]
-    + Star_envelope(Star_roche)
+  + Star_roche_envelope_half(Star)
   + Star_rotstar(Star)
   + Star_sphere(Star)
++ Envelope(Body) - subclass of Body that contains two Star_roche_envelope_half instances
 
 If creating a new subclass of Body, make sure to add it to top-level
 _get_classname function if the class is not simply the title-case of the
@@ -61,9 +62,11 @@ def g_rel_to_abs(mass, sma):
 def _get_classname(kind, distortion_method):
     kind = kind.title()
     if kind == 'Envelope':
-        return 'Star_envelope'
+        return 'Envelope'
     elif kind == 'Star':
         # Star_roche, Star_rotstar, Star_sphere
+        # NOTE: Star_roche_envelope_half should never be called directly, but
+        # rather through the Envelope class above.
         return 'Star_{}'.format(distortion_method)
     else:
         return kind
@@ -170,7 +173,16 @@ class System(object):
             _dump = kwargs.pop('dynamics_method')
 
         meshables = hier.get_meshables()
-        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), 'roche' if compute_ps.get_value('mesh_method', component=comp, **kwargs)=='wd' else compute_ps.get_value('distortion_method', component=comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
+        def get_distortion_method(hier, compute_ps, component, **kwargs):
+            if hier.get_kind_of(component) in ['envelope']:
+                return 'roche'
+
+            if compute_ps.get_value('mesh_method', component=comp, **kwargs)=='wd':
+                return 'roche'
+
+            return compute_ps.get_value('distortion_method', component=comp, **kwargs)
+
+        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
 
         # envelopes need to know their relationships with the underlying stars
         parent_envelope_of = {}
@@ -1077,17 +1089,20 @@ class Star(Body):
         incl = b.get_value('incl', component=label_orbit, context='component', unit=u.rad)
         long_an = b.get_value('long_an', component=label_orbit, context='component', unit=u.rad)
 
-        incl_star = self_ps.get_value('incl', unit=u.rad)
-        long_an_star = self_ps.get_value('long_an', unit=u.rad)
+        # NOTE: these may not be used when not visible for contact systems, so
+        # Star_roche_envelope_half should ignore and override with
+        # aligned/synchronous
+        incl_star = self_ps.get_value('incl', unit=u.rad, check_visible=False)
+        long_an_star = self_ps.get_value('long_an', unit=u.rad, check_visible=False)
         polar_direction_uvw = mesh.spin_in_system(incl_star, long_an_star)
-        freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
+        freq_rot = self_ps.get_value('freq', unit=u.rad/u.d, check_visible=False)
 
         t0 = b.get_value('t0', context='system', unit=u.d)
 
         teff = b.get_value('teff', component=component, context='component', unit=u.K)
         gravb_bol= b.get_value('gravb_bol', component=component, context='component')
 
-        abun = b.get_value('abun', component=component, context='component')
+        abun = b.get_value('abun', component=component, context='component', check_visible=False)
         irrad_frac_refl = b.get_value('irrad_frac_refl_bol', component=component, context='component')
 
         try:
@@ -1124,8 +1139,8 @@ class Star(Body):
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
-        ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
-        ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
+        ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', check_visible=False, **kwargs)
+        ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs)
         lp_profile_rest = {ds: b.get_value('profile_rest', dataset=ds, unit=u.nm, **kwargs) for ds in datasets_lp}
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
@@ -1626,6 +1641,9 @@ class Star(Body):
 
 
 class Star_roche(Star):
+    """
+    detached case only
+    """
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
@@ -1685,7 +1703,7 @@ class Star_roche(Star):
         """
         whether the star needs to be re-meshed (for any reason)
         """
-        return self.is_misaligned or self.ecc != 0 or self.distortion_method != 'keplerian'
+        return self.is_misaligned or self.ecc != 0 or self.dynamics_method != 'keplerian'
 
     @property
     def _rpole_func(self):
@@ -1802,6 +1820,177 @@ class Star_roche(Star):
             raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
 
         return new_mesh, scale
+
+class Star_roche_envelope_half(Star):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                 long_an, t0, do_mesh_offset, mesh_init_phi,
+
+                 atm, datasets, passband, intens_weighting,
+                 ld_func, ld_coeffs,
+                 lp_profile_rest,
+                 requiv, sma,
+                 polar_direction_uvw,
+                 freq_rot,
+                 teff, gravb_bol, abun,
+                 irrad_frac_refl,
+                 mesh_method, is_single,
+                 do_rv_grav,
+                 features,
+
+                 **kwargs):
+        """
+        """
+        # extra things (not used by Star) will be stored in kwargs
+        self.F = 1
+        ecc = 0.0
+
+        self.pot = kwargs.get('pot')
+        # requiv won't be used, instead we'll use potential, but we'll allow
+        # accessing and passing requiv anyways.
+
+        super(Star_roche_envelope_half, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
+                                         long_an, t0,
+                                         do_mesh_offset, mesh_init_phi,
+
+                                         atm, datasets, passband, intens_weighting,
+                                         ld_func, ld_coeffs,
+                                         lp_profile_rest,
+                                         requiv, sma,
+                                         polar_direction_uvw,
+                                         freq_rot,
+                                         teff, gravb_bol, abun,
+                                         irrad_frac_refl,
+                                         mesh_method, is_single,
+                                         do_rv_grav,
+                                         features,
+                                         **kwargs)
+
+    @classmethod
+    def from_bundle(cls, b, component, compute=None,
+                    mesh_init_phi=0.0, datasets=[], pot=None, **kwargs):
+
+        # self_ps = b.filter(component=component, context='component', check_visible=False)
+        # F = self_ps.get_value('syncpar', check_visible=False)
+        if pot is None:
+            envelope = b.hierarchy.get_envelope_of(component)
+            pot = b.get_value('pot', component=envelope, context='component')
+
+        return super(Star_roche_envelope_half, cls).from_bundle(b, component, compute,
+                                                  mesh_init_phi, datasets,
+                                                  F=1, pot=pot, **kwargs)
+
+
+    @property
+    def is_convex(self):
+        return False
+
+    @property
+    def needs_remesh(self):
+        """
+        whether the star needs to be re-meshed (for any reason)
+        """
+        return False
+
+    @property
+    def _rpole_func(self):
+        """
+        """
+        # the provided function must take *self.instantaneous_mesh_args as the
+        # only arguments.  If this is not the case, the subclass must also override
+        # instantaneous_rpole
+        return getattr(libphoebe, 'roche_pole')
+
+    @property
+    def _gradOmega_func(self):
+        """
+        """
+        # the provided function must take *self.instantaneous_mesh_args as the
+        # only arguments.  If this is not the case, the subclass must also override
+        # instantaneous_gpole
+        return getattr(libphoebe, 'roche_gradOmega_only')
+
+    @property
+    def instantaneous_mesh_args(self):
+        # self.q is automatically flipped to be 1./q for secondary components
+        q = np.float64(self.q)
+
+        F = np.float64(self.F)
+
+        d = np.float64(self.instantaneous_d)
+
+        Phi = self.pot
+
+        return q, F, d, Phi
+
+    def _build_mesh(self, mesh_method, **kwargs):
+        """
+        this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
+        the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
+        """
+
+        # need the sma to scale between Roche and real units
+        sma = kwargs.get('sma', self.sma)  # Rsol (same units as coordinates)
+
+        mesh_args = self.instantaneous_mesh_args
+
+        if mesh_method == 'marching':
+            # TODO: do this during mesh initialization only and then keep delta fixed in time??
+            ntriangles = kwargs.get('ntriangles', self.ntriangles)
+
+            # we need the surface area of the lobe to estimate the correct value
+            # to pass for delta to marching.  We will later need the volume to
+            # expose its value
+            logger.debug("libphoebe.roche_area_volume{}".format(mesh_args))
+            av = libphoebe.roche_area_volume(*mesh_args,
+                                             choice=2,
+                                             larea=True,
+                                             lvolume=True)
+
+            delta = _estimate_delta(ntriangles, av['larea'])
+
+            logger.debug("libphoebe.roche_marching_mesh{}".format(mesh_args))
+            new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
+                                                     delta=delta,
+                                                     choice=2,
+                                                     full=True,
+                                                     max_triangles=ntriangles*2,
+                                                     vertices=True,
+                                                     triangles=True,
+                                                     centers=True,
+                                                     vnormals=True,
+                                                     tnormals=True,
+                                                     cnormals=False,
+                                                     vnormgrads=True,
+                                                     cnormgrads=False,
+                                                     areas=True,
+                                                     volume=False,
+                                                     init_phi=self.mesh_init_phi)
+
+
+            # In addition to the values exposed by the mesh itself, let's report
+            # the volume and surface area of the lobe.  The lobe area is used
+            # if mesh_offseting is required, and the volume is optionally exposed
+            # to the user.
+            new_mesh['volume'] = av['lvolume']  # * sma**3
+            new_mesh['area'] = av['larea']      # * sma**2
+
+            scale = sma
+
+        elif mesh_method == 'wd':
+            N = int(kwargs.get('gridsize', self.gridsize))
+
+            # unpack mesh_args
+            q, F, d, Phi = mesh_args
+
+            the_grid = mesh_wd.discretize_wd_style(N, q, F, d, Phi)
+            new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
+            scale = sma
+
+        else:
+            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
+
+        return new_mesh, scale
+
 
 class Star_rotstar(Star):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
@@ -2099,260 +2288,75 @@ class Star_sphere(Star):
         return new_mesh, scale
 
 
-class Star_envelope(Star):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
-                 long_an, t0, atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, mesh_init_phi,
-
+class Envelope(Body):
+    def __init__(self, halves,
                  **kwargs):
         """
         """
-        super(Star_envelope, self).__init__(comp_no, ind_self, ind_sibling,
-                                            masses, ecc,
-                                            incl, long_an, t0,
-                                            atm, datasets, passband,
-                                            intens_weighting, ld_func, ld_coeffs,
-                                            mesh_init_phi=mesh_init_phi)
+
+        self._halves = halves
+
+
+    @classmethod
+    def from_bundle(cls, b, component, compute=None,
+                    mesh_init_phi=0.0, datasets=[], **kwargs):
+
+        # self_ps = b.filter(component=component, context='component', check_visible=False)
+
+        stars = b.hierarchy.get_siblings_of(component, kind='star')
+        if not len(stars)==2:
+            raise ValueError("hieararchy cannot find two stars in envelope")
+
+        envelope_ps = b.get_component(component)
+        pot = envelope_ps.get_value('pot')
+
+        # we'll pass on the potential from the envelope to both halves (even
+        # though technically only the primary will ever actually build a mesh)
+        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=None, mesh_init_phi=mesh_init_phi, datasets=datasets, pot=pot, **kwargs) for star in stars]
+
+        return cls(halves)
 
     @property
-    def is_convex(self):
-        return False
+    def system(self):
+        return self._system
 
-    @property
-    def needs_remesh(self):
+    @system.setter
+    def system(self, system):
+        self._system = system
+        for half in self._halves:
+            half.system = system
+
+    def update_position(self, *args, **kwargs):
+
+        if not (self._halves[0].has_standard_mesh() and self._halves[1].has_standard_mesh()):
+            # update the position (and build the mesh) of the primary component
+            self._halves[0].update_position(*args, **kwargs)
+
+            # now split the corresponding mesh object
+            mesh_contact = self._halves[0].get_standard_mesh(scaled=False)
+
+            # TODO: split the two meshes, duplicating vertices as necessary
+            mesh_primary, mesh_secondary = None, None
+
+            # now override the standard mesh with just the half
+            self._halves[0].save_as_standard_mesh(mesh_primary)
+            self._halves[1].save_as_standard_mesh(mesh_secondary)
+
+
+        # since the standard mesh already exists, this should simply handle
+        # placing in orbit.  We'll do this again for the primary so it
+        # will update to just the correct half.  This is a bit redundant,
+        # but keeps all this logic out of the Star classes
+        self._halves[0].update_position(*args, **kwargs)
+        self._halves[1].update_position(*args, **kwargs)
+
+    def populate_observable(self, time, kind, dataset, **kwargs):
         """
-        whether the star needs to be re-meshed (for any reason)
-        """
-        return self.ecc != 0
-
-    @property
-    def polar_direction_xyz(self):
-        """
-        get current polar direction in Roche (xyz) coordinates
-        """
-        # envelopes MUST be aligned
-        return np.array([0. ,0., 1.]).astype(float)
-
-
-    def _build_mesh(self, mesh_method, **kwargs):
-        """
-        this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
-        the grid... intialize mesh then takes care of filling columns and rescaling to the correct units, etc
+        TODO: add documentation
         """
 
-        # if we don't provide instantaneous masses or smas, then assume they are
-        # not time dependent - in which case they were already stored in the init
-        masses = kwargs.get('masses', self.masses)  #solMass
-        sma = kwargs.get('sma', self.sma)  # Rsol (same units as coordinates)
-        F = kwargs.get('F', self.F)
-        # TODO: should F be fixed at 1 - is this the job of the frontend or backend?
-
-        q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
-
-
-        if mesh_method == 'marching':
-            # Phi = kwargs.get('Phi', self.Phi_user)  # NOTE: self.Phi_user is not corrected for the secondary star, but that's fine because we pass primary vs secondary as choice
-            # q = 1./self.q if self.comp_no == 2 else self.q  # NOTE: undo the inversion so this is ALWAYS Mp/Ms
-
-            ntriangles = kwargs.get('ntriangles', self.ntriangles)
-
-            av = libphoebe.roche_area_volume(*mesh_args,
-                                             choice=2,
-                                             larea=True,
-                                             lvolume=True)
-
-            delta = _estimate_delta(ntriangles, av['larea'])
-
-            new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
-                                                     delta=delta,
-                                                     choice=2,
-                                                     full=True,
-                                                     max_triangles=ntriangles*2,
-                                                     vertices=True,
-                                                     triangles=True,
-                                                     centers=True,
-                                                     vnormals=True,
-                                                     tnormals=True,
-                                                     cnormals=False,
-                                                     vnormgrads=True,
-                                                     cnormgrads=False,
-                                                     areas=True,
-                                                     volume=False)
-
-
-            # Now we'll get the area and volume of the Roche potential
-            # itself (not the mesh).
-            # TODO: which volume(s) do we want to report?  Either way, make
-            # sure to do the same for the OC case and rotstar
-            new_mesh['volume'] = av['lvolume']
-
-            if self.do_mesh_offset:
-                # vertices directly from meshing are placed directly on the
-                # potential, causing the volume and surface area to always
-                # (for convex surfaces) be underestimated.  Now let's jitter
-                # each of the vertices along their normals to recover the
-                # expected volume/surface area.  Since they are moved along
-                # their normals, vnormals applies to both vertices and
-                # pvertices.
-                new_mesh['pvertices'] = new_mesh.pop('vertices')
-                mo = libphoebe.mesh_offseting(av['larea'],
-                                              new_mesh['pvertices'],
-                                              new_mesh['vnormals'],
-                                              new_mesh['triangles'],
-                                              curvature=True,
-                                              vertices=True,
-                                              tnormals=True,
-                                              areas=True,
-                                              volume=False)
-
-                new_mesh['vertices'] = mo['vertices']
-                new_mesh['areas'] = mo['areas']
-                new_mesh['tnormals'] = mo['tnormals']
-
-                # TODO: need to update centers (so that they get passed
-                # to the frontend as x, y, z)
-                # new_mesh['centers'] = mo['centers']
-
-
-            else:
-                # pvertices should just be a copy of vertice
-                new_mesh['pvertices'] = new_mesh['vertices']
-
-            # We only need the gradients where we'll compute local
-            # quantities which, for a marching mesh, is at the vertices.
-            new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
-
-            # And lastly, let's fill the velocities column - with zeros
-            # at each of the vertices
-            new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
-
-            new_mesh['tareas'] = np.array([])
-
-            # WD style overcontacts require splitting of the mesh into two components
-            # env_comp = 0 for primary part of the envelope, 1 for secondary
-
-            # compute the positions of the minimum radii of the neck in the xy and xz planes
-            # when temperature_method becomes available, wrap this with if tmethod='wd':
-            L1 = oc_geometry.Lag1(q)
-            xz,z = oc_geometry.nekmin(Phi,q,L1,0.05)
-            # choose which value of x to use as the minimum (maybe extend to average of both?
-            xmin = xz
-
-            # create the env_comp array and change the values of all where vertices x>xmin to 1
-            env_comp = np.zeros(len(new_mesh['vertices']))
-
-            env_comp[new_mesh['vertices'][:,0]>xmin] = 1
-            #
-            new_mesh['env_comp'] = env_comp
-            # print new_mesh['env_comp']
-
-            # do the similar for triangles
-            env_comp3 = np.zeros(len(new_mesh['triangles']))
-
-            # Uncomment this is we want to average over vertices and comment below :/
-            # for i in range(len(new_mesh['triangles'])):
-            #
-            #     #take the vertex indices of each triangle
-            #     vind = new_mesh['triangles'][i]
-            #     print 'vind: ', vind
-            #     env_comp3[i] = np.average([new_mesh['env_comp'][vind[0]],new_mesh['env_comp'][vind[1]],new_mesh['env_comp'][vind[2]]])
-            #
-
-            new_mesh['env_comp3']=env_comp3
-
-            # Comment this is we want to average over vertices
-            N = len(new_mesh['vertices'])
-            for i in range(len(new_mesh['triangles'])):
-
-                #take the vertex indices of each triangle
-                vind = new_mesh['triangles'][i]
-                center = new_mesh['centers'][i]
-
-                # the adding of vertices and vertex parameters should go in a function
-
-                def add_vertex_to_mesh(i,j,vind,comp):
-
-                    N = len(new_mesh['vertices'])
-                    # add vertex params
-                    new_mesh['vertices'] = np.vstack((new_mesh['vertices'],new_mesh['vertices'][vind]))
-                    new_mesh['pvertices'] = np.vstack((new_mesh['pvertices'],new_mesh['pvertices'][vind]))
-                    new_mesh['vnormals'] = np.vstack((new_mesh['vnormals'],new_mesh['vnormals'][vind]))
-                    new_mesh['normgrads'] = np.hstack((new_mesh['normgrads'],new_mesh['normgrads'][vind]))
-                    new_mesh['velocities'] = np.vstack((new_mesh['velocities'],np.zeros(3)))
-                    new_mesh['env_comp'] = np.hstack((new_mesh['env_comp'],comp))
-                    new_mesh['triangles'][i][j] = N
-
-                if center[0] <= xmin:
-                    new_mesh['env_comp3'][i] = 0
-                    if new_mesh['vertices'][vind[0]][0] > xmin:
-                        add_vertex_to_mesh(i,0,vind[0],0)
-                    else:
-                        new_mesh['env_comp'][vind[0]] = 0
-
-                    if new_mesh['vertices'][vind[1]][0] > xmin:
-                        add_vertex_to_mesh(i,1,vind[1],0)
-                    else:
-                        new_mesh['env_comp'][vind[1]] = 0
-
-                    if new_mesh['vertices'][vind[2]][0] > xmin:
-                        add_vertex_to_mesh(i,2,vind[2],0)
-                    else:
-                        new_mesh['env_comp'][vind[2]] = 0
-
-                else:
-                    new_mesh['env_comp3'][i] = 1
-                    if new_mesh['vertices'][vind[0]][0] <= xmin:
-                        add_vertex_to_mesh(i,0,vind[0],1)
-                    else:
-                        new_mesh['env_comp'][vind[0]] = 1
-
-                    if new_mesh['vertices'][vind[1]][0] <=xmin:
-                        add_vertex_to_mesh(i,1,vind[1],1)
-                    else:
-                        new_mesh['env_comp'][vind[1]] = 1
-
-                    if new_mesh['vertices'][vind[2]][0] <= xmin:
-                        add_vertex_to_mesh(i,2,vind[2],1)
-                    else:
-                        new_mesh['env_comp'][vind[2]] = 1
-
-            # compute fractional areas of vertices
-
-            # new_mesh['frac_areas']=potentials.compute_frac_areas(new_mesh,xmin)
-
-
-        elif mesh_method == 'wd':
-
-            N = int(kwargs.get('gridsize', self.gridsize))
-
-            the_grid = mesh_wd.discretize_wd_style_oc(N, *mesh_args)
-            new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
-            scale = sma
-
-            # WD style overcontacts require splitting of the mesh into two components
-            # env_comp = 0 for primary part of the envelope, 1 for secondary
-
-            # compute the positions of the minimum radii of the neck in the xy and xz planes
-            xz,z = oc_geometry.nekmin(Phi,q,0.5,0.05,0.05)
-            # choose which value of x to use as the minimum (maybe extend to average of both?
-            xmin = xz
-
-            # create the env_comp array and change the values of all where vertices x>xmin to 1
-            env_comp = np.zeros(len(new_mesh['centers']))
-            env_comp[new_mesh['centers'][:,0]>xmin] = 1
-
-            new_mesh['env_comp'] = env_comp
-            new_mesh['env_comp3']=env_comp
-
-        else:
-            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
-
-
-        new_mesh['label_envelope'] = self.label_envelope
-        new_mesh['label_primary'] = self.label_primary
-        new_mesh['label_secondary'] = self.label_secondary
-
-        return new_mesh, sma
+        for half in self._halves:
+            half.populate_observable(time, kind, dataset, **kwargs)
 
 
 
