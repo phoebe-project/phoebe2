@@ -568,7 +568,7 @@ class Body(object):
     Body is the base Class for all "bodies" of the System.
 
     """
-    def __init__(self, comp_no, ind_self, ind_sibling, masses,
+    def __init__(self, component, comp_no, ind_self, ind_sibling, masses,
                  ecc, incl, long_an, t0,
                  do_mesh_offset=True,
                  mesh_init_phi=0.0):
@@ -584,6 +584,7 @@ class Body(object):
         # 1 = primary
         # 2 = secondary
         self.comp_no = comp_no
+        self.component = component
 
         # We need to remember what index in all incoming position/velocity/euler
         # arrays correspond to both ourself and our sibling
@@ -978,7 +979,7 @@ class Body(object):
         self.populated_at_time.append(dataset)
 
 class Star(Body):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+    def __init__(self, component, comp_no, ind_self, ind_sibling, masses, ecc, incl,
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
@@ -995,7 +996,7 @@ class Star(Body):
                  **kwargs):
         """
         """
-        super(Star, self).__init__(comp_no, ind_self, ind_sibling,
+        super(Star, self).__init__(component, comp_no, ind_self, ind_sibling,
                                    masses, ecc,
                                    incl, long_an, t0,
                                    do_mesh_offset,
@@ -1147,7 +1148,7 @@ class Star(Body):
         # of any subclass and then intercepted again by the __init__ by the
         # same subclass.  Note: kwargs also hold meshing kwargs which are used
         # by Star.__init__
-        return cls(comp_no, ind_self, ind_sibling,
+        return cls(component, comp_no, ind_self, ind_sibling,
                    masses, ecc,
                    incl, long_an, t0,
                    do_mesh_offset,
@@ -1644,7 +1645,8 @@ class Star_roche(Star):
     """
     detached case only
     """
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+    def __init__(self, component, comp_no, ind_self, ind_sibling,
+                 masses, ecc, incl,
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
@@ -1665,7 +1667,8 @@ class Star_roche(Star):
         # extra things (not used by Star) will be stored in kwargs
         self.F = kwargs.pop('F', 1.0)
 
-        super(Star_roche, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
+        super(Star_roche, self).__init__(component, comp_no, ind_self, ind_sibling,
+                                         masses, ecc, incl,
                                          long_an, t0,
                                          do_mesh_offset, mesh_init_phi,
 
@@ -1822,7 +1825,8 @@ class Star_roche(Star):
         return new_mesh, scale
 
 class Star_roche_envelope_half(Star):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+    def __init__(self, component, comp_no, ind_self, ind_sibling,
+                 masses, ecc, incl,
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
@@ -1848,7 +1852,8 @@ class Star_roche_envelope_half(Star):
         # requiv won't be used, instead we'll use potential, but we'll allow
         # accessing and passing requiv anyways.
 
-        super(Star_roche_envelope_half, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
+        super(Star_roche_envelope_half, self).__init__(component, comp_no, ind_self, ind_sibling,
+                                         masses, ecc, incl,
                                          long_an, t0,
                                          do_mesh_offset, mesh_init_phi,
 
@@ -1993,7 +1998,8 @@ class Star_roche_envelope_half(Star):
 
 
 class Star_rotstar(Star):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+    def __init__(self, component, comp_no, ind_self, ind_sibling,
+                 masses, ecc, incl,
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
@@ -2013,7 +2019,8 @@ class Star_rotstar(Star):
         """
         # extra things (not used by Star) will be stored in kwargs
 
-        super(Star_rotstar, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
+        super(Star_rotstar, self).__init__(component, comp_no, ind_self, ind_sibling,
+                                           masses, ecc, incl,
                                            long_an, t0,
                                            do_mesh_offset, mesh_init_phi,
 
@@ -2146,7 +2153,8 @@ class Star_rotstar(Star):
 
 
 class Star_sphere(Star):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl,
+    def __init__(self, component, comp_no, ind_self, ind_sibling,
+                 masses, ecc, incl,
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
@@ -2167,7 +2175,8 @@ class Star_sphere(Star):
         # extra things (not used by Star) will be stored in kwargs
         # NOTHING EXTRA FOR SPHERE AT THE MOMENT
 
-        super(Star_sphere, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, incl,
+        super(Star_sphere, self).__init__(component, comp_no, ind_self, ind_sibling,
+                                          masses, ecc, incl,
                                           long_an, t0,
                                           do_mesh_offset, mesh_init_phi,
 
@@ -2330,10 +2339,14 @@ class Envelope(Body):
             half.system = system
 
     @property
-    def mesh(self):
-        # TODO: need to combine self._halves[0].mesh and self._halves[1].mesh
-        raise NotImplementedError()
+    def meshes(self):
+        # TODO: need to combine self._halves[0].mesh and self._halves[1].mesh and handle indices, volume...
+        return mesh.Meshes({half.component: half for half in self._halves})
+        # raise NotImplementedError()
 
+    @property
+    def mesh(self):
+        return self.meshes
 
     def update_position(self, *args, **kwargs):
         def split_mesh(mesh, q, pot):
@@ -2411,16 +2424,16 @@ class Envelope(Body):
             mesh['triangles'][triangind_primsec] = triangind_primsec_f.reshape(len(triangind_primsec_f) / 3, 3)
             mesh['triangles'][triangind_secprim] = triangind_secprim_f.reshape(len(triangind_secprim_f) / 3, 3)
 
-            # NOTE: this deletes the stored entries for scalars (volume, area, etc)
+            # NOTE: this doesn't update the stored entries for scalars (volume, area, etc)
             mesh_halves = [mesh.take(env_comp_triangles==0, env_comp_verts==0), mesh.take(env_comp_triangles==1, env_comp_verts==1)]
 
             # we now need to recompute the areas and volumes of each half separately
-            nekmin = libphoebe.roche_contact_neck_min(q, 1.0, pot, np.pi/2.)['xmin']
-            for compno,mesh in enumerate(mesh_halves):
+            # nekmin = libphoebe.roche_contact_neck_min(q, 1.0, pot, np.pi/2.)['xmin']
+            # for compno,mesh in enumerate(mesh_halves):
                 # component passed here is expected to be 1 or 2 (not 0 or 1)
-                info0 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1.0, pot, compno+1)
-                mesh._volume = info0['lvolume']
-                mesh._area = info0['lvolume']
+                # info0 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1.0, pot, compno+1)
+                # mesh._volume = info0['lvolume']
+                # mesh._area = info0['lvolume']
 
             return mesh_halves
 

@@ -640,7 +640,9 @@ class ProtoMesh(object):
             if isinstance(current_value, float):
                 # then something like volume/area which is no longer going
                 # to be accurate by splitting the mesh, so we'll reset to None
-                copy[k] = None
+                # copy[k] = None
+                continue
+
             elif current_value is None or not len(current_value):
                 # then this attribute is empty, so we can leave it that way
                 # NOTE: we have to use == None instead of is None so that
@@ -1501,7 +1503,12 @@ class Meshes(object):
         """
         def get_field(c, field, computed_type):
 
-            f = self._dict[c][field]
+            mesh = self._dict[c]
+            if isinstance(mesh, Meshes):
+                # then do this recursively
+                return mesh.get_column(field, components, computed_type)
+
+            f = mesh[field]
             if isinstance(f, ComputedColumn):
                 col = getattr(f, computed_type)
             else:
