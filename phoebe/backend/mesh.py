@@ -310,6 +310,21 @@ class ComputedColumn(object):
 
         self._compute_at_vertices = kwargs.get('compute_at_vertices', self.mesh._compute_at_vertices)
 
+    def __len__(self):
+        if self.for_computations is None:
+            # this is a bit of a hack, but allows us to check something like
+            # if column is None or not len(column) without needing extra
+            # conditions for computed columns
+            return 0
+        return len(self.for_computations)
+
+    @property
+    def shape(self):
+        return self.for_computations.shape
+
+    def __getitem__(self, k):
+        return self.for_computations[k]
+
     @property
     def compute_at_vertices(self):
         return self._compute_at_vertices
@@ -493,11 +508,6 @@ class ProtoMesh(object):
         self._phis               = None # Nx1
         self._thetas             = None # Nx1
 
-        ### WD style OCs only ###
-        self._env_comp            = None # Vx1
-        self._env_comp3           = None # Nx1
-
-
         ### PHYSICAL QUANTITIES
         self._loggs             = ComputedColumn(mesh=self)
         self._gravs             = ComputedColumn(mesh=self)
@@ -527,8 +537,7 @@ class ProtoMesh(object):
                   'areas', 'tareas', 'areas_si',
                   'velocities', 'vnormals', 'tnormals',
                   'normgrads', 'volume', 'area',
-                  'phis', 'thetas', 'env_comp','env_comp3',
-                  'compute_at_vertices',
+                  'phis', 'thetas',
                   'loggs', 'gravs', 'teffs', 'abuns', 'frac_refls'] # frac_heats, frac_scatts
         self._keys = keys + kwargs.pop('keys', [])
 
@@ -541,14 +550,16 @@ class ProtoMesh(object):
 
         # TODO: split this stuff into the correct classes/subclasses
 
-
-        if hasattr(self, key):
-            return getattr(self, key)
-        elif hasattr(self, '_observables') and key in self._observables.keys():
-            # applicable only for Mesh, not ProtoMesh
-            return self._observables[key]
-        else:
-            raise KeyError("{} is not a valid key".format(key))
+        if isinstance(key, str):
+            if hasattr(self, key):
+                return getattr(self, key)
+            elif hasattr(self, '_observables') and key in self._observables.keys():
+                # applicable only for Mesh, not ProtoMesh
+                return self._observables[key]
+            else:
+                raise KeyError("{} is not a valid key".format(key))
+        elif isinstance(key, np.ndarray):
+            raise KeyError("use mesh.take(bool_per_triangle, bool_per_vertex) to split mesh")
 
     def __setitem__(self, key, value):
         """
@@ -609,6 +620,61 @@ class ProtoMesh(object):
         Make a deepcopy of this Mesh object
         """
         return copy.deepcopy(self)
+
+    def take(self, bool_per_triangle, bool_per_vertex):
+        """
+        """
+        if len(bool_per_triangle) != len(self.triangles):
+            raise ValueError("bool_per_triangle should have length {}".format(len(self.triangles)))
+
+        if len(bool_per_vertex) != len(self.vertices):
+            raise ValueEror("bool_per_vertex should have length {}".format(len(self.vertices)))
+
+        copy = self.copy()
+        for k in self._keys:
+            if not hasattr(copy, '_{}'.format(k)):
+                # then likely a computed property which we don't need to set
+                continue
+            current_value = getattr(copy, k)
+
+            if isinstance(current_value, float):
+                # then something like volume/area which is no longer going
+                # to be accurate by splitting the mesh, so we'll reset to None
+                copy[k] = None
+            elif current_value is None or not len(current_value):
+                # then this attribute is empty, so we can leave it that way
+                # NOTE: we have to use == None instead of is None so that
+                # computed columns can use their builtin __eq__ method
+                continue
+            elif len(current_value) == len(bool_per_triangle):
+                copy[k] = current_value[bool_per_triangle]
+
+                if k=='triangles':
+                    # then we need to be clever since all the vertex indices will
+                    # be re-ordered according to bool_per_vertex
+
+                    # this is hideous, but I can't think of a clean way to do it,
+                    # so for now I'll just make it work.
+
+                    # We need to know the mapping for vertices from old to new index
+                    index_mapping = {}  # index_mapping[old_index] = new_index
+                    nv = 0
+                    for i,b in enumerate(bool_per_vertex):
+                        if b:
+                            index_mapping[i] = nv
+                            nv += 1
+
+                    # now we need to apply this to all indices after filtering
+                    for it,triangle in enumerate(copy[k]):
+                        for iv,vertex in enumerate(triangle):
+                            copy[k][it][iv] = index_mapping[vertex]
+
+            elif len(current_value) == len(bool_per_vertex):
+                copy[k] = current_value[bool_per_vertex]
+            else:
+                raise ValueError("could not filter column {} (shape: {}) due to length mismatch (bool_per_triangle.shape: {}, bool_per_vertex.shape: {})".format(k, current_value.shape, bool_per_triangle.shape, bool_per_vertex.shape))
+
+        return copy
 
     def update_columns_dict(self, kwargs):
         """
@@ -940,20 +1006,6 @@ class ProtoMesh(object):
         """
         # TODO: if self._thetas is None then compute from cartesian
         return self._thetas
-
-    @property
-    def env_comp(self):
-        """
-        TODO: add documentation
-        """
-        return self._env_comp
-
-    @property
-    def env_comp3(self):
-        """
-        TODO: add documentation
-        """
-        return self._env_comp3
 
     @property
     def loggs(self):
@@ -1448,37 +1500,12 @@ class Meshes(object):
         :parameter components:
         """
         def get_field(c, field, computed_type):
-            if c not in self._dict.keys():
-                # then handle the case where we're requesting a star in an
-                # envelope (ie. request the "primary" half of "contact_envelope")
-
-                c_orig = c
-                c = self._parent_envelope_of[c]
-                # TODO: how in the world do we access this logic????????
-                # right now its stored in Envelope.label_primary
-                if c_orig == self._dict[c]._label_primary:
-                    comp_no = 0
-                elif c_orig == self._dict[c]._label_secondary:
-                    comp_no = 1
-                else:
-                    raise ValueError
-            else:
-                comp_no = None
 
             f = self._dict[c][field]
             if isinstance(f, ComputedColumn):
                 col = getattr(f, computed_type)
             else:
                 col =  f
-
-            if comp_no is None:
-                col = col
-            elif comp_no == 0:
-                col = col[self._dict[c]['env_comp3'] == 0]
-            elif comp_no == 1:
-                col = col[self._dict[c]['env_comp3'] == 1]
-            else:
-                raise NotImplementedError
 
             return col
 

@@ -2289,13 +2289,14 @@ class Star_sphere(Star):
 
 
 class Envelope(Body):
-    def __init__(self, halves,
+    def __init__(self, halves, pot, q,
                  **kwargs):
         """
         """
 
         self._halves = halves
-
+        self._pot = pot
+        self._q = q
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
@@ -2307,14 +2308,16 @@ class Envelope(Body):
         if not len(stars)==2:
             raise ValueError("hieararchy cannot find two stars in envelope")
 
-        envelope_ps = b.get_component(component)
-        pot = envelope_ps.get_value('pot')
+        pot = b.get_value('pot', component=component, context='component')
+
+        orbit = b.hierarchy.get_parent_of(component)
+        q = b.get_value('q', component=orbit, context='component')
 
         # we'll pass on the potential from the envelope to both halves (even
         # though technically only the primary will ever actually build a mesh)
         halves = [Star_roche_envelope_half.from_bundle(b, star, compute=None, mesh_init_phi=mesh_init_phi, datasets=datasets, pot=pot, **kwargs) for star in stars]
 
-        return cls(halves)
+        return cls(halves, pot, q)
 
     @property
     def system(self):
@@ -2326,19 +2329,114 @@ class Envelope(Body):
         for half in self._halves:
             half.system = system
 
+    @property
+    def mesh(self):
+        # TODO: need to combine self._halves[0].mesh and self._halves[1].mesh
+        raise NotImplementedError()
+
+
     def update_position(self, *args, **kwargs):
+        def split_mesh(mesh, q, pot):
+            logger.debug("splitting envelope mesh according to neck min")
+
+            # compute position of nekmin (d=1.)
+            logger.debug("split_mesh libphoebe.roche_contact_neck_min(q={}, d={}, pot={})".format(q, 1., pot))
+            nekmin = libphoebe.roche_contact_neck_min(q, 1., pot, np.pi / 2.)['xmin']
+
+            # initialize the subcomp array
+            subcomp = np.zeros(len(mesh['triangles']))
+            # default value is 0 for primary, need to set 1 for secondary
+            subcomp[mesh['centers'][:, 0] > nekmin] = 1
+
+            # will need to catch all vertices that are on the wrong side of the center
+            # get x coordinates of vertices per triangle, subtract nekmin to evaluate the side they're on
+            xs_vert_triang = mesh['vertices'][:, 0][mesh['triangles']] - nekmin
+            # assign 0 for primary and 1 for secondary
+            xs_vert_triang[xs_vert_triang < 0] = 0
+            xs_vert_triang[xs_vert_triang > 0] = 1
+
+            env_comp_verts = np.zeros(len(mesh['vertices']))
+            env_comp_triangles = np.zeros(len(mesh['triangles']))
+
+            env_comp_verts[mesh['vertices'][:,0] > nekmin] = 1
+            env_comp_triangles[mesh['centers'][:,0] > nekmin] = 1
+
+            # summing comp values per triangle flags those with mismatching vertex and triangle comps
+
+            vert_comp_triang = np.sum(xs_vert_triang, axis=1)
+            # vert_comp_triang = 0/3 - all on primary/secondary
+            # vert_comp_triang = 1 - two vertices on primary, one on secondary
+            # vert_comp_triang = 2 - one vertex on primary, two on secondary
+
+            # find indices of triangles with boundary crossing vertices
+
+            triangind_primsec = np.argwhere(((vert_comp_triang == 1) | (vert_comp_triang == 2)) & (subcomp == 0)).flatten()
+            triangind_secprim = np.argwhere(((vert_comp_triang == 1) | (vert_comp_triang == 2)) & (subcomp == 1)).flatten()
+
+            # to get the indices of the vertices that need to be copied because they cross from prim to sec:
+            vertind_primsec = mesh['triangles'][triangind_primsec][xs_vert_triang[triangind_primsec] == 1]
+            # and sec to prim:
+            vertind_secprim = mesh['triangles'][triangind_secprim][xs_vert_triang[triangind_secprim] == 0]
+
+            # combine the two in an array for convenient stacking of copied vertices
+            vinds_tocopy = np.hstack((vertind_primsec,vertind_secprim))
+
+            # this one can be merged into less steps
+            # vertices_primcopy = np.vstack((mesh['vertices'], mesh['vertices'][vertind_primsec]))
+            # vertices_seccopy = np.vstack((vertices_primcopy, mesh['vertices'][vertind_secprim]))
+            new_triangle_indices_prim = range(len(mesh['vertices']), len(mesh['vertices'])+len(vertind_primsec))
+            new_triangle_indices_sec = range(len(mesh['vertices'])+len(vertind_primsec), len(mesh['vertices'])+len(vertind_primsec)+len(vertind_secprim))
+
+            mesh['vertices'] = np.vstack((mesh['vertices'], mesh['vertices'][vinds_tocopy]))
+            mesh['pvertices'] = np.vstack((mesh['pvertices'], mesh['pvertices'][vinds_tocopy]))
+            mesh['vnormals'] = np.vstack((mesh['vnormals'], mesh['vnormals'][vinds_tocopy]))
+            mesh['normgrads'] = np.hstack((mesh['normgrads'].vertices, mesh['normgrads'].vertices[vinds_tocopy]))
+            mesh['velocities'] = np.vstack((mesh['velocities'].vertices, np.zeros((len(vinds_tocopy),3))))
+            env_comp_verts = np.hstack((env_comp_verts, env_comp_verts[vinds_tocopy]))
+
+            # change the env_comp value of the copied vertices (hopefully right?)
+            env_comp_verts[new_triangle_indices_prim] = 0
+            env_comp_verts[new_triangle_indices_sec] = 1
+
+            # the indices of the vertices in the triangles array (crossing condition) need to be replaced with the new ones
+            # a bit of array reshaping magic, but it works
+            triangind_primsec_f = mesh['triangles'][triangind_primsec].flatten().copy()
+            triangind_secprim_f = mesh['triangles'][triangind_secprim].flatten().copy()
+            indices_prim = np.where(np.in1d(triangind_primsec_f, vertind_primsec))[0]
+            indices_sec = np.where(np.in1d(triangind_secprim_f, vertind_secprim))[0]
+
+            triangind_primsec_f[indices_prim] = new_triangle_indices_prim
+            triangind_secprim_f[indices_sec] = new_triangle_indices_sec
+
+            mesh['triangles'][triangind_primsec] = triangind_primsec_f.reshape(len(triangind_primsec_f) / 3, 3)
+            mesh['triangles'][triangind_secprim] = triangind_secprim_f.reshape(len(triangind_secprim_f) / 3, 3)
+
+            # NOTE: this deletes the stored entries for scalars (volume, area, etc)
+            mesh_halves = [mesh.take(env_comp_triangles==0, env_comp_verts==0), mesh.take(env_comp_triangles==1, env_comp_verts==1)]
+
+            # we now need to recompute the areas and volumes of each half separately
+            nekmin = libphoebe.roche_contact_neck_min(q, 1.0, pot, np.pi/2.)['xmin']
+            for compno,mesh in enumerate(mesh_halves):
+                # component passed here is expected to be 1 or 2 (not 0 or 1)
+                info0 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1.0, pot, compno+1)
+                mesh._volume = info0['lvolume']
+                mesh._area = info0['lvolume']
+
+            return mesh_halves
 
         if not (self._halves[0].has_standard_mesh() and self._halves[1].has_standard_mesh()):
             # update the position (and build the mesh) of the primary component
+            # this will internally call save_as_standard mesh with the mesh
+            # of the ENTIRE contact envelope.
             self._halves[0].update_position(*args, **kwargs)
 
-            # now split the corresponding mesh object
+            # now let's access this saved WHOLE mesh
             mesh_contact = self._halves[0].get_standard_mesh(scaled=False)
 
-            # TODO: split the two meshes, duplicating vertices as necessary
-            mesh_primary, mesh_secondary = None, None
+            # and split it according to the x-position of neck min
+            mesh_primary, mesh_secondary = split_mesh(mesh_contact, self._q, self._pot)
 
-            # now override the standard mesh with just the half
+            # now override the standard mesh with just the corresponding halves
             self._halves[0].save_as_standard_mesh(mesh_primary)
             self._halves[1].save_as_standard_mesh(mesh_secondary)
 
@@ -2347,8 +2445,8 @@ class Envelope(Body):
         # placing in orbit.  We'll do this again for the primary so it
         # will update to just the correct half.  This is a bit redundant,
         # but keeps all this logic out of the Star classes
-        self._halves[0].update_position(*args, **kwargs)
-        self._halves[1].update_position(*args, **kwargs)
+        for half in self._halves:
+            half.update_position(*args, **kwargs)
 
     def populate_observable(self, time, kind, dataset, **kwargs):
         """
@@ -2359,80 +2457,6 @@ class Envelope(Body):
             half.populate_observable(time, kind, dataset, **kwargs)
 
 
-    def get_subcomponent(self, mesh, q, pot):
-
-        # compute position of nekmin (d=1.)
-        nekmin = libphoebe.roche_contact_neck_min(q, 1., pot, np.pi / 2.)['xmin']
-
-        # initialize the subcomp array
-        subcomp = np.zeros(len(mesh['triangles']))
-        # default value is 0 for primary, need to set 1 for secondary
-        subcomp[mesh['centers'][:, 0] > nekmin] = 1
-
-        # will need to catch all vertices that are on the wrong side of the center
-        # get x coordinates of vertices per triangle, subtract nekmin to evaluate the side they're on
-        xs_vert_triang = mesh['vertices'][:, 0][mesh['triangles']] - nekmin
-        # assign 0 for primary and 1 for secondary
-        xs_vert_triang[xs_vert_triang < 0] = 0
-        xs_vert_triang[xs_vert_triang > 0] = 1
-
-        mesh['env_comp'] = np.zeros(len(mesh['vertices']))
-        mesh['env_comp3'] = np.zeros(len(mesh['triangles']))
-
-        mesh['env_comp'][mesh['vertices'][:,0] > nekmin] = 1
-        mesh['env_comp3'][mesh['centers'][:,0] > nekmin] = 1
-
-        # summing comp values per triangle flags those with mismatching vertex and triangle comps
-
-        vert_comp_triang = np.sum(xs_vert_triang, axis=1)
-        # vert_comp_triang = 0/3 - all on primary/secondary
-        # vert_comp_triang = 1 - two vertices on primary, one on secondary
-        # vert_comp_triang = 2 - one vertex on primary, two on secondary
-
-        # find indices of triangles with boundary crossing vertices
-
-        triangind_primsec = np.argwhere(((vert_comp_triang == 1) | (vert_comp_triang == 2)) & (subcomp == 0)).flatten()
-        triangind_secprim = np.argwhere(((vert_comp_triang == 1) | (vert_comp_triang == 2)) & (subcomp == 1)).flatten()
-
-        # to get the indices of the vertices that need to be copied because they cross from prim to sec:
-        vertind_primsec = mesh['triangles'][triangind_primsec][xs_vert_triang[triangind_primsec] == 1]
-        # and sec to prim:
-        vertind_secprim = mesh['triangles'][triangind_secprim][xs_vert_triang[triangind_secprim] == 0]
-
-        # combine the two in an array for convenient stacking of copied vertices
-        vinds_tocopy = np.hstack((vertind_primsec,vertind_secprim))
-
-        # this one can be merged into less steps
-        # vertices_primcopy = np.vstack((mesh['vertices'], mesh['vertices'][vertind_primsec]))
-        # vertices_seccopy = np.vstack((vertices_primcopy, mesh['vertices'][vertind_secprim]))
-        new_triangle_indices_prim = range(len(mesh['vertices']), len(mesh['vertices'])+len(vertind_primsec))
-        new_triangle_indices_sec = range(len(mesh['vertices'])+len(vertind_primsec), len(mesh['vertices'])+len(vertind_primsec)+len(vertind_secprim))
-
-        mesh['vertices'] = np.vstack((mesh['vertices'], mesh['vertices'][vinds_tocopy]))
-        mesh['pvertices'] = np.vstack((mesh['pvertices'], mesh['pvertices'][vinds_tocopy]))
-        mesh['vnormals'] = np.vstack((mesh['vnormals'], mesh['vnormals'][vinds_tocopy]))
-        mesh['normgrads'] = np.hstack((mesh['normgrads'], mesh['normgrads'][vinds_tocopy]))
-        mesh['velocities'] = np.vstack((mesh['velocities'], np.zeros((len(vinds_tocopy),3))))
-        mesh['env_comp'] = np.hstack((mesh['env_comp'], mesh['env_comp'][vinds_tocopy]))
-
-        # change the env_comp value of the copied vertices (hopefully right?)
-        mesh['env_comp'][new_triangle_indices_prim] = 0
-        mesh['env_comp'][new_triangle_indices_sec] = 1
-
-        # the indices of the vertices in the triangles array (crossing condition) need to be replaced with the new ones
-        # a bit of array reshaping magic, but it works
-        triangind_primsec_f = mesh['triangles'][triangind_primsec].flatten().copy()
-        triangind_secprim_f = mesh['triangles'][triangind_secprim].flatten().copy()
-        indices_prim = np.where(np.in1d(triangind_primsec_f, vertind_primsec))[0]
-        indices_sec = np.where(np.in1d(triangind_secprim_f, vertind_secprim))[0]
-
-        triangind_primsec_f[indices_prim] = new_triangle_indices_prim
-        triangind_secprim_f[indices_sec] = new_triangle_indices_sec
-
-        mesh['triangles'][triangind_primsec] = triangind_primsec_f.reshape(len(triangind_primsec_f) / 3, 3)
-        mesh['triangles'][triangind_secprim] = triangind_secprim_f.reshape(len(triangind_secprim_f) / 3, 3)
-
-        return mesh
 
 
 #############################################################################################################################################################################
