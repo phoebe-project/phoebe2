@@ -2299,6 +2299,7 @@ class Star_sphere(Star):
 
 class Envelope(Body):
     def __init__(self, halves, pot, q,
+                 mesh_method,
                  **kwargs):
         """
         """
@@ -2306,6 +2307,7 @@ class Envelope(Body):
         self._halves = halves
         self._pot = pot
         self._q = q
+        self.mesh_method = mesh_method
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
@@ -2322,11 +2324,13 @@ class Envelope(Body):
         orbit = b.hierarchy.get_parent_of(component)
         q = b.get_value('q', component=orbit, context='component')
 
+        mesh_method = b.get_value('mesh_method', component=component, compute=compute, **kwargs) if compute is not None else 'marching'
+
         # we'll pass on the potential from the envelope to both halves (even
         # though technically only the primary will ever actually build a mesh)
         halves = [Star_roche_envelope_half.from_bundle(b, star, compute=None, mesh_init_phi=mesh_init_phi, datasets=datasets, pot=pot, **kwargs) for star in stars]
 
-        return cls(halves, pot, q)
+        return cls(halves, pot, q, mesh_method)
 
     @property
     def system(self):
