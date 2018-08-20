@@ -1450,7 +1450,10 @@ class Meshes(object):
         """
         TODO: add documentation
         """
-        return self._dict[key]
+        if key in self._components:
+            return self._dict[key]
+        else:
+            return self.get_column_flat(key, self._components)
 
     def __setitem__(self, key, value):
         """
@@ -1503,10 +1506,13 @@ class Meshes(object):
         """
         def get_field(c, field, computed_type):
 
+            # print "*** c={} self._dict={}".format(c, self._dict)
             mesh = self._dict[c]
             if isinstance(mesh, Meshes):
-                # then do this recursively
-                return mesh.get_column(field, components, computed_type)
+                # then do this recursively for all components in the Meshes object
+                # but don't allow nesting in the dictionary, instead combine
+                # all subcomponents into one entry with the current component
+                return mesh.get_column_flat(field, mesh._components, computed_type)
 
             f = mesh[field]
             if isinstance(f, ComputedColumn):
@@ -1544,6 +1550,10 @@ class Meshes(object):
         if components:
             if isinstance(components, str):
                 components = [components]
+            elif isinstance(components, list):
+                components = components
+            else:
+                raise TypeError("components should be list or string, not {}".format(type(components)))
         elif isinstance(value, dict):
             components = value.keys()
         elif isinstance(value, list):
