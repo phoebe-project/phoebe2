@@ -1461,6 +1461,14 @@ class Meshes(object):
         """
         return self.update_columns(key, value)
 
+    @property
+    def Ntriangles(self):
+        return sum(mesh.Ntriangles for mesh in self.values())
+
+    @property
+    def Nvertices(self):
+        return sum(mesh.Nvertices for mesh in self.values())
+
     def component_by_no(self, comp_no):
         """
         TODO: add documentation
