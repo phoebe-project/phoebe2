@@ -305,10 +305,12 @@ class ComputedColumn(object):
         # user will probably not dig this deep)
         self._vertices = None
         self._centers = None
+
+        self._compute_at_vertices = kwargs.get('compute_at_vertices', self.mesh._compute_at_vertices)
+
         if value_for_computations is not None:
             self.set_for_computations(value_for_computations)
 
-        self._compute_at_vertices = kwargs.get('compute_at_vertices', self.mesh._compute_at_vertices)
 
     def __len__(self):
         if self.for_computations is None:
@@ -1468,6 +1470,25 @@ class Meshes(object):
     @property
     def Nvertices(self):
         return sum(mesh.Nvertices for mesh in self.values())
+
+    def __getattr__(self, attr):
+        if np.all([hasattr(mesh, attr) for mesh in self.values()]):
+            # need to be smart if this is supposed to return a ComputedColumn...
+            items = [getattr(mesh, attr) for mesh in self.values()]
+            if isinstance(items[0], ComputedColumn):
+                return ComputedColumn(self, np.concatenate([item.for_computations for item in items]))
+            elif isinstance(items[0], bool):
+                # this may be a bit of an assumption...
+                return np.all(items)
+            elif isinstance(items[0], np.ndarray):
+                return np.concatenate(items)
+            else:
+                # for floats we probably always want the sum... but instead
+                # we'll define those explicitly above.  Anything that isn't
+                # covered above should then raise an exception here.
+                raise NotImplementedError()
+        else:
+            raise AttributeError("meshes don't have attribute {}".format(attr))
 
     def component_by_no(self, comp_no):
         """
