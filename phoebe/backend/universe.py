@@ -352,6 +352,8 @@ class System(object):
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
             ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.bodies, fluxes_intrins_per_body)})
 
+            # TODO: need to make this smarter in the case of Envelopes to get the sub-halves ld_func/coeffs
+
             fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
                                                                             triangles_flat,
                                                                             normals_flat,
@@ -2328,7 +2330,7 @@ class Envelope(Body):
 
         # we'll pass on the potential from the envelope to both halves (even
         # though technically only the primary will ever actually build a mesh)
-        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=None, mesh_init_phi=mesh_init_phi, datasets=datasets, pot=pot, **kwargs) for star in stars]
+        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, mesh_init_phi=mesh_init_phi, datasets=datasets, pot=pot, **kwargs) for star in stars]
 
         return cls(halves, pot, q, mesh_method)
 
@@ -2341,6 +2343,16 @@ class Envelope(Body):
         self._system = system
         for half in self._halves:
             half.system = system
+
+    @property
+    def boosting_method(self):
+        return self._boosting_method
+
+    @boosting_method.setter
+    def boosting_method(self, boosting_method):
+        self._boosting_method = boosting_method
+        for half in self._halves:
+            half.boosting_method = boosting_method
 
     @property
     def meshes(self):
