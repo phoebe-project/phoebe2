@@ -62,6 +62,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.0.11 - astropy version dependency hotfix
+
+* Set astropy dependency to be >=1.0 and < 3.0 (as astropy 3.0 requires python 3)
+
 ### 2.0.10 - legacy import extraneous spaces hotfix
 
 * Handle ignoring extraneous spaces when importing a PHOEBE legacy file.
