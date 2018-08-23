@@ -24,7 +24,7 @@ setup (name = 'phoebe',
        url = 'http://github.com/phoebe-project/phoebe2',
        download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.0.10',
        packages = ['phoebe', 'phoebe.constants', 'phoebe.parameters', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.utils'],
-       install_requires=['numpy>=1.10','scipy>=0.18','astropy>=1.0'],
+       install_requires=['numpy>=1.10','scipy>=0.17','astropy>=1.0,<3.0'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                     },
        ext_modules = ext_modules)
