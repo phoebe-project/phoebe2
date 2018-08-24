@@ -439,44 +439,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # TODO: star needs long_an (yaw?)
             etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', unit=u.rad)]
 
-        system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
-
-        for dataset in datasets:
-            ds = b.get_dataset(dataset=dataset)
-            kind = ds.exclude(kind='*_dep').kind
-            if kind not in ['lc']:
-                # only LCs need pblum scaling
-                continue
-
-            system.populate_observables(t0, [kind], [dataset],
-                                        ignore_effects=True)
-
-            # now for each component we need to store the scaling factor between
-            # absolute and relative intensities
-            pblum_copy = {}
-            for component in ds.filter(qualifier='pblum_ref').components:
-                if component=='_default':
-                    continue
-                pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
-                if pblum_ref=='self':
-                    pblum = ds.get_value(qualifier='pblum', component=component)
-                    ld_func = ds.get_value(qualifier='ld_func', component=component)
-                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
-
-                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
-                    system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
-                else:
-                    # then this component wants to copy the scale from another component
-                    # in the system.  We'll just store this now so that we make sure the
-                    # component we're copying from has a chance to compute its scale
-                    # first.
-                    pblum_copy[component] = pblum_ref
-
-
-            # now let's copy all the scales for those that are just referencing another component
-            for comp, comp_copy in pblum_copy.items():
-                pblum_scale = system.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
-                system.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
 
 #######################################################################################################################################################

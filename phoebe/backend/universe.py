@@ -289,6 +289,52 @@ class System(object):
             for starref, body in self.items():
                 body.populate_observable(time, kind, dataset)
 
+    def compute_pblum_scalings(self, b, datasets, t0,
+                               x0, y0, z0, vx0, vy0, vz0,
+                               etheta0, elongan0, eincl0,
+                               ignore_effects=True):
+
+        self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+
+        for dataset in datasets:
+            ds = b.get_dataset(dataset=dataset)
+            kind = ds.exclude(kind='*_dep').kind
+            if kind not in ['lc']:
+                # only LCs need pblum scaling
+                continue
+
+            self.populate_observables(t0, [kind], [dataset],
+                                        ignore_effects=True)
+
+            # now for each component we need to store the scaling factor between
+            # absolute and relative intensities
+            pblum_copy = {}
+            for component in ds.filter(qualifier='pblum_ref').components:
+                print "**** pblum scaling component:", component
+                if component=='_default':
+                    continue
+                pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
+                if pblum_ref=='self':
+                    pblum = ds.get_value(qualifier='pblum', component=component)
+                    ld_func = ds.get_value(qualifier='ld_func', component=component)
+                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
+
+                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
+                    print "*** self.get_body({}) {}".format(component, self.get_body(component))
+                    self.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
+                else:
+                    # then this component wants to copy the scale from another component
+                    # in the system.  We'll just store this now so that we make sure the
+                    # component we're copying from has a chance to compute its scale
+                    # first.
+                    pblum_copy[component] = pblum_ref
+
+            # now let's copy all the scales for those that are just referencing another component
+            for comp, comp_copy in pblum_copy.items():
+                pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
+                self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+
+
     def handle_reflection(self,  **kwargs):
         """
         """
