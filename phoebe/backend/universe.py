@@ -232,7 +232,7 @@ class System(object):
         else:
             # then hopefully we're a child star of an contact_binary envelope
             parent_component = self._parent_envelope_of[component]
-            return self._bodies[parent_component]
+            return self._bodies[parent_component].get_half(component)
 
     @property
     def meshes(self):
@@ -2355,10 +2355,16 @@ class Envelope(Body):
             half.boosting_method = boosting_method
 
     @property
+    def halves(self):
+        return {half.component: half for half in self._halves}
+
+    def get_half(self, component):
+        return self.halves[component]
+
+    @property
     def meshes(self):
-        # TODO: need to combine self._halves[0].mesh and self._halves[1].mesh and handle indices, volume...
-        return mesh.Meshes({half.component: half for half in self._halves})
-        # raise NotImplementedError()
+        # TODO: need to combine self._halves[0].mesh and self._halves[1].mesh and handle indices, volume?
+        return mesh.Meshes(self.halves)
 
     @property
     def mesh(self):
