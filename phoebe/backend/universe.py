@@ -320,7 +320,6 @@ class System(object):
                     ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
                     # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
-                    print "*** self.get_body({}) {}".format(component, self.get_body(component))
                     self.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
                 else:
                     # then this component wants to copy the scale from another component
@@ -592,7 +591,12 @@ class System(object):
             # then we will need to build a flat column based on the component
             # of each element so that ptfarea is an array with the same shape
             # as those above
-            ptfarea = self.bodies[0].get_ptfarea(dataset)  # TODO: what to pass for component for contacts?
+            if isinstance(self.bodies[0], Envelope):
+                # for envelopes, we'll make the same assumption and just grab
+                # that value stored in the first "half"
+                ptfarea = self.bodies[0]._halves[0].get_ptfarea(dataset)
+            else:
+                ptfarea = self.bodies[0].get_ptfarea(dataset)
 
             # intens_proj is the intensity in the direction of the observer per unit surface area of the triangle
             # areas is the area of each triangle
