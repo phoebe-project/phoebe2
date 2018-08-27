@@ -310,7 +310,7 @@ class System(object):
             # absolute and relative intensities
             pblum_copy = {}
             for component in ds.filter(qualifier='pblum_ref').components:
-                print "**** pblum scaling component:", component
+                # print "**** pblum scaling component:", component
                 if component=='_default':
                     continue
                 pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
@@ -494,6 +494,8 @@ class System(object):
         # this dictionary directly and the columns will be applied respectively.
         meshes.update_columns('visibilities', visibilities)
 
+        # weights is also a dictionary with keys being the component labels
+        # and values and np array of weights.
         if weights is not None:
             meshes.update_columns('weights', weights)
 

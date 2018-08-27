@@ -1521,7 +1521,11 @@ class Meshes(object):
                 raise NotImplementedError('setting column with indices not yet ported to new meshing')
                 # self._dict[comp][field][inds] = value
             else:
-                self._dict[comp][field] = value
+                if comp in self._dict.keys():
+                    self._dict[comp][field] = value
+                else:
+                    meshes = self._dict[self._parent_envelope_of[comp]]
+                    meshes[comp][field] = value
 
     def get_column(self, field, components=None, computed_type='for_observations'):
         """
@@ -1622,17 +1626,24 @@ class Meshes(object):
         N_upper = 0
         offsetN = 0.0
         value_dict = {}
-        for c in components:
-            mesh = self[c]
-            if computed_type=='vertices' or (computed_type is None and mesh._compute_at_vertices):
-                N = mesh.Nvertices
+        for comp in components:
+            if isinstance(self[comp], Meshes):
+                # then we need to recursively extract to the underlying meshes
+                # pass
+                meshes = self[comp]._dict
             else:
-                N = mesh.Ntriangles
-            N_upper += N
-            value_dict[c] = value[N_lower:N_upper] - offsetN
-            if offset:
-                offsetN += N
-            N_lower += N
+                meshes = {comp: self[comp]}
+
+            for c, mesh in meshes.items():
+                if computed_type=='vertices' or (computed_type is None and mesh._compute_at_vertices):
+                    N = mesh.Nvertices
+                else:
+                    N = mesh.Ntriangles
+                N_upper += N
+                value_dict[c] = value[N_lower:N_upper] - offsetN
+                if offset:
+                    offsetN += N
+                N_lower += N
 
         return value_dict
 
