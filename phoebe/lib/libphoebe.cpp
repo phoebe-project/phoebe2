@@ -92,21 +92,73 @@ template<>  NPY_TYPES PyArray_TypeNum<int>() { return NPY_INT;}
 template<>  NPY_TYPES PyArray_TypeNum<double>() { return NPY_DOUBLE;}
 
 /*
-  Report error with or without Python exception
+  Create string
 */
-void report_error(const char *str, bool py_exception = true){
-  std::cerr << str << '\n';
-  if (py_exception) PyErr_SetString(PyExc_TypeError, str);
-}
-
-void report_error(const std::string & str, bool py_exception = true){
-  std::cerr << str << '\n';
-  if (py_exception) PyErr_SetString(PyExc_TypeError, str.c_str());
-}
-
 std::string operator "" _s (const char* m, std::size_t) {
   return std::string(m);
 }
+
+/*
+ Verbosity of libphoebe.
+*/
+int verbosity_level = 0;
+
+
+class TNullBuff : public std::streambuf {
+public:
+  int overflow(int c) { return c; }
+};
+
+TNullBuff null_buffer;
+
+std::ostream report_stream(&null_buffer);
+
+/*
+  Report error with or without Python exception
+*/
+void raise_exception(const std::string & str){
+  if (verbosity_level >= 1) report_stream << str << std::endl;
+  PyErr_SetString(PyExc_TypeError, str.c_str());
+}
+
+/*
+  Setting the verbosity of the library to std::cerr using level.
+
+    level = 0: no output
+    level = 1: output for python exception
+    level = 2: output for python exception and
+               additional explanation to exceptions
+    level = 3: all possible output -- debug mode
+
+  Input:
+    level
+*/
+static PyObject *setup_verbosity(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  auto fname = "setup_verbosity"_s;
+
+  char *kwlist[] = {
+    (char*)"level",
+    NULL
+  };
+
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "i", kwlist, &verbosity_level)){
+    raise_exception(fname + "::Problem reading arguments");
+    return NULL;
+  }
+
+  if (verbosity_level == 0)
+    report_stream.rdbuf(&null_buffer);
+  else {
+    report_stream.rdbuf(std::cerr.rdbuf());
+    report_stream.precision(16);
+    report_stream << std::scientific;
+  }
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
 
 /*
   Insert into dictionary and deferences the inserted object
@@ -208,6 +260,8 @@ void PyArray_To3DPointVector(
     V.emplace_back(p);
 }
 
+
+
 /*
   C++ wrapper for Python code:
 
@@ -256,7 +310,6 @@ void PyArray_To3DPointVector(
 
 static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObject *keywds) {
 
-
   //
   // Reading arguments
   //
@@ -286,7 +339,7 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
         &PyBool_Type, o_L + 2,
         &style)
   ){
-    report_error("roche_critical_potential::Problem reading arguments");
+    raise_exception("roche_critical_potential::Problem reading arguments");
     return NULL;
   }
 
@@ -395,7 +448,7 @@ static PyObject *roche_misaligned_transf(PyObject *self, PyObject *args) {
   if (!PyArg_ParseTuple(args, "O!O!",
        &PyString_Type, &o_type,
        &PyArray_Type, &o_S)){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -420,11 +473,11 @@ static PyObject *roche_misaligned_transf(PyObject *self, PyObject *args) {
       break;
 
       default:
-        report_error(fname + "::This type is not supported");
+        raise_exception(fname + "::This type is not supported");
         return NULL;
     }
   } else {
-    report_error(fname + "::This type of misalignment is not supported");
+    raise_exception(fname + "::This type of misalignment is not supported");
     return NULL;
   }
 
@@ -466,7 +519,7 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
   double omega;
 
   if (!PyArg_ParseTuple(args, "d", &omega)){
-    report_error("rotstar_critical_potential::Problem reading arguments");
+    raise_exception("rotstar_critical_potential::Problem reading arguments");
     return NULL;
   }
 
@@ -529,7 +582,7 @@ static PyObject *rotstar_misaligned_critical_potential(PyObject *self, PyObject 
       &omega,
       &o_misalignment)
   ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -595,7 +648,7 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
 
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "dddd|i", kwlist, &q, &F, &delta, &Omega0, &choice)){
-    report_error("roche_pole::Problem reading arguments");
+    raise_exception("roche_pole::Problem reading arguments");
     return NULL;
   }
 
@@ -647,9 +700,8 @@ static PyObject *roche_misaligned_pole(
 
   auto fname = "roche_misaligned_pole"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream  << fname << "::START" << std::endl;
 
   //
   // Reading arguments
@@ -675,7 +727,7 @@ static PyObject *roche_misaligned_pole(
         &q, &F, &delta, &o_misalignment, &Omega0, &sign)
       ){
 
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -687,20 +739,19 @@ static PyObject *roche_misaligned_pole(
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
     s = ((double*) PyArray_DATA((PyArrayObject*)o_misalignment))[0];
   } else {
-    report_error(fname + "::This type of misalignment is not supported.");
+    raise_exception(fname + "::This type of misalignment is not supported.");
     return NULL;
   }
 
   p = misaligned_roche::poleL_height(Omega0, q, F, delta, s, sign);
 
   if (p < 0) {
-    report_error(fname + "::Problems calculating poles.");
+    raise_exception(fname + "::Problems calculating poles.");
     return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::END" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::END" << std::endl;
 
   return PyFloat_FromDouble(p);
 }
@@ -756,7 +807,7 @@ static PyObject *roche_Omega_min(PyObject *self, PyObject *args, PyObject *keywd
         &q, &F, &d)
       ){
 
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -798,9 +849,8 @@ static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyOb
 
   auto fname = "roche_misaligned_Omega_min"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::START" << std::endl;
 
   //
   // Reading arguments
@@ -822,7 +872,7 @@ static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyOb
         &q, &F, &d, &o_misalignment)
       ){
 
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -836,18 +886,17 @@ static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyOb
     double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
     Omega_min = misaligned_roche::calc_Omega_min(q, F, d, std::asin(s[0]));
   } else {
-    report_error(fname + "::This type of misalignment is not supported");
+    raise_exception(fname + "::This type of misalignment is not supported");
     return NULL;
   }
 
   if (std::isnan(Omega_min)) {
-    report_error(fname + "::Calculation of Omega_min failed.");
+    raise_exception(fname + "::Calculation of Omega_min failed.");
     return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::END" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::END" << std::endl;
 
   return PyFloat_FromDouble(Omega_min);
 }
@@ -896,7 +945,7 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
 
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "dd", kwlist, &omega, &Omega0)){
-    report_error("rotstar_pole::Problem reading arguments");
+    raise_exception("rotstar_pole::Problem reading arguments");
     return NULL;
   }
 
@@ -972,7 +1021,7 @@ static PyObject *rotstar_misaligned_pole(PyObject *self, PyObject *args, PyObjec
       &o_misalignment,
       &Omega0)
   ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -1019,7 +1068,7 @@ static PyObject *sphere_pole(PyObject *self, PyObject *args, PyObject *keywds) {
 
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "d", kwlist, &Omega0)){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -1082,12 +1131,12 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
       &q, &F, &delta, &Omega0,
       &choice)
     ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   if (choice != 0) {
-    report_error(fname + "::Choice != 0 is not yet supported");
+    raise_exception(fname + "::Choice != 0 is not yet supported");
     return NULL;
   }
 
@@ -1096,12 +1145,10 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
     1/gen_roche::poleL(Omega0, q, F, delta)
   };
 
-
   if (utils::sqr(data[0])/utils::cube(data[1])> 8./27) {
-    report_error(fname + "::The lobe does not exist.");
+    raise_exception(fname + "::The lobe does not exist.");
     return NULL;
   }
-
 
   return PyArray_FromVector(2, data);
 }
@@ -1185,12 +1232,12 @@ static PyObject *rotstar_misaligned_from_roche_misaligned(
       &Omega0,
       &choice)
   ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   if (choice != 0) {
-    report_error(fname + "::Choice != 0 is not yet supported");
+    raise_exception(fname + "::Choice != 0 is not yet supported");
     return NULL;
   }
 
@@ -1209,7 +1256,7 @@ static PyObject *rotstar_misaligned_from_roche_misaligned(
     for (int i = 0; i < 3; ++i) spin[i] = s[i];
 
   } else {
-    report_error(fname + ":: This type of misalignment if not supported");
+    raise_exception(fname + ":: This type of misalignment if not supported");
     return NULL;
   }
 
@@ -1219,7 +1266,7 @@ static PyObject *rotstar_misaligned_from_roche_misaligned(
 
 
   if (utils::sqr(r_omega)/utils::cube(r_Omega)> 8./27) {
-    report_error(fname + "::The lobe does not exist.");
+    raise_exception(fname + "::The lobe does not exist.");
     return NULL;
   }
 
@@ -1322,7 +1369,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
       )
     ) {
 
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -1338,14 +1385,12 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
 
   if (res_choice == 0) return NULL;
 
-  #if defined(DEBUG)
-  std::cerr.precision(16);
-  std::cerr
-    << "q=" << q
-    << " F=" << F
-    << " d=" << delta
-    << " Omega0=" << Omega0  << '\n';
-  #endif
+  if (verbosity_level>=4)
+    report_stream
+      << "q=" << q
+      << " F=" << F
+      << " d=" << delta
+      << " Omega0=" << Omega0  << '\n';
 
 
   //
@@ -1364,9 +1409,8 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
 
     gen_roche::area_volume_primary_asymp(av, res_choice, Omega0, q, F, delta);
 
-    #if defined(DEBUG)
-    std::cerr << "asymp:" << res_choice<<" " << av[0] << " " << av[1] << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream << "asymp:" << res_choice<<" " << av[0] << " " << av[1] << '\n';
 
   } else {
 
@@ -1380,7 +1424,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     double xrange[2];
 
     if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, delta, true)){
-      report_error(fname + "Determining lobe's boundaries failed");
+      raise_exception(fname + "Determining lobe's boundaries failed");
       return NULL;
     }
 
@@ -1398,11 +1442,6 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
 
     double p[2][2], e, t;
 
-    #if defined(DEBUG)
-    std::cerr.precision(16);
-    std::cerr << std::scientific;
-    #endif
-
     //
     // one step adjustment of precison for area and volume
     // calculation
@@ -1414,9 +1453,8 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
         gen_roche::area_volume_integration
           (p[i], res_choice, xrange, Omega0, q, F, delta, m, polish);
 
-        #if defined(DEBUG)
-        std::cerr << "P:" << p[i][0] << '\t' << p[i][1] << '\n';
-        #endif
+        if (verbosity_level>=4)
+          report_stream << "P:" << p[i][0] << '\t' << p[i][1] << '\n';
       }
 
       if (adjust) {
@@ -1436,9 +1474,9 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
           // relative error
           e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
 
-          #if defined(DEBUG)
-          std::cerr << "err=" << e << " m0=" << m0 << '\n';
-          #endif
+          if (verbosity_level>=4)
+            report_stream << "err=" << e << " m0=" << m0 << '\n';
+
 
           if (e > eps[i]) {
             int k = int(1.1*m0*std::pow(e/eps[i], 0.25));
@@ -1456,9 +1494,9 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
         for (int i = 0; i < 2; ++i)
           if (b_av[i]) {
             av[i] = (16*p[1][i] - p[0][i])/15;
-            #if defined(DEBUG)
-            std::cerr << "B:" << i << ":" << av[i] << '\n';
-            #endif
+
+            if (verbosity_level>=4)
+              report_stream << "B:" << i << ":" << av[i] << '\n';
           }
         break;
       }
@@ -1555,7 +1593,7 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
       &PyBool_Type, &o_lvolume
       )
     ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -1577,11 +1615,11 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
 
   switch (rot_star::area_volume(av, res_choice, Omega0, omega)) {
     case -1:
-    report_error(fname + "::No calculations are requested");
+    raise_exception(fname + "::No calculations are requested");
     return NULL;
 
     case 1:
-    report_error(fname +
+    raise_exception(fname +
       "::The lobe does not exist. t is not in [0,1]\n" +
       "Omega0=" + std::to_string(Omega0) +
       " omega=" + std::to_string(omega) +
@@ -1686,7 +1724,7 @@ static PyObject *rotstar_misaligned_area_volume(PyObject *self, PyObject *args, 
         &PyBool_Type, &o_larea,
         &PyBool_Type, &o_lvolume)
   ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -1711,11 +1749,11 @@ static PyObject *rotstar_misaligned_area_volume(PyObject *self, PyObject *args, 
 
   switch (rot_star::area_volume(av, res_choice, Omega0, omega)) {
     case -1:
-    report_error(fname + "::No calculations are requested");
+    raise_exception(fname + "::No calculations are requested");
     return NULL;
 
     case 1:
-    report_error(fname +
+    raise_exception(fname +
       "::The lobe does not exist. t is not in [0,1]\n" +
       "Omega0=" + std::to_string(Omega0) +
       " omega=" + std::to_string(omega) +
@@ -1802,7 +1840,7 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
         &PyBool_Type, &o_lvolume
       )
      ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -1867,9 +1905,8 @@ static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args
 
   auto fname = "roche_misaligned_critical_volume"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::START" << std::endl;
 
   //
   // Reading arguments
@@ -1890,14 +1927,12 @@ static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args
         args, keywds,  "dddO", kwlist,
         &q, &F, &d, &o_misalignment)
       ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr.precision(16);
-  std::cerr << "q:" << q << " F=" << F << " d=" << d << '\n';
-  #endif
+  if (verbosity_level>=4)
+    report_stream << "q:" << q << " F=" << F << " d=" << d << '\n';
 
   double theta;
 
@@ -1905,18 +1940,16 @@ static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args
 
     theta = std::abs(PyFloat_AsDouble(o_misalignment)); // in [0, pi/2]
 
-    #if defined(DEBUG)
-    std::cerr << "theta:" << theta << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname + "::theta:" << theta << '\n';
 
   } else if (PyArray_Check(o_misalignment) &&
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
 
-    #if defined(DEBUG)
-    std::cerr << "spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname + "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
 
     if (s[0] == 0) {
       theta = 0;
@@ -1924,7 +1957,7 @@ static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args
       theta = std::asin(std::abs(s[0])); // in [0, pi/2]
     }
   } else {
-    report_error(fname + ":: This type of misalignment if not supported");
+    raise_exception(fname + ":: This type of misalignment if not supported");
     return NULL;
   }
 
@@ -1934,7 +1967,7 @@ static PyObject *roche_misaligned_critical_volume(PyObject *self, PyObject *args
   double OmegaC, buf[3];
 
   if (!misaligned_roche::critical_area_volume(2, q, F, d, theta, OmegaC, buf)){
-    report_error(fname + "::Calculation of critical volume failed");
+    raise_exception(fname + "::Calculation of critical volume failed");
     return NULL;
   }
 
@@ -1998,9 +2031,8 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
   auto fname = "roche_misaligned_area_volume"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::START" << std::endl;
 
   //
   // Reading arguments
@@ -2039,19 +2071,17 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
         &PyBool_Type, o_av + 1,
         eps, eps + 1)
       ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   if (choice != 0) {
-    report_error(fname + "::choice != 0 is currently not supported");
+    raise_exception(fname + "::choice != 0 is currently not supported");
     return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr.precision(16);
-  std::cerr << "q:" << q << " F=" << F << " Omega=" << Omega0 << " d=" << d << '\n';
-  #endif
+  if (verbosity_level>=4)
+      report_stream << fname + "::q:" << q << " F=" << F << " Omega=" << Omega0 << " d=" << d << '\n';
 
   bool aligned = false;
 
@@ -2063,20 +2093,17 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
     aligned = (std::sin(theta) == 0); // theta ~0 => aligned
 
-     #if defined(DEBUG)
-    std::cerr << "theta:" << theta << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname + "::theta:" << theta << '\n';
+
 
   } else if (PyArray_Check(o_misalignment) &&
     PyArray_TYPE((PyArrayObject *) o_misalignment) == NPY_DOUBLE) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
 
-
-    #if defined(DEBUG)
-    std::cerr.precision(16);
-    std::cerr << fname << "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname << "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
 
     if (s[0] == 0) {
       aligned = true;
@@ -2087,7 +2114,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     }
 
   } else {
-    report_error(fname + ":: This type of misalignment if not supported");
+    raise_exception(fname + ":: This type of misalignment if not supported");
     return NULL;
   }
 
@@ -2104,9 +2131,8 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
   if (res_choice == 0) return NULL;
 
-  #if defined(DEBUG)
-  std::cerr << "res_choice=" << res_choice << '\n';
-  #endif
+  if (verbosity_level>=4)
+    report_stream << "res_choice=" << res_choice << '\n';
 
   //
   // Calculate area and volume:
@@ -2120,11 +2146,10 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
   if (dOmegaC < -OmegaC*eps0){
 
-    report_error(fname + ":: Object is not detached.");
+    raise_exception(fname + ":: Object is not detached.");
 
-    std::cerr.precision(16);
-    std::cerr
-      << "OmegaC=" << OmegaC << "  Omega0=" << Omega0 << '\n'
+    if (verbosity_level>=2)
+      report_stream << fname + "::OmegaC=" << OmegaC << "  Omega0=" << Omega0 << '\n'
       << "q=" << q << " F=" << F << " delta=" << d << " theta=" << theta << '\n';
 
     return NULL;
@@ -2132,7 +2157,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   } else if (std::abs(dOmegaC) < OmegaC*eps1) {  // semi-detached case
 
     if (!misaligned_roche::critical_area_volume(res_choice, q, F, d, theta, OmegaC, av)){
-      report_error(fname + "::Calculation of critical lobe failed");
+      raise_exception(fname + "::Calculation of critical lobe failed");
       return NULL;
     }
 
@@ -2152,13 +2177,13 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
     if (aligned) {      // Non-misaligned Roche lobes
       if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, d, true)){
-        report_error(fname + "Determining lobe's boundaries failed");
+        raise_exception(fname + "Determining lobe's boundaries failed");
         return NULL;
       }
     } else {            // mis-aligned Roche lobes
       pole = misaligned_roche::poleL_height(Omega0, q, F, d, std::sin(theta));
       if (pole < 0) {
-        report_error(fname + "Determining pole failed");
+        raise_exception(fname + "Determining pole failed");
         return NULL;
       }
     }
@@ -2176,9 +2201,10 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
         else {
           misaligned_roche::area_volume_integration
             (p[i], res_choice, pole, Omega0, q, F, d, theta, m);
-          #if defined(DEBUG)
-          std::cerr << "m=" << m << " p[" << i  << "]=" << p[i][0] << ' ' << p[i][1] << '\n';
-          #endif
+
+          if (verbosity_level>=4)
+            report_stream << fname << "::m=" << m << " p[" << i  << "]=" << p[i][0] << ' ' << p[i][1] << '\n';
+
         }
 
       if (adjust) {
@@ -2226,16 +2252,15 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   const char *str[2] =  {"larea", "lvolume"};
 
   for (int i = 0; i < 2; ++i) if (b_av[i]) {
-    #if defined(DEBUG)
-    std::cerr << "av[" << i << "]=" << av[i] << '\n';
-    #endif
+
+    if (verbosity_level>=4)
+      report_stream << fname + "::av[" << i << "]=" << av[i] << '\n';
 
     PyDict_SetItemStringStealRef(results, str[i], PyFloat_FromDouble(av[i]));
   }
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::END" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::END" << std::endl;
 
   return results;
 }
@@ -2330,7 +2355,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
       &max_iter
       )
     ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -2338,10 +2363,8 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     // equivalent radius
     double  r = std::cbrt(0.75*vol/utils::m_pi);
 
-    #if defined(DEBUG)
-    std::cerr.precision(16);
-    std::cerr << "r=" << r << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname + "::r=" << r << '\n';
 
   /* Omega[x_, y_, z_, {q_, F_, d_, theta_}] = 1/Sqrt[x^2 + y^2 + z^2] +
       q (-(x/d^2) + 1/Sqrt[(d - x)^2 + y^2 + z^2]) +
@@ -2365,18 +2388,13 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     Omega = Omega0, dOmega,
     V[2], xrange[2], p[2][2];
 
-  #if defined(DEBUG)
-  std::cerr.precision(16);
-  std::cerr << std::scientific;
-  #endif
-
   // expected precisions of the integrals
   double eps = precision/2;
 
   do {
 
     if (!gen_roche::lobe_xrange(xrange, choice, Omega, q, F, delta, true)){
-      report_error(fname + "::Determining lobe's boundaries failed");
+      raise_exception(fname + "::Determining lobe's boundaries failed");
       return NULL;
     }
 
@@ -2385,17 +2403,16 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
 
     do {
 
-      #if defined(DEBUG)
-      std::cerr << "it=" << it << '\n';
-      #endif
+      if (verbosity_level>=4)
+        report_stream << fname + "::it=" << it << '\n';
+
 
       // calculate volume and derivate volume w.r.t to Omega
       for (int i = 0, m = m0; i < 2; ++i, m <<= 1) {
         gen_roche::area_volume_integration(p[i] - 1, 6, xrange, Omega, q, F, delta, m);
 
-        #if defined(DEBUG)
-        std::cerr << "V:" <<  p[i][0] << '\t' << p[i][1] << '\n';
-        #endif
+        if (verbosity_level>=4)
+          report_stream << fname + "::V:" <<  p[i][0] << '\t' << p[i][1] << '\n';
       }
 
       if (adjust) {
@@ -2418,9 +2435,8 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
           // relative error
           e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
 
-          #if defined(DEBUG)
-          std::cerr << "e=" << e << " m0 =" << m0 << '\n';
-          #endif
+          if (verbosity_level>=4)
+            report_stream << fname + "::e=" << e << " m0 =" << m0 << '\n';
 
           if (e > eps) {
             int k = int(1.1*m0*std::pow(e/eps, 0.25));
@@ -2446,18 +2462,15 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
 
     Omega -= (dOmega = (V[0] - vol)/V[1]);
 
-    #if defined(DEBUG)
-    std::cerr
-      << "Omega=" << Omega
-      << "\tvol=" << vol
-      << "\tV[0]= " << V[0]
-      << "\tdOmega=" << dOmega << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream
+        << fname + ":: Omega=" << Omega << " vol=" << vol
+        << " V[0]= " << V[0] << " dOmega=" << dOmega << '\n';
 
   } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
 
   if (!(it < max_iter)){
-    report_error(fname + "::Maximum number of iterations exceeded");
+    raise_exception(fname + "::Maximum number of iterations exceeded");
     return NULL;
   }
   // We use the condition on the argument (= Omega) ~ constraining backward error,
@@ -2516,14 +2529,14 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
       args, keywds,  "dd", kwlist,
       &vol, &omega)
     ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   double Omega = rot_star::Omega_at_vol(vol, omega);
 
   if (std::isnan(Omega)){
-    report_error(fname + "::Problem determining Omega. See cerr outputs.");
+    raise_exception(fname + "::Problem determining Omega. See cerr outputs.");
     return NULL;
   }
 
@@ -2604,14 +2617,14 @@ static PyObject *rotstar_misaligned_Omega_at_vol(PyObject *self, PyObject *args,
         &omega,
         &o_misalignment)
     ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   double Omega = rot_star::Omega_at_vol(vol, omega);
 
   if (std::isnan(Omega)){
-    report_error(fname + "::Problem determining Omega. See cerr outputs.");
+    raise_exception(fname + "::Problem determining Omega. See cerr outputs.");
     return NULL;
   }
 
@@ -2672,9 +2685,8 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
   auto fname = "roche_misaligned_Omega_at_vol"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::START" << std::endl;
 
   //
   // Reading arguments
@@ -2716,12 +2728,12 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
         &max_iter
       )
     ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   if (choice != 0) {
-    report_error(fname + "::choice != 0 is currently not supported");
+    raise_exception(fname + "::choice != 0 is currently not supported");
     return NULL;
   }
 
@@ -2739,16 +2751,14 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
 
-    #if defined(DEBUG)
-    std::cerr.precision(16);
-    std::cerr << fname << "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream <<  fname << "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
 
     aligned = (s[0] == 0);
     theta = std::asin(s[0]);
 
   } else {
-    report_error(fname + ":: This type of misalignment if not supported");
+    raise_exception(fname + ":: This type of misalignment if not supported");
     return NULL;
   }
 
@@ -2758,44 +2768,40 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
   double OmegaC, buf[3], volC[2];
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::calculate critical volume ...\n";
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::calculate critical volume ...\n";
 
   if (aligned)
     gen_roche::critical_area_volume(6, q, F, d, OmegaC, buf);
   else if (!misaligned_roche::critical_area_volume(6, q, F, d, theta, OmegaC, buf)) {
-    report_error(fname + ":: Calculation of critical_volume failed");
+    raise_exception(fname + ":: Calculation of critical_volume failed");
   }
 
   volC[0] = buf[1];
   volC[1] = buf[2];
 
-  #if defined(DEBUG)
-  std::cerr.precision(16);
-  std::cerr << fname
-    << "::OmegaC=" << OmegaC
-    << " volC=" << volC[0] << ":" << volC[1]
-    << " vol=" << vol << " aligned=" << aligned << '\n';
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname
+      << "::OmegaC=" << OmegaC << " volC=" << volC[0] << ":" << volC[1]
+      << " vol=" << vol << " aligned=" << aligned << '\n';
 
   if (std::abs(vol - volC[0]) <  precision*volC[0]){
-    #if defined(DEBUG)
-    std::cerr
-      << fname << "::Potential identical to L1\n"
-      << fname << "::END" << std::endl;
-    #endif
+
+    if (verbosity_level>=4)
+      report_stream
+        << fname + "::Potential identical to L1\n"
+        << fname + "::END" << std::endl;
+
     return PyFloat_FromDouble(OmegaC);    // Omega at L1 point
 
   } else if (vol > volC[0]){
-    report_error(fname + "::The volume is beyond critical");
+    raise_exception(fname + "::The volume is beyond critical");
 
-    std::cerr.precision(16);
-    std::cerr
-      << fname
-      << "::OmegaC=" << OmegaC << " volC=" << volC[0] << " dvolC/dOmega=" << volC[1] << '\n'
-      << fname
-      << "::vol=" << vol << " q=" << q << " F=" << F << " d=" << d << " theta=" << theta << '\n';
+    if (verbosity_level >=2)
+      report_stream
+        << fname + "::OmegaC=" << OmegaC << " volC=" << volC[0] << " dvolC/dOmega=" << volC[1] << '\n'
+        << fname + "::vol=" << vol << " q=" << q << " F=" << F << " d=" << d << " theta=" << theta << '\n';
+
     return NULL;
   }
 
@@ -2803,11 +2809,12 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   double dOmega1 = (vol - volC[0])/volC[1];
 
   if (std::abs(dOmega1) < precision*OmegaC){
-    #if defined(DEBUG)
-    std::cerr
-      << fname << "::Potential is very near to critical\n"
-      << fname << "::END" << std::endl;
-    #endif
+
+    if (verbosity_level>=4)
+      report_stream
+        << fname + "::Potential is very near to critical\n"
+        << fname + "::END" << std::endl;
+
     return PyFloat_FromDouble(OmegaC + dOmega1);
   }
   //
@@ -2818,10 +2825,8 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     // equivalent radius
     double  r = std::cbrt(0.75*vol/utils::m_pi);
 
-    #if defined(DEBUG)
-    std::cerr.precision(16);
-    std::cerr << fname << "::r=" << r << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname << "::r=" << r << '\n';
 
     // = Omega[r,0,0]
     Omega0 =
@@ -2837,16 +2842,14 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   // Checking estimate of the Omega0
   //
   if (Omega0 < OmegaC) {
-    report_error(fname + "::The estimated Omega is beyond critical.");
+    raise_exception(fname + "::The estimated Omega is beyond critical.");
     return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr.precision(16);
-  std::cerr << fname
-    << "::vol=" << vol << " q=" << q <<  " F=" << F << " Omega0=" << Omega0
-    << " d=" << d << " theta=" << theta << " choice=" << choice << std::endl;
-  #endif
+  if (verbosity_level>=4)
+      report_stream
+        << fname + "::vol=" << vol << " q=" << q <<  " F=" << F << " Omega0=" << Omega0
+        << " d=" << d << " theta=" << theta << " choice=" << choice << std::endl;
 
   //
   // Trying to calculate Omega at given volume
@@ -2874,19 +2877,18 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
     if (aligned) {      // Non-misaligned Roche lobes
       if (!gen_roche::lobe_xrange(xrange, choice, Omega, q, F, d, true)){
-        report_error(fname + "::Determining lobe's boundaries failed");
+        raise_exception(fname + "::Determining lobe's boundaries failed");
         return NULL;
       }
     } else {
       pole = misaligned_roche::poleL_height(Omega, q, F, d, std::sin(theta));
       if (pole < 0) {
-        report_error(fname + "Determining pole failed");
+        raise_exception(fname + "Determining pole failed");
         return NULL;
       }
 
-      #if defined(DEBUG)
-      std::cerr << fname << "::pole=" << pole << '\n';
-      #endif
+      if (verbosity_level>=4)
+        report_stream << fname + "::pole=" << pole << '\n';
     }
 
     do {
@@ -2927,11 +2929,11 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
             }
           }
 
-          #if defined(DEBUG)
-          std::cerr << fname
-            << "::m=" <<  m0 << " m0_next=" << m0_next
-            << " V[" << i << "]=" << V[i] << " e =" << e << '\n';
-          #endif
+          if (verbosity_level>=4)
+            report_stream << fname
+              << "::m=" <<  m0 << " m0_next=" << m0_next
+              << " V[" << i << "]=" << V[i] << " e =" << e << '\n';
+
         }
 
         if (adjust) m0 = m0_next; else break;
@@ -2953,27 +2955,24 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     // correction if the values are smaller than critical
     if (Omega < OmegaC) Omega = OmegaC - (dOmega = (volC[0] - vol)/volC[1]);
 
-    #if defined(DEBUG)
-    std::cerr << fname << "::Omega=" << Omega  << " dOmega=" << dOmega << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname + "::Omega=" << Omega  << " dOmega=" << dOmega << '\n';
 
   } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
 
   if (!(it < max_iter)){
-    report_error(fname + "::Maximum number of iterations exceeded");
+    raise_exception(fname + "::Maximum number of iterations exceeded");
     return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::final:Omega=" << Omega  << " dOmega=" << dOmega << '\n';
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname + "::final:Omega=" << Omega  << " dOmega=" << dOmega << '\n';
 
 
   // We use the condition on the argument (= Omega) ~ constraining backward error,
   // but we could also use condition on the value (= Volume) ~ constraing forward error
-  #if defined(DEBUG)
-  std::cerr << fname << "::END" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+      report_stream << fname << "::END" << std::endl;
 
   return PyFloat_FromDouble(Omega);
 }
@@ -3028,7 +3027,7 @@ static PyObject *sphere_Omega_at_vol(PyObject *self, PyObject *args, PyObject *k
         args, keywds,  "d", kwlist,
         &vol)
     ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3076,7 +3075,7 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
   PyArrayObject *X;
 
   if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X)) {
-    report_error("roche_gradOmega::Problem reading arguments");
+    raise_exception("roche_gradOmega::Problem reading arguments");
     return NULL;
   }
   p[3] = 0;
@@ -3133,7 +3132,7 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
   PyArrayObject *X;
 
   if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X)) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3216,7 +3215,7 @@ static PyObject *rotstar_misaligned_gradOmega(PyObject *self, PyObject *args) {
       &o_misalignment,
       &PyArray_Type, &X)
   ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3278,7 +3277,7 @@ static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
   PyArrayObject *X;
 
   if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &X)) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3341,9 +3340,8 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
 
   auto fname = "roche_misaligned_gradOmega"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::START" << std::endl;
 
   double p[7];
 
@@ -3355,7 +3353,7 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
         p, p + 1, p + 2,
         &o_misalignment,
         &PyArray_Type, &o_x)) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3385,7 +3383,7 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
     b.grad(x, g);
 
   } else {
-    report_error(fname + "::This type of misalignment is not supported");
+    raise_exception(fname + "::This type of misalignment is not supported");
     return NULL;
   }
 
@@ -3395,9 +3393,8 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
 
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::END" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::END" << std::endl;
 
   return pya;
 }
@@ -3438,7 +3435,7 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
   PyArrayObject *X;
 
   if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X)) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3489,7 +3486,7 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
   PyArrayObject *X;
 
   if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X)) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3570,7 +3567,7 @@ static PyObject *rotstar_misaligned_gradOmega_only(PyObject *self, PyObject *arg
       &o_misalignment,
       &PyArray_Type, &X)
   ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3625,7 +3622,7 @@ static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
   PyArrayObject *X;
 
   if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &X)) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
   double
@@ -3682,9 +3679,8 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
 
   auto fname = "roche_misaligned_gradOmega_only"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::START" << std::endl;
 
   double p[7];
 
@@ -3697,7 +3693,7 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
         &o_misalignment,
         &PyArray_Type, &o_x)
       ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3725,7 +3721,7 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
     Tmisaligned_roche<double> b(p);
     b.grad_only(x, g);
   } else {
-    report_error(fname + "::This type of misalignment is not supported");
+    raise_exception(fname + "::This type of misalignment is not supported");
     return NULL;
   }
 
@@ -3735,9 +3731,8 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
 
   PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::END" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::END" << std::endl;
 
   return res;
 }
@@ -3776,7 +3771,7 @@ static PyObject *roche_Omega(PyObject *self, PyObject *args) {
   PyArrayObject *X;
 
   if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X)){
-    report_error("roche_Omega::Problem reading arguments");
+    raise_exception("roche_Omega::Problem reading arguments");
     return NULL;
   }
 
@@ -3817,7 +3812,7 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
   PyArrayObject *X;
 
   if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X)) {
-    report_error("rotstar_Omega::Problem reading arguments");
+    raise_exception("rotstar_Omega::Problem reading arguments");
     return NULL;
   }
 
@@ -3879,7 +3874,7 @@ static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
        &o_misalignment,
        &PyArray_Type, &X)
   ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3898,7 +3893,7 @@ static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
     for (int i = 0; i < 3; ++i) p[i+1] = s[i];
 
   } else {
-    report_error(fname + "::This type of misalignment is not supported.");
+    raise_exception(fname + "::This type of misalignment is not supported.");
     return NULL;
   }
 
@@ -3938,7 +3933,7 @@ static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
   PyArrayObject *X;
 
   if (!PyArg_ParseTuple(args, "O!", p, &PyArray_Type, &X)) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -3979,9 +3974,8 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
 
   auto fname = "roche_misaligned_Omega"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::START" << std::endl;
 
   double p[7];
 
@@ -3993,7 +3987,7 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
        p, p + 1, p + 2,
        &o_misalignment,
        &PyArray_Type, &o_x)){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -4003,9 +3997,8 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
     p[3] = PyFloat_AsDouble(o_misalignment);
     p[4] = 0; // Omega0 = 0
 
-    #if defined(DEBUG)
-    std::cerr << fname << "::END" << std::endl;
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname << "::END" << std::endl;
 
     Tmisaligned_rotated_roche<double> b(p);
     return PyFloat_FromDouble(-b.constrain(x));
@@ -4019,19 +4012,17 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
     p[5] = s[2];
     p[6] = 0; // Omega0 = 0
 
-    #if defined(DEBUG)
-    std::cerr << fname << "::END" << std::endl;
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname << "::END" << std::endl;
 
     Tmisaligned_roche<double> b(p);
     return PyFloat_FromDouble(-b.constrain(x));
   }
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::END" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::END" << std::endl;
 
-  report_error(fname + "::This type of misalignment is not supported");
+  raise_exception(fname + "::This type of misalignment is not supported");
   return NULL;
 }
 #if defined(DEBUG)
@@ -4236,7 +4227,8 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       &PyBool_Type, &o_volume,
       &init_phi
       )) {
-    std::cerr << fname << "::Problem reading arguments\n";
+    
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -4260,7 +4252,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   PyObject *results = PyDict_New();
 
   if (choice < 0 || choice > 2){
-    report_error(fname + "::This choice is not supported");
+    raise_exception(fname + "::This choice is not supported");
     return NULL;
   }
 
@@ -4271,17 +4263,15 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   double r[3], g[3];
 
   if (!gen_roche::meshing_start_point(r, g, choice, Omega0, q, F, d)){
-    report_error(fname + "::Determining initial meshing point failed");
+    raise_exception(fname + "::Determining initial meshing point failed");
     return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr.precision(16);
-  std::cerr
-    << "choice=" << choice << '\n'
-    << "r=" << r[0] << " " <<  r[1] << " " << r[2] << '\n'
-    << "g=" << g[0] << " " <<  g[1] << " " << g[2] << '\n';
-  #endif
+  if (verbosity_level>=4)
+    report_stream
+      << fname <<  "::choice=" << choice << '\n'
+      << "r=" << r[0] << " " <<  r[1] << " " << r[2] << '\n'
+      << "g=" << g[0] << " " <<  g[1] << " " << g[2] << '\n';
 
   //
   //  Marching triangulation of the Roche lobe
@@ -4289,17 +4279,12 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
 
   double params[4] = {q, F, d, Omega0};
 
-  #if defined(DEBUG)
-  std::cerr.precision(16);
-  std::cerr
-    << "q=" << q
-    << " F=" << F
-    << " d=" << d
-    << " Omega0=" << Omega0
-    << " delta=" << delta
-    << " full=" << b_full
-    << " max_triangles=" << max_triangles <<'\n';
-  #endif
+  if (verbosity_level>=4)
+    report_stream
+      << fname << "::q=" << q
+      << " F=" << F << " d=" << d
+      << " Omega0=" << Omega0 << " delta=" << delta
+      << " full=" << b_full << " max_triangles=" << max_triangles <<'\n';
 
   Tmarching<double, Tgen_roche<double>> march(params);
 
@@ -4317,18 +4302,17 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
 
   switch(error) {
     case 1:
-      PyErr_SetString(PyExc_TypeError, "There are too many triangles!");
+      raise_exception("There are too many triangles!");
       return NULL;
     case 2:
-      PyErr_SetString(PyExc_TypeError, "Projections are failing!");
+      raise_exception("Projections are failing!");
       return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr
-    << "V.size=" << V.size()
-    << " Tr.size=" << Tr.size() << '\n';
-  #endif
+  if (verbosity_level >=4)
+    report_stream << fname
+      << "::V.size=" << V.size()
+      << " Tr.size=" << Tr.size() << '\n';
 
   //
   // Calculte the mesh properties
@@ -4526,9 +4510,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
 
   auto fname = "rotstar_marching_mesh"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::START" << std::endl;
 
   //
   // Reading arguments
@@ -4610,15 +4593,12 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
       &init_phi,
       &PyArray_Type, &o_init_dir)
   ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr
-      << fname << "::Read params\n"
-      << " Omega=" << Omega0 << " omega=" << omega << " delta=" << delta << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::Omega=" << Omega0 << " omega=" << omega << " delta=" << delta << std::endl;
 
   if (o_full) b_full = PyObject_IsTrue(o_full);
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
@@ -4642,7 +4622,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   // Check if the lobe exists
   //
   if (27*utils::sqr(omega)/(8*utils::cube(Omega0)) > 1){
-    report_error(fname + "::The lobe does not exist.");
+    raise_exception(fname + "::The lobe does not exist.");
     return NULL;
   }
 
@@ -4657,29 +4637,25 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   // Getting initial meshing point
   //
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::Point on surface" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::Point on surface" << std::endl;
 
   double r[3], g[3];
   //rot_star::meshing_start_point(r, g, Omega0, omega);
   rot_star::point_on_surface(Omega0, omega, init_dir[0], init_dir[1], r, g);
 
-  #if defined(DEBUG)
-  std::cerr
-    << fname << "\n"
-    << "r=" << r[0] << " " << r[1] << " " << r[2]
-    << "g=" << g[0] << " " << g[1] << " " << g[2]
-    << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname
+      << "::r=" << r[0] << " " << r[1] << " " << r[2]
+      << "g=" << g[0] << " " << g[1] << " " << g[2]
+      << std::endl;
 
   //
   //  Marching triangulation of the Roche lobe
   //
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::Marching" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::Marching" << std::endl;
 
   double params[3] = {omega, Omega0};
 
@@ -4699,16 +4675,16 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
 
   switch(error) {
     case 1:
-      PyErr_SetString(PyExc_TypeError, "There are too many triangles!");
+      raise_exception("There are too many triangles!");
       return NULL;
     case 2:
-      PyErr_SetString(PyExc_TypeError, "Projections are failing!");
+      raise_exception("Projections are failing!");
       return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::Outputing" << std::endl;
-  #endif
+  if (verbosity_level >= 4)
+    report_stream << fname << "::Outputing" << std::endl;
+
   //
   // Calculate the mesh properties
   //
@@ -4800,9 +4776,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     delete GatC;
   }
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::END\n";
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::END\n";
 
   return results;
 }
@@ -4929,9 +4904,8 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
 
   auto fname = "rotstar_misaligned_marching_mesh"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream  << fname << "::START" << std::endl;
 
   //
   // Reading arguments
@@ -5016,7 +4990,7 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
       &init_phi,
       &PyArray_Type, &o_init_dir)
   ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -5042,7 +5016,7 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
   // Check if the lobe exists
   //
   if (27*utils::sqr(omega)/(8*utils::cube(Omega0)) > 1){
-    report_error(fname + "::The lobe does not exist.");
+    raise_exception(fname + "::The lobe does not exist.");
     return NULL;
   }
 
@@ -5064,7 +5038,7 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
     for (int i = 0; i < 3; ++i) spin[i] = s[i];
 
   } else {
-    report_error(fname + "::This type of misalignment is not supported.");
+    raise_exception(fname + "::This type of misalignment is not supported.");
     return NULL;
   }
 
@@ -5105,10 +5079,10 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
 
   switch(error) {
     case 1:
-      PyErr_SetString(PyExc_TypeError, "There are too many triangles!");
+      raise_exception("There are too many triangles!");
       return NULL;
     case 2:
-      PyErr_SetString(PyExc_TypeError, "Projections are failing!");
+      raise_exception("Projections are failing!");
       return NULL;
   }
 
@@ -5203,9 +5177,8 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
     delete GatC;
   }
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::END" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::END" << std::endl;
 
   return results;
 }
@@ -5395,7 +5368,7 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
       &PyBool_Type, &o_volume,
       &init_phi
       )) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -5443,10 +5416,10 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
 
   switch(error) {
     case 1:
-      PyErr_SetString(PyExc_TypeError, "There are too many triangles!");
+      raise_exception("There are too many triangles!");
       return NULL;
     case 2:
-      PyErr_SetString(PyExc_TypeError, "Projections are failing!");
+      raise_exception("Projections are failing!");
       return NULL;
   }
 
@@ -5703,9 +5676,8 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
 
   auto fname = "roche_misaligned_marching_mesh"_s;
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::START" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::START" << std::endl;
 
   //
   // Reading arguments
@@ -5793,7 +5765,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
         &init_phi
       )) {
 
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -5817,7 +5789,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   PyObject *results = PyDict_New();
 
   if (choice < 0 || choice > 2){
-    report_error(fname + "::This choice is not supported.");
+    raise_exception(fname + "::This choice is not supported.");
     return NULL;
   }
 
@@ -5845,35 +5817,32 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     // we could work with s[0]==0, calculate aligned case make simple
     // rotation around x-axis
 
-    #if defined(DEBUG)
-    std::cerr << "spin:"
-      << s[0] << ' ' << s[1] << ' ' << s[2]
-      << " Omega:" <<  Omega0
-      << " q=" << q
-      << " F=" << F
-      << " d=" << d
-      << " delta =" << delta << '\n'
-      << " full=" << b_full
-      << " max_triangles=" << max_triangles <<'\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname
+        << "::spin:" << s[0] << ' ' << s[1] << ' ' << s[2]
+        << " Omega:" <<  Omega0
+        << " q=" << q
+        << " F=" << F
+        << " d=" << d
+        << " delta =" << delta << '\n'
+        << " full=" << b_full
+        << " max_triangles=" << max_triangles <<'\n';
 
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, s);
     rotated = false;
 
-    #if defined(DEBUG)
-      std::cerr << "r="
-        << r[0] << ' ' << r[1] << ' ' << r[2]
-        << " g="
-        << g[0] << ' ' << g[1] << ' ' << g[2] << '\n';
-    #endif
+    if (verbosity_level>=4)
+      report_stream << fname
+        << "::r=" << r[0] << ' ' << r[1] << ' ' << r[2]
+        << " g=" << g[0] << ' ' << g[1] << ' ' << g[2] << '\n';
 
   } else {
-    report_error(fname + "::This type of misalignment is not supported.");
+    raise_exception(fname + "::This type of misalignment is not supported.");
     return NULL;
   }
 
   if (!ok || s == 0){
-    report_error(fname + "::Determining initial meshing point failed.");
+    raise_exception(fname + "::Determining initial meshing point failed.");
     return NULL;
   }
 
@@ -5933,36 +5902,30 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   }
 
 
-  if (error) {
-
-    std::cerr.precision(16);
-    std::cerr
-      << "Parameters: q=" << q << " F=" << F
+  if (error && verbosity_level>=2) {
+    report_stream << fname
+      << "::q=" << q << " F=" << F
       << " d=" << d << " Omega0=" << Omega0
       << " delta=" << delta << " full=" << b_full
       << " max_triangles=" << max_triangles <<'\n';
 
     if (rotated)
-      std::cerr << " theta=" << theta << '\n';
+      report_stream << fname << " theta=" << theta << '\n';
     else
-      std::cerr << " s=(" << s[0] << ',' << s[1] << ',' << s[2] << ")\n";
+      report_stream << fname << " s=(" << s[0] << ',' << s[1] << ',' << s[2] << ")\n";
   }
 
   switch(error) {
     case 1:
-      PyErr_SetString(PyExc_TypeError, "There are too many triangles!");
+      raise_exception("There are too many triangles!");
       return NULL;
     case 2:
-      PyErr_SetString(PyExc_TypeError, "Projections are failing!");
+      raise_exception("Projections are failing!");
       return NULL;
   }
 
-
-  #if defined(DEBUG)
-  std::cerr
-    << "V.size=" << V.size()
-    << " Tr.size=" << Tr.size() << '\n';
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::V.size=" << V.size() << " Tr.size=" << Tr.size() << '\n';
 
   //
   // Calculte the mesh properties
@@ -6033,9 +5996,8 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     delete GatC;
   }
 
-  #if defined(DEBUG)
-  std::cerr << fname << "::END" << std::endl;
-  #endif
+  if (verbosity_level>=4)
+    report_stream << fname << "::END" << std::endl;
 
   return results;
 }
@@ -6131,7 +6093,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
         &PyBool_Type, &o_horizon
         )
       ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -6146,7 +6108,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
       !PyArray_ISCONTIGUOUS(oT)||
       !PyArray_ISCONTIGUOUS(oN)) {
 
-    report_error(fname + "::Input numpy arrays are not C-contiguous");
+    raise_exception(fname + "::Input numpy arrays are not C-contiguous");
     return NULL;
   }
 
@@ -6262,7 +6224,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
         &PyArray_Type, &oT,
         &PyArray_Type, &oN)){
 
-    report_error("mesh_rough_visibility::Problem reading arguments");
+    raise_exception("mesh_rough_visibility::Problem reading arguments");
     return NULL;
   }
 
@@ -6413,7 +6375,7 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_curvature
       )){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -6441,7 +6403,7 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
        !mesh_offseting_matching_area_curvature(area, V, NatV, Tr, max_iter):
        !mesh_offseting_matching_area(area, V, NatV, Tr, max_iter) ){
 
-    report_error(fname + "::Offseting failed");
+    raise_exception(fname + "::Offseting failed");
     return NULL;
   }
 
@@ -6571,7 +6533,7 @@ static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywd
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_volume
       )){
-    report_error("mesh_properties::Problem reading arguments");
+    raise_exception("mesh_properties::Problem reading arguments");
     return NULL;
   }
 
@@ -6726,7 +6688,7 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
       &PyBool_Type, &o_plane_enable,
       &PyFloat_Type, &o_plane_height)){
 
-    report_error("mesh_export_povray::Problem reading arguments");
+    raise_exception("mesh_export_povray::Problem reading arguments");
     return NULL;
   }
 
@@ -6805,21 +6767,22 @@ bool LDmodelFromTuple(
   PyObject *p,
   TLDmodel<double> * & pmodel) {
 
+  auto fname = "LDmodelFromTuple"_s;
+  
   if (!PyTuple_CheckExact(p)) {
-    std::cerr
-      << "LDmodelFromTuple::LD model description is not a tuple.\n";
+    if (verbosity_level >=2) report_stream << fname + "::LD model description is not a tuple.\n";
     return false;
   }
 
   if (PyTuple_Size(p) == 0) {
-    std::cerr << "LDmodelFromTuple::LD model tuple is empty.\n";
+    if (verbosity_level >=2) report_stream << fname + "::LD model tuple is empty.\n";
     return false;
   }
 
   PyObject *s = PyTuple_GetItem(p, 0);
 
   if (!PyString_Check(s)) {
-    std::cerr << "LDmodelFromTuple::LD model name is not string.\n";
+    if (verbosity_level >=2) report_stream << fname + "::LD model name is not string.\n";
     return false;
   }
 
@@ -6864,7 +6827,9 @@ bool LDmodelFromTuple(
       return true;
   }
 
-  std::cerr << "LDmodelFromTuple::Don't know to handle this LD model.\n";
+  if (verbosity_level >=2)
+    report_stream << fname + "::Don't know to handle this LD model.\n";
+  
   return false;
 }
 
@@ -7011,7 +6976,7 @@ static PyObject *mesh_radiosity_problem(
       &epsF,
       &max_iter)){
 
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -7022,7 +6987,7 @@ static PyObject *mesh_radiosity_problem(
   std::vector<TLDmodel<double>*> LDmod;
 
   if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-    report_error(fname +  "::Not able to read LD models");
+    raise_exception(fname +  "::Not able to read LD models");
     return NULL;
   }
 
@@ -7061,7 +7026,7 @@ static PyObject *mesh_radiosity_problem(
       break;
 
       default:
-        report_error(fname + "::This support type is not supported");
+        raise_exception(fname + "::This support type is not supported");
       return NULL;
     }
   }
@@ -7098,12 +7063,12 @@ static PyObject *mesh_radiosity_problem(
         break;
 
       default:
-        report_error(fname + "::This radiosity model =" + std::string(s) + " does not exist");
+        raise_exception(fname + "::This radiosity model =" + std::string(s) + " does not exist");
         return NULL;
     }
 
     if (!success)
-      report_error(fname + "::slow convergence");
+      raise_exception(fname + "::slow convergence");
   }
 
   return PyArray_FromVector(F);
@@ -7231,7 +7196,7 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
         &epsF,
         &max_iter)
       ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -7242,7 +7207,7 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
   std::vector<TLDmodel<double>*> LDmod;
 
   if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-    report_error(fname + "::Not able to read LD models");
+    raise_exception(fname + "::Not able to read LD models");
     return NULL;
   }
 
@@ -7253,7 +7218,7 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
   int n = LDmod.size();
 
   if (n <= 1){
-    report_error(fname + "::There seem to just n=" + std::to_string(n) + " bodies.");
+    raise_exception(fname + "::There seem to just n=" + std::to_string(n) + " bodies.");
     return NULL;
   }
 
@@ -7296,7 +7261,7 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
         break;
 
       default:
-        report_error(fname + "::This support type is not supported");
+        raise_exception(fname + "::This support type is not supported");
         return NULL;
     }
   }
@@ -7325,11 +7290,11 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
       break;
 
       default:
-        report_error(fname + "::This radiosity model ="+ std::string(s) + " does not exist");
+        raise_exception(fname + "::This radiosity model ="+ std::string(s) + " does not exist");
         return NULL;
     }
 
-    if (!success) report_error(fname + "::slow convergence");
+    if (!success) raise_exception(fname + "::slow convergence");
   }
 
 
@@ -7494,7 +7459,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex_setup(
         &PyBool_Type, &o_use_stored,      // neccesary
         &PyBool_Type, &o_reset)
       ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -7569,7 +7534,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
       &epsF,
       &max_iter)){
 
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -7580,7 +7545,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
   int nb = PyList_Size(oF0);
 
   if (nb <= 1){
-    report_error(fname + "::There seem to just n=" + std::to_string(nb) + " bodies.");
+    raise_exception(fname + "::There seem to just n=" + std::to_string(nb) + " bodies.");
     return NULL;
   }
 
@@ -7629,7 +7594,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
         case "vertices"_hash32: support = vertices; break;
 
         default:
-          report_error(fname + "::This support type = " + std::string(s) + "is not supported");
+          raise_exception(fname + "::This support type = " + std::string(s) + "is not supported");
           return NULL;
       }
     }
@@ -7685,7 +7650,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
 
 
         if (!Dmat[b].init<Tlinear_edge> (support, V[b], Tr[b], N[b], A[b], Dpars, Dweights)){
-           report_error(fname + "::Redistribution matrix calculation failed");
+           raise_exception(fname + "::Redistribution matrix calculation failed");
            return NULL;
         }
 
@@ -7699,17 +7664,16 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
     std::vector<TLDmodel<double>*> LDmod;
 
     if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-      report_error(fname + "::Not able to read LD models");
+      raise_exception(fname + "::Not able to read LD models");
       return NULL;
     }
 
-    #if defined(DEBUG)
-    {
+    if (verbosity_level>=4){
       int i = 0;
       for (auto && pld: LDmod)
-        std::cerr << i++ << " LD:type=" << pld->type << '\n';
+        report_stream  << fname << "::" << i++ << " LD:type=" << pld->type << '\n';
     }
-    #endif
+
 
     //
     // Calculate view-factor matrices
@@ -7763,7 +7727,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
       break;
 
       default:
-        report_error(fname +
+        raise_exception(fname +
           "::This radiosity-redistribution model =" +
           std::string(s) + " does not exist");
         return NULL;
@@ -7771,7 +7735,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
 
     if (only_reflection) F1 = F0;  // nothing happens to exitance !!!!
 
-    if (!st) report_error(fname + "::slow convergence");
+    if (!st) raise_exception(fname + "::slow convergence");
   }
 
   PyObject *results = PyDict_New();
@@ -7877,7 +7841,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
       &PyBool_Type, &o_cnormals,
       &PyBool_Type, &o_cnormgrads
       )){
-    report_error("roche_central_points::Problem reading arguments");
+    raise_exception("roche_central_points::Problem reading arguments");
     return NULL;
   }
 
@@ -8033,7 +7997,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
       &PyBool_Type, &o_vnormgrads,
       &max_iter)){
 
-    report_error("roche_reprojecting_vertices::Problem reading arguments");
+    raise_exception("roche_reprojecting_vertices::Problem reading arguments");
     return NULL;
   }
 
@@ -8157,7 +8121,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
       &q, &F, &d, &Omega0,
       &length,
       &choice)){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -8171,7 +8135,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
   //  Find a point on horizon
   //
   if (!gen_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, max_iter)) {
-    report_error(fname + "::Convergence to the point on horizon failed");
+    raise_exception(fname + "::Convergence to the point on horizon failed");
     return NULL;
   }
 
@@ -8194,7 +8158,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
   std::vector<T3Dpoint<double>> H;
 
   if (!horizon.calc(H, view, p, dt)) {
-   report_error(fname + "::Convergence to the point on horizon failed");
+   raise_exception(fname + "::Convergence to the point on horizon failed");
     return NULL;
   }
 
@@ -8253,7 +8217,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
       &PyArray_Type, &oV,
       &omega, &Omega0,
       &length)){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -8267,7 +8231,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
   //  Find a point on horizon
   //
   if (!rot_star::point_on_horizon(p, view, Omega0, omega)) {
-    report_error(fname + "::Convergence to the point on horizon failed");
+    raise_exception(fname + "::Convergence to the point on horizon failed");
     return NULL;
   }
 
@@ -8286,7 +8250,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
   std::vector<T3Dpoint<double>> H;
 
   if (!horizon.calc(H, view, p, dt)) {
-    report_error(fname + "::Convergence to the point on horizon failed");
+    raise_exception(fname + "::Convergence to the point on horizon failed");
     return NULL;
   }
 
@@ -8370,7 +8334,7 @@ static PyObject *rotstar_misaligned_horizon(PyObject *self, PyObject *args, PyOb
       pars + 4,
       &length)
   ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -8389,7 +8353,7 @@ static PyObject *rotstar_misaligned_horizon(PyObject *self, PyObject *args, PyOb
     for (int i = 0; i < 3; ++i) pars[1+i] = s[i];
 
   } else {
-    report_error(fname + "::This type of misalignment is not supported.");
+    raise_exception(fname + "::This type of misalignment is not supported.");
     return NULL;
   }
 
@@ -8399,7 +8363,7 @@ static PyObject *rotstar_misaligned_horizon(PyObject *self, PyObject *args, PyOb
   double p[3];
 
   if (!rot_star::point_on_horizon(p, view, pars[4], pars[0], pars+1)) {
-    report_error(fname + "::Convergence to the point on horizon failed");
+    raise_exception(fname + "::Convergence to the point on horizon failed");
     return NULL;
   }
 
@@ -8418,7 +8382,7 @@ static PyObject *rotstar_misaligned_horizon(PyObject *self, PyObject *args, PyOb
   std::vector<T3Dpoint<double>> H;
 
   if (!horizon.calc(H, view, p, dt)) {
-    report_error(fname + "::Convergence to the point on horizon failed");
+    raise_exception(fname + "::Convergence to the point on horizon failed");
     return NULL;
   }
 
@@ -8496,8 +8460,7 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
         &q, &F, &d, &o_misalignment, &Omega0,
         &length, &choice)
   ){
-
-    report_error(fname + "::Problem reading arguments.");
+    raise_exception(fname + "::Problem reading arguments.");
     return NULL;
   }
 
@@ -8528,12 +8491,12 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
     ok = misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, s, max_iter);
     rotated = false;
   } else {
-    report_error(fname + "::This type of misalignment is not supported.");
+    raise_exception(fname + "::This type of misalignment is not supported.");
     return NULL;
   }
 
   if (!ok) {
-    report_error(fname + "::Convergence to the point on horizon failed.");
+    raise_exception(fname + "::Convergence to the point on horizon failed.");
     return NULL;
   }
 
@@ -8568,7 +8531,7 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
   }
 
   if (!ok) {
-    report_error(fname + "::Finding horizon failed.");
+    raise_exception(fname + "::Finding horizon failed.");
     return NULL;
   }
 
@@ -8627,20 +8590,19 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "dddd|i", kwlist,
       &q, &F, &d, &Omega0, &choice)){
-
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   if (choice < 0 || choice > 2) {
-    report_error(fname + "::This choice of computation is not supported");
+    raise_exception(fname + "::This choice of computation is not supported");
     return NULL;
   }
 
   double xrange[2];
 
   if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, d, true)){
-    report_error(fname + "::Determining lobe's boundaries failed");
+    raise_exception(fname + "::Determining lobe's boundaries failed");
     return NULL;
   }
 
@@ -8755,12 +8717,12 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
       &PyBool_Type, &o_boundary_list,
       &PyBool_Type, &o_boundary_mark
       )){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   if (choice < 0 || choice > 2) {
-    report_error(fname + "::This choice is not supported");
+    raise_exception(fname + "::This choice is not supported");
     return NULL;
   }
 
@@ -8775,7 +8737,7 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
     else if (size == sizeof(long))
       for (int i = 0; i < 3; ++i) dims[i] = ((long*)p)[i];
     else  {
-      report_error(fname + "::This type of dims is not supported");
+      raise_exception(fname + "::This type of dims is not supported");
       return NULL;
     }
   }
@@ -8792,7 +8754,7 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
   bool checks = true;
   // x - range
   if (!gen_roche::lobe_xrange(ranges[0], choice, Omega0, q, F, d, checks)) {
-    report_error(fname + "::Failed to obtain xrange");
+    raise_exception(fname + "::Failed to obtain xrange");
     return NULL;
   }
 
@@ -9128,14 +9090,14 @@ static PyObject *ld_D(PyObject *self, PyObject *args, PyObject *keywds) {
         &PyString_Type, &o_descr,
         &PyArray_Type,  &o_params)
       ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   TLDmodel_type type = LD::type(PyString_AsString(o_descr));
 
   if (type == NONE) {
-    report_error(fname + "::This model is not supported");
+    raise_exception(fname + "::This model is not supported");
     return NULL;
   }
 
@@ -9194,14 +9156,14 @@ static PyObject *ld_D0(PyObject *self, PyObject *args, PyObject *keywds) {
         &PyString_Type, &o_descr,
         &PyArray_Type,  &o_params)
       ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   TLDmodel_type type = LD::type(PyString_AsString(o_descr));
 
   if (type == NONE) {
-    report_error(fname + "::This model is not supported");
+    raise_exception(fname + "::This model is not supported");
     return NULL;
   }
 
@@ -9267,14 +9229,14 @@ static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
         &PyString_Type, &o_descr,
         &PyArray_Type,  &o_params)
       ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   TLDmodel_type type = LD::type(PyString_AsString(o_descr));
 
   if (type == NONE) {
-    report_error(fname + "::This model is not supported");
+    raise_exception(fname + "::This model is not supported");
     return NULL;
   }
 
@@ -9340,14 +9302,14 @@ static PyObject *ld_nrpar(PyObject *self, PyObject *args, PyObject *keywds) {
   if (!PyArg_ParseTupleAndKeywords(args, keywds,  "O!", kwlist,
         &PyString_Type, &o_descr)
       ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   TLDmodel_type type = LD::type(PyString_AsString(o_descr));
 
   if (type == NONE) {
-    report_error(fname + "::This model is not supported");
+    raise_exception(fname + "::This model is not supported");
     return NULL;
   }
 
@@ -9404,14 +9366,14 @@ static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {
         &PyString_Type, &o_descr,
         &PyArray_Type,  &o_params)
       ){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
   TLDmodel_type type = LD::type(PyString_AsString(o_descr));
 
   if (type == NONE) {
-    report_error(fname + "::This model is not supported");
+    raise_exception(fname + "::This model is not supported");
     return NULL;
   }
 
@@ -9462,7 +9424,7 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
       &PyString_Type, &ofilename_atm)
       ) {
 
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -9502,7 +9464,7 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
   // Checks
   //
   if (len[0] != wd_atm::N_planck || len[1] != wd_atm::N_atm) {
-    report_error(fname + "::Problem reading data");
+    raise_exception(fname + "::Problem reading data");
     delete [] planck_table;
     delete [] atm_table;
     return NULL;
@@ -9567,7 +9529,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
         args, keywds, "diO!", kwlist,
         &t, &ifil, &PyArray_Type, &oplanck_table
       )) {
-    report_error("wd_planckint::Problem reading arguments");
+    raise_exception("wd_planckint::Problem reading arguments");
     return NULL;
   }
 
@@ -9657,7 +9619,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
         &ot, &ifil, &PyArray_Type, &oplanck_table)
       ) {
 
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
 
     return NULL;
   }
@@ -9675,7 +9637,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     if (wd_atm::planckint_onlylog(t, ifil, planck_table, ylog))
       return PyFloat_FromDouble(ylog);
     else {
-      report_error(fname + "::Failed to calculate Planck central intensity");
+      raise_exception(fname + "::Failed to calculate Planck central intensity");
       return PyFloat_FromDouble(std::nan(""));
     }
 
@@ -9687,7 +9649,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     int n = PyArray_DIM((PyArrayObject *)ot, 0);
 
     if (n == 0) {
-      report_error(fname + "::Arrays of zero length");
+      raise_exception(fname + "::Arrays of zero length");
       return NULL;
     }
 
@@ -9721,12 +9683,12 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
       }
 
     if (!ok)
-      report_error(fname + "::Failed to calculate Planck central intensity at least once");
+      raise_exception(fname + "::Failed to calculate Planck central intensity at least once");
 
     return oresults;
   }
 
-  report_error(fname + "::This type of temperature input is not supported");
+  raise_exception(fname + "::This type of temperature input is not supported");
   return NULL;
 }
 
@@ -9792,7 +9754,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         &PyArray_Type, &oatm_table
       )) {
 
-    report_error("wd_atmint::Problem reading arguments\n");
+    raise_exception("wd_atmint::Problem reading arguments\n");
     return NULL;
   }
 
@@ -9896,7 +9858,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         &PyArray_Type, &oatm_table,
         &PyBool_Type, &oreturn_abunin
       )) {
-    report_error(fname + "::Problem reading arguments\n");
+    raise_exception(fname + "::Problem reading arguments\n");
     return NULL;
   }
 
@@ -9925,7 +9887,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     n = PyArray_DIM((PyArrayObject *)ot, 0);
 
     if (n == 0) {
-      report_error(fname + "::Arrays are of zero length");
+      raise_exception(fname + "::Arrays are of zero length");
       return NULL;
     }
 
@@ -9935,7 +9897,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     pabunin = (double*)PyArray_DATA((PyArrayObject *)oabunin);
 
   } else {
-    report_error(fname + "::This type of temperature input is not supported");
+    raise_exception(fname + "::This type of temperature input is not supported");
     return NULL;
   }
 
@@ -9972,7 +9934,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
 
       // do calculation
       if (!wd_atm::atmx_onlylog(t, logg, r[1], ifil, planck_table, atm_table, r[0])) {
-        report_error(fname + "::Failed to calculate logarithm of intensity");
+        raise_exception(fname + "::Failed to calculate logarithm of intensity");
         r[0] = std::nan("");
       }
 
@@ -10003,7 +9965,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       }
 
       if (!ok)
-        report_error(fname + "::Failed to calculate logarithm of intensity at least once");
+        raise_exception(fname + "::Failed to calculate logarithm of intensity at least once");
     }
 
 
@@ -10020,7 +9982,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       if (wd_atm::atmx_onlylog(t, logg, abunin, ifil, planck_table, atm_table, r))
         oresults = PyFloat_FromDouble(r);
       else {
-        report_error(fname + "::Failed to calculate logarithm of intensity");
+        raise_exception(fname + "::Failed to calculate logarithm of intensity");
         oresults = PyFloat_FromDouble(std::nan(""));
       }
 
@@ -10053,7 +10015,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       }
 
       if (!ok)
-        report_error(fname + "::Failed to calculate logarithm of intensity at least once");
+        raise_exception(fname + "::Failed to calculate logarithm of intensity at least once");
     }
   }
 
@@ -10125,7 +10087,7 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
       &PyTuple_Type, &o_axes,
       &PyArray_Type, &o_grid)) {
 
-    report_error("interp::argument type mismatch: req and grid need to be numpy arrays and axes a tuple of numpy arrays.");
+    raise_exception("interp::argument type mismatch: req and grid need to be numpy arrays and axes a tuple of numpy arrays.");
 
     return NULL;
   }
@@ -10136,8 +10098,8 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
 
   if (!o_req1 ||!o_grid1) {
 
-    if (!o_req1) report_error("interp::req failed transformation to IN_ARRAY");
-    if (!o_grid1) report_error("interp::grid failed transformation to IN_ARRAY");
+    if (!o_req1) raise_exception("interp::req failed transformation to IN_ARRAY");
+    if (!o_grid1) raise_exception("interp::grid failed transformation to IN_ARRAY");
 
     Py_DECREF(o_req1);
     Py_DECREF(o_grid1);
@@ -10224,7 +10186,7 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
         &PyArray_Type, &o_x,
         &PyArray_Type, &o_y)
       ){
-    report_error(fname +  "::Problem reading arguments");
+    raise_exception(fname +  "::Problem reading arguments");
     return NULL;
   }
 
@@ -10315,7 +10277,7 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
 
     ldvolume: dvolume/dOmega of the left or right Roche lobe
       float:
-      
+
     larea: area of the left or right Roche lobe
       float:
 */
@@ -10363,7 +10325,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
       )
     ) {
 
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -10378,23 +10340,21 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   }
 
   if (res_choice == 0) {
-    report_error(fname + "::Nothing is computed.");
+    raise_exception(fname + "::Nothing is computed.");
     return NULL;
   }
 
   if (choice != 1 && choice != 2){
-    report_error(fname + "::This choice of sides is not possible.");
+    raise_exception(fname + "::This choice of sides is not possible.");
     return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr.precision(16);
-  std::cerr
-    << "q=" << q
-    << " d=" << d
-    << " Omega0=" << Omega0
-    << " res_choice=" << res_choice << '\n';
-  #endif
+  if (verbosity_level >=4)
+    report_stream << fname
+      << ":: q=" << q
+      << " d=" << d
+      << " Omega0=" << Omega0
+      << " res_choice=" << res_choice << '\n';
 
   //
   // Choosing boundaries on x-axis
@@ -10403,16 +10363,15 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   double xrange0[2], xrange[2];
 
   if (!gen_roche::lobe_xrange(xrange0, 2, Omega0, q, 1., d, true)){
-    report_error(fname + "Determining lobe's boundaries failed");
+    raise_exception(fname + "Determining lobe's boundaries failed");
     return NULL;
   }
 
-  #if defined(DEBUG)
-  std::cerr << "xrange=" << xrange0[0] << ':' <<  xrange0[1] << '\n';
-  #endif
+  if (verbosity_level >=4)
+    report_stream << fname << "xrange=" << xrange0[0] << ':' <<  xrange0[1] << '\n';
 
   if (x < xrange0[0] || xrange0[1] < x) {
-    report_error(fname + "::Plane cutting lobe is outside xrange.");
+    raise_exception(fname + "::Plane cutting lobe is outside xrange.");
     return NULL;
   }
 
@@ -10439,11 +10398,6 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
 
   double r[3], p[2][3], e, t;
 
-  #if defined(DEBUG)
-  std::cerr.precision(16);
-  std::cerr << std::scientific;
-  #endif
-
   //
   // one step adjustment of precison for area and volume
   // calculation
@@ -10455,9 +10409,8 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
 
       gen_roche::area_volume_directed_integration(p[i], res_choice, dir, xrange, Omega0, q, 1., d, m, polish);
 
-      #if defined(DEBUG)
-      std::cerr << "m=" << m << " P:" << p[i][0] << '\t' << p[i][1] << '\t' << p[i][2] << '\n';
-      #endif
+      if (verbosity_level >=4)
+        report_stream  << fname << "::m=" << m << " P:" << p[i][0] << '\t' << p[i][1] << '\t' << p[i][2] << '\n';
     }
 
     if (adjust) {
@@ -10477,9 +10430,8 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
         // relative error
         e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
 
-        #if defined(DEBUG)
-        std::cerr << "err=" << e << " m0=" << m0 << '\n';
-        #endif
+        if (verbosity_level >=4)
+          report_stream  << fname << "::err=" << e << " m0=" << m0 << '\n';
 
         if (e > eps[i]) {
           int k = int(1.1*m0*std::pow(e/eps[i], 0.25));
@@ -10496,10 +10448,10 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
 
       // best approximation
       for (int i = 0; i < 3; ++i) if (b_r[i]) {
-          r[i] = (16*p[1][i] - p[0][i])/15;
-          #if defined(DEBUG)
-          std::cerr << "B:" << i << ":" << r[i] << '\n';
-          #endif
+        r[i] = (16*p[1][i] - p[0][i])/15;
+
+        if (verbosity_level >=4)
+          report_stream  << fname << "::B:" << i << ":" << r[i] << '\n';
       }
       break;
     }
@@ -10559,7 +10511,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
 
     xmin: position of minimum
       float:
-  
+
 */
 
 //#define DEBUG
@@ -10585,7 +10537,7 @@ static PyObject *roche_contact_neck_min(PyObject *self, PyObject *args, PyObject
         args, keywds,  "dddd", kwlist,
         &q, &d, &Omega0, &phi)
     ) {
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -10595,45 +10547,45 @@ static PyObject *roche_contact_neck_min(PyObject *self, PyObject *args, PyObject
   const real min = 10*std::numeric_limits<real>::min();
 
   int it = 0;
-  
-  real 
+
+  real
     u[2] = {gen_roche::lagrange_point_L1(real(q), real(1), real(d))/real(d), 0},
     b = (1+q)*d*d*d, W0 = Omega0*d,
     c, t1, t2,
-    s11, s12, s13, s15, 
-    s21, s22, s23, s25, 
+    s11, s12, s13, s15,
+    s21, s22, s23, s25,
     x1, du[2], det, W, Wr, Wx, Wxx, Wrx;
 
   c = std::cos(real(phi)), c *= c;
-  
+
   // Newton-Raphson iteration
   do {
     x1 = u[0]-1, t1 = u[0]*u[0], t2 = x1*x1;
-    
+
     s12 = 1/(u[1] + t1), s11 = std::sqrt(s12), s13 = s11*s12, s15 = s13*s12;
     s22 = 1/(u[1] + t2), s21 = std::sqrt(s22), s23 = s21*s22, s25 = s23*s22;
-    
+
     W = s11 + q*(s21 - u[0]) + (b*(t1 + c*u[1]))/2 - W0;
     Wx =-(q*(1 + s23*x1)) + b*u[0] - s13*u[0];
     Wr = (b*c - s13 - q*s23)/2;
     Wrx = 3*(q*s25*x1 + s15*u[0])/2;
     Wxx = b - s13 + 3*s15*t1 + q*s23*(-1 + 3*s22*t2);
-    
+
     det = Wx*Wrx - Wr*Wxx;
-    
+
     u[0] -= (du[0] = (Wrx*W - Wr*Wx)/det);
     u[1] -= (du[1] = (Wx*Wx - Wxx*W)/det);
-    
+
   } while (
-    std::abs(du[0]) > eps*std::abs(u[0]) + min && 
-    std::abs(du[1]) > eps*std::abs(u[1]) + min && 
+    std::abs(du[0]) > eps*std::abs(u[0]) + min &&
+    std::abs(du[1]) > eps*std::abs(u[1]) + min &&
     ++it < it_max);
 
   if (it >= it_max){
-    report_error(fname + "::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
-  
+
   PyObject *results = PyDict_New();
 
   PyDict_SetItemStringStealRef(results, "xmin", PyFloat_FromDouble(d*u[0]));
@@ -11138,6 +11090,13 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS,
     "Determine the minimal distance and position from x axis of the neck "
     "of the Roche contact lobe at given mass ratio q, separation d and Omega0"},
+
+// --------------------------------------------------------------------
+
+  {"setup_verbosity",
+    (PyCFunction)setup_verbosity,
+    METH_VARARGS|METH_KEYWORDS,
+    "Setting the verbosity of libphoebe"},
 
   {NULL,  NULL, 0, NULL} // terminator record
 };
