@@ -1906,6 +1906,11 @@ class Star_roche_envelope_half(Star):
         # requiv won't be used, instead we'll use potential, but we'll allow
         # accessing and passing requiv anyways.
 
+        # for contacts the secondary is on the reverse side of the roche coordinates
+        # and so actually needs to be put in orbit as if it were the primary.
+        ind_self = 0
+        ind_sibling = 1
+
         super(Star_roche_envelope_half, self).__init__(component, comp_no, ind_self, ind_sibling,
                                          masses, ecc, incl,
                                          long_an, t0,
