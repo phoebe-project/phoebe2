@@ -177,10 +177,10 @@ class System(object):
             if hier.get_kind_of(component) in ['envelope']:
                 return 'roche'
 
-            if compute_ps.get_value('mesh_method', component=comp, **kwargs)=='wd':
+            if compute_ps.get_value('mesh_method', component=component, **kwargs)=='wd':
                 return 'roche'
 
-            return compute_ps.get_value('distortion_method', component=comp, **kwargs)
+            return compute_ps.get_value('distortion_method', component=component, **kwargs)
 
         bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
 
