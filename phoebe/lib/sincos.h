@@ -1,5 +1,4 @@
-#if !defined(__sincos_h)
-#define __sincos_h
+#pragma once
 
 /*
   Defining sincos function for different types in utils namespace:
@@ -97,4 +96,3 @@ namespace utils {
 
 }
 
-#endif //

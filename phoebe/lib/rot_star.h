@@ -1,5 +1,4 @@
-#if !defined(__rot_star_h)
-#define __rot_star_h
+#pragma once
 
 /*
   Library dealing with rotating stars defined by the potential
@@ -682,4 +681,3 @@ namespace rot_star {
 
 } // namespace rot_star
 
-#endif // #if !defined(__rot_star_h)

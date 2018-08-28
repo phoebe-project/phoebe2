@@ -1,5 +1,4 @@
-#if !defined (__hash_h)
-#define __hash_h
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -102,6 +101,3 @@ constexpr unsigned long long operator "" _hash32(char const* p, size_t)
 {
   return fnv1a_32::hash_compile_time(p);
 }
-
-
-#endif

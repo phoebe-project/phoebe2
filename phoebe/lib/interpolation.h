@@ -1,5 +1,4 @@
-#if !defined(__interpolation_h)
-#define __interpolation_h
+#pragma once
 /*
 
   Library for interpolation of data. Currently supporting:
@@ -212,8 +211,3 @@ struct Tlinear_interpolation {
   }
 
 };
-
-
-#endif //#if !defined(__interpolation_h)
-
-

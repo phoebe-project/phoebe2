@@ -1,6 +1,4 @@
-#if !defined(__wd_atm_h)
-#define __wd_atm_h
-
+#pragma once
 /*
   WD model of Planck central intensity and intensities with atmospheres
   that available in
@@ -709,4 +707,3 @@ bool atmx(
 
 } // namespace wd_atm
 
-#endif // #if !defined(__wd_atm_h)

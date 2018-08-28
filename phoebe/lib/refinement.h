@@ -1,5 +1,4 @@
-#if !defined(__refinement_h)
-#define __refinement_h
+#pragma once
 
 /*
   Library for mesh refinement techniques. Currently supporting:
@@ -182,5 +181,3 @@ bool mesh_refine_midedge_subdivision(
 
   return ok;
 }
-
-#endif // #if defined(__refinement_h)

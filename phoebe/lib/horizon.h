@@ -1,5 +1,4 @@
-#if !defined(__horizon_h)
-#define __horizon_h
+#pragma once
 
 /*
   Support for calculations of "smoooth" horizon on the lobes by integration
@@ -125,5 +124,3 @@ struct Thorizon: public Tbody {
     return (it < max_iter);
   }
 };
-
-#endif //  #if !defined(__horizon_h)

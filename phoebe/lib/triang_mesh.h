@@ -1,5 +1,4 @@
-#if !defined(__triang_mesh_h)
-#define __triang_mesh_h
+#pragma once
 
 /*
   Library for calculating properties and deformations of triangular meshes stored in the face-vertex format.
@@ -986,5 +985,3 @@ bool mesh_offseting_matching_area_curvature(
 
   return it < max_iter;
 }
-
-#endif // #if !defined(__triang_mesh_h)

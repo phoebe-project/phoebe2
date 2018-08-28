@@ -1,5 +1,4 @@
-#if !defined(__triang_marching_h)
-#define __triang_marching_h
+#pragma once
 
 /*
   Library for triangulation using maching algorithm specialized for
@@ -1899,5 +1898,3 @@ struct Tmarching: public Tbody {
 
 }; // class marching
 
-
-#endif // #if !defined(__triang_marching_h)

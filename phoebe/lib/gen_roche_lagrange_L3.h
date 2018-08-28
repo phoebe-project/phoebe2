@@ -1,6 +1,4 @@
-#if !defined(__gen_roche_lagrange_L3_h)
-#define __gen_roche_lagrange_L3_h
-
+#pragma once
 /*
   Library dealing with L3 lagrange point of the generalized Roche
   lobes/Kopal potential
@@ -480,4 +478,4 @@ T lagrange_point_L3(
 }
 
 } // namespace gen_roche
-#endif // #if !defined(__gen_roche_lagrange_L3_h)
+

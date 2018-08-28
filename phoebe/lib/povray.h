@@ -1,5 +1,4 @@
-#if !defined(__povray_h)
-#define __povray_h
+#pragma once
 
 /*
   Export meshed surface for profesional rendering Pov-Ray tool.
@@ -170,6 +169,3 @@ void triangle_mesh_export_povray (
   file << sep(n) << "}\n"; // mesh2
 
 }
-
-
-#endif // #if !defined(__povray_h)

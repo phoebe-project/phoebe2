@@ -1,6 +1,4 @@
-#if !defined(__bodies_h)
-#define __bodies_h
-
+#pragma once
 
 /*
   Examples of implicitely defined closed and connected surfaces in 3D
@@ -1214,5 +1212,3 @@ struct Tmisaligned_roche {
   }
 };
 
-
-#endif // #if !defined(__bodies_h)

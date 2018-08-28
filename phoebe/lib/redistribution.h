@@ -1,5 +1,4 @@
-#if !defined(__redistribution_new_h)
-#define __redistribution_new_h
+#pragma once
 
 /*
   Library discussing the process of reflection with (quasi) stationary
@@ -1150,6 +1149,4 @@ bool solve_radiosity_equation_with_redistribution_Horvat_nbody(
 
   return iter < max_iter;
 }
-
-#endif // #if !defined(__redistribution_new_h)
 

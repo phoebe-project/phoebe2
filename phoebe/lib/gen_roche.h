@@ -1,5 +1,4 @@
-#if !defined(__gen_roche_h)
-#define __gen_roche_h
+#pragma once
 
 /*
   Library dealing with generalized Roche lobes/Kopal potential
@@ -2520,5 +2519,3 @@ namespace gen_roche {
     }
   }
 } // namespace gen_roche
-
-#endif

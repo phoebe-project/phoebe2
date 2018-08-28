@@ -1,5 +1,4 @@
-#ifndef clipper_hpp
-#define clipper_hpp
+#pragma once
 
 /*******************************************************************************
 *                                                                              *
@@ -5896,6 +5895,5 @@ void PolygonCentroid(const Paths& polys, DoublePoint &P){
 
 } //ClipperLib namespace
 
-#endif //clipper_hpp
 
 

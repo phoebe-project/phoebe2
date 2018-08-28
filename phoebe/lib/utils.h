@@ -1,5 +1,4 @@
-#if !defined(__utils_h)
-#define __utils_h
+#pragma once
 
 /*
   Commonly used routines.
@@ -1040,4 +1039,3 @@ namespace utils {
   }
 } // namespace utils
 
-#endif  // #if !defined(__utils_h)

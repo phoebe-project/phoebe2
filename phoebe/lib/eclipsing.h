@@ -1,6 +1,4 @@
-#if !defined(__eclipsing_h)
-#define __eclipsing_h
-
+#pragma once
 /*
   Library for determining the visibility (aka eclipsing) of triangulated
   surfaces describing the nboundary of 3D objects.
@@ -1679,6 +1677,3 @@ void triangle_mesh_visibility_linear(
 
   delete [] Vs;
 }
-
-
-#endif // #if !define(__eclipsing_h)

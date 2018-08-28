@@ -1,5 +1,4 @@
-#if !defined(__reflection_h)
-#define __reflection_h
+#pragma once
 
 /*
   Library for solving the stellar radiosity problem. Wilson called this reflection effects. Basically is problem of evaluating radiosity by taking into account intrinsic radiant exitance and reflection of it from surface of the stars.
@@ -1969,5 +1968,3 @@ bool solve_radiosity_equation_Horvat_nbody(
 
   return solve_radiosity_equation_Horvat_nbody( Fmat, R, F0, S0, Fout, epsF, max_iter);
 }
-
-#endif //#if !defined(__reflection_h)

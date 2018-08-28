@@ -1,5 +1,4 @@
-#if !defined(__misaligned_roche_h)
-#define __misaligned_roche_h
+#pragma once
 
 /*
   Library dealing with the generalizd Roche potential with misaligned
@@ -2001,4 +2000,3 @@ template<class T>
   #endif
 } // namespace misaligned_roche
 
-#endif //#if !defined(__misaligned_roche_h)

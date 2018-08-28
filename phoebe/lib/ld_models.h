@@ -1,6 +1,4 @@
-#if !defined(__ld_models_h)
-#define __ld_models_h
-
+#pragma once
 /*
   Limb darkening models. Structures provide
 
@@ -607,5 +605,3 @@ namespace LD {
     }
   }
 }
-
-#endif

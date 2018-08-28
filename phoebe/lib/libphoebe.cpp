@@ -43,6 +43,7 @@
 #include "horizon.h"               // Calculation of horizons
 
 #include "gen_roche.h"             // support for generalized Roche lobes
+#include "contact.h"               // support for contact case of Roche lobes
 #include "rot_star.h"              // support for rotating stars
 #include "misaligned_roche.h"      // support for gen. Roche lobes with missaligned angular momenta
 
@@ -755,9 +756,7 @@ static PyObject *roche_misaligned_pole(
 
   return PyFloat_FromDouble(p);
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -900,9 +899,8 @@ static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyOb
 
   return PyFloat_FromDouble(Omega_min);
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
+
 /*
   C++ wrapper for Python code:
 
@@ -1516,9 +1514,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
 
   return results;
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -2265,9 +2261,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   return results;
 }
 
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 
 
@@ -2478,9 +2472,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
 
   return PyFloat_FromDouble(Omega);
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -2542,9 +2534,7 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
 
   return PyFloat_FromDouble(Omega);
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -2976,9 +2966,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
 
   return PyFloat_FromDouble(Omega);
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -3398,9 +3386,7 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
 
   return pya;
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -3736,9 +3722,8 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
 
   return res;
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
+
 /*
   C++ wrapper for Python code:
 
@@ -4025,9 +4010,7 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
   raise_exception(fname + "::This type of misalignment is not supported");
   return NULL;
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -4402,9 +4385,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
 
   return results;
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -5183,9 +5164,7 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
   return results;
 }
 
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -6001,9 +5980,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
 
   return results;
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -7440,7 +7417,6 @@ struct Tmesh_radiosity_redistrib_problem_nbody {
 
 } __redistrib_problem_nbody;
 
-//#define DEBUG
 static PyObject *mesh_radiosity_redistrib_problem_nbody_convex_setup(
   PyObject *self, PyObject *args, PyObject *keywds){
 
@@ -7474,9 +7450,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex_setup(
   return Py_None;
 
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 
 //#define DEBUG
@@ -7755,9 +7729,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
 
   return results;
 }
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 /*
   C++ wrapper for Python code:
@@ -10282,7 +10254,7 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
       float:
 */
 
-//#define DEBUG
+
 static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
 
   auto fname = "roche_contact_partial_area_volume"_s;
@@ -10470,9 +10442,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   return results;
 }
 
-#if defined(DEBUG)
-#undef DEBUG
-#endif
+
 
 
 /*
@@ -10512,6 +10482,23 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
     xmin: position of minimum
       float:
 
+  Example:
+    import numpy as np
+    import libphoebe
+
+    q=0.1
+    d=1.
+    Omega0 = 1.9
+
+    for phi in np.linspace(0,np.pi/2, 4):
+      print libphoebe.roche_contact_neck_min(q, d,Omega0, phi)
+  
+  
+    {'xmin': 0.742892957853368, 'rmin': 0.14601804638933566}
+    {'xmin': 0.7415676153921865, 'rmin': 0.14223055177447497}
+    {'xmin': 0.7393157248476556, 'rmin': 0.13553553766381343}
+    {'xmin': 0.7383492639142092, 'rmin': 0.13255145166593718}
+
 */
 
 //#define DEBUG
@@ -10541,55 +10528,17 @@ static PyObject *roche_contact_neck_min(PyObject *self, PyObject *args, PyObject
     return NULL;
   }
 
-  using real = double;
-  const int it_max = 20;
-  const real eps = 4*std::numeric_limits<real>::epsilon();
-  const real min = 10*std::numeric_limits<real>::min();
-
-  int it = 0;
-
-  real
-    u[2] = {gen_roche::lagrange_point_L1(real(q), real(1), real(d))/real(d), 0},
-    b = (1+q)*d*d*d, W0 = Omega0*d,
-    c, t1, t2,
-    s11, s12, s13, s15,
-    s21, s22, s23, s25,
-    x1, du[2], det, W, Wr, Wx, Wxx, Wrx;
-
-  c = std::cos(real(phi)), c *= c;
-
-  // Newton-Raphson iteration
-  do {
-    x1 = u[0]-1, t1 = u[0]*u[0], t2 = x1*x1;
-
-    s12 = 1/(u[1] + t1), s11 = std::sqrt(s12), s13 = s11*s12, s15 = s13*s12;
-    s22 = 1/(u[1] + t2), s21 = std::sqrt(s22), s23 = s21*s22, s25 = s23*s22;
-
-    W = s11 + q*(s21 - u[0]) + (b*(t1 + c*u[1]))/2 - W0;
-    Wx =-(q*(1 + s23*x1)) + b*u[0] - s13*u[0];
-    Wr = (b*c - s13 - q*s23)/2;
-    Wrx = 3*(q*s25*x1 + s15*u[0])/2;
-    Wxx = b - s13 + 3*s15*t1 + q*s23*(-1 + 3*s22*t2);
-
-    det = Wx*Wrx - Wr*Wxx;
-
-    u[0] -= (du[0] = (Wrx*W - Wr*Wx)/det);
-    u[1] -= (du[1] = (Wx*Wx - Wxx*W)/det);
-
-  } while (
-    std::abs(du[0]) > eps*std::abs(u[0]) + min &&
-    std::abs(du[1]) > eps*std::abs(u[1]) + min &&
-    ++it < it_max);
-
-  if (it >= it_max){
-    raise_exception(fname + "::Problem reading arguments");
+  double u[2];
+  
+  if (!contact::neck_min(u,q,d,Omega0, std::cos(phi))) {
+    raise_exception(fname + "::Slow convergence");
     return NULL;
   }
 
   PyObject *results = PyDict_New();
 
-  PyDict_SetItemStringStealRef(results, "xmin", PyFloat_FromDouble(d*u[0]));
-  PyDict_SetItemStringStealRef(results, "rmin", PyFloat_FromDouble(d*std::sqrt(u[1])));
+  PyDict_SetItemStringStealRef(results, "xmin", PyFloat_FromDouble(u[0]));
+  PyDict_SetItemStringStealRef(results, "rmin", PyFloat_FromDouble(u[1]));
 
   return results;
 }

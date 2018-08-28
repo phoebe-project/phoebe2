@@ -1,5 +1,4 @@
-#if !defined(__gen_roche_lagrange_L1_h)
-#define __gen_roche_lagrange_L1_h
+#pragma once
 
 /*
   Library dealing with L1 lagrange point of the generalized Roche
@@ -526,5 +525,3 @@ T lagrange_point_L1(
 }
 
 } // namespace gen_roche
-
-#endif //#if !defined(__gen_roche_lagrange_L1_h)

@@ -1,6 +1,4 @@
-#if !defined(__gen_roche_lagrange_L2_h)
-#define __gen_roche_lagrange_L2_h
-
+#pragma once
 /*
   Library dealing with L2 lagrange point of the generalized Roche
   lobes/Kopal potential
@@ -383,4 +381,3 @@ T lagrange_point_L2(
 
 } // namespace gen_roche
 
-#endif //#if !defined(__gen_roche_lagrange_L12_h)
