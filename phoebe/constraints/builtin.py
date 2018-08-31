@@ -53,7 +53,7 @@ def requiv_contact_L23(q, sma, compno, **kwargs):
 
     logger.debug("libphoebe.roche_contact_neck_min(phi=pi/2, q={}, d=1., crit_pot_L23={})".format(q, crit_pot_L23))
     nekmin = libphoebe.roche_contact_neck_min(np.pi/2., q, 1., crit_pot_L23)['xmin']
-    # we now have the critical potential and nekmin as if we were the primary star, so now we'll use compno=1 regardless
+    # we now have the critical potential and nekmin as if we were the primary star, so now we'll use compno=0 regardless
     logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d=1, Omega={}, compno=0)".format(nekmin, q, crit_pot_L23))
     crit_vol_L23 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1., crit_pot_L23, compno)['lvolume']
 
@@ -193,7 +193,7 @@ def requiv_to_pot_contact(requiv, q, sma, compno=0):
         # replace this with actual check in the beginning or before function call
         raise ValueError('requiv probably out of bounds for contact envelope')
 
-def pot_to_requiv_contact(pot, q, sma, compno=1):
+def pot_to_requiv_contact(pot, q, sma, compno=0):
     """
     """
     logger.debug("pot_to_requiv_contact(pot={}, q={}, sma={}, compno={})".format(pot, q, sma, compno))
