@@ -2165,7 +2165,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
     bool adjust = true;
 
-    double p[2][2], xrange[2], pole, e, t;
+    double p[2][2], xrange[2], pole, e;
 
     //
     // Choosing boundaries on x-axis or calculating the pole
@@ -10374,7 +10374,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
     polish = false,
     adjust = true;
 
-  double r[3], p[2][3], e, t;
+  double r[3], p[2][3], e;
 
   //
   // one step adjustment of precison for area and volume
