@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 def test_binary(plot=False):
 
     cb = phoebe.Bundle.default_binary(contact_binary=True)
-    cb['pot@contact_envelope'] = 3.5
+    cb.flip_constraint('pot', solve_for='requiv@primary')
+    cb['pot@contact_envelope@component'] = 3.5
     cb['q'] = 1.0
     cb['teff@primary'] = 5000.
     cb['teff@secondary'] = 5000.
