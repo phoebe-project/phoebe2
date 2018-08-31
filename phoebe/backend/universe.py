@@ -236,6 +236,19 @@ class System(object):
             return self._bodies[parent_component].get_half(component)
 
     @property
+    def mesh_bodies(self):
+        """
+        """
+        bodies = []
+        for body in self.bodies:
+            if isinstance(body, Envelope):
+                bodies += body._halves
+            else:
+                bodies += [body]
+
+        return bodies
+
+    @property
     def meshes(self):
         """
         TODO: add documentation
@@ -395,10 +408,8 @@ class System(object):
             areas_flat = meshes.get_column_flat('areas')
             irrad_frac_refls_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations')
 
-            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
-            ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.bodies, fluxes_intrins_per_body)})
-
-            # TODO: need to make this smarter in the case of Envelopes to get the sub-halves ld_func/coeffs
+            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.mesh_bodies]
+            ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)})
 
             fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
                                                                             triangles_flat,
