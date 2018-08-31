@@ -111,6 +111,7 @@ class System(object):
         self.irrad_method = irrad_method
         for body in self._bodies.values():
             body.system = self
+            body.dynamics_method = dynamics_method
             body.boosting_method = boosting_method
 
         return
@@ -919,7 +920,7 @@ class Body(object):
             # TODO: need to be very careful about self.sma vs self._scale - maybe need to make a self._instantaneous_scale???
             # self._scale = scale
 
-            if not self.needs_remesh:
+            if not self.has_standard_mesh():
                 # then we only computed this because we didn't already have a
                 # standard_mesh... so let's save this for future use
                 # TODO: eventually pass etheta to save_as_standard_mesh
