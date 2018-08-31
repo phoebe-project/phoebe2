@@ -707,12 +707,13 @@ class ProtoMesh(object):
                 else:
                     v = np.full(self.Ntriangles, v)
 
+            self.__setitem__(k, v)
+
             if isinstance(v, ComputedColumn):
                 # then let's update the mesh instance to correctly handle
                 # inheritance
-                v._mesh = self
+                self.__getitem__(k)._mesh = self
 
-            self.__setitem__(k, v)
 
     def update_columns(self, **kwargs):
         """
