@@ -2434,7 +2434,7 @@ class Envelope(Body):
 
             # compute position of nekmin (d=1.)
             logger.debug("split_mesh libphoebe.roche_contact_neck_min(q={}, d={}, pot={})".format(q, 1., pot))
-            nekmin = libphoebe.roche_contact_neck_min(q, 1., pot, np.pi / 2.)['xmin']
+            nekmin = libphoebe.roche_contact_neck_min(np.pi / 2., q, 1., pot)['xmin']
 
             # initialize the subcomp array
             subcomp = np.zeros(len(mesh['triangles']))
@@ -2508,7 +2508,7 @@ class Envelope(Body):
             mesh_halves = [mesh.take(env_comp_triangles==0, env_comp_verts==0), mesh.take(env_comp_triangles==1, env_comp_verts==1)]
 
             # we now need to recompute the areas and volumes of each half separately
-            # nekmin = libphoebe.roche_contact_neck_min(q, 1.0, pot, np.pi/2.)['xmin']
+            # nekmin = libphoebe.roche_contact_neck_min(np.pi/2., q, 1.0, pot)['xmin']
             # for compno,mesh in enumerate(mesh_halves):
                 # component passed here is expected to be 1 or 2 (not 0 or 1)
                 # info0 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1.0, pot, compno+1)
