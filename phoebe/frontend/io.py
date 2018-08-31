@@ -1076,10 +1076,10 @@ def ret_parname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=N
                 pnew = 'hla'
 
             elif param in ['enabled','statweight','l3','passband']:
-                pnew = _2to1par[param]
+                pnew = _2to1par.get(param, param)
 
             else:
-                pnew = _2to1par[param]+'1'
+                pnew = _2to1par.get(param, param)+'1'
 
         elif comp_int == 2:
 
@@ -1087,14 +1087,14 @@ def ret_parname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=N
                 pnew = 'cla'
 
             elif param in ['enabled','statweight','l3','passband']:
-                pnew = _2to1par[param]
+                pnew = _2to1par.get(param, param)
 
 
             else:
-                pnew = _2to1par[param]+'2'
+                pnew = _2to1par.get(param, param)+'2'
         else:
 
-            pnew = _2to1par[param]
+            pnew = _2to1par.get(param, param)
 
     # one parameter doesn't follow the rules, so i'm correcting for it
             if pnew == 'reflections':
@@ -1149,11 +1149,15 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         raise ValueError("PHOEBE 1 only supports binaries. Either provide a different system or edit the hierarchy.")
 # check for contact_binary
 
-    for star in stars:
-        if eb.get_value('pitch', component=star) != 0 or eb.get_value('yaw', component=star) != 0:
-            raise ValueError("PHOEBE 1 only supports aligned systems.  Edit pitch and yaw to be aligned or use another backend")
-
     contact_binary = eb.hierarchy.is_contact_binary(primary)
+
+    if not contact_binary:
+        # contacts are always aligned, for detached systems we need to check
+        # to make sure they are aligned.
+        for star in stars:
+            if eb.get_value('pitch', component=star) != 0 or eb.get_value('yaw', component=star) != 0:
+                raise ValueError("PHOEBE 1 only supports aligned systems.  Edit pitch and yaw to be aligned or use another backend")
+
 
 # check for semi_detached
     semi_detached = None #keep track of which component is in semidetached
@@ -1216,16 +1220,13 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
     if contact_binary:
-        raise NotImplementedError
         #note system
         parnames.append('phoebe_model')
         parvals.append('"Overcontact binary not in thermal contact"')
         types.append('choice')
 
         comp_int = 1
-        envelope = eb.hierarchy.get_siblings_of(primary)[-1]
-#        cepars = eb.filter(component='contact_envelope', context='component')
-#   potential
+        envelope = eb.hierarchy.get_envelope_of(primary)
         val = [eb.get_value(qualifier='pot', component=envelope, context='component')]
         ptype = 'float'
         # note here that phoebe1 assigns this to the primary, not envelope
@@ -1252,6 +1253,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         types.append('choice')
 
     for param in prpars.to_list():
+        if contact_binary and param.qualifier == 'requiv':
+            continue
 
         comp_int = 1
 #        if isinstance(eb.get_parameter(prpars[x], component='primary'), phoebe.parameters.FloatParameter):
@@ -1285,6 +1288,9 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                     types.append(ptype)
 
     for param in secpars.to_list():
+        if contact_binary and param.qualifier == 'requiv':
+            continue
+
         comp_int = 2
         # make sure this parameter exists in phoebe 1
 #        param = eb.get_parameter(secpars[x], component= 'secondary')
