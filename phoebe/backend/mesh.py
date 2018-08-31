@@ -1540,7 +1540,10 @@ class Meshes(object):
         """
         def get_field(c, field, computed_type):
 
-            # print "*** c={} self._dict={}".format(c, self._dict)
+            if c not in self._dict.keys() and self._parent_envelope_of[c] in self._dict.keys():
+                mesh = self._dict[self._parent_envelope_of[c]]
+                return mesh.get_column_flat(field, components, computed_type)
+
             mesh = self._dict[c]
             if isinstance(mesh, Meshes):
                 # then do this recursively for all components in the Meshes object
