@@ -51,10 +51,10 @@ def requiv_contact_L23(q, sma, compno, **kwargs):
     logger.debug("requiv_contact_L23(q={}, sma={}, compno={})".format(q, sma, compno))
     crit_pot_L23 = potential_contact_L23(q)
 
-    logger.debug("libphoebe.roche_contact_neck_min(q={}, d=1., crit_pot_L23={}, phi=pi/2)".format(q, crit_pot_L23))
-    nekmin = libphoebe.roche_contact_neck_min(q, 1., crit_pot_L23, np.pi/2.)['xmin']
+    logger.debug("libphoebe.roche_contact_neck_min(phi=pi/2, q={}, d=1., crit_pot_L23={})".format(q, crit_pot_L23))
+    nekmin = libphoebe.roche_contact_neck_min(np.pi/2., q, 1., crit_pot_L23)['xmin']
     # we now have the critical potential and nekmin as if we were the primary star, so now we'll use compno=1 regardless
-    logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d=1, Omega={}, compno=1)".format(nekmin, q, crit_pot_L23))
+    logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d=1, Omega={}, compno=0)".format(nekmin, q, crit_pot_L23))
     crit_vol_L23 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1., crit_pot_L23, compno)['lvolume']
 
     logger.debug("resulting vol: {}, requiv: {}".format(crit_vol_L23, (3./4*1./np.pi*crit_vol_L23)**(1./3) * sma))
@@ -142,18 +142,18 @@ def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
     """
     return t0_supconj - _delta_t_supconj_ref(period, ecc, per0)
 
-def requiv_to_pot_contact(requiv, q, sma, compno=1):
+def requiv_to_pot_contact(requiv, q, sma, compno=0):
     """
     :param requiv: user-provided equivalent radius
     :param q: mass ratio
     :param sma: semi-major axis (d = sma because we explicitly assume circular orbits for contacts)
-    :param compno: 1 for primary, 2 for secondary
+    :param compno: 0 for primary, 1 for secondary
     :return: potential and fillout factor
     """
     def pot_to_volume(pot, q, d, vequiv, compno):
         """
         """
-        nekmin = libphoebe.roche_contact_neck_min(q, d, pot, np.pi/2.)['xmin']
+        nekmin = libphoebe.roche_contact_neck_min(np.pi/2., q, d, pot)['xmin']
         try:
             volume = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno)['lvolume']
         except TypeError:
@@ -208,8 +208,8 @@ def pot_to_requiv_contact(pot, q, sma, compno=1):
         raise ValueError("potential < L2/L3 critical value")
 
     try:
-        logger.debug("libphoebe.roche_contact_neck_min(q={}, d={}, pot={}, pi/2)".format(q, d, pot))
-        nekmin = libphoebe.roche_contact_neck_min(q, d, pot, np.pi / 2.)['xmin']
+        logger.debug("libphoebe.roche_contact_neck_min(pi/2, q={}, d={}, pot={})".format(q, d, pot))
+        nekmin = libphoebe.roche_contact_neck_min(np.pi / 2., q, d, pot)['xmin']
         logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d={}, pot={}, compno={})".format(nekmin, q, d, pot, compno))
         volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno)['lvolume']
         # returns normalized vequiv, should multiply by sma back for requiv in SI

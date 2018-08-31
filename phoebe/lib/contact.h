@@ -28,6 +28,7 @@
 #include "gen_roche.h"
 
 namespace contact {
+  
   /*
     Calculate the minimal distance r of the neck from x axis of the contact
     Roche lobe at angle phi from y axis:
@@ -37,24 +38,29 @@ namespace contact {
     assuming F = 1.
 
     Input:
+      cos_phi - cosine of the angle
       q - mass ratio
       d - separation between the two objects
       Omega0 - value potential
-      cos_phi - cosine of the angle
         for minimal distance in
           xy plane phi = 0
           xz plane phi = pi/2
+      it_max - maximal number of iterations
   
     Output:
       u[2] = {xmin, rmin}
+    
+    Return:
+      true if converged in given maximal number of iterations
+      
   */ 
   template <class T>
   bool neck_min( 
     T u[2],
+    const T & cos_phi,
     const T & q,
     const T & d,
     const T & Omega0,
-    const T & cos_phi,
     const int & it_max = 20) {
  
     const T eps = 4*std::numeric_limits<T>::epsilon();
@@ -98,4 +104,7 @@ namespace contact {
 
     return it < it_max;  
   }
+  
+  
+  
 } // namespace contact
