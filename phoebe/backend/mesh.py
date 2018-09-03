@@ -523,12 +523,6 @@ class ProtoMesh(object):
         self._pos               = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
         self._scalar_fields     = ['volume', 'area']
 
-        if 'label_envelope' in kwargs.keys():
-            self._label_envelope = kwargs.pop('label_envelope')
-            self._label_primary = kwargs.pop('label_primary')
-            self._label_secondary = kwargs.pop('label_secondary')
-
-
         # TODO: split keys that are set vs computed-on-the-fly so when
         # we call something like ScaledProtoMesh.from_proto we don't have
         # to do all the on-the-fly computations just to discard them because
@@ -1126,11 +1120,6 @@ class ScaledProtoMesh(ProtoMesh):
         mesh._copy_roche_values()
         mesh._scale_mesh(scale=scale)
 
-        if hasattr(proto_mesh, '_label_envelope'):
-            mesh._label_envelope = proto_mesh._label_envelope
-            mesh._label_primary = proto_mesh._label_primary
-            mesh._label_secondary = proto_mesh._label_secondary
-
         return mesh
 
     def _copy_roche_values(self):
@@ -1263,11 +1252,6 @@ class Mesh(ScaledProtoMesh):
         mesh._scale_mesh(scale=scale)
         mesh._place_in_orbit(pos, vel, euler, rotation_vel)
 
-        if hasattr(proto_mesh, '_label_envelope'):
-            mesh._label_envelope = proto_mesh._label_envelope
-            mesh._label_primary = proto_mesh._label_primary
-            mesh._label_secondary = proto_mesh._label_secondary
-
         return mesh
 
     @classmethod
@@ -1281,11 +1265,6 @@ class Mesh(ScaledProtoMesh):
 
         # roche coordinates have already been copied
         mesh._place_in_orbit(pos, vel, euler, rotation_vel)
-
-        if hasattr(scaledproto_mesh, '_label_envelope'):
-            mesh._label_envelope = scaledproto_mesh._label_envelope
-            mesh._label_primary = scaledproto_mesh._label_primary
-            mesh._label_secondary = scaledproto_mesh._label_secondary
 
         return mesh
 
