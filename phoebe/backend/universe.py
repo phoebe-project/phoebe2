@@ -1890,6 +1890,7 @@ class Star_roche(Star):
             # unpack mesh_args so we can ignore s
             q, F, d, s, Phi = mesh_args
 
+            logger.debug("mesh_wd.discretize_wd_style(N={}, q={}, F={}, d={}, Phi={})".format(N, q, F, d, Phi))
             the_grid = mesh_wd.discretize_wd_style(N, q, F, d, Phi)
             new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
             scale = sma

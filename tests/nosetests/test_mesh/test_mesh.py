@@ -118,7 +118,7 @@ def test_binary(plot=False):
     _phoebe_v_legacy_lc_protomesh(b, plot=plot)
 
 if __name__ == '__main__':
-    logger = phoebe.logger()
+    logger = phoebe.logger('debug')
 
 
     test_binary(plot=True)
