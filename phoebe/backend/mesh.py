@@ -1232,7 +1232,9 @@ class Mesh(ScaledProtoMesh):
 
     @classmethod
     def from_proto(cls, proto_mesh, scale,
-                      pos, vel, euler, rotation_vel=(0,0,0)):
+                      pos, vel, euler, euler_vel,
+                      rotation_vel=(0,0,0),
+                      envelope_com_xyz=None):
         """
         Turn a ProtoMesh into a Mesh scaled and placed in orbit.
 
@@ -1250,13 +1252,15 @@ class Mesh(ScaledProtoMesh):
 
         mesh._copy_roche_values()
         mesh._scale_mesh(scale=scale)
-        mesh._place_in_orbit(pos, vel, euler, rotation_vel)
+        mesh._place_in_orbit(pos, vel, euler, euler_vel, rotation_vel, envelope_com_xyz)
 
         return mesh
 
     @classmethod
     def from_scaledproto(cls, scaledproto_mesh,
-                         pos, vel, euler, rotation_vel=(0,0,0)):
+                         pos, vel, euler, euler_vel,
+                         rotation_vel=(0,0,0),
+                         envelope_com_xyz=None):
         """
         TODO: add documentation
         """
@@ -1264,11 +1268,11 @@ class Mesh(ScaledProtoMesh):
         mesh = cls(**scaledproto_mesh.items())
 
         # roche coordinates have already been copied
-        mesh._place_in_orbit(pos, vel, euler, rotation_vel)
+        mesh._place_in_orbit(pos, vel, euler, euler_vel, rotation_vel, envelope_com_xyz)
 
         return mesh
 
-    def _place_in_orbit(self, pos, vel, euler, rotation_vel=(0,0,0)):
+    def _place_in_orbit(self, pos, vel, euler, euler_vel, rotation_vel=(0,0,0), component_com_x=None):
         """
         TODO: add documentation
         """
@@ -1284,8 +1288,12 @@ class Mesh(ScaledProtoMesh):
         # NOTE: we do velocities first since they require the positions WRT
         # the star (not WRT the system).  Will need to keep this in mind if we
         # eventually support incremental transformations.
-        pos_array = self.vertices if self._compute_at_vertices else self.centers
-        self.update_columns_dict({k: transform_velocity_array(self[k], pos_array, vel, euler, rotation_vel) for k in vel_ks if self[k] is not None})
+        # pos_array = self.vertices if self._compute_at_vertices else self.centers
+        pos_array = self.roche_vertices if self._compute_at_vertices else self.roche_centers
+        if component_com_x is not None and component_com_x != 0.0:
+            # then we're the secondary component and need to do 1-x and then flip the rotation component vxs
+            pos_array = np.array([component_com_x, 0.0, 0.0]) - pos_array
+        self.update_columns_dict({k: transform_velocity_array(self[k], pos_array, vel, euler_vel, rotation_vel) for k in vel_ks if self[k] is not None})
         # TODO: handle velocity from mesh reprojection during volume conservation
 
         # handle rotation/displacement

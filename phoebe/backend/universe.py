@@ -655,6 +655,7 @@ class Body(object):
         # We need to remember what index in all incoming position/velocity/euler
         # arrays correspond to both ourself and our sibling
         self.ind_self = ind_self
+        self.ind_self_vel = ind_self
         self.ind_sibling = ind_sibling
 
         self.masses = masses
@@ -875,7 +876,13 @@ class Body(object):
         # return new_mesh_dict, scale
         raise NotImplementedError("_build_mesh must be overridden by the subclass of Body")
 
-    def update_position(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=None, Fs=None, ignore_effects=False, **kwargs):
+    def update_position(self, time,
+                        xs, ys, zs, vxs, vys, vzs,
+                        ethetas, elongans, eincls,
+                        ds=None, Fs=None,
+                        ignore_effects=False,
+                        component_com_x=None,
+                        **kwargs):
         """
         Update the position of the star into its orbit
 
@@ -898,8 +905,9 @@ class Body(object):
         #-- Get current position/euler information
         # TODO: get rid of this ugly _value stuff
         pos = (_value(xs[self.ind_self]), _value(ys[self.ind_self]), _value(zs[self.ind_self]))
-        vel = (_value(vxs[self.ind_self]), _value(vys[self.ind_self]), _value(vzs[self.ind_self]))
+        vel = (_value(vxs[self.ind_self_vel]), _value(vys[self.ind_self_vel]), _value(vzs[self.ind_self_vel]))
         euler = (_value(ethetas[self.ind_self]), _value(elongans[self.ind_self]), _value(eincls[self.ind_self]))
+        euler_vel = (_value(ethetas[self.ind_self_vel]), _value(elongans[self.ind_self_vel]), _value(eincls[self.ind_self_vel]))
 
         # TODO: eventually pass etheta to has_standard_mesh
         # TODO: implement reprojection as an option based on a nearby standard?
@@ -1000,10 +1008,10 @@ class Body(object):
         # TODO NOW [OPTIMIZE]: get rid of the deepcopy here - but without it the
         # mesh velocities build-up and do terrible things.  It may be possible
         # to just clear the velocities in get_standard_mesh()?
-        # TODO: check to make sure we want polar_direction_xyz not uvw
         self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh.copy(),
-                                                pos, vel, euler,
-                                                self.polar_direction_xyz*self.freq_rot)
+                                                pos, vel, euler, euler_vel,
+                                                self.polar_direction_xyz*self.freq_rot*self._scale,
+                                                component_com_x)
 
 
         # Lastly, we'll recompute physical quantities (not observables) if
@@ -1162,7 +1170,8 @@ class Star(Body):
         incl_star = self_ps.get_value('incl', unit=u.rad, check_visible=False)
         long_an_star = self_ps.get_value('long_an', unit=u.rad, check_visible=False)
         polar_direction_uvw = mesh.spin_in_system(incl_star, long_an_star)
-        freq_rot = self_ps.get_value('freq', unit=u.rad/u.d, check_visible=False)
+        # freq_rot for contacts will be provided by that subclass as 2*pi/P_orb since they're always synchronous
+        freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
 
         t0 = b.get_value('t0', context='system', unit=u.d)
 
@@ -1920,10 +1929,7 @@ class Star_roche_envelope_half(Star):
 
         # for contacts the secondary is on the reverse side of the roche coordinates
         # and so actually needs to be put in orbit as if it were the primary.
-        ind_self = 0
-        ind_sibling = 1
-
-        super(Star_roche_envelope_half, self).__init__(component, comp_no, ind_self, ind_sibling,
+        super(Star_roche_envelope_half, self).__init__(component, comp_no, 0, 1,
                                          masses, ecc, incl,
                                          long_an, t0,
                                          do_mesh_offset, mesh_init_phi,
@@ -1941,19 +1947,22 @@ class Star_roche_envelope_half(Star):
                                          features,
                                          **kwargs)
 
+        # but we need to use the correct velocities for assigning RVs
+        self.ind_self_vel = ind_self
+
+
     @classmethod
     def from_bundle(cls, b, component, compute=None,
                     mesh_init_phi=0.0, datasets=[], pot=None, **kwargs):
 
-        # self_ps = b.filter(component=component, context='component', check_visible=False)
-        # F = self_ps.get_value('syncpar', check_visible=False)
         if pot is None:
             envelope = b.hierarchy.get_envelope_of(component)
             pot = b.get_value('pot', component=envelope, context='component')
 
         return super(Star_roche_envelope_half, cls).from_bundle(b, component, compute,
                                                   mesh_init_phi, datasets,
-                                                  F=1, pot=pot, **kwargs)
+                                                  F=1, pot=pot,
+                                                  **kwargs)
 
 
     @property
@@ -2549,8 +2558,8 @@ class Envelope(Body):
         # placing in orbit.  We'll do this again for the primary so it
         # will update to just the correct half.  This is a bit redundant,
         # but keeps all this logic out of the Star classes
-        for half in self._halves:
-            half.update_position(*args, **kwargs)
+        for half, com in zip(self._halves, [0, 1]):
+            half.update_position(component_com_x=com, *args, **kwargs)
 
     def populate_observable(self, time, kind, dataset, **kwargs):
         """

@@ -90,9 +90,9 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
     params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
-    params += [FloatParameter(qualifier='syncpar', visible_if='hierarchy.is_contact_binary:False,hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
-    params += [FloatParameter(qualifier='period', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
-    params += [FloatParameter(qualifier='freq', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
+    params += [FloatParameter(qualifier='syncpar', visible_if='hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
+    params += [FloatParameter(qualifier='period', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
+    params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
 
     params += [FloatParameter(qualifier='pitch', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('pitch', 0), default_unit=u.deg, description='Pitch of the stellar rotation axis wrt the orbital rotation axis')]
     params += [FloatParameter(qualifier='yaw', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('yaw', 0), default_unit=u.deg, description='Yaw of the stellar rotation axis wrt the orbital rotation axis')]

@@ -986,6 +986,21 @@ class Bundle(ParameterSet):
                     self.add_constraint(constraint.comp_sma, component,
                                         constraint=self._default_label('comp_sma', context='constraint'))
 
+                logger.debug('re-creating rotation_period constraint for {}'.format(component))
+                # TODO: will this cause problems if the constraint has been flipped?
+                if len(self.filter(context='constraint',
+                                   constraint_func='rotation_period',
+                                   component=component)):
+                    constraint_param = self.get_constraint(constraint_func='rotation_period',
+                                                           component=component)
+                    self.remove_constraint(constraint_func='rotation_period',
+                                           component=component)
+                    self.add_constraint(constraint.rotation_period, component,
+                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                        constraint=constraint_param.constraint)
+                else:
+                    self.add_constraint(constraint.rotation_period, component,
+                                        constraint=self._default_label('rotation_period', context='constraint'))
 
                 if self.hierarchy.is_contact_binary(component):
                     # then we're in a contact binary and need to create pot<->requiv constraints
@@ -1056,22 +1071,6 @@ class Bundle(ParameterSet):
                     else:
                         self.add_constraint(constraint.requiv_detached_max, component,
                                             constraint=self._default_label('requiv_max', context='constraint'))
-
-                    logger.debug('re-creating rotation_period constraint for {}'.format(component))
-                    # TODO: will this cause problems if the constraint has been flipped?
-                    if len(self.filter(context='constraint',
-                                       constraint_func='rotation_period',
-                                       component=component)):
-                        constraint_param = self.get_constraint(constraint_func='rotation_period',
-                                                               component=component)
-                        self.remove_constraint(constraint_func='rotation_period',
-                                               component=component)
-                        self.add_constraint(constraint.rotation_period, component,
-                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                            constraint=constraint_param.constraint)
-                    else:
-                        self.add_constraint(constraint.rotation_period, component,
-                                            constraint=self._default_label('rotation_period', context='constraint'))
 
                     logger.debug('re-creating pitch constraint for {}'.format(component))
                     # TODO: will this cause problems if the constraint has been flipped?
@@ -1208,8 +1207,14 @@ class Bundle(ParameterSet):
             parent = hier.get_parent_of(component)
             parent_ps = self.get_component(parent)
             if kind in ['star']:
-                    # ignore the single star case
+                # ignore the single star case
                 if parent:
+                    # contact systems MUST by synchronous
+                    if hier.is_contact_binary(component):
+                        if self.get_value(qualifier='syncpar', component=component, context='component', **kwargs) != 1.0:
+                            return False,\
+                                'contact binaries must by synchronous, but syncpar@{}!=1'.format(component)
+
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
                     requiv = comp_ps.get_value('requiv', unit=u.solRad, **kwargs)
