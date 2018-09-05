@@ -48,7 +48,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     compares += [{'qualifier': 'loggs', 'dataset': 'mesh01', 'atol': 2e-4}]
     compares += [{'qualifier': 'teffs', 'dataset': 'mesh01', 'atol': 1e-5}]
 
-    compares += [{'qualifier': 'abs_normal_intensities', 'dataset': 'lc01', 'atol': 2e5}] # NOTE: these values are of order 1E14
+    compares += [{'qualifier': 'abs_normal_intensities', 'dataset': 'lc01', 'atol': 0, 'rtol': 1e-8}] # NOTE: these values are of order 1E14
 
 
     for c in compares:
