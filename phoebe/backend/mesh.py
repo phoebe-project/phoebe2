@@ -527,7 +527,8 @@ class ProtoMesh(object):
         # we call something like ScaledProtoMesh.from_proto we don't have
         # to do all the on-the-fly computations just to discard them because
         # they aren't setable.
-        keys = ['pvertices', 'vertices', 'triangles', 'centers',
+        keys = ['compute_at_vertices',
+                  'pvertices', 'vertices', 'triangles', 'centers',
                   'coords_for_computations', 'normals_for_computations',
                   'rs', 'rprojs', 'cosbetas',
                   'areas', 'tareas', 'areas_si',
@@ -638,6 +639,11 @@ class ProtoMesh(object):
                 # to be accurate by splitting the mesh, so we'll reset to None
                 # copy[k] = None
                 continue
+
+            elif isinstance(current_value, bool):
+                # then something like compute_at_vertices which we want to pass
+                # on to each half
+                copy[k] = current_value
 
             elif current_value is None or not len(current_value):
                 # then this attribute is empty, so we can leave it that way

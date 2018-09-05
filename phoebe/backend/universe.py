@@ -922,16 +922,16 @@ class Body(object):
             # F = _value(Fs[self.ind_self])
 
             new_mesh_dict, scale = self._build_mesh(mesh_method=self.mesh_method)
+            if self.mesh_method != 'wd':
+                new_mesh_dict = self._offset_mesh(new_mesh_dict)
 
-            new_mesh_dict = self._offset_mesh(new_mesh_dict)
-
-            # We only need the gradients where we'll compute local
-            # quantities which, for a marching mesh, is at the vertices.
-            new_mesh_dict['normgrads'] = new_mesh_dict.pop('vnormgrads', np.array([]))
+                # We only need the gradients where we'll compute local
+                # quantities which, for a marching mesh, is at the vertices.
+                new_mesh_dict['normgrads'] = new_mesh_dict.pop('vnormgrads', np.array([]))
 
             # And lastly, let's fill the velocities column - with zeros
             # at each of the vertices
-            new_mesh_dict['velocities'] = np.zeros(new_mesh_dict['vertices'].shape)
+            new_mesh_dict['velocities'] = np.zeros(new_mesh_dict['vertices'].shape if self.mesh_method != 'wd' else new_mesh_dict['centers'].shape)
 
             new_mesh_dict['tareas'] = np.array([])
 
