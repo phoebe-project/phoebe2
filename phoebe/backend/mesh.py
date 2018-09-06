@@ -1240,7 +1240,7 @@ class Mesh(ScaledProtoMesh):
     def from_proto(cls, proto_mesh, scale,
                       pos, vel, euler, euler_vel,
                       rotation_vel=(0,0,0),
-                      envelope_com_xyz=None):
+                      component_com_x=None):
         """
         Turn a ProtoMesh into a Mesh scaled and placed in orbit.
 
@@ -1258,7 +1258,7 @@ class Mesh(ScaledProtoMesh):
 
         mesh._copy_roche_values()
         mesh._scale_mesh(scale=scale)
-        mesh._place_in_orbit(pos, vel, euler, euler_vel, rotation_vel, envelope_com_xyz)
+        mesh._place_in_orbit(pos, vel, euler, euler_vel, rotation_vel, component_com_x)
 
         return mesh
 
@@ -1266,7 +1266,7 @@ class Mesh(ScaledProtoMesh):
     def from_scaledproto(cls, scaledproto_mesh,
                          pos, vel, euler, euler_vel,
                          rotation_vel=(0,0,0),
-                         envelope_com_xyz=None):
+                         component_com_x=None):
         """
         TODO: add documentation
         """
@@ -1275,7 +1275,7 @@ class Mesh(ScaledProtoMesh):
 
         # roche coordinates have already been copied
         # so do NOT call mesh._copy_roche_values() here
-        mesh._place_in_orbit(pos, vel, euler, euler_vel, rotation_vel, envelope_com_xyz)
+        mesh._place_in_orbit(pos, vel, euler, euler_vel, rotation_vel, component_com_x)
 
         return mesh
 
