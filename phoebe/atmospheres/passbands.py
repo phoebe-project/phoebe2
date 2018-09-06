@@ -20,6 +20,8 @@ import shutil
 import urllib, urllib2
 import json
 
+from phoebe.utils import parse_json
+
 import logging
 logger = logging.getLogger("PASSBANDS")
 logger.addHandler(logging.NullHandler())
@@ -45,6 +47,11 @@ else:
 if not os.path.exists(_pbdir_local):
     logger.info("creating directory {}".format(_pbdir_local))
     os.makedirs(_pbdir_local)
+
+if not os.getenv('PHOEBE_PBDIR','False')=='False':
+    _pbdir_env = os.getenv('PHOEBE_PBDIR')
+else:
+    _pbdir_env = None
 
 
 class Passband:
@@ -1104,6 +1111,15 @@ def init_passbands(refresh=False):
                     continue
                 init_passband(path+f)
 
+        #Check if _pbdir_env has been set and load those passbands too
+        if not _pbdir_env == None:
+            for path in [_pbdir_env]:
+                for f in os.listdir(path):
+                    if f=='README':
+                        continue
+                    init_passband(path+f)
+
+
         _initialized = True
 
 def install_passband(fname, local=True):
@@ -1188,7 +1204,7 @@ def list_online_passbands(refresh=False, full_dict=False):
                 else:
                     return []
         else:
-            _online_passbands = json.loads(resp.read())
+            _online_passbands = json.loads(resp.read(), object_pairs_hook=parse_json)
 
     if full_dict:
         return _online_passbands

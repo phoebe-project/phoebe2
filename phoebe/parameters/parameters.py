@@ -9,6 +9,7 @@ from phoebe.constraints.expression import ConstraintVar
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete, plotting, mpl_animate, nphelpers
+from phoebe.utils import parse_json
 
 import random
 import string
@@ -190,6 +191,9 @@ def _uniqueid(n=30):
                    string.ascii_uppercase + string.ascii_lowercase)
                    for _ in range(n))
 
+def _is_unit(unit):
+    return isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit) or isinstance(unit, u.IrreducibleUnit)
+
 
 def parameter_from_json(dictionary, bundle=None):
     """Load a single parameter from a JSON dictionary.
@@ -200,7 +204,7 @@ def parameter_from_json(dictionary, bundle=None):
     :return: instantiated :class:`Parameter` object
     """
     if isinstance(dictionary, str):
-        dictionary = json.loads(dictionary)
+        dictionary = json.loads(dictionary, object_pairs_hook=parse_json)
 
     classname = dictionary.pop('Class')
 
@@ -506,7 +510,7 @@ class ParameterSet(object):
 
         :return: list of strings
         """
-        return self.to_dict(field='component').keys()
+        return [c for c in self.to_dict(field='component').keys() if c!='_default']
 
     @property
     def dataset(self):
@@ -525,7 +529,7 @@ class ParameterSet(object):
 
         :return: list of strings
         """
-        return self.to_dict(field='dataset').keys()
+        return [d for d in self.to_dict(field='dataset').keys() if d!='_default']
 
     @property
     def constraint(self):
@@ -820,7 +824,9 @@ class ParameterSet(object):
                 # existing parameters so that we know whether they already exist or
                 # still need to be created
 
+                # logger.debug("_check_copy_for {}: attrs={}".format(param.twig, attrs))
                 for attrvalues in itertools.product(*(getattr(ps, '{}s'.format(attr)) for attr in attrs)):
+                    # logger.debug("_check_copy_for {}: attrvalues={}".format(param.twig, attrvalues))
                     # for each attrs[i] (ie component), attrvalues[i] (star01)
                     # we need to look for this parameter, and if it does not exist
                     # then create it by copying param
@@ -832,6 +838,7 @@ class ParameterSet(object):
                         #    continue
                         metawargs[attr] = attrvalue
 
+                    # logger.debug("_check_copy_for {}: metawargs={}".format(param.twig, metawargs))
                     if not len(self._bundle.filter(check_visible=False, **metawargs)):
                         # then we need to make a new copy
                         logger.debug("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
@@ -937,7 +944,7 @@ class ParameterSet(object):
         if _can_ujson:
             data = ujson.load(f)
         else:
-            data = json.load(f)
+            data = json.load(f, object_pairs_hook=parse_json)
         f.close()
         return cls(data)
 
@@ -1211,7 +1218,8 @@ class ParameterSet(object):
         for context in _contexts:
             lst += [v.to_json(incl_uniqueid=incl_uniqueid)
                     for v in self.filter(context=context,
-                                         check_visible=False).to_list()]
+                                         check_visible=False,
+                                         check_default=False).to_list()]
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
@@ -1383,6 +1391,11 @@ class ParameterSet(object):
                 #if kwargs[key] is None:
                 #    params = [pi for pi in params if getattr(pi,key) is None]
                 #else:
+                if isinstance(kwargs[key], unicode):
+                    # unicodes can cause all sorts of confusions with fnmatch,
+                    # so let's just cast now and be done with it
+                    kwargs[key] = str(kwargs[key])
+
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None) and
                     (getattr(pi,key)==kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
@@ -3154,7 +3167,7 @@ class Parameter(object):
         :return: instantiated :class:`Parameter` object
         """
         f = open(filename, 'r')
-        data = json.load(f)
+        data = json.load(f, object_pairs_hook=parse_json)
         f.close()
         return cls(data)
 
@@ -3203,7 +3216,7 @@ class Parameter(object):
                 return v
             elif isinstance(v, float) or isinstance(v, int) or isinstance(v, list):
                 return v
-            elif isinstance(v, u.Unit) or isinstance(v, u.CompositeUnit):
+            elif _is_unit(v):
                 return str(v.to_string())
             else:
                 try:
@@ -4271,6 +4284,13 @@ class FloatParameter(Parameter):
         elif unit is None:
             unit = u.dimensionless_unscaled
 
+        if not _is_unit(unit):
+            raise TypeError("unit must be a Unit")
+
+        if hasattr(self, '_default_unit') and self._default_unit is not None:
+            # we won't use a try except here so that the error comes from astropy
+            check_convert = self._default_unit.to(unit)
+
         self._default_unit = unit
 
     @property
@@ -4412,12 +4432,8 @@ class FloatParameter(Parameter):
         if unit is None or value is None:
             return value
         else:
-            try:
-                return value.to(unit)
-            except u.core.UnitConversionError as err:
-                raise ValueError(err)
-            except:
-                return value
+            # NOTE: astropy will raise an error if units not compatible
+            return value.to(unit)
 
     def _check_type(self, value):
         # we do this separately so that FloatArrayParameter can keep this set_value
@@ -4476,7 +4492,7 @@ class FloatParameter(Parameter):
         if isinstance(unit, str):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
-        elif unit is not None and not (isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit)):
+        elif unit is not None and not _is_unit(unit):
             raise TypeError("unit must be an phoebe.u.Unit or None, got {}".format(unit))
 
         value = self._check_type(value)
@@ -5599,10 +5615,17 @@ class ConstraintParameter(Parameter):
         """
 
         """
-        # TODO: check to make sure isinstance(unit, astropy.units.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
         if isinstance(unit, str) or isinstance(unit, unicode):
             unit = u.Unit(str(unit))
+
+        if not _is_unit(unit):
+            raise TypeError("unit must be a Unit")
+
+        if hasattr(self, '_default_unit') and self._default_unit is not None:
+            # we won't use a try except here so that the error comes from astropy
+            check_convert = self._default_unit.to(unit)
+
 
         self._default_unit = unit
 
@@ -5694,7 +5717,7 @@ class ConstraintParameter(Parameter):
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
             return ConstraintParameter(self._bundle, "(%s) %s %f" % (self.expr, symbol, other.si.value), default_unit=(getattr(self.result, mathfunc)(other).unit))
-        elif (isinstance(other, u.Unit) or isinstance(other, u.CompositeUnit) or isinstance(other, u.IrreducibleUnit)) and mathfunc=='__mul__':
+        elif _is_unit(other) and mathfunc=='__mul__':
             # here we'll fake the unit to become a quantity so that we still return a ConstraintParameter
             return self*(1*other)
         else:
@@ -5718,7 +5741,7 @@ class ConstraintParameter(Parameter):
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
             return ConstraintParameter(self._bundle, "%f %s (%s)" % (other.si.value, symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other).unit))
-        elif (isinstance(other, u.Unit) or isinstance(other, u.CompositeUnit) or isinstance(other, u.IrreducibleUnit)) and mathfunc=='__mul__':
+        elif _is_unit(other) and mathfunc=='__mul__':
             # here we'll fake the unit to become a quantity so that we still return a ConstraintParameter
             return self*(1*other)
         else:
@@ -5929,6 +5952,9 @@ class ConstraintParameter(Parameter):
         self._kind = newly_constrained_param.kind
 
         self._value = str(expression)
+        # reset the default_unit so that set_default_unit doesn't complain
+        # about incompatible units
+        self._default_unit = None
         self.set_default_unit(newly_constrained_param.default_unit)
 
         self._update_bookkeeping()

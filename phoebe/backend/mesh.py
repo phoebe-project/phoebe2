@@ -1274,6 +1274,7 @@ class Mesh(ScaledProtoMesh):
         mesh = cls(**scaledproto_mesh.items())
 
         # roche coordinates have already been copied
+        # so do NOT call mesh._copy_roche_values() here
         mesh._place_in_orbit(pos, vel, euler, euler_vel, rotation_vel, envelope_com_xyz)
 
         return mesh

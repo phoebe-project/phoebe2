@@ -62,6 +62,30 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.0.10 - legacy import extraneous spaces hotfix
+
+* Handle ignoring extraneous spaces when importing a PHOEBE legacy file.
+
+### 2.0.9 - \_default Parameters hotfix
+
+* Previously, after loading from a JSON file, new datasets were ignored by run_compute because the \_default Parameters (such as 'enabled') were not stored and loaded correctly.  This has now been fixed.
+* PS.datasets/components now hides the (somewhat confusing) \_default entries.
+* unicode handling in filtering is improved to make sure the copying rules from JSON are followed correctly when loaded as unicodes instead of strings.
+
+### 2.0.8 - contacts hotfix
+
+* Remove unused Parameters from the Bundle
+* Improvement in finding the boundary between the two components of a contact system
+
+### 2.0.7 - legacy import/export hotfix
+
+* Handle missing parameters when importing/exporting so that a Bundle exported to a PHOEBE legacy file can successfully be reimported
+* Handle importing standard weight from datasets and converting to sigma
+
+### 2.0.6 - unit conversion hotfix
+
+* When requesting unit conversion from the frontend, astropy will now raise an error if the units are not compatible.
+
 ### 2.0.5 - semi-detached hotfix
 
 * Fixed bug in which importing a PHOEBE legacy file of a semi-detached system failed to set the correct potential for the star filling its roche lobe.  This only affects the importer itself.
