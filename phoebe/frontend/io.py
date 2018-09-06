@@ -332,16 +332,22 @@ def det_dataset(eb, passband, dataid, comp, time):
         rvs = eb.get_dataset(kind='rv').datasets
         found = False
         #set the component of the companion
+
         if comp == 'primary':
-            comp_o = 'secondary'
-        else:
             comp_o = 'primary'
+        else:
+            comp_o = 'secondary'
         for x in rvs:
-            test_dataset = eb.get_dataset(x)
-            if len(test_dataset.get_value(qualifier='rvs', component=comp_o)) == 0:                #so at least it has an empty spot now check against filter and length
-                time_o = test_dataset.get_value('times', component=comp_o)
+            test_dataset = eb.get_dataset(x, check_visible=False)
+
+
+            if len(test_dataset.get_value(qualifier='rvs', component=comp_o, check_visible=False)) == 0:                #so at least it has an empty spot now check against filter and length
+#               removing reference to time_o. If there are no rvs there should be no times
+#                time_o = test_dataset.get_value('times', component=comp_o)
                 passband_o = test_dataset.get_value('passband')
-                if np.all(time_o == time) and (passband == passband_o):
+
+#                if np.all(time_o == time) and (passband == passband_o):
+                if (passband == passband_o):
                     rv_dataset = test_dataset
                     found = True
 
@@ -713,6 +719,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             data_dict = load_rv_data(filename=rv_dict['phoebe_rv_filename'], indep=rv_dict['phoebe_rv_indep'], dep=rv_dict['phoebe_rv_dep'], indweight=indweight, dir=legacy_file_dir)
 
             rv_dict.update(data_dict)
+
             time = rv_dict['phoebe_rv_time']
         #
 
@@ -723,6 +730,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         del rv_dict['phoebe_rv_active']
 
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
+
         eb.set_value_all(check_visible= False, **d)
 
     #get available passbands and set
@@ -734,6 +742,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb.set_value_all(check_visible= False, **d)
         del rv_dict['phoebe_rv_filter']
 # now go through parameters and input the results into phoebe2
+
         for k  in rv_dict:
 
             pnew, d = ret_dict(k, rv_dict[k], rvdep = comp, dataid=dataid)
