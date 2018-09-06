@@ -5,6 +5,7 @@ framework of the PHOEBE 2.0 frontend.
 """
 
 from phoebe.constraints.expression import ConstraintVar
+# from phoebe.constraints import builtin
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete, plotting, mpl_animate, nphelpers
@@ -19,6 +20,7 @@ import sys
 import os
 import difflib
 import time
+import types
 from collections import OrderedDict
 from fnmatch import fnmatch
 from copy import deepcopy
@@ -79,21 +81,6 @@ import logging
 logger = logging.getLogger("PARAMETERS")
 logger.addHandler(logging.NullHandler())
 
-_constraint_builtin_funcs = ['rocherpole2potential',
-                             'rochepotential2rpole',
-                             'rotstarrpole2potential',
-                             'rotstarpotential2rpole',
-                             'rochecriticalL12potential',
-                             'rochecriticalL12rpole',
-                             'esinw2per0',
-                             'ecosw2per0',
-                             't0_supconj_to_perpass',
-                             't0_perpass_to_supconj',
-                             't0_supconj_to_ref',
-                             't0_ref_to_supconj',
-                             'sin', 'cos', 'tan',
-                             'arcsin', 'arccos', 'arctan',
-                             'sqrt']
 
 _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
                                         'ConstraintParameter', 'JobParameter']
@@ -120,6 +107,7 @@ _forbidden_labels = deepcopy(_meta_fields_all)
 _forbidden_labels += _contexts
 _forbidden_labels += ['lc', 'lc_dep', 'lc_syn',
                       'rv', 'rv_dep', 'rv_syn',
+                      'lp', 'lp_dep', 'lp_syn',
                       'sp', 'sp_dep', 'sp_syn',
                       'orb', 'orb_dep', 'orb_syn',
                       'mesh', 'mesh_dep', 'mesh_syn']
@@ -711,7 +699,7 @@ class ParameterSet(object):
             else:
                 setattr(self, '_'+field, None)
 
-    def _uniquetwig(self, twig, force_levels=[]):
+    def _uniquetwig(self, twig, force_levels=['qualifier']):
         """
         get the least unique twig for the parameter given by twig that
         will return this single result for THIS PS
@@ -853,7 +841,7 @@ class ParameterSet(object):
                     # logger.debug("_check_copy_for {}: metawargs={}".format(param.twig, metawargs))
                     if not len(self._bundle.filter(check_visible=False, **metawargs)):
                         # then we need to make a new copy
-                        logger.info("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
+                        logger.debug("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
 
                         newparam = param.copy()
 
@@ -883,7 +871,7 @@ class ParameterSet(object):
                                 if attr in constraint_kwargs.keys():
                                     constraint_kwargs[attr] = attrvalue
 
-                            logger.info("copying constraint '{}' parameter for {}".format(param_constraint.constraint_func, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
+                            logger.debug("copying constraint '{}' parameter for {}".format(param_constraint.constraint_func, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
                             self.add_constraint(func=param_constraint.constraint_func, **constraint_kwargs)
 
         return
@@ -1585,7 +1573,7 @@ class ParameterSet(object):
         else:
             self._attach_params(ParameterSet([new_parameter]), **kwargs)
 
-            logger.info("creating and attaching new parameter: {}".format(new_parameter.qualifier))
+            logger.debug("creating and attaching new parameter: {}".format(new_parameter.qualifier))
 
             return self.filter_or_get(qualifier=qualifier, **kwargs), True
 
@@ -2256,6 +2244,11 @@ class ParameterSet(object):
             yqualifier = kwargs.get('y', 'rvs')
             zqualifier = kwargs.get('z', 0)
             timequalifier = 'times'
+        elif ps.kind in ['lp', 'lp_syn']:
+            xqualifier = kwargs.get('x', 'wavelengths')
+            yqualifier = kwargs.get('y', 'flux_densities')
+            zqualifier = kwargs.get('z', 'flux_densities')
+            timequalifier = 'times'
         elif ps.kind in ['etv', 'etv_syn']:
             xqualifier = kwargs.get('x', 'time_ecls')
             yqualifier = kwargs.get('y', 'etvs')
@@ -2315,7 +2308,7 @@ class ParameterSet(object):
         # If the user provides unit(s), they can either give the unit object or
         # the string representation, so long as get_value(unit) succeeds
         # xunit = kwargs.get('xunit', xparam.default_unit)
-        if ps.kind in ['mesh', 'mesh_syn']:  # TODO: add sp and sp_syn
+        if ps.kind in ['mesh', 'mesh_syn', 'lp', 'lp_syn']:  # TODO: add sp and sp_syn
             # then we're plotting at a single time so the time array doesn't
             # really make sense (we won't be able to plot anything vs phase or
             # color by time/phase)
@@ -2490,7 +2483,7 @@ class ParameterSet(object):
                 kwargs.setdefault('linestyle', 'None')
                 kwargs.setdefault('marker', '^')
             else:
-                kwargs.setdefault('linestyle', '-')
+                #kwargs.setdefault('linestyle', '-')
                 kwargs.setdefault('marker', 'None')
             kwargs.setdefault('xerrors', None)
             kwargs.setdefault('yerrors', None)
@@ -3437,10 +3430,19 @@ class Parameter(object):
         :rtype: bool
         """
         def is_visible_single(visible_if):
+            # visible_if syntax: [ignore,these]qualifier:value
+
+
             if visible_if.lower() == 'false':
                 return False
 
             # otherwise we need to find the parameter we're referencing and check its value
+            if visible_if[0]=='[':
+                remove_metawargs, visible_if = visible_if[1:].split(']')
+                remove_metawargs = remove_metawargs.split(',')
+            else:
+                remove_metawargs = []
+
             qualifier, value = visible_if.split(':')
 
             if 'hierarchy.' in qualifier:
@@ -3465,11 +3467,11 @@ class Parameter(object):
 
                 # the parameter needs to have all the same meta data except qualifier
                 # TODO: switch this to use self.get_parent_ps ?
-                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']).items() if v is not None}
+                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
                 metawargs['qualifier'] = qualifier
-                metawargs['twig'] = None
-                metawargs['uniquetwig'] = None
-                metawargs['uniqueid'] = None
+                # metawargs['twig'] = None
+                # metawargs['uniquetwig'] = None
+                # metawargs['uniqueid'] = None
                 # if metawargs.get('component', None) == '_default':
                     # metawargs['component'] = None
 
@@ -3494,6 +3496,8 @@ class Parameter(object):
 
                 if isinstance(value, str) and value[0] in ['!', '~']:
                     return param.get_value() != value[1:]
+                elif value=='<notempty>':
+                    return len(param.get_value()) > 0
                 else:
                     return param.get_value() == value
 
@@ -4519,8 +4523,8 @@ class FloatParameter(Parameter):
                 value = value % (360*u.deg)
                 logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
 
-        # make sure the value is within the limits
-        if not self.within_limits(value):
+        # make sure the value is within the limits, if this isn't an array or nan
+        if isinstance(value, float) and not self.within_limits(value):
             raise ValueError("value of {} must be within limits of {}".format(self.qualifier, self.limits))
 
         # make sure we can convert back to the default_unit
@@ -5201,6 +5205,13 @@ class HierarchyParameter(StringParameter):
         # now search for indices of star and take the next entry from this flat list
         return [l[i+1] for i,s in enumerate(l) if s=='star']
 
+    def get_envelopes(self):
+        """
+        get 'component' of all envelopes
+        """
+        l = re.findall(r"[\w']+", self.get_value())
+        # now search for indices of star and take the next entry from this flat list
+        return [l[i+1] for i,s in enumerate(l) if s=='envelope']
 
     def get_orbits(self):
         """
@@ -5268,6 +5279,12 @@ class HierarchyParameter(StringParameter):
         else:
             return siblings
 
+    def get_envelope_of(self, component):
+        envelopes = self.get_siblings_of(component, 'envelope')
+        if not len(envelopes):
+            return []
+        else:
+            return envelopes[0]
 
     def get_stars_of_sibling_of(self, component):
         """
@@ -5772,6 +5789,14 @@ class ConstraintParameter(Parameter):
         # second culprit is converting everything to si
         # third culprit is the dictionary comprehensions
 
+        # in theory, it would be nice to prepare this list at the module import
+        # level, but that causes an infinite loop in the imports, so we'll
+        # do a re-import here.  If this causes significant lag, it may be worth
+        # trying to resolve the infinite loop.
+        from phoebe.constraints import builtin
+        _constraint_builtin_funcs = [f for f in dir(builtin) if isinstance(getattr(builtin, f), types.FunctionType)]
+        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'sqrt']
+
         def eq_needs_builtin(eq):
             for func in _constraint_builtin_funcs:
                 if "{}(".format(func) in eq:
@@ -5810,14 +5835,21 @@ class ConstraintParameter(Parameter):
 
                 values = get_values(self._vars, safe_label=False)
 
-                from phoebe.constraints.builtin import ecosw2per0, esinw2per0,\
-                        t0_perpass_to_supconj, t0_supconj_to_perpass,\
-                        t0_ref_to_supconj, t0_supconj_to_ref,\
-                        rochepotential2rpole, rocherpole2potential,\
-                        rotstarpotential2rpole, rotstarrpole2potential,\
-                        rochecriticalL12potential, rochecriticalL12rpole
+                # cannot do from builtin import *
+                for func in _constraint_builtin_funcs:
+                    # I should be shot for doing this...
+                    # in order for eval to work, the builtin functions need
+                    # to be imported at the top-level, but I don't really want
+                    # to do from builtin import * (and even if I did, python
+                    # yells at me for doing that), so instead we'll add them
+                    # to the locals dictionary.
+                    locals()[func] = getattr(builtin, func)
 
-                value = float(eval(eq.format(**values)))
+                try:
+                    value = float(eval(eq.format(**values)))
+                except:
+                    value = np.nan
+
 
             else:
                 # the following works for np arrays

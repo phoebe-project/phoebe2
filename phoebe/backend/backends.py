@@ -60,7 +60,7 @@ def _needs_mesh(b, dataset, kind, component, compute):
         # then we don't have meshes for this backend, so all should be False
         return False
 
-    if kind not in ['mesh', 'lc', 'rv']:
+    if kind not in ['mesh', 'lc', 'rv', 'lp']:
         return False
 
     if kind == 'lc' and compute_kind=='phoebe' and b.get_value(qualifier='lc_method', compute=compute, dataset=dataset, context='compute')=='analytical':
@@ -85,7 +85,9 @@ def _expand_mesh_times(b, dataset_ps, component):
             add_timequalifier = _timequalifier_by_kind(add_ps.kind)
             add_ps_components = add_ps.filter(qualifier=add_timequalifier).components
             # print "*** add_ps_components", add_dataset, add_ps_components
-            if len(add_ps_components):
+            if len(add_ps.times):
+                add_times = np.array([float(t) for t in add_ps.times])
+            elif len(add_ps_components):
                 # then we need to concatenate over all components_
                 # (times@rv@primary and times@rv@secondary are not necessarily
                 # identical)
@@ -161,7 +163,12 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
         dataset_kind = dataset_ps.exclude(kind='*_dep').kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
         if dataset_kind in ['lc']:
+            # then the Parameters in the model only exist at the system-level
+            # and are not tagged by component
             dataset_components = [None]
+        elif dataset_kind in ['lp']:
+            # TODO: eventually spectra and RVs as well (maybe even LCs and ORBs)
+            dataset_components = b.hierarchy.get_stars() + b.hierarchy.get_orbits()
         else:
             dataset_components = b.hierarchy.get_stars()
 
@@ -170,6 +177,10 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 this_times = provided_times
             elif dataset_kind == 'mesh':
                 this_times = _expand_mesh_times(b, dataset_ps, component)
+            elif dataset_kind in ['lp']:
+                # then we have Parameters tagged by times, this will probably
+                # also apply to spectra.
+                this_times = [float(t) for t in dataset_ps.times]
             else:
                 timequalifier = _timequalifier_by_kind(dataset_kind)
                 timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
@@ -185,8 +196,6 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                         # mesh_times = _expand_mesh_times(b, mesh_obs_ps, component=None)
                         # this_times = np.unique(np.append(this_times, mesh_times))
 
-            # TODO: also copy this logic for _extract_from_bundle_by_dataset if
-            # we decide to support oversamling with other backends
             if allow_oversample and \
                     dataset_kind in ['lc'] and \
                     b.get_value(qualifier='exptime', dataset=dataset, check_visible=False) > 0 and \
@@ -203,8 +212,14 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 # NOTE: if changing this, also change in bundle.run_compute
                 this_times = np.array([np.linspace(t-exptime/2., t+exptime/2., fti_oversample) for t in this_times]).flatten()
 
-            if len(this_times):
+            if dataset_kind in ['lp']:
+                # for line profiles and spectra, we only need to compute synthetic
+                # model if there are defined wavelengths
+                this_wavelengths = dataset_ps.get_value(qualifier='wavelengths', component=component)
+            else:
+                this_wavelengths = None
 
+            if len(this_times) and (this_wavelengths is None or len(this_wavelengths)):
                 info = {'dataset': dataset,
                         'component': component,
                         'kind': dataset_kind,
@@ -292,11 +307,15 @@ def _create_syns(b, needed_syns):
         # TODO: do we need to handle constraints?
         these_params = these_params.to_list()
         for param in these_params:
-            param._component = needed_syn['component']
             if param._dataset is None:
                 # dataset may be set for mesh columns
                 param._dataset = needed_syn['dataset']
+
             param._kind = syn_kind
+            param._component = needed_syn['component']
+            # reset copy_for... model Parameters should never copy
+            param._copy_for = {}
+
             # context, model, etc will be handle by the bundle once these are returned
 
         params += these_params
@@ -401,13 +420,6 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     # TODO: skip initializing system if we NEVER need meshes
     system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
 
-
-    # We need to create the mesh at periastron for any of the following reasons:
-    # - protomesh
-    # - volume-conservation for eccentric orbits
-    # We'll assume that this is always done - so even for circular orbits, the initial mesh will just be a scaled version of this mesh
-    system.initialize_meshes()
-
     # Now we need to compute intensities at t0 in order to scale pblums for all future times
     # TODO: only do this if we need the mesh for actual computations
     # TODO: move as much of this pblum logic into mesh.py as possible
@@ -416,7 +428,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     datasets = enabled_ps.datasets
     kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
 
-    if 'lc' in kinds or 'rv' in kinds:  # TODO this needs to be WAY more general
+    if 'lc' in kinds or 'rv' in kinds or 'sp' in kinds:  # TODO this needs to be WAY more general
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
@@ -427,44 +439,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # TODO: star needs long_an (yaw?)
             etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', unit=u.rad)]
 
-        system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
-
-        for dataset in datasets:
-            ds = b.get_dataset(dataset=dataset)
-            kind = ds.exclude(kind='*_dep').kind
-            if kind not in ['lc']:
-                # only LCs need pblum scaling
-                continue
-
-            system.populate_observables(t0, [kind], [dataset],
-                                        ignore_effects=True)
-
-            # now for each component we need to store the scaling factor between
-            # absolute and relative intensities
-            pblum_copy = {}
-            for component in ds.filter(qualifier='pblum_ref').components:
-                if component=='_default':
-                    continue
-                pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
-                if pblum_ref=='self':
-                    pblum = ds.get_value(qualifier='pblum', component=component)
-                    ld_func = ds.get_value(qualifier='ld_func', component=component)
-                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
-
-                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
-                    system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
-                else:
-                    # then this component wants to copy the scale from another component
-                    # in the system.  We'll just store this now so that we make sure the
-                    # component we're copying from has a chance to compute its scale
-                    # first.
-                    pblum_copy[component] = pblum_ref
-
-
-            # now let's copy all the scales for those that are just referencing another component
-            for comp, comp_copy in pblum_copy.items():
-                pblum_scale = system.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
-                system.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
 
 #######################################################################################################################################################
@@ -565,6 +540,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                       'time': time
                       }
 
+            # print "*** make_packet", packet
             return packet
 
         for k, info in enumerate(infolist):
@@ -576,14 +552,62 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             kind = info['kind']
 
             # now check the kind to see what we need to fill
-            if kind=='rv':
+            if kind=='lp':
+                # print "*** lp", info
+                profile_func = b.get_value(qualifier='profile_func',
+                                           dataset=info['dataset'],
+                                           context='dataset')
+
+                profile_rest = b.get_value(qualifier='profile_rest',
+                                           dataset=info['dataset'],
+                                           context='dataset')
+
+                profile_sv = b.get_value(qualifier='profile_sv',
+                                         dataset=info['dataset'],
+                                         context='dataset')  # UNITS???
+
+                wavelengths = b.get_value(qualifier='wavelengths',
+                                          component=info['component'],
+                                          dataset=info['dataset'],
+                                          context='dataset',
+                                          unit=u.nm)
+
+                if info['component'] in b.hierarchy.get_stars():
+                    lp_components = info['component']
+                elif info['component'] in b.hierarchy.get_orbits():
+                    lp_components = b.hierarchy.get_stars_of_children_of(info['component'])
+                else:
+                    raise NotImplementedError
+
+                obs = system.observe(info['dataset'],
+                                     kind=kind,
+                                     components=lp_components,
+                                     profile_func=profile_func,
+                                     profile_rest=profile_rest,
+                                     profile_sv=profile_sv,
+                                     wavelengths=wavelengths)
+
+                # TODO: copy the original for wavelengths just like we do with
+                # times and don't use packets at all
+                packetlist.append(make_packet('wavelengths',
+                                              wavelengths*u.nm,
+                                              None, info))
+
+                packetlist.append(make_packet('flux_densities',
+                                              obs['flux_densities']*u.W/(u.m**2*u.nm),
+                                              time, info))
+            elif kind=='rv':
                 ### this_syn['times'].append(time) # time array was set when initializing the syns
                 if info['needs_mesh']:
                     # TODO: we have to call get here because twig access will trigger on kind=rv and qualifier=rv
                     # print "***", this_syn.filter(qualifier='rv').twigs, this_syn.filter(qualifier='rv').kinds, this_syn.filter(qualifier='rv').components
                     # if len(this_syn.filter(qualifier='rv').twigs)>1:
                         # print "***2", this_syn.filter(qualifier='rv')[1].kind, this_syn.filter(qualifier='rv')[1].component
-                    rv = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance)['rv']
+                    obs = system.observe(info['dataset'],
+                                         kind=kind,
+                                         components=info['component'])
+
+                    rv = obs['rv']
                 else:
                     # then rv_method == 'dynamical'
                     rv = -1*vzi[cind]
@@ -595,8 +619,14 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             elif kind=='lc':
                 l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
 
+                obs = system.observe(info['dataset'],
+                                     kind=kind,
+                                     components=info['component'],
+                                     distance=distance,
+                                     l3=l3)
+
                 packetlist.append(make_packet('fluxes',
-                                              system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance, l3=l3)['flux']*u.W/u.m**2,
+                                              obs['flux']*u.W/u.m**2,
                                               time, info))
 
             elif kind=='etv':
@@ -677,7 +707,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                                                   time, info))
                 if 'volume' in info['mesh_columns']:
                     packetlist.append(make_packet('volume',
-                                                  body.volume,
+                                                  body.mesh.volume,
                                                   time, info))
 
                 if 'us' in info['mesh_columns']:
@@ -871,7 +901,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                                                       dataset=mesh_dataset,
                                                       component=info['component']))
 
-                    for indep in ['rvs', 'intensities', 'normal_intensities',
+                    for indep in ['rvs', 'dls',
+                                  'intensities', 'normal_intensities',
                                   'abs_intensities', 'abs_normal_intensities',
                                   'boost_factors', 'ldint']:
 
@@ -1378,7 +1409,7 @@ def photodynam(b, compute, times=[], **kwargs):
                 context='component', unit=u.solMass) * c.G.to('AU3 / (Msun d2)').value)
                 for star in starrefs])+'\n') # GM
 
-        fi.write(' '.join([str(b.get_value('rpole', component=star,
+        fi.write(' '.join([str(b.get_value('requiv', component=star,
                 context='component', unit=u.AU))
                 for star in starrefs])+'\n')
 

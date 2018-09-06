@@ -3,7 +3,8 @@ import phoebe as phb
 import os.path
 import logging
 from phoebe import conf
-from libphoebe import roche_critical_potential
+from phoebe.distortions import roche
+import libphoebe
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
 
@@ -20,14 +21,12 @@ _1to2par = {'ld_model':'ld_func',
 #            'model': 'morphology',
             'filter': 'passband',
             'hjd0':'t0_ref',
-#            'hjd0': 't0_supconj',
             'period': 'period',
             'dpdt': 'dpdt',
-#            'pshift':'phshift',
             'sma':'sma',
             'rm': 'q',
             'incl': 'incl',
-            'pot':'pot',
+            'pot':'requiv',
             'met':'abun',
             'f': 'syncpar',
             'alb': 'irrad_frac_refl_bol',
@@ -347,16 +346,22 @@ def det_dataset(eb, passband, dataid, comp, time):
         rvs = eb.get_dataset(kind='rv').datasets
         found = False
         #set the component of the companion
+
         if comp == 'primary':
-            comp_o = 'secondary'
-        else:
             comp_o = 'primary'
+        else:
+            comp_o = 'secondary'
         for x in rvs:
-            test_dataset = eb.get_dataset(x)
-            if len(test_dataset.get_value(qualifier='rvs', component=comp)) == 0:                #so at least it has an empty spot now check against filter and length
-                time_o = test_dataset.get_value('times', component=comp_o)
+            test_dataset = eb.get_dataset(x, check_visible=False)
+
+
+            if len(test_dataset.get_value(qualifier='rvs', component=comp_o, check_visible=False)) == 0:                #so at least it has an empty spot now check against filter and length
+#               removing reference to time_o. If there are no rvs there should be no times
+#                time_o = test_dataset.get_value('times', component=comp_o)
                 passband_o = test_dataset.get_value('passband')
-                if np.all(time_o == time) and (passband == passband_o):
+
+#                if np.all(time_o == time) and (passband == passband_o):
+                if (passband == passband_o):
                     rv_dataset = test_dataset
                     found = True
 
@@ -398,6 +403,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # load an empty legacy bundle and initialize obvious parameter sets
     if 'Overcontact' in morphology:
+        raise NotImplementedError
         contact_binary= True
         eb = phb.Bundle.default_binary(contact_binary=True)
     elif 'Semi-detached' in morphology:
@@ -764,6 +770,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             data_dict = load_rv_data(filename=rv_dict['phoebe_rv_filename'], indep=rv_dict['phoebe_rv_indep'], dep=rv_dict['phoebe_rv_dep'], indweight=indweight, dir=legacy_file_dir)
 
             rv_dict.update(data_dict)
+
             time = rv_dict['phoebe_rv_time']
         #
 
@@ -774,6 +781,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         del rv_dict['phoebe_rv_active']
 
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
+
         eb.set_value_all(check_visible= False, **d)
 
     #get available passbands and set
@@ -785,6 +793,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb.set_value_all(check_visible= False, **d)
         del rv_dict['phoebe_rv_filter']
 # now go through parameters and input the results into phoebe2
+
         for k  in rv_dict:
 
             pnew, d = ret_dict(k, rv_dict[k], rvdep = comp, dataid=dataid)
@@ -851,18 +860,33 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         if pnew == 'pot':
             #print "dict", d
             d['kind'] = 'star'
-            d.pop('qualifier') #remove qualifier from dictionary to avoid conflicts in the future
+            d['qualifier'] = 'requiv'
             d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
 
-            if not contact_binary:
-                eb.flip_constraint(solve_for='rpole', qualifier='pot', **d)
-#                eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
-            #print "val", val
-            else:
-                d['component'] = 'contact_envelope'
-            d['value'] = val
-            d['qualifier'] = 'pot'
+            comp_no = ['', 'primary', 'secondary'].index(d['component'])
+            q_in = list(params[:,0]).index('phoebe_rm.VAL')
+            q = roche.q_for_component(np.float(params[:,1][q_in]), comp_no)
+            F_in = list(params[:,0]).index('phoebe_f{}.VAL'.format(comp_no))
+            F = np.float(params[:,1][F_in])
+            a_in = list(params[:,0]).index('phoebe_sma.VAL')
+            a = np.float(params[:,1][a_in])
+            e_in = list(params[:,0]).index('phoebe_ecc.VAL')
+            e = np.float(params[:,1][e_in])
+            delta = 1-e # defined at periastron
+            Omega = roche.pot_for_component(float(val), q, comp_no)
+            logger.debug("libphoebe.roche_area_volume(q={}, F={}, d={}, Omega={})".format(q, F, delta, Omega))
+            volume = libphoebe.roche_area_volume(q, F, delta, Omega,
+                                                 choice=0,
+                                                 lvolume=True,
+                                                 larea=False)['lvolume']
+
+            # convert from roche units to scaled (solar) units
+            volume *= a**3
+            # now convert from volume (in solar units) to requiv
+            d['value'] = (volume * 3./4 * 1./np.pi)**(1./3)
             d['kind'] = None
+            if contact_binary:
+                d['component'] = 'contact_envelope'
             d['context'] = 'component'
     # change t0_ref and set hjd0
         if pnew == 'hjd0':
@@ -927,38 +951,13 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         if len(d) > 0:
 #            print d
             eb.set_value_all(check_visible=False, **d)
-    #print "before", eb['pot@secondary']
-    #print "rpole before", eb['rpole@secondary']
     if semi_detached:
-        q = eb.get_value(qualifier ='q')
-        d = 1. - eb.get_value(qualifier='ecc')
         if 'primary' in morphology:
-
-            eb.add_constraint('critical_rpole', component='primary')
-#            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='primary')
-#            f = eb.get_value(qualifier='syncpar', component='primary')
-#            crit_pots = roche_critical_potential(q,f,d)
-#            eb.set_value(qualifier='pot', component='primary', context='component', value=crit_pots['L1'])
+            eb.add_constraint('semidetached', component='primary')
         elif 'secondary' in morphology:
-            eb.add_constraint('critical_rpole', component='secondary')
-#            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='secondary')
-#            f = eb.get_value(qualifier='syncpar', component='secondary')
-#            crit_pots = roche_critical_potential(1/q,f,d)
-#            eb.set_value(qualifier='pot', component='secondary', context='component', value=crit_pots['L1'])
+            eb.add_constraint('semidetached', component='secondary')
 
 #flip back all constraints
-    if not contact_binary:
-        #avoid semi_detached where constraint hasn't been flipped
-        if semi_detached and 'primary' not in morphology:
-            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
-        elif semi_detached and 'secondary' not in morphology:
-            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
-        else:
-            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
-            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
-
-#        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
-#        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
     # get rid of seconddary coefficient if ldlaw  is linear
     eb.flip_constraint(solve_for='t0_ref', constraint_func='t0_ref_supconj')
 
@@ -979,8 +978,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         conf.interactive_constraints_on()
     if conf_interactive_checks_state:
         conf.interactive_checks_on()
-    #print eb['pot@secondary']
-    #print "rpole after", eb['rpole@secondary']
     # turn on relevant switches like heating. If
     return eb
 
@@ -1019,7 +1016,31 @@ def par_value(param, index=None, **kwargs):
 
         # else:
             # val = [val]
-        val = [val]
+        if param.qualifier == 'requiv':
+            # NOTE: for the parent orbit, we can assume a single orbit if we've gotten this far
+            # NOTE: mapping between the qualifier is handled by the 2to1 dictionary
+            b = param._bundle
+            comp_no = b.hierarchy.get_primary_or_secondary(param.component, return_ind=True)
+
+            sma = b.get_value('sma', kind='orbit', context='component', unit='solRad')
+
+            q = b.get_value('q', kind='orbit', context='component')
+            q = roche.q_for_component(q, component=comp_no)
+            F = b.get_value('syncpar', component=param.component, context='component')
+            e = b.get_value('ecc', kind='orbit', context='component')
+            d = 1-e # at periastron
+            s = np.array([0,0,1]).astype(float) # aligned case, we would already have thrown an error if misaligned
+
+            requiv = val
+            volume = 4./3 * np.pi * requiv**3 /sma**3
+            logger.debug("roche_misaligned_Omega_at_vol(volume={}, q={}, F={}, d={}, s={}) for {}".format(volume, q, F, d, s, param.component))
+            Phi = libphoebe.roche_misaligned_Omega_at_vol(volume,
+                                                          q, F, d, s)
+
+            val = [roche.pot_for_component(Phi, q, component=comp_no, reverse=True)]
+        else:
+            val = [val]
+
     elif isinstance(param, phb.parameters.ChoiceParameter):
         ptype = 'choice'
         val = [param.get_value(**kwargs)]
@@ -1120,10 +1141,10 @@ def ret_parname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=N
                 pnew = 'hla'
 
             elif param in ['enabled','statweight','l3','passband']:
-                pnew = _2to1par[param]
+                pnew = _2to1par.get(param, param)
 
             else:
-                pnew = _2to1par[param]+'1'
+                pnew = _2to1par.get(param, param)+'1'
 
         elif comp_int == 2:
 
@@ -1131,14 +1152,14 @@ def ret_parname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=N
                 pnew = 'cla'
 
             elif param in ['enabled','statweight','l3','passband']:
-                pnew = _2to1par[param]
+                pnew = _2to1par.get(param, param)
 
 
             else:
-                pnew = _2to1par[param]+'2'
+                pnew = _2to1par.get(param, param)+'2'
         else:
 
-            pnew = _2to1par[param]
+            pnew = _2to1par.get(param, param)
 
     # one parameter doesn't follow the rules, so i'm correcting for it
             if pnew == 'reflections':
@@ -1190,32 +1211,32 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     primary, secondary = stars
 
     if len(stars) != 2 or len(orbits) != 1:
-        raise ValueError("Phoebe 1 only supports binaries. Either provide a different system or edit the hierarchy.")
+        raise ValueError("PHOEBE 1 only supports binaries. Either provide a different system or edit the hierarchy.")
 # check for contact_binary
+
     contact_binary = eb.hierarchy.is_contact_binary(primary)
+
+    if not contact_binary:
+        # contacts are always aligned, for detached systems we need to check
+        # to make sure they are aligned.
+        for star in stars:
+            if eb.get_value('pitch', component=star) != 0 or eb.get_value('yaw', component=star) != 0:
+                raise ValueError("PHOEBE 1 only supports aligned systems.  Edit pitch and yaw to be aligned or use another backend")
+
+
 # check for semi_detached
-
-# grab all possible constraints that could affect semi_detached status
-    sd_constraints = eb.filter(context='constraint', qualifier='pot')+eb.filter(context='constraint', qualifier='rpole')
-    no_sd_constraints = 0 #keep track of number of constraints as phoebe 1 can't
+    semi_detached = None #keep track of which component is in semidetached
     #handle two semi_detached stars
-
-    for i in range(len(sd_constraints)):
-        if sd_constraints[i].constraint_func =='critical_rpole' or sd_constraints[i].constraint_func =='critical_potential':
-            no_sd_constraints = no_sd_constraints+1
-            semi_detached = True
-            if primary == sd_constraints[i].component:
-                semid_comp = 'primary' #semidatched is primary
-            if secondary == sd_constraints[i].component:
-                    semid_comp = 'secondary'
-            if no_sd_constraints > 1:
-                semid_comp = 'primary'
-                logger.warning('Phoebe 1 does not support double Roche lobe overflow system. Defaulting to Primary star only.')
+    requiv_primary_constraint = eb.get_parameter(qualifier='requiv', component=primary, context='component').is_constraint
+    requiv_secondary_constraint = eb.get_parameter(qualifier='requiv', component=secondary, context='component').is_constraint
+    if requiv_primary_constraint and requiv_primary_constraint.constraint_func == 'semidetached':
+        semi_detached = 'primary'
+    if requiv_secondary_constraint and requiv_secondary_constraint.constraint_func == 'semidetached':
+        if semi_detached:
+            logger.warning('Phoebe 1 does not support double Roche lobe overflow system. Defaulting to Primary star only.')
         else:
-            semi_detached = False
+            semi_detached = 'secondary'
 
-#    if 'rpole' in eb['constraint'].qualifiers:
-#        semi_detached = eb.get_parameter('rpole', context='constraint').constraint_func == 'critical_rpole'
 #  catch all the datasets
     # define datasets
 
@@ -1313,9 +1334,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         types.append('choice')
 
         comp_int = 1
-        envelope = eb.hierarchy.get_siblings_of(primary)[-1]
-#        cepars = eb.filter(component='contact_envelope', context='component')
-#   potential
+        envelope = eb.hierarchy.get_envelope_of(primary)
         val = [eb.get_value(qualifier='pot', component=envelope, context='component')]
         ptype = 'float'
         # note here that phoebe1 assigns this to the primary, not envelope
@@ -1324,7 +1343,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         parvals.extend(val)
     elif semi_detached:
         parnames.append('phoebe_model')
-        parvals.append('"Semi-detached binary, '+semid_comp+' star fills Roche lobe')
+        parvals.append('"Semi-detached binary, '+semi_detached+' star fills Roche lobe')
         types.append('choice')
 
 #   pblum
@@ -1342,6 +1361,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         types.append('choice')
 
     for param in prpars.to_list():
+        if contact_binary and param.qualifier == 'requiv':
+            continue
 
         comp_int = 1
 #        if isinstance(eb.get_parameter(prpars[x], component='primary'), phoebe.parameters.FloatParameter):
@@ -1375,6 +1396,9 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                     types.append(ptype)
 
     for param in secpars.to_list():
+        if contact_binary and param.qualifier == 'requiv':
+            continue
+
         comp_int = 2
         # make sure this parameter exists in phoebe 1
 #        param = eb.get_parameter(secpars[x], component= 'secondary')

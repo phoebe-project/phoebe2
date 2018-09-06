@@ -14,8 +14,8 @@ def test_binary(plot=False):
     b.set_value('sma', component='binary', value=3.0)
     # b.set_value('teff', component='primary', value=6000)
     # b.set_value('teff', component='secondary', value=8000)
-    b.set_value('rpole', component='primary', value=0.5)
-    b.set_value('rpole', component='secondary', value=0.5)
+    b.set_value('requiv', component='primary', value=0.5)
+    b.set_value('requiv', component='secondary', value=0.5)
 
     b.set_value('incl', component='binary', value=45.0)
 
@@ -68,7 +68,8 @@ def test_contact(plot=False):
     b = phoebe.default_binary(contact_binary=True)
 
     b.set_value('incl', component='binary', value=45.0)
-    b['pot@contact_envelope'] = 3.5
+    b.flip_constraint('pot', solve_for='requiv@primary')
+    b['pot@contact_envelope@component'] = 3.5
     b['q'] = 1.0
     b['teff@primary'] = 10000.
     b['teff@secondary'] = 5000.

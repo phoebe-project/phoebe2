@@ -36,9 +36,13 @@ lc_columns += ['pblum', 'ptfarea']
 rv_columns = lc_columns[:]
 rv_columns += ['rvs']
 
+lp_columns = rv_columns[:]
+# lp_columns += ['dls']
+
 
 _pbdep_columns = {'lc': lc_columns,
-                  'rv': rv_columns}
+                  'rv': rv_columns,
+                  'lp': lp_columns}
 
 def _empty_array(kwargs, qualifier):
     if qualifier in kwargs.keys():
@@ -94,8 +98,8 @@ def lc_dep(is_lc=True, **kwargs):
     dep_params = []
 
     # NOTE: these need to be added to the exception in bundle.add_dataset so that the kwargs get applied correctly
-    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
-    dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, allow_none=True, description='Limb darkening coefficients')]
+    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
+    dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, allow_none=True, description='Limb darkening coefficients')]
     passbands.init_passbands()  # NOTE: this only actually does something on the first call
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
     dep_params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy of photons')]
@@ -139,9 +143,9 @@ def rv_syn(syn=True, **kwargs):
     syn_params = []
 
     syn_params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Observed times')]
-    syn_params += [FloatArrayParameter(qualifier='rvs', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'rvs'), default_unit=u.km/u.s, description='Observed radial velocity')]
+    syn_params += [FloatArrayParameter(qualifier='rvs', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'rvs'), default_unit=u.km/u.s, description='Observed radial velocity')]
     if not syn:
-        syn_params += [FloatArrayParameter(qualifier='sigmas', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
+        syn_params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
 
 
     constraints = []
@@ -157,6 +161,68 @@ def rv_dep(**kwargs):
 
     dep_params += lc_dep(is_lc=False, **kwargs).to_list()
 
+
+    return ParameterSet(dep_params)
+
+def lp(**kwargs):
+    """
+    Create parameters for a new line profile dataset.
+
+    Generally, this will be used as an input to the kind argument in
+    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+
+    :parameter **kwargs: defaults for the values of any of the parameters
+    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
+        created :class:`phoebe.parameters.parameters.Parameter`s
+    """
+
+    obs_params = []
+
+    #obs_params += [FloatParameter(qualifier='statweight', value = kwargs.get('statweight', 1.0), default_unit=u.dimensionless_unscaled, description='Statistical weight in overall fitting')]
+    syn_params, constraints = lp_syn(syn=False, **kwargs)
+    obs_params += syn_params.to_list()
+    #obs_params += rv_dep(**kwargs).to_list()
+
+    return ParameterSet(obs_params), constraints
+
+def lp_syn(syn=True, **kwargs):
+    """
+    """
+
+    times = kwargs.get('times', [])
+
+    syn_params = []
+
+    # if syn:
+        # wavelengths array is copied per-time for the model
+        # for time in times:
+            # syn_params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'envelope', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
+
+    # else:
+    # wavelengths is time-independent
+    syn_params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
+
+    for time in times:
+        # but do allow per-component flux_densities and sigmas
+        syn_params += [FloatArrayParameter(qualifier='flux_densities', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'flux_densities'), default_unit=u.W/(u.m**2*u.nm), description='Flux density per wavelength (must be same length as wavelengths or empty)')]
+        if not syn:
+            syn_params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
+
+    constraints = []
+
+    return ParameterSet(syn_params), constraints
+
+def lp_dep(**kwargs):
+    """
+    """
+
+    dep_params = []
+
+    dep_params += lc_dep(is_lc=False, **kwargs).to_list()
+
+    dep_params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
+    dep_params += [FloatParameter(qualifier='profile_rest', value=kwargs.get('profile_rest', 550), default_unit=u.nm, limits=(0, None), description='Rest central wavelength of the profile')]
+    dep_params += [FloatParameter(qualifier='profile_sv', value=kwargs.get('profile_sv', 1e-4), default_unit=u.dimensionless_unscaled, limits=(0, None), description='Subsidiary value of the profile')]
 
     return ParameterSet(dep_params)
 
@@ -409,6 +475,8 @@ def mesh_syn(syn=True, **kwargs):
             # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
 
             for dataset in mesh_datasets:
+                # if 'dls@{}'.format(dataset) in columns:
+                    # syn_params += [FloatArrayParameter(qualifier='dls', dataset=dataset, time=t, value=[], default_unit=u.nm, description='Per-element delta-lambda caused by doppler shift'.format(dataset))]
                 if 'rvs@{}'.format(dataset) in columns:
                     syn_params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.solRad/u.d, description='Per-element value of rvs for {} dataset'.format(dataset))]
                 if 'intensities@{}'.format(dataset) in columns:

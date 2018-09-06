@@ -1,4 +1,4 @@
-"""Import PHOEBE 2"""
+"""import phoebe"""
 
 __version__ = 'devel'
 

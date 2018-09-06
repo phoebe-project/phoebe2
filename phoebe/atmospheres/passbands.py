@@ -149,6 +149,9 @@ class Passband:
         self.pbname = pbname
         self.effwl = effwl
         self.calibrated = calibrated
+        self.reference = reference
+        self.version = version
+        self.comments = comments
 
         # Passband transmission function table:
         ptf_table = np.loadtxt(ptf).T
@@ -168,6 +171,15 @@ class Passband:
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
+    def __repr__(self):
+        return('<Passband: %s:%s>' % (self.pbset, self.pbname))
+
+    def __str__(self):
+        # old passband files do not have versions embedded, that is why we have to do this:
+        if not hasattr(self, 'version'):
+            self.version = 1.0
+        return('Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content))
+    
     def save(self, archive):
         struct = dict()
 
@@ -779,7 +791,6 @@ class Passband:
             print('ld_func=%s is invalid; please choose from [linear, logarithmic, square_root, quadratic, power, all].')
             return None
 
-
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
         """
         Parses WD's atmcof and reads in all Legendre polynomials for the
@@ -1068,7 +1079,6 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
-
 def init_passband(fullpath):
     """
     """
@@ -1137,7 +1147,6 @@ def uninstall_all_passbands(local=True):
         logger.warning("deleting file: {}".format(pbpath))
         os.remove(pbpath)
 
-
 def download_passband(passband, local=True):
     """
     Download and install a given passband from the repository.
@@ -1159,7 +1168,6 @@ def download_passband(passband, local=True):
         raise IOError("unable to download {} passband - check connection".format(passband))
     else:
         init_passband(passband_fname_local)
-
 
 def list_passband_directories():
     return _pbdir_global, _pbdir_local
@@ -1248,7 +1256,6 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
         Teff = np.array((Teff,))
 
     return factor * sigma_sb.value * Teff**4 / np.pi
-
 
 if __name__ == '__main__':
 

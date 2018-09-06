@@ -30,7 +30,6 @@ def test_binary(plot=False):
     for ecc in [0.3, 0.505]:
         b.set_value('ecc', ecc)
 
-
         if plot: print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
         if plot: print "running phoebe1 model..."
@@ -51,7 +50,7 @@ def test_binary(plot=False):
     return b
 
 if __name__ == '__main__':
-    logger = phoebe.logger(clevel='INFO')
+    logger = phoebe.logger(clevel='DEBUG')
 
 
     b = test_binary(plot=True)
