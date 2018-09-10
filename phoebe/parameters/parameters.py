@@ -2019,9 +2019,9 @@ class ParameterSet(object):
             # define defaults based on ps.kind
             if ps.kind in ['mesh', 'mesh_syn']:
                 # TODO: previously if 2D plot we defaulted to x, z, y
-                defaults = {'x': 'xs',
-                            'y': 'ys',
-                            'z': 'zs'}
+                defaults = {'x': 'us',
+                            'y': 'vs',
+                            'z': 'ws'}
                 sigmas_avail = []
             elif ps.kind in ['orb', 'orb_syn']:
                 # TODO: previously if 2D plot we defaulted to x, z, y
@@ -2052,11 +2052,18 @@ class ParameterSet(object):
 
 
             if isinstance(current_value, str):
-                if '@' in current_value or current_value in ps.qualifiers:
+                if '@' in current_value or current_value in ps.qualifiers or \
+                        (current_value in ['xs', 'ys', 'zs'] and 'xyz_elements' in ps.qualifiers) or \
+                        (current_value in ['us', 'vs', 'ws'] and 'uvw_elements' in ps.qualifiers):
+
                     if ps.kind in ['mesh', 'mesh_syn'] and current_value in ['xs', 'ys', 'zs']:
-                        # then we actually need to unpack from the vertices
-                        verts = ps.get_quantity(qualifier='vertices')
-                        array_value = verts[:, :, ['xs', 'ys', 'zs'].index(current_value)]
+                        # then we actually need to unpack from the xyz_elements
+                        verts = ps.get_quantity(qualifier='xyz_elements')
+                        array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
+                    elif ps.kind in ['mesh', 'mesh_syn'] and current_value in ['us', 'vs', 'ws']:
+                        # then we actually need to unpack from the uvw_elements
+                        verts = ps.get_quantity(qualifier='uvw_elements')
+                        array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
                     else:
                         array_value = ps.get_quantity(current_value)
 
@@ -2092,82 +2099,6 @@ class ParameterSet(object):
                 raise NotImplementedError
 
 
-        # We need to handle plotting meshes differently... but only if x, y,
-        # and z are all the coordinates (then we'll plot the triangles).
-        # Otherwise, we will continue and can use the generic x, y plotting (ie
-        # for flux vs r_proj)
-        do_plot_mesh_coordinates = None
-        if ps.kind in ['mesh', 'mesh_syn'] and \
-                kwargs.get('x', 'us') in ['us', 'vs', 'ws'] and \
-                kwargs.get('y', 'vs') in ['us', 'vs', 'ws'] and \
-                kwargs.get('z', 'ws') in ['us', 'vs', 'ws']:
-
-            do_plot_mesh_coordinates = 'uvw'
-
-            # NOTE: even though we are calling these u, v, w - we really mean
-            # to get those components from the uvw_elements array
-            xqualifier = kwargs.get('x', 'us')
-            yqualifier = kwargs.get('y', 'vs')
-            zqualifier = kwargs.get('z', 'ws')
-
-
-            # All our arrays will need to be sorted front to back, so we need
-            # the centers from the coordinates not covered by xqualifier,
-            # yqualifier. We don't really care the units here, but in case the
-            # user has changed the default units on some of the components to
-            # be different than others, we'll request them all in the same
-            # units.
-
-            # TODO: should we skip this for axes_3d?
-            mesh_coordinates = ['us', 'vs', 'ws']
-            sortqualifier = ['us', 'vs', 'ws']
-            sortqualifier.remove(xqualifier)
-            sortqualifier.remove(yqualifier)
-            sortqualifier = sortqualifier[0]
-
-        elif ps.kind in ['mesh', 'mesh_syn'] and \
-                kwargs.get('x', 'xs') in ['xs', 'ys', 'zs'] and \
-                kwargs.get('y', 'ys') in ['xs', 'ys', 'zs'] and \
-                kwargs.get('z', 'zs') in ['xs', 'ys', 'zs']:
-
-            do_plot_mesh_coordinates = 'xyz'
-
-            # NOTE: even though we are calling these x, y, z - we really mean
-            # to get those components from the xyz_elements array
-            xqualifier = kwargs.get('x', 'xs')
-            yqualifier = kwargs.get('y', 'ys')
-            zqualifier = kwargs.get('z', 'zs')
-
-
-            # All our arrays will need to be sorted front to back, so we need
-            # the centers from the coordinates not covered by xqualifier,
-            # yqualifier. We don't really care the units here, but in case the
-            # user has changed the default units on some of the components to
-            # be different than others, we'll request them all in the same
-            # units.
-
-            # TODO: should we skip this for axes_3d?
-            mesh_coordinates = ['xs', 'ys', 'zs']
-            sortqualifier = ['xs', 'ys', 'zs']
-            sortqualifier.remove(xqualifier)
-            sortqualifier.remove(yqualifier)
-            sortqualifier = sortqualifier[0]
-
-
-        if do_plot_mesh_coordinates is not None:
-
-            if do_plot_mesh_coordinates=='xyz':
-                # then the array are dimensionless - which really means in
-                # units of sma
-                kwargs.setdefault('xunit', None)
-                kwargs.setdefault('yunit', None)
-                kwargs.setdefault('zunit', None)
-            else: # uvw
-                kwargs.setdefault('xunit', 'solRad')
-                kwargs.setdefault('yunit', 'solRad')
-                kwargs.setdefault('zunit', 'solRad')
-
-
         for af_direction in ['x', 'y', 'z', 'c', 's', 'fc', 'ec']:
             # set the array and dimension label
             kwargs = _kwargs_fill_dimension(kwargs, af_direction, ps)
@@ -2183,8 +2114,8 @@ class ParameterSet(object):
 
 
         # handle different types of autofig plots
-        cartesian =['xs', 'ys', 'zs']
-        if kwargs['xqualifier'] in cartesian and kwargs['yqualifier'] in cartesian and kwargs['zqualifier'] in cartesian:
+        cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
+        if ps.kind in ['mesh'] and kwargs['xqualifier'] in cartesian and kwargs['yqualifier'] in cartesian and kwargs['zqualifier'] in cartesian:
             kwargs['autofig_method'] = 'mesh'
             if self.time is not None:
                 kwargs['i'] = float(self.time)
@@ -2372,7 +2303,7 @@ class ParameterSet(object):
                     continue
 
                 autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-                # print "*** passing to autofig.{}: {}".format(autofig_method, plot_kwargs)
+                logger.debug("passing to autofig.{}: {}".format(autofig_method, plot_kwargs))
                 func = getattr(self.gcf(), autofig_method)
 
                 func(**plot_kwargs)
