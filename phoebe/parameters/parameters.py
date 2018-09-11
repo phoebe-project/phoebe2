@@ -2336,7 +2336,7 @@ class ParameterSet(object):
         return self.gcf(), fig
 
 
-    def animate(self, times=None, show=False, save=False):
+    def animate(self, times=None, show=False, save=False, save_kwargs={}):
         """
         NOTE: if show and save provided, the live plot will be shown first,
         as soon as the plot is closed the animation will be re-compiled and saved to
@@ -2351,9 +2351,6 @@ class ParameterSet(object):
         :parameter str save: filename of the resulting animation.  If provided,
             the animation will be saved automatically.  Either way, the animation
             object is returned (so you can always call anim.save(fname)).
-        :parameter list save_args: any additional arguments that need to be sent
-            to the anim.save call (as extra_args=save_args, see
-            https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
         :parameter dict save_kwargs: any additional keyword arguments that need
             to be sent to the anim.save call (as **save_kwargs, see
             https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
@@ -2368,6 +2365,7 @@ class ParameterSet(object):
             # then let's try to get all SYNTHETIC times
             # it would be nice to only do ENABLED, but then we have to worry about compute
             # it would also be nice to worry about models... but then you should filter first
+            logger.info("no times providing so animating over all dataset times")
             times = []
             for dataset in self.datasets:
                 ps = self.filter(dataset=dataset, context='model')
@@ -2380,8 +2378,11 @@ class ParameterSet(object):
 
             times = sorted(list(set(times)))
 
-        # print "*** autofig.animate at times", times
-        mplanim = self.gcf().animate(indeps=times, save=save, show=show)
+        logger.debug("autofig.animate at times: {}".format(times))
+        mplanim = self.gcf().animate(indeps=times, save=save,
+                                     show=show,
+                                     save_kwargs=save_kwargs)
+
 
         return self.gcf(), mplanim
 
