@@ -228,7 +228,8 @@ class Plot(Call):
                        cunit=None, clabel=None, cmap=None,
                        sunit=None, slabel=None, smap=None, smode=None,
                        iunit=None,
-                       marker=None, linestyle=None, linewidth=None,
+                       marker=None,
+                       linestyle=None, linewidth=None, linebreak=None,
                        highlight=True, uncover=False, trail=False,
                        consider_for_limits=True,
                        **kwargs):
@@ -286,6 +287,8 @@ class Plot(Call):
 
         ls = kwargs.pop('ls', None)
         self.linestyle = linestyle if linestyle is not None else ls
+
+        self.linebreak = linebreak
 
         super(Plot, self).__init__(i=i, iunit=iunit,
                                    x=x, xerror=xerror, xunit=xunit, xlabel=xlabel,
@@ -541,6 +544,34 @@ class Plot(Call):
             self.axes._linestylecycler.replace_used(self.get_linestyle(), linestyle)
         self._linestyle = linestyle
 
+    @property
+    def linebreak(self):
+        if self._linebreak is None:
+            return False
+
+        return self._linebreak
+
+    @linebreak.setter
+    def linebreak(self, linebreak):
+        if linebreak is None:
+            self._linebreak = linebreak
+            return
+
+        if not isinstance(linebreak, str):
+            raise TypeError("linebreak must be of type str")
+
+        if not len(linebreak)==2:
+            raise ValueError("linebreak must be of length 2")
+
+        if linebreak[0] not in common.dimensions:
+            raise ValueError("linebreak must start with one of {}".format(common.dimensions))
+
+        acceptable_ends = ['+', '-']
+        if linebreak[1] not in acceptable_ends:
+            raise ValueError("linebreak must end with one of {}".format(acceptable_ends))
+
+        self._linebreak = linebreak
+
     def draw(self, ax=None, i=None,
              colorcycler=None, markercycler=None, linestylecycler=None):
         """
@@ -576,252 +607,276 @@ class Plot(Call):
         y = self.y.get_value(i=i, unit=self.axes.y.unit)
         yerr = self.y.get_error(i=i, unit=self.axes.y.unit)
         z = self.z.get_value(i=i, unit=self.axes.z.unit)
+        # TODO: implement zerr
         c = self.c.get_value(i=i, unit=self.axes_c.unit if self.axes_c is not None else None)
         s = self.s.get_value(i=i, unit=self.axes_s.unit if self.axes_s is not None else None)
 
         if axes_3d:
             zerr = self.z.get_error(i=i, unit=self.axes.z.unit)
-
-            data = np.array([x, y, z])
-            points = np.array([x, y, z]).T.reshape(-1, 1, 3)
         else:
             zerr = None
 
-            data = np.array([x, y])
-            points = np.array([x, y]).T.reshape(-1, 1, 2)
+        # then we need to loop over the linebreaks
+        def _to_linebreak_list(thing, N=1):
+            if isinstance(thing, list):
+                return thing
+            else:
+                return [thing]*N
 
-        # segments are used for LineCollection
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
-
-        # DETERMINE WHICH SCALINGS WE NEED TO USE
-        do_colorscale = self.do_colorscale
-        do_sizescale = self.do_sizescale
-        if x is not None and y is not None:
-            do_colorscale = c is not None and not isinstance(c, str)
-            do_sizescale = s is not None and not (isinstance(s, float) or isinstance(s, int))
+        if isinstance(x, list) or isinstance(y, list):
+            linebreak_n = len(x) if isinstance(x, list) else len(y)
         else:
-            do_colorscale = False
-            do_sizescale = False
+            linebreak_n = 1
 
-        # DETERMINE PER-DATAPOINT Z-ORDERS
-        zorders, do_zorder = self.axes.z.get_zorders(z, i=i)
-        if axes_3d:
-            # TODO: we probably want to re-implement zorder, but then we need to
-            # sort in the *projected* z rather than data-z.  We'll also need to
-            # figure out why LineCollection is complaining about the input shape
-            do_zorder = False
+        xs = _to_linebreak_list(x, linebreak_n)
+        xerrs = _to_linebreak_list(xerr, linebreak_n)
+        ys = _to_linebreak_list(y, linebreak_n)
+        yerrs = _to_linebreak_list(yerr, linebreak_n)
+        zs = _to_linebreak_list(z, linebreak_n)
+        # zerrs = _to_linebreak_list(zerr, linebreak_n)
+        cs = _to_linebreak_list(c, linebreak_n)
+        ss = _to_linebreak_list(s, linebreak_n)
 
-        # ALLOW ACCESS TO COLOR FOR I OR LOOP
-        # TODO: in theory these could be exposed (maybe not the loop, but i)
-        def get_color_i(i, default=color):
-            if do_colorscale and self.axes_c is not None:
-                cmap = self.axes_c.cmap
-                norm = self.axes_c.get_norm(i=i)
-                ci = self.axes.c.get_value(i=i)
-                return plt.get_cmap(cmap)(norm(ci))
-            else:
-                return default
-
-        def get_color_loop(loop, do_zorder, default=color):
-            if do_colorscale and self.axes_c is not None:
-                cmap = self.axes_c.cmap
-                norm = self.axes_c.get_norm(i=i)
-                if do_zorder:
-                    cloop = c[loop]
-                else:
-                    cloop = c
-                return plt.get_cmap(cmap)(norm(cloop))
-            else:
-                return default
-
-        # BUILD KWARGS NEEDED FOR EACH CALL TO ERRORBAR
-        def error_kwargs_loop(loop, do_zorder):
-            def _get_error(errorarray, loop, do_zorder):
-                if errorarray is None:
-                    return None
-                elif do_zorder:
-                    return errorarray[loop]
-                else:
-                    return errorarray
-
-            error_kwargs = {'xerr': _get_error(xerr, loop, do_zorder),
-                            'yerr': _get_error(yerr, loop, do_zorder)}
-
+        for x,xerr,y,yerr,z,c,s in zip(xs, xerrs, ys, yerrs, zs, cs, ss):
             if axes_3d:
-                error_kwargs['zerr'] = _get_error(zerr, loop, do_zorder)
-
-            error_kwargs['ecolor'] = get_color_loop(loop, do_zorder)
-
-            # not so sure that we want the errorbar linewidth to adjust based
-            # on size-scaling... but in theory we could do something like this:
-            # error_kwargs['elinewidth'] = sizes[loop]
-
-            return error_kwargs
-
-        # BUILD KWARGS NEEDED FOR EACH CALL TO LINECOLLECTION
-        lc_kwargs_const = {}
-        lc_kwargs_const['linestyle'] = ls
-        if do_colorscale:
-            lc_kwargs_const['norm'] = self.axes_c.get_norm(i=i) if self.axes_c is not None else None
-            lc_kwargs_const['cmap'] = self.axes_c.cmap if self.axes_c is not None else None
-        else:
-            lc_kwargs_const['color'] = color
-
-        # also set self._sizes so its accessible from the callback which
-        # will actually handle setting the sizes
-        sizes = self.get_sizes(i)
-        self._sizes = sizes
-
-        def sizes_loop(loop, do_zorder):
-            if do_zorder:
-                if isinstance(sizes, float):
-                    return sizes
-                return sizes[loop]
+                data = np.array([x, y, z])
+                points = np.array([x, y, z]).T.reshape(-1, 1, 3)
             else:
-                return sizes
+                data = np.array([x, y])
+                points = np.array([x, y]).T.reshape(-1, 1, 2)
 
-        def lc_kwargs_loop(lc_kwargs, loop, do_zorder):
+            # segments are used for LineCollection
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+            # DETERMINE WHICH SCALINGS WE NEED TO USE
+            do_colorscale = self.do_colorscale
+            do_sizescale = self.do_sizescale
+            if x is not None and y is not None:
+                do_colorscale = c is not None and not isinstance(c, str)
+                do_sizescale = s is not None and not (isinstance(s, float) or isinstance(s, int))
+            else:
+                do_colorscale = False
+                do_sizescale = False
+
+            # DETERMINE PER-DATAPOINT Z-ORDERS
+            zorders, do_zorder = self.axes.z.get_zorders(z, i=i)
+            if axes_3d:
+                # TODO: we probably want to re-implement zorder, but then we need to
+                # sort in the *projected* z rather than data-z.  We'll also need to
+                # figure out why LineCollection is complaining about the input shape
+                do_zorder = False
+
+            # ALLOW ACCESS TO COLOR FOR I OR LOOP
+            # TODO: in theory these could be exposed (maybe not the loop, but i)
+            def get_color_i(i, default=color):
+                if do_colorscale and self.axes_c is not None:
+                    cmap = self.axes_c.cmap
+                    norm = self.axes_c.get_norm(i=i)
+                    ci = self.axes.c.get_value(i=i)
+                    return plt.get_cmap(cmap)(norm(ci))
+                else:
+                    return default
+
+            def get_color_loop(loop, do_zorder, default=color):
+                if do_colorscale and self.axes_c is not None:
+                    cmap = self.axes_c.cmap
+                    norm = self.axes_c.get_norm(i=i)
+                    if do_zorder:
+                        cloop = c[loop]
+                    else:
+                        cloop = c
+                    return plt.get_cmap(cmap)(norm(cloop))
+                else:
+                    return default
+
+            # BUILD KWARGS NEEDED FOR EACH CALL TO ERRORBAR
+            def error_kwargs_loop(loop, do_zorder):
+                def _get_error(errorarray, loop, do_zorder):
+                    if errorarray is None:
+                        return None
+                    elif do_zorder:
+                        return errorarray[loop]
+                    else:
+                        return errorarray
+
+                error_kwargs = {'xerr': _get_error(xerr, loop, do_zorder),
+                                'yerr': _get_error(yerr, loop, do_zorder)}
+
+                if axes_3d:
+                    error_kwargs['zerr'] = _get_error(zerr, loop, do_zorder)
+
+                error_kwargs['ecolor'] = get_color_loop(loop, do_zorder)
+
+                # not so sure that we want the errorbar linewidth to adjust based
+                # on size-scaling... but in theory we could do something like this:
+                # error_kwargs['elinewidth'] = sizes[loop]
+
+                return error_kwargs
+
+            # BUILD KWARGS NEEDED FOR EACH CALL TO LINECOLLECTION
+            lc_kwargs_const = {}
+            lc_kwargs_const['linestyle'] = ls
             if do_colorscale:
-                # nothing to do here, the norm and map are passed rather than values
-                pass
-            if do_sizescale:
-                # linewidth is handled by the callback
-                pass
+                lc_kwargs_const['norm'] = self.axes_c.get_norm(i=i) if self.axes_c is not None else None
+                lc_kwargs_const['cmap'] = self.axes_c.cmap if self.axes_c is not None else None
+            else:
+                lc_kwargs_const['color'] = color
 
-            return lc_kwargs
+            # also set self._sizes so its accessible from the callback which
+            # will actually handle setting the sizes
+            sizes = self.get_sizes(i)
+            self._sizes = sizes
 
-        # BUILD KWARGS NEEDED FOR EACH CALL TO SCATTER
-        sc_kwargs_const = {}
-        sc_kwargs_const['marker'] = marker
-        sc_kwargs_const['linewidths'] = 0 # linewidths = 0 removes the black edge
-        sc_kwargs_const['edgecolors'] = 'none'
-        if do_colorscale:
-            sc_kwargs_const['norm'] = self.axes_c.get_norm(i=i) if self.axes_c is not None else None
-            sc_kwargs_const['cmap'] = self.axes_c.cmap if self.axes_c is not None else None
-            # we'll set sc_kwargs['cmap'] per-loop in the function below
-        else:
-            sc_kwargs_const['c'] = color
-
-
-        def sc_kwargs_loop(sc_kwargs, loop, do_zorder):
-            if do_colorscale:
+            def sizes_loop(loop, do_zorder):
                 if do_zorder:
-                    sc_kwargs['c'] = c[loop]
+                    if isinstance(sizes, float):
+                        return sizes
+                    return sizes[loop]
                 else:
-                    sc_kwargs['c'] = c
-            # if do_sizescale:
-                # if do_zorder:
-                    # sc_kwargs['s'] = self.get_markersize(sizes[loop], scatter=True)
-                # else:
-                    # sc_kwargs['s'] = self.get_markersize(sizes, scatter=True)
+                    return sizes
 
-            return sc_kwargs
+            def lc_kwargs_loop(lc_kwargs, loop, do_zorder):
+                if do_colorscale:
+                    # nothing to do here, the norm and map are passed rather than values
+                    pass
+                if do_sizescale:
+                    # linewidth is handled by the callback
+                    pass
 
-        # DRAW IF X AND Y ARE ARRAYS
-        if isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
-            # LOOP OVER DATAPOINTS so that each can be drawn with its own zorder
-            if do_zorder:
-                datas = data.T
-                segments = segments
-                zorders = zorders
+                return lc_kwargs
+
+            # BUILD KWARGS NEEDED FOR EACH CALL TO SCATTER
+            sc_kwargs_const = {}
+            sc_kwargs_const['marker'] = marker
+            sc_kwargs_const['linewidths'] = 0 # linewidths = 0 removes the black edge
+            sc_kwargs_const['edgecolors'] = 'none'
+            if do_colorscale:
+                sc_kwargs_const['norm'] = self.axes_c.get_norm(i=i) if self.axes_c is not None else None
+                sc_kwargs_const['cmap'] = self.axes_c.cmap if self.axes_c is not None else None
+                # we'll set sc_kwargs['cmap'] per-loop in the function below
             else:
-                datas = [data]
-                zorders = [zorders]
-                segments = [segments]
-
-            for loop, (datapoint, segment, zorder) in enumerate(zip(datas, segments, zorders)):
-                return_artists_this_loop = []
-                # DRAW ERRORBARS, if applicable
-                if xerr is not None or yerr is not None or zerr is not None:
-                    artists = ax.errorbar(*datapoint,
-                                           fmt='', linestyle='None',
-                                           zorder=zorder,
-                                           **error_kwargs_loop(loop, do_zorder))
-
-                    # NOTE: these are currently not included in return_artists
-                    # so they don't scale according to per-element sizes.
-                    # But we may want to return them for completeness and may
-                    # want some way of setting the size of the errobars,
-                    # maybe similar to how highlight_size is handled
-                    # errorbar actually returns a Container object of artists,
-                    # so we need to cast to a list
-                    # for artist_list in list(artists):
-                        # if isinstance(artist_list, tuple):
-                            # return_artists += list(artist_list)
-                        # else:
-                            # return_artists += [artist_list]
-
-                if do_colorscale or do_sizescale or do_zorder:
-                    # DRAW LINECOLLECTION, if applicable
-                    if ls.lower() != 'none':
-                        # TODO: color and zorder are assigned from the LEFT point in
-                        # the segment.  It may be nice to interpolate from LEFT-RIGHT
-                        # by accessing zorder[loop+1] and c[loop+1]
-                        if do_zorder:
-                            segments = (segment,)
-                        else:
-                            segments = segment
-
-                        if axes_3d:
-                            lccall = Line3DCollection
-                        else:
-                            lccall = LineCollection
-
-                        lc = lccall(segments,
-                                    zorder=zorder,
-                                    **lc_kwargs_loop(lc_kwargs_const, loop, do_zorder))
-
-                        if do_colorscale:
-                            if do_zorder:
-                                lc.set_array(np.array([c[loop]]))
-                            else:
-                                lc.set_array(c)
+                sc_kwargs_const['c'] = color
 
 
-                        return_artists_this_loop.append(lc)
-                        ax.add_collection(lc)
+            def sc_kwargs_loop(sc_kwargs, loop, do_zorder):
+                if do_colorscale:
+                    if do_zorder:
+                        sc_kwargs['c'] = c[loop]
+                    else:
+                        sc_kwargs['c'] = c
+                # if do_sizescale:
+                    # if do_zorder:
+                        # sc_kwargs['s'] = self.get_markersize(sizes[loop], scatter=True)
+                    # else:
+                        # sc_kwargs['s'] = self.get_markersize(sizes, scatter=True)
 
+                return sc_kwargs
 
-                    # DRAW SCATTER, if applicable
-                    if marker.lower() != 'none':
-                        artist = ax.scatter(*datapoint,
-                                            zorder=zorder,
-                                            **sc_kwargs_loop(sc_kwargs_const, loop, do_zorder))
-
-                        return_artists_this_loop.append(artist)
-
-
+            # DRAW IF X AND Y ARE ARRAYS
+            if isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
+                # LOOP OVER DATAPOINTS so that each can be drawn with its own zorder
+                if do_zorder:
+                    datas = data.T
+                    segments = segments
+                    zorders = zorders
                 else:
-                    # let's use plot whenever possible... it'll be faster
-                    # and will guarantee that the linestyle looks correct
-                    artists = ax.plot(*datapoint,
-                                      marker=marker,
-                                      ls=ls,
-                                      mec='none',
-                                      color=color)
+                    datas = [data]
+                    zorders = [zorders]
+                    segments = [segments]
 
-                    return_artists_this_loop += artists
+                for loop, (datapoint, segment, zorder) in enumerate(zip(datas, segments, zorders)):
+                    return_artists_this_loop = []
+                    # DRAW ERRORBARS, if applicable
+                    if xerr is not None or yerr is not None or zerr is not None:
+                        artists = ax.errorbar(*datapoint,
+                                               fmt='', linestyle='None',
+                                               zorder=zorder,
+                                               **error_kwargs_loop(loop, do_zorder))
 
-                size_this_loop = sizes_loop(loop, do_zorder)
-                for artist in return_artists_this_loop:
-                    # store the sizes so they can be rescaled appropriately by
-                    # the callback
-                    artist._af_sizes = size_this_loop
+                        # NOTE: these are currently not included in return_artists
+                        # so they don't scale according to per-element sizes.
+                        # But we may want to return them for completeness and may
+                        # want some way of setting the size of the errobars,
+                        # maybe similar to how highlight_size is handled
+                        # errorbar actually returns a Container object of artists,
+                        # so we need to cast to a list
+                        # for artist_list in list(artists):
+                            # if isinstance(artist_list, tuple):
+                                # return_artists += list(artist_list)
+                            # else:
+                                # return_artists += [artist_list]
 
-                return_artists += return_artists_this_loop
+                    if do_colorscale or do_sizescale or do_zorder:
+                        # DRAW LINECOLLECTION, if applicable
+                        if ls.lower() != 'none':
+                            # TODO: color and zorder are assigned from the LEFT point in
+                            # the segment.  It may be nice to interpolate from LEFT-RIGHT
+                            # by accessing zorder[loop+1] and c[loop+1]
+                            if do_zorder:
+                                segments = (segment,)
+                            else:
+                                segments = segment
+
+                            if axes_3d:
+                                lccall = Line3DCollection
+                            else:
+                                lccall = LineCollection
+
+                            lc = lccall(segments,
+                                        zorder=zorder,
+                                        **lc_kwargs_loop(lc_kwargs_const, loop, do_zorder))
+
+                            if do_colorscale:
+                                if do_zorder:
+                                    lc.set_array(np.array([c[loop]]))
+                                else:
+                                    lc.set_array(c)
+
+
+                            return_artists_this_loop.append(lc)
+                            ax.add_collection(lc)
+
+
+                        # DRAW SCATTER, if applicable
+                        if marker.lower() != 'none':
+                            artist = ax.scatter(*datapoint,
+                                                zorder=zorder,
+                                                **sc_kwargs_loop(sc_kwargs_const, loop, do_zorder))
+
+                            return_artists_this_loop.append(artist)
+
+
+                    else:
+                        # let's use plot whenever possible... it'll be faster
+                        # and will guarantee that the linestyle looks correct
+                        artists = ax.plot(*datapoint,
+                                          marker=marker,
+                                          ls=ls,
+                                          mec='none',
+                                          color=color)
+
+                        return_artists_this_loop += artists
+
+                    size_this_loop = sizes_loop(loop, do_zorder)
+                    for artist in return_artists_this_loop:
+                        # store the sizes so they can be rescaled appropriately by
+                        # the callback
+                        artist._af_sizes = size_this_loop
+
+                    return_artists += return_artists_this_loop
 
 
 
-        # DRAW IF X OR Y ARE NOT ARRAYS
-        if not (isinstance(x, np.ndarray) and isinstance(y, np.ndarray)):
-            # TODO: can we do anything in 3D?
-            if x is not None:
-                artist = ax.axvline(x, ls=ls, color=color)
-                return_artists += [artist]
+            # DRAW IF X OR Y ARE NOT ARRAYS
+            if not (isinstance(x, np.ndarray) and isinstance(y, np.ndarray)):
+                # TODO: can we do anything in 3D?
+                if x is not None:
+                    artist = ax.axvline(x, ls=ls, color=color)
+                    return_artists += [artist]
 
-            if y is not None:
-                artist = ax.axhline(y, ls=ls, color=color)
-                return_artists += [artist]
+                if y is not None:
+                    artist = ax.axhline(y, ls=ls, color=color)
+                    return_artists += [artist]
 
         # DRAW HIGHLIGHT, if applicable (outside per-datapoint loop)
         if self.highlight and i is not None:
@@ -882,6 +937,7 @@ class Mesh(Call):
                        fcunit=None, fclabel=None, fcmap=None,
                        ecunit=None, eclabel=None, ecmap=None,
                        iunit=None,
+                       linestyle='solid',
                        consider_for_limits=True,
                        uncover=True,
                        trail=0,
@@ -899,6 +955,11 @@ class Mesh(Call):
         edgecolor = kwargs.pop('edgecolor', None)
         ec = edgecolor if edgecolor is not None else ec
         self._ec = CallDimensionC(self, ec, None, ecunit, eclabel, cmap=ecmap)
+
+        ls = kwargs.pop('ls', None)
+        self.linestyle = linestyle if linestyle is not None else ls
+
+        self.linebreak = False
 
         if hasattr(i, '__iter__'):
             raise ValueError("i as an iterable not supported for Meshes, make separate calls for each value of i")
@@ -1114,6 +1175,7 @@ class Mesh(Call):
 
             for polygon, zorder, edgecolor, facecolor in zip(polygons, zorders, edgecolors, facecolors):
                 pc = pccall((polygon,),
+                            linestyle=self.linestyle,
                             edgecolors=edgecolor,
                             facecolors=facecolor,
                             zorder=zorder)
@@ -1124,6 +1186,7 @@ class Mesh(Call):
         else:
             # DON'T LOOP as all have the same zorder, this should be faster
             pc = pccall(polygons,
+                        linestyle=self.linestyle,
                         edgecolors=edgecolors,
                         facecolors=facecolors,
                         zorder=zorders)
@@ -1249,16 +1312,22 @@ class CallDimension(object):
         """
         access the interpolated value at a give value of i (independent-variable)
         """
-        if isinstance(self.call.i.value, float):
-            if self.call.i.value==i:
-                return self.value
+        if isinstance(self.call.i._value, float):
+            if self.call.i._value==i:
+                return self._to_unit(self._value, unit)
             else:
                 return None
 
-        if len(self.call.i.value) != len(self._value):
+        # we can't call i._value here because that may point to a string, and
+        # we want this to resolve the array
+        i_value = self.call.i.get_value(linebreak=False, sort_by_indep=False)
+        if len(i_value) != len(self._value):
             raise ValueError("length mismatch with independent-variable")
 
-        return self._to_unit(np.interp(i, self.call.i.value, self._value), unit)
+        sort_inds = i_value.argsort()
+        indep_value = i_value[sort_inds]
+        this_value = self._value[sort_inds]
+        return self._to_unit(np.interp(i, indep_value, this_value), unit)
 
     def highlight_at_i(self, i, unit=None):
         """
@@ -1270,6 +1339,79 @@ class CallDimension(object):
                                                                uncover=True,
                                                                trail=0)].T,
                                  unit)
+
+    def _do_linebreak(self, func='get_value', i=None, unit=None,
+                      uncover=None, trail=None, linebreak=None,
+                      sort_by_indep=None):
+        """
+        """
+        if linebreak is None:
+            linebreak = self.linebreak
+
+        this_array = getattr(self, func)(i=i,
+                                    unit=unit,
+                                    uncover=uncover,
+                                    trail=trail,
+                                    linebreak=False)
+
+        if linebreak is False:
+            return this_array
+
+        break_direction = linebreak[0]
+        break_array = getattr(self.call, break_direction).get_value(i=i,
+                                                                    unit=unit,
+                                                                    uncover=uncover,
+                                                                    trail=trail,
+                                                                    linebreak=False,
+                                                                    sort_by_indep=sort_by_indep)
+
+        if linebreak[1] == '+':
+            split_inds = np.where(break_array[1:]-break_array[:-1]>0)[0]
+        elif linebreak[1] == '-':
+            split_inds = np.where(break_array[1:]-break_array[:-1]<0)[0]
+        else:
+            raise NotImplementedError
+
+        return np.split(this_array, split_inds+1)
+
+
+    def _sort_by_indep(self, func='get_value', i=None, iunit=None, unit=None,
+                       uncover=None, trail=None, linebreak=None,
+                       sort_by_indep=None):
+
+        """
+        must be called before (or within) _do_linebreak
+        """
+
+        if sort_by_indep is None:
+            # TODO: add property of the call?
+            sort_by_indep = True
+
+        indep_array = self.call.i.get_value(i=i,
+                                            unit=iunit,
+                                            uncover=uncover,
+                                            trail=trail,
+                                            linebreak=False,
+                                            sort_by_indep=False)
+
+        this_array = getattr(self, func)(i=i,
+                                         unit=unit,
+                                         uncover=uncover,
+                                         trail=trail,
+                                         linebreak=False,
+                                         sort_by_indep=False)
+
+        if not (isinstance(indep_array, np.ndarray) and len(indep_array)==len(this_array)):
+            sort_by_indep = False
+
+        if sort_by_indep:
+            # TODO: it might be nice to buffer this at the call level, so making
+            # multiple get_value calls doesn't have to recompute the sort-order
+            sort_inds = indep_array.argsort()
+            return this_array[sort_inds]
+        else:
+            return this_array
+
 
     def _get_trail_min(self, i, trail=None):
         trail = self.call.trail if trail is None else trail
@@ -1298,35 +1440,58 @@ class CallDimension(object):
         uncover = self.call.uncover if uncover is None else uncover
         trail = self.call.trail if trail is None else trail
 
-        if isinstance(self.call.i.value, np.ndarray):
-            trues = np.ones(self.call.i.value.shape, dtype=bool)
+        # we can't call i._value here because that may point to a string, and
+        # we want this to resolve the array
+        i_value = self.call.i.get_value(linebreak=False, sort_by_indep=False)
+
+        if isinstance(i_value, np.ndarray):
+            trues = np.ones(i_value.shape, dtype=bool)
         else:
             trues = True
 
         if trail is not False:
             trail_i = self._get_trail_min(i=i, trail=trail)
 
-            left_filter = self.call.i.value >= trail_i
+            left_filter = i_value >= trail_i
 
         else:
             left_filter = trues
 
 
         if uncover is not False:
-            right_filter = self.call.i.value <= i
+            right_filter = i_value <= i
 
         else:
             right_filter = trues
 
         return (left_filter & right_filter)
 
-    def get_value(self, i=None, unit=None):
+    def get_value(self, i=None, unit=None,
+                  uncover=None, trail=None,
+                  linebreak=None, sort_by_indep=None):
         """
         access the value for a given value of i (independent-variable) depending
         on which effects (i.e. uncover) are enabled.
+
+        If uncover, trail, or linebreak are None (default), then the value from
+        the parent Call will be used.
         """
+
         if self._value is None:
             return None
+
+        if uncover is None:
+            uncover = self.call.uncover
+
+        if trail is None:
+            trail = self.call.trail
+
+        if linebreak is None:
+            linebreak = self.call.linebreak
+
+        if sort_by_indep is None:
+            # TODO: make this a property of the call?
+            sort_by_indep = True
 
         if isinstance(self._value, str) or isinstance(self._value, float):
             if i is None:
@@ -1348,6 +1513,28 @@ class CallDimension(object):
             raise NotImplementedError
 
 
+        if linebreak is not False:
+            return self._do_linebreak(i=i,
+                                      unit=unit,
+                                      uncover=uncover,
+                                      trail=trail,
+                                      linebreak=linebreak,
+                                      sort_by_indep=sort_by_indep)
+
+        if sort_by_indep is not False:
+            # if we've made it here, linebreak should already be False (if
+            # linebreak was True, then we'd be within _do_linebreak and those
+            # get_value calls pass linebreak=False)
+            return self._sort_by_indep(i=i,
+                                       unit=unit,
+                                       uncover=uncover,
+                                       trail=trail,
+                                       linebreak=False,
+                                       sort_by_indep=sort_by_indep)
+
+        # from here on, linebreak==False and sort_by_indep==False (if either
+        # were True, then we're within those functions and asking for the original
+        # array)
         if i is None:
             if len(self._value.shape)==1:
                 return self._to_unit(self._value, unit)
@@ -1358,7 +1545,7 @@ class CallDimension(object):
                     return self._to_unit(self._value, unit)
 
         # filter the data as necessary
-        filter_ = self._filter_at_i(i)
+        filter_ = self._filter_at_i(i, uncover=uncover, trail=trail)
 
         if isinstance(self.call.i.value, float):
             if filter_:
@@ -1368,21 +1555,29 @@ class CallDimension(object):
 
         if len(self._value.shape)==1:
             # then we're dealing with a flat 1D array
-            if self.call.trail is not False:
+            if trail is not False:
                 trail_i = self._get_trail_min(i)
                 first_point = self.interpolate_at_i(trail_i)
-            else:
-                first_point = np.nan
 
-            if self.call.uncover:
+
+            if uncover:
                 last_point = self.interpolate_at_i(i)
-            else:
-                last_point = np.nan
 
-            return self._to_unit(np.concatenate((np.array([first_point]),
-                                                 self._value[filter_],
-                                                 np.array([last_point]))),
-                                 unit)
+            if uncover and trail is not False:
+                concat = (np.array([first_point]),
+                          self._value[filter_],
+                          np.array([last_point]))
+            elif uncover:
+                concat = (self._value[filter_],
+                          np.array([last_point]))
+
+            elif trail:
+                concat = (np.array([first_point]),
+                          self._value[filter_])
+            else:
+                return self._to_unit(self._value[filter_], unit)
+
+            return self._to_unit(np.concatenate(concat), unit)
 
         else:
             # then we need to "select" based on the indep and the value
@@ -1443,7 +1638,9 @@ class CallDimension(object):
 
     value = property(_get_value, _set_value)
 
-    def get_error(self, i=None, unit=None):
+    def get_error(self, i=None, unit=None,
+                  uncover=None, trail=None,
+                  linebreak=None, sort_by_indep=None):
         """
         access the error for a given value of i (independent-variable) depending
         on which effects (i.e. uncover) are enabled.
@@ -1454,9 +1651,44 @@ class CallDimension(object):
         if self._error is None:
             return None
 
+        if uncover is None:
+            uncover = self.call.uncover
+
+        if trail is None:
+            trail = self.call.trail
+
+        if linebreak is None:
+            linebreak = self.call.linebreak
+
+        if sort_by_indep is None:
+            # TODO: make this a property of the call?
+            sort_by_indep = True
+
+        if linebreak is not False:
+            return self._do_linebreak(i=i,
+                                      unit=unit,
+                                      uncover=uncover,
+                                      trail=trail,
+                                      linebreak=linebreak,
+                                      sort_by_indep=sort_by_indep)
+
+        if sort_by_indep is not False:
+            # if we've made it here, linebreak should already be False (if
+            # linebreak was True, then we'd be within _do_linebreak and those
+            # get_value calls pass linebreak=False)
+            return self._sort_by_indep(i=i,
+                                       unit=unit,
+                                       uncover=uncover,
+                                       trail=trail,
+                                       linebreak=False,
+                                       sort_by_indep=sort_by_indep)
+
+        # from here on, linebreak==False and sort_by_indep==False (if either
+        # were True, then we're within those functions and asking for the original
+        # array)
 
         # filter the data as necessary
-        filter_ = self._filter_at_i(i)
+        filter_ = self._filter_at_i(i, uncover=uncover, trail=trail)
 
         if isinstance(self.call.i.value, float):
             if filter_:
@@ -1583,6 +1815,13 @@ class CallDimensionI(CallDimension):
         # bug: https://bugs.python.org/issue14965 and discussion:
         # https://mail.python.org/pipermail/python-dev/2010-April/099672.html
         super(CallDimensionI, self)._set_value(value)
+
+    def get_value(self, *args, **kwargs):
+        if isinstance(self._value, str):
+            dimension = self._value
+            return getattr(self.call, dimension).get_value(*args, **kwargs)
+
+        return super(CallDimensionI, self).get_value(*args, **kwargs)
 
     @property
     def is_reference(self):

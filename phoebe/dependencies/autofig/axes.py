@@ -457,6 +457,8 @@ class Axes(object):
                 self._colorcycler.add_to_used(call.get_facecolor())
                 self._colorcycler.add_to_used(call.get_edgecolor())
 
+                self._linestylecycler.check_validity(call.linestyle)
+
                 fc_match = self._match_color(call, 'fc')
                 ec_match = self._match_color(call, 'ec')
 
@@ -971,11 +973,11 @@ class AxDimension(AxArray):
                     continue
 
                 if kind=='fixed':
-                    error = cd.get_error(None, unit=self.unit)
-                    array = cd.get_value(None, unit=self.unit)
+                    error = cd.get_error(None, unit=self.unit, linebreak=False, sort_by_indep=False)
+                    array = cd.get_value(None, unit=self.unit, linebreak=False, sort_by_indep=False)
                 elif kind=='frame':
-                    error = cd.get_error(i, unit=self.unit)
-                    array = cd.get_value(i, unit=self.unit)
+                    error = cd.get_error(i, unit=self.unit, linebreak=False, sort_by_indep=False)
+                    array = cd.get_value(i, unit=self.unit, linebreak=False, sort_by_indep=False)
                 else:
                     raise NotImplementedError
 

@@ -2365,7 +2365,7 @@ class ParameterSet(object):
             # then let's try to get all SYNTHETIC times
             # it would be nice to only do ENABLED, but then we have to worry about compute
             # it would also be nice to worry about models... but then you should filter first
-            logger.info("no times providing so animating over all dataset times")
+            logger.info("no times were providing, so defaulting to animate over all dataset times")
             times = []
             for dataset in self.datasets:
                 ps = self.filter(dataset=dataset, context='model')
