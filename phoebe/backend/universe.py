@@ -1033,7 +1033,7 @@ class Body(object):
         TODO: add documentation
         """
 
-        if kind in ['mesh']:
+        if kind in ['mesh', 'orb']:
             return
 
         if time==self.time and dataset in self.populated_at_time and 'pblum' not in kind:
