@@ -202,7 +202,7 @@ class Figure(object):
 
         return fig
 
-    def animate(self, fig=None, indeps=None,
+    def animate(self, fig=None, i=None,
                 tight_layout=False,
                 draw_sidebars=True,
                 show=False, save=False, save_kwargs={}):
@@ -210,20 +210,23 @@ class Figure(object):
         if tight_layout:
             print("WARNING: tight_layout with fixed limits may cause jittering in the animation")
 
-        if indeps is None:
+        if i is None:
             # TODO: can we get i from the underlying Axes/Calls?
-            raise NotImplementedError()
+            raise NotImplementedError("must pass a list/array for i")
+
+        if not hasattr(i, '__iter__'):
+            raise ValueError("i must be iterable for animations")
 
 
         interval = 100 # time interval in ms between each frame
         blit = False # TODO: set this to True if no Mesh calls?
 
-        ao = _mpl_animate.Animation(self, indeps,
+        ao = _mpl_animate.Animation(self,
                                     tight_layout=tight_layout,
                                     draw_sidebars=draw_sidebars)
 
         anim = animation.FuncAnimation(ao.mplfig, ao, fargs=(),\
-                init_func=ao.anim_init, frames=indeps, interval=interval,\
+                init_func=ao.anim_init, frames=i, interval=interval,\
                 blit=blit)
 
         if save:

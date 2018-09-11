@@ -926,9 +926,10 @@ class AxDimension(AxArray):
                 # try to set based on the maximum spread of the central values
                 # through all available indeps
                 # TODO: please make the following line less hideous
-                indeps = list(set(np.concatenate([common.tolist(call.i.get_value(unit=self.unit)) for call in self.axes.calls])))
-                for indep in indeps:
-                    central_values = _central_values(indep)
+                # TODO: its not really fair to pass self.unit on to call.i.get_value()... but will falling back on its default units cause issues?
+                i_all = list(set(np.concatenate([common.tolist(call.i.get_value()) for call in self.axes.calls])))
+                for i_this in i_all:
+                    central_values = _central_values(i_this)
 
                     if not len(central_values):
                         continue

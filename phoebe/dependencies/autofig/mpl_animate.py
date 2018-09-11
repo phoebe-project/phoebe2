@@ -40,7 +40,7 @@ except:
 
 
 class Animation(object):
-    def __init__(self, affig, indeps, tight_layout=True, draw_sidebars=True):
+    def __init__(self, affig, tight_layout=True, draw_sidebars=True):
         self.affig = affig
         self.mplfig = affig._get_backend_object()
         self.mplfig.clf()
@@ -51,12 +51,12 @@ class Animation(object):
     def anim_init(self):
         return self.affig._get_backend_artists()
 
-    def __call__(self, indep):
+    def __call__(self, i):
         # print("***Animation.__call__(indep={})".format(indep))
         for mplax in self.mplfig.axes:
             mplax.cla()
 
-        self.affig.draw(i=indep,
+        self.affig.draw(i=i,
                         tight_layout=self.tight_layout,
                         draw_sidebars=self.draw_sidebars)
 

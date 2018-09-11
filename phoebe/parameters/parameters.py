@@ -1943,7 +1943,7 @@ class ParameterSet(object):
 
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             for dataset in ps.datasets:
-                this_return = ps.filter(dataset=dataset).get_plotting_info(**kwargs)
+                this_return = ps.filter(dataset=dataset)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -1995,6 +1995,9 @@ class ParameterSet(object):
             # nothing to plot here... at least for now
             return []
 
+        if not len(ps):
+            return []
+
         # Now that we've looped over everything, we can assume that we are dealing
         # with a SINGLE call.  We need to prepare kwargs so that it can be passed
         # to autofig.plot or autofig.mesh
@@ -2025,9 +2028,9 @@ class ParameterSet(object):
                 sigmas_avail = []
             elif ps.kind in ['orb', 'orb_syn']:
                 # TODO: previously if 2D plot we defaulted to x, z, y
-                defaults = {'x': 'xs',
-                            'y': 'ys',
-                            'z': 'zs'}
+                defaults = {'x': 'us',
+                            'y': 'vs',
+                            'z': 'ws'}
                 sigmas_avail = []
             elif ps.kind in ['lc', 'lc_syn']:
                 defaults = {'x': 'times',
@@ -2045,6 +2048,7 @@ class ParameterSet(object):
                             'z': 0}
                 sigmas_avail = ['etvs']
             else:
+                logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
                 raise NotImplementedError("defaults for kind {} (dataset: {}) not yet implemented".format(ps.kind, ps.dataset))
 
 
@@ -2109,8 +2113,13 @@ class ParameterSet(object):
                 kwargs['i'] = af_direction
                 break
         else:
-            # then we didn't find a match, so we'll pass the times array instead
-            kwargs['i'] = ps.get_quantity(qualifier='times')
+            # then we didn't find a match, so we'll either pass the time
+            # (for a mesh) or times array (otherwise)
+            if ps.time is not None:
+                # a single mesh will pass just that single time on as the
+                kwargs['i'] = ps.time
+            else:
+                kwargs['i'] = ps.get_quantity(qualifier='times')
 
 
         # handle different types of autofig plots
@@ -2379,7 +2388,8 @@ class ParameterSet(object):
             times = sorted(list(set(times)))
 
         logger.debug("autofig.animate at times: {}".format(times))
-        mplanim = self.gcf().animate(indeps=times, save=save,
+        mplanim = self.gcf().animate(i=times,
+                                     save=save,
                                      show=show,
                                      save_kwargs=save_kwargs)
 
