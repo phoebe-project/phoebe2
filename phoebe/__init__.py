@@ -138,11 +138,11 @@ conf = Settings()
 
 # make packages available at top-level
 from .atmospheres.passbands import install_passband, download_passband, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-from .constants import *
 from .parameters import *
 from .parameters import hierarchy, component, compute, constraint, dataset
 from .frontend.bundle import Bundle
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
+from .dependencies.unitsiau2015 import *
 from .backend import *
 import utils as utils
 
