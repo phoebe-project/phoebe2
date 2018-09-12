@@ -2019,7 +2019,8 @@ class ParameterSet(object):
             # if kwargs[direction] is a twig, then we need to change the
             # entry in the dictionary to be the data-array itself
 
-            # define defaults based on ps.kind
+            #### DIRECTION DEFAULTS
+            # define defaults for directions based on ps.kind
             if ps.kind in ['mesh', 'mesh_syn']:
                 # TODO: previously if 2D plot we defaulted to x, z, y
                 defaults = {'x': 'us',
@@ -2054,8 +2055,13 @@ class ParameterSet(object):
 
             current_value = kwargs.get(direction, defaults.get(direction, None))
 
-
+            #### RETRIEVE DATA ARRAYS
             if isinstance(current_value, str):
+                if ps.kind not in ['mesh'] and direction in ['fc', 'ec']:
+                    logger.warning("fc and ec are not allowable for dataset={} with kind={}, ignoring {}={}".format(ps.dataset, ps.kind, direction, current_value))
+                    _dump = kwargs.pop(direction)
+                    return kwargs
+
                 if '@' in current_value or current_value in ps.qualifiers or \
                         (current_value in ['xs', 'ys', 'zs'] and 'xyz_elements' in ps.qualifiers) or \
                         (current_value in ['us', 'vs', 'ws'] and 'uvw_elements' in ps.qualifiers):
@@ -2089,8 +2095,28 @@ class ParameterSet(object):
                     return kwargs
 
                 elif direction in ['c', 'fc', 'ec']:
-                    # then the string may be a color and that's acceptable
+                    # then there is the possibility of referring to a column
+                    # that technnically is attached to a different dataset in
+                    # the same mesh (e.g. rvs@rv01 inside kind=mesh).  Let's
+                    # check for that first.
+                    if ps.kind in ['mesh'] and ps._bundle is not None:
+                        full_mesh_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'dataset']}
+                        full_mesh_ps = ps._bundle.filter(**full_mesh_meta)
+                        candidate_params = full_mesh_ps.filter(current_value)
+                        if len(candidate_params) == 1:
+                            kwargs[direction] = candidate_params.get_quantity()
+                            kwargs['{}label'.format(direction)] = _plural_to_singular.get(current_value, current_value)
+                            kwargs['{}qualifier'.format(direction)] = current_value
+                            return kwargs
+                        elif len(candidate_params) > 1:
+                            return ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, ps.twigs))
+
+                    # Nothing has been found, so we'll assume the string is
+                    # the name of a color.  If the color isn't accepted by
+                    # autofig then autofig will raise an error listing the
+                    # list of allowed colors.
                     return kwargs
+
                 else:
                     raise ValueError("could not recognize {} for {} direction".format(current_value, direction))
 
@@ -2103,10 +2129,12 @@ class ParameterSet(object):
                 raise NotImplementedError
 
 
+        #### GET DATA ARRAY FOR EACH AUTOFIG "DIRECTION"
         for af_direction in ['x', 'y', 'z', 'c', 's', 'fc', 'ec']:
             # set the array and dimension label
             kwargs = _kwargs_fill_dimension(kwargs, af_direction, ps)
 
+        #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
         # try to find 'times' in the cartesian dimensions:
         for af_direction in ['x', 'y', 'z']:
             if kwargs.get('{}label'.format(af_direction), None) == 'times':
@@ -2122,7 +2150,7 @@ class ParameterSet(object):
                 kwargs['i'] = ps.get_quantity(qualifier='times')
 
 
-        # handle different types of autofig plots
+        #### DETERMINE AUTOFIG PLOT TYPE
         cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
         if ps.kind in ['mesh'] and kwargs['xqualifier'] in cartesian and kwargs['yqualifier'] in cartesian and kwargs['zqualifier'] in cartesian:
             kwargs['autofig_method'] = 'mesh'
@@ -2132,12 +2160,36 @@ class ParameterSet(object):
             kwargs['autofig_method'] = 'plot'
 
 
+        #### STYLE DEFAULTS
         # set defaults for marker/linestyle depending on whether this is
         # observational or synthetic data
         if ps.context == 'dataset':
             kwargs.setdefault('linestyle', 'none')
         elif ps.context == 'model':
             kwargs.setdefault('marker', 'none')
+
+        # set defaults for colormap and symmetric limits
+        for af_direction in ['c', 'fc', 'ec']:
+            qualifier = kwargs.get('{}qualifier'.format(af_direction), None)
+            if qualifier in ['rvs']:
+                kwargs.setdefault('{}map'.format(af_direction), 'RdBu_r')
+                if kwargs['{}map'.format(af_direction)] == 'RdBu_r':
+                    # only apply symmetric default if taking the colormap default
+                    kwargs.setdefault('{}lim'.format(af_direction), 'symmetric')
+            elif qualifier in ['vxs', 'vys', 'vzs', 'vus', 'vvs', 'vws']:
+                kwargs.setdefault('{}map'.format(af_direction), 'RdBu')
+                if kwargs['{}map'.format(af_direction)] == 'RdBu':
+                    # only apply symmetric default if taking the colormap default
+                    kwargs.setdefault('{}lim'.format(af_direction), 'symmetric')
+                kwargs.setdefault('{}lim'.format(af_direction), 'symmetric')
+            elif qualifier in ['teffs']:
+                kwargs.setdefault('{}map'.format(af_direction), 'afmhot')
+            elif qualifier in ['loggs']:
+                kwargs.setdefault('{}map'.format(af_direction), 'gnuplot')
+            elif qualifier in ['visibilities']:
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn')
+                kwargs.setdefault('{}lim'.format(af_direction), (0,1))
+
 
         # set the label of this plot call.  This will only have any effect if
         # the legend is shown
@@ -2312,7 +2364,7 @@ class ParameterSet(object):
                     continue
 
                 autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-                logger.debug("passing to autofig.{}: {}".format(autofig_method, plot_kwargs))
+                logger.debug("passing to autofig.{}: {}".format(autofig_method, {k:v if not isinstance(v, np.ndarray) else "<data>" for k,v in plot_kwargs.items()}))
                 func = getattr(self.gcf(), autofig_method)
 
                 func(**plot_kwargs)
