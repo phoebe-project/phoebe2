@@ -2044,11 +2044,11 @@ class ParameterSet(object):
                         (current_value in ['xs', 'ys', 'zs'] and 'xyz_elements' in ps.qualifiers) or \
                         (current_value in ['us', 'vs', 'ws'] and 'uvw_elements' in ps.qualifiers):
 
-                    if ps.kind in ['mesh', 'mesh_syn'] and current_value in ['xs', 'ys', 'zs']:
+                    if kwargs['autofig_method'] == 'mesh' and current_value in ['xs', 'ys', 'zs']:
                         # then we actually need to unpack from the xyz_elements
                         verts = ps.get_quantity(qualifier='xyz_elements')
                         array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
-                    elif ps.kind in ['mesh', 'mesh_syn'] and current_value in ['us', 'vs', 'ws']:
+                    elif kwargs['autofig_method'] == 'mesh' and current_value in ['us', 'vs', 'ws']:
                         # then we actually need to unpack from the uvw_elements
                         verts = ps.get_quantity(qualifier='uvw_elements')
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
@@ -2126,11 +2126,24 @@ class ParameterSet(object):
                     # then default doesn't matter, but we'll set it at what it is
                     defaults[af_direction] = kwargs[af_direction]
 
-                    # and we'll remove from coordinates still available
-                    coordinates.remove(kwargs[af_direction])
+                    if kwargs[af_direction] in coordinates:
+                        # the provided qualifier could be something else (ie teffs)
+                        # in which case we'll end up doing a scatter instead of
+                        # a mesh plot
+
+                        # now we'll remove from coordinates still available
+                        coordinates.remove(kwargs[af_direction])
                 else:
                     # we'll take the first entry remaining in coordinates
                     defaults[af_direction] = coordinates.pop(0)
+
+            # If still have some coordinates left, then at least
+            # one dimension is not cartesian, meaning we will need to do
+            # a plot instead of mesh call, meaning we want to access from
+            # the centers (xs, ys, zs, us, vs, ws) instead of elements
+            # (xyz_elements, uvw_elements)
+            mesh_all_cartesian = len(coordinates) == 0
+
 
             sigmas_avail = []
         elif ps.kind in ['orb', 'orb_syn']:
@@ -2143,8 +2156,13 @@ class ParameterSet(object):
                     # then default doesn't matter, but we'll set it at what it is
                     defaults[af_direction] = kwargs[af_direction]
 
-                    # and we'll remove from coordinates still available
-                    coordinates.remove(kwargs[af_direction])
+                    if kwargs[af_direction] in coordinates:
+                        # the provided qualifier could be something else (ie teffs)
+                        # in which case we'll end up doing a scatter instead of
+                        # a mesh plot
+
+                        # now we'll remove from coordinates still available
+                        coordinates.remove(kwargs[af_direction])
                 else:
                     # we'll take the first entry remaining in coordinates
                     defaults[af_direction] = coordinates.pop(0)
@@ -2169,6 +2187,19 @@ class ParameterSet(object):
             logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
             raise NotImplementedError("defaults for kind {} (dataset: {}) not yet implemented".format(ps.kind, ps.dataset))
 
+        #### DETERMINE AUTOFIG PLOT TYPE
+        # NOTE: this must be done before calling _kwargs_fill_dimension below
+        cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
+        if ps.kind in ['mesh']:
+            if mesh_all_cartesian:
+                kwargs['autofig_method'] = 'mesh'
+            else:
+                kwargs['autofig_method'] = 'plot'
+
+            if self.time is not None:
+                kwargs['i'] = float(self.time)
+        else:
+            kwargs['autofig_method'] = 'plot'
 
         #### GET DATA ARRAY FOR EACH AUTOFIG "DIRECTION"
         for af_direction in ['x', 'y', 'z', 'c', 's', 'fc', 'ec']:
@@ -2196,23 +2227,17 @@ class ParameterSet(object):
                 kwargs['i'] = ps.get_quantity(qualifier='times')
 
 
-        #### DETERMINE AUTOFIG PLOT TYPE
-        cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
-        if ps.kind in ['mesh'] and kwargs['xqualifier'] in cartesian and kwargs['yqualifier'] in cartesian and kwargs['zqualifier'] in cartesian:
-            kwargs['autofig_method'] = 'mesh'
-            if self.time is not None:
-                kwargs['i'] = float(self.time)
-        else:
-            kwargs['autofig_method'] = 'plot'
-
-
         #### STYLE DEFAULTS
         # set defaults for marker/linestyle depending on whether this is
         # observational or synthetic data
         if ps.context == 'dataset':
             kwargs.setdefault('linestyle', 'none')
         elif ps.context == 'model':
-            kwargs.setdefault('marker', 'none')
+            if ps.kind in ['mesh', 'mesh_syn'] and kwargs['autofig_method'] == 'plot':
+                kwargs.setdefault('marker', '^')
+                kwargs.setdefault('linestyle', 'none')
+            else:
+                kwargs.setdefault('marker', 'none')
 
         # set defaults for colormap and symmetric limits
         for af_direction in ['c', 'fc', 'ec']:
@@ -2416,7 +2441,7 @@ class ParameterSet(object):
                     continue
 
                 autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-                logger.debug("passing to autofig.{}: {}".format(autofig_method, {k:v if not isinstance(v, np.ndarray) else "<data>" for k,v in plot_kwargs.items()}))
+                logger.debug("passing to autofig.{}: {}".format(autofig_method, {k:v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape) for k,v in plot_kwargs.items()}))
                 func = getattr(self.gcf(), autofig_method)
 
                 func(**plot_kwargs)
