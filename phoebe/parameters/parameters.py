@@ -2218,6 +2218,12 @@ class ParameterSet(object):
 
         return self._bundle._figure
 
+    def clf(self):
+        if self._bundle is None:
+            raise ValueError("could not find parent Bundle object")
+
+        self._bundle._figure = None
+
     def plot(self, *args, **kwargs):
         """
         High-level wrapper around matplotlib (by default, but also has some support
