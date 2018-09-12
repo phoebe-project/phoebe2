@@ -2389,10 +2389,14 @@ class ParameterSet(object):
 
         if save or show:
             fig = self.gcf().draw(save=save, show=show)
+            # clear the figure so next call will start over and future shows will work
+            afig = self.gcf()
+            self.clf()
         else:
+            afig = self.gcf()
             fig = None
 
-        return self.gcf(), fig
+        return afig, fig
 
 
     def show(self):
@@ -2463,8 +2467,12 @@ class ParameterSet(object):
                                      show=show,
                                      save_kwargs=save_kwargs)
 
+        afig = self.gcf()
 
-        return self.gcf(), mplanim
+        # clear the autofig figure
+        self.clf()
+
+        return afig, mplanim
 
 
 class Parameter(object):
