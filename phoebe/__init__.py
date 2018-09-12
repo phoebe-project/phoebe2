@@ -142,7 +142,7 @@ from .constants import *
 from .parameters import *
 from .parameters import hierarchy, component, compute, constraint, dataset
 from .frontend.bundle import Bundle
-from .frontend import nphelpers
+from .dependencies.nparray import array, linspace, arange, logspace, geomspace
 from .backend import *
 import utils as utils
 
@@ -227,10 +227,3 @@ def mpi_off():
 
 def set_np(np):
     conf._mpi_np = np
-
-# functional shortcuts to numpy helpers
-def arange(start, stop, step):
-    return nphelpers.Arange(start, stop, step)
-
-def linspace(start, stop, num):
-    return nphelpers.Linspace(start, stop, num)

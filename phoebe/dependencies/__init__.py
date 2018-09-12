@@ -1,1 +1,2 @@
 import autofig
+import nparray

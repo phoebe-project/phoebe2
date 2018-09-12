@@ -8,7 +8,8 @@ from phoebe.constraints.expression import ConstraintVar
 # from phoebe.constraints import builtin
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
-from phoebe.frontend import tabcomplete, nphelpers
+from phoebe.frontend import tabcomplete
+from phoebe.dependencies import nparray
 from phoebe.utils import parse_json
 
 import random
@@ -2648,7 +2649,7 @@ class Parameter(object):
     def __repr__(self):
         """
         """
-        if (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
+        if isinstance(self._value, nparray.ndarray):
             quantity = self._value
         elif hasattr(self, 'quantity'):
             quantity = self.get_quantity()
@@ -2663,7 +2664,7 @@ class Parameter(object):
     def __str__(self):
         """
         """
-        if (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
+        if isinstance(self._value, nparray.ndarray):
             quantity = self._value
         elif hasattr(self, 'quantity'):
             quantity = self.get_quantity()
@@ -2805,7 +2806,7 @@ class Parameter(object):
             """
             """
             if k=='value':
-                if isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace):
+                if isinstance(self._value, nparray.ndarray):
                     if self._value.unit is not None and hasattr(self, 'default_unit'):
                         v = self._value.to(self.default_unit).to_json()
                     else:
@@ -3999,8 +4000,11 @@ class FloatParameter(Parameter):
         else:
             value = self._value
 
-        if isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace):
-            value = value.to_array()
+        if isinstance(value, nparray.ndarray):
+            if value.unit is not None:
+                value = value.quantity
+            else:
+                value = value.array
 
         if t is not None:
             raise NotImplementedError("timederiv is currently disabled until it can be tested thoroughly")
@@ -4096,7 +4100,7 @@ class FloatParameter(Parameter):
             value = float(value)
         if isinstance(value, dict) and 'nphelper' in value.keys():
             # then we're loading the JSON version of an Arange or Linspace
-            value = nphelpers.from_json(value)
+            value = nparray.from_json(value)
 
         if isinstance(unit, str):
             # print "*** converting string to unit"
@@ -4107,7 +4111,7 @@ class FloatParameter(Parameter):
         value = self._check_type(value)
 
         # check to make sure value and unit don't clash
-        if isinstance(value, u.Quantity) or ((isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)) and value.unit is not None):
+        if isinstance(value, u.Quantity) or (isinstance(value, nparray.ndarray) and value.unit is not None):
             if unit is not None:
                 # check to make sure they're the same
                 if value.unit != unit:
@@ -4127,7 +4131,7 @@ class FloatParameter(Parameter):
 
         # handle wrapping for angle measurements
         if value is not None and value.unit.physical_type == 'angle':
-            # NOTE: this may fail for nphelpers.Arange or nphelpers.Linspace
+            # NOTE: this may fail for nparray types
             if value > (360*u.deg) or value < (0*u.deg):
                 value = value % (360*u.deg)
                 logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
@@ -4398,7 +4402,7 @@ class FloatArrayParameter(FloatParameter):
         if isinstance(value, u.Quantity):
             value = value.to(self.default_unit).value
 
-        if isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace):
+        if isinstance(value, nparray.ndarray):
             value = value.to_array()
 
         new_value = np.append(self.get_value(), value) * self.default_unit
@@ -4463,106 +4467,20 @@ class FloatArrayParameter(FloatParameter):
         elif isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
 
-        elif not (isinstance(value, list) or isinstance(value, tuple) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
+        elif not (isinstance(value, list) or isinstance(value, tuple) or isinstance(value, np.ndarray) or isinstance(value, nparray.ndarray)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise TypeError("value '{}' ({}) could not be cast to array".format(value, type(value)))
 
         return value
 
-    @property
-    def start(self):
+    def set_property(self, property, value):
         """
-        Access the 'start' value of an array if set as phoebe.arange or phoebe.linspace
+        set any property of the underlying nparray object
         """
-        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
-            raise ValueError("can only access start if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
+        if not isinstance(self._value, nparray.ndarray):
+            raise ValueError("value is not a nparray object")
 
-        return self._value.start
-
-    def set_start(self, start):
-        """
-        Change the 'start' value of an array if set as phoebe.arange or phoebe.linspace
-        """
-        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
-            raise ValueError("can only set start if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
-
-        self._value.set_start(start)
-
-    @property
-    def stop(self):
-        """
-        Access the 'stop' value of an array if set as phoebe.arange or phoebe.linspace
-        """
-        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
-            raise ValueError("can only access start if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
-
-        return self._value.stop
-
-    def set_stop(self, stop):
-        """
-        Change the 'stop' value of an array if set as phoebe.arange or phoebe.linspace
-        """
-        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
-            raise ValueError("can only set stop if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
-
-        self._value.set_stop(stop)
-
-    @property
-    def step(self):
-        """
-        Access the 'step' value of an array if set as phoebe.arange
-        """
-        if not isinstance(self._value, nphelpers.Arange):
-            raise ValueError("can only access step if value is phoebe.frontend.nphelpers.Arange")
-
-        return self._value.step
-
-    def set_step(self, step):
-        """
-        Change the 'stop' value of an array if set as phoebe.arange
-        """
-        if not isinstance(self._value, nphelpers.Arange):
-            raise ValueError("can only set step if value is phoebe.frontend.nphelpers.Arange")
-
-        self._value.set_step(step)
-
-    @property
-    def num(self):
-        """
-        Access the 'num' value of an array if set as phoebe.linspace
-        """
-        if not isinstance(self._value, nphelpers.Linspace):
-            raise ValueError("can only access start if value is phoebe.frontend.nphelpers.Linspace")
-
-        return self._value.num
-
-    def set_num(self, num):
-        """
-        Change the 'stop' value of an array if set as phoebe.linspace
-        """
-        if not isinstance(self._value, nphelpers.Linspace):
-            raise ValueError("can only set num if value is phoebe.frontend.nphelpers.Linspace")
-
-        self._value.set_num(num)
-
-    def convert_to_arange(self):
-        """
-        Convert a value stored as phoebe.linspace to phoebe.arange
-        """
-        if not isinstance(self._value, nphelpers.Linspace):
-            raise ValueError("can only set stop if value is phoebe.frontend.nphelpers.Linspace")
-
-        self._value = self._value.to_arange()
-
-    def convert_to_linspace(self):
-        """
-        Convert a value stored as phoebe.arange to phoebe.linspace
-        """
-        if not isinstance(self._value, nphelpers.Arange):
-            raise ValueError("can only set stop if value is phoebe.frontend.nphelpers.Arange")
-
-        self._value = self._value.to_linspace()
-
+        setattr(self._value, property, value)
 
 class ArrayParameter(Parameter):
     def __init__(self, *args, **kwargs):
@@ -4579,7 +4497,7 @@ class ArrayParameter(Parameter):
     def append(self, value):
         """
         """
-        if isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace):
+        if isinstance(value, nparray.ndarray):
             value = value.to_array()
 
         new_value = np.append(self.get_value(), value)
@@ -4599,7 +4517,7 @@ class ArrayParameter(Parameter):
         default = super(ArrayParameter, self).get_value(**kwargs)
         if default is not None: return default
 
-        if isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace):
+        if isinstance(self._value, nparray.ndarray):
             return self._value.to_array()
         else:
             return self._value

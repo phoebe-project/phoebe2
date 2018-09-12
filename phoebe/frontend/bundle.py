@@ -1352,7 +1352,7 @@ class Bundle(ParameterSet):
                 return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
             elif gravb_bol < 0.32 or gravb_bol > 1.00:
                 return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
-                
+
         for component in self.hierarchy.get_stars():
             teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
             irrad_frac_refl_bol = self.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)
@@ -2015,7 +2015,7 @@ class Bundle(ParameterSet):
 
 
 
-        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs = deepcopy({k:v if not isinstance(v, nparray.ndarray) else v.to_json() for k,v in kwargs.items()})
         redo_kwargs['func'] = func.func_name
         self._add_history(redo_func='add_dataset',
                           redo_kwargs=redo_kwargs,
