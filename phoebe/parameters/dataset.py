@@ -323,9 +323,9 @@ def orb_syn(syn=True, **kwargs):
         syn_params += [FloatArrayParameter(qualifier='us', value=_empty_array(kwargs, 'us'), default_unit=u.solRad, description='U position')]
         syn_params += [FloatArrayParameter(qualifier='vs', value=_empty_array(kwargs, 'vs'), default_unit=u.solRad, description='V position')]
         syn_params += [FloatArrayParameter(qualifier='ws', value=_empty_array(kwargs, 'ws'), default_unit=u.solRad, description='W position')]
-        syn_params += [FloatArrayParameter(qualifier='vus', value=_empty_array(kwargs, 'vus'), default_unit=u.solRad/u.d, description='U velocity')]
-        syn_params += [FloatArrayParameter(qualifier='vvs', value=_empty_array(kwargs, 'vvs'), default_unit=u.solRad/u.d, description='V velocity')]
-        syn_params += [FloatArrayParameter(qualifier='vws', value=_empty_array(kwargs, 'vws'), default_unit=u.solRad/u.d, description='W velocity')]
+        syn_params += [FloatArrayParameter(qualifier='vus', value=_empty_array(kwargs, 'vus'), default_unit=u.km/u.s, description='U velocity')]
+        syn_params += [FloatArrayParameter(qualifier='vvs', value=_empty_array(kwargs, 'vvs'), default_unit=u.km/u.s, description='V velocity')]
+        syn_params += [FloatArrayParameter(qualifier='vws', value=_empty_array(kwargs, 'vws'), default_unit=u.km/u.s, description='W velocity')]
 
     constraints = []
 
@@ -406,11 +406,11 @@ def mesh_syn(syn=True, **kwargs):
                 syn_params += [FloatArrayParameter(qualifier='zs', time=t, value=kwargs.get('zs', []), default_unit=u.solRad, description='Z coordinate of center of triangles in the plane-of-sky')]
 
             if 'vxs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vxs', time=t, value=kwargs.get('vxs', []), default_unit=u.solRad/u.d, description='X velocity of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='vxs', time=t, value=kwargs.get('vxs', []), default_unit=u.km/u.s, description='X velocity of center of triangles')]
             if 'vys' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vys', time=t, value=kwargs.get('vys', []), default_unit=u.solRad/u.d, description='Y velocity of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='vys', time=t, value=kwargs.get('vys', []), default_unit=u.km/u.s, description='Y velocity of center of triangles')]
             if 'vzs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vzs', time=t, value=kwargs.get('vzs', []), default_unit=u.solRad/u.d, description='Z velocity of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='vzs', time=t, value=kwargs.get('vzs', []), default_unit=u.km/u.s, description='Z velocity of center of triangles')]
 
             if 'nxs' in columns:
                 syn_params += [FloatArrayParameter(qualifier='nxs', time=t, value=kwargs.get('nxs', []), default_unit=u.dimensionless_unscaled, description='X component of normals')]
@@ -427,11 +427,11 @@ def mesh_syn(syn=True, **kwargs):
                 syn_params += [FloatArrayParameter(qualifier='ws', time=t, value=kwargs.get('ws', []), default_unit=u.solRad, description='W coordinate of center of triangles in the plane-of-sky')]
 
             if 'vus' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vus', time=t, value=kwargs.get('vus', []), default_unit=u.solRad/u.d, description='U velocity of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='vus', time=t, value=kwargs.get('vus', []), default_unit=u.km/u.s, description='U velocity of center of triangles')]
             if 'vvs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vvs', time=t, value=kwargs.get('vvs', []), default_unit=u.solRad/u.d, description='V velocity of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='vvs', time=t, value=kwargs.get('vvs', []), default_unit=u.km/u.s, description='V velocity of center of triangles')]
             if 'vws' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vws', time=t, value=kwargs.get('vws', []), default_unit=u.solRad/u.d, description='W velocity of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='vws', time=t, value=kwargs.get('vws', []), default_unit=u.km/u.s, description='W velocity of center of triangles')]
 
             if 'nus' in columns:
                 syn_params += [FloatArrayParameter(qualifier='nus', time=t, value=kwargs.get('nus', []), default_unit=u.dimensionless_unscaled, description='U component of normals')]
@@ -478,7 +478,7 @@ def mesh_syn(syn=True, **kwargs):
                 # if 'dls@{}'.format(dataset) in columns:
                     # syn_params += [FloatArrayParameter(qualifier='dls', dataset=dataset, time=t, value=[], default_unit=u.nm, description='Per-element delta-lambda caused by doppler shift'.format(dataset))]
                 if 'rvs@{}'.format(dataset) in columns:
-                    syn_params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.solRad/u.d, description='Per-element value of rvs for {} dataset'.format(dataset))]
+                    syn_params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.km/u.s, description='Per-element value of rvs for {} dataset'.format(dataset))]
                 if 'intensities@{}'.format(dataset) in columns:
                     syn_params += [FloatArrayParameter(qualifier='intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of intensities for {} dataset'.format(dataset))]
                 if 'normal_intensities@{}'.format(dataset) in columns:
