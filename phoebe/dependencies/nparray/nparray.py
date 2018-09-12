@@ -108,7 +108,6 @@ class ArrayWrapper(object):
             if item[2](item[1]):
                 self._descriptors[item[0]] = item[1]
             else:
-                print "*****", item[1]
                 raise ValueError("{} {}, got {}".format(item[0], item[2].__doc__, item[1]))
             self._validators[item[0]] = item[2]
 
@@ -144,7 +143,6 @@ class ArrayWrapper(object):
             raise ImportError("astropy must be installed for unit/quantity support")
 
         if self.unit is None:
-            print "**** HERE", self
             raise ValueError("no units currently set")
 
         if not is_unit_or_unitstring(unit):
