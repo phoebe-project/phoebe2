@@ -132,6 +132,8 @@ class Bundle(ParameterSet):
         self._bundle = self
         self._hierarchy_param = None
 
+        self._figure = None
+
         # set to be not a client by default
         self._is_client = False
         self._last_client_update = None

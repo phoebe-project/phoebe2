@@ -8,7 +8,7 @@ from phoebe.constraints.expression import ConstraintVar
 # from phoebe.constraints import builtin
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
-from phoebe.frontend import tabcomplete, plotting, mpl_animate, nphelpers
+from phoebe.frontend import tabcomplete, nphelpers
 from phoebe.utils import parse_json
 
 import random
@@ -66,10 +66,7 @@ _is_server = False
 
 if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
     try:
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
-        from matplotlib.collections import LineCollection, PolyCollection
-        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        from phoebe.dependencies import autofig
     except (ImportError, TypeError):
         _use_mpl = False
     else:
@@ -246,6 +243,13 @@ def _parse_plotting_args(arg):
         # maybe a bool?
         return ({},)
 
+def _instance_in(obj, *types):
+    for typ in types:
+        if isinstance(obj, typ):
+            return True
+
+    return False
+
 
 class ParameterSet(object):
     """ParameterSet.
@@ -398,6 +402,19 @@ class ParameterSet(object):
             :class:`ParameterSet`
         """
         return [p.twig for p in self.to_list()]
+
+    @property
+    def common_twig(self):
+        """
+        The twig that is common between all items in this ParameterSet.
+        This twig gives a single string which can point back to this ParameterSet
+        (but may include other entries as well)
+
+        see also :meth:`uniquetwig`
+
+        :return: twig (full) of this Parameter
+        """
+        return "@".join([getattr(self, k) for k in _meta_fields_twig if self.meta.get(k) is not None])
 
     @property
     def qualifier(self):
@@ -1885,69 +1902,26 @@ class ParameterSet(object):
         """
         raise NotImplementedError
 
-    def get_plotting_info(self, twig=None, **kwargs):
-        """
-        [ADD DOCUMENTATION]
-        """
 
-        def _unit_to_str(unit, use_latex=True):
-            if unit is None:
-                return ''
+    def _unpack_plotting_kwargs(self, **kwargs):
 
-            if isinstance(unit, str):
-                unit = u.Unit(unit)
 
-            if use_latex:
-                return unit._repr_latex_()
-            else:
-                return unit.to_string()
 
-        def _qualifier_to_label(qualifier):
-            return _plural_to_singular.get(qualifier, qualifier)
-
-        def _get_param_array(ps, qualifier, unit):
-            if len(ps.filter(qualifier=qualifier).times):
-                times = ps.filter(qualifier=qualifier).times
-                param = ps.get_parameter(qualifier=qualifier, time=times[0])
-
-                if not isinstance(param, FloatArrayParameter):
-                    if unit is None:
-                        unit = param.default_unit
-
-                    array = np.array([param.get_value(unit=unit)
-                                      for param in ps.filter(qualifier=qualifier).to_list()])
-                else:
-                    param = None
-            else:
-                param = None
-
-            if param is None:
-                param = ps.get_parameter(qualifier=qualifier)
-                if unit is None:
-                    unit = param.default_unit
-
-                array = param.get_value(unit=unit)
-
-            return param, array, unit
-
-        if isinstance(kwargs.get('time', None), str):
-            # handle allow passing twigs to time
-            time_value = self._bundle.get_value(kwargs['time'], context='component')
-            if isinstance(time_value, float):
-                logger.info("plotting at time={} ('{}')".format(time_value, kwargs['time']))
-                kwargs['time'] = time_value
-            else:
-                raise ValueError("could not convert '{}' to a valid time".format(kwargs['time']))
-
-        # filter the PS further - except we don't want to filter on time, since
-        # that means something else
-
+        # We now need to unpack if the contents within kwargs contain multiple
+        # contexts/datasets/kinds/components/etc.
         # the dataset tag can appear in the compute context as well, so if the
         # context tag isn't in kwargs, let's default it to dataset or model
         kwargs.setdefault('context', ['dataset', 'model'])
 
-        ps = self.filter(twig=twig,
-                         **{k: v for k, v in kwargs.items() if k != 'time'})
+        filter_kwargs = {}
+        for k in self.meta.keys():
+            if k in ['time']:
+                # time needs to be handled externally
+                continue
+            filter_kwargs[k] = kwargs.pop(k, None)
+
+        ps = self.filter(**filter_kwargs)
+
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn']:
             ps = ps.filter(time=kwargs.get('time'))
 
@@ -1956,23 +1930,25 @@ class ParameterSet(object):
         # (unless the user provided color in a kwarg).  To choose individual
         # styling, the user must make individual calls and provide the styling
         # options as kwargs.
+
+        # we'll return a list of dictionaries, with each dictionary prepared
+        # to pass directly to autofig
+        return_ = []
+
         if len(ps.contexts) > 1:
-            return_ = []
             for context in ps.contexts:
-                this_return = ps.filter(context=context).get_plotting_info(**kwargs)
+                this_return = ps.filter(context=context)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
-            return_ = []
             for dataset in ps.datasets:
-                this_return = ps.filter(dataset=dataset).get_plotting_info(**kwargs)
+                this_return = ps.filter(dataset=dataset)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         # For kinds, we want to ignore the deps - those won't have arrays
         kinds = [m for m in ps.kinds if m[-3:] != 'dep']
-        # ax = kwargs.pop('ax', None)
 
         # If we are asking to plot a dataset that also shows up in columns in
         # the mesh, then remove the mesh kind.  In other words: mesh stuff
@@ -1987,532 +1963,337 @@ class ParameterSet(object):
             pskinds = [kinds[0]]
 
         if len(ps.kinds) > 1:
-            return_ = []
             for kind in [m for m in pskinds if m[-3:]!='dep']:
-                this_return = ps.filter(kind=kind).get_plotting_info(**kwargs)
+                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.models) > 1:
-            return_ = []
             for model in ps.models:
                 # TODO: change linestyle for models instead of color?
-                this_return = ps.filter(model=model).get_plotting_info(**kwargs)
+                this_return = ps.filter(model=model)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.times) > 1 and kwargs.get('loop_times', False):
             # only meshes (and spectra) will be able to iterate over times
-            return_ = []
             for time in ps.times:
-                this_return = ps.filter(time=time).get_plotting_info(**kwargs)
+                this_return = ps.filter(time=time)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
+
+        if len(ps.components) > 1:
+            return_ = []
+            for component in ps.components:
+                this_return = ps.filter(component=component)._unpack_plotting_kwargs(**kwargs)
+                return_ += this_return
+            return return_
+
 
         if ps.kind in ['mesh', 'mesh_syn', 'orb', 'orb_syn'] and \
                 ps.context == 'dataset':
             # nothing to plot here... at least for now
             return []
 
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
-        if plotting_backend in ['mpl'] and _use_mpl:
-            axes_3d = isinstance(kwargs.get('ax', plt.gca()), Axes3D)
-            # axes_3d = kwargs.get('ax', plt.gca()).__class__.__name__ in ['Axes3DSubplot', 'Axes3D']
-        else:
-            axes_3d = False
+        if not len(ps):
+            return []
 
-        # We need to handle plotting meshes differently... but only if x, y,
-        # and z are all the coordinates (then we'll plot the triangles).
-        # Otherwise, we will continue and can use the generic x, y plotting (ie
-        # for flux vs r_proj)
-        do_plot_mesh_coordinates = None
-        if ps.kind in ['mesh', 'mesh_syn'] and \
-                kwargs.get('x', 'us') in ['us', 'vs', 'ws'] and \
-                kwargs.get('y', 'vs') in ['us', 'vs', 'ws'] and \
-                kwargs.get('z', 'ws') in ['us', 'vs', 'ws']:
+        # Now that we've looped over everything, we can assume that we are dealing
+        # with a SINGLE call.  We need to prepare kwargs so that it can be passed
+        # to autofig.plot or autofig.mesh
 
-            do_plot_mesh_coordinates = 'uvw'
+        # handle any "aliases"
+        if 'color' in kwargs.keys() and 'colors' not in kwargs.keys() and 'c' not in kwargs.keys():
+            logger.warning("assuming you meant 'c' instead of 'color'")
+            kwargs['c'] = kwargs.pop('color')
+        elif 'colors' in kwargs.keys() and 'c' not in kwargs.keys():
+            logger.warning("assuming you meant 'c' instead of 'colors'")
+            kwargs['c'] = kwargs.pop('colors')
+        if 'facecolor' in kwargs.keys() and 'facecolors' not in kwargs.keys() and 'fc' not in kwargs.keys():
+            logger.warning("assuming you meant 'fc' instead of 'facecolor'")
+            kwargs['fc'] = kwargs.pop('facecolor')
+        elif 'facecolors' in kwargs.keys() and 'fc' not in kwargs.keys():
+            logger.warning("assuming you meant 'fc' instead of 'facecolors'")
+            kwargs['fc'] = kwargs.pop('facecolors')
+        if 'edgecolor' in kwargs.keys() and 'edgecolors' not in kwargs.keys() and 'ec' not in kwargs.keys():
+            logger.warning("assuming you meant 'ec' instead of 'edgecolor'")
+            kwargs['ec'] = kwargs.pop('edgecolor')
+        elif 'edgecolors' in kwargs.keys() and 'ec' not in kwargs.keys():
+            logger.warning("assuming you meant 'ec' instead of 'edgecolors'")
+            kwargs['ec'] = kwargs.pop('edgecolors')
 
-            # NOTE: even though we are calling these u, v, w - we really mean
-            # to get those components from the uvw_elements array
-            xqualifier = kwargs.get('x', 'us')
-            yqualifier = kwargs.get('y', 'vs')
-            if axes_3d:
-                zqualifier = kwargs.get('z', 'ws')
+        def _kwargs_fill_dimension(kwargs, direction, ps):
+            # kwargs[direction] is currently one of the following:
+            # * twig/qualifier
+            # * array/float
+            # * string (applicable for color dimensions)
+            #
+            # if kwargs[direction] is a twig, then we need to change the
+            # entry in the dictionary to be the data-array itself
 
+            current_value = kwargs.get(direction, None)
 
-            # All our arrays will need to be sorted front to back, so we need
-            # the centers from the coordinates not covered by xqualifier,
-            # yqualifier. We don't really care the units here, but in case the
-            # user has changed the default units on some of the components to
-            # be different than others, we'll request them all in the same
-            # units.
+            #### RETRIEVE DATA ARRAYS
+            if isinstance(current_value, str):
+                if ps.kind not in ['mesh'] and direction in ['fc', 'ec']:
+                    logger.warning("fc and ec are not allowable for dataset={} with kind={}, ignoring {}={}".format(ps.dataset, ps.kind, direction, current_value))
+                    _dump = kwargs.pop(direction)
+                    return kwargs
 
-            # TODO: should we skip this for axes_3d?
-            mesh_coordinates = ['us', 'vs', 'ws']
-            sortqualifier = ['us', 'vs', 'ws']
-            sortqualifier.remove(xqualifier)
-            sortqualifier.remove(yqualifier)
-            sortqualifier = sortqualifier[0]
+                if '@' in current_value or current_value in ps.qualifiers or \
+                        (current_value in ['xs', 'ys', 'zs'] and 'xyz_elements' in ps.qualifiers) or \
+                        (current_value in ['us', 'vs', 'ws'] and 'uvw_elements' in ps.qualifiers):
 
-        elif ps.kind in ['mesh', 'mesh_syn'] and \
-                kwargs.get('x', 'xs') in ['xs', 'ys', 'zs'] and \
-                kwargs.get('y', 'ys') in ['xs', 'ys', 'zs'] and \
-                kwargs.get('z', 'zs') in ['xs', 'ys', 'zs']:
+                    if kwargs['autofig_method'] == 'mesh' and current_value in ['xs', 'ys', 'zs']:
+                        # then we actually need to unpack from the xyz_elements
+                        verts = ps.get_quantity(qualifier='xyz_elements')
+                        array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
+                    elif kwargs['autofig_method'] == 'mesh' and current_value in ['us', 'vs', 'ws']:
+                        # then we actually need to unpack from the uvw_elements
+                        verts = ps.get_quantity(qualifier='uvw_elements')
+                        array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
+                    else:
+                        array_value = ps.get_quantity(current_value)
 
-            do_plot_mesh_coordinates = 'xyz'
+                    kwargs[direction] = array_value
 
-            # NOTE: even though we are calling these x, y, z - we really mean
-            # to get those components from the xyz_elements array
-            xqualifier = kwargs.get('x', 'xs')
-            yqualifier = kwargs.get('y', 'ys')
-            if axes_3d:
-                zqualifier = kwargs.get('z', 'zs')
+                    if ps.context == 'dataset' and current_value in sigmas_avail:
+                        # then let's see if there are errors
+                        sigmas = ps.get_quantity('sigmas')
+                        if len(sigmas):
+                            kwargs['{}error'.format(direction)] = sigmas
 
+                    # now let's set the label for the dimension from the qualifier/twig
+                    kwargs['{}label'.format(direction)] = _plural_to_singular.get(current_value, current_value)
 
-            # All our arrays will need to be sorted front to back, so we need
-            # the centers from the coordinates not covered by xqualifier,
-            # yqualifier. We don't really care the units here, but in case the
-            # user has changed the default units on some of the components to
-            # be different than others, we'll request them all in the same
-            # units.
+                    # we'll also keep the qualifier around - autofig doesn't use this
+                    # but we'll keep it so we can set some defaults
+                    kwargs['{}qualifier'.format(direction)] = current_value
 
-            # TODO: should we skip this for axes_3d?
-            mesh_coordinates = ['xs', 'ys', 'zs']
-            sortqualifier = ['xs', 'ys', 'zs']
-            sortqualifier.remove(xqualifier)
-            sortqualifier.remove(yqualifier)
-            sortqualifier = sortqualifier[0]
+                    return kwargs
 
+                elif direction in ['c', 'fc', 'ec']:
+                    # then there is the possibility of referring to a column
+                    # that technnically is attached to a different dataset in
+                    # the same mesh (e.g. rvs@rv01 inside kind=mesh).  Let's
+                    # check for that first.
+                    if ps.kind in ['mesh'] and ps._bundle is not None:
+                        full_mesh_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'dataset']}
+                        full_mesh_ps = ps._bundle.filter(**full_mesh_meta)
+                        candidate_params = full_mesh_ps.filter(current_value)
+                        if len(candidate_params) == 1:
+                            kwargs[direction] = candidate_params.get_quantity()
+                            kwargs['{}label'.format(direction)] = _plural_to_singular.get(current_value, current_value)
+                            kwargs['{}qualifier'.format(direction)] = current_value
+                            return kwargs
+                        elif len(candidate_params) > 1:
+                            return ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, ps.twigs))
 
-        if do_plot_mesh_coordinates is not None:
+                    # Nothing has been found, so we'll assume the string is
+                    # the name of a color.  If the color isn't accepted by
+                    # autofig then autofig will raise an error listing the
+                    # list of allowed colors.
+                    return kwargs
 
-            # if color is provided, it should be used for facecolor and
-            # edgecolor, but if either of those two values are provided, they
-            # should take precedence.
-            color = kwargs.get('color', None)
-            if 'facecolors' in kwargs.keys() and 'facecolor' not in kwargs.keys():
-                logger.warning("assuming you meant 'facecolor' instead of 'facecolors'")
-                kwargs['facecolor'] = kwargs.pop('facecolors')
-            if 'edgecolors' in kwargs.keys() and 'edgecolor' not in kwargs.keys():
-                logger.warning("assuming you meant 'edgecolor' instead of 'edgecolors'")
-                kwargs['edgecolor'] = kwargs.pop('edgecolors')
-            kwargs.setdefault('facecolor', 'w' if color is None else color)
-            kwargs.setdefault('edgecolor', 'k' if color is None else color)
+                else:
+                    raise ValueError("could not recognize {} for {} direction".format(current_value, direction))
 
-            if kwargs.get('colorlabel', None):
-                kwargs.setdefault('facecolorlabel', kwargs['colorlabel'])
-                kwargs.setdefault('edgecolorlabel', kwargs['colorlabel'])
-
-            if kwargs.get('colorunit', None):
-                kwargs.setdefault('facecolorunit', kwargs['colorunit'])
-                kwargs.setdefault('edgecolorunit', kwargs['colorunit'])
-
-            if kwargs.get('colorlim', None):
-                kwargs.setdefault('facecolorlim', kwargs['colorlim'])
-                kwargs.setdefault('edgecolorlim', kwargs['colorlim'])
-
-            facecolorqualifier = kwargs['facecolor'] if kwargs['facecolor'] in ps.qualifiers else None
-            edgecolorqualifier = kwargs['edgecolor'] if kwargs['edgecolor'] in ps.qualifiers else None
-
-            # TODO: do the same logic with cmap, facecmap, edgecmap as colors
-            # above
-
-            if do_plot_mesh_coordinates=='xyz':
-                # then the array are dimensionless - which really means in
-                # units of sma
-                kwargs.setdefault('xunit', None)
-                kwargs.setdefault('yunit', None)
-                if axes_3d:
-                    kwargs.setdefault('zunit', None)
-            else: # uvw
-                kwargs.setdefault('xunit', 'solRad')
-                kwargs.setdefault('yunit', 'solRad')
-                if axes_3d:
-                    kwargs.setdefault('zunit', 'solRad')
-
-            if kwargs['xunit'] != kwargs['yunit']:
-                raise ValueError('xunit and yunit must be the same for mesh plots')
-            if axes_3d and kwargs['xunit']!=kwargs['zunit']:
-                raise ValueError('xunit, yunit, and zunit must be the same for 3d mesh plots')
-
-
-            if facecolorqualifier is not None:
-                facecolorparam, facecolorarray, default_facecolorunit = _get_param_array(ps,
-                                                                             facecolorqualifier,
-                                                                             kwargs.get('facecolorunit', None))
-
-                kwargs.setdefault('facecolorunit', default_facecolorunit)
-
-            if edgecolorqualifier is not None:
-                edgecolorparam, edgecolorarray, default_edgecolorunit = _get_param_array(ps,
-                                                                             edgecolorqualifier,
-                                                                             kwargs.get('edgecolorunit', None))
-
-                kwargs.setdefault('edgecolorunit', default_edgecolorunit)
-
-            kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(xqualifier))
-            kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(yqualifier))
-            if axes_3d:
-                kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(zqualifier))
-
-            if kwargs.get('facecolorbar', False) or kwargs.get('colorbar', False):
-                kwargs.setdefault('facecolorlabel', r"{} ({})".format(_qualifier_to_label(facecolorqualifier), _unit_to_str(kwargs['facecolorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['facecolorunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(facecolorqualifier))
-
-            if kwargs.get('edgecolorbar', False) or kwargs.get('colorbar', False):
-                kwargs.setdefault('edgecolorlabel', r"{} ({})".format(_qualifier_to_label(edgecolorqualifier), _unit_to_str(kwargs['edgecolorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['edgecolorunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(edgecolorqualifier))
-
-            if kwargs.get('loop_times', False) or len(ps.times) <= 1:
-                elements_xyz = np.concatenate([ps.get_value('{}_elements'.format(do_plot_mesh_coordinates),
-                                                            component=c,
-                                                            unit=kwargs['xunit'])
-                                               for c in ps.components]).reshape((-1, 3, 3))[:, :, :]
+            elif _instance_in(current_value, np.ndarray, list, tuple, float, int):
+                # then leave it as-is
+                return kwargs
+            elif current_value is None:
+                return kwargs
             else:
-                elements_xyz = np.concatenate([ps.get_value('{}_elements'.format(do_plot_mesh_coordinates),
-                                                            component=c,
-                                                            time=t,
-                                                            unit=kwargs['xunit'])
-                                               for c in ps.components for t in ps.times]).reshape((-1, 3, 3))[:, :, :]
+                raise NotImplementedError
 
-            center_sort = np.mean(elements_xyz[:, :, mesh_coordinates.index(sortqualifier)], axis=1)
-            plot_inds = np.argsort(center_sort)
 
-            # vertices_xyz are the REAL x, y, z coordinates.  Later we'll convert
-            # to the quantities we want to plot along the x and y axes
-            vertices_xyz = elements_xyz.reshape((-1, 3, 3))[:, :, :]
+        #### DIRECTION DEFAULTS
+        # define defaults for directions based on ps.kind
+        if ps.kind in ['mesh', 'mesh_syn']:
+            # first determine from any passed values if we're in xyz or uvw
+            # (do not allow mixing between roche and POS)
+            detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
+            coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers])
+            if len(coordinate_systems) > 1:
+                # then we're mixing roche and POS
+                raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
 
-            # TODO: make this handle 3d by just iterating over zqualifier as
-            # well (but only if 3d)
-            if axes_3d:
-                coordinate_inds = [mesh_coordinates.index(q)
-                                   for q in [xqualifier, yqualifier, zqualifier]]
-            else:
-                coordinate_inds = [mesh_coordinates.index(q)
-                                   for q in [xqualifier, yqualifier]]
+            coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
 
-            data = vertices_xyz[:, :, coordinate_inds]
+            defaults = {}
+            for af_direction in ['x', 'y', 'z']:
+                if af_direction in kwargs.keys():
+                    # then default doesn't matter, but we'll set it at what it is
+                    defaults[af_direction] = kwargs[af_direction]
 
-            # func = getattr(plotting, plotting_backend)
+                    if kwargs[af_direction] in coordinates:
+                        # the provided qualifier could be something else (ie teffs)
+                        # in which case we'll end up doing a scatter instead of
+                        # a mesh plot
 
-            # logger.info("calling '{}' plotting backend".format(plotting_backend))
+                        # now we'll remove from coordinates still available
+                        coordinates.remove(kwargs[af_direction])
+                else:
+                    # we'll take the first entry remaining in coordinates
+                    defaults[af_direction] = coordinates.pop(0)
 
-            # TODO: can we come up with a more clever default label.. maybe
-            # that includes edgecolor/facecolor?
-            default_label = '{}@{}'.format(ps.component, ps.dataset)
-            kwargs.setdefault('label', default_label)
+            # If still have some coordinates left, then at least
+            # one dimension is not cartesian, meaning we will need to do
+            # a plot instead of mesh call, meaning we want to access from
+            # the centers (xs, ys, zs, us, vs, ws) instead of elements
+            # (xyz_elements, uvw_elements)
+            mesh_all_cartesian = len(coordinates) == 0
 
-            # kwargs['plotting_backend'] = plotting_backend
-            kwargs['ps'] = ps
-            kwargs['data'] = data
-            kwargs['plot_inds'] = plot_inds
-            kwargs['polycollection'] = True
 
-            return [kwargs]
+            sigmas_avail = []
+        elif ps.kind in ['orb', 'orb_syn']:
+            # similar logic to meshes above, except we only have uvw
+            coordinates = ['us', 'vs', 'ws']
 
-            # return func(ps, data, plot_inds, polycollection=True, **kwargs)
+            defaults = {}
+            for af_direction in ['x', 'y', 'z']:
+                if af_direction in kwargs.keys():
+                    # then default doesn't matter, but we'll set it at what it is
+                    defaults[af_direction] = kwargs[af_direction]
 
-        if len(ps.components) > 1:
-            return_ = []
-            for component in ps.components:
-                this_return = ps.filter(component=component).get_plotting_info(**kwargs)
-                return_ += this_return
-            return return_
+                    if kwargs[af_direction] in coordinates:
+                        # the provided qualifier could be something else (ie teffs)
+                        # in which case we'll end up doing a scatter instead of
+                        # a mesh plot
 
-        # now we can use ps.kind to guess what columns need plotting
-        if ps.kind in ['orb', 'orb_syn']:
-            if axes_3d:
-                xqualifier = kwargs.get('x', 'us')
-                yqualifier = kwargs.get('y', 'vs')
-                zqualifier = kwargs.get('z', 'ws')
-            else:
-                xqualifier = kwargs.get('x', 'us')
-                yqualifier = kwargs.get('y', 'ws')
-                zqualifier = kwargs.get('z', 'vs')
-            timequalifier = 'times'
-        elif ps.kind in ['mesh', 'mesh_syn']:
-            xqualifier = kwargs.get('x', 'r_projs')
-            yqualifier = kwargs.get('y', 'teffs')
-            zqualifier = kwargs.get('z', 'loggs')
-            timequalifier = 'times'
+                        # now we'll remove from coordinates still available
+                        coordinates.remove(kwargs[af_direction])
+                else:
+                    # we'll take the first entry remaining in coordinates
+                    defaults[af_direction] = coordinates.pop(0)
+
+            sigmas_avail = []
         elif ps.kind in ['lc', 'lc_syn']:
-            xqualifier = kwargs.get('x', 'times')
-            yqualifier = kwargs.get('y', 'fluxes')
-            zqualifier = kwargs.get('z', 0)
-            timequalifier = 'times'
+            defaults = {'x': 'times',
+                        'y': 'fluxes',
+                        'z': 0}
+            sigmas_avail = ['fluxes']
         elif ps.kind in ['rv', 'rv_syn']:
-            xqualifier = kwargs.get('x', 'times')
-            yqualifier = kwargs.get('y', 'rvs')
-            zqualifier = kwargs.get('z', 0)
-            timequalifier = 'times'
-        elif ps.kind in ['lp', 'lp_syn']:
-            xqualifier = kwargs.get('x', 'wavelengths')
-            yqualifier = kwargs.get('y', 'flux_densities')
-            zqualifier = kwargs.get('z', 'flux_densities')
-            timequalifier = 'times'
+            defaults = {'x': 'times',
+                        'y': 'rvs',
+                        'z': 0}
+            sigmas_avail = ['rvs']
         elif ps.kind in ['etv', 'etv_syn']:
-            xqualifier = kwargs.get('x', 'time_ecls')
-            yqualifier = kwargs.get('y', 'etvs')
-            zqualifier = kwargs.get('z', 0)
-            timequalifier = 'time_ecls'
+            defaults = {'x': 'time_ecls',
+                        'y': 'etvs',
+                        'z': 0}
+            sigmas_avail = ['etvs']
         else:
-            raise NotImplementedError("plotting for dataset '{}' with kind '{}' is not yet implemented".format(ps.dataset, ps.kind))
+            logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
+            raise NotImplementedError("defaults for kind {} (dataset: {}) not yet implemented".format(ps.kind, ps.dataset))
 
-        # We'll set these as kwarg defaults so that they can easily be passed
-        # through any other call to plot (when looping over models, components,
-        # kinds below)
-        # color = kwargs.get('color', None)
-        # kwargs.setdefault('linecolor', color)
-        # kwargs.setdefault('markercolor', color)
-        kwargs.setdefault('color', None)
-        kwargs.setdefault('time', None)
-        kwargs.setdefault('highlight', True)
-        kwargs.setdefault('highlight_marker', 'o')
-        kwargs.setdefault('highlight_ms', None)
-        kwargs.setdefault('highlight_color', None)
-        kwargs.setdefault('uncover', False)
-
-        colorqualifier = kwargs['color'] if kwargs['color'] in ps.qualifiers else None
-
-        # Now let's get the parameters
-
-        # TODO: these are currently warnings that
-        # are ignored because some kinds might not include the defaults (ie
-        # no positions in orb but are in orb_syn)... perhaps this should be
-        # silently handled earlier and should raise an error if we make it this
-        # far (ie the user gave a non-existant qualifier)
-
-        if xqualifier not in ps.qualifiers and \
-                xqualifier.split(':')[0] not in ['phase', 'phases'] and \
-                not (isinstance(xqualifier, float) or
-                     isinstance(xqualifier, int)):
-            logger.warning("attempting to plot but could not find parameter {} - skipping".format(xqualifier))
-            return []
-
-        if yqualifier not in ps.qualifiers and \
-                not (isinstance(yqualifier, float) or
-                     isinstance(yqualifier, int)):
-            logger.warning("attempting to plot but could not find parameter {} - skipping".format(yqualifier))
-            return []
-
-        if axes_3d and \
-                zqualifier not in ps.qualifiers and \
-                not (isinstance(zqualifier, float) or
-                     isinstance(zqualifier, int)):
-            logger.warning("attempting to plot but could not find parameter {} - skipping".format(zqualifier))
-            return []
-
-        # TODO: add other checks to make sure x and y are arrays (and have
-        # default_units)
-
-        # Now we need to get the units, labels, and arrays
-        # If the user provides unit(s), they can either give the unit object or
-        # the string representation, so long as get_value(unit) succeeds
-        # xunit = kwargs.get('xunit', xparam.default_unit)
-        if ps.kind in ['mesh', 'mesh_syn', 'lp', 'lp_syn']:  # TODO: add sp and sp_syn
-            # then we're plotting at a single time so the time array doesn't
-            # really make sense (we won't be able to plot anything vs phase or
-            # color by time/phase)
-            tparam = None
-            tarray = []
-        else:
-            tparam = ps.get_parameter(qualifier=timequalifier)
-            tarray = tparam.get_value(unit='d')
-
-        if xqualifier.split(':')[0] in ['phase', 'phases']:
-            # then we need to do things slightly different
-            phased = True
-            component = xqualifier.split(':')[1] \
-                if len(xqualifier.split(':')) > 1 \
-                else None
-            # TODO: check to make sure we have access to tparam._bundle
-            if ps.kind.split('_')[-1] == 'syn':
-                xarray = tparam._bundle.to_phase(tarray,
-                                                 shift=True,
-                                                 component=component,
-                                                 t0=kwargs.get('t0', 't0_supconj'))
+        #### DETERMINE AUTOFIG PLOT TYPE
+        # NOTE: this must be done before calling _kwargs_fill_dimension below
+        cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
+        if ps.kind in ['mesh']:
+            if mesh_all_cartesian:
+                kwargs['autofig_method'] = 'mesh'
             else:
-                # then we don't want to include phase-shifting for obs data
-                xarray = tparam._bundle.to_phase(tarray,
-                                                 shift=False,
-                                                 component=component,
-                                                 t0=kwargs.get('t0', 't0_supconj'))
+                kwargs['autofig_method'] = 'plot'
 
-            # really only used to get the default label for this ps
-            xparam = tparam
-            kwargs.setdefault('xunit', 'cy')
-            if kwargs.get('time', None):
-                kwargs['time'] = self._bundle.to_phase(kwargs['time'],
-                                                       shift=True,
-                                                       component=component,
-                                                       t0=kwargs.get('t0', 't0_supconj'))
-
-        elif isinstance(xqualifier, float) or isinstance(xqualifier, int):
-            xparam = None
-            xarray = np.ones(len(tarray)) * float(xqualifier)
-            kwargs['xunit'] = None
-            kwargs.setdefault('xlabel', '')
-            if not axes_3d:
-                kwargs.setdefault('marker', '+')
-                kwargs.setdefault('markersize', 20)
-                kwargs.setdefault('linestyle', 'none')
+            if self.time is not None:
+                kwargs['i'] = float(self.time)
         else:
-            phased = False
-            xparam, xarray, default_xunit = _get_param_array(ps,
-                                                             xqualifier,
-                                                             kwargs.get('xunit', None))
-            kwargs.setdefault('xunit', default_xunit)
+            kwargs['autofig_method'] = 'plot'
 
-        if isinstance(yqualifier, float) or isinstance(yqualifier, int):
-            yparam = None
-            yarray = np.ones(len(tarray)) * float(yqualifier)
-            kwargs['yunit'] = None
-            kwargs.setdefault('ylabel', '')
-            if not axes_3d:
-                kwargs.setdefault('marker', '|')
-                kwargs.setdefault('markersize', 20)
-                kwargs.setdefault('linestyle', 'none')
+        #### GET DATA ARRAY FOR EACH AUTOFIG "DIRECTION"
+        for af_direction in ['x', 'y', 'z', 'c', 's', 'fc', 'ec']:
+            # set the array and dimension label
+            if af_direction not in kwargs.keys() and af_direction in defaults.keys():
+                # don't want to use setdefault here because we don't want an
+                # entry if the af_direction is not in either dict
+                kwargs[af_direction] = defaults[af_direction]
+            kwargs = _kwargs_fill_dimension(kwargs, af_direction, ps)
 
+        #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
+        # try to find 'times' in the cartesian dimensions:
+        for af_direction in ['x', 'y', 'z']:
+            if kwargs.get('{}label'.format(af_direction), None) == 'times':
+                kwargs['i'] = af_direction
+                break
         else:
-            yparam, yarray, default_yunit = _get_param_array(ps,
-                                                             yqualifier,
-                                                             kwargs.get('yunit', None))
-            if kwargs.pop('norm', False):
-                yarray /= yarray.max()
-
-            kwargs.setdefault('yunit', default_yunit)
-
-        if isinstance(zqualifier, float) or isinstance(zqualifier, int):
-            zparam = None
-            zarray = np.ones(len(tarray)) * float(zqualifier)
-            kwargs['zunit'] = None
-        elif axes_3d:
-            zparam, zarray, default_zunit = _get_param_array(ps,
-                                                             zqualifier,
-                                                             kwargs.get('zunit', None))
-            kwargs.setdefault('zunit', default_zunit)
-
-        else:
-            zparam = None
-            zarray = None
-
-        if colorqualifier is not None:
-            colorparam, colorarray, default_colorunit = _get_param_array(ps,
-                                                                         colorqualifier,
-                                                                         kwargs.get('colorunit', None))
-
-            kwargs.setdefault('colorunit', default_colorunit)
-
-        # and finally, build the label (if it hasn't been already)
-        kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(xqualifier))
-        kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(yqualifier))
-        if axes_3d:
-            kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(zqualifier))
-
-        if kwargs.get('colorbar', False):
-            kwargs.setdefault('colorlabel', r"{} ({})".format(_qualifier_to_label(colorqualifier), _unit_to_str(kwargs['colorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['colorunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(colorqualifier))
-
-        if phased:
-            # then we need to sort all arrays according to phase (xarray)
-            # TODO: do this more efficiently
-            # TODO: this may not always be wanted, sometimes we may want to instead
-            # loop over each cycle and draw multiple lines
-            if axes_3d:
-                if not (len(xarray) and len(yarray) and len(zarray)):
-                    return []
-                xyzt = zip(xarray, yarray, zarray, tarray)
-                xyzt.sort()
-                x, y, z, t = zip(*xyzt)
-                xarray, yarray, zarray, tarray = np.array(x), np.array(y), np.array(z), np.array(t)
+            # then we didn't find a match, so we'll either pass the time
+            # (for a mesh) or times array (otherwise)
+            if ps.time is not None:
+                # a single mesh will pass just that single time on as the
+                # independent variable/direction
+                kwargs['i'] = float(ps.time)
             else:
-                if not (len(xarray) and len(yarray)):
-                    return []
-                xyt = zip(xarray, yarray, tarray)
-                xyt.sort()
-                x, y, t = zip(*xyt)
-                xarray, yarray, tarray = np.array(x), np.array(y), np.array(t)
+                kwargs['i'] = ps.get_quantity(qualifier='times')
 
-        # handle getting the indices to plot if uncover is True
-        # TODO: how will uncover handle phased data?
-        if kwargs['uncover'] and isinstance(kwargs['time'], float):
-            logger.debug("uncover up to time={}".format(kwargs['time']))
-            plot_inds = tarray <= kwargs['time']
-        else:
-            # we do xarray here instead of tarray for the cases where tarray =
-            # [] this will happen for meshes and spectra
-            plot_inds = range(len(yarray))
 
-        # Now let's build a default label for the legend.  This should be the
-        # uniquetwig of the PS... since this doesn't really exist, we can just
-        # find the overlap between the x and y twigs
-        # The user will be responsible for showing the legend on the plot, but
-        # we'll label each plot call automatically.
-        # To draw the legend:
-        # ax = ps.plot(...)
-        # ax.legend()
-        # plt.show()
-        if xparam is None:
-            default_label = yparam.uniquetwig
-        elif yparam is None:
-            default_label = xparam.uniquetwig
-        else:
-            # TODO: include zparam.uniquetwig if axes_3d
-            default_label = ''.join(c[2:] for c in list(difflib.ndiff(xparam.uniquetwig, yparam.uniquetwig)) if c[0] == ' ')
-            if default_label[0] == '@':
-                # then let's just trim the leading @
-                default_label = default_label[1:]
-            if default_label.split('@')[0] not in xparam.uniquetwig.split('@')+yparam.uniquetwig.split('@'):
-                # then we had some overlap that doesn't form a whole label
-                # this can happen for "times" and "fluxes", for example
-                # leaving the leading "es".  So let's trim this and only
-                # return the rest
-                default_label = '@'.join(default_label.split('@')[1:])
-        kwargs.setdefault('label', default_label)
-
-        # Now let's try to figure out the plottype (whether to do plot or
-        # scatter or hist, etc) and set some defaults which will be passed on
-        # to mplkwargs. These defaults are obviously designed with matplotlib
-        # in mind, but other backends can either rewrite their own defaults or
-        # try to interpret these
-        if ps.context=='model':
-            plottype = 'line'
-            if ps.kind in ['mesh'] and \
-                    isinstance(xparam, FloatArrayParameter) and \
-                    isinstance(yparam, FloatArrayParameter) and \
-                    (zparam is None or
-                     isinstance(zparam, FloatArrayParameter)):
-                kwargs.setdefault('linestyle', 'None')
+        #### STYLE DEFAULTS
+        # set defaults for marker/linestyle depending on whether this is
+        # observational or synthetic data
+        if ps.context == 'dataset':
+            kwargs.setdefault('linestyle', 'none')
+        elif ps.context == 'model':
+            if ps.kind in ['mesh', 'mesh_syn'] and kwargs['autofig_method'] == 'plot':
                 kwargs.setdefault('marker', '^')
+                kwargs.setdefault('linestyle', 'none')
             else:
-                #kwargs.setdefault('linestyle', '-')
-                kwargs.setdefault('marker', 'None')
-            kwargs.setdefault('xerrors', None)
-            kwargs.setdefault('yerrors', None)
-        # TODO: handle other things like priors, posteriors, feedback
-        else:
-            # assume data or data-like
-            plottype = 'data'
-            kwargs.setdefault('linestyle', 'None')
-            kwargs.setdefault('marker', 'o')
-            kwargs.setdefault('xerrors', None)
-            kwargs.setdefault('yerrors', 'sigma' if 'sigma' in ps.qualifiers and len(ps.get_value('sigma')) else None)
+                kwargs.setdefault('marker', 'none')
 
-        # kwargs['plotting_backend'] = plotting_backend
-        kwargs['ps'] = ps
-        # kwargs['xarray'] = xarray
-        # kwargs['yarray'] = yarray
-        if axes_3d:
-            # kwargs['zarray'] = zarray
-            if not (len(xarray) and len(yarray) and len(zarray)):
-                return []
-            kwargs['data'] = (xarray, yarray, zarray, tarray)
-        else:
-            if not (len(xarray) and len(yarray)):
-                return []
-            kwargs['data'] = (xarray, yarray, None, tarray)
-        # kwargs['tarray'] = tarray
-        kwargs['plot_inds'] = plot_inds
+        # set defaults for colormap and symmetric limits
+        for af_direction in ['c', 'fc', 'ec']:
+            qualifier = kwargs.get('{}qualifier'.format(af_direction), None)
+            if qualifier in ['rvs']:
+                kwargs.setdefault('{}map'.format(af_direction), 'RdBu_r')
+                if kwargs['{}map'.format(af_direction)] == 'RdBu_r':
+                    # only apply symmetric default if taking the colormap default
+                    kwargs.setdefault('{}lim'.format(af_direction), 'symmetric')
+            elif qualifier in ['vxs', 'vys', 'vzs', 'vus', 'vvs', 'vws']:
+                kwargs.setdefault('{}map'.format(af_direction), 'RdBu')
+                if kwargs['{}map'.format(af_direction)] == 'RdBu':
+                    # only apply symmetric default if taking the colormap default
+                    kwargs.setdefault('{}lim'.format(af_direction), 'symmetric')
+                kwargs.setdefault('{}lim'.format(af_direction), 'symmetric')
+            elif qualifier in ['teffs']:
+                kwargs.setdefault('{}map'.format(af_direction), 'afmhot')
+            elif qualifier in ['loggs']:
+                kwargs.setdefault('{}map'.format(af_direction), 'gnuplot')
+            elif qualifier in ['visibilities']:
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn')
+                kwargs.setdefault('{}lim'.format(af_direction), (0,1))
 
-        return [kwargs]
+
+        # set the label of this plot call.  This will only have any effect if
+        # the legend is shown
+        # TODO: we used to do this a bit more cleverly by taking the diff of xparam.uniquetwig and yparam.uniquetwig
+        # default_label = ''.join(c[2:] for c in list(difflib.ndiff(xparam.uniquetwig, yparam.uniquetwig)) if c[0] == ' ')
+        # if default_label[0] == '@':
+        #     # then let's just trim the leading @
+        #     default_label = default_label[1:]
+        # if default_label.split('@')[0] not in xparam.uniquetwig.split('@')+yparam.uniquetwig.split('@'):
+        #     # then we had some overlap that doesn't form a whole label
+        #     # this can happen for "times" and "fluxes", for example
+        #     # leaving the leading "es".  So let's trim this and only
+        #     # return the rest
+        #     default_label = '@'.join(default_label.split('@')[1:])
+        # default_label = '{}@{}'.format(ps.component, ps.dataset)
+        # kwargs.setdefault('label', default_label)
+
+        return (kwargs,)
+
+    def gcf(self):
+        if self._bundle is None:
+            return autofig.gcf()
+
+        if self._bundle._figure is None:
+            self._bundle._figure = autofig.Figure()
+
+        return self._bundle._figure
+
+    def clf(self):
+        if self._bundle is None:
+            raise ValueError("could not find parent Bundle object")
+
+        self._bundle._figure = None
 
     def plot(self, *args, **kwargs):
         """
@@ -2533,9 +2314,6 @@ class ParameterSet(object):
         :parameter float time: Current time.  For spectra and meshes, time
             is required to determine at which time to draw.  For other types,
             time will only be used for higlight and uncover (if enabled)
-        :parameter str backend: Plotting backend to use.  Will default to
-            'plotting_backend' from the :class:`phoebe.frontend.bundle.Bundle`
-            settings if not provided.
 
         :parameter bool highlight: whether to highlight the current time
             (defaults to True)
@@ -2635,124 +2413,73 @@ class ParameterSet(object):
         :parameter **kwargs: additional kwargs to filter the ParameterSet OR to pass along
             to the backend plotting call
 
-        :returns: the matplotlib axes (or equivalent for other backends)
+        :returns: the matplotlib axes
         """
-
-
-        # TODO: need to handle user sending shortcut mplkwargs like 'ls' or 'ms' (need to turn those into their full versions in kwargs for logic to work)
-        # TODO: need to handle user sending fmt string (again, how do we handle logic, is there a mpl function to retrieve linestyle, marker, etc from the fmt string?)
-
-        # TODO: allow sizes as an array (same as colors)
-        # TODO: color support for errorbars
-        # TODO: auto-color match when marker and line
-
-        # TODO: support z-axis (do we check to see if the axes supports 3d, or a boolean option, or a separate function for plot3d?)
-        # TODO: plan for supporting priors, feedback, posteriors
-
-        # TODO: change xerrors, yerrors -> xerror, yerror ???
 
         plot_argss = _parse_plotting_args(args)
 
         # since we used the args trick above, all other options have to be in kwargs
-        do_plot = kwargs.pop('do_plot', True)
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
 
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
-
-        return_axes = []
-        return_artists = []
-        return_data = []
         # this first loop allows for building figures or plotting
         # multiple twigs at once.
         for plot_args in plot_argss:
 
+            # override any options sent via kwargs
             for k, v in kwargs.items():
                 plot_args.setdefault(k,v)
 
-            plot_infos = self.get_plotting_info(**plot_args)
+            plot_kwargss = self._unpack_plotting_kwargs(**plot_args)
 
             # this inner-loop handles any of the automatically-generated
             # multiple plotting calls, but for a SINGLE AXES (ie two components
             # under the same dataset).
-            for plot_info in plot_infos:
-                func = getattr(plotting, plotting_backend)
+            for plot_kwargs in plot_kwargss:
+                if not len(plot_kwargs.get('y', [])):
+                    # a dataset without observational data, for example
+                    continue
 
-                logger.info("calling '{}' plotting backend for {}".format(plotting_backend, plot_info['label']))
+                autofig_method = plot_kwargs.pop('autofig_method', 'plot')
+                logger.debug("passing to autofig.{}: {}".format(autofig_method, {k:v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape) for k,v in plot_kwargs.items()}))
+                func = getattr(self.gcf(), autofig_method)
 
-                # data = (xarray, yarray, zarray, tarray)
-                plot_info['do_plot'] = do_plot
-                if do_plot:
-                    ax, this_artists = func(**plot_info)
-                    return_artists += this_artists
-                    return_axes.append(ax)
-                else:
-                    this_data = func(**plot_info)
-                    return_data += this_data
+                func(**plot_kwargs)
 
-        if do_plot:
-
-            if plotting_backend in ['mpl'] and not kwargs.get('colorbar', False) and not kwargs.get('facecolorbar', False) and not kwargs.get('edgecolorbar', False):
-                # tight_layout can conflict with colorbar placement
-                try:
-                    plt.gcf().tight_layout()
-                except ValueError:
-                    # this can fail sometimes if axes were added via add_axes
-                    # instead of add_subplot
-                    pass
-
-            if show:
-                self.show()
-            if save:
-                self.savefig(save)
-
-            return return_axes, return_artists
+        if save or show:
+            fig = self.gcf().draw(save=save, show=show)
+            # clear the figure so next call will start over and future shows will work
+            afig = self.gcf()
+            self.clf()
         else:
-            return return_data
+            afig = self.gcf()
+            fig = None
 
-    def show(self, **kwargs):
+        return afig, fig
+
+
+    def show(self):
         """
-        Show the plot.  This is really just a very generic wrapper based on the
-        chosen plotting backend.  For matplotlib it is probably just as, if not
-        even more, convenient to simply import matplotlib yourself and call the
-        show method.  However, other backends require saving to temporary html
-        files and opening a webbrowser - so this method provides the ability for
-        a generic call that should work if you choose to change the plotting backend.
-
-        :parameter str backend: which plotting backend to use.  Will default to
-                'plotting_backend' from settings in the
-                :class:`phoebe.frontend.bundle.Bundle` if not provided.
+        Draw and show the plot.
         """
+        fig = self.gcf().draw(show=True)
+        return self.gcf(), fig
 
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
 
-        return getattr(plotting, 'show_{}'.format(plotting_backend))(**kwargs)
-
-    def savefig(self, fname, **kwargs):
+    def savefig(self, fname):
         """
-        Save the plot.  This is really just a very generic wrapper based on the
-        chosen plotting backend.  For matplotlib it is probably just as, if not
-        even more, convenient to simply import matplotlib yourself and call the
-        savefig method.
+        Draw and save the plot.
 
         :parameter str filename: filename to save to.  Be careful of extensions here...
                 matplotlib accepts many different image formats while other
                 backends will only export to html.
-        :parameter str backend: which plotting backend to use.  Will default to
-                'plotting_backend' from settings in the
-                :class:`phoebe.frontend.bundle.Bundle` if not provided.
         """
+        fig = self.gcf().draw(save=fname)
+        return self.gcf(), fig
 
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'matplotlib')
 
-        return getattr(plotting, 'save_{}'.format(plotting_backend))(fname,
-                                                                     **kwargs)
-
-    def animate(self, *args, **kwargs):
+    def animate(self, times=None, show=False, save=False, save_kwargs={}):
         """
-        NOTE: any drawing done to the figure (or its children axes) before calling
-        animate will remain on every frame and will not update.
-
         NOTE: if show and save provided, the live plot will be shown first,
         as soon as the plot is closed the animation will be re-compiled and saved to
         disk, and then the anim object will be returned.
@@ -2760,56 +2487,27 @@ class ParameterSet(object):
         NOTE: during 'show' the plotting speed may be slower than the provided
         interval - especially if plotting meshes.
 
-        :parameter *args: either a twig pointing to a dataset,
-            or dictionaries, where each dictionary gets passed to
-            :meth:`plot` for each frame (see example scripts for more details).
         :parameter times: list of times - each time will create a single
             frame in the animation
-        :parameter bool fixed_limits: whether all the axes should have the
-            same limits for each frame (if True), or resizing limits based
-            on the contents of that individual frame (if False).  Note: if False,
-            limits will be automatically set at each frame - meaning manually zooming
-            in the matplotlib will revert at the next drawn frame.
         :parameter int interval: time interval in ms between each frame (default: 100)
         :parameter str save: filename of the resulting animation.  If provided,
             the animation will be saved automatically.  Either way, the animation
             object is returned (so you can always call anim.save(fname)).
-        :parameter list save_args: any additional arguments that need to be sent
-            to the anim.save call (as extra_args=save_args, see
-            https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
         :parameter dict save_kwargs: any additional keyword arguments that need
             to be sent to the anim.save call (as **save_kwargs, see
             https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
         :parameter bool show: whether to automatically show the animation (defaults
             to False).  Either way, the animation object is returned (so you can
             always call b.show() or plt.show())
-        :parameter kwargs: any additional arguments will be passed along to each
-            call of :meth:`plot`, unless they are already specified
-        :return fname: returns the created filename
         """
-        # TODO: time vs times?
-
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
-
-        if plotting_backend not in ['mpl']:
-            raise ValueError("animate only supports the mpl backend, for now")
-
-        plot_argss = _parse_plotting_args(args)
-
-        # since we used the args trick above, all other options have to be in kwargs
-        times = kwargs.pop('times', None)
-        fixed_limits = kwargs.pop('fixed_limits', True)
-        interval = kwargs.pop('interval', 100)
-        save = kwargs.pop('save', False)
-        save_args = kwargs.pop('save_args', ())
-        save_kwargs = kwargs.pop('save_kwargs', {})
-        save_kwargs.setdefault('extra_args', save_args)
-        show = kwargs.pop('show', False)
+        # TODO: re-implement support for interval, save_args, save_kwargs
+        # TODO: allow passing along to self.plot() first???
 
         if times is None:
             # then let's try to get all SYNTHETIC times
             # it would be nice to only do ENABLED, but then we have to worry about compute
             # it would also be nice to worry about models... but then you should filter first
+            logger.info("no times were providing, so defaulting to animate over all dataset times")
             times = []
             for dataset in self.datasets:
                 ps = self.filter(dataset=dataset, context='model')
@@ -2822,107 +2520,18 @@ class ParameterSet(object):
 
             times = sorted(list(set(times)))
 
-        if fixed_limits:
-            pad = 0.1
-            logger.info("calculating fixed axes limits")
+        logger.debug("autofig.animate at times: {}".format(times))
+        mplanim = self.gcf().animate(i=times,
+                                     save=save,
+                                     show=show,
+                                     save_kwargs=save_kwargs)
 
-            # To compute axes limits, we'll loop through all the plotting
-            # calls and each time, but we won't actually call plotting.
-            # Instead we'll retrieve the data, see if we need to extend the
-            # limits, and store the limits as an attribute of the mpl axes
-            # instance.  At each time in the actual plotting loop, we'll
-            # then apply these limits so they remain fixed with each frame.
+        afig = self.gcf()
 
-            # TODO: also fix color limits
+        # clear the autofig figure
+        self.clf()
 
-            plot_argss_fixed_limits = []
-            for plot_args_ in plot_argss:
-                plot_args = plot_args_.copy()
-
-                for k, v in kwargs.items():
-                    plot_args.setdefault(k,v)
-
-                plot_args['time'] = times
-                # TODO: do we need to loop over times for meshes now or can we do it within get_plotting_info?
-                this_kwargss = self.get_plotting_info(loop_times=False, **plot_args)
-
-                for this_kwargs in this_kwargss:
-                    twigs = this_kwargs['ps'].twigs
-                    twig = "@".join([l for l in twigs[0].split('@') if np.all([l in twig.split('@') for twig in twigs])])
-                    #print "*** twig", twig
-                    this_plot_args = {'twig': twig}
-                    #this_plot_args = dict(this_kwargs['ps'].meta)  # TODO: is this causing problems with animate
-                    for k,v in plot_args.items():
-                        if k not in ['twig', 'time']:
-                            this_plot_args.setdefault(k,v)
-
-                    ax = this_plot_args.get('ax', None)
-                    ps = this_kwargs['ps']
-                    # TODO: this logic is also in plotting.mpl - should probably be its own function
-                    if ax is None:
-                        ax = plt.gca()
-                        if hasattr(ax, '_phoebe_kind') and ps.kind != ax._phoebe_kind:
-                            if ps.kind in ['orb', 'mesh']:  # TODO: and xunit==yunit
-                                ax = plotting._mpl_append_axes(plt.gcf(), aspect='equal')
-                            else:
-                                ax = plotting._mpl_append_axes(plt.gcf())
-                        else:
-                            # not sure if we want this - the user may have set the aspect ratio already
-                            if ps.kind in ['orb', 'mesh']:  # TODO: and xunit==yunit
-                                # TODO: for aspect ratio (here and above) can we be smarter and
-                                # check for same units?
-                                ax.set_aspect('equal')
-
-                    ax = mpl_animate.reset_limits(ax, reset=False)  # this just ensures the attributes exist
-                    ax._phoebe_kind = ps.kind
-                    this_plot_args['ax'] = ax
-
-                    if this_kwargs.get('polycollection', False):
-                        data = this_kwargs['data']
-                        xarray = data[:, :, 0]
-                        yarray = data[:, :, 1]
-                        try:
-                            zarray = data[:, :, 2]
-                        except IndexError:
-                            zarray = None
-                    else:
-                        xarray, yarray, zarray, tarray = this_kwargs['data']  # TODO: this may not work for meshes?
-
-                    ax = mpl_animate.handle_limits(ax, xarray, yarray, zarray,
-                                                   xlim=this_kwargs.get('xlim', None),
-                                                   ylim=this_kwargs.get('ylim', None),
-                                                   zlim=this_kwargs.get('zlim', None),
-                                                   reset=False)
-
-                    plot_argss_fixed_limits.append(this_plot_args)
-
-            plot_argss = plot_argss_fixed_limits
-
-        # handle setting defaults from kwargs to each plotting call
-        for plot_args in plot_argss:
-            for k,v in kwargs.items():
-                plot_args.setdefault(k, v)
-            # plot_args.setdefault('highlight', True)
-
-        anim, ao = mpl_animate.animate(self,
-                                       init_ps=self,
-                                       init_time=times[0],
-                                       frames=times,
-                                       fixed_limits=fixed_limits,
-                                       plotting_args=plot_argss,
-                                       interval=interval,
-                                       blit=False)
-        # TODO: blit=True if no meshes?  (adding new artists seems to be a problem with blit)
-
-        if show:
-            logger.info("showing animation")
-            plt.show()
-
-        if save:
-            logger.info("saving animation to {}".format(save))
-            anim.save(save, **save_kwargs)
-
-        return anim
+        return afig, mplanim
 
 
 class Parameter(object):
