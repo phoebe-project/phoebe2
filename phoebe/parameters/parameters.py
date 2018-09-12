@@ -2003,12 +2003,24 @@ class ParameterSet(object):
         # to autofig.plot or autofig.mesh
 
         # handle any "aliases"
-        # if 'facecolors' in kwargs.keys() and 'facecolor' not in kwargs.keys():
-        #     logger.warning("assuming you meant 'facecolor' instead of 'facecolors'")
-        #     kwargs['facecolor'] = kwargs.pop('facecolors')
-        # if 'edgecolors' in kwargs.keys() and 'edgecolor' not in kwargs.keys():
-        #     logger.warning("assuming you meant 'edgecolor' instead of 'edgecolors'")
-        #     kwargs['edgecolor'] = kwargs.pop('edgecolors')
+        if 'color' in kwargs.keys() and 'colors' not in kwargs.keys() and 'c' not in kwargs.keys():
+            logger.warning("assuming you meant 'c' instead of 'color'")
+            kwargs['c'] = kwargs.pop('color')
+        elif 'colors' in kwargs.keys() and 'c' not in kwargs.keys():
+            logger.warning("assuming you meant 'c' instead of 'colors'")
+            kwargs['c'] = kwargs.pop('colors')
+        if 'facecolor' in kwargs.keys() and 'facecolors' not in kwargs.keys() and 'fc' not in kwargs.keys():
+            logger.warning("assuming you meant 'fc' instead of 'facecolor'")
+            kwargs['fc'] = kwargs.pop('facecolor')
+        elif 'facecolors' in kwargs.keys() and 'fc' not in kwargs.keys():
+            logger.warning("assuming you meant 'fc' instead of 'facecolors'")
+            kwargs['fc'] = kwargs.pop('facecolors')
+        if 'edgecolor' in kwargs.keys() and 'edgecolors' not in kwargs.keys() and 'ec' not in kwargs.keys():
+            logger.warning("assuming you meant 'ec' instead of 'edgecolor'")
+            kwargs['ec'] = kwargs.pop('edgecolor')
+        elif 'edgecolors' in kwargs.keys() and 'ec' not in kwargs.keys():
+            logger.warning("assuming you meant 'ec' instead of 'edgecolors'")
+            kwargs['ec'] = kwargs.pop('edgecolors')
 
         def _kwargs_fill_dimension(kwargs, direction, ps):
             # kwargs[direction] is currently one of the following:
