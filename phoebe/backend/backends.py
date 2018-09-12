@@ -662,27 +662,27 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 # times array was set when creating the synthetic ParameterSet
 
                 packetlist.append(make_packet('us',
-                                              xi[cind],
+                                              xi[cind] * u.solRad,
                                               time, info))
 
                 packetlist.append(make_packet('vs',
-                                              yi[cind],
+                                              yi[cind] * u.solRad,
                                               time, info))
 
                 packetlist.append(make_packet('ws',
-                                              zi[cind],
+                                              zi[cind] * u.solRad,
                                               time, info))
 
                 packetlist.append(make_packet('vus',
-                                              vxi[cind],
+                                              vxi[cind] * u.solRad/u.d,
                                               time, info))
 
                 packetlist.append(make_packet('vvs',
-                                              vyi[cind],
+                                              vyi[cind] * u.solRad/u.d,
                                               time, info))
 
                 packetlist.append(make_packet('vws',
-                                              vzi[cind],
+                                              vzi[cind] * u.solRad/u.d,
                                               time, info))
 
             elif kind=='mesh':
@@ -910,6 +910,10 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                             key = "{}:{}".format(indep, mesh_dataset)
 
                             value = body.mesh[key].centers
+
+                            if indep=='rvs':
+                                # rvs use solRad/d internally, but default to km/s in the dataset
+                                value *= u.solRad/u.d
 
                             packetlist.append(make_packet(indep,
                                                           value,
