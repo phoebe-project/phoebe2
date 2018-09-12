@@ -20,7 +20,7 @@ def initiate_sun_earth_system(pb_str):
     b = phoebe.Bundle.default_binary()
 
     b.add_dataset('lc', times=[0.75,], dataset='lc01', passband=pb_str)
-    b.add_dataset('mesh', columns=['areas', 'mus', 'visibilities', 'abs_intensities@lc01'], dataset='mesh01')
+    b.add_dataset('mesh', time=[0.0], columns=['areas', 'mus', 'visibilities', 'abs_intensities@lc01'], dataset='mesh01')
 
     b['pblum@primary'] = 1.*u.solLum #* 0.99 # 0.99 is bolometric correction
     b['teff@primary'] = 1.*u.solTeff
@@ -95,15 +95,15 @@ def sun_earth_result():
     b['ntriangles@secondary'] = Nt
 
     b.run_compute(mesh_offset=True)
-    
+
     q = b['value@q@orbit']
     F = b['value@syncpar@primary']
     spin = np.array([0.,0.,1.])
     req = b['value@requiv@primary']/b['value@sma@orbit']
     V = 4*np.pi*req**3/3
-    
+
     Omega0 = libphoebe.roche_misaligned_Omega_at_vol(V, q, F, 1., spin)
-    
+
     area0 = libphoebe.roche_misaligned_area_volume(q, F, 1., spin, Omega0, larea=True)['larea']
     area0 *= b['value@sma@orbit']**2
 

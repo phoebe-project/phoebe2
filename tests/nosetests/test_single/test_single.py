@@ -24,7 +24,7 @@ def test_sun(plot=False):
     assert(b.get_value('distance', u.m)==1.0*u.AU.to(u.m))
 
     b.add_dataset('lc', pblum=1*u.solLum)
-    b.add_dataset('mesh', columns=['teffs', 'areas', 'volume'], dataset='mesh01')
+    b.add_dataset('mesh', times=[0], columns=['teffs', 'areas', 'volume'], dataset='mesh01')
 
     b.run_compute(irrad_method='none', distortion_method='rotstar')
 
