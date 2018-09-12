@@ -2031,41 +2031,7 @@ class ParameterSet(object):
             # if kwargs[direction] is a twig, then we need to change the
             # entry in the dictionary to be the data-array itself
 
-            #### DIRECTION DEFAULTS
-            # define defaults for directions based on ps.kind
-            if ps.kind in ['mesh', 'mesh_syn']:
-                # TODO: previously if 2D plot we defaulted to x, z, y
-                defaults = {'x': 'us',
-                            'y': 'vs',
-                            'z': 'ws'}
-                sigmas_avail = []
-            elif ps.kind in ['orb', 'orb_syn']:
-                # TODO: previously if 2D plot we defaulted to x, z, y
-                defaults = {'x': 'us',
-                            'y': 'vs',
-                            'z': 'ws'}
-                sigmas_avail = []
-            elif ps.kind in ['lc', 'lc_syn']:
-                defaults = {'x': 'times',
-                            'y': 'fluxes',
-                            'z': 0}
-                sigmas_avail = ['fluxes']
-            elif ps.kind in ['rv', 'rv_syn']:
-                defaults = {'x': 'times',
-                            'y': 'rvs',
-                            'z': 0}
-                sigmas_avail = ['rvs']
-            elif ps.kind in ['etv', 'etv_syn']:
-                defaults = {'x': 'time_ecls',
-                            'y': 'etvs',
-                            'z': 0}
-                sigmas_avail = ['etvs']
-            else:
-                logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
-                raise NotImplementedError("defaults for kind {} (dataset: {}) not yet implemented".format(ps.kind, ps.dataset))
-
-
-            current_value = kwargs.get(direction, defaults.get(direction, None))
+            current_value = kwargs.get(direction, None)
 
             #### RETRIEVE DATA ARRAYS
             if isinstance(current_value, str):
@@ -2141,9 +2107,76 @@ class ParameterSet(object):
                 raise NotImplementedError
 
 
+        #### DIRECTION DEFAULTS
+        # define defaults for directions based on ps.kind
+        if ps.kind in ['mesh', 'mesh_syn']:
+            # first determine from any passed values if we're in xyz or uvw
+            # (do not allow mixing between roche and POS)
+            detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
+            coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers])
+            if len(coordinate_systems) > 1:
+                # then we're mixing roche and POS
+                raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
+
+            coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
+
+            defaults = {}
+            for af_direction in ['x', 'y', 'z']:
+                if af_direction in kwargs.keys():
+                    # then default doesn't matter, but we'll set it at what it is
+                    defaults[af_direction] = kwargs[af_direction]
+
+                    # and we'll remove from coordinates still available
+                    coordinates.remove(kwargs[af_direction])
+                else:
+                    # we'll take the first entry remaining in coordinates
+                    defaults[af_direction] = coordinates.pop(0)
+
+            sigmas_avail = []
+        elif ps.kind in ['orb', 'orb_syn']:
+            # similar logic to meshes above, except we only have uvw
+            coordinates = ['us', 'vs', 'ws']
+
+            defaults = {}
+            for af_direction in ['x', 'y', 'z']:
+                if af_direction in kwargs.keys():
+                    # then default doesn't matter, but we'll set it at what it is
+                    defaults[af_direction] = kwargs[af_direction]
+
+                    # and we'll remove from coordinates still available
+                    coordinates.remove(kwargs[af_direction])
+                else:
+                    # we'll take the first entry remaining in coordinates
+                    defaults[af_direction] = coordinates.pop(0)
+
+            sigmas_avail = []
+        elif ps.kind in ['lc', 'lc_syn']:
+            defaults = {'x': 'times',
+                        'y': 'fluxes',
+                        'z': 0}
+            sigmas_avail = ['fluxes']
+        elif ps.kind in ['rv', 'rv_syn']:
+            defaults = {'x': 'times',
+                        'y': 'rvs',
+                        'z': 0}
+            sigmas_avail = ['rvs']
+        elif ps.kind in ['etv', 'etv_syn']:
+            defaults = {'x': 'time_ecls',
+                        'y': 'etvs',
+                        'z': 0}
+            sigmas_avail = ['etvs']
+        else:
+            logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
+            raise NotImplementedError("defaults for kind {} (dataset: {}) not yet implemented".format(ps.kind, ps.dataset))
+
+
         #### GET DATA ARRAY FOR EACH AUTOFIG "DIRECTION"
         for af_direction in ['x', 'y', 'z', 'c', 's', 'fc', 'ec']:
             # set the array and dimension label
+            if af_direction not in kwargs.keys() and af_direction in defaults.keys():
+                # don't want to use setdefault here because we don't want an
+                # entry if the af_direction is not in either dict
+                kwargs[af_direction] = defaults[af_direction]
             kwargs = _kwargs_fill_dimension(kwargs, af_direction, ps)
 
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
@@ -2157,7 +2190,8 @@ class ParameterSet(object):
             # (for a mesh) or times array (otherwise)
             if ps.time is not None:
                 # a single mesh will pass just that single time on as the
-                kwargs['i'] = ps.time
+                # independent variable/direction
+                kwargs['i'] = float(ps.time)
             else:
                 kwargs['i'] = ps.get_quantity(qualifier='times')
 
