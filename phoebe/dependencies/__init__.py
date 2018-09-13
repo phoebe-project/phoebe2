@@ -1,3 +1,3 @@
-import autofig
-import nparray
-import unitsiau2015
+from . import autofig
+from . import nparray
+from . import unitsiau2015
