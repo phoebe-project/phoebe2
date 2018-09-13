@@ -32,12 +32,6 @@ def _beta_vs_legacy(b, plot=False):
     if plot: print "rv@secondary max abs diff: {}".format(max(np.abs(phoebe1_val-phoebe2_val)))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=0., atol=2.0))
 
-    if plot:
-        plt.cla()
-        b.plot()
-        plt.show()
-
-
 def test_binary(plot=False):
 
     b = phoebe.default_binary()

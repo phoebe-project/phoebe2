@@ -1,4 +1,4 @@
-"""Import PHOEBE 2.0."""
+"""import phoebe"""
 
 __version__ = 'devel'
 
@@ -47,10 +47,15 @@ class Settings(object):
         # false if in a python or ipython interpreter.
         # sys.flags.interactive will be 1 if the -i flag is sent to python
 
-        # For now we'll set interactive mode to True by default, requiring it to
-        # explicitly be disabled.  See #154 (https://github.com/phoebe-project/phoebe2/issues/154)
-        # self._interactive = not hasattr(__main__, '__file__') or bool(sys.flags.interactive)
-        self._interactive = True
+        # For now we'll set interactive_constraints to True by default, requiring it to
+        # explicitly be disabled.
+        # See #154 (https://github.com/phoebe-project/phoebe2/issues/154)
+        self._interactive_constraints = True
+
+        # We'll set interactive system checks to be on if running within a Python
+        # console, but False if running from within a script
+        # See #255 (https://github.com/phoebe-project/phoebe2/issues/255)
+        self._interactive_checks = not hasattr(__main__, '__file__') or bool(sys.flags.interactive)
 
         # And we'll require explicitly setting developer mode on
         self._devel = False
@@ -71,16 +76,33 @@ class Settings(object):
         self.__init__()
 
     def interactive_on(self):
-        self._interactive = True
+        self.interactive_checks_on()
+        self.interactive_constraints_on()
 
     def interactive_off(self):
-        _logger.warning("constraints will not be run until 'run_delayed_constraints' or 'run_compute' is called.  This may result in inconsistent parameters if printing values before calling either of these methods.")
+        self.interactive_checks_off()
+        self.interactive_constraints_off()
 
-        self._interactive = False
+    def interactive_checks_on(self):
+        self._interactive_checks = True
+
+    def interactive_checks_off(self):
+        self._interactive_checks = False
+
+    def interactive_constraints_on(self):
+        self._interactive_constraints = True
+
+    def interactive_constraints_off(self):
+        _logger.warning("constraints will not be run until 'run_delayed_constraints' or 'run_compute' is called.  This may result in inconsistent parameters if printing values before calling either of these methods.")
+        self._interactive_constraints = False
 
     @property
-    def interactive(self):
-        return self._interactive
+    def interactive_checks(self):
+        return self._interactive_checks
+
+    @property
+    def interactive_constraints(self):
+        return self._interactive_constraints
 
     def devel_on(self):
         self._devel = True
@@ -115,12 +137,12 @@ conf = Settings()
 
 
 # make packages available at top-level
+from .dependencies.unitsiau2015 import *
+from .dependencies.nparray import array, linspace, arange, logspace, geomspace
 from .atmospheres.passbands import install_passband, download_passband, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-from .constants import *
 from .parameters import *
 from .parameters import hierarchy, component, compute, constraint, dataset
 from .frontend.bundle import Bundle
-from .frontend import nphelpers
 from .backend import *
 import utils as utils
 
@@ -168,6 +190,18 @@ def interactive_on():
 def interactive_off():
     conf.interactive_off()
 
+def interactive_constraints_on():
+    conf.interactive_constraints_on()
+
+def interactive_constraints_off():
+    conf.interactive_constraints_off()
+
+def interactive_checks_on():
+    conf.interactive_checks_on()
+
+def interactive_checks_off():
+    conf.interactive_checks_off()
+
 def is_devel():
     return conf.devel
 
@@ -193,10 +227,3 @@ def mpi_off():
 
 def set_np(np):
     conf._mpi_np = np
-
-# functional shortcuts to numpy helpers
-def arange(start, stop, step):
-    return nphelpers.Arange(start, stop, step)
-
-def linspace(start, stop, num):
-    return nphelpers.Linspace(start, stop, num)

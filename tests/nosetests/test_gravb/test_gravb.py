@@ -25,7 +25,7 @@ def test_binary(plot=False):
 
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
-
+    
     for gravb in [0.1, 0.9]:
         b.set_value('gravb_bol', component='primary', value=gravb)
 

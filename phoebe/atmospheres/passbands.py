@@ -20,6 +20,8 @@ import shutil
 import urllib, urllib2
 import json
 
+from phoebe.utils import parse_json
+
 import logging
 logger = logging.getLogger("PASSBANDS")
 logger.addHandler(logging.NullHandler())
@@ -51,6 +53,11 @@ if not os.getenv('PHOEBE_PBDIR','False')=='False':
 else:
     _pbdir_env = None
 	
+
+if not os.getenv('PHOEBE_PBDIR','False')=='False':
+    _pbdir_env = os.getenv('PHOEBE_PBDIR')
+else:
+    _pbdir_env = None
 
 
 class Passband:
@@ -148,6 +155,9 @@ class Passband:
         self.pbname = pbname
         self.effwl = effwl
         self.calibrated = calibrated
+        self.reference = reference
+        self.version = version
+        self.comments = comments
 
         # Passband transmission function table:
         ptf_table = np.loadtxt(ptf).T
@@ -167,6 +177,15 @@ class Passband:
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
+    def __repr__(self):
+        return('<Passband: %s:%s>' % (self.pbset, self.pbname))
+
+    def __str__(self):
+        # old passband files do not have versions embedded, that is why we have to do this:
+        if not hasattr(self, 'version'):
+            self.version = 1.0
+        return('Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content))
+    
     def save(self, archive):
         struct = dict()
 
@@ -333,12 +352,45 @@ class Passband:
 
         return 2*self.h*self.c*self.c/lam**5 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
 
+    def _planck_deriv(self, lam, Teff):
+        """
+        Computes the derivative of the monochromatic blackbody intensity using
+        the Planck function.
+
+        @lam: wavelength in m
+        @Teff: effective temperature in K
+
+        Returns: the derivative of monochromatic blackbody intensity
+        """
+
+        expterm = np.exp(self.h*self.c/lam/self.k/Teff)
+        return 2*self.h*self.c*self.c/self.k/Teff/lam**7 * (expterm-1)**-2 * (self.h*self.c*expterm-5*lam*self.k*Teff*(expterm-1))
+
+    def _planck_spi(self, lam, Teff):
+        """
+        Computes the spectral index of the monochromatic blackbody intensity
+        using the Planck function. The spectral index is defined as:
+
+            B(lambda) = 5 + d(log I)/d(log lambda),
+
+        where I is the Planck function.
+
+        @lam: wavelength in m
+        @Teff: effective temperature in K
+
+        Returns: the spectral index of monochromatic blackbody intensity
+        """
+
+        hclkt = self.h*self.c/lam/self.k/Teff
+        expterm = np.exp(hclkt)
+        return hclkt * expterm/(expterm-1)
+
     def _bb_intensity(self, Teff, photon_weighted=False):
         """
         Computes mean passband intensity using blackbody atmosphere:
 
-        I_pb^E = \int_\lambda B(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda
-        I_pb^P = \int_\lambda \lambda B(\lambda) P(\lambda) d\lambda / \int_\lambda \lambda P(\lambda) d\lambda
+        I_pb^E = \int_\lambda I(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda
+        I_pb^P = \int_\lambda \lambda I(\lambda) P(\lambda) d\lambda / \int_\lambda \lambda P(\lambda) d\lambda
 
         Superscripts E and P stand for energy and photon, respectively.
 
@@ -355,10 +407,37 @@ class Passband:
             pb = lambda w: self._planck(w, Teff)*self.ptf(w)
             return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_area
 
+    def _bindex_blackbody(self, Teff, photon_weighted=False):
+        """
+        Computes the mean boosting index using blackbody atmosphere:
+
+        B_pb^E = \int_\lambda I(\lambda) P(\lambda) B(\lambda) d\lambda / \int_\lambda I(\lambda) P(\lambda) d\lambda
+        B_pb^P = \int_\lambda \lambda I(\lambda) P(\lambda) B(\lambda) d\lambda / \int_\lambda \lambda I(\lambda) P(\lambda) d\lambda
+
+        Superscripts E and P stand for energy and photon, respectively.
+
+        @Teff: effective temperature in K
+        @photon_weighted: photon/energy switch
+
+        Returns: mean boosting index using blackbody atmosphere.
+        """
+
+        if photon_weighted:
+            num   = lambda w: w*self._planck(w, Teff)*self.ptf(w)*self._planck_spi(w, Teff)
+            denom = lambda w: w*self._planck(w, Teff)*self.ptf(w)
+            return integrate.quad(num, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
+        else:
+            num   = lambda w: self._planck(w, Teff)*self.ptf(w)*self._planck_spi(w, Teff)
+            denom = lambda w: self._planck(w, Teff)*self.ptf(w)
+            return integrate.quad(num, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
+
     def compute_blackbody_response(self, Teffs=None):
         """
         Computes blackbody intensities across the entire range of
-        effective temperatures.
+        effective temperatures. It does this for two regimes, energy-weighted
+        and photon-weighted. It then fits a cubic spline to the log(I)-Teff
+        values and exports the interpolation functions _log10_Inorm_bb_energy
+        and _log10_Inorm_bb_photon.
 
         @Teffs: an array of effective temperatures. If None, a default
         array from ~300K to ~500000K with 97 steps is used. The default
@@ -704,11 +783,11 @@ class Passband:
 
             boostE = (flE[fl > 0]*boosting_index).sum()/flEint
             boostP = (flP[fl > 0]*boosting_index).sum()/flPint
+            boostingE[i] = boostE
+            boostingP[i] = boostP
 
             ImuE[i] = np.log10(flEint/self.ptf_area*(wl[1]-wl[0]))        # energy-weighted intensity
             ImuP[i] = np.log10(flPint/self.ptf_photon_area*(wl[1]-wl[0])) # photon-weighted intensity
-            boostingE[i] = boostE
-            boostingP[i] = boostP
 
             if verbose:
                 if 100*i % (len(models)) == 0:
@@ -758,41 +837,55 @@ class Passband:
     def _ldlaw_nonlin(self, mu, c1, c2, c3, c4):
         return 1.0-c1*(1.0-np.sqrt(mu))-c2*(1.0-mu)-c3*(1.0-mu*np.sqrt(mu))-c4*(1.0-mu*mu)
 
-    def compute_ck2004_ldcoeffs(self, plot_diagnostics=False):
+    def compute_ck2004_ldcoeffs(self, weighting='uniform', plot_diagnostics=False):
+        """
+        @weighting: determines how data points should be weighted.
+                    'uniform':  do not apply any per-point weighting
+                    'interval': apply weighting based on the interval widths
+        Computes limb darkening coefficients for linear, log, square root,
+        quadratic and power laws.
+        """
         if 'ck2004_all' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
             return None
 
         self._ck2004_ld_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11))
         self._ck2004_ld_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11))
-        mus = self._ck2004_intensity_axes[3]
+        mus = self._ck2004_intensity_axes[3] # starts with 0
+        if weighting == 'uniform':
+            sigma = np.ones(len(mus))
+        elif weighting == 'interval':
+            delta = np.concatenate( (np.array((mus[1]-mus[0],)), mus[1:]-mus[:-1]) )
+            sigma = 1./np.sqrt(delta)
+        else:
+            print('Weighting scheme \'%s\' is unsupported. Please choose among [\'uniform\', \'interval\']')
+            return None
 
         for Tindex in range(len(self._ck2004_intensity_axes[0])):
             for lindex in range(len(self._ck2004_intensity_axes[1])):
                 for mindex in range(len(self._ck2004_intensity_axes[2])):
                     IsE = 10**self._ck2004_Imu_energy_grid[Tindex,lindex,mindex,:].flatten()
-
                     fEmask = np.isfinite(IsE)
                     if len(IsE[fEmask]) <= 1:
                         continue
                     IsE /= IsE[fEmask][-1]
 
+                    cElin,  pcov = cfit(f=self._ldlaw_lin,    xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5])
+                    cElog,  pcov = cfit(f=self._ldlaw_log,    xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5])
+                    cEsqrt, pcov = cfit(f=self._ldlaw_sqrt,   xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5])
+                    cEquad, pcov = cfit(f=self._ldlaw_quad,   xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5])
+                    cEnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5, 0.5, 0.5])
+                    self._ck2004_ld_energy_grid[Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
+
                     IsP = 10**self._ck2004_Imu_photon_grid[Tindex,lindex,mindex,:].flatten()
                     fPmask = np.isfinite(IsP)
                     IsP /= IsP[fPmask][-1]
 
-                    cElin,  pcov = cfit(self._ldlaw_lin,    mus[fEmask], IsE[fEmask], p0=[0.5])
-                    cElog,  pcov = cfit(self._ldlaw_log,    mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
-                    cEsqrt, pcov = cfit(self._ldlaw_sqrt,   mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
-                    cEquad, pcov = cfit(self._ldlaw_quad,   mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
-                    cEnlin, pcov = cfit(self._ldlaw_nonlin, mus[fEmask], IsE[fEmask], p0=[0.5, 0.5, 0.5, 0.5])
-                    self._ck2004_ld_energy_grid[Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
-
-                    cPlin,  pcov = cfit(self._ldlaw_lin,    mus[fPmask], IsP[fPmask], p0=[0.5])
-                    cPlog,  pcov = cfit(self._ldlaw_log,    mus[fPmask], IsP[fPmask], p0=[0.5, 0.5])
-                    cPsqrt, pcov = cfit(self._ldlaw_sqrt,   mus[fPmask], IsP[fPmask], p0=[0.5, 0.5])
-                    cPquad, pcov = cfit(self._ldlaw_quad,   mus[fPmask], IsP[fPmask], p0=[0.5, 0.5])
-                    cPnlin, pcov = cfit(self._ldlaw_nonlin, mus[fPmask], IsP[fPmask], p0=[0.5, 0.5, 0.5, 0.5])
+                    cPlin,  pcov = cfit(f=self._ldlaw_lin,    xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5])
+                    cPlog,  pcov = cfit(f=self._ldlaw_log,    xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5])
+                    cPsqrt, pcov = cfit(f=self._ldlaw_sqrt,   xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5])
+                    cPquad, pcov = cfit(f=self._ldlaw_quad,   xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5])
+                    cPnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5, 0.5, 0.5])
                     self._ck2004_ld_photon_grid[Tindex, lindex, mindex] = np.hstack((cPlin, cPlog, cPsqrt, cPquad, cPnlin))
 
                     if plot_diagnostics:
@@ -817,7 +910,7 @@ class Passband:
         These are used for intensity-to-flux transformations. The evaluated
         integral is:
 
-        ldint = 1/pi \int_0^1 Imu mu dmu
+        ldint = 2 \pi \int_0^1 Imu mu dmu
         """
 
         if 'ck2004_all' not in self.content:
@@ -876,20 +969,24 @@ class Passband:
             ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table)[0]
         else:
             req = np.vstack((Teff, logg, abun)).T
-            ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table).T[0]
+            ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table).T
 
         if ld_func == 'linear':
             return ld_coeffs[0:1]
-        if ld_func == 'logarithmic':
+        elif ld_func == 'logarithmic':
             return ld_coeffs[1:3]
-        if ld_func == 'square_root':
+        elif ld_func == 'square_root':
             return ld_coeffs[3:5]
-        if ld_func == 'quadratic':
+        elif ld_func == 'quadratic':
             return ld_coeffs[5:7]
-        if ld_func == 'power':
+        elif ld_func == 'power':
             return ld_coeffs[7:11]
+        elif ld_func == 'all':
+            return ld_coeffs
+        else:
+            print('ld_func=%s is invalid; please choose from [linear, logarithmic, square_root, quadratic, power, all].')
+            return None
 
-        return ld_coeffs
 
     def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody',  extinct=0.0, Rv=3.1, photon_weighted=False):
         """
@@ -1220,6 +1317,8 @@ class Passband:
     def bindex(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', photon_weighted=False):
         if atm == 'ck2004':
             retval = self._bindex_ck2004(Teff, logg, abun, mu, atm, photon_weighted)
+        elif atm == 'blackbody':
+            retval = self._bindex_blackbody(Teff, photon_weighted=photon_weighted)
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
@@ -1227,7 +1326,6 @@ class Passband:
         if np.any(nanmask):
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
-
 
 def init_passband(fullpath):
     """
@@ -1269,6 +1367,15 @@ def init_passbands(refresh=False):
                         continue
                     init_passband(path+f)                    
 
+        #Check if _pbdir_env has been set and load those passbands too
+        if not _pbdir_env == None:
+            for path in [_pbdir_env]:
+                for f in os.listdir(path):
+                    if f=='README':
+                        continue
+                    init_passband(path+f)
+
+
         _initialized = True
 
 def install_passband(fname, local=True):
@@ -1296,7 +1403,6 @@ def uninstall_all_passbands(local=True):
         logger.warning("deleting file: {}".format(pbpath))
         os.remove(pbpath)
 
-
 def download_passband(passband, local=True):
     """
     Download and install a given passband from the repository.
@@ -1318,7 +1424,6 @@ def download_passband(passband, local=True):
         raise IOError("unable to download {} passband - check connection".format(passband))
     else:
         init_passband(passband_fname_local)
-
 
 def list_passband_directories():
     return _pbdir_global, _pbdir_local
@@ -1355,7 +1460,7 @@ def list_online_passbands(refresh=False, full_dict=False):
                 else:
                     return []
         else:
-            _online_passbands = json.loads(resp.read())
+            _online_passbands = json.loads(resp.read(), object_pairs_hook=parse_json)
 
     if full_dict:
         return _online_passbands
@@ -1407,7 +1512,6 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
         Teff = np.array((Teff,))
 
     return factor * sigma_sb.value * Teff**4 / np.pi
-
 
 if __name__ == '__main__':
 

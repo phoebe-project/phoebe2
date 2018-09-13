@@ -10,6 +10,7 @@ MANIFEST
 *.active
 *.profile
 *.log
+*.txt
 *.png
 .DS_Store
 libphoebe.so

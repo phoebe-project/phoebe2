@@ -66,6 +66,13 @@ matrix:
   allow_failures:
     - env: NUMPY_VERSION=dev
 
+    - os: linux
+      compiler: g++-5
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1'
+      addons:
+        apt:
+          sources: [ubuntu-toolchain-r-test]
+          packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
 
 before_install:
   - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then

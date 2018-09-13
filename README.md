@@ -44,7 +44,7 @@ To install PHOEBE 2.0 from the source site-wide, go to the `phoebe2/` directory 
     python setup.py build
     sudo python setup.py install
 
-For further details on pre-requisites and minimal versions of python consult the PHOEBE webpage.
+For further details on pre-requisites and minimal versions of python consult the [PHOEBE project webpage](http://phoebe-project.org).
 
 
 GETTING STARTED
@@ -62,16 +62,47 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
-### 2.0.4 - vgamma temporary bugfix
+### 2.0.10 - legacy import extraneous spaces hotfix
+
+* Handle ignoring extraneous spaces when importing a PHOEBE legacy file.
+
+### 2.0.9 - \_default Parameters hotfix
+
+* Previously, after loading from a JSON file, new datasets were ignored by run_compute because the \_default Parameters (such as 'enabled') were not stored and loaded correctly.  This has now been fixed.
+* PS.datasets/components now hides the (somewhat confusing) \_default entries.
+* unicode handling in filtering is improved to make sure the copying rules from JSON are followed correctly when loaded as unicodes instead of strings.
+
+### 2.0.8 - contacts hotfix
+
+* Remove unused Parameters from the Bundle
+* Improvement in finding the boundary between the two components of a contact system
+
+### 2.0.7 - legacy import/export hotfix
+
+* Handle missing parameters when importing/exporting so that a Bundle exported to a PHOEBE legacy file can successfully be reimported
+* Handle importing standard weight from datasets and converting to sigma
+
+### 2.0.6 - unit conversion hotfix
+
+* When requesting unit conversion from the frontend, astropy will now raise an error if the units are not compatible.
+
+### 2.0.5 - semi-detached hotfix
+
+* Fixed bug in which importing a PHOEBE legacy file of a semi-detached system failed to set the correct potential for the star filling its roche lobe.  This only affects the importer itself.
+* Implemented 'critical_rpole' and 'critical_potential' constraints.
+
+### 2.0.4 - vgamma temporary hotfix
+
 * The definition of vgamma in 2.0.* is in the direction of positive z rather than positive RV.  For the sake of maintaining backwards-compatibility, this will remain unchanged for 2.0.* releases but will be fixed in the 2.1 release to be in the direction of positive RV.  Until then, this bugfix handles converting to and from PHOEBE legacy correctly so that running the PHOEBE 2 and legacy backends gives consistent results.
 
 ### 2.0.3 - t0_supconj/t0_perpass hotfix
+
 * Fixed constraint that defines the relation between t0_perpass and t0_supconj.
 * Implement new 't0_ref' parameter which corresponds to legacy's 'HJD0'.
 * Phasing now accepts t0='t0_supconj', 't0_perpass', 't0_ref', or a float representing the zero-point.  The 'phshift' parameter will still be supported until 2.1, at which point it will be removed.
 * Inclination parameter ('incl') is now limited to the [0-180] range to maintain conventions on superior conjunction and ascending/descending nodes.
 * Fixed error message in ldint.
-* Fixed the ability for multiple stars to be attached to the same component.
+* Fixed the ability for multiple spots to be attached to the same component.
 * Raise an error if attempting to attach spots to an unsupported component.  Note: spots are currently not supported for contact systems.
 
 ### 2.0.2 - spots hotfix

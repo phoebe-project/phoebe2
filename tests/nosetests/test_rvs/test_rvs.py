@@ -63,5 +63,5 @@ def test_binary(plot=False):
 
 
 if __name__ == '__main__':
-    logger = phoebe.logger()
+    logger = phoebe.logger('debug')
     test_binary(plot=True)
