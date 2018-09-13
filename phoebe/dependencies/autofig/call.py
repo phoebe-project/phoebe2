@@ -1358,8 +1358,10 @@ class CallDimension(object):
             return this_array
 
         break_direction = linebreak[0]
+        # NOTE: we don't need the unit here since we just use it to find
+        # breakpoints
         break_array = getattr(self.call, break_direction).get_value(i=i,
-                                                                    unit=unit,
+                                                                    unit=None,
                                                                     uncover=uncover,
                                                                     trail=trail,
                                                                     linebreak=False,

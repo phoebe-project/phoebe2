@@ -2073,6 +2073,27 @@ class ParameterSet(object):
 
                     return kwargs
 
+                elif current_value.split(':')[0] in ['phase', 'phases']:
+                    component_phase = current_value.split(':')[1] \
+                                        if len(current_value.split(':')) > 1 \
+                                        else None
+
+                    if ps.kind in ['etvs']:
+                        times = ps.get_value('time_ecls', unit=u.d)
+                    else:
+                        times = ps.get_value('times', unit=u.d)
+
+                    kwargs[direction] = self._bundle.to_phase(times, component=component_phase, t0=kwargs.get('t0', 't0_supconj')) * u.dimensionless_unscaled
+
+                    kwargs['{}label'.format(direction)] = 'phase:{}'.format(component_phase) if component_phase is not None else 'phase'
+
+                    kwargs['{}qualifier'.format(direction)] = current_value
+
+                    # and we'll set the linebreak so that decreasing phase breaks any lines (allowing for phase wrapping)
+                    kwargs['linebreak'] = '{}-'.format(direction)
+
+                    return kwargs
+
                 elif direction in ['c', 'fc', 'ec']:
                     # then there is the possibility of referring to a column
                     # that technnically is attached to a different dataset in
@@ -2214,7 +2235,7 @@ class ParameterSet(object):
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
         # try to find 'times' in the cartesian dimensions:
         for af_direction in ['x', 'y', 'z']:
-            if kwargs.get('{}label'.format(af_direction), None) == 'times':
+            if kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls']:
                 kwargs['i'] = af_direction
                 break
         else:
@@ -2224,8 +2245,13 @@ class ParameterSet(object):
                 # a single mesh will pass just that single time on as the
                 # independent variable/direction
                 kwargs['i'] = float(ps.time)
+                kwargs['iqualifier'] = 'ps.times'
+            elif ps.kind in ['etv']:
+                kwargs['i'] = ps.get_quantity(qualifier='time_ecls')
+                kwargs['iqualifier'] = 'time_ecls'
             else:
                 kwargs['i'] = ps.get_quantity(qualifier='times')
+                kwargs['iqualifier'] = 'times'
 
 
         #### STYLE DEFAULTS
