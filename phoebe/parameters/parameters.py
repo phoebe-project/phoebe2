@@ -1917,13 +1917,13 @@ class ParameterSet(object):
         filter_kwargs = {}
         for k in self.meta.keys():
             if k in ['time']:
-                # time needs to be handled externally
+                # time handled later
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
         ps = self.filter(**filter_kwargs)
 
-        if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn']:
+        if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn', 'lp', 'lp_syn']:
             ps = ps.filter(time=kwargs.get('time'))
 
         # If ps returns more than one dataset/model/component, then we need to
@@ -1976,8 +1976,8 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if len(ps.times) > 1 and kwargs.get('loop_times', False):
-            # only meshes (and spectra) will be able to iterate over times
+        if len(ps.times) > 1:
+            # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
                 this_return = ps.filter(time=time)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
@@ -2094,6 +2094,22 @@ class ParameterSet(object):
                     kwargs['{}qualifier'.format(direction)] = current_value
 
                     return kwargs
+
+                elif current_value in ['wavelengths'] and ps.time is not None:
+                    # these are not tagged with the time, so we need to find them
+                    full_dataset_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'time']}
+                    full_dataset_ps = ps._bundle.filter(**full_dataset_meta)
+                    candidate_params = full_dataset_ps.filter(current_value)
+                    if len(candidate_params) == 1:
+                        kwargs[direction] = candidate_params.get_quantity()
+                        kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+                        kwargs['{}qualifier'.format(direction)] = current_value
+                        return kwargs
+                    elif len(candidate_params) > 1:
+                        raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, ps.twigs))
+                    else:
+                        # then len(candidate_params) == 0
+                        raise ValueError("could not find a match for {}={}".format(direction, current_value))
 
                 elif current_value.split(':')[0] in ['phase', 'phases']:
                     component_phase = current_value.split(':')[1] \
@@ -2222,6 +2238,20 @@ class ParameterSet(object):
                         'y': 'rvs',
                         'z': 0}
             sigmas_avail = ['rvs']
+        elif ps.kind in ['lp', 'lp_syn']:
+            defaults = {'x': 'wavelengths',
+                        'y': 'flux_densities',
+                        'z': 0}
+            sigmas_avail = ['flux_densities']
+
+            # if animating or drawing at a single time, we want to show only
+            # the selected item, not all and then highlight the selected item
+            kwargs.setdefault('highlight_linestyle', kwargs.get('linestyle', 'solid'))
+            kwargs.setdefault('highlight_marker', 'None')
+            kwargs.setdefault('highlight_size', kwargs.get('size', 0.02))  # this matches the default in autofig for call._sizes
+            kwargs.setdefault('uncover', True)
+            kwargs.setdefault('trail', 0)
+
         elif ps.kind in ['etv', 'etv_syn']:
             defaults = {'x': 'time_ecls',
                         'y': 'etvs',
@@ -2456,6 +2486,9 @@ class ParameterSet(object):
         :parameter str save: filename of the resulting animation.  If provided,
             the animation will be saved automatically.  Either way, the animation
             object is returned (so you can always call anim.save(fname)).
+        :parameter dict save_kwargs: any additional keyword arguments that need
+            to be sent to the anim.save call (as **save_kwargs, see
+            https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
         :parameter bool show: whether to automatically show the animation (defaults
             to False).  Either way, the animation object is returned (so you can
             always call b.show() or plt.show())
@@ -2496,27 +2529,73 @@ class ParameterSet(object):
 
                 func(**plot_kwargs)
 
+
         if save or show:
+            # NOTE: time, times, animate will all be included in kwargs
+            return self._show_or_save(save, show, **kwargs)
+        else:
+            afig = self.gcf()
+            fig = None
+
+            return afig, fig
+
+    def _show_or_save(self, save, show, **kwargs):
+        """
+        Draw/animate and show and/or save a autofig plot
+        """
+        if kwargs.get('animate', False):
+            # prefer times over time
+            times = kwargs.get('times', kwargs.get('time', None))
+            save_kwargs = kwargs.get('save_kwargs', {})
+
+            if times is None:
+                # then let's try to get all SYNTHETIC times
+                # it would be nice to only do ENABLED, but then we have to worry about compute
+                # it would also be nice to worry about models... but then you should filter first
+                logger.info("no times were providing, so defaulting to animate over all dataset times")
+                times = []
+                for dataset in self.datasets:
+                    ps = self.filter(dataset=dataset, context='model')
+                    if len(ps.times):
+                        # for the case of meshes/spectra
+                        times += [float(t) for t in ps.times]
+                    else:
+                        for param in ps.filter(qualifier='times').to_list():
+                            times += list(param.get_value())
+
+                times = sorted(list(set(times)))
+
+            logger.info("calling autofig.animate(i={}, save={}, show={}, save_kwargs={})".format(times, save, show, save_kwargs))
+
+            mplanim = self.gcf().animate(i=times,
+                                         save=save,
+                                         show=show,
+                                         save_kwargs=save_kwargs)
+
+            afig = self.gcf()
+
+            # clear the autofig figure
+            self.clf()
+
+            return afig, mplanim
+
+        else:
+            time = kwargs.get('time', None)
+
             logger.info("calling autofig.draw(i={}, save={}, show={})".format(time, save, show))
             fig = self.gcf().draw(i=time, save=save, show=show)
             # clear the figure so next call will start over and future shows will work
             afig = self.gcf()
             self.clf()
-        else:
-            afig = self.gcf()
-            fig = None
 
-        return afig, fig
+            return afig, fig
 
 
     def show(self, time=None):
         """
         Draw and show the plot.
         """
-        logger.info("calling autofig.draw(i={}, show={})".format(time, show))
-        fig = self.gcf().draw(i=time, show=True)
-        return self.gcf(), fig
-
+        return self._show_or_save(show=True, save=False, time=time)
 
     def savefig(self, fname, time=None):
         """
@@ -2526,67 +2605,7 @@ class ParameterSet(object):
                 matplotlib accepts many different image formats while other
                 backends will only export to html.
         """
-        logger.info("calling autofig.draw(i={}, save={})".format(time, save))
-        fig = self.gcf().draw(i=time, save=fname)
-        return self.gcf(), fig
-
-
-    def animate(self, times=None, show=False, save=False, save_kwargs={}):
-        """
-        NOTE: if show and save provided, the live plot will be shown first,
-        as soon as the plot is closed the animation will be re-compiled and saved to
-        disk, and then the anim object will be returned.
-
-        NOTE: during 'show' the plotting speed may be slower than the provided
-        interval - especially if plotting meshes.
-
-        :parameter times: list of times - each time will create a single
-            frame in the animation
-        :parameter int interval: time interval in ms between each frame (default: 100)
-        :parameter str save: filename of the resulting animation.  If provided,
-            the animation will be saved automatically.  Either way, the animation
-            object is returned (so you can always call anim.save(fname)).
-        :parameter dict save_kwargs: any additional keyword arguments that need
-            to be sent to the anim.save call (as **save_kwargs, see
-            https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
-        :parameter bool show: whether to automatically show the animation (defaults
-            to False).  Either way, the animation object is returned (so you can
-            always call b.show() or plt.show())
-        """
-        # TODO: re-implement support for interval, save_args, save_kwargs
-        # TODO: allow passing along to self.plot() first???
-
-        if times is None:
-            # then let's try to get all SYNTHETIC times
-            # it would be nice to only do ENABLED, but then we have to worry about compute
-            # it would also be nice to worry about models... but then you should filter first
-            logger.info("no times were providing, so defaulting to animate over all dataset times")
-            times = []
-            for dataset in self.datasets:
-                ps = self.filter(dataset=dataset, context='model')
-                if len(ps.times):
-                    # for the case of meshes/spectra
-                    times += [float(t) for t in ps.times]
-                else:
-                    for param in ps.filter(qualifier='times').to_list():
-                        times += list(param.get_value())
-
-            times = sorted(list(set(times)))
-
-        logger.info("calling autofig.animate(i={}, save={}, show={}, save_kwargs={})".format(times, save, show, save_kwargs))
-
-        mplanim = self.gcf().animate(i=times,
-                                     save=save,
-                                     show=show,
-                                     save_kwargs=save_kwargs)
-
-        afig = self.gcf()
-
-        # clear the autofig figure
-        self.clf()
-
-        return afig, mplanim
-
+        return self._show_or_save(save=fname, show=False, time=time)
 
 class Parameter(object):
     def __init__(self, qualifier, value=None, description='', **kwargs):

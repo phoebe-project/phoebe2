@@ -229,7 +229,7 @@ class Plot(Call):
                        sunit=None, slabel=None, smap=None, smode=None,
                        iunit=None,
                        marker=None,
-                       linestyle=None, linewidth=None, linebreak=None,
+                       linestyle=None, linebreak=None,
                        highlight=True, uncover=False, trail=False,
                        consider_for_limits=True,
                        **kwargs):
@@ -911,7 +911,8 @@ class Plot(Call):
 
             artists = ax.plot(*highlight_data,
                               marker=self.highlight_marker,
-                              ls='None', color=self.highlight_color)
+                              ls=self.highlight_linestyle,
+                              color=self.highlight_color)
 
             for artist in artists:
                 artist._af_highlight=True
