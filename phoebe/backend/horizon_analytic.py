@@ -4,11 +4,15 @@ import libphoebe
 from phoebe.backend.mesh import euler_trans_matrix, transform_position_array
 from phoebe.frontend import io
 
-
 try:
-    import phoebeBackend as phb
+    import phoebe_legacy as phb1
 except ImportError:
-    _can_phb = False
+    try:
+        import phoebeBackend as phb1
+    except ImportError:
+        _can_phb = False
+    else:
+        _can_phb = True
 else:
     _can_phb = True
     _phb_init = False
@@ -86,7 +90,12 @@ def wd(b, time, scale, pos):
 
     if not _phb_init:
         phb.init()
-        phb.configure()
+        if hasattr(phb, 'auto_configure'):
+            # then phb is phoebe_legacy
+            phb.auto_configure()
+        else:
+            # then phb is phoebeBackend
+            phb.configure()
 
 
     # TODO: move this outside the loop into backends.py?
@@ -111,4 +120,3 @@ def wd(b, time, scale, pos):
 
     return {'xs': xs, 'ys': ys, 'zs': np.ones(xs.shape)*pos[2],
             'rhos': rhos, 'thetas': thetas}
-

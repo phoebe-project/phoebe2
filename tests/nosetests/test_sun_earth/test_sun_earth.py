@@ -20,11 +20,11 @@ def initiate_sun_earth_system(pb_str):
     b = phoebe.Bundle.default_binary()
 
     b.add_dataset('lc', times=[0.75,], dataset='lc01', passband=pb_str)
-    b.add_dataset('mesh', columns=['areas', 'mus', 'visibilities', 'abs_intensities@lc01'], dataset='mesh01')
+    b.add_dataset('mesh', time=[0.0], columns=['areas', 'mus', 'visibilities', 'abs_intensities@lc01'], dataset='mesh01')
 
     b['pblum@primary'] = 1.*u.solLum #* 0.99 # 0.99 is bolometric correction
     b['teff@primary'] = 1.*u.solTeff
-    b['rpole@primary'] = 1.*u.solRad
+    b['requiv@primary'] = 1.*u.solRad
     b['syncpar@primary'] = 14.61
 
     b['period@orbit'] = 1.*u.yr
@@ -32,7 +32,7 @@ def initiate_sun_earth_system(pb_str):
     b['sma@orbit'] = 1.*u.au
 
     b['teff@secondary'] = (300, 'K')
-    b['rpole@secondary'] = 1.*c.R_earth
+    b['requiv@secondary'] = 1.*c.R_earth
     b['syncpar@secondary'] = 365.25
 
     b['distance@system'] = (1, 'au')
@@ -96,8 +96,15 @@ def sun_earth_result():
 
     b.run_compute(mesh_offset=True)
 
-    opts = (b['value@q@orbit'], b['value@syncpar@primary'], 1., b['value@pot@primary@component'])
-    area0 = libphoebe.roche_area_volume(*opts)['larea']
+    q = b['value@q@orbit']
+    F = b['value@syncpar@primary']
+    spin = np.array([0.,0.,1.])
+    req = b['value@requiv@primary']/b['value@sma@orbit']
+    V = 4*np.pi*req**3/3
+
+    Omega0 = libphoebe.roche_misaligned_Omega_at_vol(V, q, F, 1., spin)
+
+    area0 = libphoebe.roche_misaligned_area_volume(q, F, 1., spin, Omega0, larea=True)['larea']
     area0 *= b['value@sma@orbit']**2
 
     area = np.sum(b['value@areas@primary@mesh01'])
@@ -117,8 +124,8 @@ def test_sun_earth(print_results = False, save_results = False):
   if save_results:
     np.savetxt("res.txt", res)
 
-  assert(np.abs(res[:,1]).max > 1e-14)
-  assert(np.abs(res[:,2]).max > 1e-5)
+  assert(np.abs(res[:,1]).max() < 1e-14)
+  assert(np.abs(res[:,2]).max() < 1e-3)
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')

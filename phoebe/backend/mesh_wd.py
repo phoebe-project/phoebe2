@@ -4,107 +4,13 @@ from math import sqrt, sin, cos, acos, atan2, trunc, pi
 from oc_geometry import nekmin, wd_mesh_fill, wd_recompute_neck
 import libphoebe
 import os
-from scipy.spatial import KDTree
+from phoebe.distortions.roche import *
+# from scipy.spatial import KDTree
 
 import logging
-logger = logging.getLogger("POTENTIALS")
+logger = logging.getLogger("MESH_WD")
 logger.addHandler(logging.NullHandler())
 
-def BinaryRoche (r, D, q, F, Omega=0.0):
-    r"""
-    Computes a value of the asynchronous, eccentric Roche potential.
-
-    If :envvar:`Omega` is passed, it computes the difference.
-
-    The asynchronous, eccentric Roche potential is given by [Wilson1979]_
-
-    .. math::
-
-        \Omega = \frac{1}{\sqrt{x^2 + y^2 + z^2}} + q\left(\frac{1}{\sqrt{(x-D)^2+y^2+z^2}} - \frac{x}{D^2}\right) + \frac{1}{2}F^2(1+q)(x^2+y^2)
-
-    @param r:      relative radius vector (3 components)
-    @type r: 3-tuple
-    @param D:      instantaneous separation
-    @type D: float
-    @param q:      mass ratio
-    @type q: float
-    @param F:      synchronicity parameter
-    @type F: float
-    @param Omega:  value of the potential
-    @type Omega: float
-    """
-    return 1.0/sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2]) + q*(1.0/sqrt((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])-r[0]/D/D) + 0.5*F*F*(1+q)*(r[0]*r[0]+r[1]*r[1]) - Omega
-
-def dBinaryRochedx (r, D, q, F):
-    """
-    Computes a derivative of the potential with respect to x.
-
-    @param r:      relative radius vector (3 components)
-    @param D:      instantaneous separation
-    @param q:      mass ratio
-    @param F:      synchronicity parameter
-    """
-    return -r[0]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*(r[0]-D)*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5 -q/D/D + F*F*(1+q)*r[0]
-
-def d2BinaryRochedx2(r, D, q, F):
-    """
-    Computes second derivative of the potential with respect to x.
-
-    @param r:      relative radius vector (3 components)
-    @param D:      instantaneous separation
-    @param q:      mass ratio
-    @param F:      synchronicity parameter
-    """
-    return (2*r[0]*r[0]-r[1]*r[1]-r[2]*r[2])/(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**2.5 +\
-          q*(2*(r[0]-D)*(r[0]-D)-r[1]*r[1]-r[2]*r[2])/((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**2.5 +\
-          F*F*(1+q)
-
-def dBinaryRochedy (r, D, q, F):
-    """
-    Computes a derivative of the potential with respect to y.
-
-    @param r:      relative radius vector (3 components)
-    @param D:      instantaneous separation
-    @param q:      mass ratio
-    @param F:      synchronicity parameter
-    """
-    return -r[1]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*r[1]*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5 + F*F*(1+q)*r[1]
-
-def  dBinaryRochedz(r, D, q, F):
-    """
-    Computes a derivative of the potential with respect to z.
-
-    @param r:      relative radius vector (3 components)
-    @param D:      instantaneous separation
-    @param q:      mass ratio
-    @param F:      synchronicity parameter
-    """
-    return -r[2]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*r[2]*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5
-
-def dBinaryRochedr (r, D, q, F):
-    """
-    Computes a derivative of the potential with respect to r.
-
-    @param r:      relative radius vector (3 components)
-    @param D:      instantaneous separation
-    @param q:      mass ratio
-    @param F:      synchronicity parameter
-    """
-
-    r2 = (r*r).sum()
-    r1 = np.sqrt(r2)
-
-    return -1./r2 - q*(r1-r[0]/r1*D)/((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**1.5 - q*r[0]/r1/D/D + F*F*(1+q)*(1-r[2]*r[2]/r2)*r1
-
-def Lag1(q):
-    # L1
-    dxL = 1.0
-    L1 = 1e-3
-    while abs(dxL) > 1e-6:
-        dxL = - dBinaryRochedx([L1, 0.0, 0.0], 1., q, 1.) / d2BinaryRochedx2([L1, 0.0, 0.0], 1., q, 1.)
-        L1 = L1 + dxL
-
-    return L1
 
 class MeshVertex:
     def __init__(self, r, dpdx, dpdy, dpdz, *args):

@@ -25,7 +25,7 @@ def test_binary(plot=False):
 
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
-    
+
     for gravb in [0.1, 0.9]:
         b.set_value('gravb_bol', component='primary', value=gravb)
 
@@ -41,9 +41,7 @@ def test_binary(plot=False):
         if plot:
             print "max (rel):", abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()
 
-            b.plot(dataset='lc01')
-            plt.legend()
-            plt.show()
+            b.plot(dataset='lc01', show=True)
 
         # 0.0: 0.0007
         # 0.5: 0.0007

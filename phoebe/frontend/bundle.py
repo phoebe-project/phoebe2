@@ -14,7 +14,7 @@ from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import compute as _compute
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
-from phoebe.backend import backends
+from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import _pbtable
@@ -131,6 +131,8 @@ class Bundle(ParameterSet):
         # self
         self._bundle = self
         self._hierarchy_param = None
+
+        self._figure = None
 
         # set to be not a client by default
         self._is_client = False
@@ -289,9 +291,15 @@ class Bundle(ParameterSet):
         :return: instantiated :class:`Bundle` object
         """
         b = cls()
-        b.add_star(component=starA)
-        b.add_star(component=starB)
-        b.add_orbit(component=orbit)
+        if contact_binary:
+            orbit_defaults = {'sma': 3.35, 'period': 0.5}
+            star_defaults = {'requiv': 1.5}
+        else:
+            orbit_defaults = {'sma': 5.3, 'period': 1.0}
+            star_defaults = {'requiv': 1.0}
+        b.add_star(component=starA, **star_defaults)
+        b.add_star(component=starB, **star_defaults)
+        b.add_orbit(component=orbit, **orbit_defaults)
         if contact_binary:
             b.add_component('envelope', component='contact_envelope')
             b.set_hierarchy(_hierarchy.binaryorbit,
@@ -895,12 +903,59 @@ class Bundle(ParameterSet):
 
         # Handle inter-PS constraints
         starrefs = hier_param.get_stars()
+
+        for component in self.hierarchy.get_envelopes():
+            logger.debug('re-creating fillout_factor (contact) constraint for {}'.format(component))
+            if len(self.filter(context='constraint',
+                               constraint_func='fillout_factor',
+                               component=component)):
+                constraint_param = self.get_constraint(constraint_func='fillout_factor',
+                                                       component=component)
+                self.remove_constraint(constraint_func='fillout_factor',
+                                       component=component)
+                self.add_constraint(constraint.fillout_factor, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.fillout_factor, component,
+                                    constraint=self._default_label('fillout_factor', context='constraint'))
+
+            logger.debug('re-creating pot_min (contact) constraint for {}'.format(component))
+            if len(self.filter(context='constraint',
+                               constraint_func='potential_contact_min',
+                               component=component)):
+                constraint_param = self.get_constraint(constraint_func='potential_contact_min',
+                                                       component=component)
+                self.remove_constraint(constraint_func='potential_contact_min',
+                                       component=component)
+                self.add_constraint(constraint.potential_contact_min, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.potential_contact_min, component,
+                                    constraint=self._default_label('pot_min', context='constraint'))
+
+            logger.debug('re-creating pot_max (contact) constraint for {}'.format(component))
+            if len(self.filter(context='constraint',
+                               constraint_func='potential_contact_max',
+                               component=component)):
+                constraint_param = self.get_constraint(constraint_func='potential_contact_max',
+                                                       component=component)
+                self.remove_constraint(constraint_func='potential_contact_max',
+                                       component=component)
+                self.add_constraint(constraint.potential_contact_min, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.potential_contact_max, component,
+                                    constraint=self._default_label('pot_max', context='constraint'))
+
         for component in self.hierarchy.get_stars():
             if len(starrefs)==1:
                 pass
                 # we'll do the potential constraint either way
             else:
-                logger.info('re-creating mass constraint for {}'.format(component))
+                logger.debug('re-creating mass constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
                 if len(self.filter(context='constraint',
                                    constraint_func='mass',
@@ -917,7 +972,7 @@ class Bundle(ParameterSet):
                                         constraint=self._default_label('mass', context='constraint'))
 
 
-                logger.info('re-creating comp_sma constraint for {}'.format(component))
+                logger.debug('re-creating comp_sma constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
                 if len(self.filter(context='constraint',
                                    constraint_func='comp_sma',
@@ -933,62 +988,125 @@ class Bundle(ParameterSet):
                     self.add_constraint(constraint.comp_sma, component,
                                         constraint=self._default_label('comp_sma', context='constraint'))
 
-
-                if not self.hierarchy.is_contact_binary(component):
-
-                    logger.info('re-creating rotation_period constraint for {}'.format(component))
-                    # TODO: will this cause problems if the constraint has been flipped?
-                    if len(self.filter(context='constraint',
-                                       constraint_func='rotation_period',
-                                       component=component)):
-                        constraint_param = self.get_constraint(constraint_func='rotation_period',
-                                                               component=component)
-                        self.remove_constraint(constraint_func='rotation_period',
-                                               component=component)
-                        self.add_constraint(constraint.rotation_period, component,
-                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                            constraint=constraint_param.constraint)
-                    else:
-                        self.add_constraint(constraint.rotation_period, component,
-                                            constraint=self._default_label('rotation_period', context='constraint'))
-
-                    logger.info('re-creating incl_aligned constraint for {}'.format(component))
-                    # TODO: will this cause problems if the constraint has been flipped?
-                    # TODO: what if the user disabled/removed this constraint?
-                    if len(self.filter(context='constraint',
-                                       constraint_func='incl_aligned',
-                                    component=component)):
-                        constraint_param = self.get_constraint(constraint_func='incl_aligned',
-                                                               component=component)
-                        self.remove_constraint(constraint_func='incl_aligned',
-                                               component=component)
-                        self.add_constraint(constraint.incl_aligned, component,
-                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                            constraint=constraint_param.constraint)
-                    else:
-                        self.add_constraint(constraint.incl_aligned, component,
-                                            constraint=self._default_label('incl_aligned', context='constraint'))
-
-
-            if (not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope'):
-                # potential constraint shouldn't be done for STARS in OVERCONTACTS
-                # but DOES need to be done for single stars
-
-                logger.info('re-creating potential constraint for {}'.format(component))
+                logger.debug('re-creating rotation_period constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
                 if len(self.filter(context='constraint',
-                                   constraint_func='potential',
+                                   constraint_func='rotation_period',
                                    component=component)):
-                    constraint_param = self.get_constraint(constraint_func='potential',
+                    constraint_param = self.get_constraint(constraint_func='rotation_period',
                                                            component=component)
-                    self.remove_constraint(constraint_func='potential',
+                    self.remove_constraint(constraint_func='rotation_period',
                                            component=component)
-                    self.add_constraint(constraint.potential, component,
+                    self.add_constraint(constraint.rotation_period, component,
                                         solve_for=constraint_param.constrained_parameter.uniquetwig,
                                         constraint=constraint_param.constraint)
                 else:
-                    self.add_constraint(constraint.potential, component,
-                                        constraint=self._default_label('potential', context='constraint'))
+                    self.add_constraint(constraint.rotation_period, component,
+                                        constraint=self._default_label('rotation_period', context='constraint'))
+
+                if self.hierarchy.is_contact_binary(component):
+                    # then we're in a contact binary and need to create pot<->requiv constraints
+                    # NOTE: pot_min and pot_max are handled above at the envelope level
+                    logger.debug('re-creating requiv_max (contact) constraint for {}'.format(component))
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_contact_max',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_func='requiv_contact_max',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='requiv_contact_max',
+                                               component=component)
+                        self.add_constraint(constraint.requiv_contact_max, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.requiv_contact_max, component,
+                                            constraint=self._default_label('requiv_max', context='constraint'))
+
+                    logger.debug('re-creating requiv_min (contact) constraint for {}'.format(component))
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_contact_min',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_func='requiv_contact_min',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='requiv_contact_min',
+                                               component=component)
+                        self.add_constraint(constraint.requiv_contact_min, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.requiv_contact_min, component,
+                                            constraint=self._default_label('requiv_min', context='constraint'))
+
+
+                    logger.debug('re-creating requiv_to_pot constraint for {}'.format(component))
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_to_pot',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_fun='requiv_to_pot',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='requiv_to_pot',
+                                               component=component)
+                        self.add_constraint(constraint.requiv_to_pot, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        pot_parameter = self.get_parameter(qualifier='pot', component=self.hierarchy.get_envelope_of(component), context='component')
+                        requiv_parameter = self.get_parameter(qualifier='requiv', component=component, context='component')
+                        solve_for = pot_parameter.uniquetwig if self.hierarchy.get_primary_or_secondary(component) == 'primary' else requiv_parameter.uniquetwig
+                        self.add_constraint(constraint.requiv_to_pot, component,
+                                            constraint=self._default_label('requiv_to_pot', context='constraint'),
+                                            solve_for=solve_for)
+
+                else:
+                    # then we're in a detached/semi-detached system
+                    logger.debug('re-creating requiv_max (detached) constraint for {}'.format(component))
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_detached_max',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_func='requiv_detached_max',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='requiv_detached_max',
+                                               component=component)
+                        self.add_constraint(constraint.requiv_detached_max, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.requiv_detached_max, component,
+                                            constraint=self._default_label('requiv_max', context='constraint'))
+
+                    logger.debug('re-creating pitch constraint for {}'.format(component))
+                    # TODO: will this cause problems if the constraint has been flipped?
+                    # TODO: what if the user disabled/removed this constraint?
+                    if len(self.filter(context='constraint',
+                                       constraint_func='pitch',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_func='pitch',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='pitch',
+                                               component=component)
+                        self.add_constraint(constraint.pitch, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.pitch, component,
+                                            constraint=self._default_label('pitch', context='constraint'))
+
+                    logger.debug('re-creating yaw constraint for {}'.format(component))
+                    # TODO: will this cause problems if the constraint has been flipped?
+                    # TODO: what if the user disabled/removed this constraint?
+                    if len(self.filter(context='constraint',
+                                       constraint_func='yaw',
+                                    component=component)):
+                        constraint_param = self.get_constraint(constraint_func='yaw',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='yaw',
+                                               component=component)
+                        self.add_constraint(constraint.yaw, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.yaw, component,
+                                            constraint=self._default_label('yaw', context='constraint'))
 
 
         redo_kwargs = {k: v for k, v in hier_param.to_dict().items()
@@ -1065,62 +1183,6 @@ class Bundle(ParameterSet):
                 else:
                     raise KeyError(msg)
 
-    def compute_critical_pots(self, component, L1=True, L2=True, L3=True, **kwargs):
-        hier = self.hierarchy
-        kind = hier.get_kind_of(component)
-        if kind not in ['star', 'envelope']:
-            raise ValueError("component must be a star or envelope")
-
-        comp_ps = self.get_component(component)
-        parent = hier.get_parent_of(component)
-        if parent == 'component':
-            raise ValueError("single star doesn't have critical potentials")
-
-        parent_ps = self.get_component(parent)
-
-        q = parent_ps.get_value('q', **kwargs)
-
-        # Check if the component is primary or secondary; if the
-        # latter, flip q and transform pot.
-        comp = hier.get_primary_or_secondary(component, return_ind=True)
-
-        if kind == 'envelope':
-            F = 1.
-            d = 1.
-        else:
-            q = roche.q_for_component(q, comp)
-            F = comp_ps.get_value('syncpar', **kwargs)
-            d = 1 - parent_ps.get_value('ecc', **kwargs)
-
-        # TODO: this needs to be generalized once other potentials are supported
-        critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=L1, L2=L2, L3=L3, style=1)
-
-        return critical_pots
-
-    def compute_critical_rpoles(self, component, L1=True, L2=True, L3=True, **kwargs):
-        """
-        returns in solRad
-        """
-        critical_pots = self.compute_critical_pots(component, L1, L2, L3, **kwargs)
-
-        hier = self.hierarchy
-        comp_ps = self.get_component(component)
-        parent = hier.get_parent_of(component)
-        parent_ps = self.get_component(parent)
-
-        q = parent_ps.get_value('q', **kwargs)
-        e = parent_ps.get_value('ecc', **kwargs)
-        F = comp_ps.get_value('syncpar', **kwargs)
-        sma = parent_ps.get_value('sma', unit='solRad', **kwargs)
-
-        comp = hier.get_primary_or_secondary(component, return_ind=True)
-
-        critical_rpoles = {}
-        for l,pot in critical_pots.items():
-            critical_rpoles[l] = roche.potential2rpole(pot, q, e, F, sma, comp)
-
-        return critical_rpoles
-
     def run_checks(self, **kwargs):
         """
         Check to see whether the system is expected to be computable.
@@ -1141,69 +1203,62 @@ class Bundle(ParameterSet):
         hier = self.hierarchy
         if hier is None:
             return True, ''
-        for component in hier.get_meshables():
+        for component in hier.get_stars():
             kind = hier.get_kind_of(component)
             comp_ps = self.get_component(component)
             parent = hier.get_parent_of(component)
             parent_ps = self.get_component(parent)
             if kind in ['star']:
-                    # ignore the single star case
+                # ignore the single star case
                 if parent:
-                    # MUST NOT be overflowing at PERIASTRON (1-ecc)
-                    # TODO: implement this check based of fillout factor or crit_pots constrained parameter?
-                    # TODO: only do this if distortion_method == 'roche'
-                    pot = comp_ps.get_value('pot', **kwargs)
-                    q = parent_ps.get_value('q', **kwargs)
+                    # contact systems MUST by synchronous
+                    if hier.is_contact_binary(component):
+                        if self.get_value(qualifier='syncpar', component=component, context='component', **kwargs) != 1.0:
+                            return False,\
+                                'contact binaries must by synchronous, but syncpar@{}!=1'.format(component)
 
-                    comp = hier.get_primary_or_secondary(component, return_ind=True)
-                    q = roche.q_for_component(q, comp)
-                    pot = roche.pot_for_component(pot, q, comp)
+                        if self.get_value(qualifier='ecc', component=parent, context='component', **kwargs) != 0.0:
+                            return False,\
+                                'contact binaries must by circular, but ecc@{}!=0'.format(component)
 
-                    critical_pots = self.compute_critical_pots(component, L1=True, L2=True, **kwargs)
+                        if self.get_value(qualifier='pitch', component=component, context='component', **kwargs) != 0.0:
+                            return False,\
+                                'contact binaries must be aligned, but pitch@{}!=0'.format(component)
 
-                    if pot < critical_pots['L1'] or pot < critical_pots['L2']:
-                        return False,\
-                            '{} is overflowing at periastron (L1={:.02f}, L2={:.02f}, pot={}).'.format(component,
-                                                                                                      critical_pots['L1'],
-                                                                                                      critical_pots['L2'],
-                                                                                                      pot)
+                        if self.get_value(qualifier='yaw', component=component, context='component', **kwargs) != 0.0:
+                            return False,\
+                                'contact binaries must be aligned, but yaw@{}!=0'.format(component)
 
-            elif kind in ['envelope']:
-                # MUST be overflowing at APASTRON (1+ecc)
-                # TODO: implement this check based of fillout factor or crit_pots constrained parameter
-                # TODO: only do this if distortion_method == 'roche' (which probably will be required for envelope?)
-                # TODO: use self.compute_critical_pots
-                pot = comp_ps.get_value('pot', **kwargs)
-                q = parent_ps.get_value('q', **kwargs)
-                # NOTE: pot for envelope will always be as if primary, so no need to invert
-                F = 1.0
-                # NOTE: syncpar is fixed at 1.0 for envelopes
+                    # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
-                # TODO: this is technically cheating since our pot is defined at periastron.
-                # We'll either need to transform the pot (using volume conservation??) or
-                # force OCs to be in circular orbits, in which case this test can be done at
-                # periastron as well
-                d = 1 + parent_ps.get_value('ecc', **kwargs)
-                critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, style = 1)
+                    requiv = comp_ps.get_value('requiv', unit=u.solRad, **kwargs)
+                    requiv_max = comp_ps.get_value('requiv_max', unit=u.solRad, **kwargs)
 
-                if pot > critical_pots['L1']:
-                    return False,\
-                        '{} is not overflowing L1 at apastron.'.format(component)
 
-                # BUT MUST NOT be overflowing L2 or L3 at periastron
-                d = 1 - parent_ps.get_value('ecc', **kwargs)
-                critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True, style = 1)
 
-                if pot < critical_pots['L2'] or pot < critical_pots['L3']:
-                    return False,\
-                        '{} is overflowing L2 or L3 at periastron.'.format(component)
+                    if hier.is_contact_binary(component):
+                        if np.isnan(requiv) or requiv > requiv_max:
+                            return False,\
+                                '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
+
+                        requiv_min = comp_ps.get_value('requiv_min')
+
+                        if np.isnan(requiv) or requiv <= requiv_min:
+                            return False,\
+                                 '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min)
+
+                    else:
+                        if requiv > requiv_max:
+                            return False,\
+                                '{} is overflowing at periastron (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
 
             else:
                 raise NotImplementedError("checks not implemented for type '{}'".format(kind))
 
         # we also need to make sure that stars don't overlap each other
         # so we'll check for each pair of stars (see issue #70 on github)
-        for orbitref in hier.get_orbits():
+        # TODO: rewrite overlap checks
+        for orbitref in []: #hier.get_orbits():
             if len(hier.get_children_of(orbitref)) == 2:
                 q = self.get_value(qualifier='q', component=orbitref, context='component', **kwargs)
                 ecc = self.get_value(qualifier='ecc', component=orbitref, context='component', **kwargs)
@@ -1212,6 +1267,13 @@ class Bundle(ParameterSet):
                 if hier.get_kind_of(starrefs[0]) != 'star' or hier.get_kind_of(starrefs[1]) != 'star':
                     # print "***", hier.get_kind_of(starrefs[0]), hier.get_kind_of(starrefs[1])
                     continue
+                if self.get_value(qualifier='pitch', component=starrefs[0])!=0.0 or \
+                        self.get_value(qualifier='pitch', component=starrefs[1])!=0.0 or \
+                        self.get_value(qualifier='yaw', component=starrefs[0])!=0.0 or \
+                        self.get_value(qualifier='yaw', component=starrefs[1])!=0.0:
+
+                    # we cannot run this test for misaligned cases
+                   continue
 
                 comp0 = hier.get_primary_or_secondary(starrefs[0], return_ind=True)
                 comp1 = hier.get_primary_or_secondary(starrefs[1], return_ind=True)
@@ -1234,17 +1296,6 @@ class Bundle(ParameterSet):
                     return False,\
                         'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1])
 
-        # check to make sure all stars are aligned (remove this once we support
-        # misaligned roche binaries)
-        if len(hier.get_stars()) > 1:
-            for starref in hier.get_meshables():
-                orbitref = hier.get_parent_of(starref)
-                if len(hier.get_children_of(orbitref)) == 2:
-                    incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg', **kwargs)
-                    incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg', **kwargs)
-                    if abs(incl_star - incl_orbit) > 1e-3:
-                        return False,\
-                            'misaligned orbits are not currently supported.'
 
         # check to make sure passband supports the selected atm
         for pbparam in self.filter(qualifier='passband').to_list():
@@ -1313,7 +1364,7 @@ class Bundle(ParameterSet):
                 return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
             elif gravb_bol < 0.32 or gravb_bol > 1.00:
                 return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
-                
+
         for component in self.hierarchy.get_stars():
             teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
             irrad_frac_refl_bol = self.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)
@@ -1779,8 +1830,7 @@ class Bundle(ParameterSet):
         you and can be accessed by the 'dataset' attribute of the returned
         ParameterSet.
 
-        For light curves, if you do not provide a value for 'component',
-        the light curve will be generated for the entire system.
+        For light curves, the light curve will be generated for the entire system.
 
         For radial velocities, you need to provide a list of components
         for which values should be computed.
@@ -1791,6 +1841,7 @@ class Bundle(ParameterSet):
             * :func:`phoebe.parameters.dataset.etv`
             * :func:`phoebe.parameters.dataset.orb`
             * :func:`phoebe.parameters.dataset.mesh`
+            * :func:`phoebe.parameters.dataset.lp`
 
         :parameter kind: function to call that returns a
             ParameterSet or list of parameters.  This must either be
@@ -1836,14 +1887,17 @@ class Bundle(ParameterSet):
 
         if kind == 'lc':
             allowed_components = [None]
+            default_components = allowed_components
         elif kind in ['rv', 'orb']:
-            allowed_components = self.hierarchy.get_stars()
+            allowed_components = self.hierarchy.get_stars() # + self.hierarchy.get_orbits()
+            default_components = self.hierarchy.get_stars()
             # TODO: how are we going to handle overcontacts dynamical vs flux-weighted
         elif kind in ['mesh']:
             # allowed_components = self.hierarchy.get_meshables()
             allowed_components = [None]
             # allowed_components = self.hierarchy.get_stars()
             # TODO: how will this work when changing hierarchy to add/remove the common envelope?
+            default_components = allowed_components
         elif kind in ['etv']:
             hier = self.hierarchy
             stars = hier.get_stars()
@@ -1851,8 +1905,15 @@ class Bundle(ParameterSet):
             # means that the companion in a triple cannot be timed, because how
             # do we know who it's eclipsing?
             allowed_components = [s for s in stars if hier.get_sibling_of(s) in stars]
+            default_components = allowed_components
+        elif kind in ['lp']:
+            # TODO: need to think about what this should be for contacts...
+            allowed_components = self.hierarchy.get_stars() + self.hierarchy.get_orbits()
+            default_components = [self.hierarchy.get_top()]
+
         else:
             allowed_components = [None]
+            default_components = [None]
 
         # Let's handle the case where the user accidentally sends components
         # instead of component
@@ -1867,7 +1928,7 @@ class Bundle(ParameterSet):
         elif hasattr(components, '__iter__'):
             components = components
         elif components is None:
-            components = allowed_components
+            components = default_components
         else:
             raise NotImplementedError
 
@@ -1881,13 +1942,20 @@ class Bundle(ParameterSet):
 
         if not np.all([component in allowed_components
                        for component in components]):
-            raise ValueError("'{}' not a recognized component".format(component))
+            raise ValueError("'{}' not a recognized/allowable component".format(component))
 
         obs_metawargs = {'context': 'dataset',
                          'kind': kind,
                          'dataset': kwargs['dataset']}
-        obs_params, constraints = func()
-        # NOTE: _attach_params will call _check_copy_for
+
+        if kind in ['lp']:
+            # then times needs to be passed now to duplicate and tag the Parameters
+            # correctly
+            obs_kwargs = {'times': kwargs.pop('times', [])}
+        else:
+            obs_kwargs = {}
+
+        obs_params, constraints = func(**obs_kwargs)
         self._attach_params(obs_params, **obs_metawargs)
 
         for constraint in constraints:
@@ -1930,22 +1998,26 @@ class Bundle(ParameterSet):
                                        value=value,
                                        check_visible=False,
                                        ignore_none=True)
+            elif k in ['dataset']:
+                pass
             else:
-                if components == [None]:
+                # for dataset kinds that include passband dependent AND
+                # independent parameters, we need to carefully default on
+                # what component to use when passing the defaults
+                if kind in ['rv', 'lp'] and k in ['ld_func', 'ld_coeffs',
+                                                  'passband', 'intens_weighting',
+                                                  'profile_rest', 'profile_func', 'profile_sv']:
+                    # passband-dependent (ie lc_dep) parameters do not have
+                    # assigned components
+                    components_ = None
+                elif components == [None]:
                     components_ = None
                 elif user_provided_components:
                     components_ = components
                 else:
-                    # for dataset kinds that include passband dependent AND
-                    # independent parameters, we need to carefully default on
-                    # what component to use when passing the defaults
-                    if kind in ['rv'] and k in ['ld_func', 'ld_coeffs', 'passband', 'intens_weighting']:
-                        # passband-dependent (ie lc_dep) parameters do not have
-                        # assigned components
-                        components_ = None
-                    else:
-                        components_ = components+['_default']
+                    components_ = components+['_default']
 
+                logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], components_, v))
                 self.set_value_all(qualifier=k,
                                    dataset=kwargs['dataset'],
                                    component=components_,
@@ -1955,7 +2027,7 @@ class Bundle(ParameterSet):
 
 
 
-        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs = deepcopy({k:v if not isinstance(v, nparray.ndarray) else v.to_json() for k,v in kwargs.items()})
         redo_kwargs['func'] = func.func_name
         self._add_history(redo_func='add_dataset',
                           redo_kwargs=redo_kwargs,
@@ -2289,10 +2361,6 @@ class Bundle(ParameterSet):
             (except twig or context)
 
         """
-
-        # if not conf.devel:
-        #     raise NotImplementedError("'flip_constraint' not officially supported for this release.  Enable developer mode to test.")
-
         self._kwargs_checks(kwargs)
 
         kwargs['twig'] = twig
@@ -2369,7 +2437,7 @@ class Bundle(ParameterSet):
 
         constrained_param.set_value(result, force=True, run_constraints=True)
 
-        logger.info("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
+        logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
 
         if return_parameter:
             return constrained_param
@@ -2480,7 +2548,7 @@ class Bundle(ParameterSet):
 
     @send_if_client
     def run_compute(self, compute=None, model=None, detach=False,
-                    animate=False, times=None, **kwargs):
+                    times=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset using
         a specified set of compute options.
@@ -2516,18 +2584,6 @@ class Bundle(ParameterSet):
             :meth:`phoebe.parameters.parameters.JobParameter` will then contain
             the necessary information to pull the results from the server at anytime
             in the future.
-        :parameter animate: [EXPERIMENTAL] information to send to :meth:`animate`
-            while the synthetics are being built.  If not False (in which case
-            live animation will not be done), animate should be a dictionary or
-            list of dictionaries and a new frame will be displayed and plotted
-            as they are computed.  This really only makes sense for backends
-            that compute per-time rather than per-dataset.  Note: animation
-            may significantly slow down the time of run_compute, especially
-            for a large number of time-points or if meshes are being stored/plotted.
-            Also note: animate will obviously be ignored if detach=True, this
-            isn't magic.  NOTE: fixed_limits are not supported from run_compute,
-            axes limits will be updated each frame, but all colorlimits will
-            be determined per-frame and will not be constant across the animation.
         :parameter list times: [EXPERIMENTAL] override the times at which to compute the model.
             NOTE: this only (temporarily) replaces the time array for datasets
             with times provided (ie empty time arrays are still ignored).  So if
@@ -2708,57 +2764,9 @@ class Bundle(ParameterSet):
 
             metawargs = {'compute': compute, 'model': model, 'context': 'model'}  # dataset, component, etc will be set by the compute_func
 
-            if animate:
-                # handle setting defaults from kwargs to each plotting call
-                compute_generator = compute_func(self, compute, as_generator=True, times=times, **kwargs)
-
-                # In order to build the first frame and initialize the animation,
-                # we'll iterate the generator once (ie compute the first time-step)
-                ps_tmp, time = next(compute_generator)
-                ps_tmp.set_meta(**metawargs) # TODO: is this necessary?
-
-                # Now we'll initialize the figure and send the generator to the
-                # animator.  The animator will then handle looping through the
-                # rest of the generator to finish computing the synthetic
-                # model.
-                plotting_args = parameters._parse_plotting_args(animate)
-                for plot_args in plotting_args:
-                    # live-plotting doesn't support highlight (because time
-                    # array is already filled and interpolation will fail)
-
-                    # TODO: make this work to be defaulted to True (current
-                    # problem is that time array is prepopulated)
-                    plot_args['highlight'] = False
-                    # plot_args['uncover'] = False
-
-                anim, ao = mpl_animate.animate(self-self.filter(context='model'),
-                                               init_ps=self-self.filter(context='model')+ps_tmp,
-                                               init_time=time,
-                                               frames=compute_generator,
-                                               fixed_limits=False,
-                                               plotting_args=plotting_args,
-                                               metawargs=metawargs)
-
-                plt.show()
-
-                # NOTE: this will not finish if the mpl window is closed before
-                # all times are filled
-
-                # TODO: can we make sure the generator is finished, and if it
-                # isn't complete the loop rather than access ao.latest_frame?
-                # Or alternatively, if we didn't just copy the time array we
-                # could leave an "incomplete" model that wouldn't fail future
-                # plotting
-
-                # assuming the animation was allowed to complete, the ao object
-                # holds the last yielded parameters and time.  Let's take the
-                # params here so that they can be attached to the bundle.
-                params, last_time = ao.latest_frame
-
-            else:
-                # comma in the following line is necessary because compute_func
-                # is /technically/ a generator (it yields instead of returns)
-                params, = compute_func(self, compute, times=times, **kwargs)
+            # comma in the following line is necessary because compute_func
+            # is /technically/ a generator (it yields instead of returns)
+            params, = compute_func(self, compute, times=times, **kwargs)
 
 
             # average over any exposure times before attaching parameters

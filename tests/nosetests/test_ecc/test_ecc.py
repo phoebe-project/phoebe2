@@ -30,7 +30,6 @@ def test_binary(plot=False):
     for ecc in [0.3, 0.505]:
         b.set_value('ecc', ecc)
 
-
         if plot: print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
         if plot: print "running phoebe1 model..."
@@ -42,16 +41,14 @@ def test_binary(plot=False):
         if plot:
             print "ecc: {} max (rel): {}".format(ecc , abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 
-            b.plot(dataset='lc01')
-            plt.legend()
-            plt.show()
+            b.plot(dataset='lc01', show=True)
 
         assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3 if ecc < 0.5 else 5e-3, atol=0.))
 
     return b
 
 if __name__ == '__main__':
-    logger = phoebe.logger(clevel='INFO')
+    logger = phoebe.logger(clevel='DEBUG')
 
 
     b = test_binary(plot=True)

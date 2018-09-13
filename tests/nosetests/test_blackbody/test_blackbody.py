@@ -40,9 +40,7 @@ def test_binary(plot=False):
     phoebe1_val = b.get_value('fluxes@phoebe1model')
 
     if plot:
-        b.plot(dataset='lc01')
-        plt.legend()
-        plt.show()
+        b.plot(dataset='lc01', show=True)
 
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
 
