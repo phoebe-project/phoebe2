@@ -1328,7 +1328,7 @@ class CallDimension(object):
         sort_inds = i_value.argsort()
         indep_value = i_value[sort_inds]
         this_value = self._value[sort_inds]
-        return self._to_unit(np.interp(i, indep_value, this_value), unit)
+        return self._to_unit(np.interp(i, indep_value, this_value, left=np.nan, right=np.nan), unit)
 
     def highlight_at_i(self, i, unit=None):
         """
@@ -1429,9 +1429,9 @@ class CallDimension(object):
 
             all_i = np.hstack(self.call.axes.calls.i.value)
             trail_i = i - trail_perc*(np.nanmax(all_i) - np.nanmin(all_i))
-            if trail_i < np.nanmin(self.call.i.value):
+            if trail_i < np.nanmin(self.call.i.get_value(linebreak=False, sort_by_indep=False)):
                 # don't allow extraploating below the lower range
-                trail_i = np.nanmin(self.call.i.value)
+                trail_i = np.nanmin(self.call.i.get_value(linebreak=False, sort_by_indep=False))
 
         else:
             trail_i = None
