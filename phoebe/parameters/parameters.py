@@ -2062,10 +2062,10 @@ class ParameterSet(object):
                         # then let's see if there are errors
                         sigmas = ps.get_quantity('sigmas')
                         if len(sigmas):
-                            kwargs['{}error'.format(direction)] = sigmas
+                            kwargs.setdefault('{}error'.format(direction), sigmas)
 
                     # now let's set the label for the dimension from the qualifier/twig
-                    kwargs['{}label'.format(direction)] = _plural_to_singular.get(current_value, current_value)
+                    kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
 
                     # we'll also keep the qualifier around - autofig doesn't use this
                     # but we'll keep it so we can set some defaults
@@ -2085,12 +2085,12 @@ class ParameterSet(object):
 
                     kwargs[direction] = self._bundle.to_phase(times, component=component_phase, t0=kwargs.get('t0', 't0_supconj')) * u.dimensionless_unscaled
 
-                    kwargs['{}label'.format(direction)] = 'phase:{}'.format(component_phase) if component_phase is not None else 'phase'
+                    kwargs.setdefault('{}label'.format(direction), 'phase:{}'.format(component_phase) if component_phase is not None else 'phase')
 
                     kwargs['{}qualifier'.format(direction)] = current_value
 
                     # and we'll set the linebreak so that decreasing phase breaks any lines (allowing for phase wrapping)
-                    kwargs['linebreak'] = '{}-'.format(direction)
+                    kwargs.setdefault('linebreak', '{}-'.format(direction))
 
                     return kwargs
 
@@ -2105,7 +2105,7 @@ class ParameterSet(object):
                         candidate_params = full_mesh_ps.filter(current_value)
                         if len(candidate_params) == 1:
                             kwargs[direction] = candidate_params.get_quantity()
-                            kwargs['{}label'.format(direction)] = _plural_to_singular.get(current_value, current_value)
+                            kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
                             kwargs['{}qualifier'.format(direction)] = current_value
                             return kwargs
                         elif len(candidate_params) > 1:
