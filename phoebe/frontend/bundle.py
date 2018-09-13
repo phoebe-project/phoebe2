@@ -2548,7 +2548,7 @@ class Bundle(ParameterSet):
 
     @send_if_client
     def run_compute(self, compute=None, model=None, detach=False,
-                    animate=False, times=None, **kwargs):
+                    times=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset using
         a specified set of compute options.
@@ -2584,18 +2584,6 @@ class Bundle(ParameterSet):
             :meth:`phoebe.parameters.parameters.JobParameter` will then contain
             the necessary information to pull the results from the server at anytime
             in the future.
-        :parameter animate: [EXPERIMENTAL] information to send to :meth:`animate`
-            while the synthetics are being built.  If not False (in which case
-            live animation will not be done), animate should be a dictionary or
-            list of dictionaries and a new frame will be displayed and plotted
-            as they are computed.  This really only makes sense for backends
-            that compute per-time rather than per-dataset.  Note: animation
-            may significantly slow down the time of run_compute, especially
-            for a large number of time-points or if meshes are being stored/plotted.
-            Also note: animate will obviously be ignored if detach=True, this
-            isn't magic.  NOTE: fixed_limits are not supported from run_compute,
-            axes limits will be updated each frame, but all colorlimits will
-            be determined per-frame and will not be constant across the animation.
         :parameter list times: [EXPERIMENTAL] override the times at which to compute the model.
             NOTE: this only (temporarily) replaces the time array for datasets
             with times provided (ie empty time arrays are still ignored).  So if
@@ -2773,57 +2761,9 @@ class Bundle(ParameterSet):
 
             metawargs = {'compute': compute, 'model': model, 'context': 'model'}  # dataset, component, etc will be set by the compute_func
 
-            if animate:
-                # handle setting defaults from kwargs to each plotting call
-                compute_generator = compute_func(self, compute, as_generator=True, times=times, **kwargs)
-
-                # In order to build the first frame and initialize the animation,
-                # we'll iterate the generator once (ie compute the first time-step)
-                ps_tmp, time = next(compute_generator)
-                ps_tmp.set_meta(**metawargs) # TODO: is this necessary?
-
-                # Now we'll initialize the figure and send the generator to the
-                # animator.  The animator will then handle looping through the
-                # rest of the generator to finish computing the synthetic
-                # model.
-                plotting_args = parameters._parse_plotting_args(animate)
-                for plot_args in plotting_args:
-                    # live-plotting doesn't support highlight (because time
-                    # array is already filled and interpolation will fail)
-
-                    # TODO: make this work to be defaulted to True (current
-                    # problem is that time array is prepopulated)
-                    plot_args['highlight'] = False
-                    # plot_args['uncover'] = False
-
-                anim, ao = mpl_animate.animate(self-self.filter(context='model'),
-                                               init_ps=self-self.filter(context='model')+ps_tmp,
-                                               init_time=time,
-                                               frames=compute_generator,
-                                               fixed_limits=False,
-                                               plotting_args=plotting_args,
-                                               metawargs=metawargs)
-
-                plt.show()
-
-                # NOTE: this will not finish if the mpl window is closed before
-                # all times are filled
-
-                # TODO: can we make sure the generator is finished, and if it
-                # isn't complete the loop rather than access ao.latest_frame?
-                # Or alternatively, if we didn't just copy the time array we
-                # could leave an "incomplete" model that wouldn't fail future
-                # plotting
-
-                # assuming the animation was allowed to complete, the ao object
-                # holds the last yielded parameters and time.  Let's take the
-                # params here so that they can be attached to the bundle.
-                params, last_time = ao.latest_frame
-
-            else:
-                # comma in the following line is necessary because compute_func
-                # is /technically/ a generator (it yields instead of returns)
-                params, = compute_func(self, compute, times=times, **kwargs)
+            # comma in the following line is necessary because compute_func
+            # is /technically/ a generator (it yields instead of returns)
+            params, = compute_func(self, compute, times=times, **kwargs)
 
 
             # average over any exposure times before attaching parameters
