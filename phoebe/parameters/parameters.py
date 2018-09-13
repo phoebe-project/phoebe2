@@ -4545,14 +4545,15 @@ class FloatArrayParameter(FloatParameter):
 
         return value
 
-    def set_property(self, property, value):
+    def set_property(self, **kwargs):
         """
         set any property of the underlying nparray object
         """
         if not isinstance(self._value, nparray.ndarray):
             raise ValueError("value is not a nparray object")
 
-        setattr(self._value, property, value)
+        for property, value in kwargs.items():
+            setattr(self._value, property, value)
 
 class ArrayParameter(Parameter):
     def __init__(self, *args, **kwargs):
