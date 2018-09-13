@@ -2470,6 +2470,7 @@ class ParameterSet(object):
         # since we used the args trick above, all other options have to be in kwargs
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
+        time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
         # this first loop allows for building figures or plotting
         # multiple twigs at once.
@@ -2490,13 +2491,14 @@ class ParameterSet(object):
                     continue
 
                 autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-                logger.debug("passing to autofig.{}: {}".format(autofig_method, {k:v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape) for k,v in plot_kwargs.items()}))
+                logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
                 func = getattr(self.gcf(), autofig_method)
 
                 func(**plot_kwargs)
 
         if save or show:
-            fig = self.gcf().draw(save=save, show=show)
+            logger.info("calling autofig.draw(i={}, save={}, show={})".format(time, save, show))
+            fig = self.gcf().draw(i=time, save=save, show=show)
             # clear the figure so next call will start over and future shows will work
             afig = self.gcf()
             self.clf()
@@ -2507,15 +2509,16 @@ class ParameterSet(object):
         return afig, fig
 
 
-    def show(self):
+    def show(self, time=None):
         """
         Draw and show the plot.
         """
-        fig = self.gcf().draw(show=True)
+        logger.info("calling autofig.draw(i={}, show={})".format(time, show))
+        fig = self.gcf().draw(i=time, show=True)
         return self.gcf(), fig
 
 
-    def savefig(self, fname):
+    def savefig(self, fname, time=None):
         """
         Draw and save the plot.
 
@@ -2523,7 +2526,8 @@ class ParameterSet(object):
                 matplotlib accepts many different image formats while other
                 backends will only export to html.
         """
-        fig = self.gcf().draw(save=fname)
+        logger.info("calling autofig.draw(i={}, save={})".format(time, save))
+        fig = self.gcf().draw(i=time, save=fname)
         return self.gcf(), fig
 
 
@@ -2569,7 +2573,8 @@ class ParameterSet(object):
 
             times = sorted(list(set(times)))
 
-        logger.debug("autofig.animate at times: {}".format(times))
+        logger.info("calling autofig.animate(i={}, save={}, show={}, save_kwargs={})".format(times, save, show, save_kwargs))
+
         mplanim = self.gcf().animate(i=times,
                                      save=save,
                                      show=show,
