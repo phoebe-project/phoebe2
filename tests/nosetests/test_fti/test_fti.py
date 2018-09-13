@@ -31,9 +31,7 @@ def test_binary(plot=False):
         print "fti off"
         print abs(fluxes_legacy-fluxes).max()
         plt.plot(times, fluxes_legacy, 'k-')
-        b.plot()
-        plt.legend()
-        plt.show()
+        b.plot(show=True)
     assert(np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-3))
 
     b.run_compute(fti_method='oversample', fti_oversample=10)
@@ -44,20 +42,12 @@ def test_binary(plot=False):
         print "fti on"
         print abs(fluxes_legacy-fluxes).max()
         plt.plot(times, fluxes_legacy, 'k-')
-        b.plot()
-        b.plot()
-        plt.legend()
-        plt.show()
+        b.plot(show=True)
     assert(np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-3))
-
-
-
-
 
     return b
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
-
 
     b = test_binary(plot=True)

@@ -108,9 +108,7 @@ def test_binary(plot=False):
                 print "exact_comparison: {}, max (rel): {}".format(exact_comparison, abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 
             if plot:
-                b.plot(dataset='lc01')
-                plt.legend()
-                plt.show()
+                b.plot(dataset='lc01', show=True)
 
             assert(np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3 if exact_comparison else 0.3, atol=0.))
 

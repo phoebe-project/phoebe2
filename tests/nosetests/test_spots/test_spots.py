@@ -39,9 +39,7 @@ def test_binary(plot=False):
 
         # b.plot(dataset='mesh01', show=True)
 
-        b.plot(dataset='lc01')
-        plt.legend()
-        plt.show()
+        b.plot(dataset='lc01', show=True)
 
     # assert(np.allclose(phoebe2_val, phoebe1_val, rtol=2e-3, atol=0.))
 

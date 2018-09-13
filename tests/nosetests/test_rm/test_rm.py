@@ -18,9 +18,7 @@ def _beta_vs_legacy(b, plot=False):
 
 
     if plot:
-        plt.cla()
-        b.plot()
-        plt.show()
+        b.plot(show=True)
 
     phoebe2_val = b.get_value('rvs@primary@phnumresults@phnum')
     phoebe1_val = b.get_value('rvs@primary@legnumresults@legnum')

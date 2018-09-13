@@ -41,9 +41,7 @@ def test_binary(plot=False):
         if plot:
             print "ecc: {} max (rel): {}".format(ecc , abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 
-            b.plot(dataset='lc01')
-            plt.legend()
-            plt.show()
+            b.plot(dataset='lc01', show=True)
 
         assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3 if ecc < 0.5 else 5e-3, atol=0.))
 
