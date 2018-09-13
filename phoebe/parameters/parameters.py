@@ -2003,7 +2003,29 @@ class ParameterSet(object):
         # with a SINGLE call.  We need to prepare kwargs so that it can be passed
         # to autofig.plot or autofig.mesh
 
-        # handle any "aliases"
+
+        #### SUPPORT DICTIONARIES IN KWARGS
+        # like color={'primary': 'red', 'secondary': 'blue'} or
+        # linestyle={'rv01': 'solid', 'rv02': 'dashed'}
+        # here we need to filter any kwargs that are dictionaries if they match
+        # the current ps
+        for k,v in kwargs.items():
+            if isinstance(v, dict):
+                # overwrite kwargs[k] based on any match in v
+                match = None
+                for kk,vv in v.items():
+                    if kk in ps.meta.values():
+                        if match is not None:
+                            raise ValueError("dictionary {}={} is not unique for {}".format(k,v, ps.meta))
+                        match = vv
+
+                if match is not None:
+                    kwargs[k] = match
+                else:
+                    # remove from the dictionary and fallback on defaults
+                    _dump = kwargs.pop(k)
+
+        #### ALIASES
         if 'color' in kwargs.keys() and 'colors' not in kwargs.keys() and 'c' not in kwargs.keys():
             logger.warning("assuming you meant 'c' instead of 'color'")
             kwargs['c'] = kwargs.pop('color')
