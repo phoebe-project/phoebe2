@@ -1217,6 +1217,18 @@ class Bundle(ParameterSet):
                             return False,\
                                 'contact binaries must by synchronous, but syncpar@{}!=1'.format(component)
 
+                        if self.get_value(qualifier='ecc', component=parent, context='component', **kwargs) != 0.0:
+                            return False,\
+                                'contact binaries must by circular, but ecc@{}!=0'.format(component)
+
+                        if self.get_value(qualifier='pitch', component=component, context='component', **kwargs) != 0.0:
+                            return False,\
+                                'contact binaries must be aligned, but pitch@{}!=0'.format(component)
+
+                        if self.get_value(qualifier='yaw', component=component, context='component', **kwargs) != 0.0:
+                            return False,\
+                                'contact binaries must be aligned, but yaw@{}!=0'.format(component)
+
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
                     requiv = comp_ps.get_value('requiv', unit=u.solRad, **kwargs)

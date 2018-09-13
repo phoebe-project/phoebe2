@@ -1920,10 +1920,7 @@ class Star_roche_envelope_half(Star):
                  **kwargs):
         """
         """
-        # extra things (not used by Star) will be stored in kwargs
-        self.F = 1
-        ecc = 0.0
-
+        self.F = 1 # frontend run_checks makes sure that contacts are synchronous
         self.pot = kwargs.get('pot')
         # requiv won't be used, instead we'll use potential, but we'll allow
         # accessing and passing requiv anyways.
@@ -1962,7 +1959,7 @@ class Star_roche_envelope_half(Star):
 
         return super(Star_roche_envelope_half, cls).from_bundle(b, component, compute,
                                                   mesh_init_phi, datasets,
-                                                  F=1, pot=pot,
+                                                  pot=pot,
                                                   **kwargs)
 
 
