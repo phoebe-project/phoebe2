@@ -17,24 +17,6 @@ if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]
     # with a helpful error message
     raise ImportError('\n\tYou cannot import Phoebe from inside its main source tree.\n')
 
-# If we try to load matplotlib.pyplot on a non-X system, it will fail
-# unless 'Agg' is used before the import. All X-systems define the
-# 'DISPLAY' environment variable, and all non-X-systems do not. We do make a
-# distinction between windows and unix based system. Hence:
-if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
-    try:
-        import matplotlib
-    except ImportError:
-        pass
-        # we'll catch this later in plotting and throw warnings as necessary
-    else:
-        if 'DISPLAY' not in os.environ.keys() and sys.platform not in ['win32','cygwin']:
-            matplotlib.use('Agg')
-        elif hasattr(sys, 'real_prefix'):
-            # then we're likely in a virtualenv.  Our best bet is to use the 'TkAgg'
-            # backend, but this will require python-tk to be installed on the system
-            matplotlib.use('TkAgg')
-
 import logging
 _logger = logging.getLogger("PHOEBE")
 _logger.addHandler(logging.NullHandler())

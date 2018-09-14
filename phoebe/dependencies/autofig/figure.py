@@ -122,7 +122,8 @@ class Figure(object):
 
         if show or save:
             self.reset_draw()
-            return self.draw(tight_layout=tight_layout, show=show, save=save)
+            return self.draw(tight_layout=tight_layout,
+                             show=show, save=save)
 
     @property
     def meshes(self):

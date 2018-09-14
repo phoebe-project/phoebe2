@@ -83,7 +83,9 @@ class Axes(object):
         self._class = 'Axes' # just to avoid circular import in order to use isinstance
 
         self._figure = None
-        self._projection = kwargs.pop('projection', None)
+        self.projection = kwargs.pop('projection', None)
+        self.legend = kwargs.pop('legend', False)
+        self.legend_kwargs = kwargs.pop('legend_kwargs', {})
 
         self._backend_object = None
         self._backend_artists = []
@@ -188,6 +190,28 @@ class Axes(object):
             projection = None
 
         self._projection = projection
+
+    @property
+    def legend(self):
+        return self._legend
+
+    @legend.setter
+    def legend(self, legend):
+        if not isinstance(legend, bool):
+            raise TypeError("legend must be of type bool (send kwargs to legend_kwargs)")
+
+        self._legend = legend
+
+    @property
+    def legend_kwargs(self):
+        return self._legend_kwargs
+
+    @legend_kwargs.setter
+    def legend_kwargs(self, legend_kwargs):
+        if not isinstance(legend_kwargs, dict):
+            raise TypeError("legend_kwargs must by of type dict")
+
+        self._legend_kwargs = legend_kwargs
 
     @property
     def i(self):
@@ -471,6 +495,10 @@ class Axes(object):
                 self.pad_aspect = call.kwargs.pop('pad_aspect')
             if 'projection' in call.kwargs.keys():
                 self.projection = call.kwargs.pop('projection')
+            if 'legend' in call.kwargs.keys():
+                self.legend = call.kwargs.pop('legend')
+            if 'legend_kwargs' in call.kwargs.keys():
+                self.legend_kwargs = call.kwargs.pop('legend_kwargs')
             if 'elev' in call.kwargs.keys():
                 self.elev.value = call.kwargs.pop('elev')
             if 'azim' in call.kwargs.keys():
@@ -697,6 +725,9 @@ class Axes(object):
             elev_current = self.elev.get_value(i=i)
             azim_current = self.azim.get_value(i=i)
             ax.view_init(elev_current, azim_current)
+
+        if self.legend:
+            plt.legend(**self.legend_kwargs)
 
         if show:
             plt.show()

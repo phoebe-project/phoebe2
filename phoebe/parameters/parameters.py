@@ -69,11 +69,11 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
     try:
         from phoebe.dependencies import autofig
     except (ImportError, TypeError):
-        _use_mpl = False
+        _use_autofig = False
     else:
-        _use_mpl = True
+        _use_autofig = True
 else:
-    _use_mpl = False
+    _use_autofig = False
 
 import logging
 logger = logging.getLogger("PARAMETERS")
@@ -2173,12 +2173,18 @@ class ParameterSet(object):
             # first determine from any passed values if we're in xyz or uvw
             # (do not allow mixing between roche and POS)
             detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
-            coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers])
-            if len(coordinate_systems) > 1:
-                # then we're mixing roche and POS
-                raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
+            if len(detected_qualifiers):
+                coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers])
 
-            coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
+                if len(coordinate_systems) > 1:
+                    # then we're mixing roche and POS
+                    raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
+
+                coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
+
+            else:
+                coordinates = ['us', 'vs', 'ws']
+
 
             defaults = {}
             for af_direction in ['x', 'y', 'z']:
@@ -2340,22 +2346,12 @@ class ParameterSet(object):
                 kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn')
                 kwargs.setdefault('{}lim'.format(af_direction), (0,1))
 
-
-        # set the label of this plot call.  This will only have any effect if
-        # the legend is shown
-        # TODO: we used to do this a bit more cleverly by taking the diff of xparam.uniquetwig and yparam.uniquetwig
-        # default_label = ''.join(c[2:] for c in list(difflib.ndiff(xparam.uniquetwig, yparam.uniquetwig)) if c[0] == ' ')
-        # if default_label[0] == '@':
-        #     # then let's just trim the leading @
-        #     default_label = default_label[1:]
-        # if default_label.split('@')[0] not in xparam.uniquetwig.split('@')+yparam.uniquetwig.split('@'):
-        #     # then we had some overlap that doesn't form a whole label
-        #     # this can happen for "times" and "fluxes", for example
-        #     # leaving the leading "es".  So let's trim this and only
-        #     # return the rest
-        #     default_label = '@'.join(default_label.split('@')[1:])
-        # default_label = '{}@{}'.format(ps.component, ps.dataset)
-        # kwargs.setdefault('label', default_label)
+        #### LABEL FOR LEGENDS
+        attrs = ['component', 'dataset']
+        if len(ps._bundle.models) > 1:
+            attrs += ['model']
+        default_label = '@'.join([getattr(ps, attr) for attr in attrs if getattr(ps, attr) is not None])
+        kwargs.setdefault('label', default_label)
 
         return (kwargs,)
 
@@ -2380,12 +2376,9 @@ class ParameterSet(object):
         for other plotting backends).  This function smartly makes one
         or multiple calls to the plotting backend based on the type of data.
 
-        Individual lines are each given a label (automatic if not provided).
-        To see these in a legend simply call ax.legend([options])
-
-        >>> ax = ps.plot()
-        >>> ax.legend()
-        >>> plt.show()
+        Individual lines are each given a label (automatic if not provided),
+        to see these in a legend, pass legend=True (and optionally any
+        keyword arguments to be passed along to plt.legend() as legend_kwargs).
 
         :parameter *args: either a twig pointing to a dataset,
             or dictionaries, where each dictionary gets passed back to
@@ -2497,12 +2490,18 @@ class ParameterSet(object):
 
         :returns: the matplotlib axes
         """
+        if not _use_autofig:
+            if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
+                raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disasbled")
+            else:
+                raise ImportError("autofig not imported, cannot plot")
 
         plot_argss = _parse_plotting_args(args)
 
         # since we used the args trick above, all other options have to be in kwargs
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
+        animate = kwargs.pop('animate', False)
         time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
         # this first loop allows for building figures or plotting
@@ -2524,26 +2523,34 @@ class ParameterSet(object):
                     continue
 
                 autofig_method = plot_kwargs.pop('autofig_method', 'plot')
+                # we kept the qualifiers around so we could do some default-logic,
+                # but it isn't necessary to pass them on to autofig.
+                plot_kwargs = {k:v for k,v in plot_kwargs.items() if 'qualifier' not in k}
                 logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
                 func = getattr(self.gcf(), autofig_method)
 
                 func(**plot_kwargs)
 
 
-        if save or show:
-            # NOTE: time, times, animate will all be included in kwargs
-            return self._show_or_save(save, show, **kwargs)
+        if save or show or animate:
+            # NOTE: time, times, will all be included in kwargs
+            return self._show_or_save(save, show, animate, **kwargs)
         else:
             afig = self.gcf()
             fig = None
 
             return afig, fig
 
-    def _show_or_save(self, save, show, **kwargs):
+    def _show_or_save(self, save, show, animate,
+                      **kwargs):
         """
         Draw/animate and show and/or save a autofig plot
         """
-        if kwargs.get('animate', False):
+        if animate and not show and not save:
+            logger.warning("setting show to True since animate=True and save not provided")
+            show = True
+
+        if animate:
             # prefer times over time
             times = kwargs.get('times', kwargs.get('time', None))
             save_kwargs = kwargs.get('save_kwargs', {})
@@ -2583,7 +2590,8 @@ class ParameterSet(object):
             time = kwargs.get('time', None)
 
             logger.info("calling autofig.draw(i={}, save={}, show={})".format(time, save, show))
-            fig = self.gcf().draw(i=time, save=save, show=show)
+            fig = self.gcf().draw(i=time,
+                                  save=save, show=show)
             # clear the figure so next call will start over and future shows will work
             afig = self.gcf()
             self.clf()
@@ -2591,13 +2599,16 @@ class ParameterSet(object):
             return afig, fig
 
 
-    def show(self, time=None):
+    def show(self, **kwargs):
         """
         Draw and show the plot.
         """
-        return self._show_or_save(show=True, save=False, time=time)
+        kwargs.setdefault('show', True)
+        kwargs.setdefault('save', False)
+        kwargs.setdefault('animate', False)
+        return self._show_or_save(**kwargs)
 
-    def savefig(self, fname, time=None):
+    def savefig(self, fname, **kwargs):
         """
         Draw and save the plot.
 
@@ -2605,7 +2616,10 @@ class ParameterSet(object):
                 matplotlib accepts many different image formats while other
                 backends will only export to html.
         """
-        return self._show_or_save(save=fname, show=False, time=time)
+        kwargs.setdefault('show', False)
+        kwargs.setdefault('save', fname)
+        kwargs.setdefault('animate', False)
+        return self._show_or_save(**kwargs)
 
 class Parameter(object):
     def __init__(self, qualifier, value=None, description='', **kwargs):

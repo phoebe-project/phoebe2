@@ -106,6 +106,7 @@ class Call(object):
                  yerror=None, yunit=None, ylabel=None,
                  zerror=None, zunit=None, zlabel=None,
                  iunit=None,
+                 label=None,
                  consider_for_limits=True,
                  uncover=False,
                  trail=False,
@@ -129,6 +130,8 @@ class Call(object):
         self.consider_for_limits = consider_for_limits
         self.uncover = uncover
         self.trail = trail
+
+        self.label = label
 
         self.kwargs = kwargs
 
@@ -219,6 +222,21 @@ class Call(object):
 
         self._trail = trail
 
+    @property
+    def label(self):
+        return self._label
+
+    @label.setter
+    def label(self, label):
+        if label is None:
+            self._label = label
+            return
+
+        if not isinstance(label, str):
+            raise TypeError("label must be of type str")
+
+        self._label = label
+
 
 class Plot(Call):
     def __init__(self, x=None, y=None, z=None, c=None, s=None, i=None,
@@ -228,6 +246,7 @@ class Plot(Call):
                        cunit=None, clabel=None, cmap=None,
                        sunit=None, slabel=None, smap=None, smode=None,
                        iunit=None,
+                       label=None,
                        marker=None,
                        linestyle=None, linebreak=None,
                        highlight=True, uncover=False, trail=False,
@@ -296,6 +315,7 @@ class Plot(Call):
                                    z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
                                    consider_for_limits=consider_for_limits,
                                    uncover=uncover, trail=trail,
+                                   label=label,
                                    **kwargs
                                    )
 
@@ -404,8 +424,8 @@ class Plot(Call):
 
     @property
     def highlight_color(self):
-        if self._highlight_color is None:
-            return self.get_color()
+        # if self._highlight_color is None:
+            # return self.get_color()
 
         return self._highlight_color
 
@@ -791,6 +811,7 @@ class Plot(Call):
                         artists = ax.errorbar(*datapoint,
                                                fmt='', linestyle='None',
                                                zorder=zorder,
+                                               label=self.label if loop==0 else None,
                                                **error_kwargs_loop(loop, do_zorder))
 
                         # NOTE: these are currently not included in return_artists
@@ -806,7 +827,7 @@ class Plot(Call):
                             # else:
                                 # return_artists += [artist_list]
 
-                    if do_colorscale or do_sizescale or do_zorder:
+                    if do_colorscale or do_sizescale or do_zorder or marker in ['x', '+']:
                         # DRAW LINECOLLECTION, if applicable
                         if ls.lower() != 'none':
                             # TODO: color and zorder are assigned from the LEFT point in
@@ -822,8 +843,14 @@ class Plot(Call):
                             else:
                                 lccall = LineCollection
 
+                            # we'll only include this in the legend for the first loop
+                            # and if the marker isn't going to get its own entry.
+                            # Unfortunately this means in these cases the
+                            # marker will get precedent in the legend if both
+                            # marker and linestyle are present
                             lc = lccall(segments,
                                         zorder=zorder,
+                                        label=self.label if loop==0 and marker.lower()=='none' else None,
                                         **lc_kwargs_loop(lc_kwargs_const, loop, do_zorder))
 
                             if do_colorscale:
@@ -841,6 +868,7 @@ class Plot(Call):
                         if marker.lower() != 'none':
                             artist = ax.scatter(*datapoint,
                                                 zorder=zorder,
+                                                label=self.label if loop==0 else None,
                                                 **sc_kwargs_loop(sc_kwargs_const, loop, do_zorder))
 
                             return_artists_this_loop.append(artist)
@@ -853,7 +881,8 @@ class Plot(Call):
                                           marker=marker,
                                           ls=ls,
                                           mec='none',
-                                          color=color)
+                                          color=color,
+                                          label=self.label if loop==0 else None)
 
                         return_artists_this_loop += artists
 
@@ -871,11 +900,11 @@ class Plot(Call):
             if not (isinstance(x, np.ndarray) and isinstance(y, np.ndarray)):
                 # TODO: can we do anything in 3D?
                 if x is not None:
-                    artist = ax.axvline(x, ls=ls, color=color)
+                    artist = ax.axvline(x, ls=ls, color=color, label=self.label)
                     return_artists += [artist]
 
                 if y is not None:
-                    artist = ax.axhline(y, ls=ls, color=color)
+                    artist = ax.axhline(y, ls=ls, color=color, label=self.label)
                     return_artists += [artist]
 
         # DRAW HIGHLIGHT, if applicable (outside per-datapoint loop)
@@ -893,7 +922,7 @@ class Plot(Call):
                 if linefunc is not None:
                     artist = getattr(ax, linefunc)(i,
                                                    ls=self.highlight_linestyle,
-                                                   color=self.highlight_color)
+                                                   color=self.highlight_color if self.highlight_color is not None else color)
 
                     artist._af_highlight = True
                     return_artists += [artist]
@@ -912,7 +941,7 @@ class Plot(Call):
             artists = ax.plot(*highlight_data,
                               marker=self.highlight_marker,
                               ls=self.highlight_linestyle,
-                              color=self.highlight_color)
+                              color=self.highlight_color if self.highlight_color is not None else color)
 
             for artist in artists:
                 artist._af_highlight=True
@@ -938,6 +967,7 @@ class Mesh(Call):
                        fcunit=None, fclabel=None, fcmap=None,
                        ecunit=None, eclabel=None, ecmap=None,
                        iunit=None,
+                       label=None,
                        linestyle='solid',
                        consider_for_limits=True,
                        uncover=True,
@@ -971,6 +1001,7 @@ class Mesh(Call):
                                    z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
                                    consider_for_limits=consider_for_limits,
                                    uncover=uncover, trail=trail,
+                                   label=label,
                                    **kwargs
                                    )
 
@@ -1179,7 +1210,8 @@ class Mesh(Call):
                             linestyle=self.linestyle,
                             edgecolors=edgecolor,
                             facecolors=facecolor,
-                            zorder=zorder)
+                            zorder=zorder,
+                            label=self.label)
                 ax.add_collection(pc)
 
                 return_artists += [pc]
@@ -1190,7 +1222,8 @@ class Mesh(Call):
                         linestyle=self.linestyle,
                         edgecolors=edgecolors,
                         facecolors=facecolors,
-                        zorder=zorders)
+                        zorder=zorders,
+                        label=self.label)
 
             ax.add_collection(pc)
 
