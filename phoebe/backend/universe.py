@@ -559,7 +559,10 @@ class System(object):
 
             line = func(sv(wavelengths, profile_rest, profile_sv))
             lines = np.array([np.interp(wavelengths, wavelengths+dl, line) for dl in dls])
-            avg_line = np.average(lines, axis=0, weights=abs_intensities*areas*mus*ldint*visibilities)
+            if not np.any(visibilities):
+                avg_line = np.full_like(wavelengths, np.nan)
+            else:
+                avg_line = np.average(lines, axis=0, weights=abs_intensities*areas*mus*ldint*visibilities)
 
             return {'flux_densities': avg_line}
 
