@@ -123,9 +123,9 @@ _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
 
 _singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
-                       'rv': 'rvs', 'time_ecl': 'time_ecls',
-                       'time_ephem': 'time_ephems', 'N': 'Ns', 'x': 'xs',
-                       'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
+                       'rv': 'rvs', 'flux_density': 'flux_densities',
+                       'time_ecl': 'time_ecls', 'time_ephem': 'time_ephems', 'N': 'Ns',
+                       'x': 'xs', 'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
                        'vz': 'vzs', 'nx': 'nxs', 'ny': 'nys', 'nz': 'nzs',
                        'u': 'us', 'v': 'vs', 'w': 'ws', 'vu': 'vus', 'vv': 'vvs',
                        'vw': 'vws', 'nu': 'nus', 'nv': 'nvs', 'nw': 'nws',
@@ -2063,7 +2063,10 @@ class ParameterSet(object):
                     _dump = kwargs.pop(direction)
                     return kwargs
 
-                if '@' in current_value or current_value in ps.qualifiers or \
+                elif current_value in ['None', 'none']:
+                    return kwargs
+
+                elif '@' in current_value or current_value in ps.qualifiers or \
                         (current_value in ['xs', 'ys', 'zs'] and 'xyz_elements' in ps.qualifiers) or \
                         (current_value in ['us', 'vs', 'ws'] and 'uvw_elements' in ps.qualifiers):
 
@@ -2106,7 +2109,7 @@ class ParameterSet(object):
                         kwargs['{}qualifier'.format(direction)] = current_value
                         return kwargs
                     elif len(candidate_params) > 1:
-                        raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, ps.twigs))
+                        raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, candidate_params.twigs))
                     else:
                         # then len(candidate_params) == 0
                         raise ValueError("could not find a match for {}={}".format(direction, current_value))
@@ -2147,7 +2150,9 @@ class ParameterSet(object):
                             kwargs['{}qualifier'.format(direction)] = current_value
                             return kwargs
                         elif len(candidate_params) > 1:
-                            return ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, ps.twigs))
+                            raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, candidate_params.twigs))
+                        else:
+                            logger.warning("could not find match for {}={} at time={}".format(direction, current_value, full_mesh_meta['time']))
 
                     # Nothing has been found, so we'll assume the string is
                     # the name of a color.  If the color isn't accepted by
@@ -2210,6 +2215,11 @@ class ParameterSet(object):
             # (xyz_elements, uvw_elements)
             mesh_all_cartesian = len(coordinates) == 0
 
+            # since we'll be selecting from the time tag, we need a non-zero tolerance
+            kwargs.setdefault('itol', 1e-6)
+
+            # we want the wireframe by default
+            kwargs.setdefault('ec', 'black')
 
             sigmas_avail = []
         elif ps.kind in ['orb', 'orb_syn']:
@@ -2249,6 +2259,9 @@ class ParameterSet(object):
                         'y': 'flux_densities',
                         'z': 0}
             sigmas_avail = ['flux_densities']
+
+            # since we'll be selecting from the time tag, we need a non-zero tolerance
+            kwargs.setdefault('itol', 1e-6)
 
             # if animating or drawing at a single time, we want to show only
             # the selected item, not all and then highlight the selected item
@@ -2501,6 +2514,7 @@ class ParameterSet(object):
         # since we used the args trick above, all other options have to be in kwargs
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
+        tight_layout = kwargs.pop('tight_layout', False)
         animate = kwargs.pop('animate', False)
         time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
@@ -2534,7 +2548,8 @@ class ParameterSet(object):
 
         if save or show or animate:
             # NOTE: time, times, will all be included in kwargs
-            return self._show_or_save(save, show, animate, **kwargs)
+            return self._show_or_save(save, show, animate,
+                                      tight_layout=tight_layout, **kwargs)
         else:
             afig = self.gcf()
             fig = None
@@ -2542,6 +2557,7 @@ class ParameterSet(object):
             return afig, fig
 
     def _show_or_save(self, save, show, animate,
+                      tight_layout=False,
                       **kwargs):
         """
         Draw/animate and show and/or save a autofig plot
@@ -2572,9 +2588,10 @@ class ParameterSet(object):
 
                 times = sorted(list(set(times)))
 
-            logger.info("calling autofig.animate(i={}, save={}, show={}, save_kwargs={})".format(times, save, show, save_kwargs))
+            logger.info("calling autofig.animate(i={}, tight_layout={}, save={}, show={}, save_kwargs={})".format(times, tight_layout, save, show, save_kwargs))
 
             mplanim = self.gcf().animate(i=times,
+                                         tight_layout=tight_layout,
                                          save=save,
                                          show=show,
                                          save_kwargs=save_kwargs)
@@ -2589,8 +2606,9 @@ class ParameterSet(object):
         else:
             time = kwargs.get('time', None)
 
-            logger.info("calling autofig.draw(i={}, save={}, show={})".format(time, save, show))
+            logger.info("calling autofig.draw(i={}, tight_layout={}, save={}, show={})".format(time, tight_layout, save, show))
             fig = self.gcf().draw(i=time,
+                                  tight_layout=tight_layout,
                                   save=save, show=show)
             # clear the figure so next call will start over and future shows will work
             afig = self.gcf()

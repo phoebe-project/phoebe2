@@ -105,7 +105,7 @@ class Call(object):
                  xerror=None, xunit=None, xlabel=None,
                  yerror=None, yunit=None, ylabel=None,
                  zerror=None, zunit=None, zlabel=None,
-                 iunit=None,
+                 iunit=None, itol=0.0,
                  label=None,
                  consider_for_limits=True,
                  uncover=False,
@@ -125,7 +125,7 @@ class Call(object):
 
         # defined last so all other dimensions are in place in case indep
         # is a reference and needs to access units, etc
-        self._i = CallDimensionI(self, i, iunit)
+        self._i = CallDimensionI(self, i, iunit, itol)
 
         self.consider_for_limits = consider_for_limits
         self.uncover = uncover
@@ -627,9 +627,18 @@ class Plot(Call):
         y = self.y.get_value(i=i, unit=self.axes.y.unit)
         yerr = self.y.get_error(i=i, unit=self.axes.y.unit)
         z = self.z.get_value(i=i, unit=self.axes.z.unit)
-        # TODO: implement zerr
+        # zerr is handled below, only if axes_3ds
         c = self.c.get_value(i=i, unit=self.axes_c.unit if self.axes_c is not None else None)
         s = self.s.get_value(i=i, unit=self.axes_s.unit if self.axes_s is not None else None)
+
+        # bail on cases where we can't plot.  This could possibly be due to
+        # sending Nones or Nans
+        # if x is None and y is None:
+        #     return []
+        # if x is None and len(y) > 1:
+        #     return []
+        # if y is None and len(x) > 1:
+        #     return []
 
         if axes_3d:
             zerr = self.z.get_error(i=i, unit=self.axes.z.unit)
@@ -1125,7 +1134,6 @@ class Mesh(Call):
 
         # PLOTTING
         return_artists = []
-        # TODO: handle getting in correct units (possibly passed from axes?)
         x = self.x.get_value(i=i, unit=self.axes.x.unit)
         y = self.y.get_value(i=i, unit=self.axes.y.unit)
         z = self.z.get_value(i=i, unit=self.axes.z.unit)
@@ -1488,14 +1496,14 @@ class CallDimension(object):
         if trail is not False:
             trail_i = self._get_trail_min(i=i, trail=trail)
 
-            left_filter = i_value >= trail_i
+            left_filter = i_value >= trail_i - self.call.i.tol
 
         else:
             left_filter = trues
 
 
         if uncover is not False:
-            right_filter = i_value <= i
+            right_filter = i_value <= i + self.call.i.tol
 
         else:
             right_filter = trues
@@ -1818,8 +1826,27 @@ class CallDimension(object):
 
 
 class CallDimensionI(CallDimension):
-    def __init__(self, *args):
-        super(CallDimensionI, self).__init__('i', *args)
+    def __init__(self, call, value, unit, tol):
+        self.tol = tol
+        super(CallDimensionI, self).__init__('i', call, value, unit)
+
+    @property
+    def tol(self):
+        """
+        tolerance to use when selecting/uncover/trail
+        """
+        if self._tol is None:
+            return 0.0
+
+        return self._tol
+
+    @tol.setter
+    def tol(self, tol):
+        if not isinstance(tol, float):
+            raise TypeError("tol must be of type float")
+
+        # TODO: handle units?
+        self._tol = tol
 
     @property
     def value(self):

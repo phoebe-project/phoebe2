@@ -717,10 +717,17 @@ class Axes(object):
         if axes_3d:
             ax.set_zlabel(self.z.label_with_units)
 
-        ax.set_xlim(*self.x.get_lim(i=i))
-        ax.set_ylim(*self.y.get_lim(i=i))
+        xlim = self.x.get_lim(i=i)
+        if not np.any(np.isnan(xlim)):
+            ax.set_xlim(xlim)
+        ylim = self.y.get_lim(i=i)
+        if not np.any(np.isnan(ylim)):
+            ax.set_ylim(ylim)
+
         if axes_3d:
-            ax.set_zlim(*self.z.get_lim(i=i))
+            zlim = self.z.get_lim(i=i)
+            if not np.any(np.isnan(zlim)):
+                ax.set_ylim(zlim)
 
             elev_current = self.elev.get_value(i=i)
             azim_current = self.azim.get_value(i=i)
@@ -1042,6 +1049,9 @@ class AxDimension(AxArray):
                 lim[0] -= rang*pad
             if not fixed_max:
                 lim[1] += rang*pad
+
+        if np.nan in lim:
+            return (None, None)
 
         return tuple(lim)
 
