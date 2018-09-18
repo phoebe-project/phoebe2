@@ -1327,7 +1327,7 @@ class Bundle(ParameterSet):
                     for compute in kwargs.get('computes', self.computes):
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         if atm != 'ck2004':
-                            return False, "ld_func='interp' only supported by atm='ck2004'."
+                            return False, "ld_func='interp' only supported by atm='ck2004'.  Either change atm@{} or ld_func@{}@{}".format(component, component, dataset)
 
         # mesh-consistency checks
         for compute in self.computes:
