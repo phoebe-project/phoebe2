@@ -2079,7 +2079,10 @@ class ParameterSet(object):
                         verts = ps.get_quantity(qualifier='uvw_elements')
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
                     else:
-                        array_value = ps.get_quantity(current_value)
+                        try:
+                            array_value = ps.get_quantity(current_value)
+                        except ValueError:
+                            raise ValueError("could not find Parameter for {}".format(current_value))
 
                     kwargs[direction] = array_value
 
@@ -2152,7 +2155,7 @@ class ParameterSet(object):
                         elif len(candidate_params) > 1:
                             raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, candidate_params.twigs))
                         else:
-                            logger.warning("could not find match for {}={} at time={}".format(direction, current_value, full_mesh_meta['time']))
+                            logger.warning("could not find Parameter match for {}={} at time={}, assuming named color".format(direction, current_value, full_mesh_meta['time']))
 
                     # Nothing has been found, so we'll assume the string is
                     # the name of a color.  If the color isn't accepted by
@@ -2179,7 +2182,7 @@ class ParameterSet(object):
             # (do not allow mixing between roche and POS)
             detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
             if len(detected_qualifiers):
-                coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers])
+                coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers if detected_qualifier in ['us', 'vs', 'ws', 'xs', 'ys', 'zs']])
 
                 if len(coordinate_systems) > 1:
                     # then we're mixing roche and POS
@@ -2192,6 +2195,16 @@ class ParameterSet(object):
 
 
             defaults = {}
+            # first we need to know if any of the af_directions are set to
+            # something other than cartesian by the user (in which case we need
+            # to check for the parameter's existence before defaulting and use
+            # scatter instead of mesh plot)
+            mesh_all_cartesian = True
+            for af_direction in ['x', 'y', 'z']:
+                if kwargs.get(af_direction, None) not in [None] + coordinates:
+                    mesh_all_cartesian = False
+
+            # now we need to loop again and set any missing defaults
             for af_direction in ['x', 'y', 'z']:
                 if af_direction in kwargs.keys():
                     # then default doesn't matter, but we'll set it at what it is
@@ -2206,20 +2219,24 @@ class ParameterSet(object):
                         coordinates.remove(kwargs[af_direction])
                 else:
                     # we'll take the first entry remaining in coordinates
-                    defaults[af_direction] = coordinates.pop(0)
+                    coordinate = coordinates.pop(0)
 
-            # If still have some coordinates left, then at least
-            # one dimension is not cartesian, meaning we will need to do
-            # a plot instead of mesh call, meaning we want to access from
-            # the centers (xs, ys, zs, us, vs, ws) instead of elements
-            # (xyz_elements, uvw_elements)
-            mesh_all_cartesian = len(coordinates) == 0
+                    # if mesh_all_cartesian then we're doing a mesh plot
+                    # and know that we have xyz/uvw_elements available.
+                    # Otherwise, we need to check and only apply the default
+                    # if that parameter (xs, ys, zs, us, vs, ws) is available.
+                    # Either way, we've removed this from the coordinates
+                    # list so the next direction will fill from the next available
+                    if mesh_all_cartesian or coordinate in ps.qualifiers:
+                        defaults[af_direction] = coordinate
+
 
             # since we'll be selecting from the time tag, we need a non-zero tolerance
             kwargs.setdefault('itol', 1e-6)
 
             # we want the wireframe by default
             kwargs.setdefault('ec', 'black')
+            kwargs.setdefault('fc', 'white')
 
             sigmas_avail = []
         elif ps.kind in ['orb', 'orb_syn']:
