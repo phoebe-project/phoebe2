@@ -130,7 +130,7 @@ _singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
                        'u': 'us', 'v': 'vs', 'w': 'ws', 'vu': 'vus', 'vv': 'vvs',
                        'vw': 'vws', 'nu': 'nus', 'nv': 'nvs', 'nw': 'nws',
                        'cosbeta': 'cosbetas', 'logg': 'loggs', 'teff': 'teffs',
-                       'r': 'rs', 'r_proj': 'r_projs', 'mu': 'mus',
+                       'r': 'rs', 'rproj': 'rprojs', 'mu': 'mus',
                        'visibility': 'visibilities'}
 _plural_to_singular = {v:k for k,v in _singular_to_plural.items()}
 

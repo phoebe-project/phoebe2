@@ -448,7 +448,7 @@ def mesh_syn(syn=True, **kwargs):
 
 
             if 'rs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), default_unit=u.solRad, description='Distance of each triangle from center of mass')]
+                syn_params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), default_unit=u.solRad, description='Distance of each triangle from center of mass (of the half-envelope for contacts)')]
             # if 'cosbetas' in columns:
             #     syn_params += [FloatArrayParameter(qualifier='cosbetas', time=t, value=kwargs.get('cosbetas', []), default_unit=u.solRad, description='')]
 
@@ -458,8 +458,8 @@ def mesh_syn(syn=True, **kwargs):
             if 'teffs' in columns:
                 syn_params += [FloatArrayParameter(qualifier='teffs', time=t, value=kwargs.get('teffs', []), default_unit=u.K, description='Local effective temperature')]
 
-            if 'r_projs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='r_projs', time=t, value=kwargs.get('r_projs', []), default_unit=u.solRad, description='Projected distance (on plane of sky) of each triangle from center of mass')]
+            if 'rprojs' in columns:
+                syn_params += [FloatArrayParameter(qualifier='rprojs', time=t, value=kwargs.get('rprojs', []), default_unit=u.solRad, description='Projected distance (on plane of sky) of each triangle from center of mass (of the half-envelope for contacts)')]
             if 'mus' in columns:
                 syn_params += [FloatArrayParameter(qualifier='mus', time=t, value=kwargs.get('mus', []), default_unit=u.dimensionless_unscaled, description='Mu')]
             if 'visible_centroids' in columns:

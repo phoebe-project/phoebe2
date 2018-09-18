@@ -818,7 +818,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
                 if 'rs' in info['mesh_columns']:
                     packetlist.append(make_packet('rs',
-                                                  body.mesh.rs.centers,
+                                                  body.mesh.rs.centers*body._scale,
                                                   time, info))
                 # if 'cosbetas' in info['mesh_columns']:
                     # packetlist.append(make_packet('cosbetas',
@@ -836,9 +836,9 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                                                   time, info))
 
 
-                if 'r_projs' in info['mesh_columns']:
-                    packetlist.append(make_packet('r_projs',
-                                                  body.mesh.rprojs.centers,
+                if 'rprojs' in info['mesh_columns']:
+                    packetlist.append(make_packet('rprojs',
+                                                  body.mesh.rprojs.centers*body._scale,
                                                   time, info))
                 if 'mus' in info['mesh_columns']:
                     packetlist.append(make_packet('mus',
