@@ -2234,9 +2234,16 @@ class ParameterSet(object):
             # since we'll be selecting from the time tag, we need a non-zero tolerance
             kwargs.setdefault('itol', 1e-6)
 
-            # we want the wireframe by default
-            kwargs.setdefault('ec', 'black')
-            kwargs.setdefault('fc', 'white')
+            if mesh_all_cartesian:
+                # then we'll be doing a mesh plot, so set some reasonable defaults
+
+                # we want the wireframe by default
+                kwargs.setdefault('ec', 'black')
+                kwargs.setdefault('fc', 'white')
+            else:
+                # then even though the scatter may be rs vs cartesian with same
+                # units, let's default to disabling equal aspect ratio
+                kwargs.setdefault('equal_aspect', False)
 
             sigmas_avail = []
         elif ps.kind in ['orb', 'orb_syn']:
