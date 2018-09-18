@@ -1368,6 +1368,9 @@ class ParameterSet(object):
             # of the Parameters hidden by this switch
             check_default = False
 
+        if twig is not None and not isinstance(twig, str):
+            raise TypeError("first argument (twig) must be of type str or None")
+
         if kwargs.get('component', None) == '_default' or\
                 kwargs.get('dataset', None) == '_default' or\
                 kwargs.get('uniqueid', None) is not None or\
