@@ -1203,6 +1203,10 @@ class ParameterSet(object):
                                             default={})
         else:
             kwargs = {}
+
+        if isinstance(key, int):
+            return self.filter(**kwargs).to_list()[key]
+
         return self.filter_or_get(twig=key, **kwargs)
 
     def __setitem__(self, twig, value):
@@ -1369,7 +1373,7 @@ class ParameterSet(object):
             # of the Parameters hidden by this switch
             check_default = False
 
-        if twig is not None and not isinstance(twig, str):
+        if not (twig is None or isinstance(twig, str)):
             raise TypeError("first argument (twig) must be of type str or None")
 
         if kwargs.get('component', None) == '_default' or\
