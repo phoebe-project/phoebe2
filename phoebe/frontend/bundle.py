@@ -179,6 +179,7 @@ class Bundle(ParameterSet):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Bundle` object
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
         data = json.load(f)
         f.close()
@@ -257,6 +258,7 @@ class Bundle(ParameterSet):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Bundle` object
         """
+        filename = os.path.expanduser(filename)
         return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
     @classmethod
@@ -398,7 +400,7 @@ class Bundle(ParameterSet):
             self.remove_history()
 
         # TODO: add option for clear_models, clear_feedback
-
+        # NOTE: PS.save will handle os.path.expanduser
         return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
                                         compact=compact)
 
@@ -406,7 +408,7 @@ class Bundle(ParameterSet):
         """
         TODO: add docs
         """
-
+        filename = os.path.expanduser(filename)
         return io.pass_to_legacy(self, filename)
 
 

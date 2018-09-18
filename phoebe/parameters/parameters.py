@@ -962,6 +962,7 @@ class ParameterSet(object):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`ParameterSet` object
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
         if _can_ujson:
             data = ujson.load(f)
@@ -983,7 +984,7 @@ class ParameterSet(object):
         :return: filename
         :rtype: str
         """
-
+        filename = os.path.expanduser(filename)
         f = open(filename, 'w')
         if compact:
             if _can_ujson:
@@ -2657,7 +2658,7 @@ class ParameterSet(object):
         kwargs.setdefault('animate', False)
         return self._show_or_save(**kwargs)
 
-    def savefig(self, fname, **kwargs):
+    def savefig(self, filename, **kwargs):
         """
         Draw and save the plot.
 
@@ -2665,8 +2666,9 @@ class ParameterSet(object):
                 matplotlib accepts many different image formats while other
                 backends will only export to html.
         """
+        filename = os.path.expanduser(filename)
         kwargs.setdefault('show', False)
-        kwargs.setdefault('save', fname)
+        kwargs.setdefault('save', filename)
         kwargs.setdefault('animate', False)
         return self._show_or_save(**kwargs)
 
@@ -2911,6 +2913,7 @@ class Parameter(object):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Parameter` object
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
         data = json.load(f, object_pairs_hook=parse_json)
         f.close()
@@ -2924,7 +2927,7 @@ class Parameter(object):
         :return: filename
         :rtype: str
         """
-
+        filename = os.path.expanduser(filename)
         f = open(filename, 'w')
         json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
                    sort_keys=True, indent=0, separators=(',', ': '))
