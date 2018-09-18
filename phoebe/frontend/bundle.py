@@ -1241,11 +1241,15 @@ class Bundle(ParameterSet):
                             return False,\
                                 '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
 
+
                         requiv_min = comp_ps.get_value('requiv_min')
 
                         if np.isnan(requiv) or requiv <= requiv_min:
                             return False,\
                                  '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min)
+                        elif requiv <= requiv_min * 1.001:
+                            return False,\
+                                'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component)
 
                     else:
                         if requiv > requiv_max:
