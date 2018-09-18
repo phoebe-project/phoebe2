@@ -4838,7 +4838,7 @@ class HierarchyParameter(StringParameter):
 
         return structure, trace, our_item
 
-    def change_component(self, old_component, new_component):
+    def rename_component(self, old_component, new_component):
         """
         """
         kind = self.get_kind_of(old_component)
