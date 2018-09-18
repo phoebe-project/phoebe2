@@ -382,7 +382,11 @@ class ParameterSet(object):
         """
         ret = {}
         for typ in _meta_fields_twig:
-            ret[typ] = getattr(self, '{}s'.format(typ))
+            if typ in ['uniqueid', 'plugin', 'feedback', 'fitting', 'history', 'twig', 'uniquetwig']:
+                continue
+
+            k = '{}s'.format(typ)
+            ret[k] = getattr(self, k)
 
         return ret
 
@@ -2995,6 +2999,10 @@ class Parameter(object):
         :return: an ordered dictionary of tag properties
         """
         return OrderedDict([(k, getattr(self, k)) for k in _meta_fields_all if k not in ignore])
+
+    @property
+    def tags(self):
+        return self.get_meta(ignore=['uniqueid', 'plugin', 'feedback', 'fitting', 'history', 'twig', 'uniquetwig'])
 
     @property
     def qualifier(self):
