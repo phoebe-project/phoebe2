@@ -1469,9 +1469,29 @@ class Bundle(ParameterSet):
 
         :raises NotImplementedError: because this isn't implemented yet
         """
-        # TODO: don't forget to add_history
-        # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
-        raise NotImplementedError
+        self._kwargs_checks(kwargs)
+
+        # Let's avoid deleting ALL features from the matching contexts
+        if feature is None and not len(kwargs.items()):
+            raise ValueError("must provide some value to filter for features")
+
+        kwargs['feature'] = feature
+
+        # Let's avoid the possibility of deleting a single parameter
+        kwargs['qualifier'] = None
+
+        # Let's also avoid the possibility of accidentally deleting system
+        # parameters, etc
+        kwargs.setdefault('context', ['feature'])
+
+        self.remove_parameters_all(**kwargs)
+
+        self._add_history(redo_func='remove_feature',
+                          redo_kwargs=kwargs,
+                          undo_func=None,
+                          undo_kwargs={})
+
+        return
 
     def rename_feature(self, old_feature, new_feature):
         """
