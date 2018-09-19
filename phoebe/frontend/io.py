@@ -403,8 +403,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # load an empty legacy bundle and initialize obvious parameter sets
     if 'Overcontact' in morphology:
-        raise NotImplementedError
+#        raise NotImplementedError
         contact_binary= True
+        semi_detached = False
         eb = phb.Bundle.default_binary(contact_binary=True)
     elif 'Semi-detached' in morphology:
         semi_detached = True
@@ -511,8 +512,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         hla = np.float(params[:,1][hlain]) #pull for possible conversion of l3
 #        cla = np.float(params[:,1][clain]) #pull for possible conversion of l3
 
-        if contact_binary:
-            params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
+#        if contact_binary:
+#            params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
 
 #and split into lc and rv and spot parameters
 
@@ -858,36 +859,42 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             #now change to take care of bolometric values
             d['qualifier'] = d['qualifier']+'_bol'
         if pnew == 'pot':
-            #print "dict", d
-            d['kind'] = 'star'
-            d['qualifier'] = 'requiv'
-            d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
 
-            comp_no = ['', 'primary', 'secondary'].index(d['component'])
-            q_in = list(params[:,0]).index('phoebe_rm.VAL')
-            q = roche.q_for_component(np.float(params[:,1][q_in]), comp_no)
-            F_in = list(params[:,0]).index('phoebe_f{}.VAL'.format(comp_no))
-            F = np.float(params[:,1][F_in])
-            a_in = list(params[:,0]).index('phoebe_sma.VAL')
-            a = np.float(params[:,1][a_in])
-            e_in = list(params[:,0]).index('phoebe_ecc.VAL')
-            e = np.float(params[:,1][e_in])
-            delta = 1-e # defined at periastron
-            Omega = roche.pot_for_component(float(val), q, comp_no)
-            logger.debug("libphoebe.roche_area_volume(q={}, F={}, d={}, Omega={})".format(q, F, delta, Omega))
-            volume = libphoebe.roche_area_volume(q, F, delta, Omega,
-                                                 choice=0,
-                                                 lvolume=True,
-                                                 larea=False)['lvolume']
-
-            # convert from roche units to scaled (solar) units
-            volume *= a**3
-            # now convert from volume (in solar units) to requiv
-            d['value'] = (volume * 3./4 * 1./np.pi)**(1./3)
-            d['kind'] = None
             if contact_binary:
+                eb.flip_constraint('pot@contact_envelope', 'requiv@primary')
                 d['component'] = 'contact_envelope'
-            d['context'] = 'component'
+                d['context'] = 'component'
+                d['qualifier'] = 'pot'
+
+            else:
+                d['kind'] = 'star'
+                d['qualifier'] = 'requiv'
+                d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
+
+                comp_no = ['', 'primary', 'secondary'].index(d['component'])
+                q_in = list(params[:,0]).index('phoebe_rm.VAL')
+                q = roche.q_for_component(np.float(params[:,1][q_in]), comp_no)
+                F_in = list(params[:,0]).index('phoebe_f{}.VAL'.format(comp_no))
+                F = np.float(params[:,1][F_in])
+                a_in = list(params[:,0]).index('phoebe_sma.VAL')
+                a = np.float(params[:,1][a_in])
+                e_in = list(params[:,0]).index('phoebe_ecc.VAL')
+                e = np.float(params[:,1][e_in])
+                delta = 1-e # defined at periastron
+                Omega = roche.pot_for_component(float(val), q, comp_no)
+                logger.debug("libphoebe.roche_area_volume(q={}, F={}, d={}, Omega={})".format(q, F, delta, Omega))
+                volume = libphoebe.roche_area_volume(q, F, delta, Omega,
+                                                     choice=0,
+                                                     lvolume=True,
+                                                     larea=False)['lvolume']
+
+                # convert from roche units to scaled (solar) units
+                volume *= a**3
+                # now convert from volume (in solar units) to requiv
+                d['value'] = (volume * 3./4 * 1./np.pi)**(1./3)
+                d['kind'] = None
+
+                d['context'] = 'component'
     # change t0_ref and set hjd0
         if pnew == 'hjd0':
 
@@ -960,7 +967,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #flip back all constraints
     # get rid of seconddary coefficient if ldlaw  is linear
     eb.flip_constraint(solve_for='t0_ref', constraint_func='t0_ref_supconj')
-
+    if contact_binary:
+        eb.flip_constraint('requiv@primary', 'pot@contact_envelope')
     if 'Linear' in ldlaw:
 
         ldcos = eb.filter('ld_coeffs')
@@ -1721,6 +1729,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         #TODO add reflection switch
         if param.qualifier == 'refl_num':
             if param.get_value(**kwargs) == 0:
+                #Legacy phoebe will calculate reflection no matter what. The
+                # only way to ensure no reflection is to set the albedo to
+                # zero.
+                logger.warning('Since relflection number is zero albedo is being set to 0 for both components')
                 in1 =  parnames.index('phoebe_alb1.VAL')
                 in2 =  parnames.index('phoebe_alb2.VAL')
                 parvals[in1] = 0.0

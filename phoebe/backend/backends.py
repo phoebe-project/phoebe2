@@ -1126,9 +1126,10 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
         raise ValueError("only binary systems are supported by 'legacy' backend")
 
     #make phoebe 1 file
-    # TODO: do we cleanup this temp file?
+    # TODO: change this back to tmp file
     tmp_file = tempfile.NamedTemporaryFile()
     io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
+
     phb1.init()
     try:
         if hasattr(phb1, 'auto_configure'):
@@ -1139,7 +1140,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
             phb1.configure()
     except SystemError:
         raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
-
+#     TODO change this back to tmp
     phb1.open(tmp_file.name)
 
     # build lookup tables between the dataset labels and the indices needed
