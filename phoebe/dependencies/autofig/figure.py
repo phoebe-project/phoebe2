@@ -156,7 +156,8 @@ class Figure(object):
 
     def draw(self, fig=None, i=None, calls=None,
              tight_layout=True, draw_sidebars=True,
-             show=False, save=False):
+             show=False, save=False,
+             in_animation=False):
 
         fig = self._get_backend_object(fig)
         callbacks._connect_to_autofig(self, fig)
@@ -180,7 +181,7 @@ class Figure(object):
                 ax = None
 
             axesi.draw(ax=ax, i=i, calls=calls, draw_sidebars=False,
-                       show=False, save=False)
+                       show=False, save=False, in_animation=in_animation)
 
             self._backend_artists += axesi._get_backend_artists()
 

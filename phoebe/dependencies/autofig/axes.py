@@ -676,7 +676,8 @@ class Axes(object):
 
     def draw(self, ax=None, i=None, calls=None,
              draw_sidebars=True,
-             show=False, save=False):
+             show=False, save=False,
+             in_animation=False):
 
         ax = self._get_backend_object(ax)
 
@@ -684,7 +685,11 @@ class Axes(object):
         if self.equal_aspect:
             aspect = 'equal'
             if self.pad_aspect:
-                adjustable = 'datalim'
+                if in_animation:
+                    print("WARNING: pad_aspect not supported for animations, ignoring")
+                    adjustable = 'box'
+                else:
+                    adjustable = 'datalim'
             else:
                 adjustable = 'box'
 

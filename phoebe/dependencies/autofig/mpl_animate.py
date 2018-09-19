@@ -58,6 +58,7 @@ class Animation(object):
 
         self.affig.draw(i=i,
                         tight_layout=self.tight_layout,
-                        draw_sidebars=self.draw_sidebars)
+                        draw_sidebars=self.draw_sidebars,
+                        in_animation=True)
 
         return self.affig._get_backend_artists()

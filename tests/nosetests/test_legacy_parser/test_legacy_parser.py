@@ -26,8 +26,8 @@ def legacy_test(filename='default.phoebe', verbose=False):
 
     #load phoebe2 file
     b = phb2.Bundle.from_legacy(os.path.join(dir, filename), add_compute_legacy=True)
-    b.change_component('primary', 'cow')
-    b.change_component('secondary', 'pig')
+    b.rename_component('primary', 'cow')
+    b.rename_component('secondary', 'pig')
     # create time array and get datasets
 
 

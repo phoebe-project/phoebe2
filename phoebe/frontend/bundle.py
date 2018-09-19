@@ -179,6 +179,7 @@ class Bundle(ParameterSet):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Bundle` object
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
         data = json.load(f)
         f.close()
@@ -257,6 +258,7 @@ class Bundle(ParameterSet):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Bundle` object
         """
+        filename = os.path.expanduser(filename)
         return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
     @classmethod
@@ -398,7 +400,7 @@ class Bundle(ParameterSet):
             self.remove_history()
 
         # TODO: add option for clear_models, clear_feedback
-
+        # NOTE: PS.save will handle os.path.expanduser
         return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
                                         compact=compact)
 
@@ -406,7 +408,7 @@ class Bundle(ParameterSet):
         """
         TODO: add docs
         """
-
+        filename = os.path.expanduser(filename)
         return io.pass_to_legacy(self, filename)
 
 
@@ -580,39 +582,19 @@ class Bundle(ParameterSet):
 
         return "{}{:02d}".format(base, params+1)
 
-    def change_component(self, old_component, new_component):
-        """
-        Change the label of a component attached to the Bundle
+    def _rename_label(self, tag, old_value, new_value):
+        self._check_label(new_value)
 
-        :parameter str old_component: the current name of the component
-            (must exist)
-        :parameter str new_component: the desired new name of the component
-            (must not exist)
-        :return: None
-        :raises ValueError: if the new_component is forbidden
-        """
-        # TODO: raise error if old_component not found?
-
-        self._check_label(new_component)
-        # changing hierarchy must be called first since it needs to access
-        # the kind of old_component
-        if len([c for c in self.components if new_component in c]):
-            logger.warning("hierarchy may not update correctly with new component")
-        self.hierarchy.change_component(old_component, new_component)
-        for param in self.filter(component=old_component).to_list():
-            param._component = new_component
-        for param in self.filter(context='constraint').to_list():
+        for param in self.filter(check_visible=False, check_default=False, **{tag: old_value}).to_list():
+            setattr(param, '_{}'.format(tag), new_value)
+        for param in self.filter(context='constraint', check_visible=False, check_default=False).to_list():
             for k, v in param.constraint_kwargs.items():
-                if v == old_component:
-                    param._constraint_kwargs[k] = new_component
-        for param in self.filter(qualifier='include_times').to_list():
-            old_value = param._value
-            new_value = [v.replace('@{}'.format(old_component), '@{}'.format(new_component)) for v in old_value]
-            param._value = new_value
-
-        self._handle_dataset_selectparams()
-
-
+                if v == old_value:
+                    param._constraint_kwargs[k] = new_value
+        for param in self.filter(qualifier='include_times', check_visible=False, check_default=False).to_list():
+            old_param_value = param._value
+            new_param_value = [v.replace('@{}'.format(old_value), '@{}'.format(new_value)) for v in old_param_value]
+            param._value = new_param_value
 
     def get_setting(self, twig=None, **kwargs):
         """
@@ -1241,11 +1223,15 @@ class Bundle(ParameterSet):
                             return False,\
                                 '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
 
+
                         requiv_min = comp_ps.get_value('requiv_min')
 
                         if np.isnan(requiv) or requiv <= requiv_min:
                             return False,\
                                  '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min)
+                        elif requiv <= requiv_min * 1.001:
+                            return False,\
+                                'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component)
 
                     else:
                         if requiv > requiv_max:
@@ -1343,7 +1329,7 @@ class Bundle(ParameterSet):
                     for compute in kwargs.get('computes', self.computes):
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         if atm != 'ck2004':
-                            return False, "ld_func='interp' only supported by atm='ck2004'."
+                            return False, "ld_func='interp' only supported by atm='ck2004'.  Either change atm@{} or ld_func@{}@{}".format(component, component, dataset)
 
         # mesh-consistency checks
         for compute in self.computes:
@@ -1485,9 +1471,45 @@ class Bundle(ParameterSet):
 
         :raises NotImplementedError: because this isn't implemented yet
         """
-        # TODO: don't forget to add_history
-        # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
-        raise NotImplementedError
+        self._kwargs_checks(kwargs)
+
+        # Let's avoid deleting ALL features from the matching contexts
+        if feature is None and not len(kwargs.items()):
+            raise ValueError("must provide some value to filter for features")
+
+        kwargs['feature'] = feature
+
+        # Let's avoid the possibility of deleting a single parameter
+        kwargs['qualifier'] = None
+
+        # Let's also avoid the possibility of accidentally deleting system
+        # parameters, etc
+        kwargs.setdefault('context', ['feature'])
+
+        self.remove_parameters_all(**kwargs)
+
+        self._add_history(redo_func='remove_feature',
+                          redo_kwargs=kwargs,
+                          undo_func=None,
+                          undo_kwargs={})
+
+        return
+
+    def rename_feature(self, old_feature, new_feature):
+        """
+        Change the label of a feature attached to the Bundle
+
+        :parameter str old_feature: the current name of the feature
+            (must exist)
+        :parameter str new_feature: the desired new name of the feature
+            (must not exist)
+        :return: None
+        :raises ValueError: if the new_feature is forbidden
+        """
+        # TODO: raise error if old_feature not found?
+
+        self._check_label(new_feature)
+        self._rename_label('feature', old_feature, new_feature)
 
     def add_spot(self, component=None, feature=None, **kwargs):
         """
@@ -1615,6 +1637,33 @@ class Bundle(ParameterSet):
         # TODO: don't forget to add_history
         # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
         raise NotImplementedError
+
+    def rename_component(self, old_component, new_component):
+        """
+        Change the label of a component attached to the Bundle
+
+        :parameter str old_component: the current name of the component
+            (must exist)
+        :parameter str new_component: the desired new name of the component
+            (must not exist)
+        :return: None
+        :raises ValueError: if the new_component is forbidden
+        """
+        # TODO: raise error if old_component not found?
+
+        # even though _rename_tag will call _check_label again, we should
+        # do it first so that we can raise any errors BEFORE we start messing
+        # with the hierarchy
+        self._check_label(new_component)
+        # changing hierarchy must be called first since it needs to access
+        # the kind of old_component
+        if len([c for c in self.components if new_component in c]):
+            logger.warning("hierarchy may not update correctly with new component")
+        self.hierarchy.rename_component(old_component, new_component)
+
+        self._rename_label('component', old_component, new_component)
+
+        self._handle_dataset_selectparams()
 
     def add_orbit(self, component=None, **kwargs):
         """
@@ -2134,6 +2183,24 @@ class Bundle(ParameterSet):
 
         return
 
+    def rename_dataset(self, old_dataset, new_dataset):
+        """
+        Change the label of a dataset attached to the Bundle
+
+        :parameter str old_dataset: the current name of the dataset
+            (must exist)
+        :parameter str new_dataset: the desired new name of the dataset
+            (must not exist)
+        :return: None
+        :raises ValueError: if the new_dataset is forbidden
+        """
+        # TODO: raise error if old_component not found?
+
+        self._check_label(new_dataset)
+        self._rename_label('dataset', old_dataset, new_dataset)
+        self._handle_dataset_selectparams()
+
+
     def enable_dataset(self, dataset=None, **kwargs):
         """
         Enable a 'dataset'.  Datasets that are enabled will be computed
@@ -2546,6 +2613,23 @@ class Bundle(ParameterSet):
         # TODO: don't forget add_history
         raise NotImplementedError
 
+    def rename_compute(self, old_compute, new_compute):
+        """
+        Change the label of a compute attached to the Bundle
+
+        :parameter str old_compute: the current name of the compute options
+            (must exist)
+        :parameter str new_compute: the desired new name of the compute options
+            (must not exist)
+        :return: None
+        :raises ValueError: if the new_compute is forbidden
+        """
+        # TODO: raise error if old_compute not found?
+
+        self._check_label(new_compute)
+        self._rename_label('compute', old_compute, new_compute)
+
+
     @send_if_client
     def run_compute(self, compute=None, model=None, detach=False,
                     times=None, **kwargs):
@@ -2849,6 +2933,23 @@ class Bundle(ParameterSet):
         kwargs['model'] = model
         kwargs['context'] = 'model'
         self.remove_parameters_all(**kwargs)
+
+    def rename_model(self, old_model, new_model):
+        """
+        Change the label of a model attached to the Bundle
+
+        :parameter str old_model: the current name of the model
+            (must exist)
+        :parameter str new_model: the desired new name of the model
+            (must not exist)
+        :return: None
+        :raises ValueError: if the new_model is forbidden
+        """
+        # TODO: raise error if old_feature not found?
+
+        self._check_label(new_model)
+        self._rename_label('model', old_model, new_model)
+
 
     # TODO: ability to copy a posterior to a prior or have a prior reference an attached posterior (for drawing in fitting)
     def add_prior(self, twig=None, **kwargs):
