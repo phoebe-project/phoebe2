@@ -186,9 +186,9 @@ if __name__ == '__main__':
 #    logger= phb2.logger()
     detached = 'default.phoebe'
     weighted = 'weight.phoebe'
-#    contact = 'contact.phoebe'
+    contact = 'contact.phoebe'
 #    print "checking detached system"
     legacy_test(weighted, verbose=True)
     legacy_test(detached, verbose=True)
 #    print "checking contact system"
-#    legacy_test(contact)
+    legacy_test(contact, verbose=True)
