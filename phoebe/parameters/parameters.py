@@ -2155,6 +2155,7 @@ class ParameterSet(object):
                     # that technnically is attached to a different dataset in
                     # the same mesh (e.g. rvs@rv01 inside kind=mesh).  Let's
                     # check for that first.
+
                     if ps.kind in ['mesh'] and ps._bundle is not None:
                         full_mesh_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'dataset']}
                         full_mesh_ps = ps._bundle.filter(**full_mesh_meta)
@@ -2166,7 +2167,11 @@ class ParameterSet(object):
                             return kwargs
                         elif len(candidate_params) > 1:
                             raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, candidate_params.twigs))
+                        elif current_value in autofig.cyclers._mplcolors:
+                            # no need to raise a warning, this is a valid color
+                            pass
                         else:
+                            # maybe a hex or anything not in the cycler? or should we raise an error instead?
                             logger.warning("could not find Parameter match for {}={} at time={}, assuming named color".format(direction, current_value, full_mesh_meta['time']))
 
                     # Nothing has been found, so we'll assume the string is
@@ -2176,7 +2181,7 @@ class ParameterSet(object):
                     return kwargs
 
                 else:
-                    raise ValueError("could not recognize {} for {} direction".format(current_value, direction))
+                    raise ValueError("could not recognize {} for {} direction in dataset='{}', ps.meta={}".format(current_value, direction, ps.dataset, ps.meta))
 
             elif _instance_in(current_value, np.ndarray, list, tuple, float, int):
                 # then leave it as-is
