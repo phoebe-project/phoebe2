@@ -8,8 +8,9 @@ from phoebe import dynamics
 from phoebe.backend import universe, etvs, horizon_analytic
 from phoebe.distortions  import roche
 from phoebe.frontend import io
+import phoebe.frontend.bundle
 from phoebe import u, c
-from phoebe import conf
+from phoebe import conf, mpi
 
 try:
     import phoebe_legacy as phb1
@@ -22,27 +23,6 @@ except ImportError:
         _use_phb1 = True
 else:
     _use_phb1 = True
-
-
-# this is a bit of a hack and will only work with openmpi, but environment
-# variables seem to be the only way to detect whether the script was run
-# via mpirun or not
-if 'OMPI_COMM_WORLD_SIZE' in os.environ.keys():
-    from mpi4py import MPI
-    _within_mpirun = True
-
-    comm   = MPI.COMM_WORLD
-    myrank = comm.Get_rank()
-    nprocs = comm.Get_size()
-
-    TAG_REQ  = 41
-    TAG_DATA = 42
-
-    if nprocs==1:
-        raise ImportError("need more than 1 processor to run with mpi")
-
-else:
-    _within_mpirun = False
 
 import logging
 logger = logging.getLogger("BACKENDS")
@@ -322,7 +302,217 @@ def _create_syns(b, needed_syns):
 
     return ParameterSet(params)
 
-def phoebe(b, compute, times=[], as_generator=False, **kwargs):
+def _make_packet(qualifier, value, time, info, **kwargs):
+    """
+    where kwargs overrides info
+    """
+    packet = {'dataset': kwargs.get('dataset', info['dataset']),
+              'component': kwargs.get('component', info['component']),
+              'kind': kwargs.get('kind', info['kind']),
+              'qualifier': qualifier,
+              'value': value,
+              'time': time
+              }
+
+    return packet
+
+class BaseBackend(object):
+    def __init__(self):
+        return
+
+    def run_checks(self, b, compute, times=[], **kwargs):
+        """
+        run any sanity checks to make sure the parameters and options are legal
+        for this backend.  If they are not, raise an error here to avoid errors
+        within the workers.
+
+        Any physics-checks that are backend-independent should be in
+        Bundle.run_checks, and don't need to be repeated here.
+
+        This should be subclassed by all backends, otherwise will throw a
+        NotImplementedError
+        """
+        raise NotImplementedError("run_checks is not implemented by the {} backend".format(self.__class__.__name__))
+
+    def _get_packet_and_syns(self, b, compute, times=[], **kwargs):
+        """
+        see get_packet_and_syns.  _get_packet_and_syns provides the custom parts
+        of the packet that are Backend-dependent.
+
+        This should return the packet to send to all workers and the new_syns to
+        be sent to the master.
+
+        return packet, new_syns
+        """
+        raise NotImplementedError("_get_packet_and_syns is not implemented by the {} backend".format(self.__class__.__name__))
+
+    def get_packet_and_syns(self, b, compute, times=[], **kwargs):
+        """
+        get_packet is called by the master and must get all information necessary
+        to send to all workers.  The returned packet will be passed on as
+        _run_chunk(**packet) with the following exceptions:
+
+        * b: the bundle will be included in the packet serialized
+        * compute: the label of the compute options will be included in the packet
+        * backend: the class name will be passed on in the packet so the worker can call the correct backend
+        * all kwargs will be passed on verbatim
+        """
+        packet, new_syns = self._get_packet_and_syns(b, compute, times, **kwargs)
+        for k,v in kwargs.items():
+            packet[k] = v
+
+        packet['b'] = b.to_json() if mpi.enabled else b
+        packet['compute'] = compute
+        packet['backend'] = self.__class__.__name__
+
+        return packet, new_syns
+
+    def _run_chunk(self):
+        """
+        _run_chunk will receive the packet (with the bundle deserialized if necessary)
+        and is responsible for computing and returning results.
+        """
+        # np.array_split(any_input_array, nprocs)[myrank]
+        raise NotImplementedError("_run_chunk is not implemented by the {} backend".format(self.__class__.__name__))
+
+    def _fill_syns(self, new_syns, rpacket_per_worker):
+        """
+        _fill_syns is responsible for parsing the packets returned by the worker(s)
+        and populating the synthetic parameters within new_syns (ParameterSet)
+        """
+        # TODO: parse rpacket_per_worker and fill new_syns, then return new_syns
+        raise NotImplementedError("_fill_syns not implemented by the {} backend".format(self.__class__.__name__))
+
+    def _run_worker(self, packet):
+        # the worker receives the bundle serialized, so we need to unpack it
+        logger.debug("rank:{}/{} _run_worker".format(mpi.myrank, mpi.nprocs))
+        packet['b'] = phoebe.frontend.bundle.Bundle(packet['b'])
+        # do the computations requested for this worker
+        rpacketlists = self._run_chunk(**packet)
+        # send the results back to the master (root=0)
+        mpi.comm.gather(rpacketlists, root=0)
+
+    def run(self, b, compute, times=[], **kwargs):
+        """
+        if within mpirun, workers should call _run_worker instead of run
+        """
+        self.run_checks(b, compute, times, **kwargs)
+
+        logger.debug("rank:{}/{} calling get_packet_and_syns".format(mpi.myrank, mpi.nprocs))
+        packet, new_syns = self.get_packet_and_syns(b, compute, times, **kwargs)
+
+        if mpi.enabled:
+            # broadcast the packet to ALL workers
+            mpi.comm.bcast(packet, root=0)
+
+            # now even the master can become a worker and take on a chunk
+            packet['b'] = b
+            rpacketlists = self._run_chunk(**packet)
+
+            # now receive all packetlists
+            rpacketlists_per_worker = mpi.comm.gather(rpacketlists, root=0)
+
+        else:
+            rpacketlists_per_worker = [self._run_chunk(**packet)]
+
+        return self._fill_syns(new_syns, rpacketlists_per_worker)
+
+
+class BaseBackendByTime(BaseBackend):
+
+
+    def _worker_setup(self, b, compute, times, infolists, **kwargs):
+        """
+        """
+        raise NotImplementedError("worker_setup not implemented by the {} backend".format(self.__class__.__name__))
+        return dict()
+
+    def _run_single_time(self, b, i, time, infolist, **kwargs):
+        """
+        """
+        raise NotImplementedError("_run_single_time not implemented by the {} backend".format(self.__class__.__name__))
+
+    def _get_packet_and_syns(self, b, compute, times=[], **kwargs):
+        # extract times/infolists/new_syns from the bundle
+        # if the input for times is an empty list, we'll obey dataset times
+        # otherwise all datasets will be overridden with the times provided
+        # see documentation in _extract_from_bundle for details on the output variables.
+        times, infolists, new_syns = _extract_from_bundle(b, compute=compute,
+                                                          times=times,
+                                                          allow_oversample=True,
+                                                          by_time=True,
+                                                          **kwargs)
+
+        # prepare the packet to be sent to the workers.
+        # this packet will be sent to _run_worker as **packet
+        packet = {'times': times,
+                  'infolists': infolists}
+
+        return packet, new_syns
+
+
+    def _run_chunk(self, b, compute, times, infolists, **kwargs):
+        worker_setup_kwargs = self._worker_setup(b, compute, times, infolists, **kwargs)
+
+        inds = range(len(times))
+
+        if mpi.enabled:
+            # np.array_split(any_input_array, mpi.nprocs)[mpi.myrank]
+            inds = np.array_split(inds, mpi.nprocs)[mpi.myrank]
+            times = np.array_split(times, mpi.nprocs)[mpi.myrank]
+            infolists = np.array_split(infolists, mpi.nprocs)[mpi.myrank]
+
+        packetlists = [] # entry per-time
+        for i, time, infolist in zip(inds, times, infolists):
+            packetlist = self._run_single_time(b, i, time, infolist, **worker_setup_kwargs)
+            packetlists.append(packetlist)
+
+        return packetlists
+
+
+class BaseBackendByDataset(BaseBackend):
+    def _worker_setup(self, b, compute, infolist, **kwargs):
+        """
+        """
+        raise NotImplementedError("worker_setup not implemented by the {} backend".format(self.__class__.__name__))
+        return dict()
+
+    def _run_single_dataset(self, b, info, **kwargs):
+        """
+        """
+        raise NotImplementedError("_run_single_dataset not implemented by the {} backend".format(self.__class__.__name__))
+
+    def _get_packet_and_syns(self, b, compute, times=[], **kwargs):
+        # self.run_checks(b, compute, times, **kwargs)
+
+        # see documentation in _extract_from_bundle for details on the output variables.
+        infolist, new_syns = _extract_from_bundle(b, compute=compute,
+                                               times=times, by_time=False)
+
+        packet = {'infolist': infolist}
+
+        return packet, new_syns
+
+
+    def _run_chunk(self, b, compute, infolist, **kwargs):
+        worker_setup_kwargs = self._worker_setup(b, compute, infolist, **kwargs)
+
+        if mpi.enabled:
+            # np.array_split(any_input_array, mpi.nprocs)[mpi.myrank]
+            infolist = np.array_split(infolist, mpi.nprocs)[mpi.myrank]
+
+        packetlists = [] # entry per-dataset
+        for info in infolist:
+            packetlist = self._run_single_dataset(b, info, **worker_setup_kwargs)
+            packetlists.append(packetlist)
+
+        return packetlists
+
+
+
+
+
+class PhoebeBackend(BaseBackendByTime):
     """
     Run the PHOEBE 2.0 backend.  This is the default built-in backend
     so no other pre-requisites are required.
@@ -353,111 +543,120 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
         * times
         * rvs
 
-    This function will almost always be called through the bundle, using
+    The run method of this class will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
         * :meth:`phoebe.frontend.bundle.Bundle.run_compute`
-
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle` containing the system
-        and datasets
-    :parameter str compute: the label of the computeoptions to use (in the bundle).
-        These computeoptions must have a kind of 'phoebe'.
-    :parameter **kwargs: any temporary overrides to computeoptions
-    :return: a list of new synthetic :class:`phoebe.parameters.parameters.ParameterSet`s
     """
 
-    computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
-    hier = b.get_hierarchy()
+    def run_checks(self, b, compute, times=[], **kwargs):
+        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        hier = b.get_hierarchy()
 
-    starrefs  = hier.get_stars()
-    meshablerefs = hier.get_meshables()
+        starrefs  = hier.get_stars()
+        meshablerefs = hier.get_meshables()
 
-    do_horizon = False #computeparams.get_value('horizon', **kwargs)
+        if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0], **kwargs) in ['roche']:
+            raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0], **kwargs)))
 
-    times, infolists, new_syns = _extract_from_bundle(b, compute=compute,
-                                                      times=times,
-                                                      allow_oversample=True,
-                                                      by_time=True,
-                                                      **kwargs)
+    def _worker_setup(self, b, compute, times, infolists, **kwargs):
+        logger.debug("rank:{}/{} PhoebeBackend._worker_setup: extracting parameters".format(mpi.myrank, mpi.nprocs))
+        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        hier = b.get_hierarchy()
+        starrefs  = hier.get_stars()
+        meshablerefs = hier.get_meshables()
 
-    dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
-    ltte = computeparams.get_value('ltte', **kwargs)
+        do_horizon = False #computeparams.get_value('horizon', **kwargs)
+        dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
+        ltte = computeparams.get_value('ltte', **kwargs)
+        distance = b.get_value(qualifier='distance', context='system', unit=u.m, **kwargs)
+        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
 
-    distance = b.get_value(qualifier='distance', context='system', unit=u.m, **kwargs)
-    t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
+        # TODO: skip initializing system if we NEVER need meshes
+        logger.debug("rank:{}/{} PhoebeBackend._worker_setup: calling universe.System.from_bundle".format(mpi.myrank, mpi.nprocs))
+        system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
 
-    if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0], **kwargs) in ['roche']:
-        raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0], **kwargs)))
+        # Now we need to compute intensities at t0 in order to scale pblums for all future times
+        # but only if any of the enabled datasets require intensities
+        enabled_ps = b.filter(qualifier='enabled', compute=compute, value=True)
+        datasets = enabled_ps.datasets
+        kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
 
-    if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
-        if dynamics_method in ['nbody', 'rebound']:
-            t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
-            ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
+        if 'lc' in kinds or 'rv' in kinds or 'sp' in kinds:  # TODO this needs to be WAY more general
 
-        elif dynamics_method == 'bs':
-            # if distortion_method == 'roche':
-                # raise ValueError("distortion_method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
+            if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
+                logger.debug("rank:{}/{} PhoebeBackend._worker_setup: computing dynamics at t0".format(mpi.myrank, mpi.nprocs))
+                if dynamics_method in ['nbody', 'rebound']:
+                    t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
+                    ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
 
-            # TODO: pass stepsize
-            # TODO: pass orbiterror
-            # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-            t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], compute, return_roche_euler=True, **kwargs)
-            # ethetas0, elongans0, eincls0 = None, None, None
-            ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle_bs(b, times, compute, return_roche_euler=True, **kwargs)
-            # ethetas, elongans, eincls = None, None, None
+                elif dynamics_method == 'bs':
+                    # if distortion_method == 'roche':
+                        # raise ValueError("distortion_method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
 
-
-        elif dynamics_method=='keplerian':
-
-            # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-            t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], compute, return_euler=True, **kwargs)
-            ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
-
-        else:
-            raise NotImplementedError
-
-    # TODO: automatically guess body type for each case... based on things like whether the stars are aligned
-    # TODO: handle different distortion_methods
-    # TODO: skip initializing system if we NEVER need meshes
-    system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
-
-    # Now we need to compute intensities at t0 in order to scale pblums for all future times
-    # TODO: only do this if we need the mesh for actual computations
-    # TODO: move as much of this pblum logic into mesh.py as possible
-
-    enabled_ps = b.filter(qualifier='enabled', compute=compute, value=True)
-    datasets = enabled_ps.datasets
-    kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
-
-    if 'lc' in kinds or 'rv' in kinds or 'sp' in kinds:  # TODO this needs to be WAY more general
-
-        if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
-            x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
-        else:
-            # singlestar case
-            x0, y0, z0 = [0.], [0.], [0.]
-            vx0, vy0, vz0 = [0.], [0.], [0.]
-            # TODO: star needs long_an (yaw?)
-            etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', unit=u.rad)]
-
-        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+                    # TODO: pass stepsize
+                    # TODO: pass orbiterror
+                    # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+                    t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], compute, return_roche_euler=True, **kwargs)
+                    # ethetas0, elongans0, eincls0 = None, None, None
+                    ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle_bs(b, times, compute, return_roche_euler=True, **kwargs)
+                    # ethetas, elongans, eincls = None, None, None
 
 
-#######################################################################################################################################################
+                elif dynamics_method=='keplerian':
 
-    def master_populate_syns(new_syns, packetlist):
-        for packet in packetlist:
-            # print "*** master_populate_syns packet:", packet
-            new_syns.set_value(**packet)
+                    # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+                    t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], compute, return_euler=True, **kwargs)
+                    ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
 
-        return new_syns
+                else:
+                    raise NotImplementedError
 
-    def worker(i, time, infolist):
-        # print('work order %d received by processor %d' % (i, myrank))
+                x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
+
+            else:
+                # singlestar case
+                x0, y0, z0 = [0.], [0.], [0.]
+                vx0, vy0, vz0 = [0.], [0.], [0.]
+                # TODO: star needs long_an (yaw?)
+                etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', unit=u.rad)]
+
+            logger.debug("rank:{}/{} PhoebeBackend._worker_setup: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
+            system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+
+        return dict(system=system,
+                    meshablerefs=meshablerefs,
+                    starrefs=starrefs,
+                    dynamics_method=dynamics_method,
+                    distance=distance,
+                    ts=ts, xs=xs, ys=ys, zs=zs,
+                    vxs=vxs, vys=vys, vzs=vzs,
+                    ethetas=ethetas, elongans=elongans, eincls=eincls)
+
+    def _run_single_time(self, b, i, time, infolist, **kwargs):
+        logger.debug("rank:{}/{} PhoebeBackend._run_single_time(i={}, time={}, infolist={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, i, time, infolist, kwargs.keys()))
+
+        # unpack all backend-dependent things from the received packet
+        system = kwargs.get('system')
+        meshablerefs = kwargs.get('meshablerefs')
+        starrefs = kwargs.get('starrefs')
+        dynamics_method = kwargs.get('dynamics_method')
+        distance = kwargs.get('distance')
+        ts = kwargs.get('ts')
+        xs = kwargs.get('xs')
+        ys = kwargs.get('ys')
+        zs = kwargs.get('zs')
+        vxs = kwargs.get('vxs')
+        vys = kwargs.get('vys')
+        vzs = kwargs.get('vzs')
+        ethetas = kwargs.get('ethetas')
+        elongans = kwargs.get('elongans')
+        eincls = kwargs.get('eincls')
 
         # Check to see what we might need to do that requires a mesh
         # TODO: make sure to use the requested distortion_method
 
         # we need to extract positions, velocities, and euler angles of ALL bodies at THIS TIME (i)
+        logger.debug("rank:{}/{} PhoebeBackend._run_single_time: computing dynamics at time={}".format(mpi.myrank, mpi.nprocs, time))
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics.dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
         else:
@@ -527,22 +726,6 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
         # now let's loop through and prepare a packet which will fill the synthetics
         packetlist = []
-
-        def make_packet(qualifier, value, time, info, **kwargs):
-            """
-            where kwargs overrides info
-            """
-            packet = {'dataset': kwargs.get('dataset', info['dataset']),
-                      'component': kwargs.get('component', info['component']),
-                      'kind': kwargs.get('kind', info['kind']),
-                      'qualifier': qualifier,
-                      'value': value,
-                      'time': time
-                      }
-
-            # print "*** make_packet", packet
-            return packet
-
         for k, info in enumerate(infolist):
             packet = dict()
 
@@ -553,7 +736,6 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
             # now check the kind to see what we need to fill
             if kind=='lp':
-                # print "*** lp", info
                 profile_func = b.get_value(qualifier='profile_func',
                                            dataset=info['dataset'],
                                            context='dataset')
@@ -589,20 +771,16 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
                 # TODO: copy the original for wavelengths just like we do with
                 # times and don't use packets at all
-                packetlist.append(make_packet('wavelengths',
+                packetlist.append(_make_packet('wavelengths',
                                               wavelengths*u.nm,
                                               None, info))
 
-                packetlist.append(make_packet('flux_densities',
+                packetlist.append(_make_packet('flux_densities',
                                               obs['flux_densities']*u.W/(u.m**2*u.nm),
                                               time, info))
             elif kind=='rv':
                 ### this_syn['times'].append(time) # time array was set when initializing the syns
                 if info['needs_mesh']:
-                    # TODO: we have to call get here because twig access will trigger on kind=rv and qualifier=rv
-                    # print "***", this_syn.filter(qualifier='rv').twigs, this_syn.filter(qualifier='rv').kinds, this_syn.filter(qualifier='rv').components
-                    # if len(this_syn.filter(qualifier='rv').twigs)>1:
-                        # print "***2", this_syn.filter(qualifier='rv')[1].kind, this_syn.filter(qualifier='rv')[1].component
                     obs = system.observe(info['dataset'],
                                          kind=kind,
                                          components=info['component'])
@@ -612,7 +790,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     # then rv_method == 'dynamical'
                     rv = -1*vzi[cind]
 
-                packetlist.append(make_packet('rvs',
+                packetlist.append(_make_packet('rvs',
                                               rv*u.solRad/u.d,
                                               time, info))
 
@@ -625,7 +803,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                                      distance=distance,
                                      l3=l3)
 
-                packetlist.append(make_packet('fluxes',
+                packetlist.append(_make_packet('fluxes',
                                               obs['flux']*u.W/u.m**2,
                                               time, info))
 
@@ -637,21 +815,21 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 this_obs = b.filter(dataset=info['dataset'], component=info['component'], context='dataset')
 
                 # TODO: there must be a better/cleaner way to get to Ns
-                packetlist.append(make_packet('Ns',
+                packetlist.append(_make_packet('Ns',
                                               this_obs.get_parameter(qualifier='Ns').interp_value(time_ephems=time),
                                               time, info))
 
                 # NOTE: no longer under constraint control
-                packetlist.append(make_packet('time_ephems',
+                packetlist.append(_make_packet('time_ephems',
                                               time,
                                               time, info))
 
-                packetlist.append(make_packet('time_ecls',
+                packetlist.append(_make_packet('time_ecls',
                                               time_ecl,
                                               time, info))
 
                 # NOTE: no longer under constraint control
-                packetlist.append(make_packet('etvs',
+                packetlist.append(_make_packet('etvs',
                                               time_ecl-time,
                                               time, info))
 
@@ -661,155 +839,153 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
                 # times array was set when creating the synthetic ParameterSet
 
-                packetlist.append(make_packet('us',
+                packetlist.append(_make_packet('us',
                                               xi[cind] * u.solRad,
                                               time, info))
 
-                packetlist.append(make_packet('vs',
+                packetlist.append(_make_packet('vs',
                                               yi[cind] * u.solRad,
                                               time, info))
 
-                packetlist.append(make_packet('ws',
+                packetlist.append(_make_packet('ws',
                                               zi[cind] * u.solRad,
                                               time, info))
 
-                packetlist.append(make_packet('vus',
+                packetlist.append(_make_packet('vus',
                                               vxi[cind] * u.solRad/u.d,
                                               time, info))
 
-                packetlist.append(make_packet('vvs',
+                packetlist.append(_make_packet('vvs',
                                               vyi[cind] * u.solRad/u.d,
                                               time, info))
 
-                packetlist.append(make_packet('vws',
+                packetlist.append(_make_packet('vws',
                                               vzi[cind] * u.solRad/u.d,
                                               time, info))
 
             elif kind=='mesh':
-                # print "*** info['component']", info['component'], " info['dataset']", info['dataset']
-                # print "*** this_syn.twigs", this_syn.twigs
                 body = system.get_body(info['component'])
 
-                packetlist.append(make_packet('uvw_elements',
+                packetlist.append(_make_packet('uvw_elements',
                                               body.mesh.vertices_per_triangle,
                                               time, info))
-                packetlist.append(make_packet('xyz_elements',
+                packetlist.append(_make_packet('xyz_elements',
                                               body.mesh.roche_vertices_per_triangle,
                                               time, info))
 
                 if 'pot' in info['mesh_columns']:
-                    packetlist.append(make_packet('pot',
+                    packetlist.append(_make_packet('pot',
                                                   body._instantaneous_pot,
                                                   time, info))
                 if 'rpole' in info['mesh_columns']:
-                    packetlist.append(make_packet('rpole',
+                    packetlist.append(_make_packet('rpole',
                                                   roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no),
                                                   time, info))
                 if 'volume' in info['mesh_columns']:
-                    packetlist.append(make_packet('volume',
+                    packetlist.append(_make_packet('volume',
                                                   body.mesh.volume,
                                                   time, info))
 
                 if 'us' in info['mesh_columns']:
                     # UNIT: u.solRad
-                    packetlist.append(make_packet('us',
+                    packetlist.append(_make_packet('us',
                                                   body.mesh.centers[:,0],
                                                   time, info))
                 if 'vs' in info['mesh_columns']:
                     # UNIT: u.solRad
-                    packetlist.append(make_packet('vs',
+                    packetlist.append(_make_packet('vs',
                                                   body.mesh.centers[:,1],
                                                   time, info))
                 if 'ws' in info['mesh_columns']:
                     # UNIT: u.solRad
-                    packetlist.append(make_packet('ws',
+                    packetlist.append(_make_packet('ws',
                                                   body.mesh.centers[:,2],
                                                   time, info))
 
                 if 'vus' in info['mesh_columns']:
-                    packetlist.append(make_packet('vus',
+                    packetlist.append(_make_packet('vus',
                                                   body.mesh.velocities.centers[:,0] * u.solRad/u.d,
                                                   time, info))
                 if 'vvs' in info['mesh_columns']:
-                    packetlist.append(make_packet('vvs',
+                    packetlist.append(_make_packet('vvs',
                                                   body.mesh.velocities.centers[:,1] * u.solRad/u.d,
                                                   time, info))
                 if 'vws' in info['mesh_columns']:
-                    packetlist.append(make_packet('vws',
+                    packetlist.append(_make_packet('vws',
                                                   body.mesh.velocities.centers[:,2] * u.solRad/u.d,
                                                   time, info))
 
                 # if 'uvw_normals' in info['mesh_columns']:
-                #     packetlist.append(make_packet('uvw_normals',
+                #     packetlist.append(_make_packet('uvw_normals',
                 #                                   body.mesh.tnormals,
                 #                                   time, info))
 
                 if 'nus' in info['mesh_columns']:
-                    packetlist.append(make_packet('nus',
+                    packetlist.append(_make_packet('nus',
                                                   body.mesh.tnormals[:,0],
                                                   time, info))
                 if 'nvs' in info['mesh_columns']:
-                    packetlist.append(make_packet('nvs',
+                    packetlist.append(_make_packet('nvs',
                                                   body.mesh.tnormals[:,1],
                                                   time, info))
                 if 'nws' in info['mesh_columns']:
-                    packetlist.append(make_packet('nws',
+                    packetlist.append(_make_packet('nws',
                                                   body.mesh.tnormals[:,2],
                                                   time, info))
 
 
                 if 'xs' in info['mesh_columns']:
-                    packetlist.append(make_packet('xs',
+                    packetlist.append(_make_packet('xs',
                                                   body.mesh.roche_centers[:,0],
                                                   time, info))
                 if 'ys' in info['mesh_columns']:
-                    packetlist.append(make_packet('ys',
+                    packetlist.append(_make_packet('ys',
                                                   body.mesh.roche_centers[:,1],
                                                   time, info))
                 if 'zs' in info['mesh_columns']:
-                    packetlist.append(make_packet('zs',
+                    packetlist.append(_make_packet('zs',
                                                   body.mesh.roche_centers[:,2],
                                                   time, info))
 
                 if 'vxs' in info['mesh_columns']:
-                    packetlist.append(make_packet('vxs',
+                    packetlist.append(_make_packet('vxs',
                                                   body.mesh.roche_cvelocities[:,0] * u.solRad/u.d,
                                                   time, info))
                 if 'vys' in info['mesh_columns']:
-                    packetlist.append(make_packet('vys',
+                    packetlist.append(_make_packet('vys',
                                                   body.mesh.roche_cvelocities[:,1] * u.solRad/u.d,
                                                   time, info))
                 if 'vzs' in info['mesh_columns']:
-                    packetlist.append(make_packet('vzs',
+                    packetlist.append(_make_packet('vzs',
                                                   body.mesh.roche_cvelocities[:,2] * u.solRad/u.d,
                                                   time, info))
 
                 # if 'xyz_normals' in info['mesh_columns']:
-                #     packetlist.append(make_packet('xyz_normals',
+                #     packetlist.append(_make_packet('xyz_normals',
                 #                                   body.mesh.tnormals,
                 #                                   time, info))
 
                 if 'nxs' in info['mesh_columns']:
-                    packetlist.append(make_packet('nxs',
+                    packetlist.append(_make_packet('nxs',
                                                   body.mesh.roche_tnormals[:,0],
                                                   time, info))
                 if 'nys' in info['mesh_columns']:
-                    packetlist.append(make_packet('nys',
+                    packetlist.append(_make_packet('nys',
                                                   body.mesh.roche_tnormals[:,1],
                                                   time, info))
                 if 'nzs' in info['mesh_columns']:
-                    packetlist.append(make_packet('nzs',
+                    packetlist.append(_make_packet('nzs',
                                                   body.mesh.roche_tnormals[:,2],
                                                   time, info))
 
 
                 if 'areas' in info['mesh_columns']:
                     # UNIT: u.solRad**2
-                    packetlist.append(make_packet('areas',
+                    packetlist.append(_make_packet('areas',
                                                   body.mesh.areas,
                                                   time, info))
                 # if 'tareas' in info['mesh_columns']:
-                    # packetlist.append(make_packet('tareas',
+                    # packetlist.append(_make_packet('tareas',
                                                   # body.mesh.tareas,
                                                   # time, info))
 
@@ -817,35 +993,35 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
 
                 if 'rs' in info['mesh_columns']:
-                    packetlist.append(make_packet('rs',
+                    packetlist.append(_make_packet('rs',
                                                   body.mesh.rs.centers,
                                                   time, info))
                 # if 'cosbetas' in info['mesh_columns']:
-                    # packetlist.append(make_packet('cosbetas',
+                    # packetlist.append(_make_packet('cosbetas',
                                                   # body.mesh.cosbetas,
                                                   # time, info))
 
 
                 if 'loggs' in info['mesh_columns']:
-                    packetlist.append(make_packet('loggs',
+                    packetlist.append(_make_packet('loggs',
                                                   body.mesh.loggs.centers,
                                                   time, info))
                 if 'teffs' in info['mesh_columns']:
-                    packetlist.append(make_packet('teffs',
+                    packetlist.append(_make_packet('teffs',
                                                   body.mesh.teffs.centers,
                                                   time, info))
 
 
                 if 'r_projs' in info['mesh_columns']:
-                    packetlist.append(make_packet('r_projs',
+                    packetlist.append(_make_packet('r_projs',
                                                   body.mesh.rprojs.centers,
                                                   time, info))
                 if 'mus' in info['mesh_columns']:
-                    packetlist.append(make_packet('mus',
+                    packetlist.append(_make_packet('mus',
                                                   body.mesh.mus,
                                                   time, info))
                 if 'visibilities' in info['mesh_columns']:
-                    packetlist.append(make_packet('visibilities',
+                    packetlist.append(_make_packet('visibilities',
                                                   body.mesh.visibilities,
                                                   time, info))
                 if 'visible_centroids' in info['mesh_columns']:
@@ -854,48 +1030,22 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                         if np.all(vc==np.array([0,0,0])):
                             vcs[i] = np.full(3, np.nan)
 
-                    packetlist.append(make_packet('visible_centroids',
+                    packetlist.append(_make_packet('visible_centroids',
                                                   vcs,
                                                   time, info))
 
 
-                # Eclipse horizon
-                # if do_horizon and horizons is not None:
-                    # packet[k]['horizon_xs'] = horizons[cind][:,0]
-                    # packet[k]['horizon_ys'] = horizons[cind][:,1]
-                    # packet[k]['horizon_zs'] = horizons[cind][:,2]
-
-                # Analytic horizon
-                # if do_horizon:
-                #     if body.distortion_method == 'roche':
-                #         if body.mesh_method == 'marching':
-                #             q, F, d, Phi = body._mesh_args
-                #             scale = body._scale
-                #             euler = [ethetai[cind], elongani[cind], eincli[cind]]
-                #             pos = [xi[cind], yi[cind], zi[cind]]
-                #             ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
-                #         elif body.mesh_method == 'wd':
-                #             scale = body._scale
-                #             pos = [xi[cind], yi[cind], zi[cind]]
-                #             ha = horizon_analytic.wd(b, time, scale, pos)
-                #         else:
-                #             raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
-                #
-                #         packet[k]['horizon_analytic_xs'] = ha['xs']
-                #         packet[k]['horizon_analytic_ys'] = ha['ys']
-                #         packet[k]['horizon_analytic_zs'] = ha['zs']
-
                 # Dataset-dependent quantities
                 for mesh_dataset in info['mesh_datasets']:
                     if 'pblum@{}'.format(mesh_dataset) in info['mesh_columns']:
-                        packetlist.append(make_packet('pblum',
+                        packetlist.append(_make_packet('pblum',
                                                       body.compute_luminosity(mesh_dataset),
                                                       time, info,
                                                       dataset=mesh_dataset,
                                                       component=info['component']))
 
                     if 'ptfarea@{}'.format(mesh_dataset) in info['mesh_columns']:
-                        packetlist.append(make_packet('ptfarea',
+                        packetlist.append(_make_packet('ptfarea',
                                                       body.get_ptfarea(mesh_dataset),
                                                       time, info,
                                                       dataset=mesh_dataset,
@@ -915,7 +1065,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                                 # rvs use solRad/d internally, but default to km/s in the dataset
                                 value *= u.solRad/u.d
 
-                            packetlist.append(make_packet(indep,
+                            packetlist.append(_make_packet(indep,
                                                           value,
                                                           time, info,
                                                           dataset=mesh_dataset,
@@ -927,103 +1077,24 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
         return packetlist
 
 
-    if _within_mpirun and conf.mpi:
-        # then PHOEBE is handling how to distribute within MPI
-        if myrank == 0:
-            # then this is the master process which is responsible for sending
-            # jobs to the workers and processing the returned packets to fill
-            # the synthetic parameters
-            logger.debug("mpirun proc:{} is master".format(myrank))
+    def _fill_syns(self, new_syns, rpacketlists_per_worker):
+        """
+        rpacket_per_worker is a list of packetlists as returned by _run_chunk
+        """
+        # TODO: move to BaseBackendByTime or BaseBackend?
+        logger.debug("rank:{}/{} PhoebeBackend._fill_syns".format(mpi.myrank, mpi.nprocs))
 
-            # allocate an array to hold communication bits for each worker:
-            req = [None]*len(times)
+        for packetlists in rpacketlists_per_worker:
+            # single worker
+            for packetlist in packetlists:
+                # single time
+                for packet in packetlist:
+                    # single parameter
+                    new_syns.set_value(**packet)
 
-            # listen for work requests from each worker:
-            for i in range(len(times)):
-                req[i] = comm.irecv(source=MPI.ANY_SOURCE, tag=TAG_DATA)
+        return new_syns
 
-            # send tasks to the workers
-            # this is the main compute loop in MPI mode
-
-            for i, time, infolist in zip(range(len(times)), times, infolists):
-                node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
-                packet = {'i': i, 'time': time, 'infolist': infolist}
-                comm.send(packet, node, tag=TAG_DATA)
-
-            # send kill command to all workers
-            for i in range(1, nprocs):
-                node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
-                comm.send({'i': -1}, node, tag=TAG_DATA)
-
-            # parse and process the received packets to fill the syns
-            for i in range(len(req)):
-                r = req[i].wait()
-
-                i = r['i']
-                packetlist = r['packet']
-
-                new_syns = master_populate_syns(new_syns, packetlist)
-
-                if as_generator:
-                    # this is mainly used for live-streaming animation support
-                    yield (new_syns, times[i])
-
-            if not as_generator:
-                yield new_syns
-
-        else: # if myrank != 0:
-            # then this is a worker processor, which must receive a job request
-            # from the master and return the results
-            while True:
-                logger.debug("mpirun proc:{} worker ready for new task".format(myrank))
-                # tell the master that the worker is ready for another task
-                comm.send(myrank, 0, tag=TAG_REQ)
-                # receive the next job
-                packet = comm.recv(tag=TAG_DATA)
-
-                i = packet['i']
-                if i == -1:
-                    logger.debug("mpirun proc:{} worker exiting".format(myrank))
-                    # then all jobs are complete, so kill the worker process
-                    # by exiting the while loop
-                    break
-
-                # parse the packet and run computations for this single time
-                time = packet['time']
-                infolist = packet['infolist']
-
-                logger.debug("mpirun proc:{} received task".format(myrank))
-                packet = worker(i, time, infolist)
-                logger.debug("mpirun proc:{} returning results to master".format(myrank))
-
-                # return the result packet to the master
-                comm.send({'i': i, 'packet': packet}, 0, tag=TAG_DATA)
-
-            yield ParameterSet([])
-    else:
-        # not _within_mpirun
-        # this is the main compute loop in serial mode
-        for i,time,infolist in zip(range(len(times)),times,infolists):
-            packetlist = worker(i, time, infolist)
-
-            # In serial mode we will process the returned packet per-time
-            # so that we can immediately yield the updated synthetics.
-            # This may be a slight overhead, but allows us to stream the results
-            # for live-updating plots (for example)
-            new_syns = master_populate_syns(new_syns, packetlist)
-
-            if as_generator:
-                # this is mainly used for live-streaming animation support
-                yield (new_syns, times[i])
-
-        if not as_generator:
-            yield new_syns
-
-
-
-
-def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
-
+class LegacyBackend(BaseBackendByDataset):
     """
     Use PHOEBE 1.0 (legacy) which is based on the Wilson-Devinney code
     to compute radial velocities and light curves for binary systems
@@ -1057,117 +1128,106 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
         * times
         * rvs
 
-    This function will almost always be called through the bundle, using
+    The run method in this class will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
         * :meth:`phoebe.frontend.bundle.Bundle.run_compute`
-
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle` containing the system
-        and datasets
-    :parameter str compute: the label of the computeoptions to use (in the bundle).
-        These computeoptions must have a kind of 'legacy'.
-    :parameter **kwargs: any temporary overrides to computeoptions
-    :return: a list of new synthetic :class:`phoebe.parameters.parameters.ParameterSet`s
-
     """
 
+    def run_checks(self, b, compute, times=[], **kwargs):
+        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        hier = b.get_hierarchy()
 
-    """
+        starrefs  = hier.get_stars()
+        meshablerefs = hier.get_meshables()
 
-    build up keys for each phoebe1 parameter, so that they correspond
-    to the correct phoebe2 parameter. Since many values of x, y, and z
-    it is unecessary to make specific dictionary items for them. This
-    function does this and also makes sure the correct component is
-    being called.
+        # check whether phoebe legacy is installed
+        if not _use_phb1:
+            raise ImportError("phoebeBackend for phoebe legacy not found")
 
-    Args:
-        key: The root of the key word used in phoebe1: component: the
-        name of the phoebe2 component associated with the given mesh.
-
-    Returns:
-        new key(s) which are component specific and vector direction
-        specific (xs, ys, zs) for phoebe1 and phoebe2.
-
-    Raises:
-        ImportError if the python 'phoebeBackend' interface to PHOEBE
-        legacy is not found/installed
+        if len(starrefs)!=2:
+            raise ValueError("only binaries are supported by legacy backend")
 
 
-
-    """
-
-    def mqtf(value, direction=None):
+    def _worker_setup(self, b, compute, infolist, **kwargs):
         """
-        mesh quadrant to full
         """
-        # value is a 1-dimensional array, but probably a tuple if directly
-        # from legacy
-        value = np.asarray(value)
+        logger.debug("rank:{}/{} LegacyBackend._worker_setup: creating temporary phoebe file".format(mpi.myrank, mpi.nprocs))
 
-        # direction is either 'x', 'y', 'z' or None and gives the component
-        # of the current array.
-        # Plan for quadrants: no flip, flip y, flip z, flip y&z (must be same
-        # order as in potentials.discretize_wd_style so we can compare meshes)
-        if direction=='x':
-            a = [+1,+1,+1,+1]
-        elif direction=='y':
-            a = [+1,-1,+1,-1]
-        elif direction=='z':
-            a = [+1,+1,-1,-1]
-        else:
-            # non-vector-component (like teffs/loggs)
-            a = [1,1,1,1]
+        #make phoebe 1 file
+        # TODO: do we cleanup this temp file?
+        tmp_file = tempfile.NamedTemporaryFile()
+        io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
+        phb1.init()
+        try:
+            if hasattr(phb1, 'auto_configure'):
+                # then phb1 is phoebe_legacy
+                phb1.auto_configure()
+            else:
+                # then phb1 is phoebeBackend
+                phb1.configure()
+        except SystemError:
+            raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
 
-        return np.concatenate([a[0]*value, a[1]*value, a[2]*value, a[3]*value])
+        phb1.open(tmp_file.name)
+
+        # build lookup tables between the dataset labels and the indices needed
+        # to pass to phoebe legacy
+        lcinds = {}
+        rvinds = {}
+        for lcind in range(0, phb1.getpar('phoebe_lcno')):
+            lcinds[phb1.getpar('phoebe_lc_id', lcind)] = lcind
+        for rvind in range(0, phb1.getpar('phoebe_rvno')):
+            rvinds[phb1.getpar('phoebe_rv_id', rvind)] = rvind
+
+        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+
+        return dict(lcinds=lcinds,
+                    rvinds=rvinds,
+                    computeparams=computeparams)
+
+    def _run_single_dataset(self, b, info, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} LegacyBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
+
+        def mqtf(value, direction=None):
+            """
+            mesh quadrant to full
+            """
+            # value is a 1-dimensional array, but probably a tuple if directly
+            # from legacy
+            value = np.asarray(value)
+
+            # direction is either 'x', 'y', 'z' or None and gives the component
+            # of the current array.
+            # Plan for quadrants: no flip, flip y, flip z, flip y&z (must be same
+            # order as in potentials.discretize_wd_style so we can compare meshes)
+            if direction=='x':
+                a = [+1,+1,+1,+1]
+            elif direction=='y':
+                a = [+1,-1,+1,-1]
+            elif direction=='z':
+                a = [+1,+1,-1,-1]
+            else:
+                # non-vector-component (like teffs/loggs)
+                a = [1,1,1,1]
+
+            return np.concatenate([a[0]*value, a[1]*value, a[2]*value, a[3]*value])
 
 
-    # check whether phoebe legacy is installed
-    if not _use_phb1:
-        raise ImportError("phoebeBackend for phoebe legacy not found")
+        lcinds = kwargs.get('lcinds')
+        rvinds = kwargs.get('rvinds')
+        computeparams = kwargs.get('computeparams')
 
-    infolist, new_syns = _extract_from_bundle(b, compute=compute,
-                                           times=times, by_time=False)
-
-    computeparams = b.get_compute(compute, force_ps=True)
-
-    stars = b.hierarchy.get_stars()
-    if len(stars) != 2:
-        raise ValueError("only binary systems are supported by 'legacy' backend")
-
-    #make phoebe 1 file
-    # TODO: do we cleanup this temp file?
-    tmp_file = tempfile.NamedTemporaryFile()
-    io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
-    phb1.init()
-    try:
-        if hasattr(phb1, 'auto_configure'):
-            # then phb1 is phoebe_legacy
-            phb1.auto_configure()
-        else:
-            # then phb1 is phoebeBackend
-            phb1.configure()
-    except SystemError:
-        raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
-
-    phb1.open(tmp_file.name)
-
-    # build lookup tables between the dataset labels and the indices needed
-    # to pass to phoebe legacy
-    lcinds = {}
-    rvinds = {}
-    for lcind in range(0, phb1.getpar('phoebe_lcno')):
-        lcinds[phb1.getpar('phoebe_lc_id', lcind)] = lcind
-    for rvind in range(0, phb1.getpar('phoebe_rvno')):
-        rvinds[phb1.getpar('phoebe_rv_id', rvind)] = rvind
-    # print "*** legacy lcinds:", lcinds
-    # print "*** legacy rvinds:", rvinds
-
-    for info in infolist:
-        this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=info['kind'])
+        packetlist = []
 
         if info['kind'] == 'lc':
             lcind = lcinds[info['dataset']]
             fluxes = np.array(phb1.lc(tuple(info['times'].tolist()), lcind))
-            this_syn.set_value('fluxes', fluxes)
+            packetlist.append(_make_packet('fluxes',
+                                           fluxes,
+                                           None,
+                                           info))
 
         elif info['kind'] == 'rv':
             rvind = rvinds[info['dataset']]
@@ -1189,7 +1249,12 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
             phb1.setpar(proximity_par, rv_method=='flux-weighted')
 
             rvs = np.array(rv_call(tuple(info['times'].tolist()), rvind))
-            this_syn.set_value('rvs', rvs*u.km/u.s)
+
+            packetlist.append(_make_packet('rvs',
+                                           rvs*u.km/u.s,
+                                           None,
+                                           info))
+
 
         elif info['kind'] == 'mesh':
             # NOTE: for each call we'll loop over times because the returned
@@ -1210,7 +1275,6 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                 cind = 2
 
             # first we'll get the geometric/bolometric data
-            # print "*** legacy mesh", info['dataset'], info
             for time in info['times']:
                 # TODO: what happens if there are no LCs attached?
                 flux, mesh = phb1.lc((time,), 0, True)
@@ -1241,7 +1305,12 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                 # vvs =
                 # vws =
 
-                this_syn.set_value(time=time, qualifier='xyz_elements', value=xyz_elements)
+                packetlist.append(_make_packet('xyz_elements',
+                                               xyz_elements,
+                                               time,
+                                               info))
+
+
                 # this_syn.set_value(time=time, qualifier='uvw_elements', value=uvw_elements)
 
                 # if 'us' in info['mesh_columns']:
@@ -1265,17 +1334,36 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 
 
                 if 'xs' in info['mesh_columns']:
-                    this_syn.set_value(time=time, qualifier='xs', value=xs)
+                    packetlist.append(_make_packet('xs',
+                                                   xs,
+                                                   time,
+                                                   info))
                 if 'ys' in info['mesh_columns']:
-                    this_syn.set_value(time=time, qualifier='ys', value=ys)
+                    packetlist.append(_make_packet('ys',
+                                                   ys,
+                                                   time,
+                                                   info))
                 if 'zs' in info['mesh_columns']:
-                    this_syn.set_value(time=time, qualifier='zs', value=zs)
+                    packetlist.append(_make_packet('zs',
+                                                   zs,
+                                                   time,
+                                                   info))
                 if 'nxs' in info['mesh_columns']:
-                    this_syn.set_value(time=time, qualifier='nxs', value=nxs)
+                    packetlist.append(_make_packet('nxs',
+                                                   nxs,
+                                                   time,
+                                                   info))
                 if 'nys' in info['mesh_columns']:
-                    this_syn.set_value(time=time, qualifier='nys', value=nys)
+                    packetlist.append(_make_packet('nys',
+                                                   nys,
+                                                   time,
+                                                   info))
                 if 'nzs' in info['mesh_columns']:
-                    this_syn.set_value(time=time, qualifier='nzs', value=nzs)
+                    packetlist.append(_make_packet('nzs',
+                                                   nzs,
+                                                   time,
+                                                   info))
+
                 # if 'vxs' in info['mesh_columns']:
                     # this_syn.set_value(time=time, qualifier='vxs', value=vxs)
                 # if 'vys' in info['mesh_columns']:
@@ -1286,9 +1374,11 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                 if 'rs' in info['mesh_columns']:
                     # NOTE: here we can assume there is only one sma@orbit since
                     # legacy only supports binary systems
-                    sma = b.get_value(qualifier='sma', kind='orbit', unit=u.solRad)
-                    this_syn.set_value(time=time, qualifier='rs',
-                                       value=mqtf(mesh['rad{}'.format(cind)])*sma*u.solRad)
+                    packetlist.append(_make_packet('rs',
+                                                   mqtf(mesh['rad{}'.format(cind)])*sma*u.solRad,
+                                                   time,
+                                                   info))
+
                 # if 'cosbetas' in info['mesh_columns']:
                     # this_syn.set_value(time=time, qualifier='cosbetas', value=mesh['csbt{}'.format(cind)])
 
@@ -1296,11 +1386,17 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                     # TODO: compute and store areas from glump
 
                 if 'loggs' in info['mesh_columns']:
-                    this_syn.set_value(time=time, qualifier='loggs',
-                                       value=mqtf(mesh['glog{}'.format(cind)]))
+                    packetlist.append(_make_packet('loggs',
+                                                   mqtf(mesh['glog{}'.format(cind)]),
+                                                   time,
+                                                   info))
+
+
                 if 'teffs' in info['mesh_columns']:
-                    this_syn.set_value(time=time, qualifier='teffs',
-                                       value=mqtf(mesh['tloc{}'.format(cind)])*u.K)
+                    packetlist.append(_make_packet('teffs',
+                                                   mqtf(mesh['tloc{}'.format(cind)])*u.K,
+                                                   time,
+                                                   info))
 
             # now we'll loop over the passband-datasets with requested columns
             for mesh_kind, mesh_dataset in zip(info['mesh_kinds'], info['mesh_datasets']):
@@ -1311,13 +1407,11 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                         flux, mesh = phb1.lc((time,), lcind, True)
 
                         if 'abs_normal_intensities@{}'.format(mesh_dataset) in info['mesh_columns']:
-                            # NOTE: this_syn was filtered for dataset=info['dataset'] not mesh_dataset
-                            new_syns.set_value(time=time,
-                                               qualifier='abs_normal_intensities',
-                                               dataset=mesh_dataset,
-                                               component=info['component'],
-                                               kind=info['kind'],
-                                               value=mqtf(mesh['Inorm{}'.format(cind)])*u.erg*u.s**-1*u.cm**-3)
+                            packetlist.append(_make_packet('abs_normal_intensities',
+                                                           mqtf(mesh['Inorm{}'.format(cind)])*u.erg*u.s**-1*u.cm**-3,
+                                                           time,
+                                                           info,
+                                                           dataset=mesh_dataset))
 
                 else:
                     # TODO: once phoebeBackend supports exporting meshes for RVs,
@@ -1328,7 +1422,27 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
         else:
             raise NotImplementedError("dataset '{}' with kind '{}' not supported by legacy backend".format(info['dataset'], info['kind']))
 
-    yield new_syns
+
+        return packetlist
+
+    def _fill_syns(self, new_syns, rpacketlists_per_worker):
+        """
+        rpacket_per_worker is a list of packetlists as returned by _run_chunk
+        """
+        # TODO: move to BaseBackendByDataset or BaseBackend?
+        logger.debug("rank:{}/{} PhoebeBackend._fill_syns".format(mpi.myrank, mpi.nprocs))
+
+        for packetlists in rpacketlists_per_worker:
+            # single worker
+            for packetlist in packetlists:
+                # single dataset
+                for packet in packetlist:
+                    # single parameter
+                    new_syns.set_value(**packet)
+
+        return new_syns
+
+
 
 def photodynam(b, compute, times=[], **kwargs):
     """

@@ -4161,6 +4161,10 @@ class FloatParameter(Parameter):
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
 
+        # if 'time' in kwargs.keys() and isinstance(self, FloatArrayParameter):
+        #     # then find the correct index and set by index instead
+        #     time_param = self._bundle
+
         if isinstance(value, tuple) and (len(value) !=2 or isinstance(value[1], float) or isinstance(value[1], int)):
             # allow passing tuples (this could be a FloatArrayParameter - if it isn't
             # then this array will fail _check_type below)
