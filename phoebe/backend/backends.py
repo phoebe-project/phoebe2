@@ -375,13 +375,22 @@ class BaseBackend(object):
         # np.array_split(any_input_array, nprocs)[myrank]
         raise NotImplementedError("_run_chunk is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def _fill_syns(self, new_syns, rpacket_per_worker):
+    def _fill_syns(self, new_syns, rpacketlists_per_worker):
         """
-        _fill_syns is responsible for parsing the packets returned by the worker(s)
-        and populating the synthetic parameters within new_syns (ParameterSet)
+        rpacket_per_worker is a list of packetlists as returned by _run_chunk
         """
-        # TODO: parse rpacket_per_worker and fill new_syns, then return new_syns
-        raise NotImplementedError("_fill_syns not implemented by the {} backend".format(self.__class__.__name__))
+        # TODO: move to BaseBackendByDataset or BaseBackend?
+        logger.debug("rank:{}/{} {}._fill_syns".format(mpi.myrank, mpi.nprocs, self.__class__.__name__))
+
+        for packetlists in rpacketlists_per_worker:
+            # single worker
+            for packetlist in packetlists:
+                # single time/dataset
+                for packet in packetlist:
+                    # single parameter
+                    new_syns.set_value(**packet)
+
+        return new_syns
 
     def _run_worker(self, packet):
         # the worker receives the bundle serialized, so we need to unpack it
@@ -1077,23 +1086,6 @@ class PhoebeBackend(BaseBackendByTime):
         return packetlist
 
 
-    def _fill_syns(self, new_syns, rpacketlists_per_worker):
-        """
-        rpacket_per_worker is a list of packetlists as returned by _run_chunk
-        """
-        # TODO: move to BaseBackendByTime or BaseBackend?
-        logger.debug("rank:{}/{} PhoebeBackend._fill_syns".format(mpi.myrank, mpi.nprocs))
-
-        for packetlists in rpacketlists_per_worker:
-            # single worker
-            for packetlist in packetlists:
-                # single time
-                for packet in packetlist:
-                    # single parameter
-                    new_syns.set_value(**packet)
-
-        return new_syns
-
 class LegacyBackend(BaseBackendByDataset):
     """
     Use PHOEBE 1.0 (legacy) which is based on the Wilson-Devinney code
@@ -1425,26 +1417,8 @@ class LegacyBackend(BaseBackendByDataset):
 
         return packetlist
 
-    def _fill_syns(self, new_syns, rpacketlists_per_worker):
-        """
-        rpacket_per_worker is a list of packetlists as returned by _run_chunk
-        """
-        # TODO: move to BaseBackendByDataset or BaseBackend?
-        logger.debug("rank:{}/{} PhoebeBackend._fill_syns".format(mpi.myrank, mpi.nprocs))
 
-        for packetlists in rpacketlists_per_worker:
-            # single worker
-            for packetlist in packetlists:
-                # single dataset
-                for packet in packetlist:
-                    # single parameter
-                    new_syns.set_value(**packet)
-
-        return new_syns
-
-
-
-def photodynam(b, compute, times=[], **kwargs):
+class PhotodynamBackend(BaseBackendByDataset):
     """
     Use Josh Carter's photodynamical code (photodynam) to compute
     velocities (dynamical only), orbital positions and velocities
@@ -1494,39 +1468,54 @@ def photodynam(b, compute, times=[], **kwargs):
         - times
         - rvs
 
-    This function will almost always be called through the bundle, using
+    The run method in this class will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
         * :meth:`phoebe.frontend.bundle.Bundle.run_compute`
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle` containing the system
-        and datasets
-    :parameter str compute: the label of the computeoptions to use (in the bundle).
-        These computeoptions must have a kind of 'photodynam'.
-    :parameter **kwargs: any temporary overrides to computeoptions
-    :return: a list of new synthetic :class:`phoebe.parameters.parameters.ParameterSet`s
-    :raises ImportError: if the photodynam executable cannot be found or is not installed
-    :raises ValueError: if pblums are invalid
     """
-    # check whether photodynam is installed
-    out = commands.getoutput('photodynam')
-    if 'not found' in out:
-        raise ImportError('photodynam executable not found')
+    def run_checks(self, b, compute, times=[], **kwargs):
+        # check whether photodynam is installed
+        out = commands.getoutput('photodynam')
+        if 'not found' in out:
+            raise ImportError('photodynam executable not found')
 
-    computeparams = b.get_compute(compute, force_ps=True)
-    hier = b.get_hierarchy()
 
-    starrefs  = hier.get_stars()
-    orbitrefs = hier.get_orbits()
+    def _worker_setup(self, b, compute, infolist, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} PhotodynamBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
 
-    infolist, new_syns = _extract_from_bundle(b, compute=compute,
-                                              times=times, by_time=False)
+        computeparams = b.get_compute(compute, force_ps=True)
+        hier = b.get_hierarchy()
 
-    step_size = computeparams.get_value('stepsize', **kwargs)
-    orbit_error = computeparams.get_value('orbiterror', **kwargs)
-    time0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
+        starrefs  = hier.get_stars()
+        orbitrefs = hier.get_orbits()
 
-    for info in infolist:
+        step_size = computeparams.get_value('stepsize', **kwargs)
+        orbit_error = computeparams.get_value('orbiterror', **kwargs)
+        time0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
+
+
+        return dict(starrefs=starrefs,
+                    orbitrefs=orbitrefs,
+                    step_size=step_size,
+                    orbit_error=orbit_error,
+                    time0=time0)
+
+    def _run_single_dataset(self, b, info, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} PhotodynamBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
+
+
+        starrefs = kwargs.get('starrefs')
+        orbitrefs = kwargs.get('orbitrefs')
+        step_size = kwargs.get('step_size')
+        orbit_error = kwargs.get('orbit_error')
+        time0 = kwargs.get('time0')
+
         # write the input file
+        # TODO: need to use TemporaryFiles to be MPI safe
         fi = open('_tmp_pd_inp', 'w')
         fi.write('{} {}\n'.format(len(starrefs), time0))
         fi.write('{} {}\n'.format(step_size, orbit_error))
@@ -1540,9 +1529,11 @@ def photodynam(b, compute, times=[], **kwargs):
                 for star in starrefs])+'\n')
 
         if info['kind'] == 'lc':
+            # TODO: support pblum_ref
             pblums = [b.get_value(qualifier='pblum', component=star,
-                    context='dataset', dataset=info['dataset'])
-                    for star in starrefs]  # TODO: units or unitless?
+                        context='dataset', dataset=info['dataset'])
+                        for star in starrefs]  # TODO: units or unitless?
+
             u1s, u2s = [], []
             for star in starrefs:
                 if b.get_value(qualifier='ld_func', component=star, dataset=info['dataset'], context='dataset') == 'quadratic':
@@ -1612,32 +1603,81 @@ def photodynam(b, compute, times=[], **kwargs):
         out = commands.getoutput(cmd)
         stuff = np.loadtxt('_tmp_pd_out', unpack=True)
 
-        # parse output to fill syns
-        this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'])
+        # parse output to fill packets
+        packetlist = []
 
         nbodies = len(starrefs)
         if info['kind']=='lc':
-            this_syn['times'] = stuff[0] * u.d
-            this_syn['fluxes'] = stuff[1] # + 1  # TODO: figure out why and actually fix the problem instead of fudging it!?!!?
+            packetlist.append(_make_packet('times',
+                                           stuff[0]*u.d,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('fluxes',
+                                           stuff[1],
+                                           None,
+                                           info))
+
         elif info['kind']=='orb':
             cind = starrefs.index(info['component'])
-            this_syn['times'] = stuff[0] * u.d
-            this_syn['us'] = -1*stuff[2+(cind*3)] * u.AU
-            this_syn['vs'] = -1*stuff[3+(cind*3)] * u.AU
-            this_syn['ws'] = stuff[4+(cind*3)] * u.AU
-            this_syn['vus'] = -1*stuff[3*nbodies+2+(cind*3)] * u.AU/u.d
-            this_syn['vvs'] = -1*stuff[3*nbodies+3+(cind*3)] * u.AU/u.d
-            this_syn['vws'] = stuff[3*nbodies+4+(cind*3)] * u.AU/u.d
+
+            packetlist.append(_make_packet('times',
+                                           stuff[0]*u.d,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('us',
+                                           -1*stuff[2+(cind*3)] * u.AU,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('vs',
+                                           -1*stuff[3+(cind*3)] * u.AU,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('ws',
+                                           stuff[4+(cind*3)] * u.AU,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('vus',
+                                           -1*stuff[3*nbodies+2+(cind*3)] * u.AU/u.d,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('vvs',
+                                           -1*stuff[3*nbodies+3+(cind*3)] * u.AU/u.d,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('vws',
+                                           stuff[3*nbodies+4+(cind*3)] * u.AU/u.d,
+                                           None,
+                                           info))
+
+
         elif info['kind']=='rv':
             cind = starrefs.index(info['component'])
-            this_syn['times'] = stuff[0] * u.d
-            this_syn['rvs'] = -stuff[3*nbodies+4+(cind*3)] * u.AU/u.d
+
+            packetlist.append(_make_packet('times',
+                                           stuff[0]*u.d,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('rvs',
+                                           -stuff[3*nbodies+4+(cind*3)] * u.AU/u.d,
+                                           None,
+                                           info))
+
         else:
             raise NotImplementedError("kind {} not yet supported by this backend".format(info['kind']))
 
-    yield new_syns
+        return packetlist
 
-def jktebop(b, compute, times=[], **kwargs):
+
+
+class JktebopBackend(BaseBackendByDataset):
     """
     Use John Southworth's code (jktebop) to compute radial velocities
     and light curves.  The code is available here:
@@ -1684,60 +1724,65 @@ def jktebop(b, compute, times=[], **kwargs):
         - times
         - rvs
 
-    This function will almost always be called through the bundle, using
+    This run method in this class will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
         * :meth:`phoebe.frontend.bundle.Bundle.run_compute`
-
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle` containing the system
-        and datasets
-    :parameter str compute: the label of the computeoptions to use (in the bundle).
-        These computeoptions must have a kind of 'jktebop'.
-    :parameter **kwargs: any temporary overrides to computeoptions
-    :return: a list of new synthetic :class:`phoebe.parameters.parameters.ParameterSet`s
-    :raise ImportError: if the jktebop executable cannot be found or is not installed
-    :raises ValueError: if an ld_func is not valid for the jktebop backedn
     """
+    def run_checks(self, b, compute, times=[], **kwargs):
+        # check whether jktebop is installed
+        out = commands.getoutput('jktebop')
+        if 'not found' in out:
+            raise ImportError('jktebop executable not found')
 
-    # check whether jktebop is installed
-    out = commands.getoutput('jktebop')
-    if 'not found' in out:
-        raise ImportError('jktebop executable not found')
+        hier = b.get_hierarchy()
 
-    computeparams = b.get_compute(compute, force_ps=True)
-    hier = b.get_hierarchy()
+        starrefs  = hier.get_stars()
+        orbitrefs = hier.get_orbits()
 
-    starrefs  = hier.get_stars()
-    orbitrefs = hier.get_orbits()
+        if len(starrefs) != 2 or len(orbitrefs) != 1:
+            raise ValueError("jktebop backend only accepts binary systems")
 
-    if len(starrefs) != 2 or len(orbitrefs) != 1:
-        raise ValueError("jktebop backend only accepts binary systems")
-
-    logger.warning("JKTEBOP backend is still in development/testing and is VERY experimental")
-
-    orbitref = orbitrefs[0]
-
-    # TODO: add rv support (see commented context below)
-    infolist, new_syns = _extract_from_bundle(b, compute=compute,
-                                              times=times, by_time=False)
-
-    ringsize = computeparams.get_value('ringsize', unit=u.deg, **kwargs)
-
-    rA = b.get_value('rpole', component=starrefs[0], context='component', unit=u.solRad)
-    rB = b.get_value('rpole', component=starrefs[1], context='component', unit=u.solRad)
-    sma = b.get_value('sma', component=orbitref, context='component', unit=u.solRad)
-    incl = b.get_value('incl', component=orbitref, context='component', unit=u.deg)
-    q = b.get_value('q', component=orbitref, context='component')
-    ecosw = b.get_value('ecosw', component=orbitref, context='component')
-    esinw = b.get_value('esinw', component=orbitref, context='component')
-
-    gravbA = b.get_value('gravb_bol', component=starrefs[0], context='component')
-    gravbB = b.get_value('gravb_bol', component=starrefs[1], context='component')
+        logger.warning("JKTEBOP backend is still in development/testing and is VERY experimental")
 
 
-    period = b.get_value('period', component=orbitref, context='component', unit=u.d)
-    t0_supconj = b.get_value('t0_supconj', component=orbitref, context='component', unit=u.d)
+    def _worker_setup(self, b, compute, infolist, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} JktebopBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
 
-    for info in infolist:
+        computeparams = b.get_compute(compute, force_ps=True)
+        hier = b.get_hierarchy()
+
+        starrefs  = hier.get_stars()
+        orbitrefs = hier.get_orbits()
+
+        orbitref = orbitrefs[0]
+
+        ringsize = computeparams.get_value('ringsize', unit=u.deg, **kwargs)
+
+        rA = b.get_value('rpole', component=starrefs[0], context='component', unit=u.solRad)
+        rB = b.get_value('rpole', component=starrefs[1], context='component', unit=u.solRad)
+        sma = b.get_value('sma', component=orbitref, context='component', unit=u.solRad)
+        incl = b.get_value('incl', component=orbitref, context='component', unit=u.deg)
+        q = b.get_value('q', component=orbitref, context='component')
+        ecosw = b.get_value('ecosw', component=orbitref, context='component')
+        esinw = b.get_value('esinw', component=orbitref, context='component')
+
+        gravbA = b.get_value('gravb_bol', component=starrefs[0], context='component')
+        gravbB = b.get_value('gravb_bol', component=starrefs[1], context='component')
+
+
+        period = b.get_value('period', component=orbitref, context='component', unit=u.d)
+        t0_supconj = b.get_value('t0_supconj', component=orbitref, context='component', unit=u.d)
+
+
+        return dict()
+
+    def _run_single_dataset(self, b, info, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} JktebopBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
+
         # get dataset-dependent things that we need
         l3 = b.get_value('l3', dataset=info['dataset'], context='dataset')
         # TODO: need to sum up pblums of each component - so need to write a function which will use the phoebe2 backend
@@ -1882,17 +1927,26 @@ def jktebop(b, compute, times=[], **kwargs):
         phases_all, mags_all, l1, l2, l3 = np.loadtxt(str(period), unpack=True)
         #~ time, flux = np.loadtxt("_tmp_jktebop_lc_out", unpack=True)
 
-        # fill syn
-        this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'])
+        # fill packets
+        packetlist = []
 
         # phases_all, mags_all are 10001 evenly-spaced phases, so we need to interpolate
         # to get at the desired times
         times_all = b.to_time(phases_all)  # in days
         mags_interp = np.interp(info['times'], times_all, mags_all)
 
-        this_syn['times'] = info['times'] * u.d # (period was requested in days)
         logger.warning("converting from mags from JKTEBOP to flux")
         ref_mag = 0  # TODO: what should we do with this?? - option in jktebop compute?
-        this_syn['fluxes'] = 10**((mags_interp-ref_mag)/-2.5) * 2  # 2 seems to be necessary - probably from a difference in pblum conventions (or just normalization???)
+        fluxes = 10**((mags_interp-ref_mag)/-2.5) * 2  # 2 seems to be necessary - probably from a difference in pblum conventions (or just normalization???)
 
-    yield new_syns
+        packetlist.append(_make_packet('times',
+                                       info['times']*u.d,
+                                       None,
+                                       info))
+
+        packetlist.append(_make_packet('fluxes',
+                                       fluxes,
+                                       None,
+                                       info))
+
+        return packetlist
