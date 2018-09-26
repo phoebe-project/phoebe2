@@ -1310,29 +1310,29 @@ class Bundle(ParameterSet):
 
         for component in self.hierarchy.get_stars():
             # first check ld_coeffs_bol vs ld_func_bol
-            ld_func = self.get_value(qualifier='ld_func_bol', component=component, context='component', check_visible=False, **kwargs)
-            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs)
+            ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', check_visible=False, **kwargs))
+            ld_coeffs = np.asarray(self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs))
             check = ld_coeffs_len(ld_func, ld_coeffs)
             if not check[0]:
                 return check
 
-            if ld_func is not 'interp':
-                check = libphoebe.ld_check(ld_func, np.asarray(ld_coeffs))
+            if ld_func != 'interp':
+                check = libphoebe.ld_check(ld_func, ld_coeffs)
                 if not check:
                     return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
 
             for dataset in self.datasets:
                 if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
                     continue
-                ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs)
-                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
+                ld_func = str(self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs))
+                ld_coeffs = np.asarray(self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs))
                 if ld_coeffs is not None:
                     check = ld_coeffs_len(ld_func, ld_coeffs)
                     if not check[0]:
                         return check
 
-                if ld_func is not 'interp':
-                    check = libphoebe.ld_check(ld_func, np.asarray(ld_coeffs))
+                if ld_func != 'interp':
+                    check = libphoebe.ld_check(ld_func, ld_coeffs)
                     if not check:
                         return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
 
