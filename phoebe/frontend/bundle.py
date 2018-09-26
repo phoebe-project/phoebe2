@@ -1506,6 +1506,13 @@ class Bundle(ParameterSet):
 
         return
 
+    def remove_features_all(self):
+        """
+        Remove all features from the bundle
+        """
+        for feature in self.features:
+            self.remove_feature(feature=feature)
+
     def rename_feature(self, old_feature, new_feature):
         """
         Change the label of a feature attached to the Bundle
@@ -1646,8 +1653,9 @@ class Bundle(ParameterSet):
         :raises NotImplementedError: because this isn't implemented yet
         """
         # TODO: don't forget to add_history
+        # TODO: need to handle if in hierarchy or not
         # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
-        raise NotImplementedError
+        raise NotImplementedError("remove_component not yet supported")
 
     def rename_component(self, old_component, new_component):
         """
@@ -2194,6 +2202,13 @@ class Bundle(ParameterSet):
 
         return
 
+    def remove_datasets_all(self):
+        """
+        Remove all datasets from the bundle
+        """
+        for dataset in self.datasets:
+            self.remove_dataset(dataset=dataset)
+
     def rename_dataset(self, old_dataset, new_dataset):
         """
         Change the label of a dataset attached to the Bundle
@@ -2619,16 +2634,23 @@ class Bundle(ParameterSet):
 
     def remove_compute(self, compute, **kwargs):
         """
-        [NOT IMPLEMENTED]
-        Remove a 'constraint' from the bundle
+        Remove a 'compute' from the bundle
 
-        :parameter str twig: twig to filter for the compute options
+        :parameter str compute: name of the compute options
         :parameter **kwargs: any other tags to do the filter
             (except twig or context)
         :raise NotImplementedError: because it isn't
         """
-        # TODO: don't forget add_history
-        raise NotImplementedError
+        kwargs['compute'] = compute
+        kwargs['context'] = 'comute'
+        self.remove_parameters_all(**kwargs)
+
+    def remove_computes_all(self):
+        """
+        Remove all computes from the bundle
+        """
+        for compute in self.computes:
+            self.remove_compute(compute)
 
     def rename_compute(self, old_compute, new_compute):
         """
@@ -2950,6 +2972,13 @@ class Bundle(ParameterSet):
         kwargs['model'] = model
         kwargs['context'] = 'model'
         self.remove_parameters_all(**kwargs)
+
+    def remove_models_all(self):
+        """
+        Remove all models from the bundle
+        """
+        for model in self.models:
+            self.remove_model(model=model)
 
     def rename_model(self, old_model, new_model):
         """
