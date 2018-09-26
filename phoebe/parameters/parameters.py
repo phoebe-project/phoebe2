@@ -2173,7 +2173,11 @@ class ParameterSet(object):
             # first determine from any passed values if we're in xyz or uvw
             # (do not allow mixing between roche and POS)
             detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
-            coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers])
+            if len(detected_qualifiers):
+                coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers])
+            else:
+                coordinate_systems = ['uvw']
+
             if len(coordinate_systems) > 1:
                 # then we're mixing roche and POS
                 raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
