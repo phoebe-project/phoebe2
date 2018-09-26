@@ -2218,16 +2218,19 @@ class Bundle(ParameterSet):
         during :meth:`run_compute` and included in the cost function
         during :meth:`run_fitting`.
 
+        If compute is not provided, the dataset will be enabled across all
+        compute options.
+
         :parameter str dataset: name of the dataset
         :parameter **kwargs: any other tags to do the filter
             (except dataset or context)
         :return: :class:`phoebe.parameters.parameters.ParameterSet`
             of the enabled dataset
         """
-        kwargs['context'] = 'dataset'
+        kwargs['context'] = 'compute'
         kwargs['dataset'] = dataset
         kwargs['qualifier'] = 'enabled'
-        self.set_value(value=True, **kwargs)
+        self.set_value_all(value=True, **kwargs)
 
         self._add_history(redo_func='enable_dataset',
                           redo_kwargs={'dataset': dataset},
@@ -2242,16 +2245,19 @@ class Bundle(ParameterSet):
         during :meth:`run_compute` and included in the cost function
         during :meth:`run_fitting`.
 
+        If compute is not provided, the dataset will be disabled across all
+        compute options.
+
         :parameter str dataset: name of the dataset
         :parameter **kwargs: any other tags to do the filter
             (except dataset or context)
         :return: :class:`phoebe.parameters.parameters.ParameterSet`
             of the disabled dataset
         """
-        kwargs['context'] = 'dataset'
+        kwargs['context'] = 'compute'
         kwargs['dataset'] = dataset
         kwargs['qualifier'] = 'enabled'
-        self.set_value(value=False, **kwargs)
+        self.set_value_all(value=False, **kwargs)
 
         self._add_history(redo_func='disable_dataset',
                           redo_kwargs={'dataset': dataset},
