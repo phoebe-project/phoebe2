@@ -8,6 +8,8 @@ from phoebe.atmospheres import passbands # needed to get choices for 'atm' param
 from phoebe import u
 from phoebe import conf
 
+### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
+
 passbands.init_passbands()  # TODO: move to module import
 _atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms']]))
 
@@ -152,9 +154,8 @@ def legacy(**kwargs):
 
     # TODO: can we change this to rv_method = ['flux_weighted', 'dynamical'] to be consistent with phoebe2?
     # TODO: can proximity_rv (rv_method) be copied for each dataset (see how this is done for phoebe2)?  This would probably mean that the wrapper would need to loop and make separate calls since PHOEBE1 can't handle different settings per-RV dataset
-    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
-#    params += [BoolParameter(copy_for={'kind': ['star'], 'component': '*'}, qualifier='proximity_rv', component='_default', value=kwargs.get('proximity_rv', True), description='Rossiter effect')]
-
+    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default',
+                               value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
 
     return ParameterSet(params)
 

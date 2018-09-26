@@ -2,6 +2,8 @@
 from phoebe.parameters import *
 from phoebe import conf, __version__
 
+### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
+
 def settings(**kwargs):
     """
     Generally, this will automatically be added to a newly initialized

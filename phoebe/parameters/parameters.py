@@ -118,6 +118,48 @@ _forbidden_labels += ['protomesh', 'pbmesh']
 _forbidden_labels += ['component']
 _forbidden_labels += ['bol']
 
+
+
+# we also want to forbid any possible qualifiers
+# from system:
+_forbidden_labels = ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma']
+
+# from setting:
+_forbidden_labels = ['phoebe_version', 'log_history', 'dict_filter', 'dict_set_all']
+
+# from dataset:
+_forbidden_labels = ['times', 'fluxes', 'sigmas', 'ld_func', 'ld_coeffs',
+                     'passband', 'intens_weighting', 'pblum_ref', 'pblum', 'l3',
+                     'exptime', 'rvs', 'wavelengths',
+                     'flux_densities', 'profile_func', 'profile_rest', 'profile_sv',
+                     'Ns', 'time_ecls', 'time_ephems', 'etvs',
+                     'us', 'vs', 'ws', 'vus', 'vvs', 'vws',
+                     'include_times', 'columns',
+                     'uvw_elements', 'xyz_elements',
+                     'pot', 'rpole', 'volume',
+                     'xs', 'ys', 'zs', 'vxs', 'vys', 'vzs',
+                     'nxs', 'nys', 'nzs', 'nus', 'nvs', 'nws',
+                     'areas', 'rs', 'rprojs', 'loggs', 'teffs', 'mus',
+                     'visible_centroids', 'visibilities',
+                     'intensities', 'normal_intensities', 'abs_normal_intensities',
+                     'boost_factors', 'ldint', 'ptfarea', 'pblum', 'abs_pblum']
+
+# from compute:
+_forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
+                      'gr', 'stepsize', 'integrator',
+                      'irrad_method', 'boosting_method', 'mesh_method', 'distortion_method',
+                      'ntriangles',
+                      'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
+                      'atm', 'lc_method', 'rv_method', 'fti_method', 'etv_method',
+                      'gridsize', 'refl_num', 'ie',
+                      'stepsize', 'orbiterror', 'ringsize'
+                      ]
+
+# from feature:
+_forbidden_labels += ['colat', 'long', 'radius', 'relteff',
+                      'radamp', 'freq', 'l', 'm', 'teffext'
+                      ]
+
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 

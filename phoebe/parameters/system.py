@@ -2,6 +2,7 @@
 from phoebe.parameters import *
 from phoebe import u
 
+### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
 def system(**kwargs):
     """

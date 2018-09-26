@@ -5,6 +5,8 @@ from phoebe.parameters import constraint
 from phoebe import u
 from phoebe import conf
 
+### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
+
 def _component_allowed_for_feature(feature_kind, component_kind):
     _allowed = {}
     _allowed['spot'] = ['star', 'envelope']

@@ -5,6 +5,8 @@ from phoebe.atmospheres import passbands  # need to load pbtable (dictionary of 
 from phoebe import u
 from phoebe import conf
 
+### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
+
 _ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power']
 
 global _mesh_columns
