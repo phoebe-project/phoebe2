@@ -1082,6 +1082,13 @@ class PhoebeBackend(BaseBackendByTime):
 
                             value = body.mesh[key].centers
 
+                            if indep in ['intensities', 'abs_intensities']:
+                                # replace elements in the back with nan (these
+                                # were computed internally with abs(mus) to
+                                # prevent a crash)
+                                mus = body.mesh.mus
+                                value[mus<0] = np.nan
+
                             if indep=='rvs':
                                 # rvs use solRad/d internally, but default to km/s in the dataset
                                 value *= u.solRad/u.d
