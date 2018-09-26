@@ -1306,7 +1306,7 @@ class Bundle(ParameterSet):
             elif ld_func in ['power'] and len(ld_coeffs)==4:
                 return True,
             else:
-                return False, "ld_coeffs='{}' inconsistent with ld_func='{}'.".format(ld_coeffs, ld_func)
+                return False, "ld_coeffs={} wrong length for ld_func='{}'.".format(ld_coeffs, ld_func)
 
         for component in self.hierarchy.get_stars():
             # first check ld_coeffs_bol vs ld_func_bol
@@ -1315,6 +1315,12 @@ class Bundle(ParameterSet):
             check = ld_coeffs_len(ld_func, ld_coeffs)
             if not check[0]:
                 return check
+
+            if ld_func is not 'interp':
+                check = libphoebe.ld_check(ld_func, np.asarray(ld_coeffs))
+                if not check:
+                    return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
+
             for dataset in self.datasets:
                 if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
                     continue
@@ -1324,6 +1330,11 @@ class Bundle(ParameterSet):
                     check = ld_coeffs_len(ld_func, ld_coeffs)
                     if not check[0]:
                         return check
+
+                if ld_func is not 'interp':
+                    check = libphoebe.ld_check(ld_func, np.asarray(ld_coeffs))
+                    if not check:
+                        return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
 
                 if ld_func=='interp':
                     for compute in kwargs.get('computes', self.computes):
