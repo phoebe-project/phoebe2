@@ -25,11 +25,11 @@ def test_binary(plot=False):
     b.set_value_all('atm', 'extern_planckint')
 
     # turn off limb-darkening:
-    b.set_value_all('ld_func_bol', 'logarithmic')
-    b.set_value_all('ld_coeffs_bol', [0.0, 0.0])
+    b.set_value_all('ld_func_bol', 'linear')
+    b.set_value_all('ld_coeffs_bol', [0.0])
 
-    b.set_value_all('ld_func', 'logarithmic')
-    b.set_value_all('ld_coeffs', [0.0, 0.0])
+    b.set_value_all('ld_func', 'linear')
+    b.set_value_all('ld_coeffs', [0.0])
 
     if plot: print "running phoebe2 model..."
     b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')

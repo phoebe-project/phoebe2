@@ -24,11 +24,11 @@ def test_binary(plot=False):
     cb.set_value_all('atm', 'extern_planckint')
 
     # turn off limb-darkening:
-    cb.set_value_all('ld_func_bol', 'logarithmic')
-    cb.set_value_all('ld_coeffs_bol', [0.0, 0.0])
+    cb.set_value_all('ld_func_bol', 'linear')
+    cb.set_value_all('ld_coeffs_bol', [0.0])
 
-    cb.set_value_all('ld_func', 'logarithmic')
-    cb.set_value_all('ld_coeffs', [0.0, 0.0])
+    cb.set_value_all('ld_func', 'linear')
+    cb.set_value_all('ld_coeffs', [0.0])
 
     cb.set_value_all('rv_grav', False)
     cb.set_value_all('ltte', False)

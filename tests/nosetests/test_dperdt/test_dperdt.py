@@ -20,11 +20,11 @@ def test_binary(plot=False):
     b.set_value_all('atm', 'extern_planckint')
 
     # set matching limb-darkening, both bolometric and passband
-    b.set_value_all('ld_func_bol', 'logarithmic')
-    b.set_value_all('ld_coeffs_bol', [0.0, 0.0])
+    b.set_value_all('ld_func_bol', 'linear')
+    b.set_value_all('ld_coeffs_bol', [0.0])
 
-    b.set_value_all('ld_func', 'logarithmic')
-    b.set_value_all('ld_coeffs', [0.0, 0.0])
+    b.set_value_all('ld_func', 'linear')
+    b.set_value_all('ld_coeffs', [0.0])
     b.set_value_all('ecc', 0.2)
 
     for dperdt in [-0.5, -0.25, 0.25, 0.5]:
