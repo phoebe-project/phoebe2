@@ -11,7 +11,8 @@ import numpy as np
 
 
 def test_mpi(plot=False, npoints=8):
-    phoebe.mpi_on(np=4)
+    phoebe.reset_settings()
+    phoebe.mpi_on(4)
 
     b = phoebe.Bundle.default_binary()
 
@@ -25,6 +26,7 @@ def test_mpi(plot=False, npoints=8):
         b.plot(show=True)
 
     phoebe.reset_settings()
+    phoebe.mpi_off()
 
     return b
 
