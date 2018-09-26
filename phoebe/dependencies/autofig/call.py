@@ -105,7 +105,8 @@ class Call(object):
                  xerror=None, xunit=None, xlabel=None,
                  yerror=None, yunit=None, ylabel=None,
                  zerror=None, zunit=None, zlabel=None,
-                 iunit=None,
+                 iunit=None, itol=0.0,
+                 label=None,
                  consider_for_limits=True,
                  uncover=False,
                  trail=False,
@@ -124,11 +125,13 @@ class Call(object):
 
         # defined last so all other dimensions are in place in case indep
         # is a reference and needs to access units, etc
-        self._i = CallDimensionI(self, i, iunit)
+        self._i = CallDimensionI(self, i, iunit, itol)
 
         self.consider_for_limits = consider_for_limits
         self.uncover = uncover
         self.trail = trail
+
+        self.label = label
 
         self.kwargs = kwargs
 
@@ -219,6 +222,21 @@ class Call(object):
 
         self._trail = trail
 
+    @property
+    def label(self):
+        return self._label
+
+    @label.setter
+    def label(self, label):
+        if label is None:
+            self._label = label
+            return
+
+        if not isinstance(label, str):
+            raise TypeError("label must be of type str")
+
+        self._label = label
+
 
 class Plot(Call):
     def __init__(self, x=None, y=None, z=None, c=None, s=None, i=None,
@@ -228,6 +246,7 @@ class Plot(Call):
                        cunit=None, clabel=None, cmap=None,
                        sunit=None, slabel=None, smap=None, smode=None,
                        iunit=None,
+                       label=None,
                        marker=None,
                        linestyle=None, linebreak=None,
                        highlight=True, uncover=False, trail=False,
@@ -296,6 +315,7 @@ class Plot(Call):
                                    z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
                                    consider_for_limits=consider_for_limits,
                                    uncover=uncover, trail=trail,
+                                   label=label,
                                    **kwargs
                                    )
 
@@ -404,8 +424,8 @@ class Plot(Call):
 
     @property
     def highlight_color(self):
-        if self._highlight_color is None:
-            return self.get_color()
+        # if self._highlight_color is None:
+            # return self.get_color()
 
         return self._highlight_color
 
@@ -607,9 +627,18 @@ class Plot(Call):
         y = self.y.get_value(i=i, unit=self.axes.y.unit)
         yerr = self.y.get_error(i=i, unit=self.axes.y.unit)
         z = self.z.get_value(i=i, unit=self.axes.z.unit)
-        # TODO: implement zerr
+        # zerr is handled below, only if axes_3ds
         c = self.c.get_value(i=i, unit=self.axes_c.unit if self.axes_c is not None else None)
         s = self.s.get_value(i=i, unit=self.axes_s.unit if self.axes_s is not None else None)
+
+        # bail on cases where we can't plot.  This could possibly be due to
+        # sending Nones or Nans
+        # if x is None and y is None:
+        #     return []
+        # if x is None and len(y) > 1:
+        #     return []
+        # if y is None and len(x) > 1:
+        #     return []
 
         if axes_3d:
             zerr = self.z.get_error(i=i, unit=self.axes.z.unit)
@@ -791,6 +820,7 @@ class Plot(Call):
                         artists = ax.errorbar(*datapoint,
                                                fmt='', linestyle='None',
                                                zorder=zorder,
+                                               label=self.label if loop==0 else None,
                                                **error_kwargs_loop(loop, do_zorder))
 
                         # NOTE: these are currently not included in return_artists
@@ -806,7 +836,7 @@ class Plot(Call):
                             # else:
                                 # return_artists += [artist_list]
 
-                    if do_colorscale or do_sizescale or do_zorder:
+                    if do_colorscale or do_sizescale or do_zorder or marker in ['x', '+']:
                         # DRAW LINECOLLECTION, if applicable
                         if ls.lower() != 'none':
                             # TODO: color and zorder are assigned from the LEFT point in
@@ -822,8 +852,14 @@ class Plot(Call):
                             else:
                                 lccall = LineCollection
 
+                            # we'll only include this in the legend for the first loop
+                            # and if the marker isn't going to get its own entry.
+                            # Unfortunately this means in these cases the
+                            # marker will get precedent in the legend if both
+                            # marker and linestyle are present
                             lc = lccall(segments,
                                         zorder=zorder,
+                                        label=self.label if loop==0 and marker.lower()=='none' else None,
                                         **lc_kwargs_loop(lc_kwargs_const, loop, do_zorder))
 
                             if do_colorscale:
@@ -841,6 +877,7 @@ class Plot(Call):
                         if marker.lower() != 'none':
                             artist = ax.scatter(*datapoint,
                                                 zorder=zorder,
+                                                label=self.label if loop==0 else None,
                                                 **sc_kwargs_loop(sc_kwargs_const, loop, do_zorder))
 
                             return_artists_this_loop.append(artist)
@@ -853,7 +890,8 @@ class Plot(Call):
                                           marker=marker,
                                           ls=ls,
                                           mec='none',
-                                          color=color)
+                                          color=color,
+                                          label=self.label if loop==0 else None)
 
                         return_artists_this_loop += artists
 
@@ -871,11 +909,11 @@ class Plot(Call):
             if not (isinstance(x, np.ndarray) and isinstance(y, np.ndarray)):
                 # TODO: can we do anything in 3D?
                 if x is not None:
-                    artist = ax.axvline(x, ls=ls, color=color)
+                    artist = ax.axvline(x, ls=ls, color=color, label=self.label)
                     return_artists += [artist]
 
                 if y is not None:
-                    artist = ax.axhline(y, ls=ls, color=color)
+                    artist = ax.axhline(y, ls=ls, color=color, label=self.label)
                     return_artists += [artist]
 
         # DRAW HIGHLIGHT, if applicable (outside per-datapoint loop)
@@ -893,7 +931,7 @@ class Plot(Call):
                 if linefunc is not None:
                     artist = getattr(ax, linefunc)(i,
                                                    ls=self.highlight_linestyle,
-                                                   color=self.highlight_color)
+                                                   color=self.highlight_color if self.highlight_color is not None else color)
 
                     artist._af_highlight = True
                     return_artists += [artist]
@@ -912,7 +950,7 @@ class Plot(Call):
             artists = ax.plot(*highlight_data,
                               marker=self.highlight_marker,
                               ls=self.highlight_linestyle,
-                              color=self.highlight_color)
+                              color=self.highlight_color if self.highlight_color is not None else color)
 
             for artist in artists:
                 artist._af_highlight=True
@@ -938,6 +976,7 @@ class Mesh(Call):
                        fcunit=None, fclabel=None, fcmap=None,
                        ecunit=None, eclabel=None, ecmap=None,
                        iunit=None,
+                       label=None,
                        linestyle='solid',
                        consider_for_limits=True,
                        uncover=True,
@@ -971,6 +1010,7 @@ class Mesh(Call):
                                    z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
                                    consider_for_limits=consider_for_limits,
                                    uncover=uncover, trail=trail,
+                                   label=label,
                                    **kwargs
                                    )
 
@@ -1094,7 +1134,6 @@ class Mesh(Call):
 
         # PLOTTING
         return_artists = []
-        # TODO: handle getting in correct units (possibly passed from axes?)
         x = self.x.get_value(i=i, unit=self.axes.x.unit)
         y = self.y.get_value(i=i, unit=self.axes.y.unit)
         z = self.z.get_value(i=i, unit=self.axes.z.unit)
@@ -1179,7 +1218,8 @@ class Mesh(Call):
                             linestyle=self.linestyle,
                             edgecolors=edgecolor,
                             facecolors=facecolor,
-                            zorder=zorder)
+                            zorder=zorder,
+                            label=self.label)
                 ax.add_collection(pc)
 
                 return_artists += [pc]
@@ -1190,7 +1230,8 @@ class Mesh(Call):
                         linestyle=self.linestyle,
                         edgecolors=edgecolors,
                         facecolors=facecolors,
-                        zorder=zorders)
+                        zorder=zorders,
+                        label=self.label)
 
             ax.add_collection(pc)
 
@@ -1455,14 +1496,14 @@ class CallDimension(object):
         if trail is not False:
             trail_i = self._get_trail_min(i=i, trail=trail)
 
-            left_filter = i_value >= trail_i
+            left_filter = i_value >= trail_i - self.call.i.tol
 
         else:
             left_filter = trues
 
 
         if uncover is not False:
-            right_filter = i_value <= i
+            right_filter = i_value <= i + self.call.i.tol
 
         else:
             right_filter = trues
@@ -1785,8 +1826,27 @@ class CallDimension(object):
 
 
 class CallDimensionI(CallDimension):
-    def __init__(self, *args):
-        super(CallDimensionI, self).__init__('i', *args)
+    def __init__(self, call, value, unit, tol):
+        self.tol = tol
+        super(CallDimensionI, self).__init__('i', call, value, unit)
+
+    @property
+    def tol(self):
+        """
+        tolerance to use when selecting/uncover/trail
+        """
+        if self._tol is None:
+            return 0.0
+
+        return self._tol
+
+    @tol.setter
+    def tol(self, tol):
+        if not isinstance(tol, float):
+            raise TypeError("tol must be of type float")
+
+        # TODO: handle units?
+        self._tol = tol
 
     @property
     def value(self):

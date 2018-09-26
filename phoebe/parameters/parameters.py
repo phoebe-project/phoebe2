@@ -69,11 +69,11 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
     try:
         from phoebe.dependencies import autofig
     except (ImportError, TypeError):
-        _use_mpl = False
+        _use_autofig = False
     else:
-        _use_mpl = True
+        _use_autofig = True
 else:
-    _use_mpl = False
+    _use_autofig = False
 
 import logging
 logger = logging.getLogger("PARAMETERS")
@@ -123,14 +123,14 @@ _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
 
 _singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
-                       'rv': 'rvs', 'time_ecl': 'time_ecls',
-                       'time_ephem': 'time_ephems', 'N': 'Ns', 'x': 'xs',
-                       'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
+                       'rv': 'rvs', 'flux_density': 'flux_densities',
+                       'time_ecl': 'time_ecls', 'time_ephem': 'time_ephems', 'N': 'Ns',
+                       'x': 'xs', 'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
                        'vz': 'vzs', 'nx': 'nxs', 'ny': 'nys', 'nz': 'nzs',
                        'u': 'us', 'v': 'vs', 'w': 'ws', 'vu': 'vus', 'vv': 'vvs',
                        'vw': 'vws', 'nu': 'nus', 'nv': 'nvs', 'nw': 'nws',
                        'cosbeta': 'cosbetas', 'logg': 'loggs', 'teff': 'teffs',
-                       'r': 'rs', 'r_proj': 'r_projs', 'mu': 'mus',
+                       'r': 'rs', 'rproj': 'rprojs', 'mu': 'mus',
                        'visibility': 'visibilities'}
 _plural_to_singular = {v:k for k,v in _singular_to_plural.items()}
 
@@ -382,7 +382,11 @@ class ParameterSet(object):
         """
         ret = {}
         for typ in _meta_fields_twig:
-            ret[typ] = getattr(self, '{}s'.format(typ))
+            if typ in ['uniqueid', 'plugin', 'feedback', 'fitting', 'history', 'twig', 'uniquetwig']:
+                continue
+
+            k = '{}s'.format(typ)
+            ret[k] = getattr(self, k)
 
         return ret
 
@@ -958,6 +962,7 @@ class ParameterSet(object):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`ParameterSet` object
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
         if _can_ujson:
             data = ujson.load(f)
@@ -979,7 +984,7 @@ class ParameterSet(object):
         :return: filename
         :rtype: str
         """
-
+        filename = os.path.expanduser(filename)
         f = open(filename, 'w')
         if compact:
             if _can_ujson:
@@ -1198,6 +1203,10 @@ class ParameterSet(object):
                                             default={})
         else:
             kwargs = {}
+
+        if isinstance(key, int):
+            return self.filter(**kwargs).to_list()[key]
+
         return self.filter_or_get(twig=key, **kwargs)
 
     def __setitem__(self, twig, value):
@@ -1363,6 +1372,9 @@ class ParameterSet(object):
             # a ParameterSet say by calling datasets.lc() and having half
             # of the Parameters hidden by this switch
             check_default = False
+
+        if not (twig is None or isinstance(twig, str)):
+            raise TypeError("first argument (twig) must be of type str or None")
 
         if kwargs.get('component', None) == '_default' or\
                 kwargs.get('dataset', None) == '_default' or\
@@ -2063,7 +2075,10 @@ class ParameterSet(object):
                     _dump = kwargs.pop(direction)
                     return kwargs
 
-                if '@' in current_value or current_value in ps.qualifiers or \
+                elif current_value in ['None', 'none']:
+                    return kwargs
+
+                elif '@' in current_value or current_value in ps.qualifiers or \
                         (current_value in ['xs', 'ys', 'zs'] and 'xyz_elements' in ps.qualifiers) or \
                         (current_value in ['us', 'vs', 'ws'] and 'uvw_elements' in ps.qualifiers):
 
@@ -2076,7 +2091,10 @@ class ParameterSet(object):
                         verts = ps.get_quantity(qualifier='uvw_elements')
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
                     else:
-                        array_value = ps.get_quantity(current_value)
+                        try:
+                            array_value = ps.get_quantity(current_value)
+                        except ValueError:
+                            raise ValueError("could not find Parameter for {}".format(current_value))
 
                     kwargs[direction] = array_value
 
@@ -2106,7 +2124,7 @@ class ParameterSet(object):
                         kwargs['{}qualifier'.format(direction)] = current_value
                         return kwargs
                     elif len(candidate_params) > 1:
-                        raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, ps.twigs))
+                        raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, candidate_params.twigs))
                     else:
                         # then len(candidate_params) == 0
                         raise ValueError("could not find a match for {}={}".format(direction, current_value))
@@ -2137,6 +2155,7 @@ class ParameterSet(object):
                     # that technnically is attached to a different dataset in
                     # the same mesh (e.g. rvs@rv01 inside kind=mesh).  Let's
                     # check for that first.
+
                     if ps.kind in ['mesh'] and ps._bundle is not None:
                         full_mesh_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'dataset']}
                         full_mesh_ps = ps._bundle.filter(**full_mesh_meta)
@@ -2147,7 +2166,13 @@ class ParameterSet(object):
                             kwargs['{}qualifier'.format(direction)] = current_value
                             return kwargs
                         elif len(candidate_params) > 1:
-                            return ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, ps.twigs))
+                            raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, candidate_params.twigs))
+                        elif current_value in autofig.cyclers._mplcolors:
+                            # no need to raise a warning, this is a valid color
+                            pass
+                        else:
+                            # maybe a hex or anything not in the cycler? or should we raise an error instead?
+                            logger.warning("could not find Parameter match for {}={} at time={}, assuming named color".format(direction, current_value, full_mesh_meta['time']))
 
                     # Nothing has been found, so we'll assume the string is
                     # the name of a color.  If the color isn't accepted by
@@ -2156,7 +2181,7 @@ class ParameterSet(object):
                     return kwargs
 
                 else:
-                    raise ValueError("could not recognize {} for {} direction".format(current_value, direction))
+                    raise ValueError("could not recognize {} for {} direction in dataset='{}', ps.meta={}".format(current_value, direction, ps.dataset, ps.meta))
 
             elif _instance_in(current_value, np.ndarray, list, tuple, float, int):
                 # then leave it as-is
@@ -2174,17 +2199,29 @@ class ParameterSet(object):
             # (do not allow mixing between roche and POS)
             detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
             if len(detected_qualifiers):
-                coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers])
+                coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers if detected_qualifier in ['us', 'vs', 'ws', 'xs', 'ys', 'zs']])
+
+                if len(coordinate_systems) > 1:
+                    # then we're mixing roche and POS
+                    raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
+
+                coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
+
             else:
-                coordinate_systems = ['uvw']
+                coordinates = ['us', 'vs', 'ws']
 
-            if len(coordinate_systems) > 1:
-                # then we're mixing roche and POS
-                raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
-
-            coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
 
             defaults = {}
+            # first we need to know if any of the af_directions are set to
+            # something other than cartesian by the user (in which case we need
+            # to check for the parameter's existence before defaulting and use
+            # scatter instead of mesh plot)
+            mesh_all_cartesian = True
+            for af_direction in ['x', 'y', 'z']:
+                if kwargs.get(af_direction, None) not in [None] + coordinates:
+                    mesh_all_cartesian = False
+
+            # now we need to loop again and set any missing defaults
             for af_direction in ['x', 'y', 'z']:
                 if af_direction in kwargs.keys():
                     # then default doesn't matter, but we'll set it at what it is
@@ -2199,15 +2236,31 @@ class ParameterSet(object):
                         coordinates.remove(kwargs[af_direction])
                 else:
                     # we'll take the first entry remaining in coordinates
-                    defaults[af_direction] = coordinates.pop(0)
+                    coordinate = coordinates.pop(0)
 
-            # If still have some coordinates left, then at least
-            # one dimension is not cartesian, meaning we will need to do
-            # a plot instead of mesh call, meaning we want to access from
-            # the centers (xs, ys, zs, us, vs, ws) instead of elements
-            # (xyz_elements, uvw_elements)
-            mesh_all_cartesian = len(coordinates) == 0
+                    # if mesh_all_cartesian then we're doing a mesh plot
+                    # and know that we have xyz/uvw_elements available.
+                    # Otherwise, we need to check and only apply the default
+                    # if that parameter (xs, ys, zs, us, vs, ws) is available.
+                    # Either way, we've removed this from the coordinates
+                    # list so the next direction will fill from the next available
+                    if mesh_all_cartesian or coordinate in ps.qualifiers:
+                        defaults[af_direction] = coordinate
 
+
+            # since we'll be selecting from the time tag, we need a non-zero tolerance
+            kwargs.setdefault('itol', 1e-6)
+
+            if mesh_all_cartesian:
+                # then we'll be doing a mesh plot, so set some reasonable defaults
+
+                # we want the wireframe by default
+                kwargs.setdefault('ec', 'black')
+                kwargs.setdefault('fc', 'white')
+            else:
+                # then even though the scatter may be rs vs cartesian with same
+                # units, let's default to disabling equal aspect ratio
+                kwargs.setdefault('equal_aspect', False)
 
             sigmas_avail = []
         elif ps.kind in ['orb', 'orb_syn']:
@@ -2247,6 +2300,9 @@ class ParameterSet(object):
                         'y': 'flux_densities',
                         'z': 0}
             sigmas_avail = ['flux_densities']
+
+            # since we'll be selecting from the time tag, we need a non-zero tolerance
+            kwargs.setdefault('itol', 1e-6)
 
             # if animating or drawing at a single time, we want to show only
             # the selected item, not all and then highlight the selected item
@@ -2344,22 +2400,12 @@ class ParameterSet(object):
                 kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn')
                 kwargs.setdefault('{}lim'.format(af_direction), (0,1))
 
-
-        # set the label of this plot call.  This will only have any effect if
-        # the legend is shown
-        # TODO: we used to do this a bit more cleverly by taking the diff of xparam.uniquetwig and yparam.uniquetwig
-        # default_label = ''.join(c[2:] for c in list(difflib.ndiff(xparam.uniquetwig, yparam.uniquetwig)) if c[0] == ' ')
-        # if default_label[0] == '@':
-        #     # then let's just trim the leading @
-        #     default_label = default_label[1:]
-        # if default_label.split('@')[0] not in xparam.uniquetwig.split('@')+yparam.uniquetwig.split('@'):
-        #     # then we had some overlap that doesn't form a whole label
-        #     # this can happen for "times" and "fluxes", for example
-        #     # leaving the leading "es".  So let's trim this and only
-        #     # return the rest
-        #     default_label = '@'.join(default_label.split('@')[1:])
-        # default_label = '{}@{}'.format(ps.component, ps.dataset)
-        # kwargs.setdefault('label', default_label)
+        #### LABEL FOR LEGENDS
+        attrs = ['component', 'dataset']
+        if len(ps._bundle.models) > 1:
+            attrs += ['model']
+        default_label = '@'.join([getattr(ps, attr) for attr in attrs if getattr(ps, attr) is not None])
+        kwargs.setdefault('label', default_label)
 
         return (kwargs,)
 
@@ -2384,12 +2430,9 @@ class ParameterSet(object):
         for other plotting backends).  This function smartly makes one
         or multiple calls to the plotting backend based on the type of data.
 
-        Individual lines are each given a label (automatic if not provided).
-        To see these in a legend simply call ax.legend([options])
-
-        >>> ax = ps.plot()
-        >>> ax.legend()
-        >>> plt.show()
+        Individual lines are each given a label (automatic if not provided),
+        to see these in a legend, pass legend=True (and optionally any
+        keyword arguments to be passed along to plt.legend() as legend_kwargs).
 
         :parameter *args: either a twig pointing to a dataset,
             or dictionaries, where each dictionary gets passed back to
@@ -2501,12 +2544,19 @@ class ParameterSet(object):
 
         :returns: the matplotlib axes
         """
+        if not _use_autofig:
+            if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
+                raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disasbled")
+            else:
+                raise ImportError("autofig not imported, cannot plot")
 
         plot_argss = _parse_plotting_args(args)
 
         # since we used the args trick above, all other options have to be in kwargs
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
+        tight_layout = kwargs.pop('tight_layout', False)
+        animate = kwargs.pop('animate', False)
         time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
         # this first loop allows for building figures or plotting
@@ -2528,26 +2578,36 @@ class ParameterSet(object):
                     continue
 
                 autofig_method = plot_kwargs.pop('autofig_method', 'plot')
+                # we kept the qualifiers around so we could do some default-logic,
+                # but it isn't necessary to pass them on to autofig.
+                plot_kwargs = {k:v for k,v in plot_kwargs.items() if 'qualifier' not in k}
                 logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
                 func = getattr(self.gcf(), autofig_method)
 
                 func(**plot_kwargs)
 
 
-        if save or show:
-            # NOTE: time, times, animate will all be included in kwargs
-            return self._show_or_save(save, show, **kwargs)
+        if save or show or animate:
+            # NOTE: time, times, will all be included in kwargs
+            return self._show_or_save(save, show, animate,
+                                      tight_layout=tight_layout, **kwargs)
         else:
             afig = self.gcf()
             fig = None
 
             return afig, fig
 
-    def _show_or_save(self, save, show, **kwargs):
+    def _show_or_save(self, save, show, animate,
+                      tight_layout=False,
+                      **kwargs):
         """
         Draw/animate and show and/or save a autofig plot
         """
-        if kwargs.get('animate', False):
+        if animate and not show and not save:
+            logger.warning("setting show to True since animate=True and save not provided")
+            show = True
+
+        if animate:
             # prefer times over time
             times = kwargs.get('times', kwargs.get('time', None))
             save_kwargs = kwargs.get('save_kwargs', {})
@@ -2569,9 +2629,10 @@ class ParameterSet(object):
 
                 times = sorted(list(set(times)))
 
-            logger.info("calling autofig.animate(i={}, save={}, show={}, save_kwargs={})".format(times, save, show, save_kwargs))
+            logger.info("calling autofig.animate(i={}, tight_layout={}, save={}, show={}, save_kwargs={})".format(times, tight_layout, save, show, save_kwargs))
 
             mplanim = self.gcf().animate(i=times,
+                                         tight_layout=tight_layout,
                                          save=save,
                                          show=show,
                                          save_kwargs=save_kwargs)
@@ -2586,8 +2647,10 @@ class ParameterSet(object):
         else:
             time = kwargs.get('time', None)
 
-            logger.info("calling autofig.draw(i={}, save={}, show={})".format(time, save, show))
-            fig = self.gcf().draw(i=time, save=save, show=show)
+            logger.info("calling autofig.draw(i={}, tight_layout={}, save={}, show={})".format(time, tight_layout, save, show))
+            fig = self.gcf().draw(i=time,
+                                  tight_layout=tight_layout,
+                                  save=save, show=show)
             # clear the figure so next call will start over and future shows will work
             afig = self.gcf()
             self.clf()
@@ -2595,13 +2658,16 @@ class ParameterSet(object):
             return afig, fig
 
 
-    def show(self, time=None):
+    def show(self, **kwargs):
         """
         Draw and show the plot.
         """
-        return self._show_or_save(show=True, save=False, time=time)
+        kwargs.setdefault('show', True)
+        kwargs.setdefault('save', False)
+        kwargs.setdefault('animate', False)
+        return self._show_or_save(**kwargs)
 
-    def savefig(self, fname, time=None):
+    def savefig(self, filename, **kwargs):
         """
         Draw and save the plot.
 
@@ -2609,7 +2675,11 @@ class ParameterSet(object):
                 matplotlib accepts many different image formats while other
                 backends will only export to html.
         """
-        return self._show_or_save(save=fname, show=False, time=time)
+        filename = os.path.expanduser(filename)
+        kwargs.setdefault('show', False)
+        kwargs.setdefault('save', filename)
+        kwargs.setdefault('animate', False)
+        return self._show_or_save(**kwargs)
 
 class Parameter(object):
     def __init__(self, qualifier, value=None, description='', **kwargs):
@@ -2852,6 +2922,7 @@ class Parameter(object):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Parameter` object
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
         data = json.load(f, object_pairs_hook=parse_json)
         f.close()
@@ -2865,7 +2936,7 @@ class Parameter(object):
         :return: filename
         :rtype: str
         """
-
+        filename = os.path.expanduser(filename)
         f = open(filename, 'w')
         json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
                    sort_keys=True, indent=0, separators=(',', ': '))
@@ -2943,6 +3014,10 @@ class Parameter(object):
         :return: an ordered dictionary of tag properties
         """
         return OrderedDict([(k, getattr(self, k)) for k in _meta_fields_all if k not in ignore])
+
+    @property
+    def tags(self):
+        return self.get_meta(ignore=['uniqueid', 'plugin', 'feedback', 'fitting', 'history', 'twig', 'uniquetwig'])
 
     @property
     def qualifier(self):
@@ -4785,7 +4860,7 @@ class HierarchyParameter(StringParameter):
 
         return structure, trace, our_item
 
-    def change_component(self, old_component, new_component):
+    def rename_component(self, old_component, new_component):
         """
         """
         kind = self.get_kind_of(old_component)

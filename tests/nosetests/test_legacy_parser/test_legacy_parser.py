@@ -26,8 +26,8 @@ def legacy_test(filename='default.phoebe', verbose=False):
 
     #load phoebe2 file
     b = phb2.Bundle.from_legacy(os.path.join(dir, filename), add_compute_legacy=True)
-    b.change_component('primary', 'cow')
-    b.change_component('secondary', 'pig')
+    b.rename_component('primary', 'cow')
+    b.rename_component('secondary', 'pig')
     # create time array and get datasets
 
 
@@ -186,9 +186,9 @@ if __name__ == '__main__':
 #    logger= phb2.logger()
     detached = 'default.phoebe'
     weighted = 'weight.phoebe'
-#    contact = 'contact.phoebe'
+    contact = 'contact.phoebe'
 #    print "checking detached system"
     legacy_test(weighted, verbose=True)
     legacy_test(detached, verbose=True)
 #    print "checking contact system"
-#    legacy_test(contact)
+    legacy_test(contact, verbose=True)

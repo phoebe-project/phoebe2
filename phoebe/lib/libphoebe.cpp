@@ -9306,7 +9306,7 @@ static PyObject *ld_nrpar(PyObject *self, PyObject *args, PyObject *keywds) {
     params: 1-rank numpy array of float
 
   Return:
-    true: int: number of parameters
+    true: if parameters pass the checks, false otherwise
 */
 
 static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {

@@ -521,6 +521,7 @@ class ProtoMesh(object):
 
 
         self._pos               = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
+        self._pos_center        = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
         self._scalar_fields     = ['volume', 'area']
 
         # TODO: split keys that are set vs computed-on-the-fly so when
@@ -826,9 +827,9 @@ class ProtoMesh(object):
         handled.
         """
         if self._compute_at_vertices:
-            return self.vertices - self._pos
+            return self.vertices - self._pos_center
         else:
-            return self.centers - self._pos
+            return self.centers - self._pos_center
 
     @property
     def coords_for_computations(self):
@@ -840,11 +841,11 @@ class ProtoMesh(object):
         # TODO: need to subtract the position offset if a Mesh (in orbit)
         if self._compute_at_vertices:
             if self.pvertices is not None:
-                return self.pvertices - self._pos
+                return self.pvertices - self._pos_center
             else:
-                return self.vertices - self._pos
+                return self.vertices - self._pos_center
         else:
-            return self.centers - self._pos
+            return self.centers - self._pos_center
 
     @property
     def normals_for_computations(self):
@@ -864,6 +865,8 @@ class ProtoMesh(object):
         depending on the setting in the mesh) with respect to the center of
         the star.
 
+        NOTE: unscaled
+
         (ComputedColumn)
         """
         rs = np.linalg.norm(self.coords_for_computations, axis=1)
@@ -872,9 +875,11 @@ class ProtoMesh(object):
     @property
     def rprojs(self):
         """
-        Return the projected (in x,y plane) radius of each element (either
+        Return the projected (in xy/uv plane) radius of each element (either
         vertices or centers depending on the setting in the mesh) with respect
         to the center of the star.
+
+        NOTE: unscaled
 
         (ComputedColumn)
         """
@@ -1311,6 +1316,10 @@ class Mesh(ScaledProtoMesh):
         # let's store the position.  This is both useful for "undoing" the
         # orbit-offset, and also eventually to allow incremental changes.
         self._pos = pos
+        if component_com_x is not None and component_com_x != 0.0:
+            self._pos_center = transform_position_array(np.array([component_com_x, 0.0, 0.0]), pos, euler, False)
+        else:
+            self._pos_center = pos
         self._euler = euler
 
 

@@ -1008,7 +1008,7 @@ class PhoebeBackend(BaseBackendByTime):
 
                 if 'rs' in info['mesh_columns']:
                     packetlist.append(_make_packet('rs',
-                                                  body.mesh.rs.centers,
+                                                  body.mesh.rs.centers*body._scale,
                                                   time, info))
                 # if 'cosbetas' in info['mesh_columns']:
                     # packetlist.append(_make_packet('cosbetas',
@@ -1026,9 +1026,9 @@ class PhoebeBackend(BaseBackendByTime):
                                                   time, info))
 
 
-                if 'r_projs' in info['mesh_columns']:
-                    packetlist.append(_make_packet('r_projs',
-                                                  body.mesh.rprojs.centers,
+                if 'rprojs' in info['mesh_columns']:
+                    packetlist.append(_make_packet('rprojs',
+                                                  body.mesh.rprojs.centers*body._scale,
                                                   time, info))
                 if 'mus' in info['mesh_columns']:
                     packetlist.append(_make_packet('mus',
