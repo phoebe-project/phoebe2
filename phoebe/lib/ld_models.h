@@ -229,7 +229,7 @@ struct TLDlogarithmic: TLDmodel<T> {
   bool check() const {
     return
       x <= 1 && x >= 0 && y <= x &&
-      y >= (x == 1 ? 0 : -x/utils::lambertW(x/((1 - x)*utils::m_e)));
+      y >= (x == 1 || x == 0 ? 0 : -x/utils::lambertW(x/((1 - x)*utils::m_e)));
   }
 };
 
@@ -533,6 +533,8 @@ namespace LD {
   template <class T>
   bool check(TLDmodel_type choice, T *p) {
 
+    bool ok;
+
     switch (choice) {
 
       case UNIFORM:
@@ -572,7 +574,7 @@ namespace LD {
       case LOGARITHMIC:
         return
           p[0] <= 1 && p[0] >= 0 && p[1] <= p[0] &&
-          p[1] >= (p[0] == 1 ? 0 : -p[0]/utils::lambertW(p[0]/((1 - p[0])*utils::m_e)));
+          p[1] >= (p[0] == 1 || p[0] == 0 ? 0 : -p[0]/utils::lambertW(p[0]/((1 - p[0])*utils::m_e)));
 
       case SQUARE_ROOT:
         return
