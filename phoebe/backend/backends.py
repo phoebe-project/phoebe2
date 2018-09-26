@@ -623,26 +623,22 @@ class PhoebeBackend(BaseBackendByTime):
 
         else:
             # singlestar case
-            # TODO: this doesn't account for vgamma
-            x0, y0, z0 = [0.], [0.], [0.]
-            vx0, vy0, vz0 = [0.], [0.], [0.]
-            # TODO: star needs long_an (yaw?)
-            etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', component=meshablerefs[0], unit=u.rad)]
-
+            incl = b.get_value('incl', component=meshablerefs[0], unit=u.rad)
+            long_an = b.get_value('long_an', component=meshablerefs[0], unit=u.rad)
             vgamma = b.get_value('vgamma', context='system', unit=u.solRad/u.d)
             t0 = b.get_value('t0', context='system', unit=u.d)
+
+            x0, y0, z0 = [0.], [0.], [0.]
+            vx0, vy0, vz0 = [0.], [0.], [0.]
+            etheta0, elongan0, eincl0 = [0.], [long_an], [incl]
 
             ts = [times]
             vxs, vys, vzs = [np.zeros(len(times))], [np.zeros(len(times))], [np.zeros(len(times))]
             xs, ys, zs = [np.zeros(len(times))], [np.zeros(len(times))], [np.full(len(times), vgamma)]
+            ethetas, elongans, eincls = [np.zeros(len(times))], [np.full(len(times), long_an)], [np.full(len(times), incl)]
 
             for i,t in enumerate(times):
                 zs[0][i] = vgamma*(t-t0)
-
-            incl = b.get_value('incl', component=meshablerefs[0], unit=u.rad)
-            long_an = b.get_value('long_an', component=meshablerefs[0], unit=u.rad)
-            ethetas, elongans, eincls = [np.zeros(len(times))], [np.full(len(times), long_an)], [np.full(len(times), incl)]
-
 
         logger.debug("rank:{}/{} PhoebeBackend._worker_setup: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
         system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
