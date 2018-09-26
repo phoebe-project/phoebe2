@@ -1058,6 +1058,13 @@ class PhoebeBackend(BaseBackendByTime):
                                                       dataset=mesh_dataset,
                                                       component=info['component']))
 
+                    if 'abs_pblum@{}'.format(mesh_dataset) in info['mesh_columns']:
+                        packetlist.append(_make_packet('abs_pblum',
+                                                      body.compute_luminosity(mesh_dataset, scaled=False),
+                                                      time, info,
+                                                      dataset=mesh_dataset,
+                                                      component=info['component']))
+
                     if 'ptfarea@{}'.format(mesh_dataset) in info['mesh_columns']:
                         packetlist.append(_make_packet('ptfarea',
                                                       body.get_ptfarea(mesh_dataset),

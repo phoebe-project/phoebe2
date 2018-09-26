@@ -1496,7 +1496,7 @@ class Star(Body):
 
         mesh.update_columns(irrad_frac_refl=irrad_frac_refl)
 
-    def compute_luminosity(self, dataset, **kwargs):
+    def compute_luminosity(self, dataset, scaled=True, **kwargs):
         """
         """
         # areas are the NON-projected areas of each surface element.  We'll be
@@ -1520,7 +1520,10 @@ class Star(Body):
 
         # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
-        return abs_luminosity * self.get_pblum_scale(dataset)
+        if scaled:
+            return abs_luminosity * self.get_pblum_scale(dataset)
+        else:
+            return abs_luminosity
 
     def compute_pblum_scale(self, dataset, pblum, **kwargs):
         """

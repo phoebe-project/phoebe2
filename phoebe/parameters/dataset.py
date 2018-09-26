@@ -31,7 +31,7 @@ _mesh_columns += ['rs'] #, 'cosbetas']
 lc_columns = []
 lc_columns += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_normal_intensities']
 lc_columns += ['boost_factors', 'ldint']
-lc_columns += ['pblum', 'ptfarea']
+lc_columns += ['pblum', 'abs_pblum', 'ptfarea']
 
 rv_columns = lc_columns[:]
 rv_columns += ['rvs']
@@ -495,7 +495,9 @@ def mesh_syn(syn=True, **kwargs):
                 if 'ptfarea@{}'.format(dataset) in columns:
                     syn_params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), default_unit=u.m, description='Area of the passband transmission function')]
                 if 'pblum@{}'.format(dataset) in columns:
-                    syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star')]
+                    syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (after pblum scaling)')]
+                if 'abs_pblum@{}'.format(dataset) in columns:
+                    syn_params += [FloatParameter(qualifier='abs_pblum', dataset=dataset, time=t, value=kwargs.get('abs_pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (before pblum scaling)')]
 
     constraints = []
 
