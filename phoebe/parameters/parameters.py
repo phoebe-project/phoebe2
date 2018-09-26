@@ -1523,6 +1523,9 @@ class ParameterSet(object):
             else:
                 return getattr(params[0], method)()
 
+        elif method is not None:
+            raise ValueError("{} results found, could not call {}".format(len(params), method))
+
         # TODO: handle returning 0 results better
 
         ps = ParameterSet(params)
