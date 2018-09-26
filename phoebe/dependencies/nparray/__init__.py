@@ -109,6 +109,9 @@ def from_dict(d):
 
     @parameter str d: dictionary representing the nparray object
     """
+    if isinstance(d, str):
+        return from_json(d)
+
     if not isinstance(d, dict):
         raise TypeError("argument must be of type dict")
     if 'nparray' not in d.keys():
@@ -123,6 +126,9 @@ def from_json(j):
 
     @parameter str j: json-formatted string
     """
+    if isinstance(j, dict):
+        return from_dict(j)
+
     if not (isinstance(j, str) or isinstance(j, unicode)):
         raise TypeError("argument must be of type str")
 

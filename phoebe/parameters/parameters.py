@@ -2955,9 +2955,9 @@ class Parameter(object):
             if k=='value':
                 if isinstance(self._value, nparray.ndarray):
                     if self._value.unit is not None and hasattr(self, 'default_unit'):
-                        v = self._value.to(self.default_unit).to_json()
+                        v = self._value.to(self.default_unit).to_dict()
                     else:
-                        v = self._value.to_json()
+                        v = self._value.to_dict()
                 if isinstance(v, u.Quantity):
                     v = self.get_value() # force to be in default units
                 if isinstance(v, np.ndarray):
@@ -4240,6 +4240,10 @@ class FloatParameter(Parameter):
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
 
+        # if 'time' in kwargs.keys() and isinstance(self, FloatArrayParameter):
+        #     # then find the correct index and set by index instead
+        #     time_param = self._bundle
+
         if isinstance(value, tuple) and (len(value) !=2 or isinstance(value[1], float) or isinstance(value[1], int)):
             # allow passing tuples (this could be a FloatArrayParameter - if it isn't
             # then this array will fail _check_type below)
@@ -4249,9 +4253,9 @@ class FloatParameter(Parameter):
             value, unit = value
         if isinstance(value, str):
             value = float(value)
-        if isinstance(value, dict) and 'nphelper' in value.keys():
-            # then we're loading the JSON version of an Arange or Linspace
-            value = nparray.from_json(value)
+        if isinstance(value, dict) and 'nparray' in value.keys():
+            # then we're loading the JSON version of an nparray object
+            value = nparray.from_dict(value)
 
         if isinstance(unit, str):
             # print "*** converting string to unit"
@@ -4431,8 +4435,8 @@ class FloatArrayParameter(FloatParameter):
         if isinstance(unit, str) or isinstance(unit, unicode):
             unit = u.Unit(str(unit))
 
-        value = self._check_type(kwargs.get('value', []))
-        self.set_value(value, unit)
+        # value = self._check_type(kwargs.get('value', []))
+        self.set_value(kwargs.get('value', []), unit)
 
         self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
@@ -4617,6 +4621,9 @@ class FloatArrayParameter(FloatParameter):
 
         elif isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
+
+        elif isinstance(value, dict) and 'nparray' in value.keys():
+            value = nparray.from_dict(value)
 
         elif not (isinstance(value, list) or isinstance(value, tuple) or isinstance(value, np.ndarray) or isinstance(value, nparray.ndarray)):
             # TODO: probably need to change this to be flexible with all the cast_types

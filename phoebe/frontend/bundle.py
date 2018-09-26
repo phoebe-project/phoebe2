@@ -21,7 +21,7 @@ from phoebe.atmospheres.passbands import _pbtable
 import libphoebe
 
 from phoebe import u
-from phoebe import conf
+from phoebe import conf, mpi
 
 import logging
 logger = logging.getLogger("BUNDLE")
@@ -2770,12 +2770,13 @@ class Bundle(ParameterSet):
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
-        if detach and backends._use_mpi:
+        if detach and mpi.within_mpirun:
             logger.warning("cannot detach when within mpirun, ignoring")
             detach = False
 
-        if (detach or conf.mpi) and not backends._use_mpi:
-            logger.warning("detach support is EXPERIMENTAL")
+        if (detach or mpi.enabled) and not mpi.within_mpirun:
+            if detach:
+                logger.warning("detach support is EXPERIMENTAL")
 
             if times is not None:
                 # TODO: support overriding times with detached - issue here is
@@ -2800,13 +2801,13 @@ class Bundle(ParameterSet):
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
             compute_kwargs = kwargs.items()+[('compute', compute), ('model', model)]
-            compute_kwargs_string = ','.join(["{}=\'{}\'".format(k,v) for k,v in compute_kwargs])
+            compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(v) if isinstance(v, str) else v) for k,v in compute_kwargs])
             f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
             f.write("model_ps.save('_{}.out', incl_uniqueid=True)\n".format(jobid))
             f.close()
 
             script_fname = os.path.abspath(script_fname)
-            cmd = conf.detach_cmd.format(script_fname)
+            cmd = mpi.detach_cmd.format(script_fname)
             # TODO: would be nice to catch errors caused by the detached script...
             # but that would probably need to be the responsibility of the
             # jobparam to return a failed status and message
@@ -2841,13 +2842,12 @@ class Bundle(ParameterSet):
                 raise KeyError("could not recognize backend from compute: {}".format(compute))
 
             logger.info("running {} backend to create '{}' model".format(computeparams.kind, model))
-            compute_func = getattr(backends, computeparams.kind)
+            compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
+            # compute_func = getattr(backends, computeparams.kind)
 
             metawargs = {'compute': compute, 'model': model, 'context': 'model'}  # dataset, component, etc will be set by the compute_func
 
-            # comma in the following line is necessary because compute_func
-            # is /technically/ a generator (it yields instead of returns)
-            params, = compute_func(self, compute, times=times, **kwargs)
+            params = compute_class().run(self, compute, times=times, **kwargs)
 
 
             # average over any exposure times before attaching parameters
