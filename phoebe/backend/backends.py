@@ -623,11 +623,26 @@ class PhoebeBackend(BaseBackendByTime):
 
         else:
             # singlestar case
+            # TODO: this doesn't account for vgamma
             x0, y0, z0 = [0.], [0.], [0.]
             vx0, vy0, vz0 = [0.], [0.], [0.]
-            xs, ys, zs = np.zeros(len(times)), np.zeros(len(times)), np.zeros(len(times))
             # TODO: star needs long_an (yaw?)
-            etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', unit=u.rad)]
+            etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', component=meshablerefs[0], unit=u.rad)]
+
+            vgamma = b.get_value('vgamma', context='system', unit=u.solRad/u.d)
+            t0 = b.get_value('t0', context='system', unit=u.d)
+
+            ts = [times]
+            vxs, vys, vzs = [np.zeros(len(times))], [np.zeros(len(times))], [np.zeros(len(times))]
+            xs, ys, zs = [np.zeros(len(times))], [np.zeros(len(times))], [np.full(len(times), vgamma)]
+
+            for i,t in enumerate(times):
+                zs[0][i] = vgamma*(t-t0)
+
+            incl = b.get_value('incl', component=meshablerefs[0], unit=u.rad)
+            long_an = b.get_value('long_an', component=meshablerefs[0], unit=u.rad)
+            ethetas, elongans, eincls = [np.zeros(len(times))], [np.full(len(times), long_an)], [np.full(len(times), incl)]
+
 
         logger.debug("rank:{}/{} PhoebeBackend._worker_setup: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
         system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
@@ -667,15 +682,7 @@ class PhoebeBackend(BaseBackendByTime):
 
         # we need to extract positions, velocities, and euler angles of ALL bodies at THIS TIME (i)
         logger.debug("rank:{}/{} PhoebeBackend._run_single_time: computing dynamics at time={}".format(mpi.myrank, mpi.nprocs, time))
-        if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
-            xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics.dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
-        else:
-            # then singlestar case
-            xi, yi, zi = [0.], [0.], [0.]
-            vxi, vyi, vzi = [0.], [0.], [0.]
-            # TODO: star needs long_an (yaw?)
-
-            ethetai, elongani, eincli = [0.], [0.], [b.get_value('incl', component=meshablerefs[0], unit=u.rad)]
+        xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics.dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
 
         if True in [info['needs_mesh'] for info in infolist]:
 
