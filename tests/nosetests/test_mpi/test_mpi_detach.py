@@ -12,7 +12,6 @@ import numpy as np
 
 def test_mpi(plot=False, npoints=8):
     phoebe.reset_settings()
-    # may cause issues in travis...
     phoebe.mpi_on(4)
 
     b = phoebe.Bundle.default_binary()
@@ -20,7 +19,7 @@ def test_mpi(plot=False, npoints=8):
     b.add_dataset('lc', times=np.linspace(0,1,npoints))
 
     if plot: print "calling compute"
-    b.run_compute(irrad_method='none', detach=True)
+    b.run_compute(irrad_method='none', ntriangles=1000, detach=True)
     if plot:
         print "attaching to model"
         print b['model'].status
@@ -32,6 +31,7 @@ def test_mpi(plot=False, npoints=8):
         b.plot(show=True)
 
     phoebe.reset_settings()
+    phoebe.mpi_off()
 
     return b
 

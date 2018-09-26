@@ -26,6 +26,7 @@ def test_mpi(plot=False, npoints=8):
         b.plot(show=True)
 
     phoebe.reset_settings()
+    phoebe.mpi_off()
 
     return b
 
