@@ -590,49 +590,50 @@ class PhoebeBackend(BaseBackendByTime):
         datasets = enabled_ps.datasets
         kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
 
-        if 'lc' in kinds or 'rv' in kinds or 'sp' in kinds:  # TODO this needs to be WAY more general
 
-            if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
-                logger.debug("rank:{}/{} PhoebeBackend._worker_setup: computing dynamics at t0".format(mpi.myrank, mpi.nprocs))
-                if dynamics_method in ['nbody', 'rebound']:
-                    t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
-                    ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
+        if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
+            logger.debug("rank:{}/{} PhoebeBackend._worker_setup: computing dynamics at t0".format(mpi.myrank, mpi.nprocs))
+            if dynamics_method in ['nbody', 'rebound']:
+                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
+                ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
 
-                elif dynamics_method == 'bs':
-                    # if distortion_method == 'roche':
-                        # raise ValueError("distortion_method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
+            elif dynamics_method == 'bs':
+                # if distortion_method == 'roche':
+                    # raise ValueError("distortion_method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
 
-                    # TODO: pass stepsize
-                    # TODO: pass orbiterror
-                    # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-                    t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], compute, return_roche_euler=True, **kwargs)
-                    # ethetas0, elongans0, eincls0 = None, None, None
-                    ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle_bs(b, times, compute, return_roche_euler=True, **kwargs)
-                    # ethetas, elongans, eincls = None, None, None
+                # TODO: pass stepsize
+                # TODO: pass orbiterror
+                # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], compute, return_roche_euler=True, **kwargs)
+                # ethetas0, elongans0, eincls0 = None, None, None
+                ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle_bs(b, times, compute, return_roche_euler=True, **kwargs)
+                # ethetas, elongans, eincls = None, None, None
 
 
-                elif dynamics_method=='keplerian':
+            elif dynamics_method=='keplerian':
 
-                    # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-                    t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], compute, return_euler=True, **kwargs)
-                    ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
-
-                else:
-                    raise NotImplementedError
-
-                x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
+                # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], compute, return_euler=True, **kwargs)
+                ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
 
             else:
-                # singlestar case
-                x0, y0, z0 = [0.], [0.], [0.]
-                vx0, vy0, vz0 = [0.], [0.], [0.]
-                # TODO: star needs long_an (yaw?)
-                etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', unit=u.rad)]
+                raise NotImplementedError
 
-            logger.debug("rank:{}/{} PhoebeBackend._worker_setup: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
-            system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+            x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
+
+        else:
+            # singlestar case
+            x0, y0, z0 = [0.], [0.], [0.]
+            vx0, vy0, vz0 = [0.], [0.], [0.]
+            xs, ys, zs = np.zeros(len(times)), np.zeros(len(times)), np.zeros(len(times))
+            # TODO: star needs long_an (yaw?)
+            etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', unit=u.rad)]
+
+        logger.debug("rank:{}/{} PhoebeBackend._worker_setup: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
+        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
         return dict(system=system,
+                    hier=hier,
                     meshablerefs=meshablerefs,
                     starrefs=starrefs,
                     dynamics_method=dynamics_method,
@@ -646,11 +647,11 @@ class PhoebeBackend(BaseBackendByTime):
 
         # unpack all backend-dependent things from the received packet
         system = kwargs.get('system')
+        hier = kwargs.get('hier')
         meshablerefs = kwargs.get('meshablerefs')
         starrefs = kwargs.get('starrefs')
         dynamics_method = kwargs.get('dynamics_method')
         distance = kwargs.get('distance')
-        ts = kwargs.get('ts')
         xs = kwargs.get('xs')
         ys = kwargs.get('ys')
         zs = kwargs.get('zs')
@@ -706,7 +707,8 @@ class PhoebeBackend(BaseBackendByTime):
             # of per-vertex weights which are used to determine the physical quantities
             # (ie teff, logg) that should be used in computing observables (ie intensity)
 
-            expose_horizon = 'mesh' in [info['kind'] for info in infolist] and do_horizon
+            # expose_horizon = 'mesh' in [info['kind'] for info in infolist] and do_horizon
+            expose_horizon = False
             horizons = system.handle_eclipses(expose_horizon=expose_horizon)
 
             # Now we can fill the observables per-triangle.  We'll wait to integrate

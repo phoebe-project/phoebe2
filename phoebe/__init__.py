@@ -13,7 +13,7 @@ Available environment variables:
 __version__ = 'devel'
 
 import os
-import sys
+import sys as _sys
 import atexit
 
 # People shouldn't import Phoebe from the installation directory (inspired upon
@@ -52,9 +52,9 @@ if _env_variable_bool('PHOEBE_ENABLE_PLOTTING', True):
         pass
         # we'll catch this later in plotting and throw warnings as necessary
     else:
-        if 'DISPLAY' not in os.environ.keys() and sys.platform not in ['win32','cygwin']:
+        if 'DISPLAY' not in os.environ.keys() and _sys.platform not in ['win32','cygwin']:
             matplotlib.use('Agg')
-        elif hasattr(sys, 'real_prefix'):
+        elif hasattr(_sys, 'real_prefix'):
             # then we're likely in a virtualenv.  Our best bet is to use the 'TkAgg'
             # backend, but this will require python-tk to be installed on the system
             matplotlib.use('TkAgg')
@@ -210,7 +210,7 @@ class Settings(object):
         # We'll set interactive system checks to be on if running within a Python
         # console, but False if running from within a script
         # See #255 (https://github.com/phoebe-project/phoebe2/issues/255)
-        self._interactive_checks = not hasattr(__main__, '__file__') or bool(sys.flags.interactive)
+        self._interactive_checks = not hasattr(__main__, '__file__') or bool(_sys.flags.interactive)
 
         # And we'll require explicitly setting developer mode on
         self._devel = False
@@ -381,8 +381,8 @@ def mpi_off():
 atexit.register(mpi.shutdown_workers)
 
 # delete things we don't want exposed to the user at the top-level
+# NOTE: we need _sys for reset_settings
 del os
-del sys
 del atexit
 try:
     del matplotlib

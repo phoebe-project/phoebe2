@@ -13,7 +13,7 @@ import numpy as np
 def test_mpi(plot=False, npoints=8):
     phoebe.reset_settings()
     # may cause issues in travis...
-    phoebe.mpi_on(np=4)
+    phoebe.mpi_on(4)
 
     b = phoebe.Bundle.default_binary()
 
@@ -21,11 +21,10 @@ def test_mpi(plot=False, npoints=8):
 
     if plot: print "calling compute"
     b.run_compute(irrad_method='none', detach=True)
-    if not phoebe.backends._within_mpirun:
-        if plot:
-            print "attaching to model"
-            print b['model'].status
-        b['model'].attach()
+    if plot:
+        print "attaching to model"
+        print b['model'].status
+    b['model'].attach()
 
     if plot: print "model received"
 
