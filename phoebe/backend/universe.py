@@ -90,7 +90,7 @@ def _estimate_delta(ntriangles, area):
     estimate the value for delta to send to marching based on the number of
     requested triangles and the expected surface area of mesh
     """
-    return np.sqrt(4./np.sqrt(3) * area / ntriangles)
+    return np.sqrt(4./np.sqrt(3) * float(area) / float(ntriangles))
 
 
 class System(object):
