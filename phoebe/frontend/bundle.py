@@ -2097,12 +2097,18 @@ class Bundle(ParameterSet):
         for k, v in kwargs.items():
             if isinstance(v, dict):
                 for component, value in v.items():
-                    self.set_value_all(qualifier=k,
-                                       dataset=kwargs['dataset'],
-                                       component=component,
-                                       value=value,
-                                       check_visible=False,
-                                       ignore_none=True)
+                    logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], components_, value))
+                    try:
+                        self.set_value_all(qualifier=k,
+                                           dataset=kwargs['dataset'],
+                                           component=component,
+                                           value=value,
+                                           check_visible=False,
+                                           ignore_none=True)
+                    except:
+                        self.remove_dataset(dataset=kwargs['dataset'])
+                        raise ValueError("could not set value for {}={}, dataset has not been added".format(k, value))
+
             elif k in ['dataset']:
                 pass
             else:
@@ -2123,13 +2129,16 @@ class Bundle(ParameterSet):
                     components_ = components+['_default']
 
                 logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], components_, v))
-                self.set_value_all(qualifier=k,
-                                   dataset=kwargs['dataset'],
-                                   component=components_,
-                                   value=v,
-                                   check_visible=False,
-                                   ignore_none=True)
-
+                try:
+                    self.set_value_all(qualifier=k,
+                                       dataset=kwargs['dataset'],
+                                       component=components_,
+                                       value=v,
+                                       check_visible=False,
+                                       ignore_none=True)
+                except:
+                    self.remove_dataset(dataset=kwargs['dataset'])
+                    raise ValueError("could not set value for {}={}, dataset has not been added".format(k, v))
 
 
         redo_kwargs = deepcopy({k:v if not isinstance(v, nparray.ndarray) else v.to_json() for k,v in kwargs.items()})
