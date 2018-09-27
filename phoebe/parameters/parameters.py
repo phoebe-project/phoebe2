@@ -4483,16 +4483,7 @@ class FloatArrayParameter(FloatParameter):
         self._allow_none = kwargs.get('allow_none', False)
         super(FloatArrayParameter, self).__init__(*args, **kwargs)
 
-        default_unit = kwargs.get('default_unit', None)
-
-        self.set_default_unit(default_unit)
-
-        unit = kwargs.get('unit', None)  # will default to default_unit in set_value
-        if isinstance(unit, str) or isinstance(unit, unicode):
-            unit = u.Unit(str(unit))
-
-        # value = self._check_type(kwargs.get('value', []))
-        self.set_value(kwargs.get('value', []), unit)
+        # NOTE: default_unit and value handled in FloatParameter.__init__()
 
         self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
