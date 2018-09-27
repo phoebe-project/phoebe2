@@ -1787,6 +1787,16 @@ class ParameterSet(object):
         """
         # TODO: handle twig having parameter key (value@, default_unit@, adjust@, etc)
         # TODO: does this return anything (update the docstring)?
+        if twig is not None and value is None:
+            # then try to support value as the first argument if no matches with twigs
+            if not isinstance(twig, str):
+                value = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                value = twig
+                twig = None
+
         if "index" in kwargs.keys():
             return self.get_parameter(twig=twig,
                                       **kwargs).set_index_value(value=value,
@@ -1874,12 +1884,32 @@ class ParameterSet(object):
         """
         TODO: add documentation
         """
+        if twig is not None and unit is None:
+            # then try to support value as the first argument if no matches with twigs
+            if isinstance(unit, u.Unit) or not isinstance(twig, str):
+                unit = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                unit = twig
+                twig = None
+
         return self.get_parameter(twig=twig, **kwargs).set_default_unit(unit)
 
     def set_default_unit_all(self, twig=None, unit=None, **kwargs):
         """
         TODO: add documentation
         """
+        if twig is not None and unit is None:
+            # then try to support value as the first argument if no matches with twigs
+            if isinstance(unit, u.Unit) or not isinstance(twig, str):
+                unit = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                unit = twig
+                twig = None
+
         for param in self.filter(twig=twig, **kwargs).to_list():
             param.set_default_unit(unit)
 
