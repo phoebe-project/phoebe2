@@ -569,6 +569,7 @@ class PhoebeBackend(BaseBackendByTime):
 
     def _create_system_and_compute_pblums(self, b, compute,
                                           dynamics_method=None,
+                                          hier=None,
                                           meshablerefs=None,
                                           **kwargs):
 
@@ -579,8 +580,10 @@ class PhoebeBackend(BaseBackendByTime):
             computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
             dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
 
-        if meshablerefs is None:
+        if hier is None:
             hier = b.get_hierarchy()
+
+        if meshablerefs is None:
             starrefs  = hier.get_stars()
             meshablerefs = hier.get_meshables()
 
@@ -642,7 +645,7 @@ class PhoebeBackend(BaseBackendByTime):
         # TODO: skip initializing system if we NEVER need meshes
         system = self._create_system_and_compute_pblums(b, compute,
                                                         dynamics_method=dynamics_method,
-                                                        ltte=ltte,
+                                                        hier=hier,
                                                         meshablerefs=meshablerefs,
                                                         **kwargs)
 
