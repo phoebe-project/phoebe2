@@ -1149,6 +1149,7 @@ class Bundle(ParameterSet):
         return self._hierarchy_param
 
     def _kwargs_checks(self, kwargs, additional_allowed_keys=[],
+                       additional_forbidden_keys=[],
                        warning_only=False):
         """
         """
@@ -1156,6 +1157,9 @@ class Bundle(ParameterSet):
                         parameters._meta_fields_filter +\
                         ['skip_checks', 'check_default', 'check_visible'] +\
                         additional_allowed_keys
+
+        for k in additional_forbidden_keys:
+            allowed_keys.remove(k)
 
         for key,value in kwargs.items():
             if key not in allowed_keys:
@@ -2612,7 +2616,24 @@ class Bundle(ParameterSet):
         This method is only for convenience and will be recomputed internally
         within run_compute.  Alternatively, you can create a mesh dataset
         and request any specific pblum to be exposed (per-time).
+
+        :parameter str compute: label of the compute options (note required if
+            only one is attached to the bundle)
+        :parameter component: (optional) label of the component(s) requested
+        :type component: str or list of strings
+        :parameter dataset: (optional) label of the dataset(s) requested
+        :type dataset: str or list of strings
+        :return: dictionary with keys <component>@<dataset> and computed pblums
+            as values (as quantity objects, default units of W)
+
         """
+        datasets = kwargs.pop('dataset', self.datasets)
+        components = kwargs.pop('component', self.components)
+
+        # don't allow things like model='mymodel', etc
+        forbidden_keys = parameters._meta_fields_filter
+        self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
+
         if compute is None:
             if len(self.computes)==1:
                 compute = self.computes[0]
@@ -2623,8 +2644,12 @@ class Bundle(ParameterSet):
 
         pblums = {}
         for component, star in system.items():
+            if component not in components:
+                continue
             for dataset in star._pblum_scale.keys():
-                pblums["{}@{}".format(component, dataset)] = float(star.compute_luminosity(dataset))
+                if dataset not in datasets:
+                    continue
+                pblums["{}@{}".format(component, dataset)] = float(star.compute_luminosity(dataset)) * u.W
 
         return pblums
 
