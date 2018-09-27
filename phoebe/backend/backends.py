@@ -567,6 +567,66 @@ class PhoebeBackend(BaseBackendByTime):
         if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0], **kwargs) in ['roche']:
             raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0], **kwargs)))
 
+    def _create_system_and_compute_pblums(self, b, compute,
+                                          dynamics_method=None,
+                                          meshablerefs=None,
+                                          **kwargs):
+
+        logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: calling universe.System.from_bundle".format(mpi.myrank, mpi.nprocs))
+        system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
+
+        if dynamics_method is None:
+            computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+            dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
+
+        if meshablerefs is None:
+            hier = b.get_hierarchy()
+            starrefs  = hier.get_stars()
+            meshablerefs = hier.get_meshables()
+
+        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
+
+        if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
+            logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: computing dynamics at t0".format(mpi.myrank, mpi.nprocs))
+            if dynamics_method in ['nbody', 'rebound']:
+                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
+
+            elif dynamics_method == 'bs':
+                # TODO: pass stepsize
+                # TODO: pass orbiterror
+                # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], compute, return_roche_euler=True, **kwargs)
+
+            elif dynamics_method=='keplerian':
+                # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], compute, return_euler=True, **kwargs)
+
+            else:
+                raise NotImplementedError
+
+            x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
+
+        else:
+            # singlestar case
+            incl = b.get_value('incl', component=meshablerefs[0], unit=u.rad)
+            long_an = b.get_value('long_an', component=meshablerefs[0], unit=u.rad)
+
+            x0, y0, z0 = [0.], [0.], [0.]
+            vx0, vy0, vz0 = [0.], [0.], [0.]
+            etheta0, elongan0, eincl0 = [0.], [long_an], [incl]
+
+        # Now we need to compute intensities at t0 in order to scale pblums for all future times
+        # but only if any of the enabled datasets require intensities
+        enabled_ps = b.filter(qualifier='enabled', compute=compute, value=True)
+        datasets = enabled_ps.datasets
+        # kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
+
+        logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
+        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+
+        return system
+
+
     def _worker_setup(self, b, compute, times, infolists, **kwargs):
         logger.debug("rank:{}/{} PhoebeBackend._worker_setup: extracting parameters".format(mpi.myrank, mpi.nprocs))
         computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
@@ -578,23 +638,17 @@ class PhoebeBackend(BaseBackendByTime):
         dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
         ltte = computeparams.get_value('ltte', **kwargs)
         distance = b.get_value(qualifier='distance', context='system', unit=u.m, **kwargs)
-        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
 
         # TODO: skip initializing system if we NEVER need meshes
-        logger.debug("rank:{}/{} PhoebeBackend._worker_setup: calling universe.System.from_bundle".format(mpi.myrank, mpi.nprocs))
-        system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
-
-        # Now we need to compute intensities at t0 in order to scale pblums for all future times
-        # but only if any of the enabled datasets require intensities
-        enabled_ps = b.filter(qualifier='enabled', compute=compute, value=True)
-        datasets = enabled_ps.datasets
-        kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
-
+        system = self._create_system_and_compute_pblums(b, compute,
+                                                        dynamics_method=dynamics_method,
+                                                        ltte=ltte,
+                                                        meshablerefs=meshablerefs,
+                                                        **kwargs)
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
-            logger.debug("rank:{}/{} PhoebeBackend._worker_setup: computing dynamics at t0".format(mpi.myrank, mpi.nprocs))
+            logger.debug("rank:{}/{} PhoebeBackend._worker_setup: computing dynamics".format(mpi.myrank, mpi.nprocs))
             if dynamics_method in ['nbody', 'rebound']:
-                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
                 ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
 
             elif dynamics_method == 'bs':
@@ -604,22 +658,14 @@ class PhoebeBackend(BaseBackendByTime):
                 # TODO: pass stepsize
                 # TODO: pass orbiterror
                 # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], compute, return_roche_euler=True, **kwargs)
-                # ethetas0, elongans0, eincls0 = None, None, None
                 ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle_bs(b, times, compute, return_roche_euler=True, **kwargs)
-                # ethetas, elongans, eincls = None, None, None
-
 
             elif dynamics_method=='keplerian':
-
                 # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-                t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], compute, return_euler=True, **kwargs)
                 ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
 
             else:
                 raise NotImplementedError
-
-            x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
 
         else:
             # singlestar case
@@ -628,10 +674,6 @@ class PhoebeBackend(BaseBackendByTime):
             vgamma = b.get_value('vgamma', context='system', unit=u.solRad/u.d)
             t0 = b.get_value('t0', context='system', unit=u.d)
 
-            x0, y0, z0 = [0.], [0.], [0.]
-            vx0, vy0, vz0 = [0.], [0.], [0.]
-            etheta0, elongan0, eincl0 = [0.], [long_an], [incl]
-
             ts = [times]
             vxs, vys, vzs = [np.zeros(len(times))], [np.zeros(len(times))], [np.zeros(len(times))]
             xs, ys, zs = [np.zeros(len(times))], [np.zeros(len(times))], [np.full(len(times), vgamma)]
@@ -639,9 +681,6 @@ class PhoebeBackend(BaseBackendByTime):
 
             for i,t in enumerate(times):
                 zs[0][i] = vgamma*(t-t0)
-
-        logger.debug("rank:{}/{} PhoebeBackend._worker_setup: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
-        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
         return dict(system=system,
                     hier=hier,

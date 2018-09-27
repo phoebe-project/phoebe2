@@ -2602,6 +2602,31 @@ class Bundle(ParameterSet):
         self._delayed_constraints = []
         return list(set(changes))
 
+    def compute_pblums(self, compute=None, **kwargs):
+        """
+        Compute the passband luminosities that will be applied to the system,
+        following all coupling, etc, as well as all relevant compute options
+        (ntriangles, distortion_method, etc).  The exposed passband luminosities
+        (and any coupling) are computed at t0@system.
+
+        This method is only for convenience and will be recomputed internally
+        within run_compute.  Alternatively, you can create a mesh dataset
+        and request any specific pblum to be exposed (per-time).
+        """
+        if compute is None:
+            if len(self.computes)==1:
+                compute = self.computes[0]
+            else:
+                raise ValueError("must provide compute")
+
+        system = backends.PhoebeBackend()._create_system_and_compute_pblums(self, compute, **kwargs)
+
+        pblums = {}
+        for component, star in system.items():
+            for dataset in star._pblum_scale.keys():
+                pblums["{}@{}".format(component, dataset)] = float(star.compute_luminosity(dataset))
+
+        return pblums
 
     def add_compute(self, kind=compute.phoebe, **kwargs):
         """
