@@ -650,7 +650,7 @@ class PhoebeBackend(BaseBackendByTime):
                                                         **kwargs)
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
-            logger.debug("rank:{}/{} PhoebeBackend._worker_setup: computing dynamics".format(mpi.myrank, mpi.nprocs))
+            logger.debug("rank:{}/{} PhoebeBackend._worker_setup: computing dynamics at all times".format(mpi.myrank, mpi.nprocs))
             if dynamics_method in ['nbody', 'rebound']:
                 ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
 
@@ -719,7 +719,7 @@ class PhoebeBackend(BaseBackendByTime):
         # TODO: make sure to use the requested distortion_method
 
         # we need to extract positions, velocities, and euler angles of ALL bodies at THIS TIME (i)
-        logger.debug("rank:{}/{} PhoebeBackend._run_single_time: computing dynamics at time={}".format(mpi.myrank, mpi.nprocs, time))
+        logger.debug("rank:{}/{} PhoebeBackend._run_single_time: extracting dynamics at time={}".format(mpi.myrank, mpi.nprocs, time))
         xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics.dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
 
         if True in [info['needs_mesh'] for info in infolist]:
@@ -740,6 +740,7 @@ class PhoebeBackend(BaseBackendByTime):
             # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
             # sma = b.get_value('sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
 
+            logger.debug("rank:{}/{} PhoebeBackend._run_single_time: calling system.update_positions at time={}".format(mpi.myrank, mpi.nprocs, time))
             system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli, ds=di, Fs=Fi)
 
             # Now we need to determine which triangles are visible and handle subdivision
@@ -754,6 +755,7 @@ class PhoebeBackend(BaseBackendByTime):
 
             # expose_horizon = 'mesh' in [info['kind'] for info in infolist] and do_horizon
             expose_horizon = False
+            logger.debug("rank:{}/{} PhoebeBackend._run_single_time: calling system.handle_eclipses at time={}".format(mpi.myrank, mpi.nprocs, time))
             horizons = system.handle_eclipses(expose_horizon=expose_horizon)
 
             # Now we can fill the observables per-triangle.  We'll wait to integrate
@@ -777,9 +779,10 @@ class PhoebeBackend(BaseBackendByTime):
                                 populate_datasets.append(mesh_dataset)
                                 populate_kinds.append(mesh_kind)
 
+            logger.debug("rank:{}/{} PhoebeBackend._run_single_time: calling system.populate_observables at time={}".format(mpi.myrank, mpi.nprocs, time))
             system.populate_observables(time, populate_kinds, populate_datasets)
 
-
+        logger.debug("rank:{}/{} PhoebeBackend._run_single_time: filling packets at time={}".format(mpi.myrank, mpi.nprocs, time))
         # now let's loop through and prepare a packet which will fill the synthetics
         packetlist = []
         for k, info in enumerate(infolist):

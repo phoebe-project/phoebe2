@@ -676,6 +676,7 @@ class Body(object):
         # TODO: double check to see if these are still used or can be removed
         self.t0 = t0   # t0@system
         self.time = None
+        self.inst_vals = {}
         self.true_anom = 0.0
         self.elongan = long_an
         self.eincl = incl
@@ -751,8 +752,14 @@ class Body(object):
         :return: maximum r
         :rtype: float
         """
+        logger.debug("{}.instantaneous_maxr".format(self.component))
 
-        return np.sqrt(max([x**2+y**2+z**2 for x,y,z in self.mesh.centers]))
+        if 'maxr' not in self.inst_vals.keys():
+            logger.debug("{}.instantaneous_maxr COMPUTING".format(self.component))
+
+            self.inst_vals['maxr'] = np.sqrt(max([x**2+y**2+z**2 for x,y,z in self.mesh.centers]))
+
+        return self.inst_vals['maxr']
 
     @property
     def mass(self):
@@ -866,6 +873,7 @@ class Body(object):
         """
         self._mesh = None
         self.time = time
+        self.inst_vals = {}
         self.true_anom = true_anom
         self.elongan = elongan
         self.eincl = eincl
@@ -915,7 +923,7 @@ class Body(object):
         # TODO: eventually pass etheta to has_standard_mesh
         # TODO: implement reprojection as an option based on a nearby standard?
         if self.needs_remesh or not self.has_standard_mesh():
-            logger.debug("update_position: remeshing at t={}".format(time))
+            logger.debug("{}.update_position: remeshing at t={}".format(self.component, time))
             # track whether we did the remesh or not, so we know if we should
             # compute local quantities if not otherwise necessary
             did_remesh = True
@@ -957,7 +965,7 @@ class Body(object):
             scaledprotomesh = mesh.ScaledProtoMesh(scale=scale, **new_mesh_dict)
 
         else:
-            logger.debug("update_position: accessing standard mesh at t={}".format(self.time))
+            logger.debug("{}.update_position: accessing standard mesh at t={}".format(self.component, self.time))
             # track whether we did the remesh or not, so we know if we should
             # compute local quantities if not otherwise necessary
             did_remesh = False
@@ -971,7 +979,8 @@ class Body(object):
             # TODO: can we avoid an extra copy here?
 
 
-        if not ignore_effects:
+        if not ignore_effects and len(self.features):
+            logger.debug("{}.update_position: processing features at t={}".format(self.component, self.time))
             # First allow features to edit the coords_for_computations (pvertices).
             # Changes here WILL affect future computations for logg, teff,
             # intensities, etc.  Note that these WILL NOT affect the
@@ -1011,6 +1020,7 @@ class Body(object):
         # TODO NOW [OPTIMIZE]: get rid of the deepcopy here - but without it the
         # mesh velocities build-up and do terrible things.  It may be possible
         # to just clear the velocities in get_standard_mesh()?
+        logger.debug("{}.update_position: placing in orbit, Mesh.from_scaledproto at t={}".format(self.component, self.time))
         self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh.copy(),
                                                 pos, vel, euler, euler_vel,
                                                 self.polar_direction_xyz*self.freq_rot*self._scale,
@@ -1022,6 +1032,7 @@ class Body(object):
         # TODO [DONE?]: make sure features smartly trigger needs_recompute_instantaneous
         # TODO: get rid of the or True here... the problem is that we're saving the standard mesh before filling local quantities
         if self.needs_recompute_instantaneous or did_remesh or True:
+            logger.debug("{}.update_position: calling compute_local_quantities at t={}".format(self.component, self.time))
             self.compute_local_quantities(xs, ys, zs, ignore_effects)
 
         return
@@ -1369,25 +1380,46 @@ class Star(Body):
 
     @property
     def instantaneous_d(self):
-        return np.sqrt(sum([(_value(self._get_coords_by_index(c, self.ind_self)) -
-                             _value(self._get_coords_by_index(c, self.ind_sibling)))**2
-                             for c in (self.system.xs,self.system.ys,self.system.zs)])) / self._scale
+        logger.debug("{}.instantaneous_d".format(self.component))
+
+        if 'd' not in self.inst_vals.keys():
+            logger.debug("{}.instantaneous_d COMPUTING".format(self.component))
+
+            self.inst_vals['d'] = np.sqrt(sum([(_value(self._get_coords_by_index(c, self.ind_self)) -
+                                             _value(self._get_coords_by_index(c, self.ind_sibling)))**2
+                                             for c in (self.system.xs,self.system.ys,self.system.zs)])) / self._scale
+
+        return self.inst_vals['d']
 
     @property
     def instantaneous_rpole(self):
         # NOTE: unscaled... should we make this a get_instantaneous_rpole(scaled=False)?
-        return self._rpole_func(*self.instantaneous_mesh_args)
+        logger.debug("{}.instantaneous_rpole".format(self.component))
+
+        if 'rpole' not in self.inst_vals.keys():
+            logger.debug("{}.instantaneous_rpole COMPUTING".format(self.component))
+
+            self.inst_vals['rpole'] = self._rpole_func(*self.instantaneous_mesh_args)
+
+        return self.inst_vals['rpole']
 
     @property
     def instantaneous_gpole(self):
-        rpole_ = np.array([0., 0., self.instantaneous_rpole])
+        logger.debug("{}.instantaneous_gpole".format(self.component))
 
-        # TODO: this is a little ugly as it assumes Phi is the last argument in mesh_args
-        args = list(self.instantaneous_mesh_args)[:-1]+[rpole_]
-        grads = self._gradOmega_func(*args)  # needs choice=0/1 for contacts?
-        gpole = np.linalg.norm(grads)
+        if 'gpole' not in self.inst_vals.keys():
+            logger.debug("{}.instantaneous_gpole COMPUTING".format(self.component))
 
-        return gpole * g_rel_to_abs(self.masses[self.ind_self], self.sma)
+            rpole_ = np.array([0., 0., self.instantaneous_rpole])
+
+            # TODO: this is a little ugly as it assumes Phi is the last argument in mesh_args
+            args = list(self.instantaneous_mesh_args)[:-1]+[rpole_]
+            grads = self._gradOmega_func(*args)  # needs choice=0/1 for contacts?
+            gpole = np.linalg.norm(grads)
+
+            self.inst_vals['gpole'] = gpole * g_rel_to_abs(self.masses[self.ind_self], self.sma)
+
+        return self.inst_vals['gpole']
 
     @property
     def instantaneous_tpole(self):
@@ -1395,11 +1427,18 @@ class Star(Body):
         compute the instantaenous temperature at the pole to achieve the mean
         effective temperature (teff) provided by the user
         """
-        if self.mesh is None:
-            raise ValueError("mesh must be computed before determining tpole")
-        # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
-        # see PHOEBE Legacy scientific reference eq 5.20
-        return self.teff*(np.sum(self.mesh.areas) / np.sum(self.mesh.gravs.centers*self.mesh.areas))**(0.25)
+        logger.debug("{}.instantaneous_tpole".format(self.component))
+
+        if 'tpole' not in self.inst_vals.keys():
+            logger.debug("{}.instantaneous_tpole COMPUTING".format(self.component))
+
+            if self.mesh is None:
+                raise ValueError("mesh must be computed before determining tpole")
+            # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
+            # see PHOEBE Legacy scientific reference eq 5.20
+            self.inst_vals['tpole'] = self.teff*(np.sum(self.mesh.areas) / np.sum(self.mesh.gravs.centers*self.mesh.areas))**(0.25)
+
+        return self.inst_vals['tpole']
 
     @property
     def instantaneous_mesh_args(self):
@@ -1417,7 +1456,8 @@ class Star(Body):
         GMSunNom = 1.3271244e20 m**3 s**-2
         RSunNom = 6.597e8 m
         """
-        # logger.debug("filling loggs")
+        logger.debug("{}._fill_loggs".format(self.component))
+
         if mesh is None:
             mesh = self.mesh
 
@@ -1438,7 +1478,8 @@ class Star(Body):
 
         requires _fill_loggs to have been called
         """
-        # logger.debug("filling gravs")
+        logger.debug("{}._fill_gravs".format(self.component))
+
         if mesh is None:
             mesh = self.mesh
 
@@ -1456,10 +1497,10 @@ class Star(Body):
 
         Calculate local temperature of a Star.
         """
-        # logger.debug("filling teffs")
+        logger.debug("{}._fill_teffs".format(self.component))
+
         if mesh is None:
             mesh = self.mesh
-
 
         # Now we can compute the local temperatures.
         # see PHOEBE Legacy scientific reference eq 5.23
@@ -1478,7 +1519,8 @@ class Star(Body):
         """
         TODO: add documentation
         """
-        # logger.debug("filling abuns")
+        logger.debug("{}._fill_abuns".format(self.component))
+
         if mesh is None:
             mesh = self.mesh
 
@@ -1490,7 +1532,8 @@ class Star(Body):
         """
         TODO: add documentation
         """
-        # logger.debug("filling albedos")
+        logger.debug("{}._fill_albedos".format(self.component))
+
         if mesh is None:
             mesh = self.mesh
 
@@ -1499,6 +1542,8 @@ class Star(Body):
     def compute_luminosity(self, dataset, scaled=True, **kwargs):
         """
         """
+        logger.debug("{}.compute_luminosity(dataset={})".format(self.component, dataset))
+
         # areas are the NON-projected areas of each surface element.  We'll be
         # integrating over normal intensities, so we don't need to worry about
         # multiplying by mu to get projected areas.
@@ -1531,6 +1576,7 @@ class Star(Body):
 
         TODO: add documentation
         """
+        logger.debug("{}.compute_pblum_scale(dataset={}, pblum={})".format(self.component, dataset, pblum))
 
         abs_luminosity = self.compute_luminosity(dataset, **kwargs)
 
@@ -1575,6 +1621,8 @@ class Star(Body):
         This should not be called directly, but rather via :meth:`Body.populate_observable`
         or :meth:`System.populate_observables`
         """
+        logger.debug("{}._populate_lp(dataset={})".format(self.component, dataset))
+
         profile_rest = kwargs.get('profile_rest', self.lp_profile_rest.get(dataset))
 
         rv_cols = self._populate_rv(dataset, **kwargs)
@@ -1592,6 +1640,7 @@ class Star(Body):
         This should not be called directly, but rather via :meth:`Body.populate_observable`
         or :meth:`System.populate_observables`
         """
+        logger.debug("{}._populate_rv(dataset={})".format(self.component, dataset))
 
         # We need to fill all the flux-related columns so that we can weigh each
         # triangle's rv by its flux in the requested passband.
@@ -1626,6 +1675,7 @@ class Star(Body):
 
         :raises NotImplementedError: if lc_method is not supported
         """
+        logger.debug("{}._populate_lc(dataset={})".format(self.component, dataset))
 
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
 
@@ -1809,29 +1859,36 @@ class Star_roche(Star):
 
     @property
     def instantaneous_mesh_args(self):
-        # self.q is automatically flipped to be 1./q for secondary components
-        q = np.float64(self.q)
+        logger.debug("{}.instantaneous_mesh_args".format(self.component))
 
-        F = np.float64(self.F)
+        if 'mesh_args' not in self.inst_vals.keys():
+            logger.debug("{}.instantaneous_mesh_args COMPUTING".format(self.component))
 
-        d = np.float64(self.instantaneous_d)
+            # self.q is automatically flipped to be 1./q for secondary components
+            q = np.float64(self.q)
 
-        # polar_direction_xyz is instantaneous based on current true_anom
-        s = self.polar_direction_xyz
+            F = np.float64(self.F)
 
-        # NOTE: if we ever want to break volume conservation in time,
-        # get_target_volume will need to take time or true anomaly
-        target_volume = np.float64(self.get_target_volume(scaled=False))
+            d = np.float64(self.instantaneous_d)
 
-        Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
-                                                      q, F, d, s.astype(np.float64))
+            # polar_direction_xyz is instantaneous based on current true_anom
+            s = self.polar_direction_xyz
 
-        logger.debug("libphoebe.roche_misaligned_Omega_at_vol(vol={}, q={}, F={}, d={}, s={}) => {}".format(target_volume, q, F, d, s, Phi))
+            # NOTE: if we ever want to break volume conservation in time,
+            # get_target_volume will need to take time or true anomaly
+            target_volume = np.float64(self.get_target_volume(scaled=False))
 
-        # this is assuming that we're in the reference frame of our current star,
-        # so we don't need to worry about flipping Phi for the secondary.
+            Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
+                                                          q, F, d, s.astype(np.float64))
 
-        return q, F, d, s, Phi
+            logger.debug("libphoebe.roche_misaligned_Omega_at_vol(vol={}, q={}, F={}, d={}, s={}) => {}".format(target_volume, q, F, d, s, Phi))
+
+            # this is assuming that we're in the reference frame of our current star,
+            # so we don't need to worry about flipping Phi for the secondary.
+
+            self.inst_vals['mesh_args'] = q, F, d, s, Phi
+
+        return self.inst_vals['mesh_args']
 
     def _build_mesh(self, mesh_method, **kwargs):
         """
@@ -2000,16 +2057,23 @@ class Star_roche_envelope_half(Star):
 
     @property
     def instantaneous_mesh_args(self):
-        # self.q is automatically flipped to be 1./q for secondary components
-        q = np.float64(self.q)
+        logger.debug("{}.instantaneous_mesh_args".format(self.component))
 
-        F = np.float64(self.F)
+        if 'mesh_args' not in self.inst_vals.keys():
+            logger.debug("{}.instantaneous_mesh_args COMPUTING".format(self.component))
 
-        d = np.float64(self.instantaneous_d)
+            # self.q is automatically flipped to be 1./q for secondary components
+            q = np.float64(self.q)
 
-        Phi = self.pot
+            F = np.float64(self.F)
 
-        return q, F, d, Phi
+            d = np.float64(self.instantaneous_d)
+
+            Phi = self.pot
+
+            self.inst_vals['mesh_args'] = q, F, d, Phi
+
+        return self.inst_vals['mesh_args']
 
     def _build_mesh(self, mesh_method, **kwargs):
         """
@@ -2164,23 +2228,29 @@ class Star_rotstar(Star):
 
     @property
     def instantaneous_mesh_args(self):
+        logger.debug("{}.instantaneous_mesh_args".format(self.component))
 
-        # TODO: we need a different scale if self._is_single==True
-        freq_rot = self.freq_rot
-        omega = rotstar.rotfreq_to_omega(freq_rot, scale=self.sma, solar_units=True)
+        if 'mesh_args' not in self.inst_vals.keys():
+            logger.debug("{}.instantaneous_mesh_args COMPUTING".format(self.component))
 
-        # polar_direction_xyz is instantaneous based on current true_anom
-        s = self.polar_direction_xyz
+            # TODO: we need a different scale if self._is_single==True
+            freq_rot = self.freq_rot
+            omega = rotstar.rotfreq_to_omega(freq_rot, scale=self.sma, solar_units=True)
 
-        # NOTE: if we ever want to break volume conservation in time,
-        # get_target_volume will need to take time or true anomaly
-        # TODO: not sure if scaled should be True or False here
-        target_volume = self.get_target_volume(scaled=False)
-        logger.debug("libphoebe.rotstar_misaligned_Omega_at_vol(vol={}, omega={}, s={})".format(target_volume, omega, s))
-        Phi = libphoebe.rotstar_misaligned_Omega_at_vol(target_volume,
-                                                        omega, s)
+            # polar_direction_xyz is instantaneous based on current true_anom
+            s = self.polar_direction_xyz
 
-        return omega, s, Phi
+            # NOTE: if we ever want to break volume conservation in time,
+            # get_target_volume will need to take time or true anomaly
+            # TODO: not sure if scaled should be True or False here
+            target_volume = self.get_target_volume(scaled=False)
+            logger.debug("libphoebe.rotstar_misaligned_Omega_at_vol(vol={}, omega={}, s={})".format(target_volume, omega, s))
+            Phi = libphoebe.rotstar_misaligned_Omega_at_vol(target_volume,
+                                                            omega, s)
+
+            self.inst_vals['mesh_args'] = omega, s, Phi
+
+        return self.inst_vals['mesh_args']
 
 
     def _build_mesh(self, mesh_method, **kwargs):
@@ -2319,15 +2389,20 @@ class Star_sphere(Star):
 
     @property
     def instantaneous_mesh_args(self):
+        logger.debug("{}.instantaneous_mesh_args".format(self.component))
 
-        # NOTE: if we ever want to break volume conservation in time,
-        # get_target_volume will need to take time or true anomaly
-        target_volume = self.get_target_volume()
-        logger.debug("libphoebe.sphere_Omega_at_vol(vol={})".format(target_volume))
-        Phi = libphoebe.sphere_Omega_at_vol(target_volume)
+        if 'mesh_args' not in self.inst_vals.keys():
+            logger.debug("{}.instantaneous_mesh_args COMPUTING".format(self.component))
 
-        return (Phi,)
+            # NOTE: if we ever want to break volume conservation in time,
+            # get_target_volume will need to take time or true anomaly
+            target_volume = self.get_target_volume()
+            logger.debug("libphoebe.sphere_Omega_at_vol(vol={})".format(target_volume))
+            Phi = libphoebe.sphere_Omega_at_vol(target_volume)
 
+            self.inst_vals['mesh_args'] = (Phi,)
+
+        return self.inst_vals['mesh_args']
 
     def _build_mesh(self, mesh_method, **kwargs):
         """
