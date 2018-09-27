@@ -3776,6 +3776,9 @@ class SelectParameter(Parameter):
         return self._choices
 
     def valid_selection(self, value):
+        if isinstance(value, list):
+            return np.all([self.valid_selection(v) for v in value])
+
         if value in self.choices:
             return True
 
@@ -4000,6 +4003,22 @@ class IntParameter(Parameter):
 
         return (self.limits[0] is None or value >= self.limits[0]) and (self.limits[1] is None or value <= self.limits[1])
 
+    def _check_value(self, value):
+        if isinstance(value, str):
+            value = float(value)
+
+        try:
+            value = int(value)
+        except:
+            raise ValueError("could not cast value to integer")
+        else:
+
+            # make sure the value is within the limits
+            if not self.within_limits(value):
+                raise ValueError("value of {} must be within limits of {}".format(self.qualifier, self.limits))
+
+        return value
+
     @update_if_client
     def get_value(self, **kwargs):
         """
@@ -4016,22 +4035,11 @@ class IntParameter(Parameter):
         """
         _orig_value = deepcopy(self.get_value())
 
-        if isinstance(value, str):
-            value = float(value)
+        value = self._check_value(value)
 
-        try:
-            value = int(value)
-        except:
-            raise ValueError("could not cast value to integer")
-        else:
+        self._value = value
 
-            # make sure the value is within the limits
-            if not self.within_limits(value):
-                raise ValueError("value of {} must be within limits of {}".format(self.qualifier, self.limits))
-
-            self._value = value
-
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 
 class FloatParameter(Parameter):
@@ -4244,6 +4252,22 @@ class FloatParameter(Parameter):
             # NOTE: astropy will raise an error if units not compatible
             return value.to(unit)
 
+    def _check_value(self, value, unit=None):
+        if isinstance(value, tuple) and (len(value) !=2 or isinstance(value[1], float) or isinstance(value[1], int)):
+            # allow passing tuples (this could be a FloatArrayParameter - if it isn't
+            # then this array will fail _check_type below)
+            value = np.asarray(value)
+        # accept tuples (ie 1.2, 'rad') from dictionary access
+        if isinstance(value, tuple) and unit is None:
+            value, unit = value
+        if isinstance(value, str):
+            value = float(value)
+        if isinstance(value, dict) and 'nparray' in value.keys():
+            # then we're loading the JSON version of an nparray object
+            value = nparray.from_dict(value)
+
+        return self._check_type(value), unit
+
     def _check_type(self, value):
         # we do this separately so that FloatArrayParameter can keep this set_value
         # and just subclass _check_type
@@ -4289,26 +4313,13 @@ class FloatParameter(Parameter):
         #     # then find the correct index and set by index instead
         #     time_param = self._bundle
 
-        if isinstance(value, tuple) and (len(value) !=2 or isinstance(value[1], float) or isinstance(value[1], int)):
-            # allow passing tuples (this could be a FloatArrayParameter - if it isn't
-            # then this array will fail _check_type below)
-            value = np.asarray(value)
-        # accept tuples (ie 1.2, 'rad') from dictionary access
-        if isinstance(value, tuple) and unit is None:
-            value, unit = value
-        if isinstance(value, str):
-            value = float(value)
-        if isinstance(value, dict) and 'nparray' in value.keys():
-            # then we're loading the JSON version of an nparray object
-            value = nparray.from_dict(value)
+        value, unit = self._check_value(value, unit)
 
         if isinstance(unit, str):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
         elif unit is not None and not _is_unit(unit):
             raise TypeError("unit must be an phoebe.u.Unit or None, got {}".format(unit))
-
-        value = self._check_type(value)
 
         # check to make sure value and unit don't clash
         if isinstance(value, u.Quantity) or (isinstance(value, nparray.ndarray) and value.unit is not None):

@@ -1157,13 +1157,50 @@ class Bundle(ParameterSet):
                         ['skip_checks', 'check_default', 'check_visible'] +\
                         additional_allowed_keys
 
-        for key in kwargs.keys():
+        for key,value in kwargs.items():
             if key not in allowed_keys:
                 msg = "'{}' not a recognized kwarg".format(key)
                 if warning_only:
                     logger.warning(msg)
                 else:
                     raise KeyError(msg)
+
+            for param in self.filter(qualifier=key).to_list():
+                if hasattr(param, 'valid_selection'):
+                    if not param.valid_selection(value):
+                        msg = "{}={} not valid with choices={}".format(key, value, param.choices)
+                        if warning_only:
+                            logger.warning(msg)
+                        else:
+                            raise ValueError(msg)
+                elif hasattr(param, 'choices'):
+                    if value not in param.choices:
+                        msg = "{}={} not one of {}".format(key, value, param.choices)
+                        if warning_only:
+                            logger.warning(msg)
+                        else:
+                            raise ValueError(msg)
+
+                if hasattr(param, '_check_value'):
+                    try:
+                        value = param._check_value(value)
+                    except:
+                        msg = "'{}' not valid for {}".format(value, key)
+                        if warning_only:
+                            logger.warning(msg)
+                        else:
+                            raise ValueError(msg)
+
+                elif hasattr(param, '_check_type'):
+                    # NOTE: _check_value already called _check_type, thus the elif
+                    try:
+                        value = param._check_type(value)
+                    except:
+                        msg = "'{}' not valid for {}".format(value, key)
+                        if warning_only:
+                            logger.warning(msg)
+                        else:
+                            raise TypeError(msg)
 
     def run_checks(self, **kwargs):
         """
@@ -2785,7 +2822,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
+        self._kwargs_checks(kwargs, ['skip_checks', 'jobid'])
 
         if not kwargs.get('skip_checks', False):
             passed, msg = self.run_checks(computes=computes, **kwargs)
