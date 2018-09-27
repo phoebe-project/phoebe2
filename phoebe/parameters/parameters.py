@@ -1840,7 +1840,16 @@ class ParameterSet(object):
                 this call will EXCLUDE defaults by default.
         :parameter **kwargs: meta-tags to search
         """
-        # TODO support the ability to do PS.set_value_all(value) (no twig - or do we throw warning and request value=value?)
+        if twig is not None and value is None:
+            # then try to support value as the first argument if no matches with twigs
+            if not isinstance(twig, str):
+                value = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                value = twig
+                twig = None
+
         params = self.filter(twig=twig,
                              check_default=check_default,
                              **kwargs).to_list()
