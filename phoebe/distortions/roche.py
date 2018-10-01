@@ -23,7 +23,6 @@ def q_for_component(q, component=1):
 
 def pot_for_component(pot, q, component=1, reverse=False):
     """
-
     q for secondaries should already be flipped (via q_for_component)
     """
     # currently only used by legacy wrapper: consider moving/removing
@@ -51,45 +50,59 @@ def roche_misaligned_critical_requiv(q, F, d, s, scale=1.0):
 
     return requiv_critical
 
+def requiv_to_pot(requiv, sma, q, F, d, s=np.array([1.,0.,0.]), component=1):
+    volume = 4./3 * np.pi * requiv**3 / sma**3
+    logger.debug("roche_misaligned_Omega_at_vol(volume={}, q={}, F={}, d={}, s={})".format(volume, q, F, d, s))
+    Phi = libphoebe.roche_misaligned_Omega_at_vol(volume,
+                                                  q, F, d, s)
 
-#
-# def rpole2potential(rpole, q, e, F, sma=1.0, component=1):
-#     """
-#     Transforms polar radius to surface potential at periastron
-#     """
-#     d = 1-e
-#     q = q_for_component(q, component=component)
-#     rpole_ = np.array([0, 0, rpole/sma])
-#     pot = libphoebe.roche_Omega(q, F, d, rpole_)
-#     if component == 1:
-#         return pot
-#     elif component == 2:
-#         return pot/q + 0.5*(q-1)/q
-#     else:
-#         raise NotImplementedError
-#
-# def potential2rpole(pot, q, e, F, sma=1.0, component=1):
-#     """
-#     Transforms surface potential to polar radius at periastron
-#     """
-#     d = 1-e
-#     q = q_for_component(q, component=component)
-#     Phi = pot_for_component(pot, q, component=component)
-#     return libphoebe.roche_pole(q, F, d, Phi) * sma
-#
-# def criticalL1(q, e, F, component=1):
-#     """
-#     determine the potential at periastron to fill the critical potential at L1
-#     """
-#     d = 1-e
-#     q = q_for_component(q, component=component)
-#
-#     critical_pots = libphoebe.roche_critical_potential(q, F, d,
-#                                                        L1=True,
-#                                                        L2=False,
-#                                                        L3=False)
-#
-#     return critical_pots['L1']
+    return pot_for_component(Phi, q, component=component, reverse=True)
+
+def pot_to_requiv(pot, sma, q, F, d, s=np.array([1.,0.,0.]), component=1):
+    q = q_for_component(q, component)
+
+    Omega = pot_for_component(pot, q, component)
+    logger.debug("libphoebe.roche_area_volume(q={}, F={}, d={}, Omega={})".format(q, F, d, pot))
+    volume = libphoebe.roche_misaligned_area_volume(q, F, d, s, pot,
+                                                    choice=0,
+                                                    lvolume=True,
+                                                    larea=False)['lvolume']
+
+    # convert from roche units to scaled (solar) units
+    volume *= sma**3
+
+    # now convert from volume (in solar units) to requiv
+    requiv = (volume * 3./4 * 1./np.pi)**(1./3)
+
+    return requiv
+
+def rpole_to_pot_aligned(rpole, sma, q, F, d, component=1):
+    """
+    Transforms polar radius to surface potential
+    """
+    q = q_for_component(q, component=component)
+    rpole_ = np.array([0, 0, rpole/sma])
+    logger.debug("libphoebe.roche_Omega(q={}, F={}, d={}, rpole={})".format(q, F, d, rpole_))
+    pot = libphoebe.roche_Omega(q, F, d, rpole_)
+    return pot_for_component(pot, component, reverse=True)
+
+def pot_to_rpole_aligned(pot, sma, q, F, d, component=1):
+    """
+    Transforms surface potential to polar radius
+    """
+    q = q_for_component(q, component=component)
+    Phi = pot_for_component(pot, q, component=component)
+    logger.debug("libphobe.roche_pole(q={}, F={}, d={}, Omega={})".format(q, F, d, pot))
+    return libphoebe.roche_pole(q, F, d, pot) * sma
+
+def requiv_to_rpole_aligned(requiv, sma, q, F, d, component=1):
+    pot = requiv_to_pot(requiv, sma, q, F, d, component=component)
+    return pot_to_rpole_aligned(pot, sma, q, F, d, component=component)
+
+def rpole_to_requiv_aligned(rpole, sma, q, F, d, component=1):
+    pot = rpole_to_pot_aligned(rpole, sma, q, F, d, component=component)
+    return pot_to_requiv(pot, sma, q, F, d, component=component)
+
 
 
 def BinaryRoche (r, D, q, F, Omega=0.0):
