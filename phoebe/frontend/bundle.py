@@ -2510,7 +2510,7 @@ class Bundle(ParameterSet):
             (except twig or context)
 
         """
-        self._kwargs_checks(kwargs)
+        self._kwargs_checks(kwargs, additional_allowed_keys=['check_nan'])
 
         kwargs['twig'] = twig
         redo_kwargs = deepcopy(kwargs)
@@ -2520,7 +2520,7 @@ class Bundle(ParameterSet):
 
         param = self.get_constraint(**kwargs)
 
-        if np.any(np.isnan([p.get_value() for p in param.vars.to_list()])):
+        if kwargs.pop('check_nan', True) and np.any(np.isnan([p.get_value() for p in param.vars.to_list()])):
             raise ValueError("cannot flip constraint while the value of {} is nan".format([p.twig for p in param.vars.to_list() if np.isnan(p.get_value())]))
 
         if solve_for is None:

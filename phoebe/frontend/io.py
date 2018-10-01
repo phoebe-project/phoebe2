@@ -861,7 +861,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         if pnew == 'pot':
 
             if contact_binary:
-                eb.flip_constraint('pot@contact_envelope', 'requiv@primary')
+                eb.flip_constraint('pot', component='contact_envelope', solve_for='requiv@primary', check_nan=False)
                 d['component'] = 'contact_envelope'
                 d['context'] = 'component'
                 d['qualifier'] = 'pot'
@@ -872,8 +872,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
 
                 comp_no = ['', 'primary', 'secondary'].index(d['component'])
+
                 q_in = list(params[:,0]).index('phoebe_rm.VAL')
-                q = roche.q_for_component(np.float(params[:,1][q_in]), comp_no)
+                q = np.float(params[:,1][q_in])
                 F_in = list(params[:,0]).index('phoebe_f{}.VAL'.format(comp_no))
                 F = np.float(params[:,1][F_in])
                 a_in = list(params[:,0]).index('phoebe_sma.VAL')
@@ -881,17 +882,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 e_in = list(params[:,0]).index('phoebe_ecc.VAL')
                 e = np.float(params[:,1][e_in])
                 delta = 1-e # defined at periastron
-                Omega = roche.pot_for_component(float(val), q, comp_no)
-                logger.debug("libphoebe.roche_area_volume(q={}, F={}, d={}, Omega={})".format(q, F, delta, Omega))
-                volume = libphoebe.roche_area_volume(q, F, delta, Omega,
-                                                     choice=0,
-                                                     lvolume=True,
-                                                     larea=False)['lvolume']
 
-                # convert from roche units to scaled (solar) units
-                volume *= a**3
-                # now convert from volume (in solar units) to requiv
-                d['value'] = (volume * 3./4 * 1./np.pi)**(1./3)
+                d['value'] = roche.pot_to_requiv(float(val), a, q, F, delta, component=comp_no)
                 d['kind'] = None
 
                 d['context'] = 'component'
@@ -1035,16 +1027,10 @@ def par_value(param, index=None, **kwargs):
             q = roche.q_for_component(q, component=comp_no)
             F = b.get_value('syncpar', component=param.component, context='component')
             e = b.get_value('ecc', kind='orbit', context='component')
-            d = 1-e # at periastron
+            delta = 1-e # at periastron
             s = np.array([0,0,1]).astype(float) # aligned case, we would already have thrown an error if misaligned
 
-            requiv = val
-            volume = 4./3 * np.pi * requiv**3 /sma**3
-            logger.debug("roche_misaligned_Omega_at_vol(volume={}, q={}, F={}, d={}, s={}) for {}".format(volume, q, F, d, s, param.component))
-            Phi = libphoebe.roche_misaligned_Omega_at_vol(volume,
-                                                          q, F, d, s)
-
-            val = [roche.pot_for_component(Phi, q, component=comp_no, reverse=True)]
+            val = [roche.requiv_to_pot(val, sma, q, F, delta, s, component=comp_no)]
         else:
             val = [val]
 
