@@ -50,7 +50,8 @@ def roche_misaligned_critical_requiv(q, F, d, s, scale=1.0):
 
     return requiv_critical
 
-def requiv_to_pot(requiv, sma, q, F, d, s=np.array([1.,0.,0.]), component=1):
+def requiv_to_pot(requiv, sma, q, F, d, s=np.array([0.,0.,1.]), component=1):
+    logger.debug("roche.requiv_to_pot(requiv={}, sma={}, q={}, F={}, d={}, s={}, component={})".format(requiv, sma, q, F, d, s, component))
     volume = 4./3 * np.pi * requiv**3 / sma**3
     logger.debug("roche_misaligned_Omega_at_vol(volume={}, q={}, F={}, d={}, s={})".format(volume, q, F, d, s))
     Phi = libphoebe.roche_misaligned_Omega_at_vol(volume,
@@ -58,10 +59,11 @@ def requiv_to_pot(requiv, sma, q, F, d, s=np.array([1.,0.,0.]), component=1):
 
     return pot_for_component(Phi, q, component=component, reverse=True)
 
-def pot_to_requiv(pot, sma, q, F, d, s=np.array([1.,0.,0.]), component=1):
+def pot_to_requiv(pot, sma, q, F, d, s=np.array([0.,0.,1.]), component=1):
+    logger.debug("roche.pot_to_requiv(pot={}, sma={}, q={}, F={}, d={}, s={}, component={})".format(pot, sma, q, F, d, s, component))
     q = q_for_component(q, component)
 
-    Omega = pot_for_component(pot, q, component)
+    pot = pot_for_component(pot, q, component)
     logger.debug("libphoebe.roche_area_volume(q={}, F={}, d={}, Omega={})".format(q, F, d, pot))
     volume = libphoebe.roche_misaligned_area_volume(q, F, d, s, pot,
                                                     choice=0,
