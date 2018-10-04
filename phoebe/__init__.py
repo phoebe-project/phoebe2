@@ -225,21 +225,24 @@ class Settings(object):
         self.interactive_checks_on()
         self.interactive_constraints_on()
 
-    def interactive_off(self):
-        self.interactive_checks_off()
-        self.interactive_constraints_off()
+    def interactive_off(self, suppress_warning=False):
+        self.interactive_checks_off(suppress_warning=suppress_warning)
+        self.interactive_constraints_off(suppress_warning=suppress_warning)
 
     def interactive_checks_on(self):
         self._interactive_checks = True
 
-    def interactive_checks_off(self):
+    def interactive_checks_off(self, suppress_warning=False):
+        if not suppress_warning:
+            _logger.warning("checks will not be run until 'run_checks' or 'run_compute' is called.")
         self._interactive_checks = False
 
     def interactive_constraints_on(self):
         self._interactive_constraints = True
 
-    def interactive_constraints_off(self):
-        _logger.warning("constraints will not be run until 'run_delayed_constraints' or 'run_compute' is called.  This may result in inconsistent parameters if printing values before calling either of these methods.")
+    def interactive_constraints_off(self, suppress_warning=False):
+        if not suppress_warning:
+            _logger.warning("constraints will not be run until 'run_delayed_constraints' or 'run_compute' is called.  This may result in inconsistent parameters if printing values before calling either of these methods.")
         self._interactive_constraints = False
 
     @property

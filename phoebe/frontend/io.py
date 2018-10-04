@@ -389,7 +389,7 @@ filename - a .phoebe file (from phoebe 1)
 def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     conf_interactive_checks_state = conf.interactive_checks
     conf_interactive_constraints_state = conf.interactive_constraints
-    conf.interactive_off()
+    conf.interactive_off(suppress_warning=True)
     legacy_file_dir = os.path.dirname(filename)
 
 # load the phoebe file
