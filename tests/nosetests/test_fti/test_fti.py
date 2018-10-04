@@ -31,7 +31,7 @@ def test_binary(plot=False):
         b.plot(show=True)
     assert(np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-3))
 
-    b.run_compute(fti_method='oversample', fti_oversample=10)
+    b.run_compute(kind='phoebe', fti_method='oversample', fti_oversample=10)
     fluxes_legacy = np.loadtxt(os.path.join(dir, 'kic12004834.fti.data'), unpack=True, usecols=(1,))
     fluxes = b.get_value('fluxes', context='model')
 
