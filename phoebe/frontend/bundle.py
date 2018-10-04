@@ -2101,7 +2101,7 @@ class Bundle(ParameterSet):
         for k, v in kwargs.items():
             if isinstance(v, dict):
                 for component, value in v.items():
-                    logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], components_, value))
+                    logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], component, value))
                     try:
                         self.set_value_all(qualifier=k,
                                            dataset=kwargs['dataset'],
