@@ -1169,6 +1169,16 @@ class Bundle(ParameterSet):
                 else:
                     raise KeyError(msg)
 
+            if isinstance(value, dict):
+                for k,v in value.items():
+                    self._kwargs_checks({'{}@{}'.format(key, k): v},
+                                        additional_allowed_keys=additional_allowed_keys+['{}@{}'.format(key, k)],
+                                        additional_forbidden_keys=additional_forbidden_keys,
+                                        warning_only=warning_only
+                                        )
+
+                continue
+
             for param in self.filter(qualifier=key).to_list():
                 if hasattr(param, 'valid_selection'):
                     if not param.valid_selection(value):
