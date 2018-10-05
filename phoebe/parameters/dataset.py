@@ -13,7 +13,8 @@ global _mesh_columns
 global _pbdep_columns
 
 _mesh_columns = []
-_mesh_columns += ['pot', 'rpole', 'volume']
+# _mesh_columns += ['pot', 'rpole']
+_mesh_columns += ['volume']
 
 _mesh_columns += ['xs', 'ys', 'zs']
 _mesh_columns += ['vxs', 'vys', 'vzs']
@@ -392,10 +393,10 @@ def mesh_syn(syn=True, **kwargs):
             # backends.py when the values are extracted and included in the
             # packet
 
-            if 'pot' in columns:
-                syn_params += [FloatParameter(qualifier='pot', time=t, value=kwargs.get('pot', 0.0), default_unit=u.dimensionless_unscaled, description='Equipotential of the stellar surface')]
-            if 'rpole' in columns:
-                syn_params += [FloatParameter(qualifier='rpole', time=t, value=kwargs.get('rpole', 0.0), default_unit=u.solRad, description='Polar radius of the stellar surface')]
+            # if 'pot' in columns:
+                # syn_params += [FloatParameter(qualifier='pot', time=t, value=kwargs.get('pot', 0.0), default_unit=u.dimensionless_unscaled, description='Equipotential of the stellar surface')]
+            # if 'rpole' in columns:
+            #     syn_params += [FloatParameter(qualifier='rpole', time=t, value=kwargs.get('rpole', 0.0), default_unit=u.solRad, description='Polar radius of the stellar surface')]
             if 'volume' in columns:
                 syn_params += [FloatParameter(qualifier='volume', time=t, value=kwargs.get('volume', 0.0), default_unit=u.solRad**3, description='Volume of the stellar surface')]
 

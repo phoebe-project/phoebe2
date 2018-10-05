@@ -932,14 +932,14 @@ class PhoebeBackend(BaseBackendByTime):
                                               body.mesh.roche_vertices_per_triangle,
                                               time, info))
 
-                if 'pot' in info['mesh_columns']:
-                    packetlist.append(_make_packet('pot',
-                                                  body._instantaneous_pot,
-                                                  time, info))
-                if 'rpole' in info['mesh_columns']:
-                    packetlist.append(_make_packet('rpole',
-                                                  roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no),
-                                                  time, info))
+                # if 'pot' in info['mesh_columns']:
+                    # packetlist.append(_make_packet('pot',
+                                                  # body._instantaneous_pot,
+                                                  # time, info))
+                # if 'rpole' in info['mesh_columns']:
+                #     packetlist.append(_make_packet('rpole',
+                #                                   roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no),
+                #                                   time, info))
                 if 'volume' in info['mesh_columns']:
                     packetlist.append(_make_packet('volume',
                                                   body.mesh.volume,
