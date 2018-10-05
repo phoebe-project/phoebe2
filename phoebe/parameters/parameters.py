@@ -2285,11 +2285,15 @@ class ParameterSet(object):
             if len(detected_qualifiers):
                 coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers if detected_qualifier in ['us', 'vs', 'ws', 'xs', 'ys', 'zs']])
 
-                if len(coordinate_systems) > 1:
+
+                if len(coordinate_systems) == 1:
+                    coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
+                elif len(coordinate_systems) > 1:
                     # then we're mixing roche and POS
                     raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
-
-                coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
+                else:
+                    # then len(coordinate_system) == 0
+                    coordinates = ['us', 'vs', 'ws']
 
             else:
                 coordinates = ['us', 'vs', 'ws']
