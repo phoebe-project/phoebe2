@@ -2661,7 +2661,10 @@ class ParameterSet(object):
             # multiple plotting calls, but for a SINGLE AXES (ie two components
             # under the same dataset).
             for plot_kwargs in plot_kwargss:
-                if not len(plot_kwargs.get('y', [])):
+                y = plot_kwargs.get('y', [])
+                if isinstance(y, u.Quantity) or isinstance(y.value, float):
+                    pass
+                elif not len(y):
                     # a dataset without observational data, for example
                     continue
 
