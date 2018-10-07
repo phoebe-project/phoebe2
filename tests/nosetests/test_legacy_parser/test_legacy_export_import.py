@@ -11,7 +11,8 @@ def test_reimport(filename=None):
         b = phb2.from_legacy(filename)
     else:
         b = phb2.default_binary()
-
+        b.add_compute(kind='legacy')
+        
     b.export_legacy('test.legacy')
     b2 = phb2.from_legacy('test.legacy')
 
