@@ -1733,6 +1733,9 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
             if param.get_value(**kwargs) == 0:
                 #Legacy phoebe will calculate reflection no matter what.
                 # Turn off reflection switch but keep albedos
+                logger.warning('To completely remove irradiation effects in \
+                                Phoebe Legacy irrad_frac_refl_bol must be set \
+                                to zero for both components')
                 pname = 'phoebe_reffect_switch'
                 val = '0'
                 ptype='boolean'
