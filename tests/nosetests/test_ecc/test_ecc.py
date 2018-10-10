@@ -26,6 +26,10 @@ def test_binary(plot=False):
     b.set_value_all('ld_func', 'linear')
     b.set_value_all('ld_coeffs', [0.0])
 
+    #turn off albedos (legacy requirement)
+    b.set_value_all('irrad_frac_refl_bol',  0.0)
+
+
     # 0.51 starts to overlap
     for ecc in [0.3, 0.505]:
         b.set_value('ecc', ecc)

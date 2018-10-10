@@ -12,9 +12,7 @@ def test_binary(plot=False):
     cb['q'] = 1.0
     cb['teff@primary'] = 5000.
     cb['teff@secondary'] = 5000.
-    #must set irradiation fraction to zero for legacy
-    cb['irrad_frac_refl_bol@primary'] = 0.0
-    cb['irrad_frac_refl_bol@secondary'] = 0.0
+
     # cb.set_value_all('incl',90.0)
 
     times = cb.to_time(np.linspace(-.1,1.1,100))
@@ -35,6 +33,10 @@ def test_binary(plot=False):
 
     cb.set_value_all('rv_grav', False)
     cb.set_value_all('ltte', False)
+
+    #turn off albedos (legacy requirement)
+    cb.set_value_all('irrad_frac_refl_bol',  0.0)
+
 
     if plot: print "running phoebe2 model..."
     cb.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
