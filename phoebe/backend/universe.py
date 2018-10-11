@@ -1196,18 +1196,23 @@ class Star(Body):
         irrad_frac_refl = b.get_value('irrad_frac_refl_bol', component=component, context='component')
 
         try:
-            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, **kwargs) if compute is not None else False
+            rv_grav_override = kwargs.pop('rv_grav', None)
+            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, rv_grav=rv_grav_override) if compute is not None else False
         except ValueError:
             # rv_grav may not have been copied to this component if no rvs are attached
             do_rv_grav = False
 
-        mesh_method = b.get_value('mesh_method', component=component, compute=compute, **kwargs) if compute is not None else 'marching'
+        mesh_method_override = kwargs.pop('mesh_method', None)
+        mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
 
         if mesh_method == 'marching':
-            kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, **kwargs) if compute is not None else 1000
-            kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, **kwargs) if compute is not None else 'roche'
+            ntriangles_override = kwargs.pop('ntriangle', None)
+            kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, ntriangles=ntriangles_override) if compute is not None else 1000
+            distortion_method_override = kwargs.pop('distortion_method', None)
+            kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, distortion_method=distortion_method_override) if compute is not None else 'roche'
         elif mesh_method == 'wd':
-            kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, **kwargs) if compute is not None else 30
+            gridsize_override = kwargs.pop('gridsize', None)
+            kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, gridsize=gridsize_override) if compute is not None else 30
         else:
             raise NotImplementedError
 
@@ -1218,20 +1223,29 @@ class Star(Body):
             features.append(feature_cls.from_bundle(b, feature))
 
         if conf.devel:
-            do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
+            mesh_offset_override = kwargs.pop('mesh_offset', None)
+            do_mesh_offset = b.get_value('mesh_offset', compute=compute, mesh_offset=mesh_offset_override)
         else:
             do_mesh_offset = True
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
-        atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
-        passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
-        intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
-        ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
-        ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
-        ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', check_visible=False, **kwargs)
-        ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs)
-        lp_profile_rest = {ds: b.get_value('profile_rest', dataset=ds, unit=u.nm, **kwargs) for ds in datasets_lp}
+        atm_override = kwargs.pop('atm', None)
+        atm = b.get_value('atm', compute=compute, component=component, atm=atm_override) if compute is not None else 'blackbody'
+        passband_override = kwargs.pop('passband', None)
+        passband = {ds: b.get_value('passband', dataset=ds, passband=passband_override) for ds in datasets_intens}
+        intens_weighting_override = kwargs.pop('intens_weighting', None)
+        intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, intens_weighting=intens_weighting_override) for ds in datasets_intens}
+        ld_func_override = kwargs.pop('ld_func', None)
+        ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, ld_func=ld_func_override) for ds in datasets_intens}
+        ld_coeffs_override = kwargs.pop('ld_coeffs', None)
+        ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, ld_coeffs=ld_coeffs_override) for ds in datasets_intens}
+        ld_func_bol_override = kwargs.pop('ld_func_bol', None)
+        ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', check_visible=False, ld_func_bol=ld_func_bol_override)
+        ld_coeffs_bol_override = kwargs.pop('ld_coeffs_bol', None)
+        ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', check_visible=False, ld_coeffs_bol=ld_coeffs_bol_override)
+        profile_rest_override = kwargs.pop('profile_rest', None)
+        lp_profile_rest = {ds: b.get_value('profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override) for ds in datasets_lp}
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
         # of any subclass and then intercepted again by the __init__ by the
@@ -2483,7 +2497,8 @@ class Envelope(Body):
         orbit = b.hierarchy.get_parent_of(component)
         q = b.get_value('q', component=orbit, context='component')
 
-        mesh_method = b.get_value('mesh_method', component=component, compute=compute, **kwargs) if compute is not None else 'marching'
+        mesh_method_override = kwargs.pop('mesh_method', None)
+        mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
 
         # we'll pass on the potential from the envelope to both halves (even
         # though technically only the primary will ever actually build a mesh)
