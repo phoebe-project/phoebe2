@@ -37,6 +37,9 @@ def test_binary(plot=False):
     period = b.get_value('period@orbit')
     times = np.linspace(-0.2,1.2*period,51)
 
+    #turn off albedos (legacy requirement)
+    b.set_value_all('irrad_frac_refl_bol',  0.0)    
+
     b.add_dataset('rv', times=times, dataset='rv01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
 
     b.add_compute('phoebe', compute='phnum', ltte=False, atm='extern_planckint', rv_method='flux-weighted', irrad_method='none')

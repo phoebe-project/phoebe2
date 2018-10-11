@@ -450,7 +450,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         logger.warning('Phoebe Legacy reflection effect switch is set to false so refl_num is being set to 0.')
 
     if not add_compute_legacy:
-        params = np.delete(params, [list(params[:,0]).index('phoebe_reffect_reflections'), list(params[:,0]).index('phoebe_ie_switch')], axis=0)
+        params = np.delete(params, [list(params[:,0]).index('phoebe_reffect_reflections'), list(params[:,0]).index('phoebe_ie_switch'),
+                list(params[:,0]).index('phoebe_grid_finesize1'), list(params[:,0]).index('phoebe_grid_finesize2')], axis=0)
 
     if 'Overcontact' in morphology:
         params = np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
@@ -1691,8 +1692,24 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
 #loop through LEGACY compute parameter set
 
-    # comquals = eb.get_compute(kind='legacy', check_visible=False)-eb.get_compute(kind='legacy', component='_default')
-    computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
+
+    # Did you pass a compute parameter set?
+    if compute is not None:
+        print("compute", compute)
+        computeps = eb.get_compute(compute=compute)
+#        computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
+
+    #Find Compute Parameter Set
+    else:
+        ncompute = len(eb.filter(context='compute', kind='legacy').computes)
+        if ncompute == 1:
+            computeps = eb.get_compute(kind='legacy', check_visible=False)
+
+        elif ncompute == 0:
+            raise ValueError('Your bundle must contain a "Legacy" compute parameter set.')
+
+        else:
+            raise ValueError('Your bundle contains '+str(ncompute)+' parameter sets. You must specify one to use.')
 
     for param in computeps.to_list():
         if param.component == primary:
@@ -1714,21 +1731,18 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         #TODO add reflection switch
         if param.qualifier == 'refl_num':
             if param.get_value(**kwargs) == 0:
-                #Legacy phoebe will calculate reflection no matter what. The
-                # only way to ensure no reflection is to set the albedo to
-                # zero.
-                logger.warning('Since relflection number is zero albedo is being set to 0 for both components')
-                in1 =  parnames.index('phoebe_alb1.VAL')
-                in2 =  parnames.index('phoebe_alb2.VAL')
-                parvals[in1] = 0.0
-                parvals[in2] = 0.0
-            elif  param.get_value(**kwargs) == 1:
+                #Legacy phoebe will calculate reflection no matter what.
+                # Turn off reflection switch but keep albedos
+                logger.warning('To completely remove irradiation effects in \
+                                Phoebe Legacy irrad_frac_refl_bol must be set \
+                                to zero for both components')
                 pname = 'phoebe_reffect_switch'
                 val = '0'
                 ptype='boolean'
                 parnames.append(pname)
                 parvals.append(val)
                 types.append(ptype)
+
 
             else:
                 pname = 'phoebe_reffect_switch'

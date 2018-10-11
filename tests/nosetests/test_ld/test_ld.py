@@ -42,6 +42,9 @@ def test_binary(plot=False):
     b.set_value_all('ld_func', 'linear')
     b.set_value_all('ld_coeffs', [0.])
 
+    #turn off albedos (legacy requirement)
+    b.set_value_all('irrad_frac_refl_bol',  0.0)
+
     for ld_func in b.get('ld_func', component='primary').choices:
         # let's test all of these against legacy.  For some we don't have
         # exact comparisons, so we'll get close and leave a really lose

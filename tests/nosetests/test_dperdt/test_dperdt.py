@@ -27,6 +27,9 @@ def test_binary(plot=False):
     b.set_value_all('ld_coeffs', [0.0])
     b.set_value_all('ecc', 0.2)
 
+    #turn off albedos (legacy requirement)
+    b.set_value_all('irrad_frac_refl_bol',  0.0)    
+
     for dperdt in [-0.5, -0.25, 0.25, 0.5]:
         b.set_value('dperdt', dperdt)
 
