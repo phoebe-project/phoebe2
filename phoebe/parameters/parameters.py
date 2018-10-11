@@ -2662,7 +2662,7 @@ class ParameterSet(object):
             # under the same dataset).
             for plot_kwargs in plot_kwargss:
                 y = plot_kwargs.get('y', [])
-                if isinstance(y, u.Quantity) or isinstance(y.value, float):
+                if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or isinstance(y.value, float):
                     pass
                 elif not len(y):
                     # a dataset without observational data, for example
@@ -2737,6 +2737,9 @@ class ParameterSet(object):
 
         else:
             time = kwargs.get('time', None)
+
+            if isinstance(time, str):
+                time = self.get_value(time, context=['component', 'system'])
 
             logger.info("calling autofig.draw(i={}, tight_layout={}, save={}, show={})".format(time, tight_layout, save, show))
             fig = self.gcf().draw(i=time,

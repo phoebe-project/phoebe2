@@ -603,6 +603,9 @@ class Plot(Call):
             if not isinstance(ax, plt.Axes):
                 raise TypeError("ax must be of type plt.Axes")
 
+        if not (i is None or isinstance(i, float) or isinstance(i, int) or isinstance(i, u.Quantity)):
+            raise TypeError("i must be of type float/int/None")
+
         kwargs = self.kwargs.copy()
 
         # determine 2D or 3D
@@ -1126,6 +1129,9 @@ class Mesh(Call):
         else:
             if not isinstance(ax, plt.Axes):
                 raise TypeError("ax must be of type plt.Axes")
+
+        if not (i is None or isinstance(i, float) or isinstance(i, int) or isinstance(i, u.Quantity)):
+            raise TypeError("i must be of type float/int/None")
 
         # determine 2D or 3D
         axes_3d = isinstance(ax, Axes3D)
