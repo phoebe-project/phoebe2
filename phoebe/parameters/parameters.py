@@ -2372,6 +2372,9 @@ class ParameterSet(object):
                     # we'll take the first entry remaining in coordinates
                     defaults[af_direction] = coordinates.pop(0)
 
+            if kwargs.get('projection', None) != '3d':
+                defaults['z'] = 0
+
             sigmas_avail = []
         elif ps.kind in ['lc', 'lc_syn']:
             defaults = {'x': 'times',
