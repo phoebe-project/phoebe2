@@ -2633,6 +2633,8 @@ class Bundle(ParameterSet):
         :type component: str or list of strings
         :parameter dataset: (optional) label of the dataset(s) requested
         :type dataset: str or list of strings
+        :parameter component: (optional) label of the component(s) requested
+        :type component: str or list of strings
         :return: dictionary with keys <component>@<dataset> and computed pblums
             as values (as quantity objects, default units of W)
 

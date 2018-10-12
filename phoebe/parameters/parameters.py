@@ -2644,6 +2644,9 @@ class ParameterSet(object):
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
         tight_layout = kwargs.pop('tight_layout', False)
+        draw_sidebars = kwargs.pop('draw_sidebars', False)
+        draw_title = kwargs.pop('draw_title', False)
+        subplot_grid = kwargs.pop('subplot_grid', None)
         animate = kwargs.pop('animate', False)
         time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
@@ -2681,7 +2684,11 @@ class ParameterSet(object):
         if save or show or animate:
             # NOTE: time, times, will all be included in kwargs
             return self._show_or_save(save, show, animate,
-                                      tight_layout=tight_layout, **kwargs)
+                                      draw_sidebars=draw_sidebars,
+                                      draw_title=draw_title,
+                                      tight_layout=tight_layout,
+                                      subplot_grid=subplot_grid,
+                                      **kwargs)
         else:
             afig = self.gcf()
             fig = None
@@ -2689,7 +2696,10 @@ class ParameterSet(object):
             return afig, fig
 
     def _show_or_save(self, save, show, animate,
+                      draw_sidebars=True,
+                      draw_title=True,
                       tight_layout=False,
+                      subplot_grid=None,
                       **kwargs):
         """
         Draw/animate and show and/or save a autofig plot
@@ -2720,10 +2730,13 @@ class ParameterSet(object):
 
                 times = sorted(list(set(times)))
 
-            logger.info("calling autofig.animate(i={}, tight_layout={}, save={}, show={}, save_kwargs={})".format(times, tight_layout, save, show, save_kwargs))
+            logger.info("calling autofig.animate(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={}, save_kwargs={})".format(times, draw_sidebars, draw_title, tight_layout, save, show, save_kwargs))
 
             mplanim = self.gcf().animate(i=times,
+                                         draw_sidebars=draw_sidebars,
+                                         draw_title=draw_title,
                                          tight_layout=tight_layout,
+                                         subplot_grid=subplot_grid,
                                          save=save,
                                          show=show,
                                          save_kwargs=save_kwargs)
@@ -2741,9 +2754,12 @@ class ParameterSet(object):
             if isinstance(time, str):
                 time = self.get_value(time, context=['component', 'system'])
 
-            logger.info("calling autofig.draw(i={}, tight_layout={}, save={}, show={})".format(time, tight_layout, save, show))
+            logger.info("calling autofig.draw(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={})".format(time, draw_sidebars, draw_title, tight_layout, save, show))
             fig = self.gcf().draw(i=time,
+                                  draw_sidebars=draw_sidebars,
+                                  draw_title=draw_title,
                                   tight_layout=tight_layout,
+                                  subplot_grid=subplot_grid,
                                   save=save, show=show)
             # clear the figure so next call will start over and future shows will work
             afig = self.gcf()

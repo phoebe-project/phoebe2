@@ -106,6 +106,8 @@ class Call(object):
                  yerror=None, yunit=None, ylabel=None,
                  zerror=None, zunit=None, zlabel=None,
                  iunit=None, itol=0.0,
+                 axorder=None,
+                 title=None,
                  label=None,
                  consider_for_limits=True,
                  uncover=False,
@@ -131,6 +133,8 @@ class Call(object):
         self.uncover = uncover
         self.trail = trail
 
+        self.axorder = axorder
+        self.title = title
         self.label = label
 
         self.kwargs = kwargs
@@ -223,7 +227,39 @@ class Call(object):
         self._trail = trail
 
     @property
+    def axorder(self):
+        return self._axorder
+
+    @axorder.setter
+    def axorder(self, axorder):
+        if axorder is None:
+            self._axorder = None
+            return
+
+        if not isinstance(axorder, int):
+            raise TypeError("axorder must be of type int")
+
+        self._axorder = axorder
+
+    @property
+    def title(self):
+        "title used for axes title"
+        return self._title
+
+    @title.setter
+    def title(self, title):
+        if title is None:
+            self._title = title
+            return
+
+        if not isinstance(title, str):
+            raise TypeError("title must be of type str")
+
+        self._title = title
+
+    @property
     def label(self):
+        "label used for legends"
         return self._label
 
     @label.setter
@@ -246,6 +282,8 @@ class Plot(Call):
                        cunit=None, clabel=None, cmap=None,
                        sunit=None, slabel=None, smap=None, smode=None,
                        iunit=None,
+                       axorder=None,
+                       title=None,
                        label=None,
                        marker=None,
                        linestyle=None, linebreak=None,
@@ -315,7 +353,7 @@ class Plot(Call):
                                    z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
                                    consider_for_limits=consider_for_limits,
                                    uncover=uncover, trail=trail,
-                                   label=label,
+                                   axorder=axorder, title=title, label=label,
                                    **kwargs
                                    )
 
@@ -979,7 +1017,8 @@ class Mesh(Call):
                        fcunit=None, fclabel=None, fcmap=None,
                        ecunit=None, eclabel=None, ecmap=None,
                        iunit=None,
-                       label=None,
+                       axorder=None,
+                       title=None, label=None,
                        linestyle='solid',
                        consider_for_limits=True,
                        uncover=True,
@@ -1013,7 +1052,7 @@ class Mesh(Call):
                                    z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
                                    consider_for_limits=consider_for_limits,
                                    uncover=uncover, trail=trail,
-                                   label=label,
+                                   axorder=axorder, title=title, label=label,
                                    **kwargs
                                    )
 
