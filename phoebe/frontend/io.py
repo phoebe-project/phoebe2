@@ -1695,7 +1695,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
     # Did you pass a compute parameter set?
     if compute is not None:
-        print("compute", compute)
+        # print("compute", compute)
         computeps = eb.get_compute(compute=compute)
 #        computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
 
