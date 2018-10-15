@@ -2072,7 +2072,7 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if len(ps.times) > 1:
+        if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
             # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
                 this_return = ps.filter(time=time)._unpack_plotting_kwargs(**kwargs)
@@ -2175,10 +2175,14 @@ class ParameterSet(object):
                         verts = ps.get_quantity(qualifier='uvw_elements')
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
                     else:
-                        try:
+                        if len(ps.filter(current_value))==1:
                             array_value = ps.get_quantity(current_value)
-                        except ValueError:
-                            raise ValueError("could not find Parameter for {}".format(current_value))
+                        elif len(ps.filter(current_value).times) > 1 and ps.get_value(current_value, time=ps.filter(current_value).times[0]):
+                            # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
+                            unit = ps.get_quantity(current_value, time=ps.filter(current_value).times[0]).unit
+                            array_value = np.array([ps.get_quantity(current_value, time=time).to(unit).value for time in ps.filter(current_value).times])*unit
+                        else:
+                            raise ValueError("could not find Parameter for {} in {}".format(current_value, ps.meta))
 
                     kwargs[direction] = array_value
 
@@ -2195,6 +2199,11 @@ class ParameterSet(object):
                     # but we'll keep it so we can set some defaults
                     kwargs['{}qualifier'.format(direction)] = current_value
 
+                    return kwargs
+
+                elif current_value in ['time', 'times'] and len(ps.times):
+                    kwargs[direction] = sorted([float(t) for t in ps.times])
+                    kwargs['{}qualifier'] = None
                     return kwargs
 
                 elif current_value in ['wavelengths'] and ps.time is not None:
