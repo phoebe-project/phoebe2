@@ -641,8 +641,8 @@ class Plot(Call):
             if not isinstance(ax, plt.Axes):
                 raise TypeError("ax must be of type plt.Axes")
 
-        if not (i is None or isinstance(i, float) or isinstance(i, int) or isinstance(i, u.Quantity)):
-            raise TypeError("i must be of type float/int/None")
+        if not (i is None or isinstance(i, float) or isinstance(i, int) or isinstance(i, u.Quantity) or isinstance(i, list) or isinstance(i, np.ndarray)):
+            raise TypeError("i must be of type float/int/list/None")
 
         kwargs = self.kwargs.copy()
 
