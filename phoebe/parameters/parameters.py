@@ -2480,7 +2480,7 @@ class ParameterSet(object):
 
         # set defaults for colormap and symmetric limits
         for af_direction in ['c', 'fc', 'ec']:
-            qualifier = kwargs.get('{}qualifier'.format(af_direction), None)
+            qualifier = kwargs.get('{}qualifier'.format(af_direction), '').split('@')[0]
             if qualifier in ['rvs']:
                 kwargs.setdefault('{}map'.format(af_direction), 'RdBu_r')
                 if kwargs['{}map'.format(af_direction)] == 'RdBu_r':
