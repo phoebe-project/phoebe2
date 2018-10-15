@@ -228,6 +228,8 @@ class Figure(object):
     def animate(self, fig=None, i=None,
                 tight_layout=False,
                 draw_sidebars=True,
+                draw_title=True,
+                subplot_grid=None,
                 show=False, save=False, save_kwargs={}):
 
         if tight_layout:
@@ -246,7 +248,9 @@ class Figure(object):
 
         ao = _mpl_animate.Animation(self,
                                     tight_layout=tight_layout,
-                                    draw_sidebars=draw_sidebars)
+                                    draw_sidebars=draw_sidebars,
+                                    draw_title=draw_title,
+                                    subplot_grid=subplot_grid)
 
         anim = animation.FuncAnimation(ao.mplfig, ao, fargs=(),\
                 init_func=ao.anim_init, frames=i, interval=interval,\
