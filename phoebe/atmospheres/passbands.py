@@ -708,6 +708,42 @@ class Passband:
 
         self.content.append('ck2004_ld')
 
+    def export_legacy_ldcoeffs(self, models, filename=None, photon_weighted=True):
+        """
+        @models: the path (including the filename) of legacy's models.list
+        @filename: output filename for storing the table
+
+        Exports CK2004 limb darkening coefficients to a PHOEBE legacy
+        compatible format.
+        """
+
+        if photon_weighted:
+            grid = self._ck2004_ld_photon_grid
+        else:
+            grid = self._ck2004_ld_energy_grid
+
+        if filename is not None:
+            import time
+            f = open(filename, 'w')
+            f.write('# PASS_SET  %s\n' % self.pbset)
+            f.write('# PASSBAND  %s\n' % self.pbname)
+            f.write('# VERSION   1.0\n\n')
+            f.write('# Exported from PHOEBE-2 passband on %s\n' % (time.ctime()))
+            f.write('# The coefficients are computed for the %s-weighted regime.\n\n' % ('photon' if photon_weighted else 'energy'))
+
+        mods = np.loadtxt(models)
+        for mod in mods:
+            Tindex = np.argwhere(self._ck2004_intensity_axes[0] == mod[0])[0][0]
+            lindex = np.argwhere(self._ck2004_intensity_axes[1] == mod[1]/10)[0][0]
+            mindex = np.argwhere(self._ck2004_intensity_axes[2] == mod[2]/10)[0][0]
+            if filename is None:
+                print('%6.3f '*11 % tuple(grid[Tindex, lindex, mindex].tolist()))
+            else:
+                f.write(('%6.3f '*11+'\n') % tuple(self._ck2004_ld_photon_grid[Tindex, lindex, mindex].tolist()))
+
+        if filename is not None:
+            f.close()
+
     def compute_ck2004_ldints(self):
         """
         Computes integrated limb darkening profiles for ck2004 atmospheres.
