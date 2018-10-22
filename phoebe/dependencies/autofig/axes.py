@@ -380,6 +380,10 @@ class Axes(object):
         if not _consistent_allow_none(call._axorder, self._axorder):
             msg.append('inconsistent axorder, {} != {}'.format(call.axorder, self.axorder))
 
+        if call._axorder == self._axorder and call._axorder is not None:
+            # then despite other conflicts, put on same axes
+            return True, ''
+
         # TODO: include s, c, fc, ec, etc and make these checks into loops
         if call.x.unit.physical_type != self.x.unit.physical_type:
             msg.append('inconsitent xunit, {} != {}'.format(call.x.unit, self.x.unit))
