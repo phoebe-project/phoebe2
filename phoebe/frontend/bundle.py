@@ -155,7 +155,11 @@ class Bundle(ParameterSet):
             for param in self._params:
                 param._bundle = self
 
-            self._hierarchy_param = self.get_parameter(qualifier='hierarchy', context='system')
+            try:
+                self._hierarchy_param = self.get_parameter(qualifier='hierarchy', context='system')
+            except ValueError:
+                # possibly this is a bundle without a hierarchy
+                self.set_hierarchy(_hierarchy.blank)
 
         # if loading something with constraints, we need to update the
         # bookkeeping so the parameters are aware of how they're constrained
