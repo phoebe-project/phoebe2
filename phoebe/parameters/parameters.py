@@ -2695,12 +2695,16 @@ class ParameterSet(object):
 
         if save or show or animate:
             # NOTE: time, times, will all be included in kwargs
-            return self._show_or_save(save, show, animate,
-                                      draw_sidebars=draw_sidebars,
-                                      draw_title=draw_title,
-                                      tight_layout=tight_layout,
-                                      subplot_grid=subplot_grid,
-                                      **kwargs)
+            try:
+                return self._show_or_save(save, show, animate,
+                                          draw_sidebars=draw_sidebars,
+                                          draw_title=draw_title,
+                                          tight_layout=tight_layout,
+                                          subplot_grid=subplot_grid,
+                                          **kwargs)
+            except Exception as err:
+                self.clf()
+                raise err
         else:
             afig = self.gcf()
             fig = None
