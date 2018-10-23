@@ -2106,7 +2106,7 @@ class ParameterSet(object):
         # here we need to filter any kwargs that are dictionaries if they match
         # the current ps
         for k,v in kwargs.items():
-            if isinstance(v, dict):
+            if isinstance(v, dict) and 'kwargs' not in k:
                 # overwrite kwargs[k] based on any match in v
                 match = None
                 for kk,vv in v.items():
