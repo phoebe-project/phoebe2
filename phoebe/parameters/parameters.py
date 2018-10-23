@@ -2141,6 +2141,12 @@ class ParameterSet(object):
             logger.warning("assuming you meant 'ec' instead of 'edgecolors'")
             kwargs['ec'] = kwargs.pop('edgecolors')
 
+        for d in ['x', 'y', 'z']:
+            if '{}error'.format(d) not in kwargs.keys():
+                if '{}errors'.format(d) in kwargs.keys():
+                    logger.warning("assuming you meant '{}error' instead of '{}errors'".format(d,d))
+                    kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
+
         def _kwargs_fill_dimension(kwargs, direction, ps):
             # kwargs[direction] is currently one of the following:
             # * twig/qualifier
@@ -2567,11 +2573,11 @@ class ParameterSet(object):
         :parameter t0: qualifier or float of the t0 that should be used for
             phasing, if applicable
         :type t0: string or float
-        :parameter str xerrors: qualifier of the array to plot as x-errors (will
+        :parameter str xerror: qualifier of the array to plot as x-errors (will
             default based on x if not provided)
-        :parameter str yerrors: qualifier of the array to plot as y-errors (will
+        :parameter str yerror: qualifier of the array to plot as y-errors (will
             default based on y if not provided)
-        :parameter str zerrors: qualifier of the array to plot as z-errors (will
+        :parameter str zerror: qualifier of the array to plot as z-errors (will
             default based on z if not provided)
 
         :parameter xunit: unit to plot the x-array (will default based on x if not provided)
@@ -2597,37 +2603,36 @@ class ParameterSet(object):
         :parameter str label: label to give to ALL lines in this single plotting call (each
             line with get automatic default labels if not provided)
 
-        :parameter str color: matplotlib recognized color string or the qualifier/twig
+        :parameter str c: matplotlib recognized color string or the qualifier/twig
             of an array to use for color (will apply to facecolor and edgecolor for meshes
             unless those are provided)
         :parameter str cmap: matplotlib recognized cmap to use if color is
             a qualifier pointing to an array (will be ignored otherwise)
-        :parameter bool colorbar: whether to display the colorbar (will default to False)
-        :parameter colorunit: unit to plot the color-array (will default based on color if not provided)
-        :type colorunit: str or astropy.unit.Unit
-        :parameter tuple colorlim: limit for the colorbar (in same units as colorunit)
-        :parameter str colorlabel: label for the colorbar, if applicable (will default based on
+        :parameter bool cbar: whether to display the colorbar (will default to False)
+        :parameter cunit: unit to plot the color-array (will default based on color if not provided)
+        :type cunit: str or astropy.unit.Unit
+        :parameter tuple clim: limit for the colorbar (in same units as cunit)
+        :parameter str clabel: label for the colorbar, if applicable (will default based on
             color if not provided)
 
-        :parameter str facecolor: matplotlib recognized color string or the qualifier/twig
+        :parameter str fc: matplotlib recognized color string or the qualifier/twig
             of an array to use for facecolor (mesh plots only - takes precedence over color)
-        :parameter str facecmap: matplotlib recognized cmap to use if facecolor is
+        :parameter str fcmap: matplotlib recognized cmap to use if facecolor is
             a qualifier pointing to an array (will be ignored otherwise)
-        :parameter facecolorbar: whether to display the facecolorbar (will default to False - takes precedence over colorbar)
-        :parameter facecolorunit: unit to plot the facecolor-array (will default based on facecolor if not provided)
-        :type facecolorunit: str or astropy.unit.Unit
-        :parameter tuple facecolorlim: limit for the facecolorbar (in same units as facecolorunit)
-        :parameter str facecolorlabel: label for the facecolorbar, if applicable (will default based on
+        :parameter fcunit: unit to plot the facecolor-array (will default based on facecolor if not provided)
+        :type fcunit: str or astropy.unit.Unit
+        :parameter tuple fclim: limit for the facecolorbar (in same units as facecolorunit)
+        :parameter str fclabel: label for the facecolorbar, if applicable (will default based on
             facecolor if not provided)
 
-        :parameter str edgecolor: matplotlib recognized color string or the qualifier/twig
+        :parameter str ec: matplotlib recognized color string or the qualifier/twig
             of an array to use for edgecolor (mesh plots only - takes precedence over color)
-        :parameter str edgecmap: matplotlib recognized cmap to use if edgecolor is
+        :parameter str ecmap: matplotlib recognized cmap to use if edgecolor is
             a qualifier pointing to an array (will be ignored otherwise
-        :parameter edgecolorunit: unit to plot the edgecolor-array (will default based on edgecolor if not provided)
-        :type edgecolorunit: str or astropy.unit.Unit
-        :parameter tuple facecolorlim: limit for the facecolorbar (in same units as facecolorunit)
-        :parameter str edgecolorlabel: label for the edgecolorbar, if applicable (will default based on
+        :parameter ecunit: unit to plot the edgecolor-array (will default based on ed if not provided)
+        :type ecunit: str or astropy.unit.Unit
+        :parameter tuple eclim: limit for the edgecolorbar (in same units as ecunit)
+        :parameter str eclabel: label for the edgecolorbar, if applicable (will default based on
             edgecolor if not provided)
 
         :parameter str save: filename of the resulting animation.  If provided,
