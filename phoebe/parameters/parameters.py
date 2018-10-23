@@ -2194,9 +2194,17 @@ class ParameterSet(object):
 
                     if ps.context == 'dataset' and current_value in sigmas_avail:
                         # then let's see if there are errors
-                        sigmas = ps.get_quantity('sigmas')
-                        if len(sigmas):
-                            kwargs.setdefault('{}error'.format(direction), sigmas)
+                        errorkey = '{}error'.format(direction)
+                        errors = kwargs.get(errorkey, None)
+                        if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
+                            kwargs[errorkey] = errors
+                        elif isinstance(errors, str):
+                            errors = ps.get_quantity(kwargs.get(errorkey))
+                            kwargs[errorkey] = errors
+                        else:
+                            sigmas = ps.get_quantity('sigmas')
+                            if len(sigmas):
+                                kwargs.setdefault(errorkey, sigmas)
 
                     # now let's set the label for the dimension from the qualifier/twig
                     kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
