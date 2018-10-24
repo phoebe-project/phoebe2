@@ -760,7 +760,7 @@ class Plot(Call):
                     return default
 
             # BUILD KWARGS NEEDED FOR EACH CALL TO ERRORBAR
-            def error_kwargs_loop(loop, do_zorder):
+            def error_kwargs_loop(xerr, yerr, zerr, loop, do_zorder):
                 def _get_error(errorarray, loop, do_zorder):
                     if errorarray is None:
                         return None
@@ -862,7 +862,7 @@ class Plot(Call):
                                                fmt='', linestyle='None',
                                                zorder=zorder,
                                                label=self.label if loop==0 else None,
-                                               **error_kwargs_loop(loop, do_zorder))
+                                               **error_kwargs_loop(xerr, yerr, zerr, loop, do_zorder))
 
                         # NOTE: these are currently not included in return_artists
                         # so they don't scale according to per-element sizes.
@@ -1459,7 +1459,7 @@ class CallDimension(object):
         elif linebreak[1] == '-':
             split_inds = np.where(break_array[1:]-break_array[:-1]<0)[0]
         else:
-            raise NotImplementedError
+            raise NotImplementedError("linebreak='{}' not supported".format(linebreak))
 
         return np.split(this_array, split_inds+1)
 
@@ -1557,7 +1557,8 @@ class CallDimension(object):
 
     def get_value(self, i=None, unit=None,
                   uncover=None, trail=None,
-                  linebreak=None, sort_by_indep=None):
+                  linebreak=None, sort_by_indep=None,
+                  attr='_value'):
         """
         access the value for a given value of i (independent-variable) depending
         on which effects (i.e. uncover) are enabled.
@@ -1566,7 +1567,8 @@ class CallDimension(object):
         the parent Call will be used.
         """
 
-        if self._value is None:
+        value = getattr(self, attr)  # could be self._value or self._error
+        if value is None:
             return None
 
         if uncover is None:
@@ -1582,28 +1584,29 @@ class CallDimension(object):
             # TODO: make this a property of the call?
             sort_by_indep = True
 
-        if isinstance(self._value, str) or isinstance(self._value, float):
+        if isinstance(value, str) or isinstance(value, float):
             if i is None:
-                return self._to_unit(self._value, unit)
+                return self._to_unit(value, unit)
             elif isinstance(self.call.i.value, float):
                 # then we still want to "select" based on the value of i
                 if self._filter_at_i(i):
-                    return self._value
+                    return value
                 else:
                     return None
             else:
                 # then we should show either way.  For example - a color or
                 # axhline even with i given won't change in i
-                return self._to_unit(self._value, unit)
+                return self._to_unit(value, unit)
 
         # from here on we're assuming the value is an array, so let's just check
         # to be sure
-        if not isinstance(self._value, np.ndarray):
-            raise NotImplementedError
+        if not isinstance(value, np.ndarray):
+            raise NotImplementedError("value/error must be a numpy array")
 
 
         if linebreak is not False:
-            return self._do_linebreak(i=i,
+            return self._do_linebreak(func='get{}'.format(attr),
+                                      i=i,
                                       unit=unit,
                                       uncover=uncover,
                                       trail=trail,
@@ -1614,7 +1617,8 @@ class CallDimension(object):
             # if we've made it here, linebreak should already be False (if
             # linebreak was True, then we'd be within _do_linebreak and those
             # get_value calls pass linebreak=False)
-            return self._sort_by_indep(i=i,
+            return self._sort_by_indep(func='get{}'.format(attr),
+                                       i=i,
                                        unit=unit,
                                        uncover=uncover,
                                        trail=trail,
@@ -1625,55 +1629,59 @@ class CallDimension(object):
         # were True, then we're within those functions and asking for the original
         # array)
         if i is None:
-            if len(self._value.shape)==1:
-                return self._to_unit(self._value, unit)
+            if len(value.shape)==1:
+                return self._to_unit(value, unit)
             else:
                 if isinstance(self.call, Plot):
-                    return self._to_unit(self._value.T, unit)
+                    return self._to_unit(value.T, unit)
                 else:
-                    return self._to_unit(self._value, unit)
+                    return self._to_unit(value, unit)
 
         # filter the data as necessary
         filter_ = self._filter_at_i(i, uncover=uncover, trail=trail)
 
         if isinstance(self.call.i.value, float):
             if filter_:
-                return self._to_unit(self._value, unit)
+                return self._to_unit(value, unit)
             else:
                 return None
 
-        if len(self._value.shape)==1:
+        if len(value.shape)==1:
             # then we're dealing with a flat 1D array
-            if trail is not False:
-                trail_i = self._get_trail_min(i)
-                first_point = self.interpolate_at_i(trail_i)
+            if attr == '_value':
+                if trail is not False:
+                    trail_i = self._get_trail_min(i)
+                    first_point = self.interpolate_at_i(trail_i)
 
 
-            if uncover:
-                last_point = self.interpolate_at_i(i)
+                if uncover:
+                    last_point = self.interpolate_at_i(i)
+            else:
+                first_point = np.nan
+                last_point = np.nan
 
             if uncover and trail is not False:
                 concat = (np.array([first_point]),
-                          self._value[filter_],
+                          value[filter_],
                           np.array([last_point]))
             elif uncover:
-                concat = (self._value[filter_],
+                concat = (value[filter_],
                           np.array([last_point]))
 
             elif trail:
                 concat = (np.array([first_point]),
-                          self._value[filter_])
+                          value[filter_])
             else:
-                return self._to_unit(self._value[filter_], unit)
+                return self._to_unit(value[filter_], unit)
 
             return self._to_unit(np.concatenate(concat), unit)
 
         else:
             # then we need to "select" based on the indep and the value
             if isinstance(self.call, Plot):
-                return self._to_unit(self._value[filter_].T, unit)
+                return self._to_unit(value[filter_].T, unit)
             else:
-                return self._to_unit(self._value[filter_], unit)
+                return self._to_unit(value[filter_], unit)
 
 
     # for value we need to define the property without decorators because of
@@ -1734,74 +1742,10 @@ class CallDimension(object):
         access the error for a given value of i (independent-variable) depending
         on which effects (i.e. uncover) are enabled.
         """
-        if i is None:
-            return self._to_unit(self._error, unit)
-
-        if self._error is None:
-            return None
-
-        if uncover is None:
-            uncover = self.call.uncover
-
-        if trail is None:
-            trail = self.call.trail
-
-        if linebreak is None:
-            linebreak = self.call.linebreak
-
-        if sort_by_indep is None:
-            # TODO: make this a property of the call?
-            sort_by_indep = True
-
-        if linebreak is not False:
-            return self._do_linebreak(i=i,
-                                      unit=unit,
-                                      uncover=uncover,
-                                      trail=trail,
-                                      linebreak=linebreak,
-                                      sort_by_indep=sort_by_indep)
-
-        if sort_by_indep is not False:
-            # if we've made it here, linebreak should already be False (if
-            # linebreak was True, then we'd be within _do_linebreak and those
-            # get_value calls pass linebreak=False)
-            return self._sort_by_indep(i=i,
-                                       unit=unit,
-                                       uncover=uncover,
-                                       trail=trail,
-                                       linebreak=False,
-                                       sort_by_indep=sort_by_indep)
-
-        # from here on, linebreak==False and sort_by_indep==False (if either
-        # were True, then we're within those functions and asking for the original
-        # array)
-
-        # filter the data as necessary
-        filter_ = self._filter_at_i(i, uncover=uncover, trail=trail)
-
-        if isinstance(self.call.i.value, float):
-            if filter_:
-                return self._to_unit(self._error, unit)
-            else:
-                return None
-
-
-        if len(self._error.shape)==1:
-            # then we're dealing with a flat 1D array
-            first_point = np.nan
-            last_point = np.nan
-
-            return self._to_unit(np.concatenate((np.array([first_point]),
-                                                 self._error[filter_],
-                                                 np.array([last_point]))),
-                                 unit)
-
-        else:
-            # then we need to "select" based on the indep and the value
-            if isinstance(self.call, Plot):
-                return self._to_unit(self._error[filter_].T, unit)
-            else:
-                return self._to_unit(self._error[filter_], unit)
+        return self.get_value(i=i, unit=unit,
+                              uncover=uncover, trail=trail,
+                              linebreak=linebreak, sort_by_indep=sort_by_indep,
+                              attr='_error')
 
 
     @property
