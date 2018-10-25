@@ -99,6 +99,7 @@ class Axes(object):
 
         self.title = kwargs.pop('title', None)
         self.axorder = kwargs.pop('axorder', None)
+        self.axpos = kwargs.pop('axpos', None)
 
         self._i = AxDimensionI(self, **kwargs)
         self._x = AxDimensionX(self, **kwargs)
@@ -243,6 +244,26 @@ class Axes(object):
         self._axorder = axorder
 
     @property
+    def axpos(self):
+        return self._axpos
+
+    @axpos.setter
+    def axpos(self, axpos):
+        if axpos is None:
+            self._axpos = axpos
+
+            return
+
+        if isinstance(axpos, tuple) and len(axpos) == 3 and np.all(isinstance(ap, int) for ap in axpos):
+            self._axpos = axpos
+
+        elif isinstance(axpos, int) and axpos >= 100 and axpos < 1000:
+            self._axpos = (int(axpos/100), int(axpos/10 % 10), int(axpos % 10))
+
+        else:
+            raise ValueError("axpos must be of type int or tuple between 100 and 999")
+
+    @property
     def title(self):
         return self._title
 
@@ -380,8 +401,15 @@ class Axes(object):
         if not _consistent_allow_none(call._axorder, self._axorder):
             msg.append('inconsistent axorder, {} != {}'.format(call.axorder, self.axorder))
 
+        if not _consistent_allow_none(call._axpos, self._axpos):
+            msg.append('inconsistent axpos, {} != {}'.format(call.axpos, self.axpos))
+
         if call._axorder == self._axorder and call._axorder is not None:
-            # then despite other conflicts, put on same axes
+            # then despite other conflicts, attempt to put on same axes
+            return True, ''
+
+        if call._axpos == self._axpos and call._axpos is not None:
+            # then despite other conflicts, attempt to put on same axes
             return True, ''
 
         # TODO: include s, c, fc, ec, etc and make these checks into loops
@@ -513,6 +541,9 @@ class Axes(object):
             if self._axorder is None:
                 self.axorder = call.axorder
 
+            if self._axpos is None:
+                self.axpos = call.axpos
+
             # either way, fill in any missing labels - first set instance
             # will stick.  We check the protected underscored version to have
             # access to None instead of the empty string.
@@ -614,25 +645,40 @@ class Axes(object):
 
         N = len(fig.axes)
 
+        if subplot_grid is not None:
+            # do type checks
+            if not isinstance(subplot_grid, tuple):
+                raise TypeError("subplot_grid must be tuple of length 2 (nrows [int], ncols [int])")
+            if len(subplot_grid) != 2:
+                raise ValueError("subplot_grid must be tuple of length 2 (nrows [int], ncols [int])")
+            if not np.all([isinstance(s, int) for s in subplot_grid]):
+                raise ValueError("subplot_grid must be tuple of length 2 (nrows [int], ncols [int])")
+
         # we'll reset the layout later anyways
         ax_new = fig.add_subplot(1,N+1,N+1, projection=self._projection)
 
         axes = fig.axes
         N = len(axes)
 
-        if subplot_grid is None:
+        ind = None
+        if self.axpos is not None:
+            rows, cols, ind = self.axpos
+        elif subplot_grid is None:
             rows, cols = determine_grid(N)
         elif (isinstance(subplot_grid, list) or isinstance(subplot_grid, tuple)) and len(subplot_grid)==2:
             rows, cols = subplot_grid
         else:
             raise TypeError("subplot_grid must be None or tuple/list of length 2 (rows/cols)")
 
-        for i,ax in enumerate(axes):
-            try:
-                ax.change_geometry(rows, cols, i+1)
-            except AttributeError:
-                # colorbars and sizebars won't be able to change geometry
-                pass
+        if ind is None:
+            for i,ax in enumerate(axes):
+                try:
+                    ax.change_geometry(rows, cols, i+1)
+                except AttributeError:
+                    # colorbars and sizebars won't be able to change geometry
+                    pass
+        else:
+            ax_new.change_geometry(rows, cols, ind)
 
         ax = self._get_backend_object(ax_new)
         self._backend_artists = []
