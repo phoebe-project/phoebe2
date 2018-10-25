@@ -1233,7 +1233,13 @@ class LegacyBackend(BaseBackendByDataset):
         for lcind in range(0, phb1.getpar('phoebe_lcno')):
             lcinds[phb1.getpar('phoebe_lc_id', lcind)] = lcind
         for rvind in range(0, phb1.getpar('phoebe_rvno')):
-            rvinds[phb1.getpar('phoebe_rv_id', rvind)] = rvind
+        #    print "rv curves", phb1.getpar('phoebe_rvno')
+        #    print "creating dict", phb1.getpar('phoebe_rv_id', rvind), rvind
+        #    rvinds[rvind] = phb1.getpar('phoebe_rv_id', rvind)
+            rvid = phb1.getpar('phoebe_rv_id', rvind)
+            comp = phb1.getpar('phoebe_rv_dep', rvind).split(' ')[0].lower()
+            rvcurve = rvid+'-'+comp
+            rvinds[rvcurve] = rvind
 
         computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
 
@@ -1286,9 +1292,12 @@ class LegacyBackend(BaseBackendByDataset):
                                            info))
 
         elif info['kind'] == 'rv':
-            rvind = rvinds[info['dataset']]
+            comp = b.hierarchy.get_primary_or_secondary(info['component'])
+            rvid =  info['dataset']
+            rvcurve = rvid+'-'+comp
+            rvind = rvinds[rvcurve]
 
-            if b.hierarchy.get_primary_or_secondary(info['component']) == 'primary':
+            if comp == 'primary':
                 proximity_par = 'phoebe_proximity_rv1_switch'
                 rv_call = getattr(phb1, 'rv1')
             else:

@@ -319,7 +319,8 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
 def det_dataset(eb, passband, dataid, comp, time):
 
     """
-    Since RV datasets can have values related to each component in phoebe2, but are component specific in phoebe1, it is important to determine which dataset to add parameters to. This function will do that.
+    Since RV datasets can have values related to each component in phoebe2, but are component specific in phoebe1
+    , it is important to determine which dataset to add parameters to. This function will do that.
     eb - bundle
     rvpt - relevant phoebe 1 parameters
 
@@ -328,53 +329,53 @@ def det_dataset(eb, passband, dataid, comp, time):
     #first check to see if there are currently in RV datasets
     if dataid == 'Undefined':
         dataid = None
-    if len(rvs) == 0:
+#    if len(rvs) == 0:
     #if there isn't we add one the easy part
 
-        try:
-            eb._check_label(dataid)
+    try:
+        eb._check_label(dataid)
 
-            rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
+        rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
 
-        except ValueError:
+    except ValueError:
 
-            logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
-            rv_dataset = eb.add_dataset('rv', times=[])
+        logger.warning("The name picked for the radial velocity curve is forbidden. Applying default name instead")
+        rv_dataset = eb.add_dataset('rv', times=[])
 
-    else:
-    #now we have to determine if we add to an existing dataset or make a new one
-        rvs = eb.get_dataset(kind='rv').datasets
-        found = False
-        #set the component of the companion
-
-        if comp == 'primary':
-            comp_o = 'primary'
-        else:
-            comp_o = 'secondary'
-        for x in rvs:
-            test_dataset = eb.get_dataset(x, check_visible=False)
-
-
-            if len(test_dataset.get_value(qualifier='rvs', component=comp_o, check_visible=False)) == 0:                #so at least it has an empty spot now check against filter and length
-#               removing reference to time_o. If there are no rvs there should be no times
-#                time_o = test_dataset.get_value('times', component=comp_o)
-                passband_o = test_dataset.get_value('passband')
-
-#                if np.all(time_o == time) and (passband == passband_o):
-                if (passband == passband_o):
-                    rv_dataset = test_dataset
-                    found = True
-
-        if not found:
-            try:
-                eb._check_label(dataid)
-
-                rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
-
-            except ValueError:
-
-                logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
-                rv_dataset = eb.add_dataset('rv', times=[])
+#     else:
+#     #now we have to determine if we add to an existing dataset or make a new one
+#         rvs = eb.get_dataset(kind='rv').datasets
+#         found = False
+#         #set the component of the companion
+#
+#         if comp == 'primary':
+#             comp_o = 'primary'
+#         else:
+#             comp_o = 'secondary'
+#         for x in rvs:
+#             test_dataset = eb.get_dataset(x, check_visible=False)
+#
+#
+#             if len(test_dataset.get_value(qualifier='rvs', component=comp_o, check_visible=False)) == 0:                #so at least it has an empty spot now check against filter and length
+# #               removing reference to time_o. If there are no rvs there should be no times
+# #                time_o = test_dataset.get_value('times', component=comp_o)
+#                 passband_o = test_dataset.get_value('passband')
+#
+# #                if np.all(time_o == time) and (passband == passband_o):
+#                 if (passband == passband_o):
+#                     rv_dataset = test_dataset
+#                     found = True
+#
+#         if not found:
+#             try:
+#                 eb._check_label(dataid)
+#
+#                 rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
+#
+#             except ValueError:
+#
+#                 logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
+#                 rv_dataset = eb.add_dataset('rv', times=[])
 
     return rv_dataset
 
@@ -1241,8 +1242,11 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
     #make lists to put results with important things already added
 
+#    parnames = ['phoebe_rvno', 'phoebe_spots_no', 'phoebe_lcno']
+#    parvals = [len(rvs), len(spots), len(lcs)]
+#    types = ['int', 'int']
     parnames = ['phoebe_rvno', 'phoebe_spots_no', 'phoebe_lcno']
-    parvals = [len(rvs), len(spots), len(lcs)]
+    parvals = [len(rvs)*2, len(spots), len(lcs)]
     types = ['int', 'int']
     #Force the independent variable to be time
 
@@ -1531,83 +1535,38 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
 #loop through rvs
 #if there is more than one rv...try this
-
+    # set curve number
+    num = 1
     for y in range(len(rvs)):
+
+        #get rv qualifiers
         quals = eb.filter(dataset=rvs[y], context='dataset')+eb.filter(dataset=rvs[y], context='compute')
 
-        #if there is more than 1 rv try this
-        try:
-            comp = eb.get_parameter(qualifier='times', dataset=rvs[y]).component
-            parnames.append('phoebe_rv_indep['+str(y+1)+']')
+        #cycle through components
+        comps = quals.components
+
+        rv_type = {primary:{'curve' : '"Primary RV"', 'comp_int' : 1} , \
+        secondary: {'curve':'"Secondary RV"', 'comp_int':2}}
+
+        for i in range(len(comps)):
+
+            parnames.append('phoebe_rv_indep['+str(num)+']')
             parvals.append('Time (HJD)')
             types.append('choice')
-        # dependent variable is just Primary or secondary
-            parnames.append('phoebe_rv_dep['+str(y+1)+']')
-            parvals.append('"'+comp[0].upper()+comp[1::]+' RV"')
+            #dependent variable
+            parnames.append('phoebe_rv_dep['+str(num)+']')
+            parvals.append(rv_type[comps[i]]['curve'])
             types.append('choice')
-            parnames.append('phoebe_rv_id['+str(y+1)+']')
+            parnames.append('phoebe_rv_id['+str(num)+']')
             parvals.append(rvs[y])
-            types.append('choice')
+
             for param in quals.to_list():
-                if param.component == primary:
-                    comp_int = 1
-                elif param.component == secondary:
-                    comp_int = 2
-                else:
-                    comp_int = None
 
-#            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
-                try:
-                    pnew = _2to1par[param.qualifier]
-                    if param.qualifier in ['ld_func', 'rvs', 'times', 'sigmas'] or param.component == '_default':
-                        param = None
 
-                except:
-                    logger.warning(param.twig+' has no phoebe 1 corollary')
-                    param = None
-
-                if param != None:
-                    val, ptype = par_value(param)
-                    pname = ret_parname(param.qualifier, component = param.component, dtype='rv', dnum = y+1, ptype=ptype)
-# if is tries to append a value that already exists...stop that from happening
-                    if pname[0] not in parnames:
-                        parnames.extend(pname)
-                        parvals.extend(val)
-                        if ptype == 'array':
-                            types.append(ptype)
-                            types.append(ptype)
-                        else:
-                            types.append(ptype)
-
-# hacky but it works. If you have more than one component in an array
-        except:
-            comp = ['primary', 'secondary']
-            parvals[0] = 2
-            for i in range(len(comp)):
-                parnames.append('phoebe_rv_indep['+str(i+1)+']')
-                parvals.append('"Time (HJD)"')
-                types.append('choice')
-            # dependent variable is just Primary or secondary
-                parnames.append('phoebe_rv_dep['+str(i+1)+']')
-                parvals.append('"'+comp[i][0].upper()+comp[i][1::]+' RV"')
-                types.append('choice')
-                parnames.append('phoebe_rv_id['+str(i+1)+']')
-                parvals.append(rvs[y])
-                types.append('choice')
-
-                for param in quals.to_list():
-                    if param.component == primary:
-                        comp_int = 1
-                    elif param.component == secondary:
-                        comp_int = 2
-                    else:
-                        comp_int = None
-
-    #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
+                if param.component == comps[i] or param.component == None:
                     try:
                         pnew = _2to1par[param.qualifier]
-                        if param.qualifier in ['ld_func', 'times', 'rvs', 'sigmas'] or param.component == '_default':
-
+                        if param.qualifier in ['ld_func', 'rvs', 'times', 'sigmas'] or param.component == '_default':
                             param = None
 
                     except:
@@ -1615,8 +1574,17 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                         param = None
 
                     if param != None:
+
+                        try:
+
+                            comp_int = rv_type[param.component]['comp_int']
+
+                        except:
+                            comp_int = None
+
                         val, ptype = par_value(param)
-                        pname = ret_parname(param.qualifier, comp_int = comp_int, dtype='rv', dnum = i+1, ptype=ptype)
+                        pname = ret_parname(param.qualifier, comp_int = comp_int, dtype='rv', dnum = num, ptype=ptype)
+
     # if is tries to append a value that already exists...stop that from happening
                         if pname[0] not in parnames:
                             parnames.extend(pname)
@@ -1626,6 +1594,105 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                                 types.append(ptype)
                             else:
                                 types.append(ptype)
+            num = num+1
+
+#     for y in range(len(rvs)):
+#         #set counter for rvs
+#         num = 0
+#         # grab q
+#         quals = eb.filter(dataset=rvs[y], context='dataset')+eb.filter(dataset=rvs[y], context='compute')
+#         num = 0
+#         #if there is more than 1 rv try this
+#         try:
+#             comp = eb.get_parameter(qualifier='times', dataset=rvs[y]).component
+#             parnames.append('phoebe_rv_indep['+str(y+1)+']')
+#             parvals.append('Time (HJD)')
+#             types.append('choice')
+#         # dependent variable is just Primary or secondary
+#             parnames.append('phoebe_rv_dep['+str(y+1)+']')
+#             parvals.append('"'+comp[0].upper()+comp[1::]+' RV"')
+#             types.append('choice')
+#             parnames.append('phoebe_rv_id['+str(y+1)+']')
+#             parvals.append(rvs[y])
+#             types.append('choice')
+#             for param in quals.to_list():
+#                 if param.component == primary:
+#                     comp_int = 1
+#                 elif param.component == secondary:
+#                     comp_int = 2
+#                 else:
+#                     comp_int = None
+#
+# #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
+#                 try:
+#                     pnew = _2to1par[param.qualifier]
+#                     if param.qualifier in ['ld_func', 'rvs', 'times', 'sigmas'] or param.component == '_default':
+#                         param = None
+#
+#                 except:
+#                     logger.warning(param.twig+' has no phoebe 1 corollary')
+#                     param = None
+#
+#                 if param != None:
+#                     val, ptype = par_value(param)
+#                     pname = ret_parname(param.qualifier, component = param.component, dtype='rv', dnum = y+1, ptype=ptype)
+# # if is tries to append a value that already exists...stop that from happening
+#                     if pname[0] not in parnames:
+#                         parnames.extend(pname)
+#                         parvals.extend(val)
+#                         if ptype == 'array':
+#                             types.append(ptype)
+#                             types.append(ptype)
+#                         else:
+#                             types.append(ptype)
+#
+# # hacky but it works. If you have more than one component in an array
+#         except:
+#             comp = ['primary', 'secondary']
+#             parvals[0] = 2
+#             for i in range(len(comp)):
+#                 parnames.append('phoebe_rv_indep['+str(i+1)+']')
+#                 parvals.append('"Time (HJD)"')
+#                 types.append('choice')
+#             # dependent variable is just Primary or secondary
+#                 parnames.append('phoebe_rv_dep['+str(i+1)+']')
+#                 parvals.append('"'+comp[i][0].upper()+comp[i][1::]+' RV"')
+#                 types.append('choice')
+#                 parnames.append('phoebe_rv_id['+str(i+1)+']')
+#                 parvals.append(rvs[y])
+#                 types.append('choice')
+#
+#                 for param in quals.to_list():
+#                     if param.component == primary:
+#                         comp_int = 1
+#                     elif param.component == secondary:
+#                         comp_int = 2
+#                     else:
+#                         comp_int = None
+#
+#     #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
+#                     try:
+#                         pnew = _2to1par[param.qualifier]
+#                         if param.qualifier in ['ld_func', 'times', 'rvs', 'sigmas'] or param.component == '_default':
+#
+#                             param = None
+#
+#                     except:
+#                         logger.warning(param.twig+' has no phoebe 1 corollary')
+#                         param = None
+#
+#                     if param != None:
+#                         val, ptype = par_value(param)
+#                         pname = ret_parname(param.qualifier, comp_int = comp_int, dtype='rv', dnum = i+1, ptype=ptype)
+#     # if is tries to append a value that already exists...stop that from happening
+#                         if pname[0] not in parnames:
+#                             parnames.extend(pname)
+#                             parvals.extend(val)
+#                             if ptype == 'array':
+#                                 types.append(ptype)
+#                                 types.append(ptype)
+#                             else:
+#                                 types.append(ptype)
 
 #spots
 
