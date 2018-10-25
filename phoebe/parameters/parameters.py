@@ -258,34 +258,6 @@ def parameter_from_json(dictionary, bundle=None):
 
     return cls._from_json(bundle, **dictionary)
 
-
-def _parse_plotting_args(arg):
-    """Parse *args into a list of dictionaries.
-
-    parses *args for ps.plotting and ps.animate into a list of dictionaries
-    """
-    if isinstance(arg, str):
-        # then we have a single twig
-        return ({'twig': arg},)
-    elif isinstance(arg, dict):
-        # then this arg is a single entry - just append
-        return (arg,)
-    elif hasattr(arg, '__iter__'):
-        # then maybe we were passed a list or tuple?
-        # let's loop through and recursively add items
-        if len(arg):
-            plot_argss = []
-            for argi in arg:
-                plot_argss += _parse_plotting_args(argi)
-            return plot_argss
-        else:
-            # then perhaps we had no args, in which case we still
-            # need to return at least a single dictionary
-            return ({},)
-    else:
-        # maybe a bool?
-        return ({},)
-
 def _instance_in(obj, *types):
     for typ in types:
         if isinstance(obj, typ):
@@ -2011,7 +1983,7 @@ class ParameterSet(object):
         kwargs.setdefault('context', ['dataset', 'model'])
 
         filter_kwargs = {}
-        for k in self.meta.keys():
+        for k in self.meta.keys()+['twig']:
             if k in ['time']:
                 # time handled later
                 continue
@@ -2538,7 +2510,7 @@ class ParameterSet(object):
 
         self._bundle._figure = None
 
-    def plot(self, *args, **kwargs):
+    def plot(self, twig=None, **kwargs):
         """
         High-level wrapper around matplotlib (by default, but also has some support
         for other plotting backends).  This function smartly makes one
@@ -2548,9 +2520,7 @@ class ParameterSet(object):
         to see these in a legend, pass legend=True (and optionally any
         keyword arguments to be passed along to plt.legend() as legend_kwargs).
 
-        :parameter *args: either a twig pointing to a dataset,
-            or dictionaries, where each dictionary gets passed back to
-            :meth:`plot`
+        :parameter str twig: twig to use for filtering
         :parameter float time: Current time.  For spectra and meshes, time
             is required to determine at which time to draw.  For other types,
             time will only be used for higlight and uncover (if enabled)
@@ -2663,8 +2633,6 @@ class ParameterSet(object):
             else:
                 raise ImportError("autofig not imported, cannot plot")
 
-        plot_argss = _parse_plotting_args(args)
-
         # since we used the args trick above, all other options have to be in kwargs
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
@@ -2675,35 +2643,29 @@ class ParameterSet(object):
         animate = kwargs.pop('animate', False)
         time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
-        # this first loop allows for building figures or plotting
-        # multiple twigs at once.
-        for plot_args in plot_argss:
+        if twig is not None:
+            kwargs['twig'] = twig
 
-            # override any options sent via kwargs
-            for k, v in kwargs.items():
-                plot_args.setdefault(k,v)
+        plot_kwargss = self._unpack_plotting_kwargs(**kwargs)
 
-            plot_kwargss = self._unpack_plotting_kwargs(**plot_args)
+        # this loop handles any of the automatically-generated
+        # multiple plotting calls, passing each on to autofig
+        for plot_kwargs in plot_kwargss:
+            y = plot_kwargs.get('y', [])
+            if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
+                pass
+            elif not len(y):
+                # a dataset without observational data, for example
+                continue
 
-            # this inner-loop handles any of the automatically-generated
-            # multiple plotting calls, but for a SINGLE AXES (ie two components
-            # under the same dataset).
-            for plot_kwargs in plot_kwargss:
-                y = plot_kwargs.get('y', [])
-                if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
-                    pass
-                elif not len(y):
-                    # a dataset without observational data, for example
-                    continue
+            autofig_method = plot_kwargs.pop('autofig_method', 'plot')
+            # we kept the qualifiers around so we could do some default-logic,
+            # but it isn't necessary to pass them on to autofig.
+            plot_kwargs = {k:v for k,v in plot_kwargs.items() if 'qualifier' not in k}
+            logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
+            func = getattr(self.gcf(), autofig_method)
 
-                autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-                # we kept the qualifiers around so we could do some default-logic,
-                # but it isn't necessary to pass them on to autofig.
-                plot_kwargs = {k:v for k,v in plot_kwargs.items() if 'qualifier' not in k}
-                logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
-                func = getattr(self.gcf(), autofig_method)
-
-                func(**plot_kwargs)
+            func(**plot_kwargs)
 
 
         if save or show or animate:
