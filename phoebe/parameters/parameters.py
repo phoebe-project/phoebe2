@@ -2337,6 +2337,10 @@ class ParameterSet(object):
             if mesh_all_cartesian:
                 # then we'll be doing a mesh plot, so set some reasonable defaults
 
+                # units will have handled this in POS (uvw) coordinates, but not
+                # Roche (xyz) as those are unitless
+                kwargs.setdefault('equal_aspect', True)
+
                 # we want the wireframe by default
                 kwargs.setdefault('ec', 'black')
                 kwargs.setdefault('fc', 'white')
@@ -2346,6 +2350,7 @@ class ParameterSet(object):
                 kwargs.setdefault('equal_aspect', False)
 
             sigmas_avail = []
+
         elif ps.kind in ['orb', 'orb_syn']:
             # similar logic to meshes above, except we only have uvw
             coordinates = ['us', 'vs', 'ws']
