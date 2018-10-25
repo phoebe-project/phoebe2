@@ -14,7 +14,7 @@ def test_binary(plot=False):
     # this phoebe legacy file uses extern_planckint and with albedos to 0
     # and exptime already defined
     b.set_value_all('atm', kind='phoebe', value='blackbody')
-    b.set_value('irrad_method', 'none')
+    b.set_value_all('irrad_method', 'none')
 
     fluxes_legacy = np.loadtxt(os.path.join(dir, 'kic12004834.nofti.data'), unpack=True, usecols=(1,))
 
