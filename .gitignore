@@ -5,6 +5,7 @@
 MANIFEST
 *_tmp*
 *after.phoebe
+*test.legacy
 *.ipynb_checkpoints*
 *.pyc*
 *.active
