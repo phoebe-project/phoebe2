@@ -3,6 +3,8 @@ import os
 import re
 import json
 from datetime import datetime
+from distutils.version import StrictVersion
+
 
 # PHOEBE
 # ParameterSet, Parameter, FloatParameter, send_if_client, etc
@@ -22,6 +24,7 @@ import libphoebe
 
 from phoebe import u
 from phoebe import conf, mpi
+from phoebe import __version__
 
 import logging
 logger = logging.getLogger("BUNDLE")
@@ -187,7 +190,112 @@ class Bundle(ParameterSet):
         f = open(filename, 'r')
         data = json.load(f)
         f.close()
-        return cls(data)
+        b = cls(data)
+
+        version = b.get_value('phoebe_version')
+        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.1.0')
+        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.1.0')
+
+        # update the entry in the PS, so if this is saved again it will have the new version
+        b.set_value('phoebe_version', __version__)
+
+        if phoebe_version_import == phoebe_version_this:
+            return b
+        elif phoebe_version_import > phoebe_version_this:
+            logger.warning("importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating".format(phoebe_version_import))
+            return b
+        elif phoebe_version_import < StrictVersion("2.1.0"):
+            logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
+
+            def _ps_dict(ps):
+                return {p.qualifier: p.get_quantity() if hasattr(p, 'get_quantity') else p.get_value() for p in ps.to_list()}
+
+            # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
+            dict_stars = {}
+            for star in b.hierarchy.get_stars():
+                ps_star = b.filter(context='component', component=star)
+                dict_stars[star] = _ps_dict(ps_star)
+
+                # TODO: actually do the translation
+                rpole = dict_stars[star].pop('rpole', 1.0*u.solRad).to(u.solRad).value
+                # PHOEBE 2.0 didn't have syncpar for contacts
+                if len(b.filter('syncpar', component=star)):
+                    F = b.get_value('syncpar', component=star, context='component')
+                else:
+                    F = 1.0
+                parent_orbit = b.hierarchy.get_parent_of(star)
+                component = b.hierarchy.get_primary_or_secondary(star, return_ind=True)
+                sma = b.get_value('sma', component=parent_orbit, context='component', unit=u.solRad)
+                q = b.get_value('q', component=parent_orbit, context='component')
+                d = 1 - b.get_value('ecc', component=parent_orbit)
+
+                logger.info("roche.rpole_to_requiv_aligned(rpole={}, sma={}, q={}, F={}, d={}, component={})".format(rpole, sma, q, F, d, component))
+                dict_stars[star]['requiv'] = roche.rpole_to_requiv_aligned(rpole, sma, q, F, d, component=component)
+
+                b.remove_component(star)
+
+
+            for star, dict_star in dict_stars.items():
+                logger.info("attempting to update component='{}' to new version requirements".format(star))
+                b.add_component('star', component=star, check_label=False, **dict_star)
+
+
+            dict_envs = {}
+            for env in b.hierarchy.get_envelopes():
+                ps_env = b.filter(context='component', component=env)
+                dict_envs[env] = _ps_dict(ps_env)
+                b.remove_component(env)
+
+            for env, dict_env in dict_envs.items():
+                logger.info("attempting to update component='{}' to new version requirements".format(env))
+                b.add_component('envelope', component=env, check_label=False, **dict_env)
+
+                # TODO: this probably will fail once more than one contacts are
+                # supported, but will never need that for 2.0->2.1 since
+                # multiples aren't supported (yet) call b.set_hierarchy() to
+
+                # reset all hieararchy-dependent constraints (including
+                # pot<->requiv)
+                b.set_hierarchy()
+
+                primary = b.hierarchy.get_stars()[0]
+                b.flip_constraint('pot', component=env, solve_for='requiv@{}'.format(primary), check_nan=False)
+                b.set_value('pot', component=env, context='component', value=dict_env['pot'])
+                b.flip_constraint('requiv', component=primary, solve_for='pot', check_nan=False)
+
+            # reset all hieararchy-dependent constraints
+            b.set_hierarchy()
+
+            # mesh datasets: https://github.com/phoebe-project/phoebe2/pull/261, https://github.com/phoebe-project/phoebe2/pull/300
+            for dataset in b.filter(context='dataset', kind='mesh').datasets:
+                logger.info("attempting to update mesh dataset='{}' to new version requirements".format(dataset))
+                ps_mesh = b.filter(context='dataset', kind='mesh', dataset=dataset)
+                dict_mesh = _ps_dict(ps_mesh)
+                # NOTE: we will not remove (or update) the dataset from any existing models
+                b.remove_dataset(dataset, context=['dataset', 'constraint', 'compute'])
+                if len(b.filter(dataset=dataset, context='model')):
+                    logger.warning("existing model for dataset='{}' models={} will not be removed, but likely will not work with new plotting updates".format(dataset, b.filter(dataset=dataset, context='model').models))
+
+                b.add_dataset('mesh', dataset=dataset, check_label=False, **dict_mesh)
+
+            # vgamma definition: https://github.com/phoebe-project/phoebe2/issues/234
+            logger.info("updating vgamma to new version requirements")
+            b.set_value('vgamma', -1*b.get_value('vgamma'))
+
+            # remove phshift parameter: https://github.com/phoebe-project/phoebe2/commit/1fa3a4e1c0f8d80502101e1b1e750f5fb14115cb
+            logger.info("removing any phshift parameters for new version requirements")
+            b.remove_parameters_all(qualifier='phshift')
+
+            # colon -> long: https://github.com/phoebe-project/phoebe2/issues/211
+            logger.info("removing any colon parameters for new version requirements")
+            b.remove_parameters_all(qualifier='colon')
+
+            # make sure constraints are updated according to conf.interactive_constraints
+            b.run_delayed_constraints()
+
+        return b
+
+
 
     @classmethod
     def from_server(cls, bundleid, server='http://localhost:5555',
@@ -890,7 +998,30 @@ class Bundle(ParameterSet):
         # Handle inter-PS constraints
         starrefs = hier_param.get_stars()
 
+        # user_interactive_constraints = conf.interactive_constraints
+        # conf.interactive_constraints_off()
+
         for component in self.hierarchy.get_envelopes():
+            # we need two of the three [comp_env] + self.hierarchy.get_siblings_of(comp_env) to have constraints
+            existing_requiv_constraints = self.filter(constraint_func='requiv_to_pot', component=[component]+self.hierarchy.get_siblings_of(component))
+            if len(existing_requiv_constraints) == 2:
+                # do we need to rebuild these?
+                continue
+            elif len(existing_requiv_constraints)==0:
+                for component_requiv in self.hierarchy.get_siblings_of(component):
+                    pot_parameter = self.get_parameter(qualifier='pot', component=self.hierarchy.get_envelope_of(component_requiv), context='component')
+                    requiv_parameter = self.get_parameter(qualifier='requiv', component=component_requiv, context='component')
+                    if len(pot_parameter.constrained_by):
+                        solve_for = requiv_parameter.uniquetwig
+                    else:
+                        solve_for = pot_parameter.uniquetwig
+
+                    self.add_constraint(constraint.requiv_to_pot, component_requiv,
+                                        constraint=self._default_label('requiv_to_pot', context='constraint'),
+                                        solve_for=solve_for)
+            else:
+                raise NotImplementedError("expected 0 or 2 existing requiv_to_pot constraints")
+
             logger.debug('re-creating fillout_factor (contact) constraint for {}'.format(component))
             if len(self.filter(context='constraint',
                                constraint_func='fillout_factor',
@@ -929,7 +1060,7 @@ class Bundle(ParameterSet):
                                                        component=component)
                 self.remove_constraint(constraint_func='potential_contact_max',
                                        component=component)
-                self.add_constraint(constraint.potential_contact_min, component,
+                self.add_constraint(constraint.potential_contact_max, component,
                                     solve_for=constraint_param.constrained_parameter.uniquetwig,
                                     constraint=constraint_param.constraint)
             else:
@@ -1023,26 +1154,6 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.requiv_contact_min, component,
                                             constraint=self._default_label('requiv_min', context='constraint'))
 
-
-                    logger.debug('re-creating requiv_to_pot constraint for {}'.format(component))
-                    if len(self.filter(context='constraint',
-                                       constraint_func='requiv_to_pot',
-                                       component=component)):
-                        constraint_param = self.get_constraint(constraint_fun='requiv_to_pot',
-                                                               component=component)
-                        self.remove_constraint(constraint_func='requiv_to_pot',
-                                               component=component)
-                        self.add_constraint(constraint.requiv_to_pot, component,
-                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                            constraint=constraint_param.constraint)
-                    else:
-                        pot_parameter = self.get_parameter(qualifier='pot', component=self.hierarchy.get_envelope_of(component), context='component')
-                        requiv_parameter = self.get_parameter(qualifier='requiv', component=component, context='component')
-                        solve_for = pot_parameter.uniquetwig if self.hierarchy.get_primary_or_secondary(component) == 'primary' else requiv_parameter.uniquetwig
-                        self.add_constraint(constraint.requiv_to_pot, component,
-                                            constraint=self._default_label('requiv_to_pot', context='constraint'),
-                                            solve_for=solve_for)
-
                 else:
                     # then we're in a detached/semi-detached system
                     logger.debug('re-creating requiv_max (detached) constraint for {}'.format(component))
@@ -1093,6 +1204,10 @@ class Bundle(ParameterSet):
                     else:
                         self.add_constraint(constraint.yaw, component,
                                             constraint=self._default_label('yaw', context='constraint'))
+
+        # if user_interactive_constraints:
+            # conf.interactive_constraints_on()
+            # self.run_delayed_constraints()
 
 
         redo_kwargs = {k: v for k, v in hier_param.to_dict().items()
@@ -1243,6 +1358,10 @@ class Bundle(ParameterSet):
         for component in hier.get_stars():
             kind = hier.get_kind_of(component)
             comp_ps = self.get_component(component)
+
+            if not len(comp_ps):
+                return False, "component '{}' in the hierarchy is not in the bundle".format(component)
+
             parent = hier.get_parent_of(component)
             parent_ps = self.get_component(parent)
             if kind in ['star']:
@@ -1658,7 +1777,8 @@ class Bundle(ParameterSet):
                                               **{'context': 'component',
                                                  'kind': func.func_name}))
 
-        self._check_label(kwargs['component'])
+        if kwargs.pop('check_label', True):
+            self._check_label(kwargs['component'])
 
         params, constraints = func(**kwargs)
 
@@ -1699,7 +1819,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'component'
         return self.filter(**kwargs)
 
-    def remove_component(self, component=None, **kwargs):
+    def remove_component(self, component, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1707,10 +1827,11 @@ class Bundle(ParameterSet):
 
         :raises NotImplementedError: because this isn't implemented yet
         """
-        # TODO: don't forget to add_history
-        # TODO: need to handle if in hierarchy or not
-        # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
-        raise NotImplementedError("remove_component not yet supported")
+        # NOTE: run_checks will check if an entry is in the hierarchy but has no parameters
+        kwargs['component'] = component
+        # NOTE: we do not remove from 'model' by default
+        kwargs['context'] = ['component', 'constraint', 'dataset', 'compute']
+        self.remove_parameters_all(**kwargs)
 
     def rename_component(self, old_component, new_component):
         """
@@ -2001,7 +2122,8 @@ class Bundle(ParameterSet):
                                               **{'context': 'dataset',
                                                  'kind': func.func_name}))
 
-        self._check_label(kwargs['dataset'])
+        if kwargs.pop('check_label', True):
+            self._check_label(kwargs['dataset'])
 
         kind = func.func_name
 
@@ -2451,7 +2573,10 @@ class Bundle(ParameterSet):
                           undo_kwargs={'uniqueid': constraint_param.uniqueid})
 
         # we should run it now to make sure everything is in-sync
-        self.run_constraint(uniqueid=constraint_param.uniqueid)
+        if conf.interactive_constraints:
+            self.run_constraint(uniqueid=constraint_param.uniqueid)
+        else:
+            self._delayed_constraints.append(constraint_param.uniqueid)
 
         return params
         # return self.get_constraint(**metawargs)

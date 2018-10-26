@@ -14,13 +14,16 @@ def _get_system_ps(b, item, context='component'):
     parses the input arg (either twig or PS) to retrieve the actual parametersets
     """
     # TODO: make this a decorator?
+    if isinstance(item, list) and len(item)==1:
+        item = item[0]
 
     if isinstance(item, ParameterSet):
         return item.filter(context=context, check_visible=False)
     elif isinstance(item, str):
         return b.filter(item, context=context, check_visible=False)
     else:
-        raise NotImplementedError("do not support item with type: {}".format(type(item)))
+        logger.debug("_get_system_ps got {}".format(item))
+        raise NotImplementedError("_get_system_ps does not support item with type: {}".format(type(item)))
 
 #{ Mathematical expressions
 
@@ -1338,8 +1341,14 @@ def requiv_to_pot(b, component, solve_for=None, **kwargs):
     parentorbit = hier.get_parent_of(component)
 
     parentorbit_ps = _get_system_ps(b, parentorbit)
-    component_ps = _get_system_ps(b, component)
-    envelope_ps = _get_system_ps(b, hier.get_envelope_of(component))
+
+    if hier.get_kind_of(component) == 'envelope':
+        raise NotImplementedError
+        # envelope_ps = _get_system_ps(b, component)
+        # component_ps = _get_system_ps(b, hier.get)
+    else:
+        component_ps = _get_system_ps(b, component)
+        envelope_ps = _get_system_ps(b, hier.get_envelope_of(component))
 
     q = parentorbit_ps.get_parameter(qualifier='q')
     sma = parentorbit_ps.get_parameter(qualifier='sma')
