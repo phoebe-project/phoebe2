@@ -370,6 +370,7 @@ class Bundle(ParameterSet):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Bundle` object
         """
+        logger.warning("importing from legacy is experimental until official 1.0 release")
         filename = os.path.expanduser(filename)
         return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
@@ -520,6 +521,7 @@ class Bundle(ParameterSet):
         """
         TODO: add docs
         """
+        logger.warning("exporting to legacy is experimental until official 1.0 release")
         filename = os.path.expanduser(filename)
         return io.pass_to_legacy(self, filename)
 
