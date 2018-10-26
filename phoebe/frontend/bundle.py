@@ -1128,6 +1128,12 @@ class Bundle(ParameterSet):
                     # NOTE: pot_min and pot_max are handled above at the envelope level
                     logger.debug('re-creating requiv_max (contact) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
+                                       constraint_func='requiv_detached_max',
+                                       component=component)):
+                        # then we're changing from detached to contact so should remove the detached constraint first
+                        self.remove_constraint(constraint_func='requiv_detached_max', component=component)
+
+                    if len(self.filter(context='constraint',
                                        constraint_func='requiv_contact_max',
                                        component=component)):
                         constraint_param = self.get_constraint(constraint_func='requiv_contact_max',
@@ -1158,7 +1164,19 @@ class Bundle(ParameterSet):
 
                 else:
                     # then we're in a detached/semi-detached system
+                    # let's make sure we remove any requiv_to_pot constraints
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_to_pot',
+                                       component=component)):
+                        self.remove_constraint(constraint_func='requiv_to_pot', component=component)
+
                     logger.debug('re-creating requiv_max (detached) constraint for {}'.format(component))
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_contact_max',
+                                       component=component)):
+                        # then we're changing from contact to detached so should remove the detached constraint first
+                        self.remove_constraint(constraint_func='requiv_contact_max', component=component)
+
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_detached_max',
                                        component=component)):
