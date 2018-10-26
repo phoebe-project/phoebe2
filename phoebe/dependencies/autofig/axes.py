@@ -849,7 +849,7 @@ class Axes(object):
         if axes_3d:
             zlim = self.z.get_lim(i=i)
             if not np.any(np.isnan(zlim)):
-                ax.set_ylim(zlim)
+                ax.set_zlim(zlim)
 
             elev_current = self.elev.get_value(i=i)
             azim_current = self.azim.get_value(i=i)

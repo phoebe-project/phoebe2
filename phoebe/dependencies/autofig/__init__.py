@@ -1,3 +1,5 @@
+__version__ = '1.0.0'
+
 import os as _os
 import sys as _sys
 import matplotlib as _matplotlib
