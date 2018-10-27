@@ -1818,6 +1818,15 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 parnames.append(pname)
                 parvals.append(val)
                 types.append(ptype)
+
+        if param.qualifier == 'irrad_method':
+            #to completely turn of irradiation in phoebe1 albedos must be zero
+            if param.get_value(**kwargs) == 'none':
+                in1 =  parnames.index('phoebe_alb1.VAL')
+                in2 =  parnames.index('phoebe_alb2.VAL')
+                parvals[in1] = 0.0
+                parvals[in2] = 0.0
+
         try:
             pnew = _2to1par[param.qualifier]
             if param.qualifier in ['ld_func'] or param.dataset:
