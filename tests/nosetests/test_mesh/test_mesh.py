@@ -25,10 +25,13 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     b.set_value_all('gridsize', gridsize)
 
     # TODO: make these options and test over various values for the intensity
-    b.set_value_all('ld_func', 'logarithmic')
-    b.set_value_all('ld_coeffs', [0,0])
+    b.set_value_all('ld_func', 'linear')
+    b.set_value_all('ld_coeffs', [0.])
     # TODO: also compare phoebe1:kurucz to phoebe:extern_atmx
     b.set_value_all('atm', 'extern_planckint')
+
+    #turn off albedos (legacy requirement)
+    b.set_value_all('irrad_frac_refl_bol',  0.0)
 
     b.run_compute('phoebe1', model='phoebe1model', refl_num=0)
     b.run_compute('phoebe2', model='phoebe2model', irrad_method='none')

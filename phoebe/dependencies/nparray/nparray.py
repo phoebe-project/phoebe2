@@ -11,7 +11,7 @@ else:
 
 ################## VALIDATORS ###################
 
-# these all must accept a single value and return a boolean if it matches the condition
+# these all must accept a single value and return a boolean if it matches the condition as well as any alterations to the value
 # NOTE: the docstring is used as the error message if the test fails
 
 def is_unit(value):
@@ -19,62 +19,62 @@ def is_unit(value):
     if not _has_astropy:
         raise ImportError("astropy must be installed for unit support")
     if (isinstance(value, units.Unit) or isinstance(value, units.IrreducibleUnit) or isinstance(value, units.CompositeUnit)):
-        return True
+        return True, value
     else:
-        return False
+        return False, value
 
 def is_unit_or_unitstring(value):
     """must be an astropy.unit"""
-    if is_unit(value):
-        return True
+    if is_unit(value)[0]:
+        return True, value
     try:
         unit = units.Unit(value)
     except:
-        return False
+        return False, value
     else:
-        return True
+        return True, unit
 
 def is_unit_or_unitstring_or_none(value):
     """must be an astropy unit or None"""
     if value is None:
-        return True
+        return True, value
     return is_unit_or_unitstring(value)
 
 def is_bool(value):
     """must be boolean"""
-    return isinstance(value, bool)
+    return isinstance(value, bool), value
 
 def is_float(value):
     """must be a float"""
-    return isinstance(value, float) or isinstance(value, int) or isinstance(value, np.float64)
+    return isinstance(value, float) or isinstance(value, int) or isinstance(value, np.float64), float(value)
 
 def is_int(value):
     """must be an integer"""
-    return isinstance(value, int)
+    return isinstance(value, int), value
 
 def is_int_positive(value):
     """must be a positive integer"""
-    return isinstance(value, int) and value > 0
+    return isinstance(value, int) and value > 0, value
 
 def is_int_positive_or_none(value):
     """must be a postive integer or None"""
-    return is_int_positive or value is None
+    return is_int_positive or value is None, value
 
 def is_valid_shape(value):
     """must be a positive integer or a tuple/list of positive integers"""
     if is_int_positive(value):
-        return True
+        return True, value
     elif isinstance(value, tuple) or isinstance(value, list):
         for v in value:
             if not is_int_positive(v):
-                return False
-        return True
+                return False, value
+        return True, value
     else:
-        return False
+        return False, value
 
 def is_iterable(value):
     """must be an iterable (list, array, tuple)"""
-    return isinstance(value, np.ndarray) or isinstance(value, list) or isinstance(value, tuple)
+    return isinstance(value, np.ndarray) or isinstance(value, list) or isinstance(value, tuple), value
 
 
 ############# WRAPPERS ###################
@@ -105,8 +105,9 @@ class ArrayWrapper(object):
         self._validators = OrderedDict()
 
         for item in args:
-            if item[2](item[1]):
-                self._descriptors[item[0]] = item[1]
+            valid, validated_value = item[2](item[1])
+            if valid:
+                self._descriptors[item[0]] = validated_value
             else:
                 raise ValueError("{} {}, got {}".format(item[0], item[2].__doc__, item[1]))
             self._validators[item[0]] = item[2]
@@ -130,9 +131,6 @@ class ArrayWrapper(object):
         if self.unit is None:
             raise ValueError("unit is not set, cannot convert to quantity")
 
-        if not is_unit(self.unit):
-            self.unit = units.Unit(self.unit)
-
         return self.array * self.unit
 
     def to(self, unit):
@@ -145,15 +143,8 @@ class ArrayWrapper(object):
         if self.unit is None:
             raise ValueError("no units currently set")
 
-        if not is_unit_or_unitstring(unit):
+        if not is_unit_or_unitstring(unit)[0]:
             raise ValueError("unit not recognized")
-
-        if not is_unit(unit):
-            # then must be a string
-            unit = units.Unit(unit)
-
-        if not is_unit(self.unit):
-            self.unit = units.Unit(unit)
 
         mult_factor = self.unit.to(unit)
         copy = self.copy() * mult_factor
@@ -191,9 +182,9 @@ class ArrayWrapper(object):
         if name in ['_descriptors', '_validators', '__class__']:
             return super(ArrayWrapper, self).__setattr__(name, value)
         elif name in self._descriptors.keys():
-            validator = self._validators[name]
-            if validator(value):
-                self._descriptors[name] = value
+            valid, validated_value = self._validators[name](value)
+            if valid:
+                self._descriptors[name] = validated_value
             else:
                 raise ValueError("{} {}".format(name, validator.__doc__))
         else:
@@ -239,6 +230,8 @@ class ArrayWrapper(object):
         def _json_safe(v):
             if isinstance(v, np.ndarray):
                 return v.tolist()
+            elif is_unit(v)[0]:
+                return v.to_string()
             else:
                 return v
         d = {k:_json_safe(v) for k,v in self._descriptors.items()}
@@ -295,7 +288,7 @@ class ArrayWrapper(object):
         return self.__math__('__rsub__', other)
 
     def __mul__(self, other):
-        if _has_astropy and is_unit(other):
+        if _has_astropy and is_unit(other)[0]:
             copy = self.copy()
             copy.unit = other
             return copy

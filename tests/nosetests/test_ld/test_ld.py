@@ -36,18 +36,21 @@ def test_binary(plot=False):
 
 
     # set matching limb-darkening for bolometric
-    b.set_value_all('ld_func_bol', 'logarithmic')
-    b.set_value_all('ld_coeffs_bol', [0.0, 0.0])
+    b.set_value_all('ld_func_bol', 'linear')
+    b.set_value_all('ld_coeffs_bol', [0.])
 
-    b.set_value_all('ld_func', 'logarithmic')
-    b.set_value_all('ld_coeffs', [0.0, 0.0])
+    b.set_value_all('ld_func', 'linear')
+    b.set_value_all('ld_coeffs', [0.])
+
+    #turn off albedos (legacy requirement)
+    b.set_value_all('irrad_frac_refl_bol',  0.0)
 
     for ld_func in b.get('ld_func', component='primary').choices:
         # let's test all of these against legacy.  For some we don't have
         # exact comparisons, so we'll get close and leave a really lose
         # tolerance.
 
-        ld_coeff_loop = [None] if ld_func=='interp' else [0.5]
+        ld_coeff_loop = [None] if ld_func=='interp' else [0.2]
 
         for ld_coeff in ld_coeff_loop:
 
@@ -73,11 +76,11 @@ def test_binary(plot=False):
                 ld_coeffs_ph1 = ld_coeffs
                 exact_comparison = exact_comparison
             else:
-                ld_func_ph1 = 'logarithmic'
+                ld_func_ph1 = 'linear'
                 if ld_coeffs is None:
-                    ld_coeffs_ph1 = [0.0, 0.0]
+                    ld_coeffs_ph1 = [0.]
                 else:
-                    ld_coeffs_ph1 = [ld_coeff, ld_coeff]
+                    ld_coeffs_ph1 = [ld_coeff]
                 exact_comparison = False
 
             if plot:
@@ -108,9 +111,7 @@ def test_binary(plot=False):
                 print "exact_comparison: {}, max (rel): {}".format(exact_comparison, abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 
             if plot:
-                b.plot(dataset='lc01')
-                plt.legend()
-                plt.show()
+                b.plot(dataset='lc01', show=True)
 
             assert(np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3 if exact_comparison else 0.3, atol=0.))
 
@@ -138,9 +139,9 @@ def test_binary(plot=False):
             if ld_func == 'power':
                 ld_coeff_loop = [0.0, 0.2]
             elif ld_func == 'logarithmic':
-                ld_coeff_loop = [0.0, 0.4]
+                ld_coeff_loop = [0.2, 0.6]
             else:
-                ld_coeff_loop = [0.0, 0.8]
+                ld_coeff_loop = [0.0, 0.3]
 
             for ld_coeff in ld_coeff_loop:
                 ld_coeffs = _get_ld_coeffs(ld_coeff, ld_func)

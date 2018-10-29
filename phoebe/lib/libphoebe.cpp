@@ -9306,7 +9306,23 @@ static PyObject *ld_nrpar(PyObject *self, PyObject *args, PyObject *keywds) {
     params: 1-rank numpy array of float
 
   Return:
-    true: int: number of parameters
+    true: if parameters pass the checks, false otherwise
+  
+  Example:
+  
+  import numpy as np
+  import libphoebe
+
+  print ld_check("nonlinear", np.array([2.0, 0.2, 3]))
+  print ld_check("logarithmic", np.array([0., 0.]))
+  print ld_check("logarithmic", np.array([0.6, -1]))
+  print ld_check("logarithmic", np.array([0.6, -2]))
+
+  False
+  True
+  True
+  False
+
 */
 
 static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {

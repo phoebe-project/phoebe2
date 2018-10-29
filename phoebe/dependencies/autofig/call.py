@@ -105,7 +105,10 @@ class Call(object):
                  xerror=None, xunit=None, xlabel=None,
                  yerror=None, yunit=None, ylabel=None,
                  zerror=None, zunit=None, zlabel=None,
-                 iunit=None,
+                 iunit=None, itol=0.0,
+                 axorder=None, axpos=None,
+                 title=None,
+                 label=None,
                  consider_for_limits=True,
                  uncover=False,
                  trail=False,
@@ -124,11 +127,16 @@ class Call(object):
 
         # defined last so all other dimensions are in place in case indep
         # is a reference and needs to access units, etc
-        self._i = CallDimensionI(self, i, iunit)
+        self._i = CallDimensionI(self, i, iunit, itol)
 
         self.consider_for_limits = consider_for_limits
         self.uncover = uncover
         self.trail = trail
+
+        self.axorder = axorder
+        self.axpos = axpos
+        self.title = title
+        self.label = label
 
         self.kwargs = kwargs
 
@@ -219,6 +227,74 @@ class Call(object):
 
         self._trail = trail
 
+    @property
+    def axorder(self):
+        return self._axorder
+
+    @axorder.setter
+    def axorder(self, axorder):
+        if axorder is None:
+            self._axorder = None
+            return
+
+        if not isinstance(axorder, int):
+            raise TypeError("axorder must be of type int")
+
+        self._axorder = axorder
+
+    @property
+    def axpos(self):
+        return self._axpos
+
+    @axpos.setter
+    def axpos(self, axpos):
+        if axpos is None:
+            self._axpos = axpos
+
+            return
+
+        if isinstance(axpos, tuple) and len(axpos) == 3 and np.all(isinstance(ap, int) for ap in axpos):
+            self._axpos = axpos
+
+        elif isinstance(axpos, int) and axpos >= 100 and axpos < 1000:
+            self._axpos = (int(axpos/100), int(axpos/10 % 10), int(axpos % 10))
+
+        else:
+            raise ValueError("axpos must be of type int or tuple between 100 and 999")
+
+
+    @property
+    def title(self):
+        "title used for axes title"
+        return self._title
+
+    @title.setter
+    def title(self, title):
+        if title is None:
+            self._title = title
+            return
+
+        if not isinstance(title, str):
+            raise TypeError("title must be of type str")
+
+        self._title = title
+
+    @property
+    def label(self):
+        "label used for legends"
+        return self._label
+
+    @label.setter
+    def label(self, label):
+        if label is None:
+            self._label = label
+            return
+
+        if not isinstance(label, str):
+            raise TypeError("label must be of type str")
+
+        self._label = label
+
 
 class Plot(Call):
     def __init__(self, x=None, y=None, z=None, c=None, s=None, i=None,
@@ -228,8 +304,11 @@ class Plot(Call):
                        cunit=None, clabel=None, cmap=None,
                        sunit=None, slabel=None, smap=None, smode=None,
                        iunit=None,
+                       axorder=None, axpos=None,
+                       title=None,
+                       label=None,
                        marker=None,
-                       linestyle=None, linewidth=None, linebreak=None,
+                       linestyle=None, linebreak=None,
                        highlight=True, uncover=False, trail=False,
                        consider_for_limits=True,
                        **kwargs):
@@ -296,6 +375,8 @@ class Plot(Call):
                                    z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
                                    consider_for_limits=consider_for_limits,
                                    uncover=uncover, trail=trail,
+                                   axorder=axorder, axpos=axpos,
+                                   title=title, label=label,
                                    **kwargs
                                    )
 
@@ -404,8 +485,8 @@ class Plot(Call):
 
     @property
     def highlight_color(self):
-        if self._highlight_color is None:
-            return self.get_color()
+        # if self._highlight_color is None:
+            # return self.get_color()
 
         return self._highlight_color
 
@@ -583,6 +664,9 @@ class Plot(Call):
             if not isinstance(ax, plt.Axes):
                 raise TypeError("ax must be of type plt.Axes")
 
+        if not (i is None or isinstance(i, float) or isinstance(i, int) or isinstance(i, u.Quantity) or isinstance(i, list) or isinstance(i, np.ndarray)):
+            raise TypeError("i must be of type float/int/list/None")
+
         kwargs = self.kwargs.copy()
 
         # determine 2D or 3D
@@ -607,9 +691,18 @@ class Plot(Call):
         y = self.y.get_value(i=i, unit=self.axes.y.unit)
         yerr = self.y.get_error(i=i, unit=self.axes.y.unit)
         z = self.z.get_value(i=i, unit=self.axes.z.unit)
-        # TODO: implement zerr
+        # zerr is handled below, only if axes_3ds
         c = self.c.get_value(i=i, unit=self.axes_c.unit if self.axes_c is not None else None)
         s = self.s.get_value(i=i, unit=self.axes_s.unit if self.axes_s is not None else None)
+
+        # bail on cases where we can't plot.  This could possibly be due to
+        # sending Nones or Nans
+        # if x is None and y is None:
+        #     return []
+        # if x is None and len(y) > 1:
+        #     return []
+        # if y is None and len(x) > 1:
+        #     return []
 
         if axes_3d:
             zerr = self.z.get_error(i=i, unit=self.axes.z.unit)
@@ -690,7 +783,7 @@ class Plot(Call):
                     return default
 
             # BUILD KWARGS NEEDED FOR EACH CALL TO ERRORBAR
-            def error_kwargs_loop(loop, do_zorder):
+            def error_kwargs_loop(xerr, yerr, zerr, loop, do_zorder):
                 def _get_error(errorarray, loop, do_zorder):
                     if errorarray is None:
                         return None
@@ -791,7 +884,8 @@ class Plot(Call):
                         artists = ax.errorbar(*datapoint,
                                                fmt='', linestyle='None',
                                                zorder=zorder,
-                                               **error_kwargs_loop(loop, do_zorder))
+                                               label=self.label if loop==0 else None,
+                                               **error_kwargs_loop(xerr, yerr, zerr, loop, do_zorder))
 
                         # NOTE: these are currently not included in return_artists
                         # so they don't scale according to per-element sizes.
@@ -806,7 +900,7 @@ class Plot(Call):
                             # else:
                                 # return_artists += [artist_list]
 
-                    if do_colorscale or do_sizescale or do_zorder:
+                    if do_colorscale or do_sizescale or do_zorder or marker in ['x', '+']:
                         # DRAW LINECOLLECTION, if applicable
                         if ls.lower() != 'none':
                             # TODO: color and zorder are assigned from the LEFT point in
@@ -822,8 +916,14 @@ class Plot(Call):
                             else:
                                 lccall = LineCollection
 
+                            # we'll only include this in the legend for the first loop
+                            # and if the marker isn't going to get its own entry.
+                            # Unfortunately this means in these cases the
+                            # marker will get precedent in the legend if both
+                            # marker and linestyle are present
                             lc = lccall(segments,
                                         zorder=zorder,
+                                        label=self.label if loop==0 and marker.lower()=='none' else None,
                                         **lc_kwargs_loop(lc_kwargs_const, loop, do_zorder))
 
                             if do_colorscale:
@@ -841,6 +941,7 @@ class Plot(Call):
                         if marker.lower() != 'none':
                             artist = ax.scatter(*datapoint,
                                                 zorder=zorder,
+                                                label=self.label if loop==0 else None,
                                                 **sc_kwargs_loop(sc_kwargs_const, loop, do_zorder))
 
                             return_artists_this_loop.append(artist)
@@ -853,7 +954,8 @@ class Plot(Call):
                                           marker=marker,
                                           ls=ls,
                                           mec='none',
-                                          color=color)
+                                          color=color,
+                                          label=self.label if loop==0 else None)
 
                         return_artists_this_loop += artists
 
@@ -871,11 +973,11 @@ class Plot(Call):
             if not (isinstance(x, np.ndarray) and isinstance(y, np.ndarray)):
                 # TODO: can we do anything in 3D?
                 if x is not None:
-                    artist = ax.axvline(x, ls=ls, color=color)
+                    artist = ax.axvline(x, ls=ls, color=color, label=self.label)
                     return_artists += [artist]
 
                 if y is not None:
-                    artist = ax.axhline(y, ls=ls, color=color)
+                    artist = ax.axhline(y, ls=ls, color=color, label=self.label)
                     return_artists += [artist]
 
         # DRAW HIGHLIGHT, if applicable (outside per-datapoint loop)
@@ -893,7 +995,7 @@ class Plot(Call):
                 if linefunc is not None:
                     artist = getattr(ax, linefunc)(i,
                                                    ls=self.highlight_linestyle,
-                                                   color=self.highlight_color)
+                                                   color=self.highlight_color if self.highlight_color is not None else color)
 
                     artist._af_highlight = True
                     return_artists += [artist]
@@ -911,7 +1013,8 @@ class Plot(Call):
 
             artists = ax.plot(*highlight_data,
                               marker=self.highlight_marker,
-                              ls='None', color=self.highlight_color)
+                              ls=self.highlight_linestyle,
+                              color=self.highlight_color if self.highlight_color is not None else color)
 
             for artist in artists:
                 artist._af_highlight=True
@@ -937,6 +1040,8 @@ class Mesh(Call):
                        fcunit=None, fclabel=None, fcmap=None,
                        ecunit=None, eclabel=None, ecmap=None,
                        iunit=None,
+                       axorder=None, axpos=None,
+                       title=None, label=None,
                        linestyle='solid',
                        consider_for_limits=True,
                        uncover=True,
@@ -970,6 +1075,8 @@ class Mesh(Call):
                                    z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
                                    consider_for_limits=consider_for_limits,
                                    uncover=uncover, trail=trail,
+                                   axorder=axorder, axpos=axpos,
+                                   title=title, label=label,
                                    **kwargs
                                    )
 
@@ -1086,6 +1193,9 @@ class Mesh(Call):
             if not isinstance(ax, plt.Axes):
                 raise TypeError("ax must be of type plt.Axes")
 
+        if not (i is None or isinstance(i, float) or isinstance(i, int) or isinstance(i, u.Quantity)):
+            raise TypeError("i must be of type float/int/None")
+
         # determine 2D or 3D
         axes_3d = isinstance(ax, Axes3D)
 
@@ -1093,7 +1203,6 @@ class Mesh(Call):
 
         # PLOTTING
         return_artists = []
-        # TODO: handle getting in correct units (possibly passed from axes?)
         x = self.x.get_value(i=i, unit=self.axes.x.unit)
         y = self.y.get_value(i=i, unit=self.axes.y.unit)
         z = self.z.get_value(i=i, unit=self.axes.z.unit)
@@ -1178,7 +1287,8 @@ class Mesh(Call):
                             linestyle=self.linestyle,
                             edgecolors=edgecolor,
                             facecolors=facecolor,
-                            zorder=zorder)
+                            zorder=zorder,
+                            label=self.label)
                 ax.add_collection(pc)
 
                 return_artists += [pc]
@@ -1189,7 +1299,8 @@ class Mesh(Call):
                         linestyle=self.linestyle,
                         edgecolors=edgecolors,
                         facecolors=facecolors,
-                        zorder=zorders)
+                        zorder=zorders,
+                        label=self.label)
 
             ax.add_collection(pc)
 
@@ -1327,7 +1438,7 @@ class CallDimension(object):
         sort_inds = i_value.argsort()
         indep_value = i_value[sort_inds]
         this_value = self._value[sort_inds]
-        return self._to_unit(np.interp(i, indep_value, this_value), unit)
+        return self._to_unit(np.interp(i, indep_value, this_value, left=np.nan, right=np.nan), unit)
 
     def highlight_at_i(self, i, unit=None):
         """
@@ -1372,7 +1483,7 @@ class CallDimension(object):
         elif linebreak[1] == '-':
             split_inds = np.where(break_array[1:]-break_array[:-1]<0)[0]
         else:
-            raise NotImplementedError
+            raise NotImplementedError("linebreak='{}' not supported".format(linebreak))
 
         return np.split(this_array, split_inds+1)
 
@@ -1428,9 +1539,9 @@ class CallDimension(object):
 
             all_i = np.hstack(self.call.axes.calls.i.value)
             trail_i = i - trail_perc*(np.nanmax(all_i) - np.nanmin(all_i))
-            if trail_i < np.nanmin(self.call.i.value):
+            if trail_i < np.nanmin(self.call.i.get_value(linebreak=False, sort_by_indep=False)):
                 # don't allow extraploating below the lower range
-                trail_i = np.nanmin(self.call.i.value)
+                trail_i = np.nanmin(self.call.i.get_value(linebreak=False, sort_by_indep=False))
 
         else:
             trail_i = None
@@ -1454,14 +1565,14 @@ class CallDimension(object):
         if trail is not False:
             trail_i = self._get_trail_min(i=i, trail=trail)
 
-            left_filter = i_value >= trail_i
+            left_filter = i_value >= trail_i - self.call.i.tol
 
         else:
             left_filter = trues
 
 
         if uncover is not False:
-            right_filter = i_value <= i
+            right_filter = i_value <= i + self.call.i.tol
 
         else:
             right_filter = trues
@@ -1470,7 +1581,8 @@ class CallDimension(object):
 
     def get_value(self, i=None, unit=None,
                   uncover=None, trail=None,
-                  linebreak=None, sort_by_indep=None):
+                  linebreak=None, sort_by_indep=None,
+                  attr='_value'):
         """
         access the value for a given value of i (independent-variable) depending
         on which effects (i.e. uncover) are enabled.
@@ -1479,7 +1591,8 @@ class CallDimension(object):
         the parent Call will be used.
         """
 
-        if self._value is None:
+        value = getattr(self, attr)  # could be self._value or self._error
+        if value is None:
             return None
 
         if uncover is None:
@@ -1495,28 +1608,29 @@ class CallDimension(object):
             # TODO: make this a property of the call?
             sort_by_indep = True
 
-        if isinstance(self._value, str) or isinstance(self._value, float):
+        if isinstance(value, str) or isinstance(value, float):
             if i is None:
-                return self._to_unit(self._value, unit)
+                return self._to_unit(value, unit)
             elif isinstance(self.call.i.value, float):
                 # then we still want to "select" based on the value of i
                 if self._filter_at_i(i):
-                    return self._value
+                    return value
                 else:
                     return None
             else:
                 # then we should show either way.  For example - a color or
                 # axhline even with i given won't change in i
-                return self._to_unit(self._value, unit)
+                return self._to_unit(value, unit)
 
         # from here on we're assuming the value is an array, so let's just check
         # to be sure
-        if not isinstance(self._value, np.ndarray):
-            raise NotImplementedError
+        if not isinstance(value, np.ndarray):
+            raise NotImplementedError("value/error must be a numpy array")
 
 
         if linebreak is not False:
-            return self._do_linebreak(i=i,
+            return self._do_linebreak(func='get{}'.format(attr),
+                                      i=i,
                                       unit=unit,
                                       uncover=uncover,
                                       trail=trail,
@@ -1527,7 +1641,8 @@ class CallDimension(object):
             # if we've made it here, linebreak should already be False (if
             # linebreak was True, then we'd be within _do_linebreak and those
             # get_value calls pass linebreak=False)
-            return self._sort_by_indep(i=i,
+            return self._sort_by_indep(func='get{}'.format(attr),
+                                       i=i,
                                        unit=unit,
                                        uncover=uncover,
                                        trail=trail,
@@ -1538,55 +1653,59 @@ class CallDimension(object):
         # were True, then we're within those functions and asking for the original
         # array)
         if i is None:
-            if len(self._value.shape)==1:
-                return self._to_unit(self._value, unit)
+            if len(value.shape)==1:
+                return self._to_unit(value, unit)
             else:
                 if isinstance(self.call, Plot):
-                    return self._to_unit(self._value.T, unit)
+                    return self._to_unit(value.T, unit)
                 else:
-                    return self._to_unit(self._value, unit)
+                    return self._to_unit(value, unit)
 
         # filter the data as necessary
         filter_ = self._filter_at_i(i, uncover=uncover, trail=trail)
 
         if isinstance(self.call.i.value, float):
             if filter_:
-                return self._to_unit(self._value, unit)
+                return self._to_unit(value, unit)
             else:
                 return None
 
-        if len(self._value.shape)==1:
+        if len(value.shape)==1:
             # then we're dealing with a flat 1D array
-            if trail is not False:
-                trail_i = self._get_trail_min(i)
-                first_point = self.interpolate_at_i(trail_i)
+            if attr == '_value':
+                if trail is not False:
+                    trail_i = self._get_trail_min(i)
+                    first_point = self.interpolate_at_i(trail_i)
 
 
-            if uncover:
-                last_point = self.interpolate_at_i(i)
+                if uncover:
+                    last_point = self.interpolate_at_i(i)
+            else:
+                first_point = np.nan
+                last_point = np.nan
 
             if uncover and trail is not False:
                 concat = (np.array([first_point]),
-                          self._value[filter_],
+                          value[filter_],
                           np.array([last_point]))
             elif uncover:
-                concat = (self._value[filter_],
+                concat = (value[filter_],
                           np.array([last_point]))
 
             elif trail:
                 concat = (np.array([first_point]),
-                          self._value[filter_])
+                          value[filter_])
             else:
-                return self._to_unit(self._value[filter_], unit)
+                return self._to_unit(value[filter_], unit)
 
             return self._to_unit(np.concatenate(concat), unit)
 
         else:
             # then we need to "select" based on the indep and the value
             if isinstance(self.call, Plot):
-                return self._to_unit(self._value[filter_].T, unit)
+                return self._to_unit(value[filter_].T, unit)
             else:
-                return self._to_unit(self._value[filter_], unit)
+                return self._to_unit(value[filter_], unit)
 
 
     # for value we need to define the property without decorators because of
@@ -1647,74 +1766,10 @@ class CallDimension(object):
         access the error for a given value of i (independent-variable) depending
         on which effects (i.e. uncover) are enabled.
         """
-        if i is None:
-            return self._to_unit(self._error, unit)
-
-        if self._error is None:
-            return None
-
-        if uncover is None:
-            uncover = self.call.uncover
-
-        if trail is None:
-            trail = self.call.trail
-
-        if linebreak is None:
-            linebreak = self.call.linebreak
-
-        if sort_by_indep is None:
-            # TODO: make this a property of the call?
-            sort_by_indep = True
-
-        if linebreak is not False:
-            return self._do_linebreak(i=i,
-                                      unit=unit,
-                                      uncover=uncover,
-                                      trail=trail,
-                                      linebreak=linebreak,
-                                      sort_by_indep=sort_by_indep)
-
-        if sort_by_indep is not False:
-            # if we've made it here, linebreak should already be False (if
-            # linebreak was True, then we'd be within _do_linebreak and those
-            # get_value calls pass linebreak=False)
-            return self._sort_by_indep(i=i,
-                                       unit=unit,
-                                       uncover=uncover,
-                                       trail=trail,
-                                       linebreak=False,
-                                       sort_by_indep=sort_by_indep)
-
-        # from here on, linebreak==False and sort_by_indep==False (if either
-        # were True, then we're within those functions and asking for the original
-        # array)
-
-        # filter the data as necessary
-        filter_ = self._filter_at_i(i, uncover=uncover, trail=trail)
-
-        if isinstance(self.call.i.value, float):
-            if filter_:
-                return self._to_unit(self._error, unit)
-            else:
-                return None
-
-
-        if len(self._error.shape)==1:
-            # then we're dealing with a flat 1D array
-            first_point = np.nan
-            last_point = np.nan
-
-            return self._to_unit(np.concatenate((np.array([first_point]),
-                                                 self._error[filter_],
-                                                 np.array([last_point]))),
-                                 unit)
-
-        else:
-            # then we need to "select" based on the indep and the value
-            if isinstance(self.call, Plot):
-                return self._to_unit(self._error[filter_].T, unit)
-            else:
-                return self._to_unit(self._error[filter_], unit)
+        return self.get_value(i=i, unit=unit,
+                              uncover=uncover, trail=trail,
+                              linebreak=linebreak, sort_by_indep=sort_by_indep,
+                              attr='_error')
 
 
     @property
@@ -1784,8 +1839,27 @@ class CallDimension(object):
 
 
 class CallDimensionI(CallDimension):
-    def __init__(self, *args):
-        super(CallDimensionI, self).__init__('i', *args)
+    def __init__(self, call, value, unit, tol):
+        self.tol = tol
+        super(CallDimensionI, self).__init__('i', call, value, unit)
+
+    @property
+    def tol(self):
+        """
+        tolerance to use when selecting/uncover/trail
+        """
+        if self._tol is None:
+            return 0.0
+
+        return self._tol
+
+    @tol.setter
+    def tol(self, tol):
+        if not isinstance(tol, float):
+            raise TypeError("tol must be of type float")
+
+        # TODO: handle units?
+        self._tol = tol
 
     @property
     def value(self):

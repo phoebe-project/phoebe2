@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from scipy import integrate
 
 import phoebe
-phoebe.devel_on()
+# phoebe.devel_on()
 from phoebe import u, c
 import libphoebe
 
@@ -20,7 +20,7 @@ def initiate_sun_earth_system(pb_str):
     b = phoebe.Bundle.default_binary()
 
     b.add_dataset('lc', times=[0.75,], dataset='lc01', passband=pb_str)
-    b.add_dataset('mesh', time=[0.0], columns=['areas', 'mus', 'visibilities', 'abs_intensities@lc01'], dataset='mesh01')
+    b.add_dataset('mesh', times=[0.0], columns=['areas', 'mus', 'visibilities', 'abs_intensities@lc01'], dataset='mesh01')
 
     b['pblum@primary'] = 1.*u.solLum #* 0.99 # 0.99 is bolometric correction
     b['teff@primary'] = 1.*u.solTeff
@@ -58,7 +58,7 @@ def integrated_flux(b, pb):
   r *= b['value@mus@primary@mesh01']
   r *= b['value@visibilities@primary@mesh01']
 
-  return np.sum(r)*pb.ptf_area/b['value@distance@system']**2
+  return np.nansum(r)*pb.ptf_area/b['value@distance@system']**2
 
 
 def _planck(lam, Teff):
@@ -94,7 +94,7 @@ def sun_earth_result():
     b['ntriangles@primary'] = Nt
     b['ntriangles@secondary'] = Nt
 
-    b.run_compute(mesh_offset=True)
+    b.run_compute()
 
     q = b['value@q@orbit']
     F = b['value@syncpar@primary']

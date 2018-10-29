@@ -3,6 +3,8 @@ import os
 import re
 import json
 from datetime import datetime
+from distutils.version import StrictVersion
+
 
 # PHOEBE
 # ParameterSet, Parameter, FloatParameter, send_if_client, etc
@@ -21,7 +23,8 @@ from phoebe.atmospheres.passbands import _pbtable
 import libphoebe
 
 from phoebe import u
-from phoebe import conf
+from phoebe import conf, mpi
+from phoebe import __version__
 
 import logging
 logger = logging.getLogger("BUNDLE")
@@ -155,7 +158,11 @@ class Bundle(ParameterSet):
             for param in self._params:
                 param._bundle = self
 
-            self._hierarchy_param = self.get_parameter(qualifier='hierarchy', context='system')
+            try:
+                self._hierarchy_param = self.get_parameter(qualifier='hierarchy', context='system')
+            except ValueError:
+                # possibly this is a bundle without a hierarchy
+                self.set_hierarchy(_hierarchy.blank)
 
         # if loading something with constraints, we need to update the
         # bookkeeping so the parameters are aware of how they're constrained
@@ -179,10 +186,116 @@ class Bundle(ParameterSet):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Bundle` object
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
         data = json.load(f)
         f.close()
-        return cls(data)
+        b = cls(data)
+
+        version = b.get_value('phoebe_version')
+        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.1.0')
+        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.1.0')
+
+        # update the entry in the PS, so if this is saved again it will have the new version
+        b.set_value('phoebe_version', __version__)
+
+        if phoebe_version_import == phoebe_version_this:
+            return b
+        elif phoebe_version_import > phoebe_version_this:
+            logger.warning("importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating".format(phoebe_version_import))
+            return b
+        elif phoebe_version_import < StrictVersion("2.1.0"):
+            logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
+
+            def _ps_dict(ps):
+                return {p.qualifier: p.get_quantity() if hasattr(p, 'get_quantity') else p.get_value() for p in ps.to_list()}
+
+            # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
+            dict_stars = {}
+            for star in b.hierarchy.get_stars():
+                ps_star = b.filter(context='component', component=star)
+                dict_stars[star] = _ps_dict(ps_star)
+
+                # TODO: actually do the translation
+                rpole = dict_stars[star].pop('rpole', 1.0*u.solRad).to(u.solRad).value
+                # PHOEBE 2.0 didn't have syncpar for contacts
+                if len(b.filter('syncpar', component=star)):
+                    F = b.get_value('syncpar', component=star, context='component')
+                else:
+                    F = 1.0
+                parent_orbit = b.hierarchy.get_parent_of(star)
+                component = b.hierarchy.get_primary_or_secondary(star, return_ind=True)
+                sma = b.get_value('sma', component=parent_orbit, context='component', unit=u.solRad)
+                q = b.get_value('q', component=parent_orbit, context='component')
+                d = 1 - b.get_value('ecc', component=parent_orbit)
+
+                logger.info("roche.rpole_to_requiv_aligned(rpole={}, sma={}, q={}, F={}, d={}, component={})".format(rpole, sma, q, F, d, component))
+                dict_stars[star]['requiv'] = roche.rpole_to_requiv_aligned(rpole, sma, q, F, d, component=component)
+
+                b.remove_component(star)
+
+
+            for star, dict_star in dict_stars.items():
+                logger.info("attempting to update component='{}' to new version requirements".format(star))
+                b.add_component('star', component=star, check_label=False, **dict_star)
+
+
+            dict_envs = {}
+            for env in b.hierarchy.get_envelopes():
+                ps_env = b.filter(context='component', component=env)
+                dict_envs[env] = _ps_dict(ps_env)
+                b.remove_component(env)
+
+            for env, dict_env in dict_envs.items():
+                logger.info("attempting to update component='{}' to new version requirements".format(env))
+                b.add_component('envelope', component=env, check_label=False, **dict_env)
+
+                # TODO: this probably will fail once more than one contacts are
+                # supported, but will never need that for 2.0->2.1 since
+                # multiples aren't supported (yet) call b.set_hierarchy() to
+
+                # reset all hieararchy-dependent constraints (including
+                # pot<->requiv)
+                b.set_hierarchy()
+
+                primary = b.hierarchy.get_stars()[0]
+                b.flip_constraint('pot', component=env, solve_for='requiv@{}'.format(primary), check_nan=False)
+                b.set_value('pot', component=env, context='component', value=dict_env['pot'])
+                b.flip_constraint('requiv', component=primary, solve_for='pot', check_nan=False)
+
+            # reset all hieararchy-dependent constraints
+            b.set_hierarchy()
+
+            # mesh datasets: https://github.com/phoebe-project/phoebe2/pull/261, https://github.com/phoebe-project/phoebe2/pull/300
+            for dataset in b.filter(context='dataset', kind='mesh').datasets:
+                logger.info("attempting to update mesh dataset='{}' to new version requirements".format(dataset))
+                ps_mesh = b.filter(context='dataset', kind='mesh', dataset=dataset)
+                dict_mesh = _ps_dict(ps_mesh)
+                # NOTE: we will not remove (or update) the dataset from any existing models
+                b.remove_dataset(dataset, context=['dataset', 'constraint', 'compute'])
+                if len(b.filter(dataset=dataset, context='model')):
+                    logger.warning("existing model for dataset='{}' models={} will not be removed, but likely will not work with new plotting updates".format(dataset, b.filter(dataset=dataset, context='model').models))
+
+                b.add_dataset('mesh', dataset=dataset, check_label=False, **dict_mesh)
+
+            # vgamma definition: https://github.com/phoebe-project/phoebe2/issues/234
+            logger.info("updating vgamma to new version requirements")
+            b.set_value('vgamma', -1*b.get_value('vgamma'))
+
+            # remove phshift parameter: https://github.com/phoebe-project/phoebe2/commit/1fa3a4e1c0f8d80502101e1b1e750f5fb14115cb
+            logger.info("removing any phshift parameters for new version requirements")
+            b.remove_parameters_all(qualifier='phshift')
+
+            # colon -> long: https://github.com/phoebe-project/phoebe2/issues/211
+            logger.info("removing any colon parameters for new version requirements")
+            b.remove_parameters_all(qualifier='colon')
+
+            # make sure constraints are updated according to conf.interactive_constraints
+            b.run_delayed_constraints()
+
+        return b
+
+
 
     @classmethod
     def from_server(cls, bundleid, server='http://localhost:5555',
@@ -247,7 +360,7 @@ class Bundle(ParameterSet):
         return cls()
 
     @classmethod
-    def from_legacy(cls, filename, add_compute_legacy=False, add_compute_phoebe=True):
+    def from_legacy(cls, filename, add_compute_legacy=True, add_compute_phoebe=True):
         """Load a bundle from a PHOEBE 1.0 Legacy file.
 
         This is a constructor so should be called as:
@@ -257,6 +370,8 @@ class Bundle(ParameterSet):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Bundle` object
         """
+        logger.warning("importing from legacy is experimental until official 1.0 release")
+        filename = os.path.expanduser(filename)
         return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
     @classmethod
@@ -398,7 +513,7 @@ class Bundle(ParameterSet):
             self.remove_history()
 
         # TODO: add option for clear_models, clear_feedback
-
+        # NOTE: PS.save will handle os.path.expanduser
         return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
                                         compact=compact)
 
@@ -406,7 +521,8 @@ class Bundle(ParameterSet):
         """
         TODO: add docs
         """
-
+        logger.warning("exporting to legacy is experimental until official 1.0 release")
+        filename = os.path.expanduser(filename)
         return io.pass_to_legacy(self, filename)
 
 
@@ -580,39 +696,19 @@ class Bundle(ParameterSet):
 
         return "{}{:02d}".format(base, params+1)
 
-    def change_component(self, old_component, new_component):
-        """
-        Change the label of a component attached to the Bundle
+    def _rename_label(self, tag, old_value, new_value):
+        self._check_label(new_value)
 
-        :parameter str old_component: the current name of the component
-            (must exist)
-        :parameter str new_component: the desired new name of the component
-            (must not exist)
-        :return: None
-        :raises ValueError: if the new_component is forbidden
-        """
-        # TODO: raise error if old_component not found?
-
-        self._check_label(new_component)
-        # changing hierarchy must be called first since it needs to access
-        # the kind of old_component
-        if len([c for c in self.components if new_component in c]):
-            logger.warning("hierarchy may not update correctly with new component")
-        self.hierarchy.change_component(old_component, new_component)
-        for param in self.filter(component=old_component).to_list():
-            param._component = new_component
-        for param in self.filter(context='constraint').to_list():
+        for param in self.filter(check_visible=False, check_default=False, **{tag: old_value}).to_list():
+            setattr(param, '_{}'.format(tag), new_value)
+        for param in self.filter(context='constraint', check_visible=False, check_default=False).to_list():
             for k, v in param.constraint_kwargs.items():
-                if v == old_component:
-                    param._constraint_kwargs[k] = new_component
-        for param in self.filter(qualifier='include_times').to_list():
-            old_value = param._value
-            new_value = [v.replace('@{}'.format(old_component), '@{}'.format(new_component)) for v in old_value]
-            param._value = new_value
-
-        self._handle_dataset_selectparams()
-
-
+                if v == old_value:
+                    param._constraint_kwargs[k] = new_value
+        for param in self.filter(qualifier='include_times', check_visible=False, check_default=False).to_list():
+            old_param_value = param._value
+            new_param_value = [v.replace('@{}'.format(old_value), '@{}'.format(new_value)) for v in old_param_value]
+            param._value = new_param_value
 
     def get_setting(self, twig=None, **kwargs):
         """
@@ -904,7 +1000,30 @@ class Bundle(ParameterSet):
         # Handle inter-PS constraints
         starrefs = hier_param.get_stars()
 
+        # user_interactive_constraints = conf.interactive_constraints
+        # conf.interactive_constraints_off()
+
         for component in self.hierarchy.get_envelopes():
+            # we need two of the three [comp_env] + self.hierarchy.get_siblings_of(comp_env) to have constraints
+            existing_requiv_constraints = self.filter(constraint_func='requiv_to_pot', component=[component]+self.hierarchy.get_siblings_of(component))
+            if len(existing_requiv_constraints) == 2:
+                # do we need to rebuild these?
+                continue
+            elif len(existing_requiv_constraints)==0:
+                for component_requiv in self.hierarchy.get_siblings_of(component):
+                    pot_parameter = self.get_parameter(qualifier='pot', component=self.hierarchy.get_envelope_of(component_requiv), context='component')
+                    requiv_parameter = self.get_parameter(qualifier='requiv', component=component_requiv, context='component')
+                    if len(pot_parameter.constrained_by):
+                        solve_for = requiv_parameter.uniquetwig
+                    else:
+                        solve_for = pot_parameter.uniquetwig
+
+                    self.add_constraint(constraint.requiv_to_pot, component_requiv,
+                                        constraint=self._default_label('requiv_to_pot', context='constraint'),
+                                        solve_for=solve_for)
+            else:
+                raise NotImplementedError("expected 0 or 2 existing requiv_to_pot constraints")
+
             logger.debug('re-creating fillout_factor (contact) constraint for {}'.format(component))
             if len(self.filter(context='constraint',
                                constraint_func='fillout_factor',
@@ -943,7 +1062,7 @@ class Bundle(ParameterSet):
                                                        component=component)
                 self.remove_constraint(constraint_func='potential_contact_max',
                                        component=component)
-                self.add_constraint(constraint.potential_contact_min, component,
+                self.add_constraint(constraint.potential_contact_max, component,
                                     solve_for=constraint_param.constrained_parameter.uniquetwig,
                                     constraint=constraint_param.constraint)
             else:
@@ -1009,6 +1128,12 @@ class Bundle(ParameterSet):
                     # NOTE: pot_min and pot_max are handled above at the envelope level
                     logger.debug('re-creating requiv_max (contact) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
+                                       constraint_func='requiv_detached_max',
+                                       component=component)):
+                        # then we're changing from detached to contact so should remove the detached constraint first
+                        self.remove_constraint(constraint_func='requiv_detached_max', component=component)
+
+                    if len(self.filter(context='constraint',
                                        constraint_func='requiv_contact_max',
                                        component=component)):
                         constraint_param = self.get_constraint(constraint_func='requiv_contact_max',
@@ -1037,29 +1162,21 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.requiv_contact_min, component,
                                             constraint=self._default_label('requiv_min', context='constraint'))
 
-
-                    logger.debug('re-creating requiv_to_pot constraint for {}'.format(component))
+                else:
+                    # then we're in a detached/semi-detached system
+                    # let's make sure we remove any requiv_to_pot constraints
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_to_pot',
                                        component=component)):
-                        constraint_param = self.get_constraint(constraint_fun='requiv_to_pot',
-                                                               component=component)
-                        self.remove_constraint(constraint_func='requiv_to_pot',
-                                               component=component)
-                        self.add_constraint(constraint.requiv_to_pot, component,
-                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                            constraint=constraint_param.constraint)
-                    else:
-                        pot_parameter = self.get_parameter(qualifier='pot', component=self.hierarchy.get_envelope_of(component), context='component')
-                        requiv_parameter = self.get_parameter(qualifier='requiv', component=component, context='component')
-                        solve_for = pot_parameter.uniquetwig if self.hierarchy.get_primary_or_secondary(component) == 'primary' else requiv_parameter.uniquetwig
-                        self.add_constraint(constraint.requiv_to_pot, component,
-                                            constraint=self._default_label('requiv_to_pot', context='constraint'),
-                                            solve_for=solve_for)
+                        self.remove_constraint(constraint_func='requiv_to_pot', component=component)
 
-                else:
-                    # then we're in a detached/semi-detached system
                     logger.debug('re-creating requiv_max (detached) constraint for {}'.format(component))
+                    if len(self.filter(context='constraint',
+                                       constraint_func='requiv_contact_max',
+                                       component=component)):
+                        # then we're changing from contact to detached so should remove the detached constraint first
+                        self.remove_constraint(constraint_func='requiv_contact_max', component=component)
+
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_detached_max',
                                        component=component)):
@@ -1107,6 +1224,10 @@ class Bundle(ParameterSet):
                     else:
                         self.add_constraint(constraint.yaw, component,
                                             constraint=self._default_label('yaw', context='constraint'))
+
+        # if user_interactive_constraints:
+            # conf.interactive_constraints_on()
+            # self.run_delayed_constraints()
 
 
         redo_kwargs = {k: v for k, v in hier_param.to_dict().items()
@@ -1167,6 +1288,7 @@ class Bundle(ParameterSet):
         return self._hierarchy_param
 
     def _kwargs_checks(self, kwargs, additional_allowed_keys=[],
+                       additional_forbidden_keys=[],
                        warning_only=False):
         """
         """
@@ -1175,13 +1297,63 @@ class Bundle(ParameterSet):
                         ['skip_checks', 'check_default', 'check_visible'] +\
                         additional_allowed_keys
 
-        for key in kwargs.keys():
+        for k in additional_forbidden_keys:
+            allowed_keys.remove(k)
+
+        for key,value in kwargs.items():
             if key not in allowed_keys:
                 msg = "'{}' not a recognized kwarg".format(key)
                 if warning_only:
                     logger.warning(msg)
                 else:
                     raise KeyError(msg)
+
+            if isinstance(value, dict):
+                for k,v in value.items():
+                    self._kwargs_checks({'{}@{}'.format(key, k): v},
+                                        additional_allowed_keys=additional_allowed_keys+['{}@{}'.format(key, k)],
+                                        additional_forbidden_keys=additional_forbidden_keys,
+                                        warning_only=warning_only
+                                        )
+
+                continue
+
+            for param in self.filter(qualifier=key).to_list():
+                if hasattr(param, 'valid_selection'):
+                    if not param.valid_selection(value):
+                        msg = "{}={} not valid with choices={}".format(key, value, param.choices)
+                        if warning_only:
+                            logger.warning(msg)
+                        else:
+                            raise ValueError(msg)
+                elif hasattr(param, 'choices'):
+                    if value not in param.choices:
+                        msg = "{}={} not one of {}".format(key, value, param.choices)
+                        if warning_only:
+                            logger.warning(msg)
+                        else:
+                            raise ValueError(msg)
+
+                if hasattr(param, '_check_value'):
+                    try:
+                        value = param._check_value(value)
+                    except:
+                        msg = "'{}' not valid for {}".format(value, key)
+                        if warning_only:
+                            logger.warning(msg)
+                        else:
+                            raise ValueError(msg)
+
+                elif hasattr(param, '_check_type'):
+                    # NOTE: _check_value already called _check_type, thus the elif
+                    try:
+                        value = param._check_type(value)
+                    except:
+                        msg = "'{}' not valid for {}".format(value, key)
+                        if warning_only:
+                            logger.warning(msg)
+                        else:
+                            raise TypeError(msg)
 
     def run_checks(self, **kwargs):
         """
@@ -1206,6 +1378,10 @@ class Bundle(ParameterSet):
         for component in hier.get_stars():
             kind = hier.get_kind_of(component)
             comp_ps = self.get_component(component)
+
+            if not len(comp_ps):
+                return False, "component '{}' in the hierarchy is not in the bundle".format(component)
+
             parent = hier.get_parent_of(component)
             parent_ps = self.get_component(parent)
             if kind in ['star']:
@@ -1216,6 +1392,18 @@ class Bundle(ParameterSet):
                         if self.get_value(qualifier='syncpar', component=component, context='component', **kwargs) != 1.0:
                             return False,\
                                 'contact binaries must by synchronous, but syncpar@{}!=1'.format(component)
+
+                        if self.get_value(qualifier='ecc', component=parent, context='component', **kwargs) != 0.0:
+                            return False,\
+                                'contact binaries must by circular, but ecc@{}!=0'.format(component)
+
+                        if self.get_value(qualifier='pitch', component=component, context='component', **kwargs) != 0.0:
+                            return False,\
+                                'contact binaries must be aligned, but pitch@{}!=0'.format(component)
+
+                        if self.get_value(qualifier='yaw', component=component, context='component', **kwargs) != 0.0:
+                            return False,\
+                                'contact binaries must be aligned, but yaw@{}!=0'.format(component)
 
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
@@ -1229,11 +1417,15 @@ class Bundle(ParameterSet):
                             return False,\
                                 '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
 
+
                         requiv_min = comp_ps.get_value('requiv_min')
 
                         if np.isnan(requiv) or requiv <= requiv_min:
                             return False,\
                                  '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min)
+                        elif requiv <= requiv_min * 1.001:
+                            return False,\
+                                'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component)
 
                     else:
                         if requiv > requiv_max:
@@ -1308,30 +1500,41 @@ class Bundle(ParameterSet):
             elif ld_func in ['power'] and len(ld_coeffs)==4:
                 return True,
             else:
-                return False, "ld_coeffs='{}' inconsistent with ld_func='{}'.".format(ld_coeffs, ld_func)
+                return False, "ld_coeffs={} wrong length for ld_func='{}'.".format(ld_coeffs, ld_func)
 
         for component in self.hierarchy.get_stars():
             # first check ld_coeffs_bol vs ld_func_bol
-            ld_func = self.get_value(qualifier='ld_func_bol', component=component, context='component', check_visible=False, **kwargs)
-            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs)
+            ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', check_visible=False, **kwargs))
+            ld_coeffs = np.asarray(self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs))
             check = ld_coeffs_len(ld_func, ld_coeffs)
             if not check[0]:
                 return check
+
+            if ld_func != 'interp':
+                check = libphoebe.ld_check(ld_func, ld_coeffs)
+                if not check:
+                    return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
+
             for dataset in self.datasets:
                 if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
                     continue
-                ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs)
-                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
+                ld_func = str(self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs))
+                ld_coeffs = np.asarray(self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs))
                 if ld_coeffs is not None:
                     check = ld_coeffs_len(ld_func, ld_coeffs)
                     if not check[0]:
                         return check
 
+                if ld_func != 'interp':
+                    check = libphoebe.ld_check(ld_func, ld_coeffs)
+                    if not check:
+                        return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
+
                 if ld_func=='interp':
                     for compute in kwargs.get('computes', self.computes):
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         if atm != 'ck2004':
-                            return False, "ld_func='interp' only supported by atm='ck2004'."
+                            return False, "ld_func='interp' only supported by atm='ck2004'.  Either change atm@{} or ld_func@{}@{}".format(component, component, dataset)
 
         # mesh-consistency checks
         for compute in self.computes:
@@ -1473,9 +1676,52 @@ class Bundle(ParameterSet):
 
         :raises NotImplementedError: because this isn't implemented yet
         """
-        # TODO: don't forget to add_history
-        # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
-        raise NotImplementedError
+        self._kwargs_checks(kwargs)
+
+        # Let's avoid deleting ALL features from the matching contexts
+        if feature is None and not len(kwargs.items()):
+            raise ValueError("must provide some value to filter for features")
+
+        kwargs['feature'] = feature
+
+        # Let's avoid the possibility of deleting a single parameter
+        kwargs['qualifier'] = None
+
+        # Let's also avoid the possibility of accidentally deleting system
+        # parameters, etc
+        kwargs.setdefault('context', ['feature'])
+
+        self.remove_parameters_all(**kwargs)
+
+        self._add_history(redo_func='remove_feature',
+                          redo_kwargs=kwargs,
+                          undo_func=None,
+                          undo_kwargs={})
+
+        return
+
+    def remove_features_all(self):
+        """
+        Remove all features from the bundle
+        """
+        for feature in self.features:
+            self.remove_feature(feature=feature)
+
+    def rename_feature(self, old_feature, new_feature):
+        """
+        Change the label of a feature attached to the Bundle
+
+        :parameter str old_feature: the current name of the feature
+            (must exist)
+        :parameter str new_feature: the desired new name of the feature
+            (must not exist)
+        :return: None
+        :raises ValueError: if the new_feature is forbidden
+        """
+        # TODO: raise error if old_feature not found?
+
+        self._check_label(new_feature)
+        self._rename_label('feature', old_feature, new_feature)
 
     def add_spot(self, component=None, feature=None, **kwargs):
         """
@@ -1551,7 +1797,8 @@ class Bundle(ParameterSet):
                                               **{'context': 'component',
                                                  'kind': func.func_name}))
 
-        self._check_label(kwargs['component'])
+        if kwargs.pop('check_label', True):
+            self._check_label(kwargs['component'])
 
         params, constraints = func(**kwargs)
 
@@ -1592,7 +1839,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'component'
         return self.filter(**kwargs)
 
-    def remove_component(self, component=None, **kwargs):
+    def remove_component(self, component, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1600,9 +1847,38 @@ class Bundle(ParameterSet):
 
         :raises NotImplementedError: because this isn't implemented yet
         """
-        # TODO: don't forget to add_history
-        # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
-        raise NotImplementedError
+        # NOTE: run_checks will check if an entry is in the hierarchy but has no parameters
+        kwargs['component'] = component
+        # NOTE: we do not remove from 'model' by default
+        kwargs['context'] = ['component', 'constraint', 'dataset', 'compute']
+        self.remove_parameters_all(**kwargs)
+
+    def rename_component(self, old_component, new_component):
+        """
+        Change the label of a component attached to the Bundle
+
+        :parameter str old_component: the current name of the component
+            (must exist)
+        :parameter str new_component: the desired new name of the component
+            (must not exist)
+        :return: None
+        :raises ValueError: if the new_component is forbidden
+        """
+        # TODO: raise error if old_component not found?
+
+        # even though _rename_tag will call _check_label again, we should
+        # do it first so that we can raise any errors BEFORE we start messing
+        # with the hierarchy
+        self._check_label(new_component)
+        # changing hierarchy must be called first since it needs to access
+        # the kind of old_component
+        if len([c for c in self.components if new_component in c]):
+            logger.warning("hierarchy may not update correctly with new component")
+        self.hierarchy.rename_component(old_component, new_component)
+
+        self._rename_label('component', old_component, new_component)
+
+        self._handle_dataset_selectparams()
 
     def add_orbit(self, component=None, **kwargs):
         """
@@ -1866,7 +2142,8 @@ class Bundle(ParameterSet):
                                               **{'context': 'dataset',
                                                  'kind': func.func_name}))
 
-        self._check_label(kwargs['dataset'])
+        if kwargs.pop('check_label', True):
+            self._check_label(kwargs['dataset'])
 
         kind = func.func_name
 
@@ -1980,12 +2257,18 @@ class Bundle(ParameterSet):
         for k, v in kwargs.items():
             if isinstance(v, dict):
                 for component, value in v.items():
-                    self.set_value_all(qualifier=k,
-                                       dataset=kwargs['dataset'],
-                                       component=component,
-                                       value=value,
-                                       check_visible=False,
-                                       ignore_none=True)
+                    logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], component, value))
+                    try:
+                        self.set_value_all(qualifier=k,
+                                           dataset=kwargs['dataset'],
+                                           component=component,
+                                           value=value,
+                                           check_visible=False,
+                                           ignore_none=True)
+                    except:
+                        self.remove_dataset(dataset=kwargs['dataset'])
+                        raise ValueError("could not set value for {}={}, dataset has not been added".format(k, value))
+
             elif k in ['dataset']:
                 pass
             else:
@@ -2006,13 +2289,16 @@ class Bundle(ParameterSet):
                     components_ = components+['_default']
 
                 logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], components_, v))
-                self.set_value_all(qualifier=k,
-                                   dataset=kwargs['dataset'],
-                                   component=components_,
-                                   value=v,
-                                   check_visible=False,
-                                   ignore_none=True)
-
+                try:
+                    self.set_value_all(qualifier=k,
+                                       dataset=kwargs['dataset'],
+                                       component=components_,
+                                       value=v,
+                                       check_visible=False,
+                                       ignore_none=True)
+                except:
+                    self.remove_dataset(dataset=kwargs['dataset'])
+                    raise ValueError("could not set value for {}={}, dataset has not been added".format(k, v))
 
 
         redo_kwargs = deepcopy({k:v if not isinstance(v, nparray.ndarray) else v.to_json() for k,v in kwargs.items()})
@@ -2122,11 +2408,39 @@ class Bundle(ParameterSet):
 
         return
 
+    def remove_datasets_all(self):
+        """
+        Remove all datasets from the bundle
+        """
+        for dataset in self.datasets:
+            self.remove_dataset(dataset=dataset)
+
+    def rename_dataset(self, old_dataset, new_dataset):
+        """
+        Change the label of a dataset attached to the Bundle
+
+        :parameter str old_dataset: the current name of the dataset
+            (must exist)
+        :parameter str new_dataset: the desired new name of the dataset
+            (must not exist)
+        :return: None
+        :raises ValueError: if the new_dataset is forbidden
+        """
+        # TODO: raise error if old_component not found?
+
+        self._check_label(new_dataset)
+        self._rename_label('dataset', old_dataset, new_dataset)
+        self._handle_dataset_selectparams()
+
+
     def enable_dataset(self, dataset=None, **kwargs):
         """
         Enable a 'dataset'.  Datasets that are enabled will be computed
         during :meth:`run_compute` and included in the cost function
         during :meth:`run_fitting`.
+
+        If compute is not provided, the dataset will be enabled across all
+        compute options.
 
         :parameter str dataset: name of the dataset
         :parameter **kwargs: any other tags to do the filter
@@ -2134,10 +2448,10 @@ class Bundle(ParameterSet):
         :return: :class:`phoebe.parameters.parameters.ParameterSet`
             of the enabled dataset
         """
-        kwargs['context'] = 'dataset'
+        kwargs['context'] = 'compute'
         kwargs['dataset'] = dataset
         kwargs['qualifier'] = 'enabled'
-        self.set_value(value=True, **kwargs)
+        self.set_value_all(value=True, **kwargs)
 
         self._add_history(redo_func='enable_dataset',
                           redo_kwargs={'dataset': dataset},
@@ -2152,16 +2466,19 @@ class Bundle(ParameterSet):
         during :meth:`run_compute` and included in the cost function
         during :meth:`run_fitting`.
 
+        If compute is not provided, the dataset will be disabled across all
+        compute options.
+
         :parameter str dataset: name of the dataset
         :parameter **kwargs: any other tags to do the filter
             (except dataset or context)
         :return: :class:`phoebe.parameters.parameters.ParameterSet`
             of the disabled dataset
         """
-        kwargs['context'] = 'dataset'
+        kwargs['context'] = 'compute'
         kwargs['dataset'] = dataset
         kwargs['qualifier'] = 'enabled'
-        self.set_value(value=False, **kwargs)
+        self.set_value_all(value=False, **kwargs)
 
         self._add_history(redo_func='disable_dataset',
                           redo_kwargs={'dataset': dataset},
@@ -2276,7 +2593,10 @@ class Bundle(ParameterSet):
                           undo_kwargs={'uniqueid': constraint_param.uniqueid})
 
         # we should run it now to make sure everything is in-sync
-        self.run_constraint(uniqueid=constraint_param.uniqueid)
+        if conf.interactive_constraints:
+            self.run_constraint(uniqueid=constraint_param.uniqueid)
+        else:
+            self._delayed_constraints.append(constraint_param.uniqueid)
 
         return params
         # return self.get_constraint(**metawargs)
@@ -2349,7 +2669,7 @@ class Bundle(ParameterSet):
             (except twig or context)
 
         """
-        self._kwargs_checks(kwargs)
+        self._kwargs_checks(kwargs, additional_allowed_keys=['check_nan'])
 
         kwargs['twig'] = twig
         redo_kwargs = deepcopy(kwargs)
@@ -2358,6 +2678,9 @@ class Bundle(ParameterSet):
         changed_params = self.run_delayed_constraints()
 
         param = self.get_constraint(**kwargs)
+
+        if kwargs.pop('check_nan', True) and np.any(np.isnan([p.get_value() for p in param.vars.to_list()])):
+            raise ValueError("cannot flip constraint while the value of {} is nan".format([p.twig for p in param.vars.to_list() if np.isnan(p.get_value())]))
 
         if solve_for is None:
             return param
@@ -2442,6 +2765,54 @@ class Bundle(ParameterSet):
         self._delayed_constraints = []
         return list(set(changes))
 
+    def compute_pblums(self, compute=None, **kwargs):
+        """
+        Compute the passband luminosities that will be applied to the system,
+        following all coupling, etc, as well as all relevant compute options
+        (ntriangles, distortion_method, etc).  The exposed passband luminosities
+        (and any coupling) are computed at t0@system.
+
+        This method is only for convenience and will be recomputed internally
+        within run_compute.  Alternatively, you can create a mesh dataset
+        and request any specific pblum to be exposed (per-time).
+
+        :parameter str compute: label of the compute options (note required if
+            only one is attached to the bundle)
+        :parameter component: (optional) label of the component(s) requested
+        :type component: str or list of strings
+        :parameter dataset: (optional) label of the dataset(s) requested
+        :type dataset: str or list of strings
+        :parameter component: (optional) label of the component(s) requested
+        :type component: str or list of strings
+        :return: dictionary with keys <component>@<dataset> and computed pblums
+            as values (as quantity objects, default units of W)
+
+        """
+        datasets = kwargs.pop('dataset', self.datasets)
+        components = kwargs.pop('component', self.components)
+
+        # don't allow things like model='mymodel', etc
+        forbidden_keys = parameters._meta_fields_filter
+        self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
+
+        if compute is None:
+            if len(self.computes)==1:
+                compute = self.computes[0]
+            else:
+                raise ValueError("must provide compute")
+
+        system = backends.PhoebeBackend()._create_system_and_compute_pblums(self, compute, **kwargs)
+
+        pblums = {}
+        for component, star in system.items():
+            if component not in components:
+                continue
+            for dataset in star._pblum_scale.keys():
+                if dataset not in datasets:
+                    continue
+                pblums["{}@{}".format(component, dataset)] = float(star.compute_luminosity(dataset)) * u.W
+
+        return pblums
 
     def add_compute(self, kind=compute.phoebe, **kwargs):
         """
@@ -2523,20 +2894,44 @@ class Bundle(ParameterSet):
 
     def remove_compute(self, compute, **kwargs):
         """
-        [NOT IMPLEMENTED]
-        Remove a 'constraint' from the bundle
+        Remove a 'compute' from the bundle
 
-        :parameter str twig: twig to filter for the compute options
+        :parameter str compute: name of the compute options
         :parameter **kwargs: any other tags to do the filter
             (except twig or context)
         :raise NotImplementedError: because it isn't
         """
-        # TODO: don't forget add_history
-        raise NotImplementedError
+        kwargs['compute'] = compute
+        kwargs['context'] = 'comute'
+        self.remove_parameters_all(**kwargs)
+
+    def remove_computes_all(self):
+        """
+        Remove all computes from the bundle
+        """
+        for compute in self.computes:
+            self.remove_compute(compute)
+
+    def rename_compute(self, old_compute, new_compute):
+        """
+        Change the label of a compute attached to the Bundle
+
+        :parameter str old_compute: the current name of the compute options
+            (must exist)
+        :parameter str new_compute: the desired new name of the compute options
+            (must not exist)
+        :return: None
+        :raises ValueError: if the new_compute is forbidden
+        """
+        # TODO: raise error if old_compute not found?
+
+        self._check_label(new_compute)
+        self._rename_label('compute', old_compute, new_compute)
+
 
     @send_if_client
     def run_compute(self, compute=None, model=None, detach=False,
-                    animate=False, times=None, **kwargs):
+                    times=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset using
         a specified set of compute options.
@@ -2572,18 +2967,6 @@ class Bundle(ParameterSet):
             :meth:`phoebe.parameters.parameters.JobParameter` will then contain
             the necessary information to pull the results from the server at anytime
             in the future.
-        :parameter animate: [EXPERIMENTAL] information to send to :meth:`animate`
-            while the synthetics are being built.  If not False (in which case
-            live animation will not be done), animate should be a dictionary or
-            list of dictionaries and a new frame will be displayed and plotted
-            as they are computed.  This really only makes sense for backends
-            that compute per-time rather than per-dataset.  Note: animation
-            may significantly slow down the time of run_compute, especially
-            for a large number of time-points or if meshes are being stored/plotted.
-            Also note: animate will obviously be ignored if detach=True, this
-            isn't magic.  NOTE: fixed_limits are not supported from run_compute,
-            axes limits will be updated each frame, but all colorlimits will
-            be determined per-frame and will not be constant across the animation.
         :parameter list times: [EXPERIMENTAL] override the times at which to compute the model.
             NOTE: this only (temporarily) replaces the time array for datasets
             with times provided (ie empty time arrays are still ignored).  So if
@@ -2659,7 +3042,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
+        self._kwargs_checks(kwargs, ['skip_checks', 'jobid'])
 
         if not kwargs.get('skip_checks', False):
             passed, msg = self.run_checks(computes=computes, **kwargs)
@@ -2686,12 +3069,13 @@ class Bundle(ParameterSet):
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
-        if detach and backends._use_mpi:
+        if detach and mpi.within_mpirun:
             logger.warning("cannot detach when within mpirun, ignoring")
             detach = False
 
-        if (detach or conf.mpi) and not backends._use_mpi:
-            logger.warning("detach support is EXPERIMENTAL")
+        if (detach or mpi.enabled) and not mpi.within_mpirun:
+            if detach:
+                logger.warning("detach support is EXPERIMENTAL")
 
             if times is not None:
                 # TODO: support overriding times with detached - issue here is
@@ -2716,13 +3100,13 @@ class Bundle(ParameterSet):
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
             compute_kwargs = kwargs.items()+[('compute', compute), ('model', model)]
-            compute_kwargs_string = ','.join(["{}=\'{}\'".format(k,v) for k,v in compute_kwargs])
+            compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(v) if isinstance(v, str) else v) for k,v in compute_kwargs])
             f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
             f.write("model_ps.save('_{}.out', incl_uniqueid=True)\n".format(jobid))
             f.close()
 
             script_fname = os.path.abspath(script_fname)
-            cmd = conf.detach_cmd.format(script_fname)
+            cmd = mpi.detach_cmd.format(script_fname)
             # TODO: would be nice to catch errors caused by the detached script...
             # but that would probably need to be the responsibility of the
             # jobparam to return a failed status and message
@@ -2757,61 +3141,12 @@ class Bundle(ParameterSet):
                 raise KeyError("could not recognize backend from compute: {}".format(compute))
 
             logger.info("running {} backend to create '{}' model".format(computeparams.kind, model))
-            compute_func = getattr(backends, computeparams.kind)
+            compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
+            # compute_func = getattr(backends, computeparams.kind)
 
             metawargs = {'compute': compute, 'model': model, 'context': 'model'}  # dataset, component, etc will be set by the compute_func
 
-            if animate:
-                # handle setting defaults from kwargs to each plotting call
-                compute_generator = compute_func(self, compute, as_generator=True, times=times, **kwargs)
-
-                # In order to build the first frame and initialize the animation,
-                # we'll iterate the generator once (ie compute the first time-step)
-                ps_tmp, time = next(compute_generator)
-                ps_tmp.set_meta(**metawargs) # TODO: is this necessary?
-
-                # Now we'll initialize the figure and send the generator to the
-                # animator.  The animator will then handle looping through the
-                # rest of the generator to finish computing the synthetic
-                # model.
-                plotting_args = parameters._parse_plotting_args(animate)
-                for plot_args in plotting_args:
-                    # live-plotting doesn't support highlight (because time
-                    # array is already filled and interpolation will fail)
-
-                    # TODO: make this work to be defaulted to True (current
-                    # problem is that time array is prepopulated)
-                    plot_args['highlight'] = False
-                    # plot_args['uncover'] = False
-
-                anim, ao = mpl_animate.animate(self-self.filter(context='model'),
-                                               init_ps=self-self.filter(context='model')+ps_tmp,
-                                               init_time=time,
-                                               frames=compute_generator,
-                                               fixed_limits=False,
-                                               plotting_args=plotting_args,
-                                               metawargs=metawargs)
-
-                plt.show()
-
-                # NOTE: this will not finish if the mpl window is closed before
-                # all times are filled
-
-                # TODO: can we make sure the generator is finished, and if it
-                # isn't complete the loop rather than access ao.latest_frame?
-                # Or alternatively, if we didn't just copy the time array we
-                # could leave an "incomplete" model that wouldn't fail future
-                # plotting
-
-                # assuming the animation was allowed to complete, the ao object
-                # holds the last yielded parameters and time.  Let's take the
-                # params here so that they can be attached to the bundle.
-                params, last_time = ao.latest_frame
-
-            else:
-                # comma in the following line is necessary because compute_func
-                # is /technically/ a generator (it yields instead of returns)
-                params, = compute_func(self, compute, times=times, **kwargs)
+            params = compute_class().run(self, compute, times=times, **kwargs)
 
 
             # average over any exposure times before attaching parameters
@@ -2897,6 +3232,30 @@ class Bundle(ParameterSet):
         kwargs['model'] = model
         kwargs['context'] = 'model'
         self.remove_parameters_all(**kwargs)
+
+    def remove_models_all(self):
+        """
+        Remove all models from the bundle
+        """
+        for model in self.models:
+            self.remove_model(model=model)
+
+    def rename_model(self, old_model, new_model):
+        """
+        Change the label of a model attached to the Bundle
+
+        :parameter str old_model: the current name of the model
+            (must exist)
+        :parameter str new_model: the desired new name of the model
+            (must not exist)
+        :return: None
+        :raises ValueError: if the new_model is forbidden
+        """
+        # TODO: raise error if old_feature not found?
+
+        self._check_label(new_model)
+        self._rename_label('model', old_model, new_model)
+
 
     # TODO: ability to copy a posterior to a prior or have a prior reference an attached posterior (for drawing in fitting)
     def add_prior(self, twig=None, **kwargs):

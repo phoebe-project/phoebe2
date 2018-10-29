@@ -20,11 +20,15 @@ def test_binary(plot=False):
     b.set_value_all('atm', 'extern_planckint')
 
     # set matching limb-darkening, both bolometric and passband
-    b.set_value_all('ld_func_bol', 'logarithmic')
-    b.set_value_all('ld_coeffs_bol', [0.0, 0.0])
+    b.set_value_all('ld_func_bol', 'linear')
+    b.set_value_all('ld_coeffs_bol', [0.0])
 
-    b.set_value_all('ld_func', 'logarithmic')
-    b.set_value_all('ld_coeffs', [0.0, 0.0])
+    b.set_value_all('ld_func', 'linear')
+    b.set_value_all('ld_coeffs', [0.0])
+
+    #turn off albedos (legacy requirement)
+    b.set_value_all('irrad_frac_refl_bol',  0.0)
+
 
     # 0.51 starts to overlap
     for ecc in [0.3, 0.505]:
@@ -41,9 +45,7 @@ def test_binary(plot=False):
         if plot:
             print "ecc: {} max (rel): {}".format(ecc , abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 
-            b.plot(dataset='lc01')
-            plt.legend()
-            plt.show()
+            b.plot(dataset='lc01', show=True)
 
         assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3 if ecc < 0.5 else 5e-3, atol=0.))
 

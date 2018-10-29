@@ -40,7 +40,9 @@ class Figure(object):
 
     @property
     def axes(self):
-        return _axes.AxesGroup(self._axes)
+        axorders = [ax.axorder for ax in self._axes]
+        axes = [self._axes[i] for i in np.argsort(axorders)]
+        return _axes.AxesGroup(axes)
 
     def add_axes(self, *axes):
         if len(axes) == 0:
@@ -114,6 +116,10 @@ class Figure(object):
         """
 
         tight_layout = kwargs.pop('tight_layout', True)
+        draw_sidebars = kwargs.pop('draw_sidebars', True)
+        draw_title = kwargs.pop('draw_title', True)
+        subplot_grid = kwargs.pop('subplot_grid', None)
+
         show = kwargs.pop('show', False)
         save = kwargs.pop('save', False)
 
@@ -122,7 +128,11 @@ class Figure(object):
 
         if show or save:
             self.reset_draw()
-            return self.draw(tight_layout=tight_layout, show=show, save=save)
+            return self.draw(tight_layout=tight_layout,
+                             draw_sidebars=draw_sidebars,
+                             draw_title=draw_title,
+                             subplot_grid=subplot_grid,
+                             show=show, save=save)
 
     @property
     def meshes(self):
@@ -134,6 +144,9 @@ class Figure(object):
         """
 
         tight_layout = kwargs.pop('tight_layout', True)
+        draw_sidebars = kwargs.pop('draw_sidebars', True)
+        draw_title = kwargs.pop('draw_title', True)
+        subplot_grid = kwargs.pop('subplot_grid', None)
         show = kwargs.pop('show', False)
         save = kwargs.pop('save', False)
 
@@ -142,7 +155,11 @@ class Figure(object):
         if show or save:
 
             self.reset_draw()
-            return self.draw(tight_layout=tight_layout, show=show, save=save)
+            return self.draw(tight_layout=tight_layout,
+                             draw_sidebars=draw_sidebars,
+                             draw_title=draw_title,
+                             subplot_grid=None,
+                             show=show, save=save)
 
     # def show(self):
     #     plt.show()
@@ -154,8 +171,12 @@ class Figure(object):
         fig.clf()
 
     def draw(self, fig=None, i=None, calls=None,
-             tight_layout=True, draw_sidebars=True,
-             show=False, save=False):
+             tight_layout=True,
+             draw_sidebars=True,
+             draw_title=True,
+             subplot_grid=None,
+             show=False, save=False,
+             in_animation=False):
 
         fig = self._get_backend_object(fig)
         callbacks._connect_to_autofig(self, fig)
@@ -170,7 +191,7 @@ class Figure(object):
             if axesi._backend_object not in fig.axes:
                 # then axes doesn't have a subplot yet.  Adding one will also
                 # shift the location of all axes already drawn/created.
-                ax = axesi.append_subplot(fig=fig)
+                ax = axesi.append_subplot(fig=fig, subplot_grid=subplot_grid)
                 # if axesi._backend_object already existed (but maybe on a
                 # different figure) it will be reset on the draw call below.
             else:
@@ -178,8 +199,10 @@ class Figure(object):
                 # allow it to default to that instance
                 ax = None
 
-            axesi.draw(ax=ax, i=i, calls=calls, draw_sidebars=False,
-                       show=False, save=False)
+            axesi.draw(ax=ax, i=i, calls=calls,
+                       draw_sidebars=False,
+                       draw_title=draw_title,
+                       show=False, save=False, in_animation=in_animation)
 
             self._backend_artists += axesi._get_backend_artists()
 
@@ -205,6 +228,8 @@ class Figure(object):
     def animate(self, fig=None, i=None,
                 tight_layout=False,
                 draw_sidebars=True,
+                draw_title=True,
+                subplot_grid=None,
                 show=False, save=False, save_kwargs={}):
 
         if tight_layout:
@@ -223,7 +248,9 @@ class Figure(object):
 
         ao = _mpl_animate.Animation(self,
                                     tight_layout=tight_layout,
-                                    draw_sidebars=draw_sidebars)
+                                    draw_sidebars=draw_sidebars,
+                                    draw_title=draw_title,
+                                    subplot_grid=subplot_grid)
 
         anim = animation.FuncAnimation(ao.mplfig, ao, fargs=(),\
                 init_func=ao.anim_init, frames=i, interval=interval,\

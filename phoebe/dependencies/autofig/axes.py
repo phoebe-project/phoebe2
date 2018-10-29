@@ -83,7 +83,9 @@ class Axes(object):
         self._class = 'Axes' # just to avoid circular import in order to use isinstance
 
         self._figure = None
-        self._projection = kwargs.pop('projection', None)
+        self.projection = kwargs.pop('projection', None)
+        self.legend = kwargs.pop('legend', False)
+        self.legend_kwargs = kwargs.pop('legend_kwargs', {})
 
         self._backend_object = None
         self._backend_artists = []
@@ -94,6 +96,10 @@ class Axes(object):
         self._linestylecycler = cyclers.MPLLinestyleCycler()
 
         self._calls = []
+
+        self.title = kwargs.pop('title', None)
+        self.axorder = kwargs.pop('axorder', None)
+        self.axpos = kwargs.pop('axpos', None)
 
         self._i = AxDimensionI(self, **kwargs)
         self._x = AxDimensionX(self, **kwargs)
@@ -188,6 +194,89 @@ class Axes(object):
             projection = None
 
         self._projection = projection
+
+    @property
+    def legend(self):
+        return self._legend
+
+    @legend.setter
+    def legend(self, legend):
+        if not isinstance(legend, bool):
+            raise TypeError("legend must be of type bool (send kwargs to legend_kwargs)")
+
+        self._legend = legend
+
+    @property
+    def legend_kwargs(self):
+        return self._legend_kwargs
+
+    @legend_kwargs.setter
+    def legend_kwargs(self, legend_kwargs):
+        if not isinstance(legend_kwargs, dict):
+            raise TypeError("legend_kwargs must by of type dict")
+
+        self._legend_kwargs = legend_kwargs
+
+    @property
+    def axorder(self):
+        if self._axorder is None:
+            if self._figure is not None:
+                axorders = [ax._axorder for ax in self._figure._axes if ax._axorder is not None]
+                if len(axorders):
+                    return max(axorders)+1
+                else:
+                    return 0
+            else:
+                return 0
+
+        return self._axorder
+
+    @axorder.setter
+    def axorder(self, axorder):
+        if axorder is None:
+            self._axorder = None
+
+            return
+
+        if not isinstance(axorder, int):
+            raise TypeError("axorder must be of type int")
+
+        self._axorder = axorder
+
+    @property
+    def axpos(self):
+        return self._axpos
+
+    @axpos.setter
+    def axpos(self, axpos):
+        if axpos is None:
+            self._axpos = axpos
+
+            return
+
+        if isinstance(axpos, tuple) and len(axpos) == 3 and np.all(isinstance(ap, int) for ap in axpos):
+            self._axpos = axpos
+
+        elif isinstance(axpos, int) and axpos >= 100 and axpos < 1000:
+            self._axpos = (int(axpos/100), int(axpos/10 % 10), int(axpos % 10))
+
+        else:
+            raise ValueError("axpos must be of type int or tuple between 100 and 999")
+
+    @property
+    def title(self):
+        return self._title
+
+    @title.setter
+    def title(self, title):
+        if title is None:
+            self._title = None
+            return
+
+        if not isinstance(title, str):
+            raise TypeError("title must be of type str or None")
+
+        self._title = title
 
     @property
     def i(self):
@@ -308,6 +397,21 @@ class Axes(object):
             return True, ''
 
         msg = []
+
+        if not _consistent_allow_none(call._axorder, self._axorder):
+            msg.append('inconsistent axorder, {} != {}'.format(call.axorder, self.axorder))
+
+        if not _consistent_allow_none(call._axpos, self._axpos):
+            msg.append('inconsistent axpos, {} != {}'.format(call.axpos, self.axpos))
+
+        if call._axorder == self._axorder and call._axorder is not None:
+            # then despite other conflicts, attempt to put on same axes
+            return True, ''
+
+        if call._axpos == self._axpos and call._axpos is not None:
+            # then despite other conflicts, attempt to put on same axes
+            return True, ''
+
         # TODO: include s, c, fc, ec, etc and make these checks into loops
         if call.x.unit.physical_type != self.x.unit.physical_type:
             msg.append('inconsitent xunit, {} != {}'.format(call.x.unit, self.x.unit))
@@ -320,6 +424,9 @@ class Axes(object):
         if call.i.is_reference or self.i.is_reference:
             if call.i.reference != self.i.reference:
                 msg.append('inconsistent i reference, {} != {}'.format(call.i.reference, self.i.reference))
+
+        if not _consistent_allow_none(call.title, self.title):
+            msg.append('inconsistent axes title, {} != {}'.format(call.title, self.title))
 
         # here we send the protected _label so that we get None instead of empty string
         if not _consistent_allow_none(call.x._label, self.x._label):
@@ -431,6 +538,12 @@ class Axes(object):
 
                 self.i.reference = call.i.reference
 
+            if self._axorder is None:
+                self.axorder = call.axorder
+
+            if self._axpos is None:
+                self.axpos = call.axpos
+
             # either way, fill in any missing labels - first set instance
             # will stick.  We check the protected underscored version to have
             # access to None instead of the empty string.
@@ -440,6 +553,10 @@ class Axes(object):
                 self.y.label = call.y._label
             if self.z._label is None:
                 self.z.label = call.z._label
+
+            # also set the title, setting the first instance
+            if self.title is None:
+                self.title = call.title
 
             # append the set props to the prop cycler.  Any prop that is None
             # will then request a temporary unused value from the prop cycler
@@ -471,6 +588,10 @@ class Axes(object):
                 self.pad_aspect = call.kwargs.pop('pad_aspect')
             if 'projection' in call.kwargs.keys():
                 self.projection = call.kwargs.pop('projection')
+            if 'legend' in call.kwargs.keys():
+                self.legend = call.kwargs.pop('legend')
+            if 'legend_kwargs' in call.kwargs.keys():
+                self.legend_kwargs = call.kwargs.pop('legend_kwargs')
             if 'elev' in call.kwargs.keys():
                 self.elev.value = call.kwargs.pop('elev')
             if 'azim' in call.kwargs.keys():
@@ -513,7 +634,7 @@ class Axes(object):
                     # remove from the call.kwargs so it isn't passed on to MPL
                     del call.kwargs[original_k]
 
-    def append_subplot(self, fig=None):
+    def append_subplot(self, fig=None, subplot_grid=None):
         def determine_grid(N):
             cols = np.floor(np.sqrt(N))
             rows = np.ceil(float(N)/cols) if cols > 0 else 1
@@ -524,20 +645,40 @@ class Axes(object):
 
         N = len(fig.axes)
 
+        if subplot_grid is not None:
+            # do type checks
+            if not isinstance(subplot_grid, tuple):
+                raise TypeError("subplot_grid must be tuple of length 2 (nrows [int], ncols [int])")
+            if len(subplot_grid) != 2:
+                raise ValueError("subplot_grid must be tuple of length 2 (nrows [int], ncols [int])")
+            if not np.all([isinstance(s, int) for s in subplot_grid]):
+                raise ValueError("subplot_grid must be tuple of length 2 (nrows [int], ncols [int])")
+
         # we'll reset the layout later anyways
         ax_new = fig.add_subplot(1,N+1,N+1, projection=self._projection)
 
         axes = fig.axes
         N = len(axes)
 
-        rows, cols = determine_grid(N)
+        ind = None
+        if self.axpos is not None:
+            rows, cols, ind = self.axpos
+        elif subplot_grid is None:
+            rows, cols = determine_grid(N)
+        elif (isinstance(subplot_grid, list) or isinstance(subplot_grid, tuple)) and len(subplot_grid)==2:
+            rows, cols = subplot_grid
+        else:
+            raise TypeError("subplot_grid must be None or tuple/list of length 2 (rows/cols)")
 
-        for i,ax in enumerate(axes):
-            try:
-                ax.change_geometry(rows, cols, i+1)
-            except AttributeError:
-                # colorbars and sizebars won't be able to change geometry
-                pass
+        if ind is None:
+            for i,ax in enumerate(axes):
+                try:
+                    ax.change_geometry(rows, cols, i+1)
+                except AttributeError:
+                    # colorbars and sizebars won't be able to change geometry
+                    pass
+        else:
+            ax_new.change_geometry(rows, cols, ind)
 
         ax = self._get_backend_object(ax_new)
         self._backend_artists = []
@@ -648,7 +789,9 @@ class Axes(object):
 
     def draw(self, ax=None, i=None, calls=None,
              draw_sidebars=True,
-             show=False, save=False):
+             draw_title=True,
+             show=False, save=False,
+             in_animation=False):
 
         ax = self._get_backend_object(ax)
 
@@ -656,7 +799,11 @@ class Axes(object):
         if self.equal_aspect:
             aspect = 'equal'
             if self.pad_aspect:
-                adjustable = 'datalim'
+                if in_animation:
+                    print("WARNING: pad_aspect not supported for animations, ignoring")
+                    adjustable = 'box'
+                else:
+                    adjustable = 'datalim'
             else:
                 adjustable = 'box'
 
@@ -682,6 +829,9 @@ class Axes(object):
         if draw_sidebars:
             self.draw_sidebars(ax=ax, i=i)
 
+        if draw_title and self.title is not None:
+            ax.set_title(self.title)
+
         axes_3d = isinstance(ax, Axes3D)
 
         ax.set_xlabel(self.x.label_with_units)
@@ -689,14 +839,24 @@ class Axes(object):
         if axes_3d:
             ax.set_zlabel(self.z.label_with_units)
 
-        ax.set_xlim(*self.x.get_lim(i=i))
-        ax.set_ylim(*self.y.get_lim(i=i))
+        xlim = self.x.get_lim(i=i)
+        if not np.any(np.isnan(xlim)):
+            ax.set_xlim(xlim)
+        ylim = self.y.get_lim(i=i)
+        if not np.any(np.isnan(ylim)):
+            ax.set_ylim(ylim)
+
         if axes_3d:
-            ax.set_zlim(*self.z.get_lim(i=i))
+            zlim = self.z.get_lim(i=i)
+            if not np.any(np.isnan(zlim)):
+                ax.set_zlim(zlim)
 
             elev_current = self.elev.get_value(i=i)
             azim_current = self.azim.get_value(i=i)
             ax.view_init(elev_current, azim_current)
+
+        if self.legend:
+            plt.legend(**self.legend_kwargs)
 
         if show:
             plt.show()
@@ -1011,6 +1171,9 @@ class AxDimension(AxArray):
                 lim[0] -= rang*pad
             if not fixed_max:
                 lim[1] += rang*pad
+
+        if np.nan in lim:
+            return (None, None)
 
         return tuple(lim)
 

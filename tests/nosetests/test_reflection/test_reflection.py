@@ -53,11 +53,7 @@ def test_binary(plot=False):
             # phoebe2_maxintensrel = b.get_value('intens_norm_rel', component='primary').max()
             # print "alb={} phoebe1.max={} phoebe2.max={}, phoebe2.maxintensabs={} phoebe2.maxintensrel={}".format(alb, phoebe1_val.max(), phoebe2_val.max(), phoebe2_maxintensabs, phoebe2_maxintensrel)
 
-            b.plot(dataset='lc01')
-            plt.legend()
-            plt.title("alb = {}".format(alb))
-            plt.ylim(1.96, 2.02)
-            plt.show()
+            b.plot(dataset='lc01', ylim=(1.96, 2.02), show=True)
 
         assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
 
@@ -107,11 +103,7 @@ def test_contact(plot=False):
             # phoebe2_maxintensrel = b.get_value('intens_norm_rel', component='primary').max()
             # print "alb={} phoebe1.max={} phoebe2.max={}, phoebe2.maxintensabs={} phoebe2.maxintensrel={}".format(alb, phoebe1_val.max(), phoebe2_val.max(), phoebe2_maxintensabs, phoebe2_maxintensrel)
 
-            b.plot(dataset='lc01')
-            plt.legend()
-            plt.title("alb = {}".format(alb))
-            # plt.ylim(1.96, 2.02)
-            plt.show()
+            b.plot(dataset='lc01', show=True)
 
         # this is quite a low rtol, but our reflection is more robust because
         # each "half" of the envelope can reflect with itself, whereas WD

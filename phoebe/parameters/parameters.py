@@ -69,11 +69,11 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
     try:
         from phoebe.dependencies import autofig
     except (ImportError, TypeError):
-        _use_mpl = False
+        _use_autofig = False
     else:
-        _use_mpl = True
+        _use_autofig = True
 else:
-    _use_mpl = False
+    _use_autofig = False
 
 import logging
 logger = logging.getLogger("PARAMETERS")
@@ -118,19 +118,61 @@ _forbidden_labels += ['protomesh', 'pbmesh']
 _forbidden_labels += ['component']
 _forbidden_labels += ['bol']
 
+
+
+# we also want to forbid any possible qualifiers
+# from system:
+_forbidden_labels = ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma']
+
+# from setting:
+_forbidden_labels = ['phoebe_version', 'log_history', 'dict_filter', 'dict_set_all']
+
+# from dataset:
+_forbidden_labels = ['times', 'fluxes', 'sigmas', 'ld_func', 'ld_coeffs',
+                     'passband', 'intens_weighting', 'pblum_ref', 'pblum', 'l3',
+                     'exptime', 'rvs', 'wavelengths',
+                     'flux_densities', 'profile_func', 'profile_rest', 'profile_sv',
+                     'Ns', 'time_ecls', 'time_ephems', 'etvs',
+                     'us', 'vs', 'ws', 'vus', 'vvs', 'vws',
+                     'include_times', 'columns',
+                     'uvw_elements', 'xyz_elements',
+                     'pot', 'rpole', 'volume',
+                     'xs', 'ys', 'zs', 'vxs', 'vys', 'vzs',
+                     'nxs', 'nys', 'nzs', 'nus', 'nvs', 'nws',
+                     'areas', 'rs', 'rprojs', 'loggs', 'teffs', 'mus',
+                     'visible_centroids', 'visibilities',
+                     'intensities', 'normal_intensities', 'abs_normal_intensities',
+                     'boost_factors', 'ldint', 'ptfarea', 'pblum', 'abs_pblum']
+
+# from compute:
+_forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
+                      'gr', 'stepsize', 'integrator',
+                      'irrad_method', 'boosting_method', 'mesh_method', 'distortion_method',
+                      'ntriangles',
+                      'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
+                      'atm', 'lc_method', 'rv_method', 'fti_method', 'etv_method',
+                      'gridsize', 'refl_num', 'ie',
+                      'stepsize', 'orbiterror', 'ringsize'
+                      ]
+
+# from feature:
+_forbidden_labels += ['colat', 'long', 'radius', 'relteff',
+                      'radamp', 'freq', 'l', 'm', 'teffext'
+                      ]
+
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
 
 _singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
-                       'rv': 'rvs', 'time_ecl': 'time_ecls',
-                       'time_ephem': 'time_ephems', 'N': 'Ns', 'x': 'xs',
-                       'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
+                       'rv': 'rvs', 'flux_density': 'flux_densities',
+                       'time_ecl': 'time_ecls', 'time_ephem': 'time_ephems', 'N': 'Ns',
+                       'x': 'xs', 'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
                        'vz': 'vzs', 'nx': 'nxs', 'ny': 'nys', 'nz': 'nzs',
                        'u': 'us', 'v': 'vs', 'w': 'ws', 'vu': 'vus', 'vv': 'vvs',
                        'vw': 'vws', 'nu': 'nus', 'nv': 'nvs', 'nw': 'nws',
                        'cosbeta': 'cosbetas', 'logg': 'loggs', 'teff': 'teffs',
-                       'r': 'rs', 'r_proj': 'r_projs', 'mu': 'mus',
+                       'r': 'rs', 'rproj': 'rprojs', 'mu': 'mus',
                        'visibility': 'visibilities'}
 _plural_to_singular = {v:k for k,v in _singular_to_plural.items()}
 
@@ -215,34 +257,6 @@ def parameter_from_json(dictionary, bundle=None):
     cls = getattr(sys.modules[__name__], classname)
 
     return cls._from_json(bundle, **dictionary)
-
-
-def _parse_plotting_args(arg):
-    """Parse *args into a list of dictionaries.
-
-    parses *args for ps.plotting and ps.animate into a list of dictionaries
-    """
-    if isinstance(arg, str):
-        # then we have a single twig
-        return ({'twig': arg},)
-    elif isinstance(arg, dict):
-        # then this arg is a single entry - just append
-        return (arg,)
-    elif hasattr(arg, '__iter__'):
-        # then maybe we were passed a list or tuple?
-        # let's loop through and recursively add items
-        if len(arg):
-            plot_argss = []
-            for argi in arg:
-                plot_argss += _parse_plotting_args(argi)
-            return plot_argss
-        else:
-            # then perhaps we had no args, in which case we still
-            # need to return at least a single dictionary
-            return ({},)
-    else:
-        # maybe a bool?
-        return ({},)
 
 def _instance_in(obj, *types):
     for typ in types:
@@ -382,7 +396,11 @@ class ParameterSet(object):
         """
         ret = {}
         for typ in _meta_fields_twig:
-            ret[typ] = getattr(self, '{}s'.format(typ))
+            if typ in ['uniqueid', 'plugin', 'feedback', 'fitting', 'history', 'twig', 'uniquetwig']:
+                continue
+
+            k = '{}s'.format(typ)
+            ret[k] = getattr(self, k)
 
         return ret
 
@@ -958,6 +976,7 @@ class ParameterSet(object):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`ParameterSet` object
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
         if _can_ujson:
             data = ujson.load(f)
@@ -979,7 +998,7 @@ class ParameterSet(object):
         :return: filename
         :rtype: str
         """
-
+        filename = os.path.expanduser(filename)
         f = open(filename, 'w')
         if compact:
             if _can_ujson:
@@ -1198,6 +1217,10 @@ class ParameterSet(object):
                                             default={})
         else:
             kwargs = {}
+
+        if isinstance(key, int):
+            return self.filter(**kwargs).to_list()[key]
+
         return self.filter_or_get(twig=key, **kwargs)
 
     def __setitem__(self, twig, value):
@@ -1364,6 +1387,9 @@ class ParameterSet(object):
             # of the Parameters hidden by this switch
             check_default = False
 
+        if not (twig is None or isinstance(twig, str)):
+            raise TypeError("first argument (twig) must be of type str or None")
+
         if kwargs.get('component', None) == '_default' or\
                 kwargs.get('dataset', None) == '_default' or\
                 kwargs.get('uniqueid', None) is not None or\
@@ -1510,6 +1536,9 @@ class ParameterSet(object):
                 return params[0]
             else:
                 return getattr(params[0], method)()
+
+        elif method is not None:
+            raise ValueError("{} results found, could not call {}".format(len(params), method))
 
         # TODO: handle returning 0 results better
 
@@ -1730,6 +1759,16 @@ class ParameterSet(object):
         """
         # TODO: handle twig having parameter key (value@, default_unit@, adjust@, etc)
         # TODO: does this return anything (update the docstring)?
+        if twig is not None and value is None:
+            # then try to support value as the first argument if no matches with twigs
+            if not isinstance(twig, str):
+                value = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                value = twig
+                twig = None
+
         if "index" in kwargs.keys():
             return self.get_parameter(twig=twig,
                                       **kwargs).set_index_value(value=value,
@@ -1783,7 +1822,16 @@ class ParameterSet(object):
                 this call will EXCLUDE defaults by default.
         :parameter **kwargs: meta-tags to search
         """
-        # TODO support the ability to do PS.set_value_all(value) (no twig - or do we throw warning and request value=value?)
+        if twig is not None and value is None:
+            # then try to support value as the first argument if no matches with twigs
+            if not isinstance(twig, str):
+                value = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                value = twig
+                twig = None
+
         params = self.filter(twig=twig,
                              check_default=check_default,
                              **kwargs).to_list()
@@ -1808,12 +1856,32 @@ class ParameterSet(object):
         """
         TODO: add documentation
         """
+        if twig is not None and unit is None:
+            # then try to support value as the first argument if no matches with twigs
+            if isinstance(unit, u.Unit) or not isinstance(twig, str):
+                unit = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                unit = twig
+                twig = None
+
         return self.get_parameter(twig=twig, **kwargs).set_default_unit(unit)
 
     def set_default_unit_all(self, twig=None, unit=None, **kwargs):
         """
         TODO: add documentation
         """
+        if twig is not None and unit is None:
+            # then try to support value as the first argument if no matches with twigs
+            if isinstance(unit, u.Unit) or not isinstance(twig, str):
+                unit = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                unit = twig
+                twig = None
+
         for param in self.filter(twig=twig, **kwargs).to_list():
             param.set_default_unit(unit)
 
@@ -1915,15 +1983,15 @@ class ParameterSet(object):
         kwargs.setdefault('context', ['dataset', 'model'])
 
         filter_kwargs = {}
-        for k in self.meta.keys():
+        for k in self.meta.keys()+['twig']:
             if k in ['time']:
-                # time needs to be handled externally
+                # time handled later
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
         ps = self.filter(**filter_kwargs)
 
-        if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn']:
+        if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn', 'lp', 'lp_syn']:
             ps = ps.filter(time=kwargs.get('time'))
 
         # If ps returns more than one dataset/model/component, then we need to
@@ -1976,8 +2044,8 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if len(ps.times) > 1 and kwargs.get('loop_times', False):
-            # only meshes (and spectra) will be able to iterate over times
+        if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
+            # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
                 this_return = ps.filter(time=time)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
@@ -2010,7 +2078,7 @@ class ParameterSet(object):
         # here we need to filter any kwargs that are dictionaries if they match
         # the current ps
         for k,v in kwargs.items():
-            if isinstance(v, dict):
+            if isinstance(v, dict) and 'kwargs' not in k:
                 # overwrite kwargs[k] based on any match in v
                 match = None
                 for kk,vv in v.items():
@@ -2045,6 +2113,12 @@ class ParameterSet(object):
             logger.warning("assuming you meant 'ec' instead of 'edgecolors'")
             kwargs['ec'] = kwargs.pop('edgecolors')
 
+        for d in ['x', 'y', 'z']:
+            if '{}error'.format(d) not in kwargs.keys():
+                if '{}errors'.format(d) in kwargs.keys():
+                    logger.warning("assuming you meant '{}error' instead of '{}errors'".format(d,d))
+                    kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
+
         def _kwargs_fill_dimension(kwargs, direction, ps):
             # kwargs[direction] is currently one of the following:
             # * twig/qualifier
@@ -2063,7 +2137,10 @@ class ParameterSet(object):
                     _dump = kwargs.pop(direction)
                     return kwargs
 
-                if '@' in current_value or current_value in ps.qualifiers or \
+                elif current_value in ['None', 'none']:
+                    return kwargs
+
+                elif '@' in current_value or current_value in ps.qualifiers or \
                         (current_value in ['xs', 'ys', 'zs'] and 'xyz_elements' in ps.qualifiers) or \
                         (current_value in ['us', 'vs', 'ws'] and 'uvw_elements' in ps.qualifiers):
 
@@ -2076,15 +2153,30 @@ class ParameterSet(object):
                         verts = ps.get_quantity(qualifier='uvw_elements')
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
                     else:
-                        array_value = ps.get_quantity(current_value)
+                        if len(ps.filter(current_value))==1:
+                            array_value = ps.get_quantity(current_value)
+                        elif len(ps.filter(current_value).times) > 1 and ps.get_value(current_value, time=ps.filter(current_value).times[0]):
+                            # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
+                            unit = ps.get_quantity(current_value, time=ps.filter(current_value).times[0]).unit
+                            array_value = np.array([ps.get_quantity(current_value, time=time).to(unit).value for time in ps.filter(current_value).times])*unit
+                        else:
+                            raise ValueError("could not find Parameter for {} in {}".format(current_value, ps.meta))
 
                     kwargs[direction] = array_value
 
                     if ps.context == 'dataset' and current_value in sigmas_avail:
                         # then let's see if there are errors
-                        sigmas = ps.get_quantity('sigmas')
-                        if len(sigmas):
-                            kwargs.setdefault('{}error'.format(direction), sigmas)
+                        errorkey = '{}error'.format(direction)
+                        errors = kwargs.get(errorkey, None)
+                        if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
+                            kwargs[errorkey] = errors
+                        elif isinstance(errors, str):
+                            errors = ps.get_quantity(kwargs.get(errorkey))
+                            kwargs[errorkey] = errors
+                        else:
+                            sigmas = ps.get_quantity('sigmas')
+                            if len(sigmas):
+                                kwargs.setdefault(errorkey, sigmas)
 
                     # now let's set the label for the dimension from the qualifier/twig
                     kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
@@ -2094,6 +2186,27 @@ class ParameterSet(object):
                     kwargs['{}qualifier'.format(direction)] = current_value
 
                     return kwargs
+
+                elif current_value in ['time', 'times'] and len(ps.times):
+                    kwargs[direction] = sorted([float(t) for t in ps.times])
+                    kwargs['{}qualifier'] = None
+                    return kwargs
+
+                elif current_value in ['wavelengths'] and ps.time is not None:
+                    # these are not tagged with the time, so we need to find them
+                    full_dataset_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'time']}
+                    full_dataset_ps = ps._bundle.filter(**full_dataset_meta)
+                    candidate_params = full_dataset_ps.filter(current_value)
+                    if len(candidate_params) == 1:
+                        kwargs[direction] = candidate_params.get_quantity()
+                        kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+                        kwargs['{}qualifier'.format(direction)] = current_value
+                        return kwargs
+                    elif len(candidate_params) > 1:
+                        raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, candidate_params.twigs))
+                    else:
+                        # then len(candidate_params) == 0
+                        raise ValueError("could not find a match for {}={}".format(direction, current_value))
 
                 elif current_value.split(':')[0] in ['phase', 'phases']:
                     component_phase = current_value.split(':')[1] \
@@ -2121,6 +2234,7 @@ class ParameterSet(object):
                     # that technnically is attached to a different dataset in
                     # the same mesh (e.g. rvs@rv01 inside kind=mesh).  Let's
                     # check for that first.
+
                     if ps.kind in ['mesh'] and ps._bundle is not None:
                         full_mesh_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'dataset']}
                         full_mesh_ps = ps._bundle.filter(**full_mesh_meta)
@@ -2131,7 +2245,13 @@ class ParameterSet(object):
                             kwargs['{}qualifier'.format(direction)] = current_value
                             return kwargs
                         elif len(candidate_params) > 1:
-                            return ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, ps.twigs))
+                            raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, candidate_params.twigs))
+                        elif current_value in autofig.cyclers._mplcolors:
+                            # no need to raise a warning, this is a valid color
+                            pass
+                        else:
+                            # maybe a hex or anything not in the cycler? or should we raise an error instead?
+                            logger.warning("could not find Parameter match for {}={} at time={}, assuming named color".format(direction, current_value, full_mesh_meta['time']))
 
                     # Nothing has been found, so we'll assume the string is
                     # the name of a color.  If the color isn't accepted by
@@ -2140,7 +2260,7 @@ class ParameterSet(object):
                     return kwargs
 
                 else:
-                    raise ValueError("could not recognize {} for {} direction".format(current_value, direction))
+                    raise ValueError("could not recognize {} for {} direction in dataset='{}', ps.meta={}".format(current_value, direction, ps.dataset, ps.meta))
 
             elif _instance_in(current_value, np.ndarray, list, tuple, float, int):
                 # then leave it as-is
@@ -2157,14 +2277,34 @@ class ParameterSet(object):
             # first determine from any passed values if we're in xyz or uvw
             # (do not allow mixing between roche and POS)
             detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
-            coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers])
-            if len(coordinate_systems) > 1:
-                # then we're mixing roche and POS
-                raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
+            if len(detected_qualifiers):
+                coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers if detected_qualifier in ['us', 'vs', 'ws', 'xs', 'ys', 'zs']])
 
-            coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
+
+                if len(coordinate_systems) == 1:
+                    coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
+                elif len(coordinate_systems) > 1:
+                    # then we're mixing roche and POS
+                    raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
+                else:
+                    # then len(coordinate_system) == 0
+                    coordinates = ['us', 'vs', 'ws']
+
+            else:
+                coordinates = ['us', 'vs', 'ws']
+
 
             defaults = {}
+            # first we need to know if any of the af_directions are set to
+            # something other than cartesian by the user (in which case we need
+            # to check for the parameter's existence before defaulting and use
+            # scatter instead of mesh plot)
+            mesh_all_cartesian = True
+            for af_direction in ['x', 'y', 'z']:
+                if kwargs.get(af_direction, None) not in [None] + coordinates:
+                    mesh_all_cartesian = False
+
+            # now we need to loop again and set any missing defaults
             for af_direction in ['x', 'y', 'z']:
                 if af_direction in kwargs.keys():
                     # then default doesn't matter, but we'll set it at what it is
@@ -2179,17 +2319,38 @@ class ParameterSet(object):
                         coordinates.remove(kwargs[af_direction])
                 else:
                     # we'll take the first entry remaining in coordinates
-                    defaults[af_direction] = coordinates.pop(0)
+                    coordinate = coordinates.pop(0)
 
-            # If still have some coordinates left, then at least
-            # one dimension is not cartesian, meaning we will need to do
-            # a plot instead of mesh call, meaning we want to access from
-            # the centers (xs, ys, zs, us, vs, ws) instead of elements
-            # (xyz_elements, uvw_elements)
-            mesh_all_cartesian = len(coordinates) == 0
+                    # if mesh_all_cartesian then we're doing a mesh plot
+                    # and know that we have xyz/uvw_elements available.
+                    # Otherwise, we need to check and only apply the default
+                    # if that parameter (xs, ys, zs, us, vs, ws) is available.
+                    # Either way, we've removed this from the coordinates
+                    # list so the next direction will fill from the next available
+                    if mesh_all_cartesian or coordinate in ps.qualifiers:
+                        defaults[af_direction] = coordinate
 
+
+            # since we'll be selecting from the time tag, we need a non-zero tolerance
+            kwargs.setdefault('itol', 1e-6)
+
+            if mesh_all_cartesian:
+                # then we'll be doing a mesh plot, so set some reasonable defaults
+
+                # units will have handled this in POS (uvw) coordinates, but not
+                # Roche (xyz) as those are unitless
+                kwargs.setdefault('equal_aspect', True)
+
+                # we want the wireframe by default
+                kwargs.setdefault('ec', 'black')
+                kwargs.setdefault('fc', 'white')
+            else:
+                # then even though the scatter may be rs vs cartesian with same
+                # units, let's default to disabling equal aspect ratio
+                kwargs.setdefault('equal_aspect', False)
 
             sigmas_avail = []
+
         elif ps.kind in ['orb', 'orb_syn']:
             # similar logic to meshes above, except we only have uvw
             coordinates = ['us', 'vs', 'ws']
@@ -2211,6 +2372,9 @@ class ParameterSet(object):
                     # we'll take the first entry remaining in coordinates
                     defaults[af_direction] = coordinates.pop(0)
 
+            if kwargs.get('projection', None) != '3d':
+                defaults['z'] = 0
+
             sigmas_avail = []
         elif ps.kind in ['lc', 'lc_syn']:
             defaults = {'x': 'times',
@@ -2222,6 +2386,23 @@ class ParameterSet(object):
                         'y': 'rvs',
                         'z': 0}
             sigmas_avail = ['rvs']
+        elif ps.kind in ['lp', 'lp_syn']:
+            defaults = {'x': 'wavelengths',
+                        'y': 'flux_densities',
+                        'z': 0}
+            sigmas_avail = ['flux_densities']
+
+            # since we'll be selecting from the time tag, we need a non-zero tolerance
+            kwargs.setdefault('itol', 1e-6)
+
+            # if animating or drawing at a single time, we want to show only
+            # the selected item, not all and then highlight the selected item
+            kwargs.setdefault('highlight_linestyle', kwargs.get('linestyle', 'solid'))
+            kwargs.setdefault('highlight_marker', 'None')
+            kwargs.setdefault('highlight_size', kwargs.get('size', 0.02))  # this matches the default in autofig for call._sizes
+            kwargs.setdefault('uncover', True)
+            kwargs.setdefault('trail', 0)
+
         elif ps.kind in ['etv', 'etv_syn']:
             defaults = {'x': 'time_ecls',
                         'y': 'etvs',
@@ -2290,7 +2471,7 @@ class ParameterSet(object):
 
         # set defaults for colormap and symmetric limits
         for af_direction in ['c', 'fc', 'ec']:
-            qualifier = kwargs.get('{}qualifier'.format(af_direction), None)
+            qualifier = kwargs.get('{}qualifier'.format(af_direction), '').split('@')[0]
             if qualifier in ['rvs']:
                 kwargs.setdefault('{}map'.format(af_direction), 'RdBu_r')
                 if kwargs['{}map'.format(af_direction)] == 'RdBu_r':
@@ -2310,22 +2491,12 @@ class ParameterSet(object):
                 kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn')
                 kwargs.setdefault('{}lim'.format(af_direction), (0,1))
 
-
-        # set the label of this plot call.  This will only have any effect if
-        # the legend is shown
-        # TODO: we used to do this a bit more cleverly by taking the diff of xparam.uniquetwig and yparam.uniquetwig
-        # default_label = ''.join(c[2:] for c in list(difflib.ndiff(xparam.uniquetwig, yparam.uniquetwig)) if c[0] == ' ')
-        # if default_label[0] == '@':
-        #     # then let's just trim the leading @
-        #     default_label = default_label[1:]
-        # if default_label.split('@')[0] not in xparam.uniquetwig.split('@')+yparam.uniquetwig.split('@'):
-        #     # then we had some overlap that doesn't form a whole label
-        #     # this can happen for "times" and "fluxes", for example
-        #     # leaving the leading "es".  So let's trim this and only
-        #     # return the rest
-        #     default_label = '@'.join(default_label.split('@')[1:])
-        # default_label = '{}@{}'.format(ps.component, ps.dataset)
-        # kwargs.setdefault('label', default_label)
+        #### LABEL FOR LEGENDS
+        attrs = ['component', 'dataset']
+        if len(ps._bundle.models) > 1:
+            attrs += ['model']
+        default_label = '@'.join([getattr(ps, attr) for attr in attrs if getattr(ps, attr) is not None])
+        kwargs.setdefault('label', default_label)
 
         return (kwargs,)
 
@@ -2344,22 +2515,17 @@ class ParameterSet(object):
 
         self._bundle._figure = None
 
-    def plot(self, *args, **kwargs):
+    def plot(self, twig=None, **kwargs):
         """
         High-level wrapper around matplotlib (by default, but also has some support
         for other plotting backends).  This function smartly makes one
         or multiple calls to the plotting backend based on the type of data.
 
-        Individual lines are each given a label (automatic if not provided).
-        To see these in a legend simply call ax.legend([options])
+        Individual lines are each given a label (automatic if not provided),
+        to see these in a legend, pass legend=True (and optionally any
+        keyword arguments to be passed along to plt.legend() as legend_kwargs).
 
-        >>> ax = ps.plot()
-        >>> ax.legend()
-        >>> plt.show()
-
-        :parameter *args: either a twig pointing to a dataset,
-            or dictionaries, where each dictionary gets passed back to
-            :meth:`plot`
+        :parameter str twig: twig to use for filtering
         :parameter float time: Current time.  For spectra and meshes, time
             is required to determine at which time to draw.  For other types,
             time will only be used for higlight and uncover (if enabled)
@@ -2390,11 +2556,11 @@ class ParameterSet(object):
         :parameter t0: qualifier or float of the t0 that should be used for
             phasing, if applicable
         :type t0: string or float
-        :parameter str xerrors: qualifier of the array to plot as x-errors (will
+        :parameter str xerror: qualifier of the array to plot as x-errors (will
             default based on x if not provided)
-        :parameter str yerrors: qualifier of the array to plot as y-errors (will
+        :parameter str yerror: qualifier of the array to plot as y-errors (will
             default based on y if not provided)
-        :parameter str zerrors: qualifier of the array to plot as z-errors (will
+        :parameter str zerror: qualifier of the array to plot as z-errors (will
             default based on z if not provided)
 
         :parameter xunit: unit to plot the x-array (will default based on x if not provided)
@@ -2420,129 +2586,38 @@ class ParameterSet(object):
         :parameter str label: label to give to ALL lines in this single plotting call (each
             line with get automatic default labels if not provided)
 
-        :parameter str color: matplotlib recognized color string or the qualifier/twig
+        :parameter str c: matplotlib recognized color string or the qualifier/twig
             of an array to use for color (will apply to facecolor and edgecolor for meshes
             unless those are provided)
         :parameter str cmap: matplotlib recognized cmap to use if color is
             a qualifier pointing to an array (will be ignored otherwise)
-        :parameter bool colorbar: whether to display the colorbar (will default to False)
-        :parameter colorunit: unit to plot the color-array (will default based on color if not provided)
-        :type colorunit: str or astropy.unit.Unit
-        :parameter tuple colorlim: limit for the colorbar (in same units as colorunit)
-        :parameter str colorlabel: label for the colorbar, if applicable (will default based on
+        :parameter bool cbar: whether to display the colorbar (will default to False)
+        :parameter cunit: unit to plot the color-array (will default based on color if not provided)
+        :type cunit: str or astropy.unit.Unit
+        :parameter tuple clim: limit for the colorbar (in same units as cunit)
+        :parameter str clabel: label for the colorbar, if applicable (will default based on
             color if not provided)
 
-        :parameter str facecolor: matplotlib recognized color string or the qualifier/twig
+        :parameter str fc: matplotlib recognized color string or the qualifier/twig
             of an array to use for facecolor (mesh plots only - takes precedence over color)
-        :parameter str facecmap: matplotlib recognized cmap to use if facecolor is
+        :parameter str fcmap: matplotlib recognized cmap to use if facecolor is
             a qualifier pointing to an array (will be ignored otherwise)
-        :parameter facecolorbar: whether to display the facecolorbar (will default to False - takes precedence over colorbar)
-        :parameter facecolorunit: unit to plot the facecolor-array (will default based on facecolor if not provided)
-        :type facecolorunit: str or astropy.unit.Unit
-        :parameter tuple facecolorlim: limit for the facecolorbar (in same units as facecolorunit)
-        :parameter str facecolorlabel: label for the facecolorbar, if applicable (will default based on
+        :parameter fcunit: unit to plot the facecolor-array (will default based on facecolor if not provided)
+        :type fcunit: str or astropy.unit.Unit
+        :parameter tuple fclim: limit for the facecolorbar (in same units as facecolorunit)
+        :parameter str fclabel: label for the facecolorbar, if applicable (will default based on
             facecolor if not provided)
 
-        :parameter str edgecolor: matplotlib recognized color string or the qualifier/twig
+        :parameter str ec: matplotlib recognized color string or the qualifier/twig
             of an array to use for edgecolor (mesh plots only - takes precedence over color)
-        :parameter str edgecmap: matplotlib recognized cmap to use if edgecolor is
+        :parameter str ecmap: matplotlib recognized cmap to use if edgecolor is
             a qualifier pointing to an array (will be ignored otherwise
-        :parameter edgecolorunit: unit to plot the edgecolor-array (will default based on edgecolor if not provided)
-        :type edgecolorunit: str or astropy.unit.Unit
-        :parameter tuple facecolorlim: limit for the facecolorbar (in same units as facecolorunit)
-        :parameter str edgecolorlabel: label for the edgecolorbar, if applicable (will default based on
+        :parameter ecunit: unit to plot the edgecolor-array (will default based on ed if not provided)
+        :type ecunit: str or astropy.unit.Unit
+        :parameter tuple eclim: limit for the edgecolorbar (in same units as ecunit)
+        :parameter str eclabel: label for the edgecolorbar, if applicable (will default based on
             edgecolor if not provided)
 
-        :parameter str save: filename of the resulting animation.  If provided,
-            the animation will be saved automatically.  Either way, the animation
-            object is returned (so you can always call anim.save(fname)).
-        :parameter bool show: whether to automatically show the animation (defaults
-            to False).  Either way, the animation object is returned (so you can
-            always call b.show() or plt.show())
-        :parameter **kwargs: additional kwargs to filter the ParameterSet OR to pass along
-            to the backend plotting call
-
-        :returns: the matplotlib axes
-        """
-
-        plot_argss = _parse_plotting_args(args)
-
-        # since we used the args trick above, all other options have to be in kwargs
-        save = kwargs.pop('save', False)
-        show = kwargs.pop('show', False)
-        time = kwargs.get('time', None)  # don't pop since time may be used for filtering
-
-        # this first loop allows for building figures or plotting
-        # multiple twigs at once.
-        for plot_args in plot_argss:
-
-            # override any options sent via kwargs
-            for k, v in kwargs.items():
-                plot_args.setdefault(k,v)
-
-            plot_kwargss = self._unpack_plotting_kwargs(**plot_args)
-
-            # this inner-loop handles any of the automatically-generated
-            # multiple plotting calls, but for a SINGLE AXES (ie two components
-            # under the same dataset).
-            for plot_kwargs in plot_kwargss:
-                if not len(plot_kwargs.get('y', [])):
-                    # a dataset without observational data, for example
-                    continue
-
-                autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-                logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
-                func = getattr(self.gcf(), autofig_method)
-
-                func(**plot_kwargs)
-
-        if save or show:
-            logger.info("calling autofig.draw(i={}, save={}, show={})".format(time, save, show))
-            fig = self.gcf().draw(i=time, save=save, show=show)
-            # clear the figure so next call will start over and future shows will work
-            afig = self.gcf()
-            self.clf()
-        else:
-            afig = self.gcf()
-            fig = None
-
-        return afig, fig
-
-
-    def show(self, time=None):
-        """
-        Draw and show the plot.
-        """
-        logger.info("calling autofig.draw(i={}, show={})".format(time, show))
-        fig = self.gcf().draw(i=time, show=True)
-        return self.gcf(), fig
-
-
-    def savefig(self, fname, time=None):
-        """
-        Draw and save the plot.
-
-        :parameter str filename: filename to save to.  Be careful of extensions here...
-                matplotlib accepts many different image formats while other
-                backends will only export to html.
-        """
-        logger.info("calling autofig.draw(i={}, save={})".format(time, save))
-        fig = self.gcf().draw(i=time, save=fname)
-        return self.gcf(), fig
-
-
-    def animate(self, times=None, show=False, save=False, save_kwargs={}):
-        """
-        NOTE: if show and save provided, the live plot will be shown first,
-        as soon as the plot is closed the animation will be re-compiled and saved to
-        disk, and then the anim object will be returned.
-
-        NOTE: during 'show' the plotting speed may be slower than the provided
-        interval - especially if plotting meshes.
-
-        :parameter times: list of times - each time will create a single
-            frame in the animation
-        :parameter int interval: time interval in ms between each frame (default: 100)
         :parameter str save: filename of the resulting animation.  If provided,
             the animation will be saved automatically.  Either way, the animation
             object is returned (so you can always call anim.save(fname)).
@@ -2552,41 +2627,165 @@ class ParameterSet(object):
         :parameter bool show: whether to automatically show the animation (defaults
             to False).  Either way, the animation object is returned (so you can
             always call b.show() or plt.show())
+        :parameter **kwargs: additional kwargs to filter the ParameterSet OR to pass along
+            to the backend plotting call
+
+        :returns: the matplotlib axes
         """
-        # TODO: re-implement support for interval, save_args, save_kwargs
-        # TODO: allow passing along to self.plot() first???
+        if not _use_autofig:
+            if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
+                raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disasbled")
+            else:
+                raise ImportError("autofig not imported, cannot plot")
 
-        if times is None:
-            # then let's try to get all SYNTHETIC times
-            # it would be nice to only do ENABLED, but then we have to worry about compute
-            # it would also be nice to worry about models... but then you should filter first
-            logger.info("no times were providing, so defaulting to animate over all dataset times")
-            times = []
-            for dataset in self.datasets:
-                ps = self.filter(dataset=dataset, context='model')
-                if len(ps.times):
-                    # for the case of meshes/spectra
-                    times += [float(t) for t in ps.times]
-                else:
-                    for param in ps.filter(qualifier='times').to_list():
-                        times += list(param.get_value())
+        # since we used the args trick above, all other options have to be in kwargs
+        save = kwargs.pop('save', False)
+        show = kwargs.pop('show', False)
+        tight_layout = kwargs.pop('tight_layout', False)
+        draw_sidebars = kwargs.pop('draw_sidebars', False)
+        draw_title = kwargs.pop('draw_title', False)
+        subplot_grid = kwargs.pop('subplot_grid', None)
+        animate = kwargs.pop('animate', False)
+        time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
-            times = sorted(list(set(times)))
+        if twig is not None:
+            kwargs['twig'] = twig
 
-        logger.info("calling autofig.animate(i={}, save={}, show={}, save_kwargs={})".format(times, save, show, save_kwargs))
+        plot_kwargss = self._unpack_plotting_kwargs(**kwargs)
 
-        mplanim = self.gcf().animate(i=times,
-                                     save=save,
-                                     show=show,
-                                     save_kwargs=save_kwargs)
+        # this loop handles any of the automatically-generated
+        # multiple plotting calls, passing each on to autofig
+        for plot_kwargs in plot_kwargss:
+            y = plot_kwargs.get('y', [])
+            if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
+                pass
+            elif not len(y):
+                # a dataset without observational data, for example
+                continue
 
-        afig = self.gcf()
+            autofig_method = plot_kwargs.pop('autofig_method', 'plot')
+            # we kept the qualifiers around so we could do some default-logic,
+            # but it isn't necessary to pass them on to autofig.
+            plot_kwargs = {k:v for k,v in plot_kwargs.items() if 'qualifier' not in k}
+            logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
+            func = getattr(self.gcf(), autofig_method)
 
-        # clear the autofig figure
-        self.clf()
+            func(**plot_kwargs)
 
-        return afig, mplanim
 
+        if save or show or animate:
+            # NOTE: time, times, will all be included in kwargs
+            try:
+                return self._show_or_save(save, show, animate,
+                                          draw_sidebars=draw_sidebars,
+                                          draw_title=draw_title,
+                                          tight_layout=tight_layout,
+                                          subplot_grid=subplot_grid,
+                                          **kwargs)
+            except Exception as err:
+                self.clf()
+                raise err
+        else:
+            afig = self.gcf()
+            fig = None
+
+            return afig, fig
+
+    def _show_or_save(self, save, show, animate,
+                      draw_sidebars=True,
+                      draw_title=True,
+                      tight_layout=False,
+                      subplot_grid=None,
+                      **kwargs):
+        """
+        Draw/animate and show and/or save a autofig plot
+        """
+        if animate and not show and not save:
+            logger.warning("setting show to True since animate=True and save not provided")
+            show = True
+
+        if animate:
+            # prefer times over time
+            times = kwargs.get('times', kwargs.get('time', None))
+            save_kwargs = kwargs.get('save_kwargs', {})
+
+            if times is None:
+                # then let's try to get all SYNTHETIC times
+                # it would be nice to only do ENABLED, but then we have to worry about compute
+                # it would also be nice to worry about models... but then you should filter first
+                logger.info("no times were providing, so defaulting to animate over all dataset times")
+                times = []
+                for dataset in self.datasets:
+                    ps = self.filter(dataset=dataset, context='model')
+                    if len(ps.times):
+                        # for the case of meshes/spectra
+                        times += [float(t) for t in ps.times]
+                    else:
+                        for param in ps.filter(qualifier='times').to_list():
+                            times += list(param.get_value())
+
+                times = sorted(list(set(times)))
+
+            logger.info("calling autofig.animate(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={}, save_kwargs={})".format(times, draw_sidebars, draw_title, tight_layout, save, show, save_kwargs))
+
+            mplanim = self.gcf().animate(i=times,
+                                         draw_sidebars=draw_sidebars,
+                                         draw_title=draw_title,
+                                         tight_layout=tight_layout,
+                                         subplot_grid=subplot_grid,
+                                         save=save,
+                                         show=show,
+                                         save_kwargs=save_kwargs)
+
+            afig = self.gcf()
+
+            # clear the autofig figure
+            self.clf()
+
+            return afig, mplanim
+
+        else:
+            time = kwargs.get('time', None)
+
+            if isinstance(time, str):
+                time = self.get_value(time, context=['component', 'system'])
+
+            logger.info("calling autofig.draw(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={})".format(time, draw_sidebars, draw_title, tight_layout, save, show))
+            fig = self.gcf().draw(i=time,
+                                  draw_sidebars=draw_sidebars,
+                                  draw_title=draw_title,
+                                  tight_layout=tight_layout,
+                                  subplot_grid=subplot_grid,
+                                  save=save, show=show)
+            # clear the figure so next call will start over and future shows will work
+            afig = self.gcf()
+            self.clf()
+
+            return afig, fig
+
+
+    def show(self, **kwargs):
+        """
+        Draw and show the plot.
+        """
+        kwargs.setdefault('show', True)
+        kwargs.setdefault('save', False)
+        kwargs.setdefault('animate', False)
+        return self._show_or_save(**kwargs)
+
+    def savefig(self, filename, **kwargs):
+        """
+        Draw and save the plot.
+
+        :parameter str filename: filename to save to.  Be careful of extensions here...
+                matplotlib accepts many different image formats while other
+                backends will only export to html.
+        """
+        filename = os.path.expanduser(filename)
+        kwargs.setdefault('show', False)
+        kwargs.setdefault('save', filename)
+        kwargs.setdefault('animate', False)
+        return self._show_or_save(**kwargs)
 
 class Parameter(object):
     def __init__(self, qualifier, value=None, description='', **kwargs):
@@ -2829,6 +3028,7 @@ class Parameter(object):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Parameter` object
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
         data = json.load(f, object_pairs_hook=parse_json)
         f.close()
@@ -2842,7 +3042,7 @@ class Parameter(object):
         :return: filename
         :rtype: str
         """
-
+        filename = os.path.expanduser(filename)
         f = open(filename, 'w')
         json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
                    sort_keys=True, indent=0, separators=(',', ': '))
@@ -2861,9 +3061,9 @@ class Parameter(object):
             if k=='value':
                 if isinstance(self._value, nparray.ndarray):
                     if self._value.unit is not None and hasattr(self, 'default_unit'):
-                        v = self._value.to(self.default_unit).to_json()
+                        v = self._value.to(self.default_unit).to_dict()
                     else:
-                        v = self._value.to_json()
+                        v = self._value.to_dict()
                 if isinstance(v, u.Quantity):
                     v = self.get_value() # force to be in default units
                 if isinstance(v, np.ndarray):
@@ -2920,6 +3120,10 @@ class Parameter(object):
         :return: an ordered dictionary of tag properties
         """
         return OrderedDict([(k, getattr(self, k)) for k in _meta_fields_all if k not in ignore])
+
+    @property
+    def tags(self):
+        return self.get_meta(ignore=['uniqueid', 'plugin', 'feedback', 'fitting', 'history', 'twig', 'uniquetwig'])
 
     @property
     def qualifier(self):
@@ -3633,6 +3837,9 @@ class SelectParameter(Parameter):
         return self._choices
 
     def valid_selection(self, value):
+        if isinstance(value, list):
+            return np.all([self.valid_selection(v) for v in value])
+
         if value in self.choices:
             return True
 
@@ -3857,6 +4064,22 @@ class IntParameter(Parameter):
 
         return (self.limits[0] is None or value >= self.limits[0]) and (self.limits[1] is None or value <= self.limits[1])
 
+    def _check_value(self, value):
+        if isinstance(value, str):
+            value = float(value)
+
+        try:
+            value = int(value)
+        except:
+            raise ValueError("could not cast value to integer")
+        else:
+
+            # make sure the value is within the limits
+            if not self.within_limits(value):
+                raise ValueError("value of {} must be within limits of {}".format(self.qualifier, self.limits))
+
+        return value
+
     @update_if_client
     def get_value(self, **kwargs):
         """
@@ -3873,22 +4096,11 @@ class IntParameter(Parameter):
         """
         _orig_value = deepcopy(self.get_value())
 
-        if isinstance(value, str):
-            value = float(value)
+        value = self._check_value(value)
 
-        try:
-            value = int(value)
-        except:
-            raise ValueError("could not cast value to integer")
-        else:
+        self._value = value
 
-            # make sure the value is within the limits
-            if not self.within_limits(value):
-                raise ValueError("value of {} must be within limits of {}".format(self.qualifier, self.limits))
-
-            self._value = value
-
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 
 class FloatParameter(Parameter):
@@ -4101,6 +4313,22 @@ class FloatParameter(Parameter):
             # NOTE: astropy will raise an error if units not compatible
             return value.to(unit)
 
+    def _check_value(self, value, unit=None):
+        if isinstance(value, tuple) and (len(value) !=2 or isinstance(value[1], float) or isinstance(value[1], int)):
+            # allow passing tuples (this could be a FloatArrayParameter - if it isn't
+            # then this array will fail _check_type below)
+            value = np.asarray(value)
+        # accept tuples (ie 1.2, 'rad') from dictionary access
+        if isinstance(value, tuple) and unit is None:
+            value, unit = value
+        if isinstance(value, str):
+            value = float(value)
+        if isinstance(value, dict) and 'nparray' in value.keys():
+            # then we're loading the JSON version of an nparray object
+            value = nparray.from_dict(value)
+
+        return self._check_type(value), unit
+
     def _check_type(self, value):
         # we do this separately so that FloatArrayParameter can keep this set_value
         # and just subclass _check_type
@@ -4142,26 +4370,17 @@ class FloatParameter(Parameter):
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
 
-        if isinstance(value, tuple) and (len(value) !=2 or isinstance(value[1], float) or isinstance(value[1], int)):
-            # allow passing tuples (this could be a FloatArrayParameter - if it isn't
-            # then this array will fail _check_type below)
-            value = np.asarray(value)
-        # accept tuples (ie 1.2, 'rad') from dictionary access
-        if isinstance(value, tuple) and unit is None:
-            value, unit = value
-        if isinstance(value, str):
-            value = float(value)
-        if isinstance(value, dict) and 'nphelper' in value.keys():
-            # then we're loading the JSON version of an Arange or Linspace
-            value = nparray.from_json(value)
+        # if 'time' in kwargs.keys() and isinstance(self, FloatArrayParameter):
+        #     # then find the correct index and set by index instead
+        #     time_param = self._bundle
+
+        value, unit = self._check_value(value, unit)
 
         if isinstance(unit, str):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
         elif unit is not None and not _is_unit(unit):
             raise TypeError("unit must be an phoebe.u.Unit or None, got {}".format(unit))
-
-        value = self._check_type(value)
 
         # check to make sure value and unit don't clash
         if isinstance(value, u.Quantity) or (isinstance(value, nparray.ndarray) and value.unit is not None):
@@ -4325,16 +4544,7 @@ class FloatArrayParameter(FloatParameter):
         self._allow_none = kwargs.get('allow_none', False)
         super(FloatArrayParameter, self).__init__(*args, **kwargs)
 
-        default_unit = kwargs.get('default_unit', None)
-
-        self.set_default_unit(default_unit)
-
-        unit = kwargs.get('unit', None)  # will default to default_unit in set_value
-        if isinstance(unit, str) or isinstance(unit, unicode):
-            unit = u.Unit(str(unit))
-
-        value = self._check_type(kwargs.get('value', []))
-        self.set_value(value, unit)
+        # NOTE: default_unit and value handled in FloatParameter.__init__()
 
         self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
@@ -4520,20 +4730,24 @@ class FloatArrayParameter(FloatParameter):
         elif isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
 
+        elif isinstance(value, dict) and 'nparray' in value.keys():
+            value = nparray.from_dict(value)
+
         elif not (isinstance(value, list) or isinstance(value, tuple) or isinstance(value, np.ndarray) or isinstance(value, nparray.ndarray)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise TypeError("value '{}' ({}) could not be cast to array".format(value, type(value)))
 
         return value
 
-    def set_property(self, property, value):
+    def set_property(self, **kwargs):
         """
         set any property of the underlying nparray object
         """
         if not isinstance(self._value, nparray.ndarray):
             raise ValueError("value is not a nparray object")
 
-        setattr(self._value, property, value)
+        for property, value in kwargs.items():
+            setattr(self._value, property, value)
 
 class ArrayParameter(Parameter):
     def __init__(self, *args, **kwargs):
@@ -4754,7 +4968,7 @@ class HierarchyParameter(StringParameter):
 
         return structure, trace, our_item
 
-    def change_component(self, old_component, new_component):
+    def rename_component(self, old_component, new_component):
         """
         """
         kind = self.get_kind_of(old_component)

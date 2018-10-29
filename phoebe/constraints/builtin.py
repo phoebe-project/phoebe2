@@ -150,19 +150,6 @@ def requiv_to_pot_contact(requiv, q, sma, compno=1):
     :param compno: 1 for primary, 2 for secondary
     :return: potential and fillout factor
     """
-    def pot_to_volume(pot, q, d, vequiv, compno):
-        """
-        """
-        nekmin = libphoebe.roche_contact_neck_min(np.pi/2., q, d, pot)['xmin']
-        try:
-            volume = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno-1)['lvolume']
-        except TypeError:
-            # then lobe boundaries probably failed, since this is only used for converging
-            # let's return inf
-            return np.inf
-        else:
-            return volume - vequiv
-
     logger.debug("requiv_to_pot_contact(requiv={}, q={}, sma={}, compno={})".format(requiv, q, sma, compno))
 
     # since the functions called here work with normalized r, we need to set d=D=sma=1.
@@ -172,26 +159,8 @@ def requiv_to_pot_contact(requiv, q, sma, compno=1):
     d = 1.
     F = 1.
 
-    logger.debug("libphoebe.roche_critical_potential(q={}, d={}, F={})".format(q, d, F))
-    crit_pots = libphoebe.roche_critical_potential(q, d, F)
-    crit_pot_L1 = crit_pots['L1']
-    crit_pot_L23 = max(crit_pots['L2'], crit_pots['L3'])
-
-    try:
-        # pot_final = newton(pot_to_volume, pot_init, args=(q, d, vequiv, compno))
-        try:
-            logger.debug("bisect(pot_to_volume, a={}, b={}, q={}, d={}, vequiv={}, compno={})".format(crit_pot_L23, crit_pot_L1, q, d, vequiv, compno))
-            pot_final = bisect(pot_to_volume, a=crit_pot_L23, b=crit_pot_L1, args=(q, d, vequiv, compno))
-        except:
-            pot_init = float(crit_pot_L1 + crit_pot_L23) / 2
-            logger.debug("newton(pot_to_volume, pot_init={}, q={}, d={}, vequiv={}, compno={})".format(pot_init, q, d, vequiv, compno))
-            pot_final = newton(pot_to_volume, pot_init, args=(q, d, vequiv, compno))
-
-        return pot_final
-
-    except:
-        # replace this with actual check in the beginning or before function call
-        raise ValueError('requiv probably out of bounds for contact envelope')
+    logger.debug("libphoebe.roche_contact_Omega_at_partial_vol(vol={}, phi=pi/2, q={}, d={}, choice={})".format(vequiv, q, d, compno-1))
+    return libphoebe.roche_contact_Omega_at_partial_vol(vequiv, np.pi/2, q, d, choice=compno-1)
 
 def pot_to_requiv_contact(pot, q, sma, compno=1):
     """

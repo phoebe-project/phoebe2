@@ -5,13 +5,16 @@ from phoebe.atmospheres import passbands  # need to load pbtable (dictionary of 
 from phoebe import u
 from phoebe import conf
 
+### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
+
 _ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power']
 
 global _mesh_columns
 global _pbdep_columns
 
 _mesh_columns = []
-_mesh_columns += ['pot', 'rpole', 'volume']
+# _mesh_columns += ['pot', 'rpole']
+_mesh_columns += ['volume']
 
 _mesh_columns += ['xs', 'ys', 'zs']
 _mesh_columns += ['vxs', 'vys', 'vzs']
@@ -31,7 +34,7 @@ _mesh_columns += ['rs'] #, 'cosbetas']
 lc_columns = []
 lc_columns += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_normal_intensities']
 lc_columns += ['boost_factors', 'ldint']
-lc_columns += ['pblum', 'ptfarea']
+lc_columns += ['pblum', 'abs_pblum', 'ptfarea']
 
 rv_columns = lc_columns[:]
 rv_columns += ['rvs']
@@ -393,10 +396,10 @@ def mesh_syn(syn=True, **kwargs):
             # backends.py when the values are extracted and included in the
             # packet
 
-            if 'pot' in columns:
-                syn_params += [FloatParameter(qualifier='pot', time=t, value=kwargs.get('pot', 0.0), default_unit=u.dimensionless_unscaled, description='Equipotential of the stellar surface')]
-            if 'rpole' in columns:
-                syn_params += [FloatParameter(qualifier='rpole', time=t, value=kwargs.get('rpole', 0.0), default_unit=u.solRad, description='Polar radius of the stellar surface')]
+            # if 'pot' in columns:
+                # syn_params += [FloatParameter(qualifier='pot', time=t, value=kwargs.get('pot', 0.0), default_unit=u.dimensionless_unscaled, description='Equipotential of the stellar surface')]
+            # if 'rpole' in columns:
+            #     syn_params += [FloatParameter(qualifier='rpole', time=t, value=kwargs.get('rpole', 0.0), default_unit=u.solRad, description='Polar radius of the stellar surface')]
             if 'volume' in columns:
                 syn_params += [FloatParameter(qualifier='volume', time=t, value=kwargs.get('volume', 0.0), default_unit=u.solRad**3, description='Volume of the stellar surface')]
 
@@ -451,7 +454,7 @@ def mesh_syn(syn=True, **kwargs):
 
 
             if 'rs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), default_unit=u.solRad, description='Distance of each triangle from center of mass')]
+                syn_params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), default_unit=u.solRad, description='Distance of each triangle from center of mass (of the half-envelope for contacts)')]
             # if 'cosbetas' in columns:
             #     syn_params += [FloatArrayParameter(qualifier='cosbetas', time=t, value=kwargs.get('cosbetas', []), default_unit=u.solRad, description='')]
 
@@ -461,8 +464,8 @@ def mesh_syn(syn=True, **kwargs):
             if 'teffs' in columns:
                 syn_params += [FloatArrayParameter(qualifier='teffs', time=t, value=kwargs.get('teffs', []), default_unit=u.K, description='Local effective temperature')]
 
-            if 'r_projs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='r_projs', time=t, value=kwargs.get('r_projs', []), default_unit=u.solRad, description='Projected distance (on plane of sky) of each triangle from center of mass')]
+            if 'rprojs' in columns:
+                syn_params += [FloatArrayParameter(qualifier='rprojs', time=t, value=kwargs.get('rprojs', []), default_unit=u.solRad, description='Projected distance (on plane of sky) of each triangle from center of mass (of the half-envelope for contacts)')]
             if 'mus' in columns:
                 syn_params += [FloatArrayParameter(qualifier='mus', time=t, value=kwargs.get('mus', []), default_unit=u.dimensionless_unscaled, description='Mu')]
             if 'visible_centroids' in columns:
@@ -498,7 +501,9 @@ def mesh_syn(syn=True, **kwargs):
                 if 'ptfarea@{}'.format(dataset) in columns:
                     syn_params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), default_unit=u.m, description='Area of the passband transmission function')]
                 if 'pblum@{}'.format(dataset) in columns:
-                    syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star')]
+                    syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (after pblum scaling)')]
+                if 'abs_pblum@{}'.format(dataset) in columns:
+                    syn_params += [FloatParameter(qualifier='abs_pblum', dataset=dataset, time=t, value=kwargs.get('abs_pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (before pblum scaling)')]
 
     constraints = []
 

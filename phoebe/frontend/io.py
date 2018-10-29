@@ -319,7 +319,8 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
 def det_dataset(eb, passband, dataid, comp, time):
 
     """
-    Since RV datasets can have values related to each component in phoebe2, but are component specific in phoebe1, it is important to determine which dataset to add parameters to. This function will do that.
+    Since RV datasets can have values related to each component in phoebe2, but are component specific in phoebe1
+    , it is important to determine which dataset to add parameters to. This function will do that.
     eb - bundle
     rvpt - relevant phoebe 1 parameters
 
@@ -328,53 +329,53 @@ def det_dataset(eb, passband, dataid, comp, time):
     #first check to see if there are currently in RV datasets
     if dataid == 'Undefined':
         dataid = None
-    if len(rvs) == 0:
+#    if len(rvs) == 0:
     #if there isn't we add one the easy part
 
-        try:
-            eb._check_label(dataid)
+    try:
+        eb._check_label(dataid)
 
-            rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
+        rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
 
-        except ValueError:
+    except ValueError:
 
-            logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
-            rv_dataset = eb.add_dataset('rv', times=[])
+        logger.warning("The name picked for the radial velocity curve is forbidden. Applying default name instead")
+        rv_dataset = eb.add_dataset('rv', times=[])
 
-    else:
-    #now we have to determine if we add to an existing dataset or make a new one
-        rvs = eb.get_dataset(kind='rv').datasets
-        found = False
-        #set the component of the companion
-
-        if comp == 'primary':
-            comp_o = 'primary'
-        else:
-            comp_o = 'secondary'
-        for x in rvs:
-            test_dataset = eb.get_dataset(x, check_visible=False)
-
-
-            if len(test_dataset.get_value(qualifier='rvs', component=comp_o, check_visible=False)) == 0:                #so at least it has an empty spot now check against filter and length
-#               removing reference to time_o. If there are no rvs there should be no times
-#                time_o = test_dataset.get_value('times', component=comp_o)
-                passband_o = test_dataset.get_value('passband')
-
-#                if np.all(time_o == time) and (passband == passband_o):
-                if (passband == passband_o):
-                    rv_dataset = test_dataset
-                    found = True
-
-        if not found:
-            try:
-                eb._check_label(dataid)
-
-                rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
-
-            except ValueError:
-
-                logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
-                rv_dataset = eb.add_dataset('rv', times=[])
+#     else:
+#     #now we have to determine if we add to an existing dataset or make a new one
+#         rvs = eb.get_dataset(kind='rv').datasets
+#         found = False
+#         #set the component of the companion
+#
+#         if comp == 'primary':
+#             comp_o = 'primary'
+#         else:
+#             comp_o = 'secondary'
+#         for x in rvs:
+#             test_dataset = eb.get_dataset(x, check_visible=False)
+#
+#
+#             if len(test_dataset.get_value(qualifier='rvs', component=comp_o, check_visible=False)) == 0:                #so at least it has an empty spot now check against filter and length
+# #               removing reference to time_o. If there are no rvs there should be no times
+# #                time_o = test_dataset.get_value('times', component=comp_o)
+#                 passband_o = test_dataset.get_value('passband')
+#
+# #                if np.all(time_o == time) and (passband == passband_o):
+#                 if (passband == passband_o):
+#                     rv_dataset = test_dataset
+#                     found = True
+#
+#         if not found:
+#             try:
+#                 eb._check_label(dataid)
+#
+#                 rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
+#
+#             except ValueError:
+#
+#                 logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
+#                 rv_dataset = eb.add_dataset('rv', times=[])
 
     return rv_dataset
 
@@ -389,7 +390,7 @@ filename - a .phoebe file (from phoebe 1)
 def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     conf_interactive_checks_state = conf.interactive_checks
     conf_interactive_constraints_state = conf.interactive_constraints
-    conf.interactive_off()
+    conf.interactive_off(suppress_warning=True)
     legacy_file_dir = os.path.dirname(filename)
 
 # load the phoebe file
@@ -403,8 +404,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # load an empty legacy bundle and initialize obvious parameter sets
     if 'Overcontact' in morphology:
-        raise NotImplementedError
+#        raise NotImplementedError
         contact_binary= True
+        semi_detached = False
         eb = phb.Bundle.default_binary(contact_binary=True)
     elif 'Semi-detached' in morphology:
         semi_detached = True
@@ -449,7 +451,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         logger.warning('Phoebe Legacy reflection effect switch is set to false so refl_num is being set to 0.')
 
     if not add_compute_legacy:
-        params = np.delete(params, [list(params[:,0]).index('phoebe_reffect_reflections'), list(params[:,0]).index('phoebe_ie_switch')], axis=0)
+        params = np.delete(params, [list(params[:,0]).index('phoebe_reffect_reflections'), list(params[:,0]).index('phoebe_ie_switch'),
+                list(params[:,0]).index('phoebe_grid_finesize1'), list(params[:,0]).index('phoebe_grid_finesize2')], axis=0)
 
     if 'Overcontact' in morphology:
         params = np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
@@ -511,8 +514,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         hla = np.float(params[:,1][hlain]) #pull for possible conversion of l3
 #        cla = np.float(params[:,1][clain]) #pull for possible conversion of l3
 
-        if contact_binary:
-            params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
+#        if contact_binary:
+#            params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
 
 #and split into lc and rv and spot parameters
 
@@ -858,36 +861,34 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             #now change to take care of bolometric values
             d['qualifier'] = d['qualifier']+'_bol'
         if pnew == 'pot':
-            #print "dict", d
-            d['kind'] = 'star'
-            d['qualifier'] = 'requiv'
-            d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
 
-            comp_no = ['', 'primary', 'secondary'].index(d['component'])
-            q_in = list(params[:,0]).index('phoebe_rm.VAL')
-            q = roche.q_for_component(np.float(params[:,1][q_in]), comp_no)
-            F_in = list(params[:,0]).index('phoebe_f{}.VAL'.format(comp_no))
-            F = np.float(params[:,1][F_in])
-            a_in = list(params[:,0]).index('phoebe_sma.VAL')
-            a = np.float(params[:,1][a_in])
-            e_in = list(params[:,0]).index('phoebe_ecc.VAL')
-            e = np.float(params[:,1][e_in])
-            delta = 1-e # defined at periastron
-            Omega = roche.pot_for_component(float(val), q, comp_no)
-            logger.debug("libphoebe.roche_area_volume(q={}, F={}, d={}, Omega={})".format(q, F, delta, Omega))
-            volume = libphoebe.roche_area_volume(q, F, delta, Omega,
-                                                 choice=0,
-                                                 lvolume=True,
-                                                 larea=False)['lvolume']
-
-            # convert from roche units to scaled (solar) units
-            volume *= a**3
-            # now convert from volume (in solar units) to requiv
-            d['value'] = (volume * 3./4 * 1./np.pi)**(1./3)
-            d['kind'] = None
             if contact_binary:
+                eb.flip_constraint('pot', component='contact_envelope', solve_for='requiv@primary', check_nan=False)
                 d['component'] = 'contact_envelope'
-            d['context'] = 'component'
+                d['context'] = 'component'
+                d['qualifier'] = 'pot'
+
+            else:
+                d['kind'] = 'star'
+                d['qualifier'] = 'requiv'
+                d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
+
+                comp_no = ['', 'primary', 'secondary'].index(d['component'])
+
+                q_in = list(params[:,0]).index('phoebe_rm.VAL')
+                q = np.float(params[:,1][q_in])
+                F_in = list(params[:,0]).index('phoebe_f{}.VAL'.format(comp_no))
+                F = np.float(params[:,1][F_in])
+                a_in = list(params[:,0]).index('phoebe_sma.VAL')
+                a = np.float(params[:,1][a_in])
+                e_in = list(params[:,0]).index('phoebe_ecc.VAL')
+                e = np.float(params[:,1][e_in])
+                delta = 1-e # defined at periastron
+
+                d['value'] = roche.pot_to_requiv(float(val), a, q, F, delta, component=comp_no)
+                d['kind'] = None
+
+                d['context'] = 'component'
     # change t0_ref and set hjd0
         if pnew == 'hjd0':
 
@@ -941,8 +942,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         elif pnew == 'finesize':
                     # set gridsize
             d['value'] = val
-            if conf.devel:
-                eb.set_value_all(check_visible=False, **d)
+            eb.set_value_all(check_visible=False, **d)
             # change parameter and value to ntriangles
             val = N_to_Ntriangles(int(np.float(val)))
             d['qualifier'] = 'ntriangles'
@@ -960,7 +960,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #flip back all constraints
     # get rid of seconddary coefficient if ldlaw  is linear
     eb.flip_constraint(solve_for='t0_ref', constraint_func='t0_ref_supconj')
-
+    if contact_binary:
+        eb.flip_constraint('requiv@primary', 'pot@contact_envelope')
     if 'Linear' in ldlaw:
 
         ldcos = eb.filter('ld_coeffs')
@@ -1028,16 +1029,10 @@ def par_value(param, index=None, **kwargs):
             q = roche.q_for_component(q, component=comp_no)
             F = b.get_value('syncpar', component=param.component, context='component')
             e = b.get_value('ecc', kind='orbit', context='component')
-            d = 1-e # at periastron
+            delta = 1-e # at periastron
             s = np.array([0,0,1]).astype(float) # aligned case, we would already have thrown an error if misaligned
 
-            requiv = val
-            volume = 4./3 * np.pi * requiv**3 /sma**3
-            logger.debug("roche_misaligned_Omega_at_vol(volume={}, q={}, F={}, d={}, s={}) for {}".format(volume, q, F, d, s, param.component))
-            Phi = libphoebe.roche_misaligned_Omega_at_vol(volume,
-                                                          q, F, d, s)
-
-            val = [roche.pot_for_component(Phi, q, component=comp_no, reverse=True)]
+            val = [roche.requiv_to_pot(val, sma, q, F, delta, s, component=comp_no)]
         else:
             val = [val]
 
@@ -1247,8 +1242,11 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
     #make lists to put results with important things already added
 
+#    parnames = ['phoebe_rvno', 'phoebe_spots_no', 'phoebe_lcno']
+#    parvals = [len(rvs), len(spots), len(lcs)]
+#    types = ['int', 'int']
     parnames = ['phoebe_rvno', 'phoebe_spots_no', 'phoebe_lcno']
-    parvals = [len(rvs), len(spots), len(lcs)]
+    parvals = [len(rvs)*2, len(spots), len(lcs)]
     types = ['int', 'int']
     #Force the independent variable to be time
 
@@ -1537,83 +1535,38 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
 #loop through rvs
 #if there is more than one rv...try this
-
+    # set curve number
+    num = 1
     for y in range(len(rvs)):
+
+        #get rv qualifiers
         quals = eb.filter(dataset=rvs[y], context='dataset')+eb.filter(dataset=rvs[y], context='compute')
 
-        #if there is more than 1 rv try this
-        try:
-            comp = eb.get_parameter(qualifier='times', dataset=rvs[y]).component
-            parnames.append('phoebe_rv_indep['+str(y+1)+']')
+        #cycle through components
+        comps = quals.components
+
+        rv_type = {primary:{'curve' : '"Primary RV"', 'comp_int' : 1} , \
+        secondary: {'curve':'"Secondary RV"', 'comp_int':2}}
+
+        for i in range(len(comps)):
+
+            parnames.append('phoebe_rv_indep['+str(num)+']')
             parvals.append('Time (HJD)')
             types.append('choice')
-        # dependent variable is just Primary or secondary
-            parnames.append('phoebe_rv_dep['+str(y+1)+']')
-            parvals.append('"'+comp[0].upper()+comp[1::]+' RV"')
+            #dependent variable
+            parnames.append('phoebe_rv_dep['+str(num)+']')
+            parvals.append(rv_type[comps[i]]['curve'])
             types.append('choice')
-            parnames.append('phoebe_rv_id['+str(y+1)+']')
+            parnames.append('phoebe_rv_id['+str(num)+']')
             parvals.append(rvs[y])
-            types.append('choice')
+
             for param in quals.to_list():
-                if param.component == primary:
-                    comp_int = 1
-                elif param.component == secondary:
-                    comp_int = 2
-                else:
-                    comp_int = None
 
-#            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
-                try:
-                    pnew = _2to1par[param.qualifier]
-                    if param.qualifier in ['ld_func', 'rvs', 'times', 'sigmas'] or param.component == '_default':
-                        param = None
 
-                except:
-                    logger.warning(param.twig+' has no phoebe 1 corollary')
-                    param = None
-
-                if param != None:
-                    val, ptype = par_value(param)
-                    pname = ret_parname(param.qualifier, component = param.component, dtype='rv', dnum = y+1, ptype=ptype)
-# if is tries to append a value that already exists...stop that from happening
-                    if pname[0] not in parnames:
-                        parnames.extend(pname)
-                        parvals.extend(val)
-                        if ptype == 'array':
-                            types.append(ptype)
-                            types.append(ptype)
-                        else:
-                            types.append(ptype)
-
-# hacky but it works. If you have more than one component in an array
-        except:
-            comp = ['primary', 'secondary']
-            parvals[0] = 2
-            for i in range(len(comp)):
-                parnames.append('phoebe_rv_indep['+str(i+1)+']')
-                parvals.append('"Time (HJD)"')
-                types.append('choice')
-            # dependent variable is just Primary or secondary
-                parnames.append('phoebe_rv_dep['+str(i+1)+']')
-                parvals.append('"'+comp[i][0].upper()+comp[i][1::]+' RV"')
-                types.append('choice')
-                parnames.append('phoebe_rv_id['+str(i+1)+']')
-                parvals.append(rvs[y])
-                types.append('choice')
-
-                for param in quals.to_list():
-                    if param.component == primary:
-                        comp_int = 1
-                    elif param.component == secondary:
-                        comp_int = 2
-                    else:
-                        comp_int = None
-
-    #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
+                if param.component == comps[i] or param.component == None:
                     try:
                         pnew = _2to1par[param.qualifier]
-                        if param.qualifier in ['ld_func', 'times', 'rvs', 'sigmas'] or param.component == '_default':
-
+                        if param.qualifier in ['ld_func', 'rvs', 'times', 'sigmas'] or param.component == '_default':
                             param = None
 
                     except:
@@ -1621,8 +1574,17 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                         param = None
 
                     if param != None:
+
+                        try:
+
+                            comp_int = rv_type[param.component]['comp_int']
+
+                        except:
+                            comp_int = None
+
                         val, ptype = par_value(param)
-                        pname = ret_parname(param.qualifier, comp_int = comp_int, dtype='rv', dnum = i+1, ptype=ptype)
+                        pname = ret_parname(param.qualifier, comp_int = comp_int, dtype='rv', dnum = num, ptype=ptype)
+
     # if is tries to append a value that already exists...stop that from happening
                         if pname[0] not in parnames:
                             parnames.extend(pname)
@@ -1632,6 +1594,105 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                                 types.append(ptype)
                             else:
                                 types.append(ptype)
+            num = num+1
+
+#     for y in range(len(rvs)):
+#         #set counter for rvs
+#         num = 0
+#         # grab q
+#         quals = eb.filter(dataset=rvs[y], context='dataset')+eb.filter(dataset=rvs[y], context='compute')
+#         num = 0
+#         #if there is more than 1 rv try this
+#         try:
+#             comp = eb.get_parameter(qualifier='times', dataset=rvs[y]).component
+#             parnames.append('phoebe_rv_indep['+str(y+1)+']')
+#             parvals.append('Time (HJD)')
+#             types.append('choice')
+#         # dependent variable is just Primary or secondary
+#             parnames.append('phoebe_rv_dep['+str(y+1)+']')
+#             parvals.append('"'+comp[0].upper()+comp[1::]+' RV"')
+#             types.append('choice')
+#             parnames.append('phoebe_rv_id['+str(y+1)+']')
+#             parvals.append(rvs[y])
+#             types.append('choice')
+#             for param in quals.to_list():
+#                 if param.component == primary:
+#                     comp_int = 1
+#                 elif param.component == secondary:
+#                     comp_int = 2
+#                 else:
+#                     comp_int = None
+#
+# #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
+#                 try:
+#                     pnew = _2to1par[param.qualifier]
+#                     if param.qualifier in ['ld_func', 'rvs', 'times', 'sigmas'] or param.component == '_default':
+#                         param = None
+#
+#                 except:
+#                     logger.warning(param.twig+' has no phoebe 1 corollary')
+#                     param = None
+#
+#                 if param != None:
+#                     val, ptype = par_value(param)
+#                     pname = ret_parname(param.qualifier, component = param.component, dtype='rv', dnum = y+1, ptype=ptype)
+# # if is tries to append a value that already exists...stop that from happening
+#                     if pname[0] not in parnames:
+#                         parnames.extend(pname)
+#                         parvals.extend(val)
+#                         if ptype == 'array':
+#                             types.append(ptype)
+#                             types.append(ptype)
+#                         else:
+#                             types.append(ptype)
+#
+# # hacky but it works. If you have more than one component in an array
+#         except:
+#             comp = ['primary', 'secondary']
+#             parvals[0] = 2
+#             for i in range(len(comp)):
+#                 parnames.append('phoebe_rv_indep['+str(i+1)+']')
+#                 parvals.append('"Time (HJD)"')
+#                 types.append('choice')
+#             # dependent variable is just Primary or secondary
+#                 parnames.append('phoebe_rv_dep['+str(i+1)+']')
+#                 parvals.append('"'+comp[i][0].upper()+comp[i][1::]+' RV"')
+#                 types.append('choice')
+#                 parnames.append('phoebe_rv_id['+str(i+1)+']')
+#                 parvals.append(rvs[y])
+#                 types.append('choice')
+#
+#                 for param in quals.to_list():
+#                     if param.component == primary:
+#                         comp_int = 1
+#                     elif param.component == secondary:
+#                         comp_int = 2
+#                     else:
+#                         comp_int = None
+#
+#     #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
+#                     try:
+#                         pnew = _2to1par[param.qualifier]
+#                         if param.qualifier in ['ld_func', 'times', 'rvs', 'sigmas'] or param.component == '_default':
+#
+#                             param = None
+#
+#                     except:
+#                         logger.warning(param.twig+' has no phoebe 1 corollary')
+#                         param = None
+#
+#                     if param != None:
+#                         val, ptype = par_value(param)
+#                         pname = ret_parname(param.qualifier, comp_int = comp_int, dtype='rv', dnum = i+1, ptype=ptype)
+#     # if is tries to append a value that already exists...stop that from happening
+#                         if pname[0] not in parnames:
+#                             parnames.extend(pname)
+#                             parvals.extend(val)
+#                             if ptype == 'array':
+#                                 types.append(ptype)
+#                                 types.append(ptype)
+#                             else:
+#                                 types.append(ptype)
 
 #spots
 
@@ -1698,8 +1759,24 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
 #loop through LEGACY compute parameter set
 
-    # comquals = eb.get_compute(kind='legacy', check_visible=False)-eb.get_compute(kind='legacy', component='_default')
-    computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
+
+    # Did you pass a compute parameter set?
+    if compute is not None:
+        # print("compute", compute)
+        computeps = eb.get_compute(compute=compute)
+#        computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
+
+    #Find Compute Parameter Set
+    else:
+        ncompute = len(eb.filter(context='compute', kind='legacy').computes)
+        if ncompute == 1:
+            computeps = eb.get_compute(kind='legacy', check_visible=False)
+
+        elif ncompute == 0:
+            raise ValueError('Your bundle must contain a "Legacy" compute parameter set.')
+
+        else:
+            raise ValueError('Your bundle contains '+str(ncompute)+' parameter sets. You must specify one to use.')
 
     for param in computeps.to_list():
         if param.component == primary:
@@ -1721,17 +1798,18 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         #TODO add reflection switch
         if param.qualifier == 'refl_num':
             if param.get_value(**kwargs) == 0:
-                in1 =  parnames.index('phoebe_alb1.VAL')
-                in2 =  parnames.index('phoebe_alb2.VAL')
-                parvals[in1] = 0.0
-                parvals[in2] = 0.0
-            elif  param.get_value(**kwargs) == 1:
+                #Legacy phoebe will calculate reflection no matter what.
+                # Turn off reflection switch but keep albedos
+                logger.warning('To completely remove irradiation effects in \
+                                Phoebe Legacy irrad_frac_refl_bol must be set \
+                                to zero for both components')
                 pname = 'phoebe_reffect_switch'
                 val = '0'
                 ptype='boolean'
                 parnames.append(pname)
                 parvals.append(val)
                 types.append(ptype)
+
 
             else:
                 pname = 'phoebe_reffect_switch'
@@ -1740,6 +1818,15 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 parnames.append(pname)
                 parvals.append(val)
                 types.append(ptype)
+
+        if param.qualifier == 'irrad_method':
+            #to completely turn of irradiation in phoebe1 albedos must be zero
+            if param.get_value(**kwargs) == 'none':
+                in1 =  parnames.index('phoebe_alb1.VAL')
+                in2 =  parnames.index('phoebe_alb2.VAL')
+                parvals[in1] = 0.0
+                parvals[in2] = 0.0
+
         try:
             pnew = _2to1par[param.qualifier]
             if param.qualifier in ['ld_func'] or param.dataset:

@@ -12,6 +12,7 @@ def test_binary(plot=False):
     cb['q'] = 1.0
     cb['teff@primary'] = 5000.
     cb['teff@secondary'] = 5000.
+
     # cb.set_value_all('incl',90.0)
 
     times = cb.to_time(np.linspace(-.1,1.1,100))
@@ -24,14 +25,18 @@ def test_binary(plot=False):
     cb.set_value_all('atm', 'extern_planckint')
 
     # turn off limb-darkening:
-    cb.set_value_all('ld_func_bol', 'logarithmic')
-    cb.set_value_all('ld_coeffs_bol', [0.0, 0.0])
+    cb.set_value_all('ld_func_bol', 'linear')
+    cb.set_value_all('ld_coeffs_bol', [0.0])
 
-    cb.set_value_all('ld_func', 'logarithmic')
-    cb.set_value_all('ld_coeffs', [0.0, 0.0])
+    cb.set_value_all('ld_func', 'linear')
+    cb.set_value_all('ld_coeffs', [0.0])
 
     cb.set_value_all('rv_grav', False)
     cb.set_value_all('ltte', False)
+
+    #turn off albedos (legacy requirement)
+    cb.set_value_all('irrad_frac_refl_bol',  0.0)
+
 
     if plot: print "running phoebe2 model..."
     cb.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
@@ -50,13 +55,8 @@ def test_binary(plot=False):
         print "max rv1 atol: {} rtol: {}".format(np.max(phoebe2_val_rv1 - phoebe1_val_rv1), np.max((phoebe2_val_rv1 - phoebe1_val_rv1)/phoebe1_val_rv1))
         print "max rv2 atol: {} rtol: {}".format(np.max(phoebe2_val_rv2 - phoebe1_val_rv2), np.max((phoebe2_val_rv2 - phoebe1_val_rv2)/phoebe1_val_rv2))
 
-        cb.plot(dataset='lc01')
-        plt.legend()
-        plt.show()
-
-        cb.plot(dataset='rv01')
-        plt.legend()
-        plt.show()
+        cb.plot(dataset='lc01', show=True)
+        cb.plot(dataset='rv01', show=True)
 
     assert(np.allclose(phoebe2_val_lc, phoebe1_val_lc, rtol=7e-3, atol=0.))
     # note we can't use relative tolerances because those blow up near 0, so
