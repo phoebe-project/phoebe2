@@ -62,9 +62,33 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.0 - misalignment feature release
+
+* Add support for spin-orbit misalignment
+* Add support for line profile (LP) datasets
+* Switch parameterization from rpole/pot to requiv (including new semi-detached and contact constraints)
+* Significant rewrite to plotting infrastructure to use [autofig](http://github.com/kecnry/autofig)
+* Introduction of [nparray](http://github.com/kecnry/nparray) support within parameters
+* Significant rewrite to mesh dataset infrastructure to allow choosing which columns are exposed
+* Distinguish Roche (xyz) from Plane-of-Sky (uvw) coordinates
+* Ability to toggle interactive constraints and interactive system checks independently
+* Implementation of ParameterSet.tags and Parameter.tags
+* General support for renaming tags/labels
+* Expose pblum for contacts
+* Expose per-component r and rprojs for contacts (used to be based on primary frame of reference only)
+* Fix definition of vgamma (see note in 2.0.4 release below)
+* Remove phshift parameter (see note in 2.0.3 release below)
+* Permanently rename 'long' parameter for spots (see note in 2.0.2 release below)
+* Numerous other minor bug fixes and improvements
+
+### 2.0.11 - astropy version dependency hotfix
+
+* Set astropy dependency to be >=1.0 and < 3.0 (as astropy 3.0 requires python 3)
+
 ### 2.0.10 - legacy import extraneous spaces hotfix
 
 * Handle ignoring extraneous spaces when importing a PHOEBE legacy file.
+
 
 ### 2.0.9 - \_default Parameters hotfix
 
