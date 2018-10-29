@@ -2,6 +2,7 @@
 from phoebe.parameters import *
 from phoebe import u
 
+### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
 def system(**kwargs):
     """
@@ -24,6 +25,6 @@ def system(**kwargs):
     #params += [FloatParameter(qualifier='pmdec', value=kwargs.get('pmdec', 0.0), default_unit=u.mas/u.yr, description='Proper motion in declination')]
 
     params += [FloatParameter(qualifier='distance', value=kwargs.get('distance', 1.0), default_unit=u.m, description='Distance to the system')]
-    params += [FloatParameter(qualifier='vgamma', value=kwargs.get('vgamma', 0.0), default_unit=u.km/u.s, description='Systemic velocity')]
+    params += [FloatParameter(qualifier='vgamma', value=kwargs.get('vgamma', 0.0), default_unit=u.km/u.s, description='Systemic velocity (in the direction of positive RV or negative vz)')]
 
     return ParameterSet(params)

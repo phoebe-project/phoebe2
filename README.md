@@ -1,7 +1,7 @@
-PHOEBE 2.0 RELEASE NOTES
+PHOEBE 2.1 RELEASE NOTES
 ------------------------
 
-Hello and thank you for your interest in PHOEBE 2.0! PHOEBE is a binary star modeling code, but version 2.0 also supports the modeling of single rotating stars.
+Hello and thank you for your interest in PHOEBE 2!
 
 
 INTRODUCTION
@@ -9,37 +9,37 @@ INTRODUCTION
 
 PHOEBE stands for PHysics Of Eclipsing BinariEs. PHOEBE is pronounced [fee-bee](https://www.merriam-webster.com/dictionary/phoebe?pronunciation&lang=en_us&file=phoebe01.wav).
 
-PHOEBE 2.0 is a rewrite of the original PHOEBE code. For most up-to-date information please refer to the PHOEBE project webpage: [http://phoebe-project.org](http://phoebe-project.org)
+PHOEBE 2 is a rewrite of the original PHOEBE code. For most up-to-date information please refer to the PHOEBE project webpage: [http://phoebe-project.org](http://phoebe-project.org)
 
-PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](http://adsabs.harvard.edu/abs/2016ApJS..227...29P).
+PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](https://ui.adsabs.harvard.edu/#abs/2016ApJS..227...29P).  The addition of support for misaligned stars in version 2.1 is described in [Horvat et al. (2018, ApJS 237, 26)](https://ui.adsabs.harvard.edu/#abs/2018ApJS..237...26H).
 
-PHOEBE 2.0 is released under the [GNU General Public License v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
+PHOEBE 2 is released under the [GNU General Public License v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
 
 The source code is available for download from the [PHOEBE project homepage](http://phoebe-project.org) and from [github](https://github.com/phoebe-project/phoebe2).
 
-The development of PHOEBE 2.0 is funded in part by the [NSF grant #1517474](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1517474).
+The development of PHOEBE 2 is funded in part by the [NSF grant #1517474](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1517474).
 
 
 DOWNLOAD AND INSTALLATION
 -------------------------
 
-The easiest way to download and install PHOEBE 2.0 is by using pip:
+The easiest way to download and install PHOEBE 2 is by using pip:
 
     pip install phoebe
 
 To install it site-wide, prefix the `pip` command with `sudo` or run it as root.
 
-To download the PHOEBE 2.0 source code, use git:
+To download the PHOEBE 2 source code, use git:
 
     git clone https://github.com/phoebe-project/phoebe2.git
 
-To install PHOEBE 2.0 from the source locally, go to the `phoebe2/` directory and issue:
+To install PHOEBE 2 from the source locally, go to the `phoebe2/` directory and issue:
 
     python setup.py build
     python setup.py install --user
 
-To install PHOEBE 2.0 from the source site-wide, go to the `phoebe2/` directory and issue:
+To install PHOEBE 2 from the source site-wide, go to the `phoebe2/` directory and issue:
 
     python setup.py build
     sudo python setup.py install
@@ -50,17 +50,36 @@ For further details on pre-requisites and minimal versions of python consult the
 GETTING STARTED
 ---------------
 
-PHOEBE 2.0 has a steep learning curve. There is no graphical front-end as of yet; the front-end is now written in python. To start PHOEBE, issue:
+PHOEBE 2 has a steep learning curve. There is no graphical front-end as of yet; the front-end is now written in python. To start PHOEBE, issue:
 
     python
     >>> import phoebe
     >>>
 
-To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.0/#Tutorials) hosted on the PHOEBE webpage.
+To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.1/#Tutorials) hosted on the PHOEBE webpage.
 
 
 CHANGELOG
 ----------
+
+### 2.1.0 - misalignment feature release
+
+* Add support for spin-orbit misalignment
+* Add support for line profile (LP) datasets
+* Switch parameterization from rpole/pot to requiv (including new semi-detached and contact constraints)
+* Significant rewrite to plotting infrastructure to use [autofig](http://github.com/kecnry/autofig)
+* Introduction of [nparray](http://github.com/kecnry/nparray) support within parameters
+* Significant rewrite to mesh dataset infrastructure to allow choosing which columns are exposed
+* Distinguish Roche (xyz) from Plane-of-Sky (uvw) coordinates
+* Ability to toggle interactive constraints and interactive system checks independently
+* Implementation of ParameterSet.tags and Parameter.tags
+* General support for renaming tags/labels
+* Expose pblum for contacts
+* Expose per-component r and rprojs for contacts (used to be based on primary frame of reference only)
+* Fix definition of vgamma (see note in 2.0.4 release below)
+* Remove phshift parameter (see note in 2.0.3 release below)
+* Permanently rename 'long' parameter for spots (see note in 2.0.2 release below)
+* Numerous other minor bug fixes and improvements
 
 ### 2.0.11 - astropy version dependency hotfix
 
@@ -69,6 +88,7 @@ CHANGELOG
 ### 2.0.10 - legacy import extraneous spaces hotfix
 
 * Handle ignoring extraneous spaces when importing a PHOEBE legacy file.
+
 
 ### 2.0.9 - \_default Parameters hotfix
 

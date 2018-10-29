@@ -5,7 +5,6 @@ import phoebe
 from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
-import phoebeBackend as phb
 
 phoebe.devel_on()
 # phoebe.interactive_on()
@@ -16,6 +15,9 @@ def _beta_vs_legacy(b, plot=False):
     times = np.linspace(-0.2,1.2*period,51)
 
     b.set_value('vgamma', 50)
+
+    #turn off albedos (legacy requirement)
+    b.set_value_all('irrad_frac_refl_bol',  0.0)
 
     # b.add_dataset('lc', times=times, dataset='lc01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
     b.add_dataset('rv', times=times, dataset='rv01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
@@ -29,17 +31,18 @@ def _beta_vs_legacy(b, plot=False):
 
     if plot:
         b.plot(show=True)
-
-    print "sma: {}, period: {}, q: {}".format(b.get_value('sma@binary'), b.get_value('period@binary'), b.get_value('q'))
+        print "sma: {}, period: {}, q: {}".format(b.get_value('sma@binary'), b.get_value('period@binary'), b.get_value('q'))
 
     phoebe2_val = b.get_value('rvs@primary@phnumresults@phnum')
     phoebe1_val = b.get_value('rvs@primary@legnumresults@legnum')
-    print "rv@primary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val)))
+    if plot:
+        print "rv@primary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val)))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-1, atol=0.))
 
     phoebe2_val = b.get_value('rvs@secondary@phnumresults@phnum')
     phoebe1_val = b.get_value('rvs@secondary@legnumresults@legnum')
-    print "rv@secondary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val)))
+    if plot:
+        print "rv@secondary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val)))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-1, atol=0.))
 
 
@@ -63,5 +66,5 @@ def test_binary(plot=False):
 
 
 if __name__ == '__main__':
-    logger = phoebe.logger()
+    logger = phoebe.logger('debug')
     test_binary(plot=True)

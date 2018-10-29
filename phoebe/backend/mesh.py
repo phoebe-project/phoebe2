@@ -32,8 +32,36 @@ def compute_volume(sizes, centers, normals):
 
 def euler_trans_matrix(etheta, elongan, eincl):
     """
-    Get the transformation matrix to translate/rotate a mesh according to
-    euler angles
+    Get the transformation matrix R to translate/rotate a mesh according to
+    euler angles.
+
+    The matrix is
+
+      R(long,incl,theta) =
+        Rz(pi).Rz(long).Rx(incl).Rz(theta)
+        Rz(long).Rx(-incl).Rz(theta).Rz(pi)
+
+    where
+
+      Rx(u) = 1,  0,        0
+              0,  cos(u),   -sin(u)
+              0,  sin(u),   cos(u)
+
+      Ry(u) = cos(u),   0,  sin(u)
+              0,        1,  0
+              -sin(u),  0,  cos(u)
+
+      Rz(u) = cos(u),   -sin(u),  0
+              sin(u),   cos(u),   0
+              0,        0,        1
+
+    Rz(pi) = reflection across z-axis
+
+    Note:
+
+      R(0,0,0) = -1,  0,  0
+                  0,  -1, 0
+                  0,  0,  1
 
     :parameter float etheta: euler theta angle
     :parameter float elongan: euler long of asc node angle
@@ -55,6 +83,84 @@ def euler_trans_matrix(etheta, elongan, eincl):
                         [-s2*c3-c2*c1s3, s2*s3-c2*c1c3, c2*s1],
                         [s1*s3, s1*c3, c1]
                     ])
+
+def Rx(x):
+  c = cos(x)
+  s = sin(x)
+  return np.array([[1., 0., 0.], [0., c, -s], [0., s, c]])
+
+def Ry(x):
+  c = cos(x)
+  s = sin(x)
+  return np.array([[c, 0., -s], [0., 1., 0.], [s, 0., c]])
+
+def Rz(x):
+  c = cos(x)
+  s = sin(x)
+  return np.array([[c, -s, 0.], [s, c, 0.], [0., 0., 1.]])
+
+
+def spin_in_system(incl, long_an):
+    """
+    Spin in the plane of sky of a star given its inclination and "long_an"
+
+       incl - inclination of the star in the plane of sky
+       long_an - longitude of ascending node (equator) of the star in the plane of sky
+
+    Return:
+        spin - in plane of sky
+    """
+    #print "*** spin_in_system", incl, long_an, np.dot(Rz(long_an), np.dot(Rx(-incl), np.array([0,0,1])))
+    # Rz(long_an) Rx(incl) [0, 0, 1]
+    return np.dot(Rz(long_an), np.dot(Rx(-incl), np.array([0.,0.,1.])))
+
+def spin_in_roche(s, etheta, elongan, eincl):
+  """
+    Transform the spin s of a star on Kerpler orbit with
+
+      etheta  - true anomaly
+      elongan - longitude of ascending node
+      eincl - inclination
+
+    from in the plane of sky reference frame into
+    the Roche reference frame.
+  """
+  #  m = Rz(long).Rx(-incl).Rz(theta).Rz(pi)
+  m = euler_trans_matrix(etheta, elongan, eincl)
+
+  return np.dot(m.T, s)
+
+
+def general_rotation_matrix(theta, phi, alpha):
+  """
+  Rotation around vector
+    u = (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
+  by an angle
+    alpha
+  Ref:
+    http://ksuweb.kennesaw.edu/~plaval//math4490/rotgen.pdf
+
+  :parameter float theta:
+  :parameter float phi:
+  :parameter float alpha: rotation angle
+
+  :return: 3x3 matrix of floats
+  """
+
+  C = cos(alpha)
+  S = sin(alpha)
+  t  = 1 - C
+
+  ux = sin(theta)*cos(phi)
+  uy = sin(theta)*sin(phi)
+  uz = cos(theta)
+
+  return np.array([
+                    [t*ux**2 + C, t*ux*uy - S*uz, t*ux*uz + S*uy],
+                    [t*ux*uy + S*uz, t*uy**2 + C, t*uy*uz - S*ux],
+                    [t*ux*uz - S*uy, t*uy*uz + S*ux, t*uz**2 + C]
+                  ])
+
 
 def transform_position_array(array, pos, euler, is_normal, reverse=False):
     """
@@ -104,7 +210,8 @@ def transform_velocity_array(array, pos_array, vel, euler, rotation_vel=(0,0,0))
 
     trans_matrix = euler_trans_matrix(*euler)
 
-    rotation_component = np.cross(pos_array, rotation_vel, axisa=1)
+    # v_{rot,i} = omega x r_i    with  omega = rotation_vel
+    rotation_component = np.cross(rotation_vel, pos_array, axisb=1)
     orbital_component = np.asarray(vel)
 
     if isinstance(array, ComputedColumn):
@@ -168,6 +275,7 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
 
     # TODO: actually compute the numerical volume (find old code)
     new_mesh['volume'] = compute_volume(new_mesh['areas'], new_mesh['centers'], new_mesh['tnormals'])
+    # new_mesh['area'] # TODO: compute surface area??? (not sure if needed)
     new_mesh['velocities'] = np.zeros(new_mesh['centers'].shape)
 
     return new_mesh
@@ -197,10 +305,27 @@ class ComputedColumn(object):
         # user will probably not dig this deep)
         self._vertices = None
         self._centers = None
+
+        self._compute_at_vertices = kwargs.get('compute_at_vertices', self.mesh._compute_at_vertices)
+
         if value_for_computations is not None:
             self.set_for_computations(value_for_computations)
 
-        self._compute_at_vertices = kwargs.get('compute_at_vertices', self.mesh._compute_at_vertices)
+
+    def __len__(self):
+        if self.for_computations is None:
+            # this is a bit of a hack, but allows us to check something like
+            # if column is None or not len(column) without needing extra
+            # conditions for computed columns
+            return 0
+        return len(self.for_computations)
+
+    @property
+    def shape(self):
+        return self.for_computations.shape
+
+    def __getitem__(self, k):
+        return self.for_computations[k]
 
     @property
     def compute_at_vertices(self):
@@ -379,15 +504,11 @@ class ProtoMesh(object):
         self._normgrads         = ComputedColumn(mesh=self)
 
         self._volume            = None  # scalar
+        self._area              = None  # scalar
 
         ### TESTING FOR WD METHOD ###
         self._phis               = None # Nx1
         self._thetas             = None # Nx1
-
-        ### WD style OCs only ###
-        self._env_comp            = None # Vx1
-        self._env_comp3           = None # Nx1
-
 
         ### PHYSICAL QUANTITIES
         self._loggs             = ComputedColumn(mesh=self)
@@ -400,26 +521,21 @@ class ProtoMesh(object):
 
 
         self._pos               = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
-        self._scalar_fields     = ['volume']
-
-        if 'label_envelope' in kwargs.keys():
-            self._label_envelope = kwargs.pop('label_envelope')
-            self._label_primary = kwargs.pop('label_primary')
-            self._label_secondary = kwargs.pop('label_secondary')
-
+        self._pos_center        = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
+        self._scalar_fields     = ['volume', 'area']
 
         # TODO: split keys that are set vs computed-on-the-fly so when
         # we call something like ScaledProtoMesh.from_proto we don't have
         # to do all the on-the-fly computations just to discard them because
         # they aren't setable.
-        keys = ['pvertices', 'vertices', 'triangles', 'centers',
+        keys = ['compute_at_vertices',
+                  'pvertices', 'vertices', 'triangles', 'centers',
                   'coords_for_computations', 'normals_for_computations',
                   'rs', 'rprojs', 'cosbetas',
                   'areas', 'tareas', 'areas_si',
                   'velocities', 'vnormals', 'tnormals',
-                  'normgrads', 'volume',
-                  'phis', 'thetas', 'env_comp','env_comp3',
-                  'compute_at_vertices',
+                  'normgrads', 'volume', 'area',
+                  'phis', 'thetas',
                   'loggs', 'gravs', 'teffs', 'abuns', 'frac_refls'] # frac_heats, frac_scatts
         self._keys = keys + kwargs.pop('keys', [])
 
@@ -432,14 +548,16 @@ class ProtoMesh(object):
 
         # TODO: split this stuff into the correct classes/subclasses
 
-
-        if hasattr(self, key):
-            return getattr(self, key)
-        elif hasattr(self, '_observables') and key in self._observables.keys():
-            # applicable only for Mesh, not ProtoMesh
-            return self._observables[key]
-        else:
-            raise KeyError("{} is not a valid key".format(key))
+        if isinstance(key, str):
+            if hasattr(self, key):
+                return getattr(self, key)
+            elif hasattr(self, '_observables') and key in self._observables.keys():
+                # applicable only for Mesh, not ProtoMesh
+                return self._observables[key]
+            else:
+                raise KeyError("{} is not a valid key".format(key))
+        elif isinstance(key, np.ndarray):
+            raise KeyError("use mesh.take(bool_per_triangle, bool_per_vertex) to split mesh")
 
     def __setitem__(self, key, value):
         """
@@ -501,6 +619,68 @@ class ProtoMesh(object):
         """
         return copy.deepcopy(self)
 
+    def take(self, bool_per_triangle, bool_per_vertex):
+        """
+        """
+        if len(bool_per_triangle) != len(self.triangles):
+            raise ValueError("bool_per_triangle should have length {}".format(len(self.triangles)))
+
+        if len(bool_per_vertex) != len(self.vertices):
+            raise ValueEror("bool_per_vertex should have length {}".format(len(self.vertices)))
+
+        copy = self.copy()
+        for k in self._keys:
+            if not hasattr(copy, '_{}'.format(k)):
+                # then likely a computed property which we don't need to set
+                continue
+            current_value = getattr(copy, k)
+
+            if isinstance(current_value, float):
+                # then something like volume/area which is no longer going
+                # to be accurate by splitting the mesh, so we'll reset to None
+                # copy[k] = None
+                continue
+
+            elif isinstance(current_value, bool):
+                # then something like compute_at_vertices which we want to pass
+                # on to each half
+                copy[k] = current_value
+
+            elif current_value is None or not len(current_value):
+                # then this attribute is empty, so we can leave it that way
+                # NOTE: we have to use == None instead of is None so that
+                # computed columns can use their builtin __eq__ method
+                continue
+            elif len(current_value) == len(bool_per_triangle):
+                copy[k] = current_value[bool_per_triangle]
+
+                if k=='triangles':
+                    # then we need to be clever since all the vertex indices will
+                    # be re-ordered according to bool_per_vertex
+
+                    # this is hideous, but I can't think of a clean way to do it,
+                    # so for now I'll just make it work.
+
+                    # We need to know the mapping for vertices from old to new index
+                    index_mapping = {}  # index_mapping[old_index] = new_index
+                    nv = 0
+                    for i,b in enumerate(bool_per_vertex):
+                        if b:
+                            index_mapping[i] = nv
+                            nv += 1
+
+                    # now we need to apply this to all indices after filtering
+                    for it,triangle in enumerate(copy[k]):
+                        for iv,vertex in enumerate(triangle):
+                            copy[k][it][iv] = index_mapping[vertex]
+
+            elif len(current_value) == len(bool_per_vertex):
+                copy[k] = current_value[bool_per_vertex]
+            else:
+                raise ValueError("could not filter column {} (shape: {}) due to length mismatch (bool_per_triangle.shape: {}, bool_per_vertex.shape: {})".format(k, current_value.shape, bool_per_triangle.shape, bool_per_vertex.shape))
+
+        return copy
+
     def update_columns_dict(self, kwargs):
         """
         Update the value of a column or multiple columns by passing as a dict.
@@ -528,12 +708,13 @@ class ProtoMesh(object):
                 else:
                     v = np.full(self.Ntriangles, v)
 
+            self.__setitem__(k, v)
+
             if isinstance(v, ComputedColumn):
                 # then let's update the mesh instance to correctly handle
                 # inheritance
-                v._mesh = self
+                self.__getitem__(k)._mesh = self
 
-            self.__setitem__(k, v)
 
     def update_columns(self, **kwargs):
         """
@@ -646,9 +827,9 @@ class ProtoMesh(object):
         handled.
         """
         if self._compute_at_vertices:
-            return self.vertices - self._pos
+            return self.vertices - self._pos_center
         else:
-            return self.centers - self._pos
+            return self.centers - self._pos_center
 
     @property
     def coords_for_computations(self):
@@ -660,11 +841,11 @@ class ProtoMesh(object):
         # TODO: need to subtract the position offset if a Mesh (in orbit)
         if self._compute_at_vertices:
             if self.pvertices is not None:
-                return self.pvertices - self._pos
+                return self.pvertices - self._pos_center
             else:
-                return self.vertices - self._pos
+                return self.vertices - self._pos_center
         else:
-            return self.centers - self._pos
+            return self.centers - self._pos_center
 
     @property
     def normals_for_computations(self):
@@ -684,6 +865,8 @@ class ProtoMesh(object):
         depending on the setting in the mesh) with respect to the center of
         the star.
 
+        NOTE: unscaled
+
         (ComputedColumn)
         """
         rs = np.linalg.norm(self.coords_for_computations, axis=1)
@@ -692,9 +875,11 @@ class ProtoMesh(object):
     @property
     def rprojs(self):
         """
-        Return the projected (in x,y plane) radius of each element (either
+        Return the projected (in xy/uv plane) radius of each element (either
         vertices or centers depending on the setting in the mesh) with respect
         to the center of the star.
+
+        NOTE: unscaled
 
         (ComputedColumn)
         """
@@ -716,7 +901,12 @@ class ProtoMesh(object):
 
         # TODO: ditch the list comprehension... I know I figured out how to do
         # this (ie along an axis) with np.dot somewhere else
-        cosbetas = np.array([np.dot(c,n) / (np.linalg.norm(c)*np.linalg.norm(n)) for c,n in zip(coords, norms)])
+        # cosbetas = np.array([np.dot(c,n) / (np.linalg.norm(c)*np.linalg.norm(n)) for c,n in zip(coords, norms)])
+
+        cosbetas = libphoebe.scalproj_cosangle(
+          np.ascontiguousarray(coords),
+          np.ascontiguousarray(norms)
+        )
 
         return ComputedColumn(self, cosbetas)
 
@@ -803,6 +993,15 @@ class ProtoMesh(object):
         return self._volume
 
     @property
+    def area(self):
+        """
+        Return the surface area of the ENTIRE MESH.
+
+        (scalar/float)
+        """
+        return self._area
+
+    @property
     def phis(self):
         """
         TODO: add documentation
@@ -817,20 +1016,6 @@ class ProtoMesh(object):
         """
         # TODO: if self._thetas is None then compute from cartesian
         return self._thetas
-
-    @property
-    def env_comp(self):
-        """
-        TODO: add documentation
-        """
-        return self._env_comp
-
-    @property
-    def env_comp3(self):
-        """
-        TODO: add documentation
-        """
-        return self._env_comp3
 
     @property
     def loggs(self):
@@ -919,7 +1104,13 @@ class ScaledProtoMesh(ProtoMesh):
         TODO: add documentation
         """
 
-        keys = []
+        # store needed copies in the Roche coordinates
+        self._roche_vertices    = None  # Vx3
+        self._roche_centers     = None  # Nx3
+        self._roche_cvelocities = None  # Vx3
+        self._roche_tnormals    = None  # Nx3
+
+        keys = ['roche_vertices', 'roche_centers', 'roche_cvelocities', 'roche_tnormals']
         keys += kwargs.pop('keys', [])
 
         scale = kwargs.pop('scale', None)
@@ -927,6 +1118,7 @@ class ScaledProtoMesh(ProtoMesh):
         super(ScaledProtoMesh, self).__init__(keys=keys, **kwargs)
 
         if scale is not None:
+            self._copy_roche_values()
             self._scale_mesh(scale)
 
     @classmethod
@@ -936,14 +1128,18 @@ class ScaledProtoMesh(ProtoMesh):
         """
 
         mesh = cls(**proto_mesh.items())
+        mesh._copy_roche_values()
         mesh._scale_mesh(scale=scale)
 
-        if hasattr(proto_mesh, '_label_envelope'):
-            mesh._label_envelope = proto_mesh._label_envelope
-            mesh._label_primary = proto_mesh._label_primary
-            mesh._label_secondary = proto_mesh._label_secondary
-
         return mesh
+
+    def _copy_roche_values(self):
+        # make necessary copies
+        # logger.debug("copying roche values")
+        self._roche_vertices = self._vertices.copy()
+        self._roche_centers = self._centers.copy()
+        self._roche_cvelocities = self._velocities.centers.copy()
+        self._roche_tnormals = self._tnormals.copy()
 
     def _scale_mesh(self, scale):
         """
@@ -958,9 +1154,70 @@ class ScaledProtoMesh(ProtoMesh):
 
         self.update_columns(areas=self.areas*(scale**2))
         self._volume *= scale**3
-        # TODO NOW: scale volume
+        if self._area is not None:
+            # self._area is None for wd meshes
+            self._area += scale**2
 
+    @property
+    def roche_coords_for_computations(self):
+        """
+        Return the coordinates from the center of the star for each element
+        (either centers or vertices depending on the setting in the mesh).
+        """
 
+        if self._compute_at_vertices:
+            return self.roche_vertices
+        else:
+            return self.roche_centers
+
+    @property
+    def roche_vertices(self):
+        """
+        Return the array of vertices in Roche coordinates, where each item is a
+        triplet represeting cartesian coordinates.
+
+        (Vx3)
+        """
+        return self._roche_vertices
+
+    @property
+    def roche_vertices_per_triangle(self):
+        """
+        TODO: add documentation
+
+        TODO: confirm shape
+        (Nx3x3)
+        """
+        return self.roche_vertices[self.triangles]
+
+    @property
+    def roche_centers(self):
+        """
+        Access to the quantities at the centers of each triangles in Roche
+        coordinates.
+
+        :return: numpy array
+        """
+        return self._roche_centers
+
+    @property
+    def roche_cvelocities(self):
+        """
+        Access to the velocities (compute at the centers of each triangle)
+        in Roche coordinates
+
+        :return: numpy array
+        """
+        return self._roche_cvelocities
+
+    @property
+    def roche_tnormals(self):
+        """
+        Access to the tnormals in Roche coordinates
+
+        :return: numpy array
+        """
+        return self._roche_tnormals
 
 class Mesh(ScaledProtoMesh):
     """
@@ -986,7 +1243,9 @@ class Mesh(ScaledProtoMesh):
 
     @classmethod
     def from_proto(cls, proto_mesh, scale,
-                      pos, vel, euler, rotation_vel=(0,0,0)):
+                      pos, vel, euler, euler_vel,
+                      rotation_vel=(0,0,0),
+                      component_com_x=None):
         """
         Turn a ProtoMesh into a Mesh scaled and placed in orbit.
 
@@ -1002,35 +1261,30 @@ class Mesh(ScaledProtoMesh):
 
         mesh = cls(**proto_mesh.items())
 
+        mesh._copy_roche_values()
         mesh._scale_mesh(scale=scale)
-        mesh._place_in_orbit(pos, vel, euler, rotation_vel)
-
-        if hasattr(proto_mesh, '_label_envelope'):
-            mesh._label_envelope = proto_mesh._label_envelope
-            mesh._label_primary = proto_mesh._label_primary
-            mesh._label_secondary = proto_mesh._label_secondary
+        mesh._place_in_orbit(pos, vel, euler, euler_vel, rotation_vel, component_com_x)
 
         return mesh
 
     @classmethod
     def from_scaledproto(cls, scaledproto_mesh,
-                         pos, vel, euler, rotation_vel=(0,0,0)):
+                         pos, vel, euler, euler_vel,
+                         rotation_vel=(0,0,0),
+                         component_com_x=None):
         """
         TODO: add documentation
         """
 
         mesh = cls(**scaledproto_mesh.items())
 
-        mesh._place_in_orbit(pos, vel, euler, rotation_vel)
-
-        if hasattr(scaledproto_mesh, '_label_envelope'):
-            mesh._label_envelope = scaledproto_mesh._label_envelope
-            mesh._label_primary = scaledproto_mesh._label_primary
-            mesh._label_secondary = scaledproto_mesh._label_secondary
+        # roche coordinates have already been copied
+        # so do NOT call mesh._copy_roche_values() here
+        mesh._place_in_orbit(pos, vel, euler, euler_vel, rotation_vel, component_com_x)
 
         return mesh
 
-    def _place_in_orbit(self, pos, vel, euler, rotation_vel=(0,0,0)):
+    def _place_in_orbit(self, pos, vel, euler, euler_vel, rotation_vel=(0,0,0), component_com_x=None):
         """
         TODO: add documentation
         """
@@ -1046,8 +1300,12 @@ class Mesh(ScaledProtoMesh):
         # NOTE: we do velocities first since they require the positions WRT
         # the star (not WRT the system).  Will need to keep this in mind if we
         # eventually support incremental transformations.
-        pos_array = self.vertices if self._compute_at_vertices else self.centers
-        self.update_columns_dict({k: transform_velocity_array(self[k], pos_array, vel, euler, rotation_vel) for k in vel_ks if self[k] is not None})
+        # pos_array = self.vertices if self._compute_at_vertices else self.centers
+        pos_array = self.roche_vertices if self._compute_at_vertices else self.roche_centers
+        if component_com_x is not None and component_com_x != 0.0:
+            # then we're the secondary component and need to do 1-x and then flip the rotation component vxs
+            pos_array = np.array([component_com_x, 0.0, 0.0]) - pos_array
+        self.update_columns_dict({k: transform_velocity_array(self[k], pos_array, vel, euler_vel, rotation_vel) for k in vel_ks if self[k] is not None})
         # TODO: handle velocity from mesh reprojection during volume conservation
 
         # handle rotation/displacement
@@ -1058,6 +1316,11 @@ class Mesh(ScaledProtoMesh):
         # let's store the position.  This is both useful for "undoing" the
         # orbit-offset, and also eventually to allow incremental changes.
         self._pos = pos
+        if component_com_x is not None and component_com_x != 0.0:
+            self._pos_center = transform_position_array(np.array([component_com_x, 0.0, 0.0]), pos, euler, False)
+        else:
+            self._pos_center = pos
+        self._euler = euler
 
 
     @property
@@ -1193,13 +1456,43 @@ class Meshes(object):
         """
         TODO: add documentation
         """
-        return self._dict[key]
+        if key in self._components:
+            return self._dict[key]
+        else:
+            return self.get_column_flat(key, self._components)
 
     def __setitem__(self, key, value):
         """
         TODO: add documentation
         """
         return self.update_columns(key, value)
+
+    @property
+    def Ntriangles(self):
+        return sum(mesh.Ntriangles for mesh in self.values())
+
+    @property
+    def Nvertices(self):
+        return sum(mesh.Nvertices for mesh in self.values())
+
+    def __getattr__(self, attr):
+        if np.all([hasattr(mesh, attr) for mesh in self.values()]):
+            # need to be smart if this is supposed to return a ComputedColumn...
+            items = [getattr(mesh, attr) for mesh in self.values()]
+            if isinstance(items[0], ComputedColumn):
+                return ComputedColumn(self, np.concatenate([item.for_computations for item in items]))
+            elif isinstance(items[0], bool):
+                # this may be a bit of an assumption...
+                return np.all(items)
+            elif isinstance(items[0], np.ndarray):
+                return np.concatenate(items)
+            else:
+                # for floats we probably always want the sum... but instead
+                # we'll define those explicitly above.  Anything that isn't
+                # covered above should then raise an exception here.
+                raise NotImplementedError()
+        else:
+            raise AttributeError("meshes don't have attribute {}".format(attr))
 
     def component_by_no(self, comp_no):
         """
@@ -1232,7 +1525,11 @@ class Meshes(object):
                 raise NotImplementedError('setting column with indices not yet ported to new meshing')
                 # self._dict[comp][field][inds] = value
             else:
-                self._dict[comp][field] = value
+                if comp in self._dict.keys():
+                    self._dict[comp][field] = value
+                else:
+                    meshes = self._dict[self._parent_envelope_of[comp]]
+                    meshes[comp][field] = value
 
     def get_column(self, field, components=None, computed_type='for_observations'):
         """
@@ -1245,37 +1542,23 @@ class Meshes(object):
         :parameter components:
         """
         def get_field(c, field, computed_type):
-            if c not in self._dict.keys():
-                # then handle the case where we're requesting a star in an
-                # envelope (ie. request the "primary" half of "contact_envelope")
 
-                c_orig = c
-                c = self._parent_envelope_of[c]
-                # TODO: how in the world do we access this logic????????
-                # right now its stored in Envelope.label_primary
-                if c_orig == self._dict[c]._label_primary:
-                    comp_no = 0
-                elif c_orig == self._dict[c]._label_secondary:
-                    comp_no = 1
-                else:
-                    raise ValueError
-            else:
-                comp_no = None
+            if c not in self._dict.keys() and self._parent_envelope_of[c] in self._dict.keys():
+                mesh = self._dict[self._parent_envelope_of[c]]
+                return mesh.get_column_flat(field, components, computed_type)
 
-            f = self._dict[c][field]
+            mesh = self._dict[c]
+            if isinstance(mesh, Meshes):
+                # then do this recursively for all components in the Meshes object
+                # but don't allow nesting in the dictionary, instead combine
+                # all subcomponents into one entry with the current component
+                return mesh.get_column_flat(field, mesh._components, computed_type)
+
+            f = mesh[field]
             if isinstance(f, ComputedColumn):
                 col = getattr(f, computed_type)
             else:
                 col =  f
-
-            if comp_no is None:
-                col = col
-            elif comp_no == 0:
-                col = col[self._dict[c]['env_comp3'] == 0]
-            elif comp_no == 1:
-                col = col[self._dict[c]['env_comp3'] == 1]
-            else:
-                raise NotImplementedError
 
             return col
 
@@ -1307,6 +1590,10 @@ class Meshes(object):
         if components:
             if isinstance(components, str):
                 components = [components]
+            elif isinstance(components, list):
+                components = components
+            else:
+                raise TypeError("components should be list or string, not {}".format(type(components)))
         elif isinstance(value, dict):
             components = value.keys()
         elif isinstance(value, list):
@@ -1346,17 +1633,24 @@ class Meshes(object):
         N_upper = 0
         offsetN = 0.0
         value_dict = {}
-        for c in components:
-            mesh = self[c]
-            if computed_type=='vertices' or (computed_type is None and mesh._compute_at_vertices):
-                N = mesh.Nvertices
+        for comp in components:
+            if isinstance(self[comp], Meshes):
+                # then we need to recursively extract to the underlying meshes
+                # pass
+                meshes = self[comp]._dict
             else:
-                N = mesh.Ntriangles
-            N_upper += N
-            value_dict[c] = value[N_lower:N_upper] - offsetN
-            if offset:
-                offsetN += N
-            N_lower += N
+                meshes = {comp: self[comp]}
+
+            for c, mesh in meshes.items():
+                if computed_type=='vertices' or (computed_type is None and mesh._compute_at_vertices):
+                    N = mesh.Nvertices
+                else:
+                    N = mesh.Ntriangles
+                N_upper += N
+                value_dict[c] = value[N_lower:N_upper] - offsetN
+                if offset:
+                    offsetN += N
+                N_lower += N
 
         return value_dict
 

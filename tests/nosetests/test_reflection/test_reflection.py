@@ -14,8 +14,8 @@ def test_binary(plot=False):
     b.set_value('sma', component='binary', value=3.0)
     # b.set_value('teff', component='primary', value=6000)
     # b.set_value('teff', component='secondary', value=8000)
-    b.set_value('rpole', component='primary', value=0.5)
-    b.set_value('rpole', component='secondary', value=0.5)
+    b.set_value('requiv', component='primary', value=0.5)
+    b.set_value('requiv', component='secondary', value=0.5)
 
     b.set_value('incl', component='binary', value=45.0)
 
@@ -37,12 +37,12 @@ def test_binary(plot=False):
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [0, 0.5, 1.0]:
-        print "alb = {}".format(alb)
+        if plot: print "alb = {}".format(alb)
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        print "running phoebe2 model..."
+        if plot: print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model')
-        print "running phoebe1 model..."
+        if plot: print "running phoebe1 model..."
         b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
@@ -53,11 +53,7 @@ def test_binary(plot=False):
             # phoebe2_maxintensrel = b.get_value('intens_norm_rel', component='primary').max()
             # print "alb={} phoebe1.max={} phoebe2.max={}, phoebe2.maxintensabs={} phoebe2.maxintensrel={}".format(alb, phoebe1_val.max(), phoebe2_val.max(), phoebe2_maxintensabs, phoebe2_maxintensrel)
 
-            b.plot(dataset='lc01')
-            plt.legend()
-            plt.title("alb = {}".format(alb))
-            plt.ylim(1.96, 2.02)
-            plt.show()
+            b.plot(dataset='lc01', ylim=(1.96, 2.02), show=True)
 
         assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
 
@@ -68,7 +64,8 @@ def test_contact(plot=False):
     b = phoebe.default_binary(contact_binary=True)
 
     b.set_value('incl', component='binary', value=45.0)
-    b['pot@contact_envelope'] = 3.5
+    b.flip_constraint('pot', solve_for='requiv@primary')
+    b['pot@contact_envelope@component'] = 3.5
     b['q'] = 1.0
     b['teff@primary'] = 10000.
     b['teff@secondary'] = 5000.
@@ -90,12 +87,12 @@ def test_contact(plot=False):
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [0, 0.5, 1.0]:
-        print "alb = {}".format(alb)
+        if plot: print "alb = {}".format(alb)
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        print "running phoebe2 model..."
+        if plot: print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model')
-        print "running phoebe1 model..."
+        if plot: print "running phoebe1 model..."
         b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
@@ -106,11 +103,7 @@ def test_contact(plot=False):
             # phoebe2_maxintensrel = b.get_value('intens_norm_rel', component='primary').max()
             # print "alb={} phoebe1.max={} phoebe2.max={}, phoebe2.maxintensabs={} phoebe2.maxintensrel={}".format(alb, phoebe1_val.max(), phoebe2_val.max(), phoebe2_maxintensabs, phoebe2_maxintensrel)
 
-            b.plot(dataset='lc01')
-            plt.legend()
-            plt.title("alb = {}".format(alb))
-            # plt.ylim(1.96, 2.02)
-            plt.show()
+            b.plot(dataset='lc01', show=True)
 
         # this is quite a low rtol, but our reflection is more robust because
         # each "half" of the envelope can reflect with itself, whereas WD

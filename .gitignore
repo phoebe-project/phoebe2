@@ -5,9 +5,14 @@
 MANIFEST
 *_tmp*
 *after.phoebe
+*test.legacy
 *.ipynb_checkpoints*
 *.pyc*
 *.active
 *.profile
 *.log
+*.txt
 *.png
+libphoebe.so
+
+*.swp

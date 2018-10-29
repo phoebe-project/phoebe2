@@ -83,11 +83,7 @@ if 'benchmark' in do or 'benchmarks' in do:
         f_result.close()
 
         branches_plot = ['master', 'development', 'misaligned_roche', 'triple_support', 'redistribution']
-        branches = {}
-        for line in lines:
-            branch, commit, time = line.strip().split()
-            if branch not in branches.keys() and branch in branches_plot:
-                branches[branch] = []
+        branches = {branch: [] for branch in branches_plot}
 
         for line in lines:
             branch, commit, time = line.strip().split()

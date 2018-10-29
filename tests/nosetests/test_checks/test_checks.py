@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 phoebe.devel_on()
-
+phoebe.logger('DEBUG')
 
 def test_checks():
     b = phoebe.Bundle.default_binary()
@@ -20,12 +20,12 @@ def test_checks():
     if not passed:
         raise AssertionError(msg)
 
-    b.set_value('rpole', component='primary', value=9.0)
+    b.set_value('requiv', component='primary', value=9.0)
     passed, msg = b.run_checks()
     if passed:
         raise AssertionError
 
-    b.set_value('rpole', component='primary', value=1.0)
+    b.set_value('requiv', component='primary', value=1.0)
 
     # TODO: test overlap scenario
 
@@ -39,7 +39,7 @@ def test_checks():
     passed, msg = b.run_checks()
     if passed:
         raise AssertionError
-    b.set_value('ld_coeffs_bol', component='primary', value=[0., 0.])
+    b.set_value('ld_coeffs_bol', component='primary', value=[0.5, 0.5])
 
     b.set_value('ld_func', component='primary', value='logarithmic')
     b.set_value('ld_coeffs', component='primary', value=[0.])

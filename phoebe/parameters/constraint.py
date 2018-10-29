@@ -1,4 +1,3 @@
-
 import numpy as np
 #from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
@@ -15,13 +14,16 @@ def _get_system_ps(b, item, context='component'):
     parses the input arg (either twig or PS) to retrieve the actual parametersets
     """
     # TODO: make this a decorator?
+    if isinstance(item, list) and len(item)==1:
+        item = item[0]
 
     if isinstance(item, ParameterSet):
-        return item
+        return item.filter(context=context, check_visible=False)
     elif isinstance(item, str):
         return b.filter(item, context=context, check_visible=False)
     else:
-        raise NotImplementedError("do not support item with type: {}".format(type(item)))
+        logger.debug("_get_system_ps got {}".format(item))
+        raise NotImplementedError("_get_system_ps does not support item with type: {}".format(type(item)))
 
 #{ Mathematical expressions
 
@@ -113,42 +115,55 @@ def sqrt(param):
 
 #}
 #{ Built-in functions (see phoebe.constraints.builtin for actual functions)
-def rocherpole2potential(rpole, q, e, syncpar, sma, compno=1):
+def roche_requiv_L1(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(rpole._bundle, "rocherpole2potential(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (rpole,q,e,syncpar,sma)]), compno))
+    return ConstraintParameter(q._bundle, "requiv_L1(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb)]), compno))
 
-
-def rochepotential2rpole(pot, q, e, syncpar, sma, compno=1):
+def roche_requiv_contact_L1(q, sma, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(pot._bundle, "rochepotential2rpole(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (pot,q,e,syncpar,sma)]), compno))
+    return ConstraintParameter(q._bundle, "requiv_contact_L1(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, sma)]), compno))
 
-def rotstarrpole2potential(rpole, rotfreq):
+def roche_requiv_contact_L23(q, sma, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(rpole._bundle, "rotstarrpole2potential(%s)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (rpole, rotfreq)])))
+    return ConstraintParameter(q._bundle, "requiv_contact_L23(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, sma)]), compno))
 
-def rotstarpotential2rpole(pot, rotfreq):
+def roche_potential_contact_L1(q):
+    """
+    """
+    return ConstraintParameter(q._bundle, "potential_contact_L1({})".format(_get_expr(q)))
+
+def roche_potential_contact_L23(q):
+    """
+    """
+    return ConstraintParameter(q._bundle, "potential_contact_L23({})".format(_get_expr(q)))
+
+def roche_pot_to_fillout_factor(q, pot):
+    """
+    """
+    return ConstraintParameter(q._bundle, "pot_to_fillout_factor({}, {})".format(_get_expr(q), _get_expr(pot)))
+
+def roche_fillout_factor_to_pot(q, fillout_factor):
+    """
+    """
+    return ConstraintParameter(q._bundle, "fillout_factor_to_pot({}, {})".format(_get_expr(q), _get_expr(fillout_factor)))
+
+def requiv_to_pot_contact(requiv, q, sma, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(pot._bundle, "rotstarpotential2rpole(%s)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (pot, rotfreq)])))
+    return ConstraintParameter(requiv._bundle, "requiv_to_pot_contact({}, {}, {}, {})".format(_get_expr(requiv), _get_expr(q), _get_expr(sma), compno))
 
-def rochecriticalL12potential(q, e, syncpar, compno=1):
+def pot_to_requiv_contact(pot, q, sma, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(q._bundle, "rochecriticalL12potential(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q,e,syncpar)]), compno))
-
-def rochecriticalL12rpole(q, e, syncpar, sma, compno=1):
-    """
-    TODO: add documentation
-    """
-    return ConstraintParameter(q._bundle, "rochecriticalL12rpole(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q,e,syncpar,sma)]), compno))
+    return ConstraintParameter(pot._bundle, "pot_to_requiv_contact({}, {}, {}, {})".format(_get_expr(pot), _get_expr(q), _get_expr(sma), compno))
 
 def esinw2per0(ecc, esinw):
     """
@@ -187,9 +202,6 @@ def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
     """
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
 
-
-
-#}
 #{ Custom constraints
 
 def custom(b, *args, **kwargs):
@@ -592,8 +604,8 @@ def freq(b, component, solve_for=None, **kwargs):
     #metawargs = component_ps.meta
     #metawargs.pop('qualifier')
 
-    period = component_ps.get_parameter(qualifier='period')
-    freq = component_ps.get_parameter(qualifier='freq')
+    period = component_ps.get_parameter(qualifier='period', check_visible=False)
+    freq = component_ps.get_parameter(qualifier='freq', check_visible=False)
 
     if solve_for in [None, freq]:
         lhs = freq
@@ -671,21 +683,18 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, {'component': component}
 
-def reflredist(b, component, solve_for=None, **kwargs):
+def semidetached(b, component, solve_for=None, **kwargs):
     """
-    Create a constraint to ensure that all reflected light is considered under
-    the available redistribution schemes
+    Create a constraint to force requiv to be semidetached
     """
     comp_ps = b.get_component(component=component)
 
-    frac_refl_noredist_bol = comp_ps.get_parameter('frac_refl_noredist_bol')
-    frac_refl_localredist_bol = comp_ps.get_parameter('frac_refl_localredist_bol')
-    frac_refl_horizredist_bol = comp_ps.get_parameter('frac_refl_horizredist_bol')
-    frac_refl_globalredist_bol = comp_ps.get_parameter('frac_refl_globalredist_bol')
+    requiv = comp_ps.get_parameter(qualifier='requiv')
+    requiv_critical = comp_ps.get_parameter(qualifier='requiv_max')
 
-    if solve_for in [frac_refl_noredist_bol, None]:
-        lhs = frac_refl_noredist_bol
-        rhs = 1.0 - frac_refl_localredist_bol - frac_refl_horizredist_bol - frac_refl_globalredist_bol
+    if solve_for in [requiv, None]:
+        lhs = requiv
+        rhs = 1.0*requiv_critical
     else:
         raise NotImplementedError
 
@@ -844,16 +853,17 @@ def comp_sma(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, {'component': component}
 
-def potential(b, component, solve_for=None, **kwargs):
+
+def requiv_detached_max(b, component, solve_for=None, **kwargs):
     """
-    Create a constraint for the potential of a star.
+    Create a constraint to determine the critical (at L1) value of
+    requiv.
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
     :parameter str component: the label of the star in which this
         constraint should be built
-    :parameter str solve_for:  if 'pot' should not be the derived/constrained
+    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
         parameter, provide which other parameter should be derived
-        (ie 'rpole')
     :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
     """
@@ -862,7 +872,7 @@ def potential(b, component, solve_for=None, **kwargs):
     if not len(hier.get_value()):
         # TODO: change to custom error type to catch in bundle.add_component
         # TODO: check whether the problem is 0 hierarchies or more than 1
-        raise NotImplementedError("constraint for comp_sma requires hierarchy")
+        raise NotImplementedError("constraint for requiv_detached_max requires hierarchy")
 
 
     component_ps = _get_system_ps(b, component)
@@ -871,151 +881,226 @@ def potential(b, component, solve_for=None, **kwargs):
 
 
     if parentorbit == 'component':
-        # then single star (rotstar) case
-        pot = component_ps.get_parameter(qualifier='pot')
-        rpole = component_ps.get_parameter(qualifier='rpole')
-        rotfreq = component_ps.get_parameter(qualifier='freq')
+        raise ValueError("cannot constrain requiv_detached_max for single star")
 
-        if solve_for in [None, pot]:
-            lhs = pot
-            rhs = rotstarrpole2potential(rpole, rotfreq)
-        elif solve_for == rpole:
-            lhs = rpole
-            rhs = rotstarpotential2rpole(pot, rotfreq)
-        else:
-            raise NotImplementedError
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    requiv_max = component_ps.get_parameter(qualifier='requiv_max')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+    syncpar = component_ps.get_parameter(qualifier='syncpar')
+    ecc = parentorbit_ps.get_parameter(qualifier='ecc')
+    sma = parentorbit_ps.get_parameter(qualifier='sma')
+    incl_star = component_ps.get_parameter(qualifier='incl')
+    long_an_star = component_ps.get_parameter(qualifier='long_an')
+    incl_orbit = parentorbit_ps.get_parameter(qualifier='incl')
+    long_an_orbit = parentorbit_ps.get_parameter(qualifier='long_an')
+
+    if solve_for in [None, requiv_max]:
+        lhs = requiv_max
+
+        rhs = roche_requiv_L1(q, syncpar, ecc, sma,
+                              incl_star, long_an_star,
+                              incl_orbit, long_an_orbit,
+                              hier.get_primary_or_secondary(component, return_ind=True))
     else:
-        # then binary (roche) case
-
-        parentorbit_ps = _get_system_ps(b, parentorbit)
-
-        # metawargs = component_ps.meta
-        # metawargs.pop('qualifier')
-
-        pot = component_ps.get_parameter(qualifier='pot')
-        rpole = component_ps.get_parameter(qualifier='rpole')
-        syncpar = component_ps.get_parameter(qualifier='syncpar')
-
-        sma = parentorbit_ps.get_parameter(qualifier='sma')
-        q = parentorbit_ps.get_parameter(qualifier='q')
-        ecc = parentorbit_ps.get_parameter(qualifier='ecc')
-
-        if solve_for in [None, pot]:
-            lhs = pot
-            # Eq 3.20 from PHOEBE scientific reference
-            # delta = separation / a
-            # at periastron: separation = a(1-e)
-            # so delta at periastron = (1-e)
-
-            # TODO: this needs to include syncpar
-            # TODO: this probably should care about primary vs secondary (flip q?)
-
-            # rhs = 1./(rpole/sma) + q / ((1-ecc)**2+(rpole/sma)**2)**0.5
-
-            compno = {'primary': 1, 'secondary': 2}
-            rhs = rocherpole2potential(rpole, q, ecc, syncpar, sma, compno[hier.get_primary_or_secondary(component)])
-        elif solve_for == rpole:
-            lhs = rpole
-            compno = {'primary': 1, 'secondary': 2}
-            rhs = rochepotential2rpole(pot, q, ecc, syncpar, sma, compno[hier.get_primary_or_secondary(component)])
-        else:
-            raise NotImplementedError
+        raise NotImplementedError("requiv_detached_max can only be solved for requiv_max")
 
     return lhs, rhs, {'component': component}
 
-def critical_potential(b, component, solve_for=None, **kwargs):
+def potential_contact_min(b, component, solve_for=None, **kwargs):
     """
-    Create a constraint for the potential of a star to match the critical
-    potential at L1
+    Create a constraint to determine the critical (at L23) value of
+    potential at which a constact will underflow.  This will only be used
+    for contacts for pot_min
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
     :parameter str component: the label of the star in which this
         constraint should be built
-    :parameter str solve_for:  if 'pot' should not be the derived/constrained
+    :parameter str solve_for:  if 'pot_min' should not be the derived/constrained
         parameter, provide which other parameter should be derived
     :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
     """
-
     hier = b.get_hierarchy()
     if not len(hier.get_value()):
         # TODO: change to custom error type to catch in bundle.add_component
         # TODO: check whether the problem is 0 hierarchies or more than 1
-        raise NotImplementedError("constraint for comp_sma requires hierarchy")
+        raise NotImplementedError("constraint for requiv_contact_min requires hierarchy")
 
 
     component_ps = _get_system_ps(b, component)
 
     parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    pot_min = component_ps.get_parameter(qualifier='pot_min')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+
+    if solve_for in [None, pot_min]:
+        lhs = pot_min
+
+        rhs = roche_potential_contact_L23(q)
+    else:
+        raise NotImplementedError("potential_contact_min can only be solved for requiv_min")
+
+    return lhs, rhs, {'component': component}
+
+def potential_contact_max(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to determine the critical (at L1) value of
+    potential at which a constact will underflow.  This will only be used
+    for contacts for pot_min
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'pot_max' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for requiv_contact_max requires hierarchy")
 
 
-    if parentorbit == 'component':
-        raise ValueError("cannot constrain critical potential for single star")
+    component_ps = _get_system_ps(b, component)
 
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    pot_max = component_ps.get_parameter(qualifier='pot_max')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+
+    if solve_for in [None, pot_max]:
+        lhs = pot_max
+
+        rhs = roche_potential_contact_L1(q)
+    else:
+        raise NotImplementedError("potential_contact_max can only be solved for requiv_max")
+
+    return lhs, rhs, {'component': component}
+
+def requiv_contact_min(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to determine the critical (at L1) value of
+    requiv at which a constact will underflow.  This will only be used
+    for contacts for requiv_min
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for requiv_contact_min requires hierarchy")
+
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    requiv_min = component_ps.get_parameter(qualifier='requiv_min')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+    sma = parentorbit_ps.get_parameter(qualifier='sma')
+
+    if solve_for in [None, requiv_min]:
+        lhs = requiv_min
+
+        rhs = roche_requiv_contact_L1(q, sma, hier.get_primary_or_secondary(component, return_ind=True))
+    else:
+        raise NotImplementedError("requiv_contact_min can only be solved for requiv_min")
+
+    return lhs, rhs, {'component': component}
+
+def requiv_contact_max(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to determine the critical (at L2/3) value of
+    requiv at which a constact will overflow.  This will only be used
+    for contacts for requiv_max
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for requiv_contact_max requires hierarchy")
+
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    requiv_max = component_ps.get_parameter(qualifier='requiv_max')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+    sma = parentorbit_ps.get_parameter(qualifier='sma')
+
+    if solve_for in [None, requiv_max]:
+        lhs = requiv_max
+
+        rhs = roche_requiv_contact_L23(q, sma, hier.get_primary_or_secondary(component, return_ind=True))
+    else:
+        raise NotImplementedError("requiv_contact_max can only be solved for requiv_max")
+
+    return lhs, rhs, {'component': component}
+
+def fillout_factor(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to determine the fillout factor of a contact envelope.
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for requiv_contact_max requires hierarchy")
+
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
     pot = component_ps.get_parameter(qualifier='pot')
-    syncpar = component_ps.get_parameter(qualifier='syncpar')
+    fillout_factor = component_ps.get_parameter(qualifier='fillout_factor')
     q = parentorbit_ps.get_parameter(qualifier='q')
-    ecc = parentorbit_ps.get_parameter(qualifier='ecc')
 
-    if solve_for in [None, pot]:
+    if solve_for in [None, fillout_factor]:
+        lhs = fillout_factor
+
+        rhs = roche_pot_to_fillout_factor(q, pot)
+    elif solve_for in [pot]:
         lhs = pot
 
-        compno = {'primary': 1, 'secondary': 2}
-        rhs = rochecriticalL12potential(q, ecc, syncpar, compno[hier.get_primary_or_secondary(component)])
+        rhs = roche_fillout_factor_to_pot(q, fillout_factor)
     else:
-        raise NotImplementedError
+        raise NotImplementedError("fillout_factor can not be solved for {}".format(solve_for))
 
     return lhs, rhs, {'component': component}
-
-def critical_rpole(b, component, solve_for=None, **kwargs):
-    """
-    Create a constraint for the rpole of a star to match the critical
-    rpole at L1
-
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'rpole' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
-    """
-
-    hier = b.get_hierarchy()
-    if not len(hier.get_value()):
-        # TODO: change to custom error type to catch in bundle.add_component
-        # TODO: check whether the problem is 0 hierarchies or more than 1
-        raise NotImplementedError("constraint for comp_sma requires hierarchy")
-
-
-    component_ps = _get_system_ps(b, component)
-
-    parentorbit = hier.get_parent_of(component)
-
-
-    if parentorbit == 'component':
-        raise ValueError("cannot constrain critical rpole for single star")
-
-    parentorbit_ps = _get_system_ps(b, parentorbit)
-
-    rpole = component_ps.get_parameter(qualifier='rpole')
-    syncpar = component_ps.get_parameter(qualifier='syncpar')
-    q = parentorbit_ps.get_parameter(qualifier='q')
-    ecc = parentorbit_ps.get_parameter(qualifier='ecc')
-    sma = parentorbit_ps.get_parameter(qualifier='sma')
-
-    if solve_for in [None, rpole]:
-        lhs = rpole
-
-        compno = {'primary': 1, 'secondary': 2}
-        rhs = rochecriticalL12rpole(q, ecc, syncpar, sma, compno[hier.get_primary_or_secondary(component)])
-    else:
-        raise NotImplementedError
-
-    return lhs, rhs, {'component': component}
-
 
 def rotation_period(b, component, solve_for=None, **kwargs):
     """
@@ -1069,17 +1154,16 @@ def rotation_period(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, {'component': component}
 
-def incl_aligned(b, component, solve_for=None, **kwargs):
+def pitch(b, component, solve_for=None, **kwargs):
     """
-    Create a constraint for the inclination of a star to be the same as its
-    parent orbit (ie aligned).
+    Create a constraint for the inclination of a star relative to its parent orbit
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
     :parameter str component: the label of the star in which this
         constraint should be built
     :parameter str solve_for:  if 'incl@star' should not be the derived/constrained
         parameter, provide which other parameter should be derived
-        (ie 'incl@orbit')
+        (ie 'incl@orbit', 'pitch@star')
     :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
     """
@@ -1088,7 +1172,7 @@ def incl_aligned(b, component, solve_for=None, **kwargs):
     if not len(hier.get_value()):
         # TODO: change to custom error type to catch in bundle.add_component
         # TODO: check whether the problem is 0 hierarchies or more than 1
-        raise NotImplementedError("constraint for comp_sma requires hierarchy")
+        raise NotImplementedError("constraint for pitch requires hierarchy")
 
     component_ps = _get_system_ps(b, component)
 
@@ -1096,38 +1180,72 @@ def incl_aligned(b, component, solve_for=None, **kwargs):
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
     incl_comp = component_ps.get_parameter(qualifier='incl')
+    pitch_comp = component_ps.get_parameter(qualifier='pitch')
     incl_orb = parentorbit_ps.get_parameter(qualifier='incl')
 
     if solve_for in [None, incl_comp]:
         lhs = incl_comp
-        rhs = incl_orb.to_constraint()
+        rhs = incl_orb + pitch_comp
 
     elif solve_for == incl_orb:
         lhs = incl_orb
-        rhs = incl_comp.to_constraint()
+        rhs = incl_comp - pitch_comp
+
+    elif solve_for == pitch_comp:
+        lhs = pitch_comp
+        rhs = incl_comp - incl_orb
 
     else:
         raise NotImplementedError
 
     return lhs, rhs, {'component': component}
 
-#}
-#{ Feature constraints
+def yaw(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint for the inclination of a star relative to its parent orbit
 
-def colon_deprecation(b, feature, solve_for=None, **kwargs):
-    feature_ps = _get_system_ps(b, feature, context='feature')
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'long_an@star' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+        (ie 'long_an@orbit', 'yaw@star')
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
 
-    longitude = feature_ps.get_parameter(qualifier='long')
-    colon = feature_ps.get_parameter(qualifier='colon')
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for yaw requires hierarchy")
 
-    if solve_for in [None, colon]:
-        lhs = colon
-        rhs = 1*longitude
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    long_an_comp = component_ps.get_parameter(qualifier='long_an')
+    yaw_comp = component_ps.get_parameter(qualifier='yaw')
+    long_an_orb = parentorbit_ps.get_parameter(qualifier='long_an')
+
+    if solve_for in [None, long_an_comp]:
+        lhs = long_an_comp
+        rhs = long_an_orb + yaw_comp
+
+    elif solve_for == long_an_orb:
+        lhs = long_an_orb
+        rhs = long_an_comp - yaw_comp
+
+    elif solve_for == yaw_comp:
+        lhs = yaw_comp
+        rhs = long_an_comp - long_an_orb
+
     else:
-        lhs = longitude
-        rhs = 1*colon
+        raise NotImplementedError
 
-    return lhs, rhs, {'feature': feature}
+    return lhs, rhs, {'component': component}
+
 
 #}
 #{ Data constraints
@@ -1216,3 +1334,38 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
     return lhs, rhs, {'component': component, 'dataset': dataset}
 
 #}
+
+def requiv_to_pot(b, component, solve_for=None, **kwargs):
+
+    hier = b.get_hierarchy()
+    parentorbit = hier.get_parent_of(component)
+
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    if hier.get_kind_of(component) == 'envelope':
+        raise NotImplementedError
+        # envelope_ps = _get_system_ps(b, component)
+        # component_ps = _get_system_ps(b, hier.get)
+    else:
+        component_ps = _get_system_ps(b, component)
+        envelope_ps = _get_system_ps(b, hier.get_envelope_of(component))
+
+    q = parentorbit_ps.get_parameter(qualifier='q')
+    sma = parentorbit_ps.get_parameter(qualifier='sma')
+
+    # assuming component is always primary or secondary and never envelope
+    pot = envelope_ps.get_parameter(qualifier='pot')
+    requiv = component_ps.get_parameter(qualifier='requiv')
+
+    compno = hier.get_primary_or_secondary(component, return_ind=True)
+
+    if solve_for in [None, requiv]:
+        lhs = requiv
+        rhs = pot_to_requiv_contact(pot, q, sma, compno)
+    elif solve_for == pot:
+        lhs = pot
+        rhs = requiv_to_pot_contact(requiv, q, sma, compno)
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'component': component}

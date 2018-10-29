@@ -50,7 +50,6 @@ def orbit(component, **kwargs):
     # NOTE: the limits on inclination are from 0-180 so that the definition of superior conjunction doesn't flip
     params += [FloatParameter(qualifier='incl', timederiv='dincldt', value=kwargs.get('incl', 90.0), limits=(0.0, 180.0), default_unit=u.deg, description='Orbital inclination angle')]
     # params += [FloatParameter(qualifier='dincldt', value=kwargs.get('dincldt', 0.0), default_unit=u.deg/u.yr, description="Inclination change")]
-    params += [FloatParameter(qualifier='phshift', value=kwargs.get('phshift', 0.0), default_unit=u.dimensionless_unscaled, description='Phase shift')]
     params += [FloatParameter(qualifier='q', value=kwargs.get('q', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Mass ratio')]
     params += [FloatParameter(qualifier='sma', value=kwargs.get('sma', 5.3), default_unit=u.solRad, limits=(0.0,None), description='Semi major axis of the orbit')]
     params += [FloatParameter(qualifier='long_an', value=kwargs.get('long_an', 0.0), default_unit=u.deg, description='Longitude of the ascending node')]
@@ -85,22 +84,27 @@ def star(component, **kwargs):
     params = []
 
     #~ params += [ObjrefParameter(value=component)]
-    params += [FloatParameter(qualifier='rpole', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('rpole', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Polar radius at periastron')]
-    params += [FloatParameter(qualifier='pot', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('pot', 4.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential at periastron')]   # TODO: correct units???
+    params += [FloatParameter(qualifier='requiv', value=kwargs.get('requiv', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Equivalent radius')]
+    params += [FloatParameter(qualifier='requiv_max', value=kwargs.get('requiv_max', 10.0), default_unit=u.solRad, limits=(0.0, None), description='Critical (maximum) value of the equivalent radius for the given morphology')]
+    params += [FloatParameter(qualifier='requiv_min', visible_if='hierarchy.is_contact_binary:True', value=kwargs.get('requiv_min', 0.1), default_unit=u.solRad, limits=(0.0, None), description='Critical (minimum) value of the equivalent radius for the given morphology')]
     params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
     params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
-    params += [FloatParameter(qualifier='syncpar', visible_if='hierarchy.is_contact_binary:False,hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
-    params += [FloatParameter(qualifier='period', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
-    params += [FloatParameter(qualifier='freq', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
+    params += [FloatParameter(qualifier='syncpar', visible_if='hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
+    params += [FloatParameter(qualifier='period', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
+    params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
 
-    params += [FloatParameter(qualifier='incl', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('incl', 90), default_unit=u.deg, description='Inclination of the stellar rotation axis')]
-    # params += [FloatParameter(qualifier='pitch', value=kwargs.get('pitch', 90), default_unit=u.deg, description='Pitch of the stellar rotation axis')]
-    # params += [FloatParameter(qualifier='yaw', value=kwargs.get('yaw', 0), default_unit=u.deg, description='Yaw of the stellar rotation axis')]
+    params += [FloatParameter(qualifier='pitch', value=kwargs.get('pitch', 0), default_unit=u.deg, description='Pitch of the stellar rotation axis wrt the orbital rotation axis')]
+    params += [FloatParameter(qualifier='yaw', value=kwargs.get('yaw', 0), default_unit=u.deg, description='Yaw of the stellar rotation axis wrt the orbital rotation axis')]
+
+    params += [FloatParameter(qualifier='incl', value=kwargs.get('incl', 90), default_unit=u.deg, description='Inclination of the stellar rotation axis')]
+    params += [FloatParameter(qualifier='long_an', value=kwargs.get('long_an', 0.0), default_unit=u.deg, description='Longitude of the ascending node (ie. equator) of the star')]
+
     # params += [FloatParameter(qualifier='vsini', value=kwargs.get('vsini', 1), default_unit=u.km/u.s, description='Projected maximum rotational velocity')]
 
     # params += [ChoiceParameter(qualifier='gravblaw_bol', value=kwargs.get('gravblaw_bol', 'zeipel'), choices=['zeipel', 'espinosa', 'claret'], description='Gravity brightening law')]
 
+    # params += [FloatParameter(qualifier='gravb_bol', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
     params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
 
     # also see constraint below
@@ -108,8 +112,8 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='irrad_frac_lost_bol', value=kwargs.get('irrad_frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
     # TODO: allow for 'interp' as choice, make default, and set visible_if for ld_coeffs_bol (see ld_coeffs in dataset.py)
-    params += [ChoiceParameter(qualifier='ld_func_bol', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
-    params += [FloatArrayParameter(qualifier='ld_coeffs_bol', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
+    params += [ChoiceParameter(qualifier='ld_func_bol', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
+    params += [FloatArrayParameter(qualifier='ld_coeffs_bol', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
 
     params += [FloatParameter(qualifier='mass', value=kwargs.get('mass', 1.0), default_unit=u.solMass, description='Mass')]
 
@@ -117,15 +121,15 @@ def star(component, **kwargs):
 
     constraints = []
     # constraints handled by set_hierarchy:
-    # - potential
+    # - requiv_detached_max
     # - mass
     # - comp_sma
     # - rotation_period
-    # - incl_aligned
+    # - pitch
+    # - yaw
 
     constraints += [(constraint.freq, component)]
     constraints += [(constraint.irrad_frac, component)]
-
 
     return ParameterSet(params), constraints
 
@@ -144,6 +148,8 @@ def envelope(component, **kwargs):
     params = []
 
     params += [FloatParameter(qualifier='abun', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
+    # params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
+
 
     # params += [FloatParameter(qualifier='frac_refl_bol', value=kwargs.get('frac_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
     # params += [FloatParameter(qualifier='frac_heat_bol', value=kwargs.get('frac_heat_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for heating')]
@@ -151,10 +157,23 @@ def envelope(component, **kwargs):
     # params += [FloatParameter(qualifier='frac_lost_bol', value=kwargs.get('frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
 
-    params += [FloatParameter(qualifier='pot', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential at periastron (in the primary component\'s reference frame')]   # TODO: correct units???
-    params += [ChoiceParameter(qualifier='ld_func_bol', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
-    params += [FloatArrayParameter(qualifier='ld_coeffs_bol', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
+    params += [FloatParameter(qualifier='fillout_factor', value=kwargs.get('fillout_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Fillout-factor of the envelope')]
+    params += [FloatParameter(qualifier='pot', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential of the envelope (from the primary component\s reference)')]
+    params += [FloatParameter(qualifier='pot_min', value=kwargs.get('pot_min', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (minimum) value of the potential to remain a contact')]
+    params += [FloatParameter(qualifier='pot_max', value=kwargs.get('pot_max', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (maximum) value of the potential to remain a contact')]
+    # params += [FloatParameter(qualifier='intens_coeff1', value=kwargs.get('intens_coeff1', 1.0), default_unit=u.dimensionless_unscaled, description='')]
+    # params += [FloatParameter(qualifier='intens_coeff2', value=kwargs.get('intens_coeff2', 1.0), default_unit=u.dimensionless_unscaled, description='')]
+    # params += [FloatParameter(qualifier='intens_coeff3', value=kwargs.get('intens_coeff3', 1.0), default_unit=u.dimensionless_unscaled, description='')]
+    # params += [FloatParameter(qualifier='intens_coeff4', value=kwargs.get('intens_coeff4', 1.0), default_unit=u.dimensionless_unscaled, description='')]
+    # params += [FloatParameter(qualifier='intens_coeff5', value=kwargs.get('intens_coeff5', 1.0), default_unit=u.dimensionless_unscaled, description='')]
+
+    # params += [ChoiceParameter(qualifier='ld_func_bol', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
+    # params += [FloatArrayParameter(qualifier='ld_coeffs_bol', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
 
     constraints = []
+
+    # constraints handled by set hierarchy:
+    # potential_contact_min/max
+    # requiv_contact_min/max
 
     return ParameterSet(params), constraints
