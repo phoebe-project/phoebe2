@@ -57,14 +57,37 @@ def _empty_array(kwargs, qualifier):
 
 def lc(**kwargs):
     """
-    Create parameters for a new light curve dataset.
+    Create a <phoebe.parameters.ParameterSet> for a light curve dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_dataset>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `times` (array/quantity, optional): observed times.
+    * `fluxes` (array/quantity, optional): observed flux.
+    * `sigmas` (array/quantity, optional): errors on flux measurements.
+    * `ld_func` (string, optional): limb-darkening model.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.
+    * `passband` (string, optional): passband.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy of photons.
+    * `pblum_ref` (string, optional): whether to use this components pblum or to
+        couple to that from another component in the system.
+    * `pblum` (float/quantity, optional): passband luminosity (defined at t0).
+    * `l3` (float/quantity, optional): third light.
+    * `exptime` (float/quantity, optional): exposure time of the observations
+        (`times` is defined at the mid-exposure).
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     obs_params = []
@@ -120,14 +143,31 @@ def lc_dep(is_lc=True, **kwargs):
 
 def rv(**kwargs):
     """
-    Create parameters for a new radial velocity dataset.
+    Create a <phoebe.parameters.ParameterSet> for a radial velocity dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_dataset>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `times` (array/quantity, optional): observed times.
+    * `rvs` (array/quantity, optional): observed radial velocities.
+    * `sigmas` (array/quantity, optional): errors on radial velocity measurements.
+    * `ld_func` (string, optional): limb-darkening model.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.
+    * `passband` (string, optional): passband.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy of photons.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     obs_params = []
@@ -169,14 +209,31 @@ def rv_dep(**kwargs):
 
 def lp(**kwargs):
     """
-    Create parameters for a new line profile dataset.
+    Create a <phoebe.parameters.ParameterSet> for a line profile dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_dataset>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `wavelengths` (array/quantity, optional): observed wavelengths.
+    * `flux_densities` (array/quantity, optional): observed flux densities.
+    * `sigmas` (array/quantity, optional): errors on flux densities measurements.
+    * `ld_func` (string, optional): limb-darkening model.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.
+    * `passband` (string, optional): passband.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy of photons.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     obs_params = []
@@ -290,14 +347,24 @@ def etv_dep(**kwargs):
 
 def orb(**kwargs):
     """
-    Create parameters for a new orbit dataset.
+    Create a <phoebe.parameters.ParameterSet> for an orbit dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_dataset>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `times` (array/quantity, optional): observed times.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     obs_params = []
@@ -344,14 +411,27 @@ def orb_dep(**kwargs):
 
 def mesh(**kwargs):
     """
-    Create parameters for a new mesh dataset.
+    Create a <phoebe.parameters.ParameterSet> for a mesh dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_dataset>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `times` (array/quantity, optional): observed times.
+    * `include_times` (string, optional): append to times from the following
+        datasets/time standards
+    * `columns` (list, optional): columns to expose within the mesh.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     obs_params = []

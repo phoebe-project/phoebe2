@@ -59,48 +59,48 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
 class Bundle(ParameterSet):
     """Main container class for PHOEBE 2.
 
-    The :class:`Bundle` is the main object in PHOEBE 2 which is used to store
+    The `Bundle` is the main object in PHOEBE 2 which is used to store
     and filter all available system parameters as well as handling attaching
     datasets, running models, and accessing synthetic data.
 
-    The Bundle is simply a glorified
-    :class:`phoebe.parameters.parameters.ParameterSet`. In fact, filtering on
-    a Bundle gives you a ParameterSet (and filtering on a ParameterSet gives
-    you another ParameterSet).  The only difference is that most "actions" are
-    only available at the Bundle level (as they need to access /all/
+    The Bundle is simply a glorified <phoebe.parameters.ParameterSet>. In fact,
+    filtering on a Bundle gives you a ParameterSet (and filtering on a
+    ParameterSet gives you another ParameterSet).  The only difference is that
+    most "actions" are only available at the Bundle level (as they need to access /all/
     parameters).
 
-    Make sure to also see the documentation and methods for  *
-    :class:`phoebe.parameters.parameters.ParameterSet` *
-    :class:`phoebe.parameters.parameters.Parameter` *
-    :class:`phoebe.parameters.parameters.FloatParameter` *
-    :class:`phoebe.parameters.parameters.ArrayParameter`
+    Make sure to also see the documentation and methods for
+    * <phoebe.parameters.ParameterSet>
+    * <phoebe.parameters.Parameter>
+    * <phoebe.parameters.FloatParameter>
+    * <phoebe.parameters.parameters.FloatArrayParameter>
 
     To initialize a new bundle, see:
-        * :meth:`open`
-        * :meth:`from_legacy`
-        * :meth:`default_binary`
+    * <phoebe.parameters.ParameterSet.open>
+    * <phoebe.frontend.bundle.Bundle.from_legacy>
+    * <phoebe.frontend.bundle.Bundle.default_binary>
+    * <phoebe.frontend.bundle.Bundle.default_star>
 
     To filter parameters and set values, see:
-        * :meth:`phoebe.parameters.parameters.ParameterSet.filter`
-        * :meth:`phoebe.parameters.parameters.ParameterSet.get_value`
-        * :meth:`phoebe.parameters.parameters.ParameterSet.set_value`
+    * <phoebe.parameters.ParameterSet.filter>
+    * <phoebe.parameters.ParameterSet.get_value>
+    * <phoebe.parameters.ParameterSet.set_value>
 
     To deal with datasets, see:
-        * :meth:`add_dataset`
-        * :meth:`get_dataset`
-        * :meth:`remove_dataset`
-        * :meth:`enable_dataset`
-        * :meth:`disable_dataset`
+    * <phoebe.frontend.bundle.Bundle.add_dataset>
+    * <phoebe.frontend.bundle.Bundle.get_dataset>
+    * <phoebe.frontend.bundle.Bundle.remove_dataset>
+    * <phoebe.frontend.bundle.Bundle.enable_dataset>
+    * <phoebe.frontend.bundle.Bundle.disable_dataset>
 
     To compute forward models, see:
-        * :meth:`add_compute`
-        * :meth:`get_compute`
-        * :meth:`run_compute`
-        * :meth:`get_model`
+    * <phoebe.frontend.bundle.Bundle.add_compute>
+    * <phoebe.frontend.bundle.Bundle.get_compute>
+    * <phoebe.frontend.bundle.Bundle.run_compute>
+    * <phoebe.frontend.bundle.Bundle.get_model>
 
     To plot observations or synthetic datasets, see:
-        * :meth:`phoebe.parameters.parameters.ParameterSet.plot`
+    * <phoebe.parameters.ParameterSet.plot>
 
     """
 
@@ -111,14 +111,20 @@ class Bundle(ParameterSet):
         advised.  It is suggested that you use one of the constructors below.
 
         Available constructors:
-            * :meth:`open`
-            * :meth:`from_legacy`
-            * :meth:`default_binary`
+        * <phoebe.frontend.bundle.Bundle.open>
+        * <phoebe.frontend.bundle.Bundle.from_legacy>
+        * <phoebe.frontend.bundle.Bundle.default_binary>
+        * <phoebe.frontend.bundle.Bundle.default_star>
 
-        :param list parameters: list of
-            :class:`phoebe.parameters.parameters.Parameter` to create the
-            Bundle (optional)
-        :return: instantiated :class:`Bundle` object
+        Arguments
+        ---------
+        * `params` (list, optional): list of <phoebe.parameters.Parameter>
+            objects to create the Bundle
+
+
+        Returns
+        --------
+        * an instantiated Bundle object
         """
         # for some reason I do not understand at all, defaulting params=[] will
         # fail for successive inits.  So instead we'll default to None and then
@@ -179,12 +185,21 @@ class Bundle(ParameterSet):
         Open a bundle from a JSON-formatted PHOEBE 2 file.
         This is a constructor so should be called as:
 
+        ```py
+        b = Bundle.open('test.phoebe')
+        ```
 
-        >>> b = Bundle.open('test.phoebe')
+        See also:
+        * <phoebe.parameters.ParameterSet.open>
+        * <phoebe.parameters.Parameter.open>
 
+        Arguments
+        ----------
+        * `filename` (string): relative or full path to the file
 
-        :parameter str filename: relative or full path to the file
-        :return: instantiated :class:`Bundle` object
+        Returns
+        ---------
+        * an instantiated <phoebe.frontend.bundle.Bundle> object
         """
         filename = os.path.expanduser(filename)
         f = open(filename, 'r')
@@ -302,18 +317,22 @@ class Bundle(ParameterSet):
                     as_client=True):
         """Load a new bundle from a server.
 
-        [NOT IMPLEMENTED]
+        [NOT SUPPORTED]
 
         Load a bundle from a phoebe server.  This is a constructor so should be
         called as:
 
-        >>> b = Bundle.from_server('asdf', as_client=False)
+        ```py
+        b = Bundle.from_server('asdf', as_client=False)
+        ```
 
-        :parameter str bundleid: the identifier given to the bundle by the
+        Arguments
+        ----------
+        * `bundleid` (string): the identifier given to the bundle by the
             server
-        :parameter str server: the host (and port) of the server
-        :parameter bool as_client: whether to attach in client mode
-            (default: True)
+        * `server` (string): the host (and port) of the server
+        * `as_client` (bool, optional, default=True):  whether to attach in
+            client mode
         """
         if not conf.devel:
             raise NotImplementedError("'from_server' not officially supported for this release.  Enable developer mode to test.")
@@ -342,16 +361,22 @@ class Bundle(ParameterSet):
     def from_catalog(cls, identifier):
         """Load a new bundle from the phoebe catalog.
 
-        [NOTIMPLEMENTED]
+        [NOT SUPPORTED]
 
         Load a bundle from the online catalog.  This is a constructor
         so should be called as:
 
-        >>> b = Bundle.from_catalog(identifier)
+        ```py
+        b = Bundle.from_catalog(identifier)
+        ```
 
-        :parameter str identifier: identifier of the object in the catalog
-        :return: instantiated :class:`Bundle` object
-        :raises NotImplementedError: because this isn't implemented yet
+        Arguments
+        ----------
+        * `identifier` (string): identifier of the object in the catalog
+
+        Returns
+        ----------
+        * instantiated <phoebe.frontend.bundle.Bundle> object.
         """
         raise NotImplementedError
         # TODO: pull from online catalog and pass arguments needed to cls
@@ -365,10 +390,25 @@ class Bundle(ParameterSet):
 
         This is a constructor so should be called as:
 
-        >>> b = Bundle.from_legacy('myfile.phoebe')
+        ```py
+        b = Bundle.from_legacy('myfile.phoebe')
+        ```
 
-        :parameter str filename: relative or full path to the file
-        :return: instantiated :class:`Bundle` object
+        Arguments
+        ------------
+        * `filename` (string): relative or full path to the file
+        * `add_compute_legacy` (bool, optional, default=True): whether to add
+            a set of compute options for the legacy backend.  See also
+            <phoebe.frontend.bundle.Bundle.add_compute> and
+            <phoebe.parameters.compute.legacy> to add manually after.
+        * `add_compute_phoebe` (bool, optional, default=True): whether to add
+            a set of compute options for the phoebe backend.  See also
+            <phoebe.frontend.bundle.Bundle.add_compute> and
+            <phoebe.parameters.compute.phoebe> to add manually after
+
+        Returns
+        ---------
+        * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
         logger.warning("importing from legacy is experimental until official 1.0 release")
         filename = os.path.expanduser(filename)
@@ -382,9 +422,18 @@ class Bundle(ParameterSet):
 
         This is a constructor, so should be called as:
 
-        >>> b = Bundle.default_binary()
+        ```py
+        b = Bundle.default_binary()
+        ```
 
-        :return: instatiated :class`Bundle` object
+        Arguments
+        -----------
+        * `starA` (string, optional, default='starA'): the label to be set for
+            starA.
+
+        Returns
+        -----------
+        * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
         b = cls()
         b.add_star(component=starA)
@@ -401,9 +450,25 @@ class Bundle(ParameterSet):
 
         This is a constructor, so should be called as:
 
-        >>> b = Bundle.default_binary()
+        ```py
+        b = Bundle.default_binary()
+        ```
 
-        :return: instantiated :class:`Bundle` object
+        Arguments
+        -----------
+        * `starA` (string, optional, default='primary'): the label to be set for
+            the primary component.
+        * `starB` (string, optional, default='secondary'): the label to be set for
+            the secondary component.
+        * `orbit` (string, optional, default='binary'): the label to be set for
+            the binary component.
+        * `contact_binary` (bool, optional, default=False): whether to also
+            add an envelope (with component='contact_envelope') and set the
+            hierarchy to a contact binary system.
+
+        Returns
+        -----------
+        * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
         b = cls()
         if contact_binary:
@@ -442,21 +507,27 @@ class Bundle(ParameterSet):
 
         Set inner_as_primary based on what hierarchical configuration you want.
 
-        inner_as_primary = True:
+        `inner_as_primary = True`:
 
         starA - starB -- starC
 
-        inner_as_primary = False:
+        `inner_as_primary = False`:
 
         starC -- starA - starB
 
         This is a constructor, so should be called as:
 
-        >>> b = Bundle.default_triple_primary()
+        ```py
+        b = Bundle.default_triple_primary()
+        ```
 
-        :parameter bool inner_as_primary: whether the inner-binary should be
-            the primary component of the outer-orbit
-        :return: instantiated :class:`Bundle` object
+        Arguments
+        -----------
+
+
+        Returns
+        -------------
+        * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
         if not conf.devel:
             raise NotImplementedError("'default_triple' not officially supported for this release.  Enable developer mode to test.")
@@ -497,15 +568,24 @@ class Bundle(ParameterSet):
              compact=False):
         """Save the bundle to a JSON-formatted ASCII file.
 
-        :parameter str filename: relative or full path to the file
-        :parameter bool clear_history: whether to clear history log
-            items before saving (default: True)
-        :parameter bool incl_uniqueid: whether to including uniqueids in the
-            file (only needed if its necessary to maintain the uniqueids when
-            reloading)
-        :parameter bool compact: whether to use compact file-formatting (maybe
-            be quicker to save/load, but not as easily readable)
-        :return: the filename
+        See also:
+        * <phoebe.parameters.ParameterSet.save>
+        * <phoebe.parameters.Parameter.save>
+
+        Arguments
+        ------------
+        * `filename` (string): relative or full path to the file
+        * `clear_history` (bool, optional, default=True): whether to clear
+            history log items before saving.
+        * `incl_uniqueid` (bool, optional, default=False): whether to including
+            uniqueids in the file (only needed if its necessary to maintain the
+            uniqueids when reloading)
+        * `compact` (bool, optional, default=False): whether to use compact
+            file-formatting (may be quicker to save/load, but not as easily readable)
+
+        Returns
+        -------------
+        * the filename (string)
         """
         if clear_history:
             # TODO: let's not actually clear history,
@@ -519,7 +599,15 @@ class Bundle(ParameterSet):
 
     def export_legacy(self, filename):
         """
-        TODO: add docs
+        Export the Bundle to a file readable by PHOEBE legacy
+
+        Arguments
+        -----------
+        * `filename` (string): relative or full path to the file
+
+        Returns
+        ------------
+        * the filename (string)
         """
         logger.warning("exporting to legacy is experimental until official 1.0 release")
         filename = os.path.expanduser(filename)
@@ -714,10 +802,16 @@ class Bundle(ParameterSet):
         """
         Filter in the 'setting' context
 
-        :parameter str twig: the twig used for filtering
-        :parameter **kwargs: any other tags to do the filter (except tag or
-            context)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet`
+        See also:
+        * <phoebe.parameters.ParameterSet.filter_or_get>
+
+        Arguments
+        ----------
+        * `twig`: (string, optional, default=None): the twig used for filtering
+        * `**kwargs`: any other tags to do the filtering (excluding twig and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> or <phoebe.parameters.Parameter> object.
         """
         if twig is not None:
             kwargs['twig'] = twig
@@ -727,18 +821,23 @@ class Bundle(ParameterSet):
     def _add_history(self, redo_func, redo_kwargs, undo_func, undo_kwargs,
                      **kwargs):
         """
-        Add a new log (undo/redoable) to this history context
+        Add a new log (undo/redoable) to this history contextself.
 
-        :parameter str redo_func: function to redo the action, must be a
-            method of :class:`Bundle`
-        :parameter dict redo_kwargs: kwargs to pass to the redo_func.  Each
+        Arguments
+        -----------
+        * `redo_func` (str): function to redo the action, must be a
+            method of <phoebe.frontend.bundle.Bundle>
+        * `redo_kwargs` (dict):  kwargs to pass to the redo_func.  Each
             item must be serializable (float or str, not objects)
-        :parameter str undo_func: function to undo the action, must be a
-            method of :class:`Bundle`
-        :parameter dict undo_kwargs: kwargs to pass to the undo_func.  Each
+        * `undo_func` (str): function to undo the action, must be a
+            method of <phoebe.frontend.bundle.Bundle>
+        * `undo_kwargs` (dict): kwargs to pass to the undo_func.  Each
             item must be serializable (float or str, not objects)
-        :parameter str history: label of the history parameter
-        :raises ValueError: if the label for this history item is forbidden or
+        * `history` (string, optional): label of the history parameter
+
+        Raises
+        -------
+        * ValueError: if the label for this history item is forbidden or
             already exists
         """
         if not self.history_enabled:
@@ -757,11 +856,11 @@ class Bundle(ParameterSet):
     @property
     def history(self):
         """
-        Property as a shortcut to :meth:`get_history`
+        Property as a shortcut to <phoebe.frontend.bundle.Bundle.get_history>
 
-        You can toggle whether history is recorded using
-            * :meth:`enable_history`
-            * :meth:`disable_history`
+        You can toggle whether history is recorded using:
+        * <phoebe.frontend.bundle.Bundle.enable_history>
+        * <phoebe.frontend.bundle.Bundle.disable_history>
         """
 
         return self.get_history()
@@ -770,17 +869,24 @@ class Bundle(ParameterSet):
         """
         Get a history item by index.
 
-        You can toggle whether history is recorded using
-            * :meth:`enable_history`
-            * :meth:`disable_history`
+        You can toggle whether history is recorded using:
+        * <phoebe.frontend.bundle.Bundle.enable_history>
+        * <phoebe.frontend.bundle.Bundle.disable_history>
 
-        :parameter int i: integer for indexing (can be positive or
-            negative).  If i is None or not provided, the entire list
+        Arguments
+        ----------
+        * `i` (integer, optional, default=None): integer for indexing (can be
+            positive or negative).  If i is None or not provided, the entire list
             of history items will be returned
-        :return: :class:`phoebe.parameters.parameters.Parameter` if i is
-            an int, or :class:`phoebe.parameters.parameters.ParameterSet` if i
-            is not provided
-        :raises ValueError: if no history items have been recorded.
+
+        Returns
+        ----------
+        * <phoebe.parameters.Parameter> if `i` is an int, or
+            <phoebe.parameters.ParameterSet> if `i` is None (or not provided).
+
+        Raises
+        -------
+        * ValueError: if no history items have been recorded.
         """
         ps = self.filter(context='history')
         # if not len(ps):
@@ -795,15 +901,20 @@ class Bundle(ParameterSet):
         """
         Remove a history item from the bundle by index.
 
-        You can toggle whether history is recorded using
-            * :meth:`enable_history`
-            * :meth:`disable_history`
+        You can toggle whether history is recorded using:
+        * <phoebe.frontend.bundle.Bundle.enable_history>
+        * <phoebe.frontend.bundle.Bundle.disable_history>
 
 
-        :parameter int i: integer for indexing (can be positive or
-            negative).  If i is None or not provided, the entire list
-            of history items will be removed
-        :raises ValueError: if no history items have been recorded.
+        Arguments
+        ----------
+        * `i` (integer, optional, default=None): integer for indexing (can be
+            positive or negative).  If i is None or not provided, the entire list
+            of history items will be removed.
+
+        Raises
+        -------
+        * ValueError: if no history items have been recorded.
         """
         if i is None:
             self.remove_parameters_all(context='history')
@@ -816,14 +927,15 @@ class Bundle(ParameterSet):
     @property
     def history_enabled(self):
         """
-        Property as a shortcut to b.get_setting('log_history).get_value().
+        Property as a shortcut to `b.get_setting('log_history).get_value()``.
 
-        You can toggle whether history is recorded using
-            * :meth:`enable_history`
-            * :func:`disable_history`
+        You can toggle whether history is recorded using:
+        * <phoebe.frontend.bundle.Bundle.enable_history>
+        * <phoebe.frontend.bundle.Bundle.disable_history>
 
-        :return: whether logging of history items (undo/redo) is enabled.
-        :rtype: bool
+        Returns
+        ------
+        * (bool) whether logging of history items (undo/redo) is enabled.
         """
         return self.get_setting('log_history').get_value()\
             if len(self.get_setting())\
@@ -833,9 +945,10 @@ class Bundle(ParameterSet):
         """
         Enable logging history items (undo/redo).
 
-        You can check wither history is enabled using :meth:`history_enabled`.
+        You can check wither history is enabled using
+        <phoebe.frontend.bundle.Bundle.history_enabled>.
 
-        Shortcut to b.get_setting('log_history').set_value(True)
+        Shortcut to `b.get_setting('log_history').set_value(True)`
         """
         self.get_setting('log_history').set_value(True)
 
@@ -843,9 +956,10 @@ class Bundle(ParameterSet):
         """
         Disable logging history items (undo/redo)
 
-        You can check wither history is enabled using :meth:`history_enabled`.
+        You can check wither history is enabled using
+        <phoebe.frontend.bundle.Bundle.history_enabled>.
 
-        Shortcut to b.get_setting('log_history').set_value(False)
+        Shortcut to `b.get_setting('log_history').set_value(False)`
         """
         self.get_setting('log_history').set_value(False)
 
@@ -853,10 +967,14 @@ class Bundle(ParameterSet):
         """
         Undo an item in the history logs
 
-        :parameter int i: integer for indexing (can be positive or
-            negative).  Defaults to -1 if not provided (the latest
-            recorded history item)
-        :raises ValueError: if no history items have been recorded
+        Arguments
+        ----------
+        * `i` (integer, optional, default=-1): integer for indexing (can be
+            positive or negative).
+
+        Raises
+        ----------
+        * ValueError: if no history items have been recorded
         """
 
         _history_enabled = self.history_enabled
@@ -872,10 +990,14 @@ class Bundle(ParameterSet):
         """
         Redo an item in the history logs
 
-        :parameter int i: integer for indexing (can be positive or
-            negative).  Defaults to -1 if not provided (the latest
-            recorded history item)
-        :raises ValueError: if no history items have been recorded
+        Arguments
+        ----------
+        * `i` (integer, optional, default=-1): integer for indexing (can be
+            positive or negative).
+
+        Raises
+        ----------
+        * ValueError: if no history items have been recorded
         """
         _history_enabled = self.history_enabled
         param = self.get_history(i)
@@ -946,14 +1068,27 @@ class Bundle(ParameterSet):
 
     def set_hierarchy(self, *args, **kwargs):
         """
-        Set the hierarchy of the system.
+        Set the hierarchy of the system, and recreate/rerun all necessary
+        constraints (can be slow).
 
-        See tutorial on building a system.
+        See the built-in functions for building hierarchy reprentations:
+        * <phoebe.parmaeters.hierarchy>
+        * <phoebe.parameters.hierarchy.binaryorbit>
+        * <phoebe.parameters.hierarchy.component>
 
-        TODO: provide documentation
-        args can be
-        - string representation (preferably passed through hierarchy already)
-        - func and strings/PSs/params to pass to function
+        See the following tutorials:
+        * [building a system](/docs/latest/tutorials/building_a_system)
+
+        Arguments
+        -----------
+        * `*args`: positional arguments can be any one of the following:
+            * valid string representation of the hierarchy
+            * callable function (possibly in <phoebe.parameters.hierarchy>)
+                followed by arguments that return a valid string representation
+                of the hierarchy.
+        * `value` (str, optional, only used if no positional arguments provided):
+            * valid string representation of the hierarchy
+        * `**kwargs`: IGNORED
         """
 
         # need to run any constraints since some may be deleted and rebuilt
@@ -1256,12 +1391,16 @@ class Bundle(ParameterSet):
         """
         Filter in the 'system' context
 
-        :parameter str twig: twig to use for filtering
-        :parameter **kwargs: any other tags to do the filter
-            (except twig or context)
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
 
-        :return: :class:`phoebe.parameters.parameters.Parameter` or
-            :class:`phoebe.parameters.parameters.ParameterSet`
+        Arguments
+        ----------
+        * `twig`: (string, optional, default=None): the twig used for filtering
+        * `**kwargs`: any other tags to do the filtering (excluding twig and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         if twig is not None:
             kwargs['twig'] = twig
@@ -1271,10 +1410,11 @@ class Bundle(ParameterSet):
     @property
     def hierarchy(self):
         """
-        Property shortcut to :meth:`get_hierarchy`
+        Property shortcut to <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
-        :return: the hierarcy :class:`phoebe.parameters.parameters.Parameter`
-            or None (if no hierarchy exists)
+        Returns
+        --------
+        * the <phoebe.parameters.HierarchyParameter> or None (if no hierarchy exists)
         """
         return self.get_hierarchy()
 
@@ -1282,8 +1422,9 @@ class Bundle(ParameterSet):
         """
         Get the hierarchy parameter
 
-        :return: the hierarcy :class:`phoebe.parameters.parameters.Parameter`
-            or None (if no hierarchy exists)
+        Returns
+        --------
+        * the <phoebe.parameters.HierarchyParameter> or None (if no hierarchy exists)
         """
         return self._hierarchy_param
 
@@ -1361,12 +1502,19 @@ class Bundle(ParameterSet):
 
         This is called by default for each set_value but will only raise a
         logger warning if fails.  This is also called immediately when calling
-        :meth:`run_compute`.
+        <phoebe.frontend.bundle.Bundle.run_compute>.
 
         kwargs are passed to override currently set values as if they were
-        sent to :meth:`run_compute`.
+        sent to <phoebe.frontend.bundle.Bundle.run_compute>.
 
-        :return: True if passed, False if failed and a message
+        Arguments
+        -----------
+        * `**kwargs`: overrides for any parameter (given as qualifier=value pairs)
+
+        Returns
+        ----------
+        * (bool, str) whether the checks passed or failed and a message describing
+            the FIRST failure (if applicable).
         """
 
         # make sure all constraints have been run
@@ -1577,32 +1725,46 @@ class Bundle(ParameterSet):
     def add_feature(self, kind, component=None, **kwargs):
         """
         Add a new feature (spot, etc) to a component in the system.  If not
-        provided, 'feature' (the name of the new feature) will be created
-        for you and can be accessed by the 'feature' attribute of the returned
-        ParameterSet
+        provided, `feature` (the name of the new feature) will be created
+        for you and can be accessed by the `feature` attribute of the returned
+        <phoebe.parameters.ParameterSet>.
 
-        >>> b.add_feature(feature.spot, component='mystar')
+        ```py
+        b.add_feature(feature.spot, component='mystar')
+        ```
 
         or
 
-        >>> b.add_feature('spot', 'mystar', colat=90)
+        ```py
+        b.add_feature('spot', 'mystar', colat=90)
+        ```
 
-        Available kinds include:
-            * :func:`phoebe.parameters.feature.spot`
+        Available kinds can be found in <phoebe.parameters.feature> and include:
+        * <phoebe.parameters.feature.spot>
 
-        :parameter kind: function to call that returns a
-            ParameterSet or list of parameters.  This must either be
-            a callable function that accepts nothing but default values,
-            or the name of a function (as a string) that can be found in the
-            :mod:`phoebe.parameters.feature` module (ie. 'spot')
-        :type kind: str or callable
-        :parameter str component: name of the component to attach the feature
-        :parameter str feature: (optional) name of the newly-created feature
-        :parameter **kwargs: default value for any of the newly-created
-            parameters
-        :return: :class:`phoebe.parameters.parameters.ParameterSet` of
-            all parameters that have been added
-        :raises NotImplementedError: if required constraint is not implemented
+        Arguments
+        -----------
+        * `kind` (string): function to call that returns a
+             <phoebe.parameters.ParameterSet> or list of
+             <phoebe.parameters.Parameter> objects.  This must either be a
+             callable function that accepts only default values, or the name
+             of a function (as a string) that can be found in the
+             <phoebe.parameters.compute> module.
+        * `component` (string, optional): name of the component to attach the
+            feature.  Note: only optional if only a single possibility otherwise.
+        * `feature` (string, optional): name of the newly-created feature.
+        * `**kwargs`: default values for any of the newly-created parameters
+            (passed directly to the matched callabled function).
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+
+
+        Raises
+        ----------
+        * NotImplementedError: if a required constraint is not implemented.
+        * ValueError: if `component` is required but is not provided.
         """
         func = _get_add_func(_feature, kind)
 
@@ -1656,12 +1818,18 @@ class Bundle(ParameterSet):
 
     def get_feature(self, feature=None, **kwargs):
         """
-        Filter in the 'proerty' context
+        Filter in the 'feature' context
 
-        :parameter str feature: name of the feature (optional)
-        :parameter **kwargs: any other tags to do the filter
-            (except component or context)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet`
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `feature`: (string, optional, default=None): the name of the feature
+        * `**kwargs`: any other tags to do the filtering (excluding feature and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         if feature is not None:
             kwargs['feature'] = feature
@@ -1670,11 +1838,21 @@ class Bundle(ParameterSet):
 
     def remove_feature(self, feature=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
+        Remove a 'feature' from the bundle.
 
-        Remove a 'feature' from the bundle
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
 
-        :raises NotImplementedError: because this isn't implemented yet
+        Arguments
+        ----------
+        * `feature` (string, optional): the label of the feature to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: feature, qualifier.
+
+        Raises
+        --------
+        * ValueError: if `feature` is not provided AND no `kwargs` are provided.
         """
         self._kwargs_checks(kwargs)
 
@@ -1702,21 +1880,25 @@ class Bundle(ParameterSet):
 
     def remove_features_all(self):
         """
-        Remove all features from the bundle
+        Remove all features from the bundle.  To remove a single feature, see
+        <phoebe.frontend.bundle.Bundle.remove_feature>.
         """
         for feature in self.features:
             self.remove_feature(feature=feature)
 
     def rename_feature(self, old_feature, new_feature):
         """
-        Change the label of a feature attached to the Bundle
+        Change the label of a feature attached to the Bundle.
 
-        :parameter str old_feature: the current name of the feature
-            (must exist)
-        :parameter str new_feature: the desired new name of the feature
-            (must not exist)
-        :return: None
-        :raises ValueError: if the new_feature is forbidden
+        Arguments
+        ----------
+        * `old_feature` (string): current label of the feature (must exist)
+        * `new_feature` (string): the desired new label of the feature
+            (must not yet exist)
+
+        Raises
+        --------
+        * ValueError: if the value of `new_feature` is forbidden or already exists.
         """
         # TODO: raise error if old_feature not found?
 
@@ -1725,7 +1907,7 @@ class Bundle(ParameterSet):
 
     def add_spot(self, component=None, feature=None, **kwargs):
         """
-        Shortcut to :meth:`add_feature` but with kind='spot'
+        Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='spot'.
         """
         if component is None:
             if len(self.hierarchy.get_stars())==1:
@@ -1739,16 +1921,22 @@ class Bundle(ParameterSet):
 
     def get_spot(self, feature=None, **kwargs):
         """
-        Shortcut to :meth:`get_feature` but with kind='spot'
+        Shortcut to <phoebe.frontend.bundle.Bundle.get_feature> but with kind='spot'.
+
+        Arguments
+        ----------
+        * `feature`: (string, optional, default=None): the name of the feature
+        * `**kwargs`: any other tags to do the filtering (excluding feature, kind, and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         kwargs.setdefault('kind', 'spot')
         return self.get_feature(feature, **kwargs)
 
     def remove_spot(self, feature=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
-
-        Shortcut to :meth:`remove_feature` but with kind='spot'
+        Shortcut to <phoebe.frontend.bundle.Bundle.remove_feature> but with kind='spot'.
         """
         kwargs.setdefault('kind', 'spot')
         return self.remove_feature(feature, **kwargs)
@@ -1756,34 +1944,45 @@ class Bundle(ParameterSet):
     def add_component(self, kind, **kwargs):
         """
         Add a new component (star or orbit) to the system.  If not provided,
-        'component' (the name of the new star or orbit) will be created for
-        you and can be accessed by the 'component' attribute of the returned
-        ParameterSet.
+        `component` (the name of the new star or orbit) will be created for
+        you and can be accessed by the `component` attribute of the returned
+        <phoebe.parameters.ParameterSet>.
 
-        >>> b.add_component(component.star)
+        ```py
+        b.add_component(component.star)
+        ```
 
         or
 
-        >>> b.add_component('orbit', period=2.5)
+        ```py
+        b.add_component('orbit', period=2.5)
+        ```
 
-        Available kinds include:
-            * :func:`phoebe.parameters.component.star`
-            * :func:`phoebe.parameters.component.orbit`
+        Available kinds can be found in <phoebe.parameters.component> and include:
+        * <phoebe.parameters.component.star>
+        * <phoebe.parmaeters.component.orbit>
+        * <phoebe.parameters.component.envelope>
 
-        :parameter kind: function to call that returns a
-            ParameterSet or list of parameters.  This must either be
-            a callable function that accepts nothing but default
-            values, or the name of a function (as a string) that can
-            be found in the :mod:`phoebe.parameters.component` module
-            (ie. 'star', 'orbit')
-        :type kind: str or callable
-        :parameter str component: (optional) name of the newly-created
-            component
-        :parameter **kwargs: default values for any of the newly-created
-            parameters
-        :return: :class:`phoebe.parameters.parameters.ParameterSet` of
-            all parameters that have been added
-        :raises NotImplementedError: if required constraint is not implemented
+        Arguments
+        ----------
+        * `kind` (string): function to call that returns a
+             <phoebe.parameters.ParameterSet> or list of
+             <phoebe.parameters.Parameter> objects.  This must either be a
+             callable function that accepts only default values, or the name
+             of a function (as a string) that can be found in the
+             <phoebe.parameters.compute> module.
+        * `component` (string, optional): name of the newly-created feature.
+        * `**kwargs`: default values for any of the newly-created parameters
+            (passed directly to the matched callabled function).
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+
+
+        Raises
+        ----------
+        * NotImplementedError: if a required constraint is not implemented.
         """
 
         func = _get_add_func(component, kind)
@@ -1829,10 +2028,16 @@ class Bundle(ParameterSet):
         """
         Filter in the 'component' context
 
-        :parameter str component: name of the component (optional)
-        :parameter **kwargs: any other tags to do the filter
-            (except component or context)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet`
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `component`: (string, optional, default=None): the name of the component
+        * `**kwargs`: any other tags to do the filtering (excluding component and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         if component is not None:
             kwargs['component'] = component
@@ -1841,11 +2046,17 @@ class Bundle(ParameterSet):
 
     def remove_component(self, component, **kwargs):
         """
-        [NOT IMPLEMENTED]
+        Remove a 'component' from the bundle.
 
-        Remove a 'component' from the bundle
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
 
-        :raises NotImplementedError: because this isn't implemented yet
+        Arguments
+        ----------
+        * `component` (string): the label of the component to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: component, context
         """
         # NOTE: run_checks will check if an entry is in the hierarchy but has no parameters
         kwargs['component'] = component
@@ -1855,14 +2066,17 @@ class Bundle(ParameterSet):
 
     def rename_component(self, old_component, new_component):
         """
-        Change the label of a component attached to the Bundle
+        Change the label of a component attached to the Bundle.
 
-        :parameter str old_component: the current name of the component
-            (must exist)
-        :parameter str new_component: the desired new name of the component
-            (must not exist)
-        :return: None
-        :raises ValueError: if the new_component is forbidden
+        Arguments
+        ----------
+        * `old_component` (string): current label of the component (must exist)
+        * `new_component` (string): the desired new label of the component
+            (must not yet exist)
+
+        Raises
+        --------
+        * ValueError: if the value of `new_component` is forbidden or already exists.
         """
         # TODO: raise error if old_component not found?
 
@@ -1882,30 +2096,39 @@ class Bundle(ParameterSet):
 
     def add_orbit(self, component=None, **kwargs):
         """
-        Shortcut to :meth:`add_component` but with kind='orbit'
+        Shortcut to <phoebe.frontend.bundle.Bundle.add_component> but with kind='orbit'.
         """
         kwargs.setdefault('component', component)
         return self.add_component('orbit', **kwargs)
 
     def get_orbit(self, component=None, **kwargs):
         """
-        Shortcut to :meth:`get_component` but with kind='star'
+        Shortcut to <phoebe.frontend.bundle.Bundle.get_component> but with kind='star'.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `component`: (string, optional, default=None): the name of the component
+        * `**kwargs`: any other tags to do the filtering (excluding component, kind, and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         kwargs.setdefault('kind', 'orbit')
         return self.get_component(component, **kwargs)
 
     def remove_orbit(self, component=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
-
-        Shortcut to :meth:`remove_component` but with kind='star'
+        Shortcut to <phoebe.frontend.bundle.Bundle.remove_component> but with kind='star'.
         """
         kwargs.setdefault('kind', 'orbit')
         return self.remove_component(component, **kwargs)
 
     def add_star(self, component=None, **kwargs):
         """
-        Shortcut to :meth:`add_component` but with kind='star'
+        Shortcut to <phoebe.frontend.bundle.Bundle.add_component> but with kind='star'.
         """
         kwargs.setdefault('component', component)
         return self.add_component('star', **kwargs)
@@ -1913,62 +2136,88 @@ class Bundle(ParameterSet):
     def get_star(self, component=None, **kwargs):
         """
         Shortcut to :meth:`get_component` but with kind='star'
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `comopnent`: (string, optional, default=None): the name of the component
+        * `**kwargs`: any other tags to do the filtering (excluding component, kind, and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         kwargs.setdefault('kind', 'star')
         return self.get_component(component, **kwargs)
 
     def remove_star(self, component=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
-
-        Shortcut to :meth:`remove_component` but with kind='star'
+        Shortcut to <phoebe.frontend.bundle.Bundle.remove_component> but with kind='star'.
         """
         kwargs.setdefault('kind', 'star')
         return self.remove_component(component, **kwargs)
 
     def add_envelope(self, component=None, **kwargs):
         """
-        [NOT SUPPORTED]
-
-        Shortcut to :meth:`add_component` but with kind='envelope'
+        Shortcut to <phoebe.frontend.bundle.Bundle.add_component> but with kind='envelope'.
         """
         kwargs.setdefault('component', component)
         return self.add_component('envelope', **kwargs)
 
     def get_envelope(self, component=None, **kwargs):
         """
-        [NOT SUPPORTED]
+        Shortcut to <phoebe.frontend.bundle.Bundle.get_component> but with kind='envelope'.
 
-        Shortcut to :meth:`get_component` but with kind='envelope'
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `component`: (string, optional, default=None): the name of the component
+        * `**kwargs`: any other tags to do the filtering (excluding component, kind, and context)
+
+        Returns
+        ----------
+        * a <phoebe.parameters.ParameterSet> object.
         """
         kwargs.setdefault('kind', 'envelope')
         return self.get_component(component, **kwargs)
 
     def remove_envelope(self, component=None, **kwargs):
         """
-        [NOT SUPPORTED]
-        [NOT IMPLEMENTED]
-
-        Shortcut to :meth:`remove_component` but with kind='envelope'
+        Shortcut to <phoebe.frontend.bundle.Bundle.remove_component> but with kind='envelope'.
         """
         kwargs.setdefault('kind', 'envelope')
         return self.remove_component(component, **kwargs)
 
     def get_ephemeris(self, component=None, t0='t0_supconj', **kwargs):
         """
-        Get the ephemeris of a component (star or orbit)
+        Get the ephemeris of a component (star or orbit).
 
-        :parameter str component: name of the component.  If not given,
+        NOTE: support for `shift` and `phshift` was removed as of version 2.1.
+        Please pass `t0` instead.
+
+        Arguments
+        ---------------
+        * `component` (str, optional): name of the component.  If not given,
             component will default to the top-most level of the current
-            hierarchy
-        :parameter t0: qualifier of the parameter to be used for t0
-        :type t0: str
-        :parameter **kwargs: any value passed through kwargs will override the
+            hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
+        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
+            to be used for t0
+        * `**kwargs`: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
-        :return: dictionary containing period, t0 (t0_supconj if orbit),
+
+        Returns
+        -----------
+        * (dict): dictionary containing period, t0 (t0_supconj if orbit),
             dpdt (as applicable)
-        :rtype: dict
+
+        Raises
+        ---------
+        * ValueError: if `shift` is passed to `**kwargs`.
+        * NotImplementedError: if the component kind is not recognized or supported.
         """
 
         if component is None:
@@ -2003,20 +2252,31 @@ class Bundle(ParameterSet):
 
     def to_phase(self, time, component=None, t0='t0_supconj', **kwargs):
         """
-        Get the phase(s) of a time(s) for a given ephemeris
+        Get the phase(s) of a time(s) for a given ephemeris.
 
-        :parameter time: time to convert to phases (should be in same system
-            as t0s)
-        :type time: float, list, or array
-        :parameter t0: qualifier of the parameter to be used for t0
-        :type t0: str
-        :parameter str component: component for which to get the ephemeris.
+        See also: <phoebe.frontend.bundle.Bundle.get_ephemeris>.
+
+        Arguments
+        -----------
+        * `time` (float/list/array): time to convert to phases (should be in
+            same system/units as t0s)
+        * `component` (str, optional): component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
-            current hierarchy
-        :parameter **kwargs: any value passed through kwargs will override the
+            current hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
+        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
+            to be used for t0
+        * `**kwargs`: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
-        :return: phase (float) or phases (array)
+
+        Returns:
+        ----------
+        * (float/array) phases in same type as input times (except lists become arrays).
+
+        Raises
+        ---------
+        * ValueError: if `shift` is passed to `**kwargs`.
+        * NotImplementedError: if the component kind is not recognized or supported.
         """
 
         if kwargs.get('shift', False):
@@ -2051,20 +2311,31 @@ class Bundle(ParameterSet):
 
     def to_time(self, phase, component=None, t0='t0_supconj', **kwargs):
         """
-        Get the time(s) of a phase(s) for a given ephemeris
+        Get the time(s) of a phase(s) for a given ephemeris.
 
-        :parameter phase: phase to convert to times (should be in
-            same system as t0s)
-        :type phase: float, list, or array
-    `   :parameter str component: component for which to get the ephemeris.
+        See also: <phoebe.frontend.bundle.Bundle.get_ephemeris>.
+
+        Arguments
+        -----------
+        * `phase` (float/list/array): phase to convert to times (should be in
+            same system/units as t0s)
+        * `component` (str, optional): component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
-            current hierarchy
-        :parameter t0: qualifier of the parameter to be used for t0
-        :type t0: str
-        :parameter **kwargs: any value passed through kwargs will override the
+            current hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
+        * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
+            to be used for t0
+        * `**kwargs`: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
-        :return: time (float) or times (array)
+
+        Returns
+        ----------
+        * (float/array) times in same type as input phases (except lists become arrays).
+
+        Raises
+        ---------
+        * ValueError: if `shift` is passed to `**kwargs`.
+        * NotImplementedError: if the component kind is not recognized or supported.
         """
 
         if kwargs.get('shift', False):
@@ -2090,41 +2361,62 @@ class Bundle(ParameterSet):
     def add_dataset(self, kind, component=None, **kwargs):
         """
         Add a new dataset to the bundle.  If not provided,
-        'dataset' (the name of the new dataset) will be created for
-        you and can be accessed by the 'dataset' attribute of the returned
-        ParameterSet.
+        `dataset` (the name of the new dataset) will be created for
+        you and can be accessed by the `dataset` attribute of the returned
+        <phoebe.parameters.ParameterSet>.
 
         For light curves, the light curve will be generated for the entire system.
 
         For radial velocities, you need to provide a list of components
         for which values should be computed.
 
-        Available kinds include:
-            * :func:`phoebe.parameters.dataset.lc`
-            * :func:`phoebe.parameters.dataset.rv`
-            * :func:`phoebe.parameters.dataset.etv`
-            * :func:`phoebe.parameters.dataset.orb`
-            * :func:`phoebe.parameters.dataset.mesh`
-            * :func:`phoebe.parameters.dataset.lp`
+        Available kinds can be found in <phoebe.parameters.dataset> and include:
+        * <phoebe.parameters.dataset.lc>
+        * <phoebe.parameters.dataset.rv>
+        * <phoebe.parameters.dataset.lp>
+        * <phoebe.parameters.dataset.orb>
+        * <phoebe.parameters.dataset.mesh>
 
-        :parameter kind: function to call that returns a
-            ParameterSet or list of parameters.  This must either be
-            a callable function that accepts nothing but default
-            values, or the name of a function (as a string) that can
-            be found in the :mod:`phoebe.parameters.dataset` module
-        :type kind: str or callable
-        :parameter component: a list of
-            components for which to compute the observables.  For
-            light curves this should be left at None to always compute
-            the light curve for the entire system.  For most other
-            types, you need to provide at least one component.
-        :type component: str or list of strings or None
-        :parameter str dataset: (optional) name of the newly-created dataset
-        :parameter **kwargs: default values for any of the newly-created
-            parameters
-        :return: :class:`phoebe.parameters.parameters.ParameterSet` of
-            all parameters that have been added
-        :raises NotImplementedError: if required constraint is not implemented
+        The value of `component` will default as follows:
+        * lc: defaults to `None` meaning the light curve is computed
+            for the entire system.  This is the only valid option.
+        * mesh: defaults to `None` meaning all components will be exposed.
+            This is the only valid option.
+        * rv or orb: defaults to the stars in the hierarchy.  See also
+            <phoebe.parameters.HierarchyParameter.get_stars>.  Optionally,
+            you can override this by providing a subset of the stars in the
+            hierarchy.
+        * lp: defaults to the top-level of the hierarchy (typically an orbit).
+            See also <phoebe.parameters.HierarchyParameter.get_top>.  The
+            exposed line-profile is then the combined line profile of all
+            children components.  Optionally, you can override this by providing
+            a subset (or single entry) of the stars or orbits in the hierarchy.
+
+        Arguments
+        ----------
+        * `kind` (string): function to call that returns a
+             <phoebe.parameters.ParameterSet> or list of
+             <phoebe.parameters.Parameter> objects.  This must either be a
+             callable function that accepts only default values, or the name
+             of a function (as a string) that can be found in the
+             <phoebe.parameters.compute> module.
+        * `component` (list, optional): a list of components for which to compute
+            the observables.  For light curves this should be left at None to always
+            compute the light curve for the entire system.  See above for the
+            valid options for `component` and how it will default if not provided
+            based on the value of `kind`.
+        * `dataset` (string, optional): name of the newly-created feature.
+        * `**kwargs`: default values for any of the newly-created parameters
+            (passed directly to the matched callabled function).
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+
+
+        Raises
+        ----------
+        * NotImplementedError: if a required constraint is not implemented.
         """
 
         sing_plural = {}
@@ -2318,10 +2610,17 @@ class Bundle(ParameterSet):
         """
         Filter in the 'dataset' context
 
-        :parameter str dataset: name of the dataset (optional)
-        :parameter **kwargs: any other tags to do the filter
-            (except dataset or context)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet`
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `dataset`: (string, optional, default=None): the name of the dataset
+        * `**kwargs`: any other tags to do the filtering (excluding dataset and context)
+
+        Returns
+        --------
+        * a <phoebe.parameters.ParameterSet> object.
         """
         if dataset is not None:
             kwargs['dataset'] = dataset
@@ -2334,7 +2633,8 @@ class Bundle(ParameterSet):
         return self.filter(**kwargs)
 
     def remove_dataset(self, dataset=None, **kwargs):
-        """ Remove a dataset from the Bundle.
+        """
+        Remove a 'dataset' from the Bundle.
 
         This removes all matching Parameters from the dataset, model, and
         constraint contexts (by default if the context tag is not provided).
@@ -2342,10 +2642,19 @@ class Bundle(ParameterSet):
         You must provide some sort of filter or this will raise an Error (so
         that all Parameters are not accidentally removed).
 
-        :parameter str dataset: name of the dataset
-        :parameter **kwargs: any other tags to do the filter (except qualifier
-            and dataset)
-        :raises ValueError: if no filter is provided
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+
+        Arguments
+        ----------
+        * `dataset` (string, optional): the label of the dataset to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: dataset, qualifier.
+
+        Raises
+        --------
+        * ValueError: if `dataset` is not provided AND no `kwargs` are provided.
         """
 
         self._kwargs_checks(kwargs)
@@ -2410,21 +2719,25 @@ class Bundle(ParameterSet):
 
     def remove_datasets_all(self):
         """
-        Remove all datasets from the bundle
+        Remove all datasets from the bundle.  To remove a single dataset see
+        <phoebe.frontend.bundle.Bundle.remove_dataset>.
         """
         for dataset in self.datasets:
             self.remove_dataset(dataset=dataset)
 
     def rename_dataset(self, old_dataset, new_dataset):
         """
-        Change the label of a dataset attached to the Bundle
+        Change the label of a dataset attached to the Bundle.
 
-        :parameter str old_dataset: the current name of the dataset
-            (must exist)
-        :parameter str new_dataset: the desired new name of the dataset
-            (must not exist)
-        :return: None
-        :raises ValueError: if the new_dataset is forbidden
+        Arguments
+        ----------
+        * `old_dataset` (string): current label of the dataset (must exist)
+        * `new_dataset` (string): the desired new label of the dataset
+            (must not yet exist)
+
+        Raises
+        --------
+        * ValueError: if the value of `new_dataset` is forbidden or already exists.
         """
         # TODO: raise error if old_component not found?
 
@@ -2435,18 +2748,22 @@ class Bundle(ParameterSet):
 
     def enable_dataset(self, dataset=None, **kwargs):
         """
-        Enable a 'dataset'.  Datasets that are enabled will be computed
-        during :meth:`run_compute` and included in the cost function
-        during :meth:`run_fitting`.
+        Enable a `dataset`.  Datasets that are enabled will be computed
+        during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
+        during run_fitting (once supported).
 
-        If compute is not provided, the dataset will be enabled across all
+        If `compute` is not provided, the dataset will be enabled across all
         compute options.
 
-        :parameter str dataset: name of the dataset
-        :parameter **kwargs: any other tags to do the filter
+        Arguments
+        -----------
+        * `dataset` (string, optional): name of the dataset
+        * `**kwargs`:  any other tags to do the filter
             (except dataset or context)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet`
-            of the enabled dataset
+
+        Returns
+        ---------
+        * a <phoebe.parameters.ParameterSet> object of the enabled dataset
         """
         kwargs['context'] = 'compute'
         kwargs['dataset'] = dataset
@@ -2462,18 +2779,22 @@ class Bundle(ParameterSet):
 
     def disable_dataset(self, dataset=None, **kwargs):
         """
-        Disable a 'dataset'.  Datasets that are enabled will be computed
-        during :meth:`run_compute` and included in the cost function
-        during :meth:`run_fitting`.
+        Disable a `dataset`.  Datasets that are enabled will be computed
+        during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
+        during run_fitting (once supported).
 
-        If compute is not provided, the dataset will be disabled across all
+        If `compute` is not provided, the dataset will be disabled across all
         compute options.
 
-        :parameter str dataset: name of the dataset
-        :parameter **kwargs: any other tags to do the filter
+        Arguments
+        -----------
+        * `dataset` (string, optional): name of the dataset
+        * `**kwargs`:  any other tags to do the filter
             (except dataset or context)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet`
-            of the disabled dataset
+
+        Returns
+        ---------
+        * a <phoebe.parameters.ParameterSet> object of the disabled dataset
         """
         kwargs['context'] = 'compute'
         kwargs['dataset'] = dataset
@@ -2500,10 +2821,27 @@ class Bundle(ParameterSet):
 
     def add_constraint(self, *args, **kwargs):
         """
-        TODO: add documentation
+        Add a constraint to the Bundle.
 
-        args can be string representation (length 1)
-        func and strings to pass to function
+        Arguments
+        ------------
+        * `*args`: positional arguments can be any one of the following:
+            * valid string representation of a constraint
+            * callable function (possibly in <phoebe.parameters.constraint>)
+                followed by arguments that return a valid string representation
+                of the constraint.
+        * `kind` (string, optional): kind of the constraint function to find in
+            <phoebe.parameters.constraint>
+        * `func` (string, optional): func of the constraint to find in
+            <phoebe.parameters.constraint>
+        * `constraint_func` (string, optional): constraint_func of the constraint
+            to find in <phoebe.parameters.constraint>
+        * `solve_for` (string, optional): twig/qualifier in the constraint to solve
+            for.  See also <phoebe.frontend.bundle.Bundle.flip_constraint>.
+
+        Returns
+        ---------
+        * a <phoebe.parameters.ParameterSet> of the created constraint.
         """
         # TODO: be smart enough to take kwargs (especially for undoing a
         # remove_constraint) for kind, value (expression),
@@ -2605,10 +2943,17 @@ class Bundle(ParameterSet):
         """
         Filter in the 'constraint' context
 
-        :parameter str constraint: name of the constraint (optional)
-        :parameter **kwargs: any other tags to do the filter
-            (except constraint or context)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet`
+        See also:
+        * <phoebe.parameters.ParameterSet.get>
+
+        Arguments
+        ----------
+        * `twig`: (string, optional, default=None): the twig used for filtering
+        * `**kwargs`: any other tags to do the filtering (excluding twig and context)
+
+        Returns
+        ---------
+        * a <phoebe.parameters.Parameter> object.
         """
         if twig is not None:
             kwargs['twig'] = twig
@@ -2617,11 +2962,17 @@ class Bundle(ParameterSet):
 
     def remove_constraint(self, twig=None, **kwargs):
         """
-        Remove a 'constraint' from the bundle
+        Remove a 'constraint' from the bundle.
 
-        :parameter str twig: twig to filter for the constraint
-        :parameter **kwargs: any other tags to do the filter
-            (except twig or context)
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+
+        Arguments
+        ----------
+        * `twig` (string, optional): twig to filter for the constraint.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: context, twig.
         """
         # let's run delayed constraints first to ensure that we get the same
         # results in interactive and non-interactive modes as well as to make
@@ -2659,15 +3010,18 @@ class Bundle(ParameterSet):
 
     def flip_constraint(self, twig=None, solve_for=None, **kwargs):
         """
-        Flip an existing constraint to solve for a different parameter
+        Flip an existing constraint to solve for a different parameter.
 
-        :parameter str twig: twig to filter the constraint
-        :parameter solve_for: twig or actual parameter object of the new
-            parameter which this constraint should constraint (solve for).
-        :type solve_for: str or :class:`phoebe.parameters.parameters.Parameter
-        :parameter **kwargs: any other tags to do the filter
-            (except twig or context)
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to filter the constraint
+        * `solve_for` (string or Parameter, optional, default=None): twig or
+            <phoebe.parameters.Parameter> object of the new parameter for which
+            this constraint should constrain (solve for).
 
+        Returns
+        ---------
+        * The <phoebe.parameters.ConstraintParameter>.
         """
         self._kwargs_checks(kwargs, additional_allowed_keys=['check_nan'])
 
@@ -2709,11 +3063,19 @@ class Bundle(ParameterSet):
         call this - constraints should automatically be run whenever a
         dependent parameter's value is change.
 
-        :parameter str twig: twig to filter for the constraint
-        :parameter **kwargs: any other tags to do the filter
-            (except twig or context)
-        :return: the resulting value of the constraint
-        :rtype: float or units.Quantity
+        Arguments
+        -------------
+        * `twig` (string, optional, default=None): twig to filter for the constraint
+        * `return_parameter` (bool, optional, default=False): whether to
+            return the constrained <phoebe.parameters.Parameter> (otherwise will
+            return the resulting value).
+        * `**kwargs`:  any other tags to do the filter (except twig or context)
+
+        Returns
+        -----------
+        * (float or units.Quantity or <phoebe.parameters.Parameter) the resulting
+            value of the constraint.  Or if `return_parameter=True`: then the
+            <phoebe.parameters.Parameter> object itself.
         """
         self._kwargs_checks(kwargs)
 
@@ -2757,6 +3119,10 @@ class Bundle(ParameterSet):
 
     def run_delayed_constraints(self):
         """
+        Manually run any delayed constraints.  See also:
+        * <phoebe.interactive_constraints_on>
+        * <phoebe.interactive_constraints_off>
+
         """
         changes = []
         for constraint_id in self._delayed_constraints:
@@ -2776,17 +3142,22 @@ class Bundle(ParameterSet):
         within run_compute.  Alternatively, you can create a mesh dataset
         and request any specific pblum to be exposed (per-time).
 
-        :parameter str compute: label of the compute options (note required if
-            only one is attached to the bundle)
-        :parameter component: (optional) label of the component(s) requested
-        :type component: str or list of strings
-        :parameter dataset: (optional) label of the dataset(s) requested
-        :type dataset: str or list of strings
-        :parameter component: (optional) label of the component(s) requested
-        :type component: str or list of strings
-        :return: dictionary with keys <component>@<dataset> and computed pblums
-            as values (as quantity objects, default units of W)
+        Arguments
+        ------------
+        * `compute` (string, optional, default=None): label of the compute
+            options (note required if only one is attached to the bundle).
+        * `component` (string or list of strings, optional): label of the
+            component(s) requested. If not provided, will be provided for all
+            components in the hierarchy.
+        * `dataset` (string or list of strings, optional): label of the
+            dataset(s) requested.  If not provided, will be provided for all
+            datasets attached to the bundle.
 
+        Returns
+        ----------
+        * (dict) computed pblums in a dictionary with keys formatted as
+            component@dataset and the pblums as values (as quantity objects with
+            default units of W).
         """
         datasets = kwargs.pop('dataset', self.datasets)
         components = kwargs.pop('component', self.components)
@@ -2814,34 +3185,38 @@ class Bundle(ParameterSet):
 
         return pblums
 
-    def add_compute(self, kind=compute.phoebe, **kwargs):
+    def add_compute(self, kind='phoebe', **kwargs):
         """
         Add a set of computeoptions for a given backend to the bundle.
-        The label ('compute') can then be sent to :meth:`run_compute`.
+        The label (`compute`) can then be sent to <phoebe.frontend.bundle.Bundle.run_compute>.
 
-        If not provided, 'compute' will be created for you and can be
-        accessed by the 'compute' attribute of the returned
-        ParameterSet.
+        If not provided, `compute` will be created for you and can be
+        accessed by the `compute` attribute of the returned
+        <phoebe.parameters.ParameterSet>.
 
-        Available kinds include:
-            * :func:`phoebe.parameters.compute.phoebe`
-            * :func:`phoebe.parameters.compute.legacy`
-            * :func:`phoebe.parameters.compute.photodynam`
-            * :func:`phoebe.parameters.compute.jktebop`
+        Available kinds can be found in <phoebe.parameters.compute> and include:
+        * <phoebe.parameters.compute.phoebe>
+        * <phoebe.parameters.compute.legacy>
 
-        :parameter kind: function to call that returns a
-            ParameterSet or list of parameters.  This must either be
-            a callable function that accepts nothing but default
-            values, or the name of a function (as a string) that can
-            be found in the :mod:`phoebe.parameters.compute` module
-        :type kind: str or callable
-        :parameter str compute: (optional) name of the newly-created
-            compute optins
-        :parameter **kwargs: default values for any of the newly-created
-            parameters
-        :return: :class:`phoebe.parameters.parameters.ParameterSet` of
-            all parameters that have been added
-        :raises NotImplementedError: if required constraint is not implemented
+        Arguments
+        ----------
+        * `kind` (string): function to call that returns a
+             <phoebe.parameters.ParameterSet> or list of
+             <phoebe.parameters.Parameter> objects.  This must either be a
+             callable function that accepts only default values, or the name
+             of a function (as a string) that can be found in the
+             <phoebe.parameters.compute> module.
+        * `compute` (string, optional): name of the newly-created compute options.
+        * `**kwargs`: default values for any of the newly-created parameters
+            (passed directly to the matched callabled function).
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+
+        Raises
+        --------
+        * NotImplementedError: if a required constraint is not implemented
         """
         func = _get_add_func(_compute, kind)
 
@@ -2882,10 +3257,16 @@ class Bundle(ParameterSet):
         """
         Filter in the 'compute' context
 
-        :parameter str compute: name of the compute options (optional)
-        :parameter **kwargs: any other tags to do the filter
-            (except compute or context)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet`
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `compute`: (string, optional, default=None): the name of the compute options
+        * `**kwargs`: any other tags to do the filtering (excluding compute and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         if compute is not None:
             kwargs['compute'] = compute
@@ -2894,12 +3275,17 @@ class Bundle(ParameterSet):
 
     def remove_compute(self, compute, **kwargs):
         """
-        Remove a 'compute' from the bundle
+        Remove a 'compute' from the bundleself.
 
-        :parameter str compute: name of the compute options
-        :parameter **kwargs: any other tags to do the filter
-            (except twig or context)
-        :raise NotImplementedError: because it isn't
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+
+        Arguments
+        ----------
+        * `compute` (string): the label of the compute options to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: context, compute.
         """
         kwargs['compute'] = compute
         kwargs['context'] = 'comute'
@@ -2907,21 +3293,25 @@ class Bundle(ParameterSet):
 
     def remove_computes_all(self):
         """
-        Remove all computes from the bundle
+        Remove all compute options from the bundle.  To remove a single set
+        of compute options see <phoebe.frontend.bundle.Bundle.remove_compute>.
         """
         for compute in self.computes:
             self.remove_compute(compute)
 
     def rename_compute(self, old_compute, new_compute):
         """
-        Change the label of a compute attached to the Bundle
+        Change the label of compute options attached to the Bundle.
 
-        :parameter str old_compute: the current name of the compute options
-            (must exist)
-        :parameter str new_compute: the desired new name of the compute options
-            (must not exist)
-        :return: None
-        :raises ValueError: if the new_compute is forbidden
+        Arguments
+        ----------
+        * `old_compute` (string): current label of the compute options (must exist)
+        * `new_compute` (string): the desired new label of the compute options
+            (must not yet exist)
+
+        Raises
+        --------
+        * ValueError: if the value of `new_compute` is forbidden or already exists.
         """
         # TODO: raise error if old_compute not found?
 
@@ -2933,51 +3323,71 @@ class Bundle(ParameterSet):
     def run_compute(self, compute=None, model=None, detach=False,
                     times=None, **kwargs):
         """
-        Run a forward model of the system on the enabled dataset using
+        Run a forward model of the system on the enabled dataset(s) using
         a specified set of compute options.
 
         To attach and set custom values for compute options, including choosing
         which backend to use, see:
-            * :meth:`add_compute`
+        * <phoebe.frontend.bundle.Bundle.add_compute>
 
         To define the dataset types and times at which the model should be
         computed see:
-            * :meth:`add_dataset`
+        * <phoebe.frontend.bundle.Bundle.add_dataset>
 
         To disable or enable existing datasets see:
-            * :meth:`enable_dataset`
-            * :meth:`disable_dataset`
+        * <phoebe.frontend.bundle.Bundle.enable_dataset>
+        * <phoebe.frontend.bundle.Bundle.disable_dataset>
 
-        :parameter str compute: (optional) name of the compute options to use.
+        See also:
+        * <phoebe.mpi_on>
+        * <phoebe.mpi_off>
+
+        Arguments
+        ------------
+        * `compute` (string, optional): name of the compute options to use.
             If not provided or None, run_compute will use an existing set of
             attached compute options if only 1 exists.  If more than 1 exist,
             then compute becomes a required argument.  If no compute options
             exist, then this will use default options and create and attach
             a new set of compute options with a default label.
-        :parameter str model: (optional) name of the resulting model.  If not
+        * `model` (string, optional): name of the resulting model.  If not
             provided this will default to 'latest'.  NOTE: existing models
-            with the same name will be overwritten - including 'latest'
-        :parameter bool datach: [EXPERIMENTAL] whether to detach from the computation run,
+            with the same name will be overwritten - including 'latest'.
+            See also <phoebe.frontend.bundle.Bundle.rename_model> to rename
+            a model after creation.
+        * `detach` (bool, optional, default=False, EXPERIMENTAL):
+            whether to detach from the computation run,
             or wait for computations to complete.  If detach is True, see
-            :meth:`get_model` and :meth:`phoebe.parameters.parameters.JobParameter`
+            <phoebe.frontend.bundle.Bundle.get_model> and
+            <phoebe.parameters.JobParameter>
             for details on how to check the job status and retrieve the results.
-            Alternatively, you can provide the server location (host and port) as
-            a string to detach and the bundle will temporarily enter client mode,
-            submit the job to the server, and leave client mode.  The resulting
-            :meth:`phoebe.parameters.parameters.JobParameter` will then contain
-            the necessary information to pull the results from the server at anytime
-            in the future.
-        :parameter list times: [EXPERIMENTAL] override the times at which to compute the model.
+        * `times` (list, optional, EXPERIMENTAL): override the times at which to compute the model.
             NOTE: this only (temporarily) replaces the time array for datasets
             with times provided (ie empty time arrays are still ignored).  So if
             you attach a rv to a single component, the model will still only
             compute for that single component.  ALSO NOTE: this option is ignored
-            if detach=True (at least for now).
-        :parameter **kwargs: any values in the compute options to temporarily
+            if `detach=True` (at least for now).
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
+        * `**kwargs`:: any values in the compute options to temporarily
             override for this single compute run (parameter values will revert
             after run_compute is finished)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet` of the
-            newly-created model containing the synthetic data.
+
+        Returns
+        ----------
+        * a <phoebe.parameters.ParameterSet> of the newly-created model
+            containing the synthetic data.
+
+        Raises
+        --------
+        * ValueError: if passing `protomesh` or `pbmesh` as these were removed in 2.1
+        * ValueError: if `compute` must be provided but is not.
+        * ValueError: if the system fails to pass checks.  See also
+            <phoebe.frontend.bundle.Bundle.run_checks>
+        * ValueError: if any given dataset is enabled in more than one set of
+            compute options sent to run_compute.
         """
         if isinstance(detach, str):
             # then we want to temporarily go in to client mode
@@ -3211,10 +3621,16 @@ class Bundle(ParameterSet):
         """
         Filter in the 'model' context
 
-        :parameter str model: name of the model (optional)
-        :parameter **kwargs: any other tags to do the filter
-            (except model or context)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet`
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `model`: (string, optional, default=None): the name of the model
+        * `**kwargs`: any other tags to do the filtering (excluding model and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         if model is not None:
             kwargs['model'] = model
@@ -3223,11 +3639,17 @@ class Bundle(ParameterSet):
 
     def remove_model(self, model, **kwargs):
         """
-        Remove a 'model' from the bundle
+        Remove a 'model' from the bundle.
 
-        :parameter str twig: twig to filter for the model
-        :parameter **kwargs: any other tags to do the filter
-            (except twig or context)
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+
+        Arguments
+        ----------
+        * `model` (string): the label of the model to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: model, context.
         """
         kwargs['model'] = model
         kwargs['context'] = 'model'
@@ -3235,21 +3657,25 @@ class Bundle(ParameterSet):
 
     def remove_models_all(self):
         """
-        Remove all models from the bundle
+        Remove all models from the bundle.  To remove a single model see
+        <phoebe.frontend.bundle.Bundle.remove_model>.
         """
         for model in self.models:
             self.remove_model(model=model)
 
     def rename_model(self, old_model, new_model):
         """
-        Change the label of a model attached to the Bundle
+        Change the label of a model attached to the Bundle.
 
-        :parameter str old_model: the current name of the model
-            (must exist)
-        :parameter str new_model: the desired new name of the model
-            (must not exist)
-        :return: None
-        :raises ValueError: if the new_model is forbidden
+        Arguments
+        ----------
+        * `old_model` (string): current label of the model (must exist)
+        * `new_model` (string): the desired new label of the model
+            (must not yet exist)
+
+        Raises
+        --------
+        * ValueError: if the value of `new_model` is forbidden or already exists.
         """
         # TODO: raise error if old_feature not found?
 
@@ -3296,7 +3722,16 @@ class Bundle(ParameterSet):
         """
         [NOT IMPLEMENTED]
 
-        :raises NotImplementedError: because it isn't
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `twig`: (string, optional, default=None): the twig used for filtering
+        * `**kwargs`: any other tags to do the filtering (excluding twig and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         raise NotImplementedError
         kwargs['context'] = 'prior'
@@ -3330,9 +3765,10 @@ class Bundle(ParameterSet):
 
     def remove_prior(self, twig=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
+        Remove a 'prior' from the bundleself.
 
-        :raises NotImplementedError: because it isn't
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
         """
         # TODO: don't forget add_history
         raise NotImplementedError
@@ -3350,7 +3786,16 @@ class Bundle(ParameterSet):
         """
         [NOT IMPLEMENTED]
 
-        :raises NotImplementedError: because it isn't
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `twig`: (string, optional, default=None): the twig used for filtering
+        * `**kwargs`: any other tags to do the filtering (excluding twig and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         raise NotImplementedError
         if fitting is not None:
@@ -3362,7 +3807,10 @@ class Bundle(ParameterSet):
         """
         [NOT IMPLEMENTED]
 
-        :raises NotImplementedError: because it isn't
+        Remove a 'fitting' from the bundle.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
         """
         # TODO: don't forget add_history
         raise NotImplementedError
@@ -3382,7 +3830,16 @@ class Bundle(ParameterSet):
         """
         [NOT IMPLEMENTED]
 
-        :raises NotImplementedError: because it isn't
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `twig`: (string, optional, default=None): the twig used for filtering
+        * `**kwargs`: any other tags to do the filtering (excluding twig and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         raise NotImplementedError
         kwargs['context'] = 'posterior'
@@ -3400,7 +3857,10 @@ class Bundle(ParameterSet):
         """
         [NOT IMPLEMENTED]
 
-        :raises NotImplementedError: because it isn't
+        Remove a 'posterior' from the bundleself.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
         """
         # TODO: don't forget add_history
         raise NotImplementedError
@@ -3422,7 +3882,16 @@ class Bundle(ParameterSet):
         """
         [NOT IMPLEMENTED]
 
-        :raises NotImplementedError: because it isn't
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `twig`: (string, optional, default=None): the twig used for filtering
+        * `**kwargs`: any other tags to do the filtering (excluding twig and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         raise NotImplementedError
         if feedback is not None:
@@ -3434,7 +3903,10 @@ class Bundle(ParameterSet):
         """
         [NOT IMPLEMENTED]
 
-        :raises NotImplementedError: because it isn't
+        Remove a 'feedback' from the bundle.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
         """
         # TODO: don't forget add_history
         raise NotImplementedError
@@ -3453,7 +3925,16 @@ class Bundle(ParameterSet):
         """
         [NOT IMPLEMENTED]
 
-        :raises NotImplementedError: because it isn't
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `twig`: (string, optional, default=None): the twig used for filtering
+        * `**kwargs`: any other tags to do the filtering (excluding twig and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
         """
         raise NotImplementedError
 
@@ -3461,7 +3942,10 @@ class Bundle(ParameterSet):
         """
         [NOT IMPLEMENTED]
 
-        :raises NotImplementedError: because it isn't
+        Remove a 'plugin' from the bundle.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
         """
         # TODO: don't forget add_history
         raise NotImplementedError
