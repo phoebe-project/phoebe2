@@ -10,22 +10,47 @@ from phoebe import conf
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
-passbands.init_passbands()  # TODO: move to module import
+passbands._init_passbands()  # TODO: move to module import
 _atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms']]))
 
 def phoebe(**kwargs):
     """
-    Compute options for using the PHOEBE 2.0 backend.
+    Create a <phoebe.parameters.ParameterSet> for compute options for the
+    PHOEBE 2 backend.  This is the default built-in backend so no other
+    pre-requisites are required.
+
+    When using this backend, please see the
+    [list of publications](https://phoebe-project/org/publications) and cite
+    the appropriate references.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_compute`
+    <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    Please see :func:`phoebe.backend.backends.phoebe` for a list of sources to
-    cite when using this backend.
+    Arguments
+    ----------
+    * `enabled` (bool, optional): whether to create synthetics in compute/fitting
+        run.
+    * `dynamics_method` (string, optional): which method to use to determine the
+        dynamics of components.
+    * `ltte` (bool, optional): whether to correct for light travel time effects.
+    * `atm` (string, optional): atmosphere tables
+    * `irrad_method` (string, optional): which method to use to handle irradiation.
+    * `boosting_method` (string, optional): type of boosting method.
+    * `mesh_method` (string, optional): which method to use for discretizing
+        the surface.
+    * `eclipse_method` (string, optional): which method to use for determinging
+        eclipses.
+    * `rv_method` (string, optional): which method to use for compute radial
+        velocities.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
     """
     params = []
 
@@ -115,18 +140,43 @@ def phoebe(**kwargs):
 
 def legacy(**kwargs):
     """
-    Compute options for using the PHOEBE 1.0 legacy backend (must be
-    installed).
+    Create a <phoebe.parameters.ParameterSet> for compute options for the
+    PHOEBE Legacy backend.
+
+    Use PHOEBE 1.0 (legacy) which is based on the Wilson-Devinney code
+    to compute radial velocities and light curves for binary systems
+    (>2 stars not supported).  The code is available here:
+
+    http://phoebe-project.org/1.0
+
+    PHOEBE 1.0 and the 'phoebeBackend' python interface must be installed
+    and available on the system in order to use this plugin.
+
+    When using this backend, please cite
+    * Prsa & Zwitter (2005), ApJ, 628, 426
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_compute`
+    <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    Please see :func:`phoebe.backend.backends.legacy` for a list of sources to
-    cite when using this backend.
+    Arguments
+    ----------
+    * `enabled` (bool, optional): whether to create synthetics in compute/fitting
+        run.
+    * `atm` (string, optional): atmosphere tables.
+    * `gridsize` (float, optional): number of meshpoints for WD.
+    * `irrad_method` (string, optional): which method to use to handle irradiation.
+    * `ie` (bool, optional): whether data should be de-reddened.
+    * `rv_method` (string, optional): which method to use for compute radial
+        velocities.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
     """
     params = []
 

@@ -16,18 +16,35 @@ def _component_allowed_for_feature(feature_kind, component_kind):
 
 def spot(feature, **kwargs):
     """
-    Create parameters for a spot
+    Create a <phoebe.parameters.ParameterSet> for a spot feature.
 
-    Generally, this will be used as input to the method argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_feature`
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_feature>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_feature>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet`
+    Arguments
+    ----------
+    * `colat` (float/quantity, optional): colatitude of the center of the spot
+        wrt spin axis.
+    * `long` (float/quantity, optional): longitude of the center of the spot wrt
+        spin axis.
+    * `radius` (float/quantity, optional): angular radius of the spot.
+    * `relteff` (float/quantity, optional): temperature of the spot relative
+        to the intrinsic temperature.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     params = []
 
-    params += [FloatParameter(qualifier="colat", value=kwargs.get('colat', 0.0), default_unit=u.deg, description='Colatitude of the center of the spot wrt spin axes')]
+    params += [FloatParameter(qualifier="colat", value=kwargs.get('colat', 0.0), default_unit=u.deg, description='Colatitude of the center of the spot wrt spin axis')]
     params += [FloatParameter(qualifier="long", value=kwargs.get('long', 0.0), default_unit=u.deg, description='Longitude of the center of the spot wrt spin axis')]
     params += [FloatParameter(qualifier='radius', value=kwargs.get('radius', 1.0), default_unit=u.deg, description='Angular radius of the spot')]
     # params += [FloatParameter(qualifier='area', value=kwargs.get('area', 1.0), default_unit=u.solRad, description='Surface area of the spot')]
@@ -41,13 +58,25 @@ def spot(feature, **kwargs):
 
 def pulsation(feature, **kwargs):
     """
-    Create parameters for a pulsation feature
+    Create a <phoebe.parameters.ParameterSet> for a pulsation feature.
 
-    Generally, this will be used as input to the method argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_feature`
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_feature>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_feature>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet`
+    Arguments
+    ----------
+
+
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
     if not conf.devel:
         raise NotImplementedError("'pulsation' feature not officially supported for this release.  Enable developer mode to test.")

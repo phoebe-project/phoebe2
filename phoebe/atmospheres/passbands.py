@@ -55,77 +55,94 @@ else:
 
 
 class Passband:
-    def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=False, reference='', version=1.0, comments='', oversampling=1, from_file=False):
+    def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
+                 wlunits=u.AA, calibrated=False, reference='', version=1.0,
+                 comments='', oversampling=1, from_file=False):
         """
-        Passband class holds data and tools for passband-related computations, such as
-        blackbody intensity, model atmosphere intensity, etc.
-
-        @ptf: passband transmission file: a 2-column file with wavelength in @wlunits
-              and transmission in arbitrary units
-        @pbset: name of the passband set (i.e. Johnson)
-        @pbname: name of the passband name (i.e. V)
-        @effwl: effective wavelength in @wlunits
-        @wlunits: wavelength units from astropy.units used in @ptf and @effwl
-        @calibrated: true if transmission is in true fractional light,
-                     false if it is in relative proportions
-        @reference: passband transmission data reference (i.e. ADPS)
-        @version: file version
-        @comments: any additional comments about the passband
-        @oversampling: the multiplicative factor of PTF dispersion to attain higher
-                       integration accuracy
-        @from_file: a switch that instructs the class instance to skip all calculations
-                    and load all data from the file passed to the Passband.load() method.
-
+        <phoebe.atmospheres.passbands.Passband> class holds data and tools for
+        passband-related computations, such as blackbody intensity, model
+        atmosphere intensity, etc.
 
         Step #1: initialize passband object
 
-        .. testcode::
-
-            >>> pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0, comments='')
+        ```py
+        pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0, comments='')
+        ```
 
         Step #2: compute intensities for blackbody radiation:
 
-        .. testcode ::
-
-            >>> pb.compute_blackbody_response()
+        ```py
+        pb.compute_blackbody_response()
+        ```
 
         Step #3: compute Castelli & Kurucz (2004) intensities. To do this,
         the tables/ck2004 directory needs to be populated with non-filtered
         intensities available for download from %static%/ck2004.tar.
 
-        .. testcode::
-
-            >>> atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/ck2004'))
-            >>> pb.compute_ck2004_response(atmdir)
+        ```py
+        atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/ck2004'))
+        pb.compute_ck2004_response(atmdir)
+        ```
 
         Step #4: -- optional -- import WD tables for comparison. This can only
         be done if the passband is in the list of supported passbands in WD.
         The WD index of the passband is passed to the import_wd_atmcof()
         function below as the last argument.
 
-        .. testcode::
-
-            >>> from phoebe.atmospheres import atmcof
-            >>> atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-            >>> atmcof.init(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
-            >>> pb.import_wd_atmcof(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat', 7)
+        ```py
+        from phoebe.atmospheres import atmcof
+        atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
+        atmcof.init(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
+        pb.import_wd_atmcof(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat', 7)
+        ```
 
         Step #5: save the passband file:
 
-        .. testcode::
+        ```py
+        atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))
+        pb.save(atmdir + '/johnson_v.ptf')
+        ```
 
-            >>> atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))
-            >>> pb.save(atmdir + '/johnson_v.ptf')
-
-        From now on you can use @pbset:@pbname as a passband qualifier, i.e.
+        From now on you can use `pbset`:`pbname` as a passband qualifier, i.e.
         Johnson:V for the example above. Further details on supported model
         atmospheres are available by issuing:
 
-        .. testcode::
+        ```py
+        pb.content
+        ```
 
-            >>> pb.content
+        see <phoebe.atmospheres.passbands.content>
 
+        Arguments
+        ----------
+        * `ptf` (string, optional, default=None): passband transmission file: a
+            2-column file with wavelength in @wlunits and transmission in
+            arbitrary units.
+        * `pbset` (string, optional, default='Johnson'): name of the passband
+            set (i.e. Johnson).
+        * `pbname` (string, optional, default='V'): name of the passband name
+            (i.e. V).
+        * `effwl` (float, optional, default=5500.0): effective wavelength in
+            `wlunits`.
+        * `wlunits` (unit, optional, default=u.AA): wavelength units from
+            astropy.units used in `ptf` and `effwl`.
+        * `calibrated` (bool, optional, default=False): true if transmission is
+            in true fractional light, false if it is in relative proportions.
+        * `reference` (string, optional, default=''): passband transmission data
+            reference (i.e. ADPS).
+        * `version` (float, optional, default=1.0): file version.
+        * `comments` (string, optional, default=''): any additional comments
+            about the passband.
+        * `oversampling` (int, optional, default=1): the multiplicative factor
+            of PTF dispersion to attain higher integration accuracy.
+        * `from_file` (bool, optional, default=False): a switch that instructs
+            the class instance to skip all calculations and load all data from
+            the file passed to the <phoebe.atmospheres.passbands.Passband.load>
+            method.
 
+        Returns
+        ---------
+        * an instatiated <phoebe.atmospheres.passbands.Passband> object.
         """
         self.h = h.value
         self.c = c.value
@@ -179,8 +196,15 @@ class Passband:
         if not hasattr(self, 'version'):
             self.version = 1.0
         return('Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content))
-    
+
     def save(self, archive):
+        """
+        Save the <phoebe.atmospheres.passbands.Passband> to a file.
+
+        Arguments
+        ------------
+        * `archive` (string): filename
+        """
         struct = dict()
 
         struct['content']         = self.content
@@ -223,6 +247,23 @@ class Passband:
 
     @classmethod
     def load(cls, archive):
+        """
+        Load the <phoebe.atmospheres.passbands.Passband> from a file.
+
+        This is a constructor so should be called as:
+
+        ```py
+        pb = Passband.load(filename)
+        ```
+
+        Arguments
+        ----------
+        * `archive` (string): filename
+
+        Returns
+        ---------
+        * an instatiated <phoebe.atmospheres.passbands.Passband> object.
+        """
         logger.debug("loading passband from {}".format(archive))
         f = open(archive, 'rb')
         struct = marshal.load(f)
@@ -315,10 +356,14 @@ class Passband:
         Computes monochromatic blackbody intensity in W/m^3 using the
         Planck function.
 
-        @lam: wavelength in m
-        @Teff: effective temperature in K
+        Arguments
+        -----------
+        * `lam` (float/array): wavelength in m
+        * `Teff` (float/array): effective temperature in K
 
-        Returns: monochromatic blackbody intensity
+        Returns
+        --------
+        * monochromatic blackbody intensity
         """
 
         return 2*self.h*self.c*self.c/lam**5 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
@@ -328,10 +373,14 @@ class Passband:
         Computes the derivative of the monochromatic blackbody intensity using
         the Planck function.
 
-        @lam: wavelength in m
-        @Teff: effective temperature in K
+        Arguments
+        -----------
+        * `lam` (float/array): wavelength in m
+        * `Teff` (float/array): effective temperature in K
 
-        Returns: the derivative of monochromatic blackbody intensity
+        Returns
+        --------
+        * the derivative of monochromatic blackbody intensity
         """
 
         expterm = np.exp(self.h*self.c/lam/self.k/Teff)
@@ -346,10 +395,14 @@ class Passband:
 
         where I is the Planck function.
 
-        @lam: wavelength in m
-        @Teff: effective temperature in K
+        Arguments
+        -----------
+        * `lam` (float/array): wavelength in m
+        * `Teff` (float/array): effective temperature in K
 
-        Returns: the spectral index of monochromatic blackbody intensity
+        Returns
+        --------
+        * the spectral index of monochromatic blackbody intensity
         """
 
         hclkt = self.h*self.c/lam/self.k/Teff
@@ -365,10 +418,14 @@ class Passband:
 
         Superscripts E and P stand for energy and photon, respectively.
 
-        @Teff: effective temperature in K
-        @photon_weighted: photon/energy switch
+        Arguments
+        -----------
+        * `Teff` (float/array): effective temperature in K
+        * `photon_weighted` (bool, optional, default=False): photon/energy switch
 
-        Returns: mean passband intensity using blackbody atmosphere.
+        Returns
+        ------------
+        * mean passband intensity using blackbody atmosphere.
         """
 
         if photon_weighted:
@@ -387,10 +444,14 @@ class Passband:
 
         Superscripts E and P stand for energy and photon, respectively.
 
-        @Teff: effective temperature in K
-        @photon_weighted: photon/energy switch
+        Arguments
+        ----------
+        * `Teff` (float/array): effective temperature in K
+        * `photon_weighted` (bool, optional, default=False): photon/energy switch
 
-        Returns: mean boosting index using blackbody atmosphere.
+        Returns
+        ------------
+        * mean boosting index using blackbody atmosphere.
         """
 
         if photon_weighted:
@@ -410,11 +471,11 @@ class Passband:
         values and exports the interpolation functions _log10_Inorm_bb_energy
         and _log10_Inorm_bb_photon.
 
-        @Teffs: an array of effective temperatures. If None, a default
-        array from ~300K to ~500000K with 97 steps is used. The default
-        array is uniform in log10 scale.
-
-        Returns: n/a
+        Arguments
+        ----------
+        * `Teffs` (array, optional, default=None): an array of effective
+            temperatures. If None, a default array from ~300K to ~500000K with
+            97 steps is used. The default array is uniform in log10 scale.
         """
 
         if Teffs is None:
@@ -439,11 +500,11 @@ class Passband:
         Computes Castelli & Kurucz (2004) intensities across the entire
         range of model atmospheres.
 
-        @path: path to the directory containing ck2004 SEDs
-        @verbose: switch to determine whether computing progress should
-        be printed on screen
-
-        Returns: n/a
+        Arguments
+        -----------
+        * `path` (string): path to the directory containing ck2004 SEDs.
+        * `verbose` (bool, optional, default=False): switch to determine whether
+            computing progress should be printed on screen.
         """
 
         models = glob.glob(path+'/*M1.000*')
@@ -500,10 +561,14 @@ class Passband:
         Computes direction-dependent passband intensities using Castelli
         & Kurucz (2004) model atmospheres.
 
-        @path: path to the directory with SEDs
-        @particular: particular file in @path to be processed; if None,
-                     all files in the directory are processed.
-        @verbose: set to True to display progress in the terminal.
+        Arguments
+        -----------
+        * `path` (string): path to the directory with SEDs.
+        * `particular` (string, optional, default=None): particular file in
+            `path` to be processed; if None, all files in the directory are
+            processed.
+        * `verbose` (bool, optional, default=False): set to True to display
+            progress in the terminal.
         """
         models = os.listdir(path)
         if particular != None:
@@ -643,11 +708,15 @@ class Passband:
 
     def compute_ck2004_ldcoeffs(self, weighting='uniform', plot_diagnostics=False):
         """
-        @weighting: determines how data points should be weighted.
-                    'uniform':  do not apply any per-point weighting
-                    'interval': apply weighting based on the interval widths
         Computes limb darkening coefficients for linear, log, square root,
         quadratic and power laws.
+
+        Arguments
+        ----------
+        * `weighting` (string, optional, default='uniform'): determines how data
+            points should be weighted.
+            * 'uniform':  do not apply any per-point weighting
+            * 'interval': apply weighting based on the interval widths
         """
         if 'ck2004_all' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
@@ -710,11 +779,16 @@ class Passband:
 
     def export_legacy_ldcoeffs(self, models, filename=None, photon_weighted=True):
         """
-        @models: the path (including the filename) of legacy's models.list
-        @filename: output filename for storing the table
-
         Exports CK2004 limb darkening coefficients to a PHOEBE legacy
         compatible format.
+
+        Arguments
+        -----------
+        * `models` (string): the path (including the filename) of legacy's
+            models.list
+        * `filename` (string, optional, default=None): output filename for
+            storing the table
+        * `photon_weighted` (bool, optional, default=True): photon/energy switch
         """
 
         if photon_weighted:
@@ -790,10 +864,29 @@ class Passband:
 
         self.content.append('ck2004_ldint')
 
-    def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='power', photon_weighted=False):
+    def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0,
+                                    atm='ck2004', ld_func='power',
+                                    photon_weighted=False):
         """
         Interpolate the passband-stored table of LD model coefficients.
+
+        Arguments
+        ------------
+        * `Teff`
+        * `logg`
+        * `abun`
+        * `atm`
+        * `ld_func`
+        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+
+        Returns
+        --------
+        * (list or None) list of limb-darkening coefficients or None if 'ck2004_ld'
+            is not available in <phoebe.atmospheres.passbands.Passband.content>
+            (see also <phoebe.atmospheres.passbands.Passband.compute_ck2004_ldcoeffs>)
+            or if `ld_func` is not recognized.
         """
+        # TODO: improve documentation for arguments above
 
         if 'ck2004_ld' not in self.content:
             print('Castelli & Kurucz (2004) limb darkening coefficients are not computed yet. Please compute those first.')
@@ -827,23 +920,27 @@ class Passband:
             print('ld_func=%s is invalid; please choose from [linear, logarithmic, square_root, quadratic, power, all].')
             return None
 
-    def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
+    def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11,
+                        Npb=25, Nints=4):
         """
         Parses WD's atmcof and reads in all Legendre polynomials for the
         given passband.
 
-        @plfile: path and filename of atmcofplanck.dat
-        @atmfile: path and filename of atmcof.dat
-        @wdidx: WD index of the passed passband. This can be automated
-                but it's not a high priority.
-        @Nabun: number of metallicity nodes in atmcof.dat. For the 2003 version
-                the number of nodes is 19.
-        @Nlogg: number of logg nodes in atmcof.dat. For the 2003 version
-                the number of nodes is 11.
-        @Npb:   number of passbands in atmcof.dat. For the 2003 version
-                the number of passbands is 25.
-        @Nints: number of temperature intervals (input lines) per entry.
-                For the 2003 version the number of lines is 4.
+        Arguments
+        -----------
+        * `plfile` (string): path and filename of atmcofplanck.dat
+        * `atmfile` (string): path and filename of atmcof.dat
+        * `wdidx` (int): WD index of the passed passband. This can be automated
+            but it's not a high priority.
+        * `Nabun` (int, optional, default=19): number of metallicity nodes in
+            atmcof.dat. For the 2003 version the number of nodes is 19.
+        * `Nlogg` (int, optional, default=11): number of logg nodes in
+            atmcof.dat. For the 2003 version the number of nodes is 11.
+        * `Nbp` (int, optional, default=25): number of passbands in atmcof.dat.
+            For the 2003 version the number of passbands is 25.
+        * `Nints` (int, optional, default=4): number of temperature intervals
+            (input lines) per entry. For the 2003 version the number of lines
+            is 4.
         """
 
         # Initialize the external atmcof module if necessary:
@@ -888,11 +985,15 @@ class Passband:
         the external WD machinery that employs model atmospheres and
         ramps.
 
-        @Teff: effective temperature in K
-        @logg: surface gravity in cgs
-        @abun: metallicity in dex, Solar=0.0
+        Arguments
+        ----------
+        * `Teff`: effective temperature in K
+        * `logg`: surface gravity in cgs
+        * `abun`: metallicity in dex, Solar=0.0
 
-        Returns: log10(Inorm)
+        Returns
+        ----------
+        * log10(Inorm)
         """
 
         log10_Inorm = libphoebe.wd_atmint(Teff, logg, abun, self.extern_wd_idx, self.wd_data["planck_table"], self.wd_data["atm_table"])
@@ -941,21 +1042,40 @@ class Passband:
 
     def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
         """
-        @ldint: integral of the limb darkening function, \int_0^1 \mu L(\mu) d\mu.
-                Its general role is to convert intensity to flux. In this
-                function, however, it is only needed for blackbody atmospheres
-                because they are not limb-darkened (i.e. the blackbody
-                intensity is the same irrespective of \mu), so we need to
-                *divide* by ldint to ascertain the correspondence between
-                luminosity, effective temperature and fluxes once limb
-                darkening correction is applied at flux integration time.
-                If None, and if atm=='blackbody', it will be computed from
-                ld_func and ld_coeffs.
-        @ld_func: limb darkening function: linear, sqrt, log, quadratic,
-                  power, interp
-        @ld_coeffs: limb darkening coefficients for the corresponding
-                    limb darkening function.
+
+        Arguments
+        ----------
+        * `Teff`
+        * `logg`
+        * `abun`
+        * `atm`
+        * `ldint` (string, optional, default='ck2004'): integral of the limb
+            darkening function, \int_0^1 \mu L(\mu) d\mu. Its general role is to
+            convert intensity to flux. In this method, however, it is only needed
+            for blackbody atmospheres because they are not limb-darkened (i.e.
+            the blackbody intensity is the same irrespective of \mu), so we need
+            to *divide* by ldint to ascertain the correspondence between
+            luminosity, effective temperature and fluxes once limb darkening
+            correction is applied at flux integration time. If None, and if
+            `atm=='blackbody'`, it will be computed from `ld_func` and
+            `ld_coeffs`.
+        * `ld_func` (string, optional, default='interp') limb darkening
+            function.  One of: linear, sqrt, log, quadratic, power, interp.
+        * `ld_coeffs` (list, optional, default=None): limb darkening coefficients
+            for the corresponding limb darkening function, `ld_func`.
+        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+
+        Returns
+        ----------
+        * (float/array) normal intensities.
+
+
+        Raises
+        ----------
+        * ValueError: if atmosphere parameters are out of bounds for the table.
+        * NotImplementedError: if `ld_func` is not supported.
         """
+        # TODO: improve docstring
 
         # convert scalars to vectors if necessary:
         if not hasattr(Teff, '__iter__'):
@@ -998,21 +1118,40 @@ class Passband:
 
     def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
         """
-        @ldint: integral of the limb darkening function, \int_0^1 \mu L(\mu) d\mu.
-                Its general role is to convert intensity to flux. In this
-                function, however, it is only needed for blackbody atmospheres
-                because they are not limb-darkened (i.e. the blackbody
-                intensity is the same irrespective of \mu), so we need to
-                *divide* by ldint to ascertain the correspondence between
-                luminosity, effective temperature and fluxes once limb
-                darkening correction is applied at flux integration time.
-                If None, and if atm=='blackbody', it will be computed from
-                ld_func and ld_coeffs.
-        @ld_func: limb darkening function: linear, sqrt, log, quadratic,
-                  power, interp
-        @ld_coeffs: limb darkening coefficients for the corresponding
-                    limb darkening function.
+        Arguments
+        ----------
+        * `Teff`
+        * `logg`
+        * `abun`
+        * `atm`
+        * `ldint` (string, optional, default='ck2004'): integral of the limb
+            darkening function, \int_0^1 \mu L(\mu) d\mu. Its general role is to
+            convert intensity to flux. In this method, however, it is only needed
+            for blackbody atmospheres because they are not limb-darkened (i.e.
+            the blackbody intensity is the same irrespective of \mu), so we need
+            to *divide* by ldint to ascertain the correspondence between
+            luminosity, effective temperature and fluxes once limb darkening
+            correction is applied at flux integration time. If None, and if
+            `atm=='blackbody'`, it will be computed from `ld_func` and
+            `ld_coeffs`.
+        * `ld_func` (string, optional, default='interp') limb darkening
+            function.  One of: linear, sqrt, log, quadratic, power, interp.
+        * `ld_coeffs` (list, optional, default=None): limb darkening coefficients
+            for the corresponding limb darkening function, `ld_func`.
+        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+
+        Returns
+        ----------
+        * (float/array) projected intensities.
+
+        Raises
+        ----------
+        * ValueError: if atmosphere parameters are out of bounds for the table.
+        * ValueError: if `ld_func='interp'` but is not supported by the
+            atmosphere table.
+        * NotImplementedError: if `ld_func` is not supported.
         """
+        # TODO: improve docstring
 
         if ld_func == 'interp':
             # The 'interp' LD function works only for model atmospheres:
@@ -1059,6 +1198,31 @@ class Passband:
         return ldint
 
     def ldint(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
+        """
+        Arguments
+        ----------
+        * `Teff`
+        * `logg`
+        * `abun`
+        * `atm`
+        * `ld_func` (string, optional, default='interp') limb darkening
+            function.  One of: linear, sqrt, log, quadratic, power, interp.
+        * `ld_coeffs` (list, optional, default=None): limb darkening coefficients
+            for the corresponding limb darkening function, `ld_func`.
+        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+
+        Returns
+        ----------
+        * (float/array) ldint.
+
+        Raises
+        ----------
+        * ValueError: if atmosphere parameters are out of bounds for the table.
+        * ValueError: if `ld_func='interp'` but is not supported by the
+            atmosphere table.
+        * NotImplementedError: if `ld_func` is not supported.
+        """
+        # TODO: improve docstring
         if ld_func == 'interp':
             if atm == 'ck2004':
                 retval = self._ldint_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
@@ -1103,6 +1267,26 @@ class Passband:
         return bindex
 
     def bindex(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', photon_weighted=False):
+        """
+        Arguments
+        ----------
+        * `Teff`
+        * `logg`
+        * `abun`
+        * `mu`
+        * `atm`
+        * `photon_weighted` (bool, optional, default=False): photon/energy switch
+
+        Returns
+        ----------
+        * (float/array) boosting index
+
+        Raises
+        ----------
+        * ValueError: if atmosphere parameters are out of bounds for the table.
+        * NotImplementedError: if `atm` is not supported (not one of 'ck2004'
+            or 'blackbody').
+        """
         if atm == 'ck2004':
             retval = self._bindex_ck2004(Teff, logg, abun, mu, atm, photon_weighted)
         elif atm == 'blackbody':
@@ -1115,14 +1299,14 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
-def init_passband(fullpath):
+def _init_passband(fullpath):
     """
     """
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
     _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.atmlist, 'pb': None}
 
-def init_passbands(refresh=False):
+def _init_passbands(refresh=False):
     """
     This function should be called only once, at import time. It
     traverses the passbands directory and builds a lookup table of
@@ -1145,7 +1329,7 @@ def init_passbands(refresh=False):
             for f in os.listdir(path):
                 if f=='README':
                     continue
-                init_passband(path+f)
+                _init_passband(path+f)
 
         #Check if _pbdir_env has been set and load those passbands too
         if not _pbdir_env == None:
@@ -1153,29 +1337,64 @@ def init_passbands(refresh=False):
                 for f in os.listdir(path):
                     if f=='README':
                         continue
-                    init_passband(path+f)
+                    _init_passband(path+f)
 
 
         _initialized = True
 
 def install_passband(fname, local=True):
     """
+    For convenience, this function is available at the top-level as
+    <phoebe.install_passbands>.
+
     Install a passband from a local file.  This simply copies the file into the
     install path - but beware that clearing the installation will clear the
-    passband as well
+    passband as well.
 
-    If local=False, you must have permissions to access the installation directory
+    The local and global installation directories can be listed by calling
+    <phoebe.atmospheres.passbands.list_passband_directories>.  The local
+    (`local=True`) directory is generally at
+    `~/.phoebe/atmospheres/tables/passbands`, and the global (`local=False`)
+    directory is in the PHOEBE installation directory.
+
+    See also:
+    * <phoebe.atmospheres.passbands.uninstall_all_passbands>
+
+    Arguments
+    ----------
+    * `fname` (string) the filename of the local passband.
+    * `local` (bool, optional, default=True): whether to install to the local/user
+        directory or the PHOEBE installation directory.  If `local=False`, you
+        must have the necessary permissions to write to the installation
+        directory.
     """
     pbdir = _pbdir_local if local else _pbdir_global
     shutil.copy(fname, pbdir)
-    init_passband(os.path.join(pbdir, fname))
+    _init_passband(os.path.join(pbdir, fname))
 
 def uninstall_all_passbands(local=True):
     """
-    Uninstall all passbands, either globally or locally (need to call twice to
-    delete ALL passbands)
+    For convenience, this function is available at the top-level as
+    <phoebe.uninstall_all_passbands> (only after 2.1.1).
 
-    If local=False, you must have permission to access the installation directory
+    Uninstall all passbands, either globally or locally (need to call twice to
+    delete ALL passbands).
+
+    The local and global installation directories can be listed by calling
+    <phoebe.atmospheres.passbands.list_passband_directories>.  The local
+    (`local=True`) directory is generally at
+    `~/.phoebe/atmospheres/tables/passbands`, and the global (`local=False`)
+    directory is in the PHOEBE installation directory.
+
+    See also:
+    * <phoebe.atmospheres.passbands.install_passband>
+
+    Arguments
+    ----------
+    * `local` (bool, optional, default=True): whether to uninstall from the local/user
+        directory or the PHOEBE installation directory.  If `local=False`, you
+        must have the necessary permissions to write to the installation
+        directory.
     """
     pbdir = _pbdir_local if local else _pbdir_global
     for f in os.listdir(pbdir):
@@ -1185,9 +1404,33 @@ def uninstall_all_passbands(local=True):
 
 def download_passband(passband, local=True):
     """
-    Download and install a given passband from the repository.
+    For convenience, this function is available at the top-level as
+    <phoebe.download_passband>.
 
-    If local=False, you must have permission to access the installation directory
+    Download and install a given passband from the
+    [phoebe2-tables](https://github.com/phoebe-project/phoebe2-tables) repository.
+
+    The local and global installation directories can be listed by calling
+    <phoebe.atmospheres.passbands.list_passband_directories>.  The local
+    (`local=True`) directory is generally at
+    `~/.phoebe/atmospheres/tables/passbands`, and the global (`local=False`)
+    directory is in the PHOEBE installation directory.
+
+    Arguments
+    ----------
+    * `passband` (string): name of the passband.  Must be one of the available
+        passbands in the repository (see
+        <phoebe.atmospheres.passbands.list_online_passbands>).
+    * `local` (bool, optional, default=True): whether to install to the local/user
+        directory or the PHOEBE installation directory.  If `local=False`, you
+        must have the necessary permissions to write to the installation
+        directory.
+
+    Raises
+    --------
+    * ValueError: if the value of `passband` is not one of
+        <phoebe.atmospheres.passbands.list_online_passbands>.
+    * IOError: if internet connection fails.
     """
     if passband not in list_online_passbands():
         raise ValueError("passband '{}' not available".format(passband))
@@ -1203,22 +1446,98 @@ def download_passband(passband, local=True):
     except IOError:
         raise IOError("unable to download {} passband - check connection".format(passband))
     else:
-        init_passband(passband_fname_local)
+        _init_passband(passband_fname_local)
 
 def list_passband_directories():
+    """
+    For convenience, this function is available at the top-level as
+    <phoebe.list_passband_directories>.
+
+    List the global and local passband installation directories (in that order).
+
+    The local and global installation directories can be listed by calling
+    <phoebe.atmospheres.passbands.list_passband_directories>.  The local
+    (`local=True`) directory is generally at
+    `~/.phoebe/atmospheres/tables/passbands`, and the global (`local=False`)
+    directory is in the PHOEBE installation directory.
+
+    Returns
+    --------
+    * (list of strings): global and local passband installation directories.
+    """
     return _pbdir_global, _pbdir_local
 
 def list_passbands(refresh=False):
+    """
+    For convenience, this function is available at the top-level as
+    <phoebe.list_passbands>.
+
+    List all available passbands, both installed and available online.
+
+    This is just a combination of
+    <phoebe.atmospheres.passbands.list_installed_passbands> and
+    <phoebe.atmospheres.passbands.list_online_passbands>.
+
+    Arguments
+    ---------
+    * `refresh` (bool, optional, default=False): whether to refresh the list
+        of fallback on cached values.  Passing `refresh=True` should only
+        be necessary if new passbands have been installed or added to the
+        online repository since importing PHOEBE.
+
+    Returns
+    --------
+    * (list of strings)
+    """
     return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
 
 def list_installed_passbands(refresh=False):
+    """
+    For convenience, this function is available at the top-level as
+    <phoebe.list_installed_passbands>.
+
+    List all installed passbands, both in the local and global directories.
+
+    See also:
+    * <phoebe.atmospheres.passbands.list_passband_directories>
+
+    Arguments
+    ---------
+    * `refresh` (bool, optional, default=False): whether to refresh the list
+        of fallback on cached values.  Passing `refresh=True` should only
+        be necessary if new passbands have been installed or added to the
+        online repository since importing PHOEBE.
+
+    Returns
+    --------
+    * (list of strings)
+    """
     if refresh:
-        init_passbands(True)
+        _init_passbands(True)
 
     return [k for k,v in _pbtable.items() if v['fname'] is not None]
 
 def list_online_passbands(refresh=False, full_dict=False):
     """
+    For convenience, this function is available at the top-level as
+    <phoebe.list_online_passbands>.
+
+    List all passbands available for download from the
+    [phoebe2-tables](https://github.com/phoebe-project/phoebe2-tables) repository.
+
+    Arguments
+    ---------
+    * `refresh` (bool, optional, default=False): whether to refresh the list
+        of fallback on cached values.  Passing `refresh=True` should only
+        be necessary if new passbands have been installed or added to the
+        online repository since importing PHOEBE.
+    * `full_dict` (bool, optional, default=False): whether to return the full
+        dictionary of information about each passband or just the list
+        of names.
+
+    Returns
+    --------
+    * (list of strings or dictionary)
     """
     global _online_passbands
     if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
@@ -1248,6 +1567,33 @@ def list_online_passbands(refresh=False, full_dict=False):
         return _online_passbands.keys()
 
 def get_passband(passband):
+    """
+    For convenience, this function is available at the top-level as
+    <phoebe.get_passbands>.
+
+    Access a passband object by name.  If the passband isn't installed, it`
+    will be downloaded and installed locally.
+
+    See also:
+    * <phoebe.atmospheres.passbands.list_installed_passbands>
+    * <phoebe.atmospheres.passbands.download_passband>
+    * <phoebe.atmospheres.passbands.list_passband_directories>
+
+    Arguments
+    -----------
+    * `passband` (string): name of the passband.  Must be one of the available
+        passbands in the repository (see
+        <phoebe.atmospheres.passbands.list_online_passbands>).
+
+    Returns
+    -----------
+    * the passband object
+
+    Raises
+    --------
+    * ValueError: if the passband cannot be found installed or online.
+    * IOError: if needing to download the passband but the connection fails.
+    """
 
     if passband not in list_installed_passbands():
         if passband in list_online_passbands():
@@ -1264,20 +1610,38 @@ def get_passband(passband):
 
 def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
     """
-    @Teff: value or array of effective temperatures
-    @logg: surface gravity; not used, for class compatibility only
-    @abun: abundances; not used, for class compatibility only
-    @atm: atmosphere model, must be blackbody, otherwise exception is raised
-    @photon_weighted: intensity weighting scheme; must be False, otherwise exception is raised
-
     Computes normal bolometric intensity using the Stefan-Boltzmann law,
     Inorm_bol_bb = 1/\pi \sigma T^4. If photon-weighted intensity is
     requested, Inorm_bol_bb is multiplied by a conversion factor that
     comes from integrating lambda/hc P(lambda) over all lambda.
 
-    Input parameters mimick the Passband class Inorm method for calling
-    convenience.
+    Input parameters mimick the <phoebe.atmospheres.passbands.Passband.Inorm>
+    method for calling convenience.
+
+    Arguments
+    ------------
+    * `Teff` (float/array, optional, default=5772):  value or array of effective
+        temperatures.
+    * `logg` (float/array, optional, default=4.43): IGNORED, for class
+        compatibility only.
+    * `abun` (float/array, optional, default=0.0): IGNORED, for class
+        compatibility only.
+    * `atm` (string, optional, default='blackbody'): atmosphere model, must be
+        `'blackbody'`, otherwise exception is raised.
+    * `photon_weighted` (bool, optional, default=False): must be `False`,
+        otherwise exception is raised.
+
+    Returns
+    ---------
+    * (float/array) float or array (depending on input types) of normal
+        bolometric blackbody intensities.
+
+    Raises
+    --------
+    * ValueError: if `atm` is anything other than `'blackbody'`.
     """
+    # TODO: the docs say errors will be raised if photon_weighted is not False
+    # but this doesn't seem to be the case.
 
     if atm != 'blackbody':
         raise ValueError('atmosphere must be set to blackbody for Inorm_bol_bb.')
