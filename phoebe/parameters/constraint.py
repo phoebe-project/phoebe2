@@ -44,8 +44,13 @@ def sin(param):
     """
     Allows using the sin function in a constraint
 
-    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
-    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    Arguments
+    ------------
+    * `param` (<phoebe.parameters.Parameter>)
+
+    Returns
+    ---------
+    * (<phoebe.parameters.ConstraintParameter>)
     """
     return ConstraintParameter(param._bundle, "sin({})".format(_get_expr(param)))
 
@@ -53,8 +58,13 @@ def cos(param):
     """
     Allows using the cos function in a constraint
 
-    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
-    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    Arguments
+    ------------
+    * `param` (<phoebe.parameters.Parameter>)
+
+    Returns
+    ---------
+    * (<phoebe.parameters.ConstraintParameter>)
     """
     return ConstraintParameter(param._bundle, "cos({})".format(_get_expr(param)))
 
@@ -62,8 +72,13 @@ def tan(param):
     """
     Allows using the tan function in a constraint
 
-    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
-    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    Arguments
+    ------------
+    * `param` (<phoebe.parameters.Parameter>)
+
+    Returns
+    ---------
+    * (<phoebe.parameters.ConstraintParameter>)
     """
     return ConstraintParameter(param._bundle, "tan({})".format(_get_expr(param)))
 
@@ -71,8 +86,13 @@ def arcsin(param):
     """
     Allows using the arcsin function in a constraint
 
-    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
-    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    Arguments
+    ------------
+    * `param` (<phoebe.parameters.Parameter>)
+
+    Returns
+    ---------
+    * (<phoebe.parameters.ConstraintParameter>)
     """
     return ConstraintParameter(param._bundle, "arcsin({})".format(_get_expr(param)))
 
@@ -80,8 +100,13 @@ def arccos(param):
     """
     Allows using the arccos function in a constraint
 
-    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
-    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    Arguments
+    ------------
+    * `param` (<phoebe.parameters.Parameter>)
+
+    Returns
+    ---------
+    * (<phoebe.parameters.ConstraintParameter>)
     """
     # print "***", "arccos({})".format(_get_expr(param))
     return ConstraintParameter(param._bundle, "arccos({})".format(_get_expr(param)))
@@ -90,8 +115,13 @@ def arctan(param):
     """
     Allows using the arctan function in a constraint
 
-    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
-    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    Arguments
+    ------------
+    * `param` (<phoebe.parameters.Parameter>)
+
+    Returns
+    ---------
+    * (<phoebe.parameters.ConstraintParameter>)
     """
     return ConstraintParameter(param._bundle, "arctan({})".format(_get_expr(param)))
 
@@ -99,8 +129,13 @@ def abs(param):
     """
     Allows using the abs (absolute value) function in a constraint
 
-    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
-    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    Arguments
+    ------------
+    * `param` (<phoebe.parameters.Parameter>)
+
+    Returns
+    ---------
+    * (<phoebe.parameters.ConstraintParameter>)
     """
     return ConstraintParameter(param._bundle, "abs({})".format(_get_expr(param)))
 
@@ -108,98 +143,61 @@ def sqrt(param):
     """
     Allows using the sqrt (square root) function in a constraint
 
-    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
-    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    Arguments
+    ------------
+    * `param` (<phoebe.parameters.Parameter>)
+
+    Returns
+    ---------
+    * (<phoebe.parameters.ConstraintParameter>)
     """
     return ConstraintParameter(param._bundle, "sqrt({})".format(_get_expr(param)))
 
 #}
 #{ Built-in functions (see phoebe.constraints.builtin for actual functions)
 def roche_requiv_L1(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno=1):
-    """
-    TODO: add documentation
-    """
     return ConstraintParameter(q._bundle, "requiv_L1(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb)]), compno))
 
 def roche_requiv_contact_L1(q, sma, compno=1):
-    """
-    TODO: add documentation
-    """
     return ConstraintParameter(q._bundle, "requiv_contact_L1(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, sma)]), compno))
 
 def roche_requiv_contact_L23(q, sma, compno=1):
-    """
-    TODO: add documentation
-    """
     return ConstraintParameter(q._bundle, "requiv_contact_L23(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q, sma)]), compno))
 
 def roche_potential_contact_L1(q):
-    """
-    """
     return ConstraintParameter(q._bundle, "potential_contact_L1({})".format(_get_expr(q)))
 
 def roche_potential_contact_L23(q):
-    """
-    """
     return ConstraintParameter(q._bundle, "potential_contact_L23({})".format(_get_expr(q)))
 
 def roche_pot_to_fillout_factor(q, pot):
-    """
-    """
     return ConstraintParameter(q._bundle, "pot_to_fillout_factor({}, {})".format(_get_expr(q), _get_expr(pot)))
 
 def roche_fillout_factor_to_pot(q, fillout_factor):
-    """
-    """
     return ConstraintParameter(q._bundle, "fillout_factor_to_pot({}, {})".format(_get_expr(q), _get_expr(fillout_factor)))
 
 def requiv_to_pot_contact(requiv, q, sma, compno=1):
-    """
-    TODO: add documentation
-    """
     return ConstraintParameter(requiv._bundle, "requiv_to_pot_contact({}, {}, {}, {})".format(_get_expr(requiv), _get_expr(q), _get_expr(sma), compno))
 
 def pot_to_requiv_contact(pot, q, sma, compno=1):
-    """
-    TODO: add documentation
-    """
     return ConstraintParameter(pot._bundle, "pot_to_requiv_contact({}, {}, {}, {})".format(_get_expr(pot), _get_expr(q), _get_expr(sma), compno))
 
 def esinw2per0(ecc, esinw):
-    """
-    TODO: add documentation
-    """
     return ConstraintParameter(ecc._bundle, "esinw2per0({}, {})".format(_get_expr(ecc), _get_expr(esinw)))
 
 def ecosw2per0(ecc, ecosw):
-    """
-    TODO: add documentation
-    """
-    # print "***", "ecosw2per0({}, {})".format(_get_expr(ecc), _get_expr(ecosw))
     return ConstraintParameter(ecc._bundle, "ecosw2per0({}, {})".format(_get_expr(ecc), _get_expr(ecosw)))
 
 def t0_perpass_to_supconj(t0_perpass, period, ecc, per0):
-    """
-    TODO: add documentation
-    """
     return ConstraintParameter(t0_perpass._bundle, "t0_perpass_to_supconj({}, {}, {}, {})".format(_get_expr(t0_perpass), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
 
 def t0_supconj_to_perpass(t0_supconj, period, ecc, per0):
-    """
-    TODO: add documentation
-    """
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_perpass({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
 
 def t0_ref_to_supconj(t0_ref, period, ecc, per0):
-    """
-    TODO: add documentation
-    """
     return ConstraintParameter(t0_ref._bundle, "t0_ref_to_supconj({}, {}, {}, {})".format(_get_expr(t0_ref), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
 
 def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
-    """
-    TODO: add documentation
-    """
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
 
 #{ Custom constraints
@@ -235,17 +233,30 @@ def asini(b, orbit, solve_for=None):
     """
     Create a constraint for asini in an orbit.
 
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
     If any of the required parameters ('asini', 'sma', 'incl') do not
     exist in the orbit, they will be created.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str orbit: the label of the orbit in which this
-        constraint should be built
-    :parameter str solve_for:  if 'asini' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 'sma' or 'incl')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should
+        be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'asini' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'sma' or 'incl')
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
 
     orbit_ps = _get_system_ps(b, orbit)
@@ -288,16 +299,29 @@ def esinw(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for esinw in an orbit.
 
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
     If 'esinw' does not exist in the orbit, it will be created
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str orbit: the label of the orbit in which this
-        constraint should be built
-    :parameter str solve_for:  if 'esinw' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 'ecc', 'per0')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should
+        be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'esinw' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'ecc' or 'per0')
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     orbit_ps = _get_system_ps(b, orbit)
 
@@ -330,16 +354,29 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for ecosw in an orbit.
 
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
     If 'ecosw' does not exist in the orbit, it will be created
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str orbit: the label of the orbit in which this
-        constraint should be built
-    :parameter str solve_for:  if 'ecosw' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 'ecc' or 'per0')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should
+        be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'ecosw' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'ecc' or 'per0')
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     orbit_ps = _get_system_ps(b, orbit)
 
@@ -373,14 +410,28 @@ def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     Create a constraint for t0_perpass in an orbit - allowing translating between
     t0_perpass and t0_supconj.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str orbit: the label of the orbit in which this
-        constraint should be built
-    :parameter str solve_for:  if 't0_perpass' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 't0_supconj', 'per0', 'period')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should
+        be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'to_supconj' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 't0_perpass', 'period', 'ecc',
+        or 'per0')
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
 
     orbit_ps = _get_system_ps(b, orbit)
@@ -412,7 +463,11 @@ def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
 
 def t0(*args, **kwargs):
     """
-    shortcut to t0_perpass for backwards compatibility
+    shortcut to <phoebe.parameters.constraint.t0_perpass> for backwards
+    compatibility.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
     """
     return t0_perpass_supconj(*args, **kwargs)
 
@@ -421,14 +476,27 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
     Create a constraint for t0_ref in an orbit - allowing translating between
     t0_ref and t0_supconj.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str orbit: the label of the orbit in which this
-        constraint should be built
-    :parameter str solve_for:  if 't0_ref' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 't0_supconj', 'per0', 'period')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should
+        be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        't0_supconj' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 't0_ref', 'period', 'ecc', or 'per0')
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
 
     orbit_ps = _get_system_ps(b, orbit)
@@ -459,6 +527,27 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
 
 def mean_anom(b, orbit, solve_for=None, **kwargs):
     """
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should
+        be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'mean_anom' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 't0_perpass', 'period', or 't0')
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
 
     orbit_ps = _get_system_ps(b, orbit)
@@ -496,7 +585,8 @@ def _true_anom_to_phase(true_anom, period, ecc, per0):
 
 def ph_supconj(b, orbit, solve_for=None, **kwargs):
     """
-    TODO: add documentation
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
     """
     orbit_ps = _get_system_ps(b, orbit)
 
@@ -532,7 +622,8 @@ def ph_supconj(b, orbit, solve_for=None, **kwargs):
 
 def ph_infconj(b, orbit, solve_for=None, **kwargs):
     """
-    TODO: add documentation
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
     """
     orbit_ps = _get_system_ps(b, orbit)
 
@@ -557,7 +648,8 @@ def ph_infconj(b, orbit, solve_for=None, **kwargs):
 
 def ph_perpass(b, orbit, solve_for=None, **kwargs):
     """
-    TODO: add documentation
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
     """
     orbit_ps = _get_system_ps(b, orbit)
 
@@ -587,16 +679,31 @@ def freq(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for frequency (either orbital or rotational) given a period.
 
+    ```
     freq = 2 * pi / period
+    ```
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the orbit or component in which this
-        constraint should be built
-    :parameter str solve_for:  if 'freq' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 'period')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'freq' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'period').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
 
     component_ps = _get_system_ps(b, component)
@@ -626,6 +733,9 @@ def freq(b, component, solve_for=None, **kwargs):
 def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
     """
     TODO: add documentation
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
     """
 
     hier = b.hierarchy
@@ -665,6 +775,28 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to ensure that energy is conserved and all incident
     light is accounted for.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'irrad_frac_lost_bol' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'irrad_frac_refl_bol').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
 
     comp_ps = b.get_component(component=component)
@@ -685,7 +817,29 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
 
 def semidetached(b, component, solve_for=None, **kwargs):
     """
-    Create a constraint to force requiv to be semidetached
+    Create a constraint to force requiv to be semidetached.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'requiv' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'requiv_max').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     comp_ps = b.get_component(component=component)
 
@@ -707,6 +861,9 @@ def semidetached(b, component, solve_for=None, **kwargs):
 def teffratio(b, comp1, comp2, **kwargs):
     """
     :raises NotImplementedError: because this isn't yet
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
     """
     raise NotImplementedError
 
@@ -719,18 +876,29 @@ def mass(b, component, solve_for=None, **kwargs):
     Create a constraint for the mass of a star based on Kepler's third
     law from its parent orbit.
 
-    If 'mass' does not exist in the component, it will be created
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'mass' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 'q', sma', 'period')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    If 'mass' does not exist in the component, it will be created.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'mass should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'period', 'sma', 'q').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
-    :raises NotImplementedError: if the hierarchy is not found
-    :raises NotImplementedError: if the value of solve_for is not yet implemented
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     # TODO: optimize this - this is currently by far the most expensive constraint (due mostly to the parameter multiplication)
 
@@ -798,16 +966,29 @@ def comp_sma(b, component, solve_for=None, **kwargs):
     parent orbit.  This is NOT the same as the semi-major axes OF
     the parent orbit
 
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
     If 'sma' does not exist in the component, it will be created
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'sma@star' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 'sma@orbit', 'q')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'sma@star' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'q', 'sma@orbit').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     hier = b.get_hierarchy()
     if not len(hier.get_value()):
@@ -859,13 +1040,28 @@ def requiv_detached_max(b, component, solve_for=None, **kwargs):
     Create a constraint to determine the critical (at L1) value of
     requiv.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'requiv_max' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'q', 'syncpar', 'ecc', 'sma'
+        'incl@star', 'long_an@star', 'incl@orbit', 'long_an@orbit').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
 
     hier = b.get_hierarchy()
@@ -911,15 +1107,29 @@ def potential_contact_min(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L23) value of
     potential at which a constact will underflow.  This will only be used
-    for contacts for pot_min
+    for contacts for pot_min.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'pot_min' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'pot_min' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'q').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     hier = b.get_hierarchy()
     if not len(hier.get_value()):
@@ -949,15 +1159,29 @@ def potential_contact_max(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L1) value of
     potential at which a constact will underflow.  This will only be used
-    for contacts for pot_min
+    for contacts for pot_min.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'pot_max' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'pot_max' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'q').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     hier = b.get_hierarchy()
     if not len(hier.get_value()):
@@ -987,15 +1211,29 @@ def requiv_contact_min(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L1) value of
     requiv at which a constact will underflow.  This will only be used
-    for contacts for requiv_min
+    for contacts for requiv_min.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'requiv_min' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'q', 'sma').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     hier = b.get_hierarchy()
     if not len(hier.get_value()):
@@ -1026,15 +1264,29 @@ def requiv_contact_max(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L2/3) value of
     requiv at which a constact will overflow.  This will only be used
-    for contacts for requiv_max
+    for contacts for requiv_max.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'requiv_max' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'q', 'sma').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     hier = b.get_hierarchy()
     if not len(hier.get_value()):
@@ -1065,13 +1317,27 @@ def fillout_factor(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the fillout factor of a contact envelope.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'requiv_max' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'fillout_factor' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'pot', 'q').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     hier = b.get_hierarchy()
     if not len(hier.get_value()):
@@ -1107,14 +1373,27 @@ def rotation_period(b, component, solve_for=None, **kwargs):
     Create a constraint for the rotation period of a star given its orbital
     period and synchronicity parameters.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'period@star' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 'syncpar@star', 'period@orbit')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'period@star' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'period@orbit', 'syncpar').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     hier = b.get_hierarchy()
     if not len(hier.get_value()):
@@ -1156,16 +1435,29 @@ def rotation_period(b, component, solve_for=None, **kwargs):
 
 def pitch(b, component, solve_for=None, **kwargs):
     """
-    Create a constraint for the inclination of a star relative to its parent orbit
+    Create a constraint for the inclination of a star relative to its parent orbit.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'incl@star' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 'incl@orbit', 'pitch@star')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'pitch' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'incl@star', 'incl@orbit').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
 
     hier = b.get_hierarchy()
@@ -1202,16 +1494,29 @@ def pitch(b, component, solve_for=None, **kwargs):
 
 def yaw(b, component, solve_for=None, **kwargs):
     """
-    Create a constraint for the inclination of a star relative to its parent orbit
+    Create a constraint for the inclination of a star relative to its parent orbit.
 
-    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
-    :parameter str component: the label of the star in which this
-        constraint should be built
-    :parameter str solve_for:  if 'long_an@star' should not be the derived/constrained
-        parameter, provide which other parameter should be derived
-        (ie 'long_an@orbit', 'yaw@star')
-    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'yaw' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'long_an@star', 'long_an@orbit').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
 
     hier = b.get_hierarchy()
@@ -1252,7 +1557,10 @@ def yaw(b, component, solve_for=None, **kwargs):
 
 def passband_ratio(b, *args, **kwargs):
     """
-    ability to constraint pblum ratios (for colors)
+    ability to constraint pblum ratios (for colors).
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
 
     :raises NotImplementedError: because it isn't, yet
     """
@@ -1265,6 +1573,9 @@ def time_ephem(b, component, dataset, solve_for=None, **kwargs):
     """
     use the ephemeris of component to predict the expected times of eclipse (used
         in the ETV dataset)
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
     """
     hier = b.get_hierarchy()
     if not len(hier.get_value()):
@@ -1318,7 +1629,10 @@ def time_ephem(b, component, dataset, solve_for=None, **kwargs):
 def etv(b, component, dataset, solve_for=None, **kwargs):
     """
     compute the ETV column from the time_ephem and time_ecl columns (used in the
-        ETV dataset)
+        ETV dataset).
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
     """
 
     time_ephem = b.get_parameter(qualifier='time_ephems', component=component, dataset=dataset, context=['dataset', 'model'])  # need to provide context to avoid getting the constraint
@@ -1336,6 +1650,29 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
 #}
 
 def requiv_to_pot(b, component, solve_for=None, **kwargs):
+    """
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'pot' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'q', 'sma', 'requiv').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
 
     hier = b.get_hierarchy()
     parentorbit = hier.get_parent_of(component)

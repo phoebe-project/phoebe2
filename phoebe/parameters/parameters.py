@@ -2201,8 +2201,8 @@ class ParameterSet(object):
 
         Note: this only works for Parameter objects with a `get_quantity` method.
         These include:
-        * <phoebe.parameters.FloatParameter.get_quantity>
-        * <phoebe.parameters.FloatArrayParameter.get_quantity>
+        * <phoebe.parameters.FloatParameter> (see <phoebe.parameters.FloatParameter.get_quantity>)
+        * <phoebe.parameters.FloatArrayParameter>
 
         See also:
         * <phoebe.parameters.ParameterSet.set_quantity>
@@ -2255,8 +2255,8 @@ class ParameterSet(object):
 
         Note: this only works for Parameter objects with a `set_quantity` method.
         These include:
-        * <phoebe.parameters.FloatParameter.set_quantity>
-        * <phoebe.parameters.FloatArrayParameter.set_quantity>
+        * <phoebe.parameters.FloatParameter> (see <phoebe.parameters.FloatParameter>)
+        * <phoebe.parameters.FloatArrayParameter>
 
         See also:
         * <phoebe.parameters.ParameterSet.get_quantity>
@@ -6013,7 +6013,8 @@ class FloatParameter(Parameter):
     @send_if_client
     def set_quantity(self, value, unit=None, force=False, run_checks=None, run_constraints=None, **kwargs):
         """
-        Set the current value/quantity of the <phoebe.parameters.FloatParameter>.
+        Set the current value/quantity of the <phoebe.parameters.FloatParameter>
+        or <phoebe.parameters.FloatArrayParameter>.
 
         Units can either be passed by providing a Quantity object to `value`
         OR by passing a unit object (or valid string representation) to `unit`.

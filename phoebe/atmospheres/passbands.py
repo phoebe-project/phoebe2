@@ -1345,7 +1345,7 @@ def _init_passbands(refresh=False):
 def install_passband(fname, local=True):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.install_passbands>.
+    <phoebe.install_passband>.
 
     Install a passband from a local file.  This simply copies the file into the
     install path - but beware that clearing the installation will clear the
