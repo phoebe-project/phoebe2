@@ -55,7 +55,7 @@ def find_version_intel(s):
 #
 # Check the platform and C++ compiler (g++ > 5.0)
 #
-def check_unix_compiler(plat, plat_ver compiler, extensions, compiler_name):
+def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
 
   status = False
 
@@ -201,8 +201,8 @@ class build_check(build_ext):
 
     elif plat in ['Linux', 'Darwin']:
       if (
-          check_unix_compiler(plat, plat_ver,self.compiler, self.extensions, self.compiler.compiler_cxx[0]) and
-          check_unix_compiler(plat, plat_ver,self.compiler, self.extensions, self.compiler.compiler_so[0])
+          check_unix_compiler(plat, plat_ver, self.compiler, self.extensions, self.compiler.compiler_cxx[0]) and
+          check_unix_compiler(plat, plat_ver, self.compiler, self.extensions, self.compiler.compiler_so[0])
          ):
 
         for e in self.extensions:
