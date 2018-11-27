@@ -255,7 +255,7 @@ class import_check(Command):
     try:
       import sympy
       sympy_version = sympy.__version__
-      if LooseVersion(sympy_version) < StrictVersion('1.0'):
+      if LooseVersion(sympy_version) < LooseVersion('1.0'):
         optional.append('sympy 1.0+')
     except:
       optional.append('sympy')
