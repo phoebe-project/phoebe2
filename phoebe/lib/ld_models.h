@@ -533,8 +533,6 @@ namespace LD {
   template <class T>
   bool check(TLDmodel_type choice, T *p) {
 
-    bool ok;
-
     switch (choice) {
 
       case UNIFORM:

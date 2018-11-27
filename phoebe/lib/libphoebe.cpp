@@ -183,8 +183,8 @@ PyObject *PyArray_FromVector(std::vector<T> &V){
   npy_intp dims[1] = {N};
 
   #if defined(USING_SimpleNewFromData)
-  T *p = new T [N];
-
+  //T *p = new T [N];
+  T *p = (T*) PyObject_Malloc(N*sizeof(T));
   std::copy(V.begin(), V.end(), p);
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
@@ -202,7 +202,8 @@ PyObject *PyArray_FromVector(int N, T *V){
   npy_intp dims[1] = {N};
 
   #if defined(USING_SimpleNewFromData)
-  T *p = new T [N];
+  //T *p = new T [N];
+  T *p = (T*) PyObject_Malloc(N*sizeof(T));
   std::copy(V, V + N, p);
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
@@ -233,7 +234,9 @@ PyObject *PyArray_From3DPointVector(std::vector<T3Dpoint<T>> &V){
   npy_intp dims[2] = {N, 3};
 
   #if defined(USING_SimpleNewFromData)
-  T *p = new T [3*N], *b = p;
+  //T *p = new T [3*N];
+  T *p = (T*) PyObject_Malloc(3*N*sizeof(T));
+  T *b = p;
   for (auto && v : V) for (int i = 0; i < 3; ++i) *(b++) = v[i];
   PyObject *pya = PyArray_SimpleNewFromData(2, dims, PyArray_TypeNum<T>(), p);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
@@ -482,17 +485,12 @@ static PyObject *roche_misaligned_transf(PyObject *self, PyObject *args) {
     return NULL;
   }
 
-  double *res = new double [2];
-  res[0] = std::atan2(-s[1], s[2]);
-  res[1] = std::atan2(s[0], std::sqrt(1 - s[0]*s[0]));
+  double res[2]={
+    std::atan2(-s[1], s[2]),
+    std::atan2(s[0], std::sqrt(1 - s[0]*s[0]))
+  };
 
-  npy_intp dims[1] = {2};
-
-  PyObject *o_res = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, res);
-
-  PyArray_ENABLEFLAGS((PyArrayObject *)o_res, NPY_ARRAY_OWNDATA);
-
-  return o_res;
+  return PyArray_FromVector(2, res);
 }
 
 /*
@@ -3340,8 +3338,8 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
 
   double
     *x = (double*) PyArray_DATA(o_x),
-    *g = new double [4];
-
+    g[4];
+    
   if (PyFloat_Check(o_misalignment)) {
 
     p[3] = PyFloat_AsDouble(o_misalignment);
@@ -3368,16 +3366,10 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
     return NULL;
   }
 
-  npy_intp dims[1] = {4};
-
-  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
-
-  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
-
   if (verbosity_level>=4)
     report_stream << fname << "::END" << std::endl;
 
-  return pya;
+  return PyArray_FromVector(4, g);
 }
 
 
@@ -3678,8 +3670,8 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
 
   double
     *x = (double*) PyArray_DATA(o_x),
-    *g = new double [3];
-
+    g[3];
+    
   if (PyFloat_Check(o_misalignment)) {
 
     p[3] = PyFloat_AsDouble(o_misalignment);
@@ -3704,16 +3696,10 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
     return NULL;
   }
 
-  npy_intp dims[1] = {3};
-
-  PyObject *res = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
-
-  PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
-
   if (verbosity_level>=4)
     report_stream << fname << "::END" << std::endl;
 
-  return res;
+  return PyArray_FromVector(3, g);
 }
 
 
