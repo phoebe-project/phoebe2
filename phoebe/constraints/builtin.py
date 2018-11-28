@@ -180,7 +180,7 @@ def pot_to_requiv_contact(pot, q, sma, compno=1):
         logger.debug("libphoebe.roche_contact_neck_min(pi/2, q={}, d={}, pot={})".format(q, d, pot))
         nekmin = libphoebe.roche_contact_neck_min(np.pi / 2., q, d, pot)['xmin']
         logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d={}, pot={}, compno={})".format(nekmin, q, d, pot, compno-1))
-        volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno-1)['lvolume']
+        volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno-1, lvolume=True, ldvolume=False, larea=False)['lvolume']
         # returns normalized vequiv, should multiply by sma back for requiv in SI
         return sma * (3./4 * 1./np.pi * volume_equiv)**(1./3)
     except:

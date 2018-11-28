@@ -10220,10 +10220,10 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
             0 for discussing left lobe
             1 for discussing right lobe
 
+    larea: boolean, default True
     lvolume: boolean, default True
     ldvolume: boolean, default True
-    larea: boolean, default True
-
+  
     epsA : float, default 1e-12
       relative precision of the area
 
@@ -10238,6 +10238,8 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
     dictionary
 
   with keywords
+    larea: area of the left or right Roche lobe
+      float:
 
     lvolume: volume of the left or right Roche lobe
       float:
@@ -10245,10 +10247,7 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
     ldvolume: dvolume/dOmega of the left or right Roche lobe
       float:
 
-    larea: area of the left or right Roche lobe
-      float:
-
-  Example:
+    Example:
     import libphoebe
 
     x=0.7       # where we cut it
@@ -10279,6 +10278,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
     (char*)"choice",
     (char*)"larea",
     (char*)"lvolume",
+    (char*)"ldvolume",
     (char*)"epsA",
     (char*)"epsV",
     (char*)"epsdV",
@@ -10295,7 +10295,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   double x, q, d, Omega0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dddd|iO!O!ddd", kwlist,
+      args, keywds,  "dddd|iO!O!O!ddd", kwlist,
       &x, &q, &d, &Omega0,  // necessary
       &choice,
       &PyBool_Type, o_r,
