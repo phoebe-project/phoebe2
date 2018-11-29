@@ -168,11 +168,13 @@ struct Tmarching: public Tbody {
     T g[4], r[3] = {ri[0], ri[1], ri[2]}, t, dr1, r1, fac;
 
     // decreasing precision is dangerous as it can miss the surface
-    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T eps = 20*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();
 
     do {
-
+      
+      for (int i = 0; i < 3; ++i) r[i] = ri[i];
+      
       do {
 
         // g = (grad F, F)
@@ -426,13 +428,13 @@ struct Tmarching: public Tbody {
     T g[4], t, dr1, r1, fac;
 
     // decreasing precision is dangerous as it can miss the surface
-    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T eps = 20*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();
-
-    if (r != ri) for (int i = 0; i < 3; ++i) r[i] = ri[i];
 
     do {
 
+      if (r != ri) for (int i = 0; i < 3; ++i) r[i] = ri[i];
+      
       do {
 
         // g = (grad F, F)
@@ -1837,8 +1839,11 @@ struct Tmarching: public Tbody {
       C - central points
       NatC - normals at central points
       GatC - norm of gradient at cetral points
+    
+    Return:
+     true if ok, false if not ok
   */
-  void central_points(
+  bool central_points(
     std::vector <T3Dpoint<T>> & V,
     std::vector <T3Dpoint<int>> & Tr,
 
@@ -1847,7 +1852,7 @@ struct Tmarching: public Tbody {
     std::vector <T> * GatC = 0
   )
   {
-    if (C == 0 && NatC == 0 && GatC == 0) return;
+    if (C == 0 && NatC == 0 && GatC == 0) return true;
 
     if (C) {
       C->clear();
@@ -1892,8 +1897,10 @@ struct Tmarching: public Tbody {
         if (C) C->emplace_back(v);
         if (NatC) NatC->emplace_back(n);
         if (GatC) GatC->emplace_back(g);
-      } else std::cerr << "Warning: Projection did not converge\n";
+      } else return false; //std::cerr << "central_points::Warning: Projection did not converge\n";
     }
+    
+    return true;
   }
 
 }; // class marching

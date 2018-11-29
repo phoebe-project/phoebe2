@@ -5830,7 +5830,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
          march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
         );
 
-    if (error == 0) march.central_points(V, Tr, C, NatC, GatC);
+    if (error == 0 && !march.central_points(V, Tr, C, NatC, GatC)) error = 4;
 
   } else {
     if (rotated) {
@@ -5844,7 +5844,8 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
           march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
         );
 
-      if (error == 0) march.central_points(V, Tr, C, NatC, GatC);
+      if (error == 0 && !march.central_points(V, Tr, C, NatC, GatC)) error = 4;
+      
     } else {
       double params[] = {q, F, d, s[0], s[1], s[2], Omega0};
 
@@ -5856,7 +5857,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
           march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
         );
 
-      if (error == 0) march.central_points(V, Tr, C, NatC, GatC);
+      if (error == 0 && !march.central_points(V, Tr, C, NatC, GatC)) error = 4;
     }
   }
 
@@ -5880,6 +5881,9 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
       return NULL;
     case 2:
       raise_exception("Projections are failing!");
+      return NULL;
+    case 4:
+      raise_exception("Central points did not converge!");
       return NULL;
   }
 
