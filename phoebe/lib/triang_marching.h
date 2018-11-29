@@ -157,21 +157,21 @@ struct Tmarching: public Tbody {
   */
 
   //#define DEBUG
-  bool project_onto_potential(T ri[3], Tvertex & v, const int & max_iter, T *ni = 0){
+  bool project_onto_potential(T ri[3], Tvertex & v, const int & max_iter, T *ni = 0, const T & eps = 20*std::numeric_limits<T>::epsilon()){
 
     //
     // Newton-Raphson iteration to solve F(u_k - t grad(F))=0
     //
 
-    int n = 0;
+    int n;
 
-    T g[4], r[3] = {ri[0], ri[1], ri[2]}, t, dr1, r1, fac;
+    T g[4], r[3], t, dr1, r1, fac;
 
     // decreasing precision is dangerous as it can miss the surface
-    const T eps = 20*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();
 
     do {
+      n = 0;
       
       for (int i = 0; i < 3; ++i) r[i] = ri[i];
       
@@ -212,10 +212,9 @@ struct Tmarching: public Tbody {
         << " " << dr1 <<" "<< precision << '\n';
       #endif
 
-      if (!precision && n >= max_iter) {
+      if (!precision && n >= max_iter)
         precision = true;
-        n = 0;
-      } else break;
+      else break;
 
     } while (1);
 
@@ -417,23 +416,24 @@ struct Tmarching: public Tbody {
   */
 
   // #define DEBUG
-  bool project_onto_potential(T ri[3], T r[3], T n[3], const int & max_iter, T *gnorm = 0){
+  bool project_onto_potential(T ri[3], T r[3], T n[3], const int & max_iter, T *gnorm = 0, const T & eps = 20*std::numeric_limits<T>::epsilon()){
 
     //
     // Newton-Raphson iteration to solve F(u_k - t grad(F))=0
     //
 
-    int nr_iter = 0;
+    int nr_iter;
 
     T g[4], t, dr1, r1, fac;
 
     // decreasing precision is dangerous as it can miss the surface
-    const T eps = 20*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();
 
     do {
-
-      if (r != ri) for (int i = 0; i < 3; ++i) r[i] = ri[i];
+      
+      nr_iter  = 0;
+      
+      for (int i = 0; i < 3; ++i) r[i] = ri[i];
       
       do {
 
@@ -466,10 +466,9 @@ struct Tmarching: public Tbody {
         << " " << dr1 <<" "<< precision << '\n';
       #endif
 
-      if (!precision && nr_iter >= max_iter) {
+      if (!precision && nr_iter >= max_iter)
         precision = true;
-        nr_iter = 0;
-      } else break;
+      else break;
 
     } while(1);
 
@@ -1872,7 +1871,8 @@ struct Tmarching: public Tbody {
     }
 
     const int max_iter = 100;
-
+    const T eps = 100*std::numeric_limits<T>::epsilon();
+    
     T *tp, v[3], n[3], q[3], r[3][3];
 
     int i, j;
@@ -1893,7 +1893,7 @@ struct Tmarching: public Tbody {
       for (i = 0; i < 3; ++i)
         q[i] = (r[0][i] + r[1][i] + r[2][i])/3;
 
-      if (project_onto_potential(q, v, n, max_iter, p_g)){
+      if (project_onto_potential(q, v, n, max_iter, p_g, eps)){
         if (C) C->emplace_back(v);
         if (NatC) NatC->emplace_back(n);
         if (GatC) GatC->emplace_back(g);
