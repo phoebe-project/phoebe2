@@ -129,7 +129,8 @@ void raise_exception(const std::string & str){
     level = 1: output for python exception
     level = 2: output for python exception and
                additional explanation to exceptions
-    level = 3: all possible output -- debug mode
+    level = 3: -- did not decide what this should be --
+    level = 4: all possible output -- debug mode
 
   Input:
     level
