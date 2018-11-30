@@ -388,7 +388,6 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
   return results;
 }
 
-
 /*
   C++ wrapper for Python code:
 
@@ -7713,7 +7712,157 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
 
   return results;
 }
+/*
+  Calculate an rough approximation of the surface average updated
+  exitance F_{0,b}' and radiosity F_{out,b} for both bodies b=A, B
+  in a binary system of two spheres separated by distance d
 
+  Python:
+
+    dict = radiosity_redistrib_1dmodel(d, radiusA, reflectA, redistr_typeA,
+                                          radiusB, reflectB, redistr_typeB)
+  where positional parameters:
+
+    d: float - distance between stars
+    radiusA: float - radius of the star A
+    reflectA: float - reflection of star A
+    F0A: average exitance of star A
+    redistr_typeA: int - redistribution type of star A
+      0: global - uniform global redistribution
+      1: horiz  - horizontal redistribution
+      2: local - local redistribution
+
+    radiusB: float - radius of the star B
+    reflectb: float - reflection of star B
+    F0B: average exitance of star B
+    redistr_typeB: int - redistribution type of star B
+      0: global - uniform global redistribution
+      1: horiz  - horizontal redistribution
+      2: local - local redistribution
+
+Returns:
+
+    dict - dictionary
+
+  with keywords
+
+    radiosityA: float - Surface average of radiosity for body A
+    update-exitanceA: float - Surface average of updated exitance for body A
+    radiosityB: float - Surface average of radiosity for body B
+    update-exitanceB: float - Surface average of updated exitance for body B
+
+Example:
+  import libphoebe 
+
+  d=5
+  radiusA=2.
+  reflectA=0.3
+  F0A=1.0
+  redistr_typeA=0
+
+  radiusB=1.
+  reflectB=0.7
+  F0B=2.0
+  redistr_typeB=0
+
+  res= libphoebe.radiosity_redistrib_1dmodel(d,
+                                        radiusA, reflectA, F0A, redistr_typeA,
+                                        radiusB, reflectB, F0B, redistr_typeB)
+ 
+ {'update-emittanceB': 2.0410763114593298, 'update-emittanceA': 1.0206982972948087, 'radiosityB': 2.012322893437799, 'radiosityA': 1.014488808106366}
+
+*/
+static PyObject *radiosity_redistrib_1dmodel(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  const char *fname = "radiosity_redistrib_1dmodel";
+
+  //
+  // Reading arguments
+  //
+
+ char *kwlist[] = {
+    (char*)"d",
+    (char*)"radiusA",
+    (char*)"reflectA",
+    (char*)"F0A",
+    (char*)"redistr_typeA",
+    (char*)"radiusB",
+    (char*)"reflectB",
+    (char*)"F0B",
+    (char*)"redistr_typeB",
+    NULL
+  };
+
+  int rtypeA, rtypeB;
+
+  double d, rA, rhoA, F0A, rB, rhoB, F0B;
+
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "ddddidddi", kwlist,
+      &d,
+      &rA,
+      &rhoA,
+      &F0A,
+      &rtypeA,
+      &rB,
+      &rhoB,
+      &F0B,
+      &rtypeB)
+    ){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  double
+    /* limb-darkended radosity operator coefficient */
+    LldAB = utils::sqr(rA/d)*0.5,
+    LldBA = utils::sqr(rB/d)*0.5,
+
+    /* Lambertian radosity operator coefficient */
+    LLAB = LldAB,
+    LLBA = LldBA,
+
+    DA = (rtypeA == 0 || rtypeA == 1 ? 0.5 : 1),
+    DB = (rtypeB == 0 || rtypeB == 1 ? 0.5 : 1),
+
+    /* auxiliary variables */
+    GA = LldBA*F0B,
+    GB = LldAB*F0A,
+
+    TAB = LldAB*DA*(1 - rhoA) + LLAB*rhoA,
+    TBA = LldBA*DB*(1 - rhoB) + LLBA*rhoB,
+
+    det = 1 - TAB*TBA,
+
+    FinA = (GA + TBA*GB)/det,
+    FinB = (TAB*GA + GB)/det,
+
+    /* update-exitance: body A */
+    F1Ad = F0A + DA*(1 - rhoA)*FinA,
+    F1An = F0A + (1 - DA)*(1 - rhoA)*FinA,
+
+    /* update-exitance: body B */
+    F1Bd = F0B + DB*(1 - rhoB)*FinB,
+    F1Bn = F0B + (1 - DB)*(1 - rhoB)*FinB,
+
+    /* radiosity: body A */
+    FoutAd = F1Ad + rhoA*FinA,
+    FoutAn = F1An,
+
+    /* radiosity: body B */
+    FoutBd = F1Bd + rhoB*FinB,
+    FoutBn = F1Bn;
+
+  PyObject *results = PyDict_New();
+
+  PyDict_SetItemStringStealRef(results, "update-emittanceA", PyFloat_FromDouble((F1Ad + F1An)/2));
+  PyDict_SetItemStringStealRef(results, "radiosityA", PyFloat_FromDouble((FoutAd + FoutAn)/2));
+
+  PyDict_SetItemStringStealRef(results, "update-emittanceB", PyFloat_FromDouble((F1Bd + F1Bn)/2));
+  PyDict_SetItemStringStealRef(results, "radiosityB", PyFloat_FromDouble((FoutBd + FoutBn)/2));
+
+  return results;
+}
 
 /*
   C++ wrapper for Python code:
@@ -7758,6 +7907,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
 */
 static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject *keywds){
 
+  const char *fname = roche_central_points";
   //
   // Reading arguments
   //
@@ -7797,7 +7947,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
       &PyBool_Type, &o_cnormals,
       &PyBool_Type, &o_cnormgrads
       )){
-    raise_exception("roche_central_points::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments.");
     return NULL;
   }
 
@@ -7806,8 +7956,10 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
   if (o_cnormgrads) b_cnormgrads = PyObject_IsTrue(o_cnormgrads);
 
 
-  if (!b_centers && !b_cnormals && !b_cnormgrads) return NULL;
-
+  if (!b_centers && !b_cnormals && !b_cnormgrads) {
+     raise_exception(fname + "::Nothing to compute.");
+     return NULL;
+   }
   //
   // Storing data
   //
@@ -7827,7 +7979,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
   Tmarching<double, Tgen_roche<double>> march(params);
 
   //
-  // Calculte the central points
+  // Calculate the central points
   //
 
   std::vector<double> *GatC = 0;
@@ -7840,7 +7992,10 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
 
   if (b_cnormgrads) GatC = new std::vector<double>;
 
-  march.central_points(V, Tr, C, NatC, GatC);
+  if (!march.central_points(V, Tr, C, NatC, GatC)){
+    raise_exception(fname + "::Problem with projection onto surface.");
+    return NULL;
+  }
 
   //
   // Returning results
@@ -11232,6 +11387,11 @@ static PyMethodDef Methods[] = {
     "Background setup of radiosity redistribution problem with limb "
     "darkening for n separate convex bodies using chosen reflection model."},
 
+{ "radiosity_redistrib_1dmodel",
+    (PyCFunction)radiosity_redistrib_1dmodel,
+    METH_VARARGS|METH_KEYWORDS,
+    "Calculating a rough approximate of the surface average updated-exitance "
+    "and radiosity for both bodies of a binary system composed of two spheres."},
 // --------------------------------------------------------------------
 
   { "roche_reprojecting_vertices",
