@@ -7774,7 +7774,7 @@ Example:
 */
 static PyObject *radiosity_redistrib_1dmodel(PyObject *self, PyObject *args, PyObject *keywds) {
 
-  const char *fname = "radiosity_redistrib_1dmodel";
+  auto fname = "radiosity_redistrib_1dmodel"_s;
 
   //
   // Reading arguments
@@ -7907,7 +7907,8 @@ static PyObject *radiosity_redistrib_1dmodel(PyObject *self, PyObject *args, PyO
 */
 static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject *keywds){
 
-  const char *fname = roche_central_points";
+  auto fname = "roche_central_points"_s;
+  
   //
   // Reading arguments
   //
