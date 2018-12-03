@@ -9766,7 +9766,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
       return PyFloat_FromDouble(ylog);
     else {
       raise_exception(fname + "::Failed to calculate Planck central intensity");
-      return PyFloat_FromDouble(std::nan(""));
+      return PyFloat_FromDouble(std::numeric_limits<double>::quiet_NaN());
     }
 
   } else if (
@@ -9806,7 +9806,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
 
     for (double *r = results, *r_e = r + n; r != r_e;  ++r, ++t)
       if (!wd_atm::planckint_onlylog(*t, ifil, planck_table, *r)) {
-        *r = std::nan("");
+        *r = std::numeric_limits<double>::quiet_NaN();
         ok = false;
       }
 
@@ -10063,7 +10063,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       // do calculation
       if (!wd_atm::atmx_onlylog(t, logg, r[1], ifil, planck_table, atm_table, r[0])) {
         raise_exception(fname + "::Failed to calculate logarithm of intensity");
-        r[0] = std::nan("");
+        r[0] = std::numeric_limits<double>::quiet_NaN();
       }
 
     } else {  // calculation whole array
@@ -10087,7 +10087,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         r[1] = *pabunin;
 
         if (!wd_atm::atmx_onlylog(*pt, *plogg, r[1], ifil, planck_table, atm_table, r[0])) {
-          r[0] = std::nan("");
+          r[0] = std::numeric_limits<double>::quiet_NaN();
           ok = false;
         }
       }
@@ -10111,7 +10111,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         oresults = PyFloat_FromDouble(r);
       else {
         raise_exception(fname + "::Failed to calculate logarithm of intensity");
-        oresults = PyFloat_FromDouble(std::nan(""));
+        oresults = PyFloat_FromDouble(std::numeric_limits<double>::quiet_NaN());
       }
 
     } else { // calculation whole array
@@ -10137,7 +10137,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         tmp = *pabunin;
 
         if (!wd_atm::atmx_onlylog(*pt, *plogg, tmp, ifil, planck_table, atm_table, *r)) {
-          *r = std::nan("");
+          *r = std::numeric_limits<double>::quiet_NaN();
           ok = false;
         }
       }

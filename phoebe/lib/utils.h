@@ -935,7 +935,7 @@ namespace utils {
 
     int i  = flt(t, x, n);
 
-    if (i == 0 || i == -1) return std::nan("");
+    if (i == 0 || i == -1) return std::numeric_limits<T>::quiet_NaN();
 
     return (y[i]*(x[i] - t) + y[i-1]*(t - x[i-1]))/(x[i] - x[i-1]);
   }
@@ -966,10 +966,10 @@ namespace utils {
       if (x > 0)
         return std::numeric_limits<T>::infinity();
       else
-        return std::nan("");
+        return std::numeric_limits<T>::quiet_NaN();
     }
 
-    if (x < -m_1_e || std::isnan(x)) return std::nan("");
+    if (x < -m_1_e || std::isnan(x)) return std::numeric_limits<T>::quiet_NaN();
 
     //
     // calculating approximation

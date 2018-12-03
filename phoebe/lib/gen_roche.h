@@ -679,7 +679,7 @@ namespace gen_roche {
 
     }
 
-    return std::nan("");
+    return std::numeric_limits<T>::quiet_NaN();
   }
 
   /*
@@ -805,7 +805,7 @@ namespace gen_roche {
       for (auto && v : roots) if (0 < v && v < 1) return v;
     }
 
-    return std::nan("");
+    return std::numeric_limits<T>::quiet_NaN();
   }
   #if defined(DEBUG)
   #undef DEBUG
@@ -902,7 +902,7 @@ namespace gen_roche {
       for (auto && v : roots) if (0 < v && v < 1) return 1 - v;
     }
 
-    return std::nan("");
+    return std::numeric_limits<T>::quiet_NaN();
   }
 
   /*
@@ -1014,7 +1014,7 @@ namespace gen_roche {
     std::cerr << fname << "::END" << std::endl;
     #endif
 
-    return std::nan("");
+    return std::numeric_limits<T>::quiet_NaN();
   }
 
   /*

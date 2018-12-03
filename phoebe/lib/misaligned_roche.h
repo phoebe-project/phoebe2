@@ -1905,7 +1905,7 @@ template<class T>
     
     for (int i = 0; i < 2; ++i) {
 
-      if (!lagrange_point(i + 1, q, F, d, th1, r[i])) return std::nan("");
+      if (!lagrange_point(i + 1, q, F, d, th1, r[i])) return std::numeric_limits<T>::quiet_NaN();
 
       r[i][2] = r[i][1];
       r[i][1] = 0;
