@@ -1,5 +1,12 @@
 import subprocess
 import os
+
+try:
+    from subprocess import DEVNULL 
+except ImportError:
+    import os
+    DEVNULL = open(os.devnull, 'wb')
+
 import re
 import json
 from datetime import datetime
@@ -3520,7 +3527,7 @@ class Bundle(ParameterSet):
             # TODO: would be nice to catch errors caused by the detached script...
             # but that would probably need to be the responsibility of the
             # jobparam to return a failed status and message
-            subprocess.call(cmd, shell=True)
+            subprocess.call(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
 
             # create model parameter and attach (and then return that instead of None)
             job_param = JobParameter(self,

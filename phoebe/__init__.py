@@ -169,9 +169,9 @@ class MPI(object):
             raise ValueError("detach not available within mpirun")
 
         if self.enabled:
-            return 'mpirun -np %d python {} &>/dev/null &' % self.nprocs
+            return 'mpiexec -np %d python {}' % self.nprocs
         else:
-            return 'python {} &>/dev/null &'
+            return 'python {}'
 
     def shutdown_workers(self):
         if self.within_mpirun and self.myrank == 0:
