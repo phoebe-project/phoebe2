@@ -36,15 +36,29 @@ def _to_component(obj, allow_hierarchy=True):
 
 def binaryorbit(orbit, comp1, comp2, envelope=None):
     """
-    Build the string representation of a hierarchy containing a binary
-    orbit with 2 components.
+    Create the string representation of a hierarchy containing a binary orbit
+    with two components.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.set_hierarchy`
+    <phoebe.frontend.bundle.Bundle.set_hierarchy>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.set_hierarchy>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.
 
-    :parameter comp1: an existing hierarchy string, Parameter, or ParameterSet
-    :parameter comp2: an existing hierarchy string, Parameter, or ParameterSet
-    :return: the string representation of the hierarchy
+    Arguments
+    ----------
+    * `comp1` (string or <phoebe.parameters.Parameter> or
+        <phoebe.parameters.ParameterSet): primary component.
+    * `comp2` (string or <phoebe.parameters.Parameter> or
+        <phoebe.parameters.ParameterSet): secondary component.
+    * `env` (string or <phoebe.parameters.Parameter> or
+        <phoebe.parameters.ParameterSet, optional, default=None): envelope
+        component.  If provided, this will create a contact binary system,
+        otherwise a detached system will be created.
+
+    Returns
+    --------
+    * (str): the string representation of the hierarchy, ready to be sent to
+        <phoebe.frontend.bundle.Bundle.set_hierarchy>.
     """
 
     if envelope:
@@ -54,29 +68,44 @@ def binaryorbit(orbit, comp1, comp2, envelope=None):
 
 def component(*args):
     """
-    Build the string representation of a hierarchy that groups multiple
-    objects without a parent orbit (ie a disk around a planet).
+    Create the string representation of a hierarchy that groups multiple objects
+    without a parent orbit (ie. a single star or a  disk around a planet).
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.set_hierarchy`
+    <phoebe.frontend.bundle.Bundle.set_hierarchy>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.set_hierarchy>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.
 
-    :parameter *args:
-    :return: the string representation of the hierarchy
+    Arguments
+    ----------
+    * `*args` (string or <phoebe.parameters.Parameter> or
+        <phoebe.parameters.ParameterSet): any number of individual components
+        can be passed to this function.
+
+    Returns
+    --------
+    * (str): the string representation of the hierarchy, ready to be sent to
+        <phoebe.frontend.bundle.Bundle.set_hierarchy>.
     """
 
-    return 'component({})'.format(', '.join([_to_component(arg) for arg in args]))
+    return '{}'.format(', '.join([_to_component(arg) for arg in args]))
 
 def blank(*args):
     """
-    Build the string representation of a blank hierarchy.
-
-    Generally, this will be used as an input to :func:`Bundle.set_hierarchy`
+    Create the string representation of a blank hierarchy.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.set_hierarchy`
+    <phoebe.frontend.bundle.Bundle.set_hierarchy>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.set_hierarchy>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: the string representation of the hierarchy
+    Arguments
+    ----------
+    * `*args`: IGNORED
+
+    Returns
+    --------
+    * (str): the string representation of the hierarchy, ready to be sent to
+        <phoebe.frontend.bundle.Bundle.set_hierarchy>.
     """
     return ''
-
