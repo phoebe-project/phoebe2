@@ -60,7 +60,7 @@ matrix:
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]
-          packages: [gfortran, g++-5, gcc-5, libstrdc++-5-dev, libopenmpi-dev]
+          packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
 
     # and lastly, run the benchmarks
     - os: linux
