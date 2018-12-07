@@ -1,5 +1,15 @@
 import logging
 
+import sys
+if sys.version_info[0] == 3:
+  unicode = str
+
+def _bytes(s):
+    if sys.version_info[0] == 3:
+        return bytes(s, 'utf-8')
+    else:
+        return bytes(s)
+
 def get_basic_logger(clevel='WARNING',flevel='DEBUG',
                      style="default",filename=None,filemode='w'):
     """
@@ -140,11 +150,24 @@ def parse_json(pairs):
 
     pass this to the object_pairs_hook kwarg of json.load/loads
     """
+    def _string(item):
+        if isinstance(item, bytes):
+            return item.decode('utf-8')
+        elif isinstance(item, unicode) and sys.version_info[0] == 2:
+            return item.encode('utf-8')
+        else:
+            return item
+
     new_pairs = []
     for key, value in pairs:
-        if isinstance(value, unicode):
-            value = value.encode('utf-8')
-        if isinstance(key, unicode):
-            key = key.encode('utf-8')
+        key = _string(key)
+
+        if isinstance(value, dict):
+            value = parse_json(value.items())
+        elif isinstance(value, list):
+            value = [_string(v) for v in value]
+        else:
+            value = _string(value)
+
         new_pairs.append((key, value))
     return dict(new_pairs)

@@ -45,13 +45,13 @@ def test_notebook(filename):
 
     for exp, act in zip(expected, actual):
         if exp['cell_type'] == 'code':
-            #print "comparing outputs for ", exp['input']
+            #print("comparing outputs for ", exp['input'])
             for eo,ao in zip(exp['outputs'], act['outputs']):
-                #print "\t", eo['text'], ao['text'], eo['text']==ao['text']
+                #print("\t", eo['text'], ao['text'], eo['text']==ao['text'])
                 eotext = ['\n'.join(l for l in eo['text'].split('\n') if _filter_exceptions(l))]
                 aotext = ['\n'.join(l for l in ao['text'].split('\n') if _filter_exceptions(l))]
                 if eotext != aotext:
-                    #print "\tFAILED"
+                    #print("\tFAILED")
                     failed.append({'prompt_number': exp['prompt_number'], 'input': exp['input'], 'expected_output': eotext, 'actual_output': aotext})
 
 
@@ -62,20 +62,20 @@ def test_all_in_dir(dir, interactive=True, skip=[]):
     os.chdir(dir)
     for fname in sorted(glob('*ipynb')):
         if os.path.basename(fname) in skip:
-            print "SKIPPING", fname
+            print("SKIPPING", fname)
             continue
-        print "TESTING IPYTHON NOTEBOOK", fname
+        print("TESTING IPYTHON NOTEBOOK", fname)
         passed, failures, actual_nb = test_notebook(fname)
         if not passed:
-            print "TUTORIAL FAILED: {}".format(fname)
+            print("TUTORIAL FAILED: {}".format(fname))
             for failure in failures:
-                print "\tLine: {}\n\tInput:\n\t\t{}".format(failure['prompt_number'], failure['input'].replace('\n', '\n\t\t'))
-                print "\tExpected Output:\n\t\t{}\n\tActual Output:\n\t\t{}".format(failure['expected_output'][0], failure['actual_output'][0])
-            print
+                print("\tLine: {}\n\tInput:\n\t\t{}".format(failure['prompt_number'], failure['input'].replace('\n', '\n\t\t')))
+                print("\tExpected Output:\n\t\t{}\n\tActual Output:\n\t\t{}".format(failure['expected_output'][0], failure['actual_output'][0]))
+            print()
             if interactive:
-                print "Options ({}):\n\ti: (ignore) discrepancy is acceptable".format(fname)
+                print("Options ({}):\n\ti: (ignore) discrepancy is acceptable".format(fname))
                 # print "\ta: (accept) revise ipynb file to match actual output
-                print "\tq: (quit) quit testing to fix ipynb or source"
+                print("\tq: (quit) quit testing to fix ipynb or source")
 
                 resp = raw_input("choice : ")
                 if 'i' in resp or 'I' in resp:
@@ -83,12 +83,12 @@ def test_all_in_dir(dir, interactive=True, skip=[]):
                 # TODO: add retry option (so that you don't need to start all tests over after fixing a tutorial)
                 # TODO: make 'a' work correctly
                 # elif resp in ['a', 'A']:
-                #     print "UPDATING {}".format(fname)
+                #     print("UPDATING {}".format(fname))
                 #     f = open(fname, 'w')
                 #     f.write(json.dumps(actual_nb, indent=0))
                 #     f.close()
                 else:
-                    print "aborting tests - fix ipynb file or source and try again"
+                    print("aborting tests - fix ipynb file or source and try again")
                     exit()
 
 
@@ -96,9 +96,9 @@ if __name__ == '__main__':
     import sys
 
     if not len(sys.argv) == 1:
-        print "usage: ipynbtest.py notebook.ipynb"
+        print("usage: ipynbtest.py notebook.ipynb")
 
     passed, failures = test_notebook(sys.argv[0])
-    print "PASSED: ", passed
+    print("PASSED: ", passed)
     for f in failures:
-        print f
+        print(f)

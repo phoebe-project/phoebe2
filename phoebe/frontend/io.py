@@ -702,10 +702,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
                 try:
                     eb.set_value_all(check_visible=False, **d)
-    #                del d['value']
-     #               print "Value", eb.get_value(**d)
-                except ValueError, msg:
-                    raise ValueError(msg.message + " ({})".format(d))
+                except ValueError as exc:
+                    raise ValueError(exc.args[0] + " ({})".format(d))
 
 #Now rvs
     for x in range(1,rvno+1):

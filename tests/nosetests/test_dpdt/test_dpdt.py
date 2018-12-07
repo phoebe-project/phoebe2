@@ -35,9 +35,9 @@ def test_binary(plot=False):
         b.set_value('dpdt', dpdt)
 
 
-        if plot: print "running phoebe2 model..."
+        print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', model='phoebe2model')
-        if plot: print "running phoebe1 model..."
+        print("running phoebe1 model...")
         b.run_compute(compute='phoebe1', model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
@@ -46,7 +46,7 @@ def test_binary(plot=False):
         if plot:
             b.plot(dataset='lc01', show=True)
 
-            print "max (rel):", abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()
+            print("max (rel):", abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 
         assert(np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3, atol=0.))
 

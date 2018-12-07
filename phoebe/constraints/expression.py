@@ -22,7 +22,7 @@ class ConstraintVar(object):
         try:
             #~ print "ConstraintVar.__init__ twig: {}".format(twig)
             unique_label = _twig_to_uniqueid(bundle, twig=twig)
-        except ValueError, msg:
+        except ValueError:
             # didn't return a unique match - either several or None
 
             # TODO: check length of results?
@@ -31,7 +31,7 @@ class ConstraintVar(object):
 
 
             # TODO: check to see if valid constant, method, etc
-            raise NotImplementedError(msg)
+            raise ValueError("provided twig does not result in unique match")
 
         else:
             # we have a unique match to a parameter

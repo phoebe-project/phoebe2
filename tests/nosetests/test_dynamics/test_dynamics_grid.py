@@ -65,7 +65,7 @@ def _phoebe_v_photodynam(b, period, plot=False):
                 plt.plot(b.get_value('times', model='phoeberesults', component=comp, unit=u.d), b.get_value(k, model='phoeberesults', component=comp), 'r-')
                 plt.plot(b.get_value('times', model='phoeberesults', component=comp, unit=u.d), b.get_value(k, model='pdresults', component=comp), 'b-')
                 diff = abs(b.get_value(k, model='phoeberesults', component=comp) - b.get_value(k, model='pdresults', component=comp))
-                print "*** max abs: {}".format(max(diff))
+                print("*** max abs: {}".format(max(diff)))
                 plt.xlabel('t')
                 plt.ylabel(k)
                 plt.show()

@@ -1,2 +1,2 @@
 
-import roche as roche
+from . import roche as roche

@@ -1,8 +1,9 @@
+import sys
 import subprocess
 import os
 
 try:
-    from subprocess import DEVNULL 
+    from subprocess import DEVNULL
 except ImportError:
     import os
     DEVNULL = open(os.devnull, 'wb')
@@ -27,6 +28,7 @@ from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import _pbtable
+from phoebe.utils import _bytes
 import libphoebe
 
 from phoebe import u
@@ -1122,7 +1124,10 @@ class Bundle(ParameterSet):
 
             repr_ = func(*func_args)
 
-            kind = func.func_name
+            if sys.version_info[0] == 3:
+              kind = func.__name__
+            else:
+              kind = func.__name__
 
         hier_param = HierarchyParameter(value=repr_,
                                         description='Hierarchy representation')
@@ -1666,7 +1671,7 @@ class Bundle(ParameterSet):
                 return check
 
             if ld_func != 'interp':
-                check = libphoebe.ld_check(ld_func, ld_coeffs)
+                check = libphoebe.ld_check(_bytes(ld_func), ld_coeffs)
                 if not check:
                     return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
 
@@ -1780,9 +1785,9 @@ class Bundle(ParameterSet):
             _ = kwargs.pop('feature')
 
         kwargs.setdefault('feature',
-                          self._default_label(func.func_name,
+                          self._default_label(func.__name__,
                                               **{'context': 'feature',
-                                                 'kind': func.func_name}))
+                                                 'kind': func.__name__}))
 
         self._check_label(kwargs['feature'])
 
@@ -1797,20 +1802,20 @@ class Bundle(ParameterSet):
             raise ValueError('component not recognized')
 
         component_kind = self.filter(component=component, context='component').kind
-        if not _feature._component_allowed_for_feature(func.func_name, component_kind):
-            raise ValueError("{} does not support component with kind {}".format(func.func_name, component_kind))
+        if not _feature._component_allowed_for_feature(func.__name__, component_kind):
+            raise ValueError("{} does not support component with kind {}".format(func.__name__, component_kind))
 
         params, constraints = func(**kwargs)
 
         metawargs = {'context': 'feature',
                      'component': component,
                      'feature': kwargs['feature'],
-                     'kind': func.func_name}
+                     'kind': func.__name__}
 
         self._attach_params(params, **metawargs)
 
         redo_kwargs = deepcopy(kwargs)
-        redo_kwargs['func'] = func.func_name
+        redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_feature',
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_feature',
@@ -1994,28 +1999,35 @@ class Bundle(ParameterSet):
 
         func = _get_add_func(component, kind)
 
+        if sys.version_info[0] == 3:
+          fname = func.__name__
+        else:
+          fname = func.__name__
+
+
         if kwargs.get('component', False) is None:
             # then we want to apply the default below, so let's pop for now
             _ = kwargs.pop('component')
 
         kwargs.setdefault('component',
-                          self._default_label(func.func_name,
+                          self._default_label(fname,
                                               **{'context': 'component',
-                                                 'kind': func.func_name}))
+                                                 'kind': fname}))
 
         if kwargs.pop('check_label', True):
             self._check_label(kwargs['component'])
 
         params, constraints = func(**kwargs)
 
+
         metawargs = {'context': 'component',
                      'component': kwargs['component'],
-                     'kind': func.func_name}
+                     'kind': fname}
 
         self._attach_params(params, **metawargs)
 
         redo_kwargs = deepcopy(kwargs)
-        redo_kwargs['func'] = func.func_name
+        redo_kwargs['func'] = fname
         self._add_history(redo_func='add_component',
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_component',
@@ -2437,14 +2449,14 @@ class Bundle(ParameterSet):
                              else kind)
 
         kwargs.setdefault('dataset',
-                          self._default_label(func.func_name,
+                          self._default_label(func.__name__,
                                               **{'context': 'dataset',
-                                                 'kind': func.func_name}))
+                                                 'kind': func.__name__}))
 
         if kwargs.pop('check_label', True):
             self._check_label(kwargs['dataset'])
 
-        kind = func.func_name
+        kind = func.__name__
 
         # Let's remember if the user passed components or if they were automatically assigned
         user_provided_components = component or kwargs.get('components', False)
@@ -2601,7 +2613,7 @@ class Bundle(ParameterSet):
 
 
         redo_kwargs = deepcopy({k:v if not isinstance(v, nparray.ndarray) else v.to_json() for k,v in kwargs.items()})
-        redo_kwargs['func'] = func.func_name
+        redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_dataset',
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_dataset',
@@ -2924,13 +2936,13 @@ class Bundle(ParameterSet):
             raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))
 
         metawargs = {'context': 'constraint',
-                     'kind': func.func_name}
+                     'kind': func.__name__}
 
         params = ParameterSet([constraint_param])
         constraint_param._update_bookkeeping()
         self._attach_params(params, **metawargs)
 
-        redo_kwargs['func'] = func.func_name
+        redo_kwargs['func'] = func.__name__
 
         self._add_history(redo_func='add_constraint',
                           redo_kwargs=redo_kwargs,
@@ -3228,9 +3240,9 @@ class Bundle(ParameterSet):
         func = _get_add_func(_compute, kind)
 
         kwargs.setdefault('compute',
-                          self._default_label(func.func_name,
+                          self._default_label(func.__name__,
                                               **{'context': 'compute',
-                                                 'kind': func.func_name}))
+                                                 'kind': func.__name__}))
 
         self._check_label(kwargs['compute'])
 
@@ -3240,14 +3252,14 @@ class Bundle(ParameterSet):
         # allowing to also pass to different datasets
 
         metawargs = {'context': 'compute',
-                     'kind': func.func_name,
+                     'kind': func.__name__,
                      'compute': kwargs['compute']}
 
         logger.info("adding {} '{}' compute to bundle".format(metawargs['kind'], metawargs['compute']))
         self._attach_params(params, **metawargs)
 
         redo_kwargs = deepcopy(kwargs)
-        redo_kwargs['func'] = func.func_name
+        redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_compute',
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_compute',
@@ -3716,7 +3728,7 @@ class Bundle(ParameterSet):
         self._attach_params(params, **metawargs)
 
         redo_kwargs = deepcopy(kwargs)
-        redo_kwargs['func'] = func.func_name
+        redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_prior',
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_prior',

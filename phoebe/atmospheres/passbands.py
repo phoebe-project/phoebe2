@@ -17,8 +17,17 @@ import os
 import sys
 import glob
 import shutil
-import urllib, urllib2
 import json
+
+try:
+    # For Python 3.0 and later
+    from urllib.request import urlopen, urlretrieve
+    from urllib.error import URLError, HTTPError
+
+except ImportError:
+    # Fall back to Python 2's urllib, urllib2
+    from urllib import urlretrieve
+    from urllib2 import urlopen, URLError, HTTPError
 
 from phoebe.utils import parse_json
 
@@ -266,7 +275,12 @@ class Passband:
         """
         logger.debug("loading passband from {}".format(archive))
         f = open(archive, 'rb')
-        struct = marshal.load(f)
+        try:
+            struct = marshal.load(f)
+        except Exception as e:
+            print("failed to load passband from {}".format(archive))
+            f.close()
+            raise e
         f.close()
 
         self = cls(from_file=True)
@@ -312,7 +326,11 @@ class Passband:
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-            self.wd_data = libphoebe.wd_readdata(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
+
+            planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
+            atm = (atmdir+'/atmcof.dat').encode('utf8')
+
+            self.wd_data = libphoebe.wd_readdata(planck, atm)
             self.extern_wd_idx = struct['extern_wd_idx']
 
         if 'ck2004' in self.content:
@@ -763,9 +781,9 @@ class Passband:
 
                     if plot_diagnostics:
                         if Tindex == 10 and lindex == 9 and mindex == 5:
-                            print self._ck2004_intensity_axes[0][Tindex], self._ck2004_intensity_axes[1][lindex], self._ck2004_intensity_axes[2][mindex]
-                            print mus, IsE
-                            print cElin, cElog, cEsqrt
+                            print(self._ck2004_intensity_axes[0][Tindex], self._ck2004_intensity_axes[1][lindex], self._ck2004_intensity_axes[2][mindex])
+                            print(mus, IsE)
+                            print(cElin, cElog, cEsqrt)
                             import matplotlib.pyplot as plt
                             plt.plot(mus[fEmask], IsE[fEmask], 'bo')
                             plt.plot(mus[fEmask], self._ldlaw_lin(mus[fEmask], *cElin), 'r-')
@@ -1442,7 +1460,7 @@ def download_passband(passband, local=True):
     url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
-        urllib.urlretrieve(url, passband_fname_local)
+        urlretrieve(url, passband_fname_local)
     except IOError:
         raise IOError("unable to download {} passband - check connection".format(passband))
     else:
@@ -1544,15 +1562,15 @@ def list_online_passbands(refresh=False, full_dict=False):
 
         url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands_full'
         try:
-            resp = urllib2.urlopen(url)
-        except urllib2.URLError:
+            resp = urlopen(url)
+        except URLError:
             url_repo = 'http://github.com/phoebe-project/phoebe2-tables'
             logger.warning("connection to online passbands at {} could not be established".format(url_repo))
             if _online_passbands is not None:
                 if full_dict:
                     return _online_passbands
                 else:
-                    return _online_passbands.keys()
+                    return list(_online_passbands.keys())
             else:
                 if full_dict:
                     return {}
@@ -1564,7 +1582,7 @@ def list_online_passbands(refresh=False, full_dict=False):
     if full_dict:
         return _online_passbands
     else:
-        return _online_passbands.keys()
+        return list(_online_passbands.keys())
 
 def get_passband(passband):
     """
@@ -1701,14 +1719,14 @@ if __name__ == '__main__':
     #~ plt.show()
     #~ exit()
 
-    print 'blackbody:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='blackbody', ld_func='linear', ld_coeffs=[0.0,])
-    print 'planckint:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_planckint')
-    print 'atmx:     ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_atmx')
-    print 'kurucz:   ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='ck2004')
+    print('blackbody:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='blackbody', ld_func='linear', ld_coeffs=[0.0,]))
+    print('planckint:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_planckint'))
+    print('atmx:     ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_atmx'))
+    print('kurucz:   ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='ck2004'))
 
     # Testing arrays:
 
-    print 'blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody', ld_func='linear', ld_coeffs=[0.0,])
-    print 'planckint:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='extern_planckint')
-    print 'atmx:     ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='extern_atmx')
-    print 'kurucz:   ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='kurucz')
+    print('blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody', ld_func='linear', ld_coeffs=[0.0,]))
+    print('planckint:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='extern_planckint'))
+    print('atmx:     ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='extern_atmx'))
+    print('kurucz:   ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='kurucz'))

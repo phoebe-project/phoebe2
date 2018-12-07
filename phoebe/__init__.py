@@ -275,16 +275,14 @@ conf = Settings()
 from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
 from .atmospheres.passbands import install_passband, uninstall_all_passbands, download_passband, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-# from .parameters import *
 from .parameters import hierarchy, component, compute, constraint, dataset
 from .frontend.bundle import Bundle
-# from .backend import *
 from .backend import backends as _backends
-import utils as _utils
+from . import utils as _utils
 
-import dynamics as dynamics
-import distortions as distortions
-import algorithms as algorithms
+from . import dynamics as dynamics
+from . import distortions as distortions
+from . import algorithms as algorithms
 import libphoebe
 
 # Shortcut to building logger

@@ -69,7 +69,7 @@ def wd_horizon(meshes, xs, ys, zs, expose_horizon=False):
         # let's get the x-coordinate wrt THIS star so we can do left vs right
         x_rel = mesh_front.centers[:,0] - xs[i_front]
 
-        print lat, x_rel[lat_strip_inds].min(), x_rel[lat_strip_inds].max()
+        print(lat, x_rel[lat_strip_inds].min(), x_rel[lat_strip_inds].max())
 
         # and since we want the first element in the front, let's just get rid of the back
         front_inds = mesh_front.mus >= 0.0
@@ -166,7 +166,7 @@ def native(meshes, xs, ys, zs, expose_horizon=False, horizon_method='boolean'):
                                      normals_flat,
                                      tvisibilities=True,
                                      taweights=True,
-                                     method=horizon_method,
+                                     method=bytes(horizon_method),
                                      horizon=expose_horizon)
 
     visibilities = meshes.unpack_column_flat(info['tvisibilities'], computed_type='triangles')

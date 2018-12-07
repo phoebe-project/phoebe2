@@ -3,7 +3,7 @@ import sys
 try:
   import numpy
 except ImportError:
-  print "Numpy is needed for running and building of PHOEBE"
+  print("Numpy is needed for running and building of PHOEBE")
   sys.exit(1)
 
 from numpy.distutils.core import setup, Extension
@@ -185,7 +185,7 @@ def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
 # Hooking the building of extentions
 #
 class build_check(build_ext):
-  
+
   def build_extensions(self):
 
     plat = platform.system()
@@ -195,7 +195,7 @@ class build_check(build_ext):
     print("OS version: %s" %(plat_ver))
 
     if plat == 'Windows':
-    
+
       print("On windows we don't perform checks")
       build_ext.build_extensions(self)
 

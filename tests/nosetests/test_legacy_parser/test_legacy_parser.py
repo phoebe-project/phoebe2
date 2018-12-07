@@ -85,7 +85,7 @@ def legacy_test(filename='default.phoebe', verbose=False):
     prim = 0
     sec = 0
     for x in range(rvno):
-        if verbose: print 'rvs'
+        if verbose: print('rvs')
         err_val = phb1.getpar('phoebe_rv_indweight', x)
         comp = phb1.getpar('phoebe_rv_dep', x).split(' ')[0].lower()
         id = phb1.getpar('phoebe_rv_id', x)
@@ -95,7 +95,7 @@ def legacy_test(filename='default.phoebe', verbose=False):
         elif comp == 'secondary':
             comp_name = 'pig'
         a = int(x/2.)
-        if verbose: print a
+        if verbose: print(a)
         datafile = phb1.getpar('phoebe_rv_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
         time = b.filter(dataset=id, qualifier='times', component=comp_name).get_value()
