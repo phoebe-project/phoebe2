@@ -48,7 +48,7 @@ else:
 
 if sys.version_info[0] == 3:
   unicode = str
-  
+
 
 # things needed to be imported at top-level for constraints to solve:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
@@ -548,7 +548,7 @@ class ParameterSet(object):
         * (list) a list of all qualifiers for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='qualifier').keys()
+        return list(self.to_dict(field='qualifier').keys())
 
     @property
     def time(self):
@@ -582,7 +582,7 @@ class ParameterSet(object):
         * (list) a list of all times for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='time').keys()
+        return list(self.to_dict(field='time').keys())
 
     @property
     def history(self):
@@ -617,7 +617,7 @@ class ParameterSet(object):
         * (list) a list of all histories for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='history').keys()
+        return list(self.to_dict(field='history').keys())
 
     @property
     def historys(self):
@@ -671,7 +671,7 @@ class ParameterSet(object):
         * (list) a list of all features for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='feature').keys()
+        return list(self.to_dict(field='feature').keys())
 
 
     # @property
@@ -782,7 +782,7 @@ class ParameterSet(object):
         * (list) a list of all constraints for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='constraint').keys()
+        return list(self.to_dict(field='constraint').keys())
 
     @property
     def compute(self):
@@ -816,7 +816,7 @@ class ParameterSet(object):
         * (list) a list of all computes for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='compute').keys()
+        return list(self.to_dict(field='compute').keys())
 
     @property
     def model(self):
@@ -850,7 +850,7 @@ class ParameterSet(object):
         * (list) a list of all models for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='model').keys()
+        return list(self.to_dict(field='model').keys())
 
     @property
     def fitting(self):
@@ -884,7 +884,7 @@ class ParameterSet(object):
         * (list) a list of all fittings for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='fitting').keys()
+        return list(self.to_dict(field='fitting').keys())
 
     @property
     def feedback(self):
@@ -918,7 +918,7 @@ class ParameterSet(object):
         * (list) a list of all feedbacks for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='feedback').keys()
+        return list(self.to_dict(field='feedback').keys())
 
     @property
     def plugin(self):
@@ -952,7 +952,7 @@ class ParameterSet(object):
         * (list) a list of all plugins for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='plugin').keys()
+        return list(self.to_dict(field='plugin').keys())
 
     @property
     def kind(self):
@@ -986,7 +986,7 @@ class ParameterSet(object):
         * (list) a list of all kinds for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='kind').keys()
+        return list(self.to_dict(field='kind').keys())
 
     @property
     def context(self):
@@ -1020,7 +1020,7 @@ class ParameterSet(object):
         * (list) a list of all contexts for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='context').keys()
+        return list(self.to_dict(field='context').keys())
 
     def _set_meta(self):
         """
@@ -1513,7 +1513,7 @@ class ParameterSet(object):
         ---------
         * (list) list of strings
         """
-        return self.__dict__().keys()
+        return list(self.__dict__().keys())
 
     def values(self):
         """
@@ -2727,7 +2727,7 @@ class ParameterSet(object):
         kwargs.setdefault('context', ['dataset', 'model'])
 
         filter_kwargs = {}
-        for k in self.meta.keys()+['twig']:
+        for k in list(self.meta.keys())+['twig']:
             if k in ['time']:
                 # time handled later
                 continue
@@ -3720,11 +3720,11 @@ class Parameter(object):
         for attr in _meta_fields_twig + self._dict_fields_other:
             attr = '_{}'.format(attr)
             val = getattr(self, attr)
-            
+
             if isinstance(val, unicode) and attr not in ['_copy_for']:
               setattr(self, attr, str(val))
-  
-              
+
+
             #if attr == '_copy_for' and isinstance(self._copy_for, str):
             #    print "***", self._copy_for
             #    self._copy_for = json.loads(self._copy_for)
@@ -4727,6 +4727,18 @@ class Parameter(object):
         """
         return self.__rmath__(other, '/', '__rdiv__')
 
+    def __truediv__(self, other):
+        """
+        """
+        # NOTE: only used in python3
+        return self.__math__(other, '/', '__truediv__')
+
+    def __rtruediv__(self, other):
+        """
+        """
+        # note only used in python3
+        return self.__rmath__(other, '/', '__rtruediv__')
+
     def __pow__(self, other):
         """
         """
@@ -5667,10 +5679,10 @@ class FloatParameter(Parameter):
         self.set_limits(limits)
 
         unit = kwargs.get('unit', None)  # will default to default_unit in set_value
-        
+
         if isinstance(unit, unicode):
           unit = u.Unit(str(unit))
-          
+
 
         timederiv = kwargs.get('timederiv', None)
         self.set_timederiv(timederiv)
@@ -5737,7 +5749,7 @@ class FloatParameter(Parameter):
         # TODO: add to docstring documentation about what happens (does the value convert, etc)
         # TODO: check to make sure isinstance(unit, astropy.u.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, unicode):
+        if isinstance(unit, unicode) or isinstance(unit, str):
           unit = u.Unit(str(unit))
         elif unit is None:
             unit = u.dimensionless_unscaled
@@ -7691,7 +7703,7 @@ class ConstraintParameter(Parameter):
         * Error: if the new and current units are incompatible.
         """
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, unicode):
+        if isinstance(unit, unicode) or isinstance(unit, str):
             unit = u.Unit(str(unit))
 
         if not _is_unit(unit):
@@ -8120,9 +8132,9 @@ class HistoryParameter(Parameter):
 
         # if a function itself is passed instead of the string name, convert
         if hasattr(redo_func, '__call__'):
-            redo_func = redo_func.func_name
+            redo_func = redo_func.__name__
         if hasattr(undo_func, '__call__'):
-            undo_func = undo_func.func_name
+            undo_func = undo_func.__name__
 
         # check to make sure the funcs are valid methods of the bundle
         if not hasattr(self._bundle, redo_func):

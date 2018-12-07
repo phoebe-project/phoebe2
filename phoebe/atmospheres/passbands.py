@@ -23,12 +23,12 @@ try:
     # For Python 3.0 and later
     from urllib.request import urlopen, urlretrieve
     from urllib.error import URLError, HTTPError
-    
+
 except ImportError:
     # Fall back to Python 2's urllib, urllib2
     from urllib import urlretrieve
     from urllib2 import urlopen, URLError, HTTPError
-    
+
 from phoebe.utils import parse_json
 
 import logging
@@ -275,7 +275,11 @@ class Passband:
         """
         logger.debug("loading passband from {}".format(archive))
         f = open(archive, 'rb')
-        struct = marshal.load(f)
+        try:
+            struct = marshal.load(f)
+        except Exception as e:
+            print("failed to load passband from {}".format(archive))
+            raise e
         f.close()
 
         self = cls(from_file=True)
@@ -321,10 +325,10 @@ class Passband:
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-            
+
             planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
             atm = (atmdir+'/atmcof.dat').encode('utf8')
-            
+
             self.wd_data = libphoebe.wd_readdata(planck, atm)
             self.extern_wd_idx = struct['extern_wd_idx']
 
@@ -1565,7 +1569,7 @@ def list_online_passbands(refresh=False, full_dict=False):
                 if full_dict:
                     return _online_passbands
                 else:
-                    return _online_passbands.keys()
+                    return list(_online_passbands.keys())
             else:
                 if full_dict:
                     return {}
@@ -1577,7 +1581,7 @@ def list_online_passbands(refresh=False, full_dict=False):
     if full_dict:
         return _online_passbands
     else:
-        return _online_passbands.keys()
+        return list(_online_passbands.keys())
 
 def get_passband(passband):
     """
