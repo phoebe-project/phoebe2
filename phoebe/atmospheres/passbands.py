@@ -279,6 +279,7 @@ class Passband:
             struct = marshal.load(f)
         except Exception as e:
             print("failed to load passband from {}".format(archive))
+            f.close()
             raise e
         f.close()
 
