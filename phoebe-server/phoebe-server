@@ -190,7 +190,7 @@ def serve_figure_mpl(bundleid, figure):
 ############################# WEBSOCKET ROUTES ################################
 def _value(param, exclude_model=False):
 
-    if isinstance(param._value, phoebe.nphelpers.Arange) or isinstance(param._value, phoebe.nphelpers.Linspace):
+    if isinstance(param._value, phoebe.dependencies.nparray.nparray.ArrayWrapper):
         value = param._value.to_json()
     elif isinstance(param, phoebe.parameters.UnitParameter):
         value = str(param.get_value().to_string())
@@ -224,10 +224,8 @@ def _value_string(param):
     elif param_type in ['FloatParameter']:
         return str(param.get_value())
     elif param_type in ['FloatArrayParameter']:
-        if isinstance(param._value, phoebe.nphelpers.Arange):
-            return "arange({}, {}, {})".format(param.start, param.stop, param.step)
-        elif isinstance(param._value, phoebe.nphelpers.Linspace):
-            return "linspace({}, {}, {})".format(param.start, param.stop, param.num)
+        if isinstance(param._value, phoebe.dependencies.nparray.nparray.ArrayWrapper):
+            return param._value.__str__()
         else:
             arr = param.get_value()
             # unit = str(param.get_default_unit())
@@ -294,9 +292,9 @@ def _params(b, ps=None, includeids=[], check_visible=True, check_default=False,
         ps = b.filter(check_visible=check_visible, check_default=check_default,
                       check_advanced=check_advanced, check_single=check_single, **filter_)
     elif isinstance(ps, list):
-        ps = phoebe.ParameterSet(ps)
+        ps = phoebe.parameters.ParameterSet(ps)
     elif isinstance(ps, phoebe.Parameter):
-        ps = phoebe.ParameterSet([ps])
+        ps = phoebe.parameters.ParameterSet([ps])
     elif not isinstance(ps, phoebe.ParameterSet):
         raise TypeError("ps must be of type ParameterSet not {}".format(type(ps)))
 
@@ -308,7 +306,7 @@ def _params(b, ps=None, includeids=[], check_visible=True, check_default=False,
                        check_advanced=False, check_single=False,
                        uniqueid=includeids)
 
-    ps += phoebe.ParameterSet(b.run_delayed_constraints())
+    ps += phoebe.parameters.ParameterSet(b.run_delayed_constraints())
     nparams = len(ps)
     params = ps.to_dict(field=sort_by, include_none=True)  # key, PS
 
@@ -513,6 +511,7 @@ def tags(msg):
 
     if app._verbose:
         print("tags microseconds:", (datetime.now()-start).microseconds)
+        print("tags: ", tags)
 
     emit('tags', {'success': True, 'data': {'bundleid': bundleid, 'tags': tags, 'tagsnselected': tags_nselected, 'nparams': nparams, 'nhidden': nhidden}}, broadcast=False)
 
@@ -705,7 +704,7 @@ def bundle_method(msg):
         if params is None:
             if app._verbose:
                 print("return was None, mocking empty PS")
-            params = phoebe.ParameterSet([])
+            params = phoebe.parameters.ParameterSet([])
 
     except Exception as err:
         if app._verbose:
