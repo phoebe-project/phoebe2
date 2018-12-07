@@ -8,26 +8,53 @@ from phoebe.atmospheres import passbands # needed to get choices for 'atm' param
 from phoebe import u
 from phoebe import conf
 
-passbands.init_passbands()  # TODO: move to module import
+### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
+
+passbands._init_passbands()  # TODO: move to module import
 _atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms']]))
 
 def phoebe(**kwargs):
     """
-    Compute options for using the PHOEBE 2.0 backend.
+    Create a <phoebe.parameters.ParameterSet> for compute options for the
+    PHOEBE 2 backend.  This is the default built-in backend so no other
+    pre-requisites are required.
+
+    When using this backend, please see the
+    [list of publications](https://phoebe-project/org/publications) and cite
+    the appropriate references.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_compute`
+    <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    Please see :func:`phoebe.backend.backends.phoebe` for a list of sources to
-    cite when using this backend.
+    Arguments
+    ----------
+    * `enabled` (bool, optional): whether to create synthetics in compute/fitting
+        run.
+    * `dynamics_method` (string, optional): which method to use to determine the
+        dynamics of components.
+    * `ltte` (bool, optional): whether to correct for light travel time effects.
+    * `atm` (string, optional): atmosphere tables
+    * `irrad_method` (string, optional): which method to use to handle irradiation.
+    * `boosting_method` (string, optional): type of boosting method.
+    * `mesh_method` (string, optional): which method to use for discretizing
+        the surface.
+    * `eclipse_method` (string, optional): which method to use for determinging
+        eclipses.
+    * `rv_method` (string, optional): which method to use for compute radial
+        velocities.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
     """
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
     # DYNAMICS
     params += [ChoiceParameter(qualifier='dynamics_method', value=kwargs.get('dynamics_method', 'keplerian'), choices=['keplerian', 'nbody', 'rebound', 'bs'] if conf.devel else ['keplerian'], description='Which method to use to determine the dynamics of components')]
@@ -56,12 +83,11 @@ def phoebe(**kwargs):
     # copy_for = {'kind': ['star', 'disk', 'custombody'], 'component': '*'}
     # means that this should exist for each component (since that has a wildcard) which
     # has a kind in [star, disk, custombody]
-    params += [BoolParameter(qualifier='protomesh', value=kwargs.get('protomesh', False), advanced=True, description='Store a protomesh (reference frame of stars) at t0 (periastron)')]
-    params += [BoolParameter(qualifier='pbmesh', value=kwargs.get('pbmesh', False), description='Store all meshes created for other datasets (warning: can get memory intensive)')]
-    params += [BoolParameter(qualifier='horizon', value=kwargs.get('horizon', False), advanced=True, description='Store horizon for all meshes (except protomeshes)')]
-    params += [ChoiceParameter(copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='mesh_method', value=kwargs.get('mesh_method', 'marching'), choices=['marching', 'wd'] if conf.devel else ['marching'], descriptio='Which method to use for discretizing the surface')]
-    params += [IntParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='ntriangles', value=kwargs.get('ntriangles', 1000), limits=(100,None), default_unit=u.dimensionless_unscaled, description='Requested number of triangles (won\'t be exact).')]
-    params += [ChoiceParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=['roche', 'rotstar', 'nbody', 'sphere'] if conf.devel else ['roche', 'rotstar'], description='Method to use for distorting stars')]
+    # params += [BoolParameter(qualifier='horizon', value=kwargs.get('horizon', False), description='Store horizon for all meshes (except protomeshes)')]
+    params += [ChoiceParameter(copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='mesh_method', value=kwargs.get('mesh_method', 'marching'), choices=['marching', 'wd'] if conf.devel else ['marching'], description='Which method to use for discretizing the surface')]
+    params += [IntParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='ntriangles', value=kwargs.get('ntriangles', 1500), limits=(100,None), default_unit=u.dimensionless_unscaled, description='Requested number of triangles (won\'t be exact).')]
+    params += [ChoiceParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=['roche', 'rotstar', 'sphere'], description='Method to use for distorting stars')]
+
 
     if conf.devel:
         # TODO: can we have this computed from ntriangles? - and then do the same for the legacy compute options?
@@ -88,7 +114,7 @@ def phoebe(**kwargs):
 
 
     # PER-COMPONENT
-    params += [ChoiceParameter(copy_for = {'kind': ['star','envelope'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), choices=_atm_choices, description='Atmosphere table')]
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), choices=_atm_choices, description='Atmosphere table')]
 
     # PER-DATASET
 
@@ -99,7 +125,7 @@ def phoebe(**kwargs):
     params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], advanced=True, description='Method to use for computing LC fluxes')]
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
-    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
+    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin effects)')]
     params += [BoolParameter(visible_if='rv_method:flux-weighted', qualifier='rv_grav', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_grav', False), description='Whether gravitational redshift effects are enabled for RVs')]
 
     if conf.devel:
@@ -114,27 +140,50 @@ def phoebe(**kwargs):
 
 def legacy(**kwargs):
     """
-    Compute options for using the PHOEBE 1.0 legacy backend (must be
-    installed).
+    Create a <phoebe.parameters.ParameterSet> for compute options for the
+    PHOEBE Legacy backend.
+
+    Use PHOEBE 1.0 (legacy) which is based on the Wilson-Devinney code
+    to compute radial velocities and light curves for binary systems
+    (>2 stars not supported).  The code is available here:
+
+    http://phoebe-project.org/1.0
+
+    PHOEBE 1.0 and the 'phoebeBackend' python interface must be installed
+    and available on the system in order to use this plugin.
+
+    When using this backend, please cite
+    * Prsa & Zwitter (2005), ApJ, 628, 426
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_compute`
+    <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    Please see :func:`phoebe.backend.backends.legacy` for a list of sources to
-    cite when using this backend.
+    Arguments
+    ----------
+    * `enabled` (bool, optional): whether to create synthetics in compute/fitting
+        run.
+    * `atm` (string, optional): atmosphere tables.
+    * `gridsize` (float, optional): number of meshpoints for WD.
+    * `irrad_method` (string, optional): which method to use to handle irradiation.
+    * `ie` (bool, optional): whether data should be de-reddened.
+    * `rv_method` (string, optional): which method to use for compute radial
+        velocities.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
     """
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'mesh'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
     # TODO: the kwargs need to match the qualifier names!
     # TODO: include MORE meshing options
-    params += [BoolParameter(qualifier='protomesh', value=kwargs.get('protomesh', False), description='Store a protomesh (reference frame of stars) at t0 (periastron)')]
-    params += [BoolParameter(qualifier='pbmesh', value=kwargs.get('pbmesh', False), advanced=True, description='Store all meshes created for other datasets (warning: can get memory intensive)')]
     params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'extern_atmx'), choices=['extern_atmx', 'extern_planckint'], description='Atmosphere table')]
 #    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'kurucz'), choices=['kurucz', 'blackbody'], description='Atmosphere table')]
 #    params += [ChoiceParameter(qualifier='morphology', value=kwargs.get('morphology','Detached binary'), choices=['Unconstrained binary system', 'Detached binary', 'Overcontact binary of the W UMa type', 'Overcontact binary not in thermal contact'], description='System type constraint')]
@@ -143,8 +192,8 @@ def legacy(**kwargs):
 #    params += [BoolParameter(qualifier='heating', value=kwargs.get('heating', True), description='Allow irradiators to heat other components')]
     params += [IntParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 60), limits=(10,None), description='Number of meshpoints for WD')]
 
-#    params += [BoolParameter(qualifier='mult_refl', value=kwargs.get('mult_refl', False), description='Allow irradiated bodies to reflect light (for heating only) multiple times')]
-    params += [IntParameter(qualifier='refl_num', value=kwargs.get('refl_num', 1), limits=(0,None), description='Number of reflections')]
+    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'wilson'), choices=['none', 'wilson'], description='Which method to use to handle irradiation/reflection effects')]
+    params += [IntParameter(visible_if='irrad_method:wilson', qualifier='refl_num', value=kwargs.get('refl_num', 1), limits=(0,None), description='Number of reflections')]
 
 #    params += [BoolParameter(qualifier='msc1', value=kwargs.get('msc1', False), description='Mainsequence Constraint for star 1')]
 #    params += [BoolParameter(qualifier='msc2', value=kwargs.get('msc2', False), description='Mainsequence Constraint for star 2')]
@@ -155,9 +204,8 @@ def legacy(**kwargs):
 
     # TODO: can we change this to rv_method = ['flux_weighted', 'dynamical'] to be consistent with phoebe2?
     # TODO: can proximity_rv (rv_method) be copied for each dataset (see how this is done for phoebe2)?  This would probably mean that the wrapper would need to loop and make separate calls since PHOEBE1 can't handle different settings per-RV dataset
-    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
-#    params += [BoolParameter(copy_for={'kind': ['star'], 'component': '*'}, qualifier='proximity_rv', component='_default', value=kwargs.get('proximity_rv', True), description='Rossiter effect')]
-
+    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default',
+                               value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
 
     return ParameterSet(params)
 
@@ -181,7 +229,7 @@ def photodynam(**kwargs):
 
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
     params += [FloatParameter(qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='blah')]
     params += [FloatParameter(qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='blah')]
@@ -211,7 +259,7 @@ def jktebop(**kwargs):
 
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
     params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integ Ring Size')]
 

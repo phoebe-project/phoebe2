@@ -66,9 +66,11 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
     h_points = 100,
     turn_index = 0;
   
-  npy_bool *inside = new npy_bool [t_points];
-  
   convex_hull(points, n_points, myhull, h_points, turn_index);    
+ 
+  npy_intp  dims_inside[1] = {t_points};
+  PyObject *inside_arr = PyArray_SimpleNew(1, dims_inside, NPY_BOOL);
+  npy_bool *inside = (npy_bool*)PyArray_DATA((PyArrayObject *)inside_arr);
   
   // The following are different versions of the algorithm
   //inside_hull(testpoints, t_points, myhull, h_points, turn_index, inside);
@@ -76,20 +78,10 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
   inside_hull_sorted(testpoints, t_points, myhull, h_points, turn_index, inside);
   
   // Store results 
-  npy_intp 
-    dims_hull[2] = {h_points, 2},
-    dims_inside[1] = {t_points};
-  
-  double *_hull = new double [2*h_points];
-  memcpy(_hull, &(myhull[0]), 2*h_points*sizeof(double));
-      
-  PyObject 
-    *hull_arr = PyArray_SimpleNewFromData(2, dims_hull, NPY_DOUBLE, _hull),
-    *inside_arr = PyArray_SimpleNewFromData(1, dims_inside, NPY_BOOL, inside);
- 
-  PyArray_ENABLEFLAGS((PyArrayObject *)hull_arr, NPY_ARRAY_OWNDATA);
-  PyArray_ENABLEFLAGS((PyArrayObject *)inside_arr, NPY_ARRAY_OWNDATA);
-  
+  npy_intp dims_hull[2] = {h_points, 2};
+  PyObject *hull_arr = PyArray_SimpleNew(2, dims_hull, NPY_DOUBLE);
+  memcpy(PyArray_DATA((PyArrayObject *)hull_arr), &(myhull[0]), 2*h_points*sizeof(double));
+
   PyObject *res = PyTuple_New(2);
   PyTuple_SetItem(res, 0, hull_arr);
   PyTuple_SetItem(res, 1, inside_arr);

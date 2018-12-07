@@ -19,26 +19,26 @@ def _keplerian_v_nbody(b, plot=False):
     b.set_value('dynamics_method', 'bs')
 
     times = np.linspace(0, 100, 10000)
-    nb_ts, nb_xs, nb_ys, nb_zs, nb_vxs, nb_vys, nb_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=False)
-    k_ts, k_xs, k_ys, k_zs, k_vxs, k_vys, k_vzs = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times)
+    nb_ts, nb_us, nb_vs, nb_ws, nb_vus, nb_vvs, nb_vws = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=False)
+    k_ts, k_us, k_vs, k_ws, k_vus, k_vvs, k_vws = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times)
 
     assert(np.allclose(nb_ts, k_ts, 1e-8))
     for ci in range(len(b.hierarchy.get_stars())):
         # TODO: make atol lower (currently 1e-5 solRad which is awfully big, but 1e-6 currently fails!)
         if plot:
-            print "max atol xs:", nb_xs[ci] - k_xs[ci]
-            print "max atol ys:", nb_ys[ci] - k_ys[ci]
-            print "max atol zs:", nb_zs[ci] - k_zs[ci]
-            print "max atol vxs:", nb_vxs[ci] - k_vxs[ci]
-            print "max atol vys:", nb_vys[ci] - k_vys[ci]
-            print "max atol vzs:", nb_vzs[ci] - k_vzs[ci]
+            print("max atol xs:", nb_xs[ci] - k_xs[ci])
+            print("max atol ys:", nb_ys[ci] - k_ys[ci])
+            print("max atol zs:", nb_zs[ci] - k_zs[ci])
+            print("max atol vxs:", nb_vxs[ci] - k_vxs[ci])
+            print("max atol vys:", nb_vys[ci] - k_vys[ci])
+            print("max atol vzs:", nb_vzs[ci] - k_vzs[ci])
 
-        assert(np.allclose(nb_xs[ci], k_xs[ci], atol=1e-5))
-        assert(np.allclose(nb_ys[ci], k_ys[ci], atol=1e-5))
-        assert(np.allclose(nb_zs[ci], k_zs[ci], atol=1e-5))
-        assert(np.allclose(nb_vxs[ci], k_vxs[ci], atol=1e-4))
-        assert(np.allclose(nb_vys[ci], k_vys[ci], atol=1e-4))
-        assert(np.allclose(nb_vzs[ci], k_vzs[ci], atol=1e-4))
+        assert(np.allclose(nb_us[ci], k_us[ci], atol=1e-5))
+        assert(np.allclose(nb_vs[ci], k_vs[ci], atol=1e-5))
+        assert(np.allclose(nb_ws[ci], k_ws[ci], atol=1e-5))
+        assert(np.allclose(nb_vus[ci], k_vus[ci], atol=1e-4))
+        assert(np.allclose(nb_vvs[ci], k_vvs[ci], atol=1e-4))
+        assert(np.allclose(nb_vws[ci], k_vws[ci], atol=1e-4))
 
 def _phoebe_v_photodynam(b, plot=False):
     """
@@ -66,23 +66,23 @@ def _phoebe_v_photodynam(b, plot=False):
 
 
         if plot:
-            for k in ['xs', 'ys', 'zs', 'vxs', 'vys', 'vzs']:
+            for k in ['us', 'vs', 'ws', 'vus', 'vvs', 'vws']:
                 plt.cla()
                 plt.plot(b.get_value('times', model='phoeberesults', component=comp, unit=u.d), b.get_value(k, model='phoeberesults', component=comp), 'r-')
                 plt.plot(b.get_value('times', model='phoeberesults', component=comp, unit=u.d), b.get_value(k, model='pdresults', component=comp), 'b-')
                 diff = abs(b.get_value(k, model='phoeberesults', component=comp) - b.get_value(k, model='pdresults', component=comp))
-                print "*** max abs ({}): {}".format(k, max(diff))
+                print("*** max abs ({}): {}".format(k, max(diff)))
                 plt.xlabel('t')
                 plt.ylabel(k)
                 plt.show()
 
         assert(np.allclose(b.get_value('times', dataset='orb01', model='phoeberesults', component=comp, unit=u.d), b.get_value('times', dataset='orb01', model='pdresults', component=comp, unit=u.d), atol=1e-6))
-        assert(np.allclose(b.get_value('xs', dataset='orb01', model='phoeberesults', component=comp, unit=u.AU), b.get_value('xs', dataset='orb01', model='pdresults', component=comp, unit=u.AU), atol=1e-6))
-        assert(np.allclose(b.get_value('ys', dataset='orb01', model='phoeberesults', component=comp, unit=u.AU), b.get_value('ys', dataset='orb01', model='pdresults', component=comp, unit=u.AU), atol=1e-6))
-        assert(np.allclose(b.get_value('zs', dataset='orb01', model='phoeberesults', component=comp, unit=u.AU), b.get_value('zs', dataset='orb01', model='pdresults', component=comp, unit=u.AU), atol=1e-6))
-        assert(np.allclose(b.get_value('vxs', dataset='orb01', model='phoeberesults', component=comp, unit=u.solRad/u.d), b.get_value('vxs', dataset='orb01', model='pdresults', component=comp, unit=u.solRad/u.d), atol=1e-6))
-        assert(np.allclose(b.get_value('vys', dataset='orb01', model='phoeberesults', component=comp, unit=u.solRad/u.d), b.get_value('vys', dataset='orb01', model='pdresults', component=comp, unit=u.solRad/u.d), atol=1e-6))
-        assert(np.allclose(b.get_value('vzs', dataset='orb01', model='phoeberesults', component=comp, unit=u.solRad/u.d), b.get_value('vzs', dataset='orb01', model='pdresults', component=comp, unit=u.solRad/u.d), atol=1e-6))
+        assert(np.allclose(b.get_value('us', dataset='orb01', model='phoeberesults', component=comp, unit=u.AU), b.get_value('us', dataset='orb01', model='pdresults', component=comp, unit=u.AU), atol=1e-6))
+        assert(np.allclose(b.get_value('vs', dataset='orb01', model='phoeberesults', component=comp, unit=u.AU), b.get_value('vs', dataset='orb01', model='pdresults', component=comp, unit=u.AU), atol=1e-6))
+        assert(np.allclose(b.get_value('ws', dataset='orb01', model='phoeberesults', component=comp, unit=u.AU), b.get_value('ws', dataset='orb01', model='pdresults', component=comp, unit=u.AU), atol=1e-6))
+        assert(np.allclose(b.get_value('vus', dataset='orb01', model='phoeberesults', component=comp, unit=u.solRad/u.d), b.get_value('vus', dataset='orb01', model='pdresults', component=comp, unit=u.solRad/u.d), atol=1e-6))
+        assert(np.allclose(b.get_value('vvs', dataset='orb01', model='phoeberesults', component=comp, unit=u.solRad/u.d), b.get_value('vvs', dataset='orb01', model='pdresults', component=comp, unit=u.solRad/u.d), atol=1e-6))
+        assert(np.allclose(b.get_value('vws', dataset='orb01', model='phoeberesults', component=comp, unit=u.solRad/u.d), b.get_value('vws', dataset='orb01', model='pdresults', component=comp, unit=u.solRad/u.d), atol=1e-6))
 
 def _frontend_v_backend(b, plot=False):
     """
@@ -99,7 +99,7 @@ def _frontend_v_backend(b, plot=False):
 
     # NBODY
     # do backend Nbody
-    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, compute='nbody')
+    b_ts, b_us, b_vs, b_ws, b_vus, b_vvs, b_vws = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, compute='nbody')
 
     # do frontend Nbody
     b.run_compute('nbody', model='nbodyresults')
@@ -108,12 +108,12 @@ def _frontend_v_backend(b, plot=False):
     for ci,comp in enumerate(b.hierarchy.get_stars()):
         # TODO: can we lower tolerance?
         assert(np.allclose(b.get_value('times', dataset='orb01', model='nbodyresults', component=comp, unit=u.d), b_ts, atol=1e-6))
-        assert(np.allclose(b.get_value('xs', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad), b_xs[ci], atol=1e-5))
-        assert(np.allclose(b.get_value('ys', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad), b_ys[ci], atol=1e-5))
-        assert(np.allclose(b.get_value('zs', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad), b_zs[ci], atol=1e-5))
-        assert(np.allclose(b.get_value('vxs', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vxs[ci], atol=1e-4))
-        assert(np.allclose(b.get_value('vys', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vys[ci], atol=1e-4))
-        assert(np.allclose(b.get_value('vzs', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vzs[ci], atol=1e-4))
+        assert(np.allclose(b.get_value('us', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad), b_us[ci], atol=1e-5))
+        assert(np.allclose(b.get_value('vs', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad), b_vs[ci], atol=1e-5))
+        assert(np.allclose(b.get_value('ws', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad), b_ws[ci], atol=1e-5))
+        assert(np.allclose(b.get_value('vus', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vus[ci], atol=1e-4))
+        assert(np.allclose(b.get_value('vvs', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vvs[ci], atol=1e-4))
+        assert(np.allclose(b.get_value('vws', dataset='orb01', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vws[ci], atol=1e-4))
 
 
 
@@ -131,12 +131,12 @@ def _frontend_v_backend(b, plot=False):
     for ci,comp in enumerate(b.hierarchy.get_stars()):
         # TODO: can we lower tolerance?
         assert(np.allclose(b.get_value('times', dataset='orb01', model='keplerianresults', component=comp, unit=u.d), b_ts, atol=1e-6))
-        assert(np.allclose(b.get_value('xs', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad), b_xs[ci], atol=1e-5))
-        assert(np.allclose(b.get_value('ys', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad), b_ys[ci], atol=1e-5))
-        assert(np.allclose(b.get_value('zs', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad), b_zs[ci], atol=1e-5))
-        assert(np.allclose(b.get_value('vxs', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vxs[ci], atol=1e-4))
-        assert(np.allclose(b.get_value('vys', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vys[ci], atol=1e-4))
-        assert(np.allclose(b.get_value('vzs', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vzs[ci], atol=1e-4))
+        assert(np.allclose(b.get_value('us', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad), b_us[ci], atol=1e-5))
+        assert(np.allclose(b.get_value('vs', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad), b_vs[ci], atol=1e-5))
+        assert(np.allclose(b.get_value('ws', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad), b_ws[ci], atol=1e-5))
+        assert(np.allclose(b.get_value('vus', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vus[ci], atol=1e-4))
+        assert(np.allclose(b.get_value('vvs', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vvs[ci], atol=1e-4))
+        assert(np.allclose(b.get_value('vws', dataset='orb01', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vws[ci], atol=1e-4))
 
 
 

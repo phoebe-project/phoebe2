@@ -5,25 +5,37 @@ framework of the PHOEBE 2.0 frontend.
 """
 
 from phoebe.constraints.expression import ConstraintVar
+# from phoebe.constraints import builtin
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
-from phoebe.frontend import tabcomplete, plotting, mpl_animate, nphelpers
+from phoebe.frontend import tabcomplete
+from phoebe.dependencies import nparray
+from phoebe.utils import parse_json
 
+import sys
 import random
 import string
 import functools
 import itertools
 import re
-import json
 import sys
 import os
 import difflib
 import time
+import types
 from collections import OrderedDict
 from fnmatch import fnmatch
 from copy import deepcopy
 import readline
 import numpy as np
+
+import json
+try:
+    import ujson
+except ImportError:
+    _can_ujson = False
+else:
+    _can_ujson = True
 
 import webbrowser
 from datetime import datetime
@@ -33,6 +45,10 @@ except ImportError:
     _can_requests = False
 else:
     _can_requests = True
+
+if sys.version_info[0] == 3:
+  unicode = str
+
 
 # things needed to be imported at top-level for constraints to solve:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
@@ -56,34 +72,18 @@ _is_server = False
 
 if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
     try:
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
-        from matplotlib.collections import LineCollection, PolyCollection
-        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        from phoebe.dependencies import autofig
     except (ImportError, TypeError):
-        _use_mpl = False
+        _use_autofig = False
     else:
-        _use_mpl = True
+        _use_autofig = True
 else:
-    _use_mpl = False
+    _use_autofig = False
 
 import logging
 logger = logging.getLogger("PARAMETERS")
 logger.addHandler(logging.NullHandler())
 
-_constraint_builtin_funcs = ['rocherpole2potential',
-                             'rochepotential2rpole',
-                             'rotstarrpole2potential',
-                             'rotstarpotential2rpole',
-                             'esinw2per0',
-                             'ecosw2per0',
-                             't0_supconj_to_perpass',
-                             't0_perpass_to_supconj',
-                             't0_supconj_to_ref',
-                             't0_ref_to_supconj',
-                             'sin', 'cos', 'tan',
-                             'arcsin', 'arccos', 'arctan',
-                             'sqrt']
 
 _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
                                         'ConstraintParameter', 'JobParameter']
@@ -94,7 +94,7 @@ _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
-_meta_fields_filter = _meta_fields_all + ['constraint_func']
+_meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['history', 'system', 'component', 'feature',
              'dataset', 'constraint', 'compute', 'model', 'fitting',
@@ -110,29 +110,74 @@ _forbidden_labels = deepcopy(_meta_fields_all)
 _forbidden_labels += _contexts
 _forbidden_labels += ['lc', 'lc_dep', 'lc_syn',
                       'rv', 'rv_dep', 'rv_syn',
+                      'lp', 'lp_dep', 'lp_syn',
                       'sp', 'sp_dep', 'sp_syn',
                       'orb', 'orb_dep', 'orb_syn',
                       'mesh', 'mesh_dep', 'mesh_syn']
 
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
-                      'unit', 'timederiv', 'visible_if', 'description']
+                      'unit', 'timederiv', 'visible_if', 'description', 'result']
 # _forbidden_labels += ['parent', 'child']
 _forbidden_labels += ['protomesh', 'pbmesh']
 _forbidden_labels += ['component']
 _forbidden_labels += ['bol']
+
+
+
+# we also want to forbid any possible qualifiers
+# from system:
+_forbidden_labels = ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma']
+
+# from setting:
+_forbidden_labels = ['phoebe_version', 'log_history', 'dict_filter', 'dict_set_all']
+
+# from dataset:
+_forbidden_labels = ['times', 'fluxes', 'sigmas', 'ld_func', 'ld_coeffs',
+                     'passband', 'intens_weighting', 'pblum_ref', 'pblum', 'l3',
+                     'exptime', 'rvs', 'wavelengths',
+                     'flux_densities', 'profile_func', 'profile_rest', 'profile_sv',
+                     'Ns', 'time_ecls', 'time_ephems', 'etvs',
+                     'us', 'vs', 'ws', 'vus', 'vvs', 'vws',
+                     'include_times', 'columns',
+                     'uvw_elements', 'xyz_elements',
+                     'pot', 'rpole', 'volume',
+                     'xs', 'ys', 'zs', 'vxs', 'vys', 'vzs',
+                     'nxs', 'nys', 'nzs', 'nus', 'nvs', 'nws',
+                     'areas', 'rs', 'rprojs', 'loggs', 'teffs', 'mus',
+                     'visible_centroids', 'visibilities',
+                     'intensities', 'normal_intensities', 'abs_normal_intensities',
+                     'boost_factors', 'ldint', 'ptfarea', 'pblum', 'abs_pblum']
+
+# from compute:
+_forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
+                      'gr', 'stepsize', 'integrator',
+                      'irrad_method', 'boosting_method', 'mesh_method', 'distortion_method',
+                      'ntriangles',
+                      'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
+                      'atm', 'lc_method', 'rv_method', 'fti_method', 'etv_method',
+                      'gridsize', 'refl_num', 'ie',
+                      'stepsize', 'orbiterror', 'ringsize'
+                      ]
+
+# from feature:
+_forbidden_labels += ['colat', 'long', 'radius', 'relteff',
+                      'radamp', 'freq', 'l', 'm', 'teffext'
+                      ]
 
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
 
 _singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
-                       'rv': 'rvs', 'time_ecl': 'time_ecls',
-                       'time_ephem': 'time_ephems', 'N': 'Ns', 'x': 'xs',
-                       'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
+                       'rv': 'rvs', 'flux_density': 'flux_densities',
+                       'time_ecl': 'time_ecls', 'time_ephem': 'time_ephems', 'N': 'Ns',
+                       'x': 'xs', 'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
                        'vz': 'vzs', 'nx': 'nxs', 'ny': 'nys', 'nz': 'nzs',
+                       'u': 'us', 'v': 'vs', 'w': 'ws', 'vu': 'vus', 'vv': 'vvs',
+                       'vw': 'vws', 'nu': 'nus', 'nv': 'nvs', 'nw': 'nws',
                        'cosbeta': 'cosbetas', 'logg': 'loggs', 'teff': 'teffs',
-                       'r': 'rs', 'r_proj': 'r_projs', 'mu': 'mus',
+                       'r': 'rs', 'rproj': 'rprojs', 'mu': 'mus',
                        'visibility': 'visibilities'}
 _plural_to_singular = {v:k for k,v in _singular_to_plural.items()}
 
@@ -197,17 +242,25 @@ def _uniqueid(n=30):
                    string.ascii_uppercase + string.ascii_lowercase)
                    for _ in range(n))
 
+def _is_unit(unit):
+    return isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit) or isinstance(unit, u.IrreducibleUnit)
+
 
 def parameter_from_json(dictionary, bundle=None):
     """Load a single parameter from a JSON dictionary.
 
-    :parameter dict dictionary: the dictionary containing the parameter
-        information
-    :parameter bundle: (optional)
-    :return: instantiated :class:`Parameter` object
+    Arguments
+    ----------
+    * `parameter` (dict): the dictionarry containing the parameter information
+    * `bundle` (<phoebe.frontend.bundle.Bundle>, optional): the bundle object
+        that the parameter will be attached to
+
+    Returns
+    --------
+    * an instantiated <phoebe.parameters.Parameter> object>
     """
     if isinstance(dictionary, str):
-        dictionary = json.loads(dictionary)
+        dictionary = json.loads(dictionary, object_pairs_hook=parse_json)
 
     classname = dictionary.pop('Class')
 
@@ -221,33 +274,12 @@ def parameter_from_json(dictionary, bundle=None):
 
     return cls._from_json(bundle, **dictionary)
 
+def _instance_in(obj, *types):
+    for typ in types:
+        if isinstance(obj, typ):
+            return True
 
-def _parse_plotting_args(arg):
-    """Parse *args into a list of dictionaries.
-
-    parses *args for ps.plotting and ps.animate into a list of dictionaries
-    """
-    if isinstance(arg, str):
-        # then we have a single twig
-        return ({'twig': arg},)
-    elif isinstance(arg, dict):
-        # then this arg is a single entry - just append
-        return (arg,)
-    elif hasattr(arg, '__iter__'):
-        # then maybe we were passed a list or tuple?
-        # let's loop through and recursively add items
-        if len(arg):
-            plot_argss = []
-            for argi in arg:
-                plot_argss += _parse_plotting_args(argi)
-            return plot_argss
-        else:
-            # then perhaps we had no args, in which case we still
-            # need to return at least a single dictionary
-            return ({},)
-    else:
-        # maybe a bool?
-        return ({},)
+    return False
 
 
 class ParameterSet(object):
@@ -262,9 +294,14 @@ class ParameterSet(object):
     def __init__(self, params=[]):
         """Initialize a new ParameterSet.
 
-        :parameter list params: list of :class:`Parameter` to
-            create the ParameterSet (optional)
-        :return: instantiated :class:`ParameterSet`
+        Arguments
+        ---------
+        * `params` (list, optional, default=[]): list of
+            <phoebe.parameters.Parameter> objects.
+
+        Returns:
+        --------
+        * an instantiated <phoebe.parameters.ParameterSet>.
         """
         self._bundle = None
         self._filter = {}
@@ -336,17 +373,24 @@ class ParameterSet(object):
     def meta(self):
         """Dictionary of all meta-tags.
 
+        This is a shortcut to the <phoebe.parameters.ParameterSet.get_meta> method.
+        See <phoebe.parameters.ParameterSet.get_meta> for the ability to ignore
+        certain keys.
+
         See all the meta-tag properties that are shared by ALL Parameters. If a
         given value is 'None', that means that it is not shared among ALL
         Parameters.  To see the different values among the Parameters, you can
         access that attribute.
 
-        For example: if ps.meta['context'] == None, you can see all values
-        through ps.contexts
+        For example: if `ps.meta['context'] == None`, you can see all values
+        through `ps.contexts`.
 
-        See :meth:`get_meta` for the ability to ignore certain keys
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
 
-        :return: an ordered dictionary of all tag properties
+        Returns
+        ----------
+        * (dict) an ordered dictionary of all tag properties
         """
         return self.get_meta()
 
@@ -358,16 +402,35 @@ class ParameterSet(object):
         among ALL Parameters.  To see the different values among the
         Parameters, you can access that attribute.
 
-        :parameter list ignore: list of keys to exclude from the returned
-            dictionary
-        :return: an ordered dictionary of tag properties
+        For example: if `ps.meta['context'] == None`, you can see all values
+        through `ps.contexts`.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.meta>
+        * <phoebe.parameters.ParameterSet.tags>
+        * <phoebe.parameters.Parameter.get_meta>
+
+        Arguments
+        -----------
+        * `ignore` (list, optional, default=['uniqueid']): list of keys to exclude
+            from the returned dictionary.
+
+        Returns
+        ----------
+        * (dict) an ordered dictionary of all tag properties
         """
         return OrderedDict([(k, getattr(self, k))
                             for k in _meta_fields_twig
                             if k not in ignore])
 
     def set_meta(self, **kwargs):
-        """Set the value of tags for all Parameters in this ParameterSet."""
+        """Set the value of tags for all Parameters in this ParameterSet.
+
+        Arguments
+        -----------
+        * `**kwargs`: tag value pairs to be set for all <phoebe.parameters.Parameter>
+            objects in this <phoebe.parameters.ParameterSet>
+        """
         for param in self.to_list():
             for k, v in kwargs.items():
                 # Here we'll set the attributes (_context, _qualifier, etc)
@@ -377,11 +440,35 @@ class ParameterSet(object):
     @property
     def tags(self):
         """Returns a dictionary that lists all available tags that can be used
-        for further filtering
+        for further filtering.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.meta>
+        * <phoebe.parameters.Parameter.meta>
+
+        Will include entries from the plural attributes:
+        * <phoebe.parameters.ParameterSet.contexts>
+        * <phoebe.parameters.ParameterSet.kinds>
+        * <phoebe.parameters.ParameterSet.models>
+        * <phoebe.parameters.ParameterSet.computes>
+        * <phoebe.parameters.ParameterSet.constraints>
+        * <phoebe.parameters.ParameterSet.datasets>
+        * <phoebe.parameters.ParameterSet.components>
+        * <phoebe.parameters.ParameterSet.features>
+        * <phoebe.parameters.ParameterSet.times>
+        * <phoebe.parameters.ParameterSet.qualifiers>
+
+        Returns
+        ----------
+        * (dict) a dictionary of all plural tag attributes.
         """
         ret = {}
         for typ in _meta_fields_twig:
-            ret[typ] = getattr(self, '{}s'.format(typ))
+            if typ in ['uniqueid', 'plugin', 'feedback', 'fitting', 'history', 'twig', 'uniquetwig']:
+                continue
+
+            k = '{}s'.format(typ)
+            ret[k] = getattr(self, k)
 
         return ret
 
@@ -389,8 +476,16 @@ class ParameterSet(object):
     def uniqueids(self):
         """Return a list of all uniqueids in this ParameterSet.
 
-        :return: a list of uniqueids for each :class:`Parameter` in this
-            :class:`ParameterSet`
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        There is no singular version for uniqueid for a ParameterSet.  At the
+        <phoebe.parameters.Parameter>, see <phoebe.parameters.Parameter.uniqueid>.
+
+        Returns
+        --------
+        * (list) a list of all uniqueids for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
         return [p.uniqueid for p in self.to_list()]
 
@@ -398,19 +493,50 @@ class ParameterSet(object):
     def twigs(self):
         """Return a list of all twigs in this ParameterSet.
 
-        :return: a list of twigs of each :class:`Parameter` in this
-            :class:`ParameterSet`
+        See also:
+        * <phoebe.parameters.ParameterSet.common_twig>
+        * <phoebe.parameters.ParameterSet.tags>
+
+        There is no singular version for twig for a ParameterSet.  At the
+        <phoebe.parameters.Parameter>, see <phoebe.parameters.Parameter.twig>.
+
+        Returns
+        --------
+        * (list) a list of all twigs for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
         return [p.twig for p in self.to_list()]
+
+    @property
+    def common_twig(self):
+        """
+        The twig that is common between all items in this ParameterSet.
+        This twig gives a single string which can point back to this ParameterSet
+        (but may include other entries as well).
+
+        See also:
+        * <phoebe.parameters.ParameterSet.twigs>
+
+        Returns
+        -----------
+        * (string) common twig of Parameters in the ParameterSet
+        """
+        return "@".join([getattr(self, k) for k in _meta_fields_twig if self.meta.get(k) is not None])
 
     @property
     def qualifier(self):
         """Return the value for qualifier if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the qualifiers of all parameters, see :func:`qualifiers`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.qualifiers>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.qualifier>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._qualifier
 
@@ -418,18 +544,33 @@ class ParameterSet(object):
     def qualifiers(self):
         """Return a list of all qualifiers in this ParameterSet.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.qualifier>
+
+        Returns
+        --------
+        * (list) a list of all qualifiers for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='qualifier').keys()
+        return list(self.to_dict(field='qualifier').keys())
 
     @property
     def time(self):
         """Return the value for time if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the times of all parameters, see :func:`times`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.times>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.time>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return str(self._time) if self._time is not None else None
 
@@ -437,18 +578,34 @@ class ParameterSet(object):
     def times(self):
         """Return a list of all the times of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.time>
+
+        Returns
+        --------
+        * (list) a list of all times for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='time').keys()
+        return list(self.to_dict(field='time').keys())
 
     @property
     def history(self):
         """Return the value for history if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the histories of all parameters, see :func:`histories`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.histories>
+        or <phoebe.parameters.ParameterSet.historys>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.history>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._history
 
@@ -456,55 +613,96 @@ class ParameterSet(object):
     def histories(self):
         """Return a list of all the histories of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.history>
+
+        Returns
+        --------
+        * (list) a list of all histories for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='history').keys()
+        return list(self.to_dict(field='history').keys())
 
     @property
     def historys(self):
         """Return a list of all the histories of the Parameters.
 
-        Shortcut to :meth:`histories`
+        Shortcut to <phoebe.parameters.ParameterSet.histories>
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.history>
+
+        Returns
+        --------
+        * (list) a list of all twigs for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
         return self.histories
 
-    @property
-    def features(self):
-        """Return a list of all this features of teh Parameters.
-
-        :return: list of string
-        """
-        return self.to_dict(field='feature').keys()
 
     @property
     def feature(self):
         """Return the value for feature if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all this properties of all parameters, see :func:`properties`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.features>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.feature>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._feature
 
     @property
-    def properties(self):
-        """Return a list of all the properties of the Parameters.
+    def features(self):
+        """Return a list of all this features of teh Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.feature>
+
+        Returns
+        --------
+        * (list) a list of all features for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='feature').keys()
+        return list(self.to_dict(field='feature').keys())
+
+
+    # @property
+    # def properties(self):
+    #     """Return a list of all the properties of the Parameters.
+    #
+    #     :return: list of strings
+    #     """
+    #     return self.to_dict(field='feature').keys()
 
     @property
     def component(self):
         """Return the value for component if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the components of all parameters, see :func:`components`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.components>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.component>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._component
 
@@ -512,18 +710,33 @@ class ParameterSet(object):
     def components(self):
         """Return a list of all the components of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.component>
+
+        Returns
+        --------
+        * (list) a list of all components for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='component').keys()
+        return [c for c in self.to_dict(field='component').keys() if c!='_default']
 
     @property
     def dataset(self):
         """Return the value for dataset if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the datasets of all parameters, see :func:`datasets`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.datasets>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.dataset>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._dataset
 
@@ -531,18 +744,33 @@ class ParameterSet(object):
     def datasets(self):
         """Return a list of all the datasets of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.dataset>
+
+        Returns
+        --------
+        * (list) a list of all datasets for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='dataset').keys()
+        return [d for d in self.to_dict(field='dataset').keys() if d!='_default']
 
     @property
     def constraint(self):
         """Return the value for constraint if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the constraints of all parameters, see :func:`constraints`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.constraints>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.constraint>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._constraint
 
@@ -550,18 +778,33 @@ class ParameterSet(object):
     def constraints(self):
         """Return a list of all the constraints of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.constraint>
+
+        Returns
+        --------
+        * (list) a list of all constraints for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='constraint').keys()
+        return list(self.to_dict(field='constraint').keys())
 
     @property
     def compute(self):
         """Return the value for compute if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the computes of all parameters, see :func:`computes`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.computes>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.compute>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._compute
 
@@ -569,18 +812,33 @@ class ParameterSet(object):
     def computes(self):
         """Return a list of all the computes of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.compute>
+
+        Returns
+        --------
+        * (list) a list of all computes for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='compute').keys()
+        return list(self.to_dict(field='compute').keys())
 
     @property
     def model(self):
         """Return the value for model if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the models of all parameters, see :func:`models`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.models>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.model>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._model
 
@@ -588,18 +846,33 @@ class ParameterSet(object):
     def models(self):
         """Return a list of all the models of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.model>
+
+        Returns
+        --------
+        * (list) a list of all models for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='model').keys()
+        return list(self.to_dict(field='model').keys())
 
     @property
     def fitting(self):
         """Return the value for fitting if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the fittings of all parameters, see :func:`fittings`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.fittings>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.fitting>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._fitting
 
@@ -607,18 +880,33 @@ class ParameterSet(object):
     def fittings(self):
         """Return a list of all the fittings of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.fitting>
+
+        Returns
+        --------
+        * (list) a list of all fittings for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='fitting').keys()
+        return list(self.to_dict(field='fitting').keys())
 
     @property
     def feedback(self):
         """Return the value for feedback if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the feedbacks of all parameters, see :func:`feedbacks`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.feedbacks>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.feedback>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._feedback
 
@@ -626,18 +914,33 @@ class ParameterSet(object):
     def feedbacks(self):
         """Return a list of all the feedbacks of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.feedback>
+
+        Returns
+        --------
+        * (list) a list of all feedbacks for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='feedback').keys()
+        return list(self.to_dict(field='feedback').keys())
 
     @property
     def plugin(self):
         """Return the value for plugin if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the plugins of all parameters, see :func:`plugins`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.plugins>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.plugin>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._plugin
 
@@ -645,9 +948,18 @@ class ParameterSet(object):
     def plugins(self):
         """Return a list of all the plugins of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.plugin>
+
+        Returns
+        --------
+        * (list) a list of all plugins for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='plugin').keys()
+        return list(self.to_dict(field='plugin').keys())
 
 
     @property
@@ -674,9 +986,15 @@ class ParameterSet(object):
         """Return the value for kind if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the kinds of all parameters, see :func:`kinds`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.kinds>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.kind>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._kind
 
@@ -684,18 +1002,33 @@ class ParameterSet(object):
     def kinds(self):
         """Return a list of all the kinds of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.kind>
+
+        Returns
+        --------
+        * (list) a list of all kinds for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='kind').keys()
+        return list(self.to_dict(field='kind').keys())
 
     @property
     def context(self):
         """Return the value for context if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the contexts of all parameters, see :func:`contexts`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.contexts>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.context>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._context
 
@@ -703,9 +1036,18 @@ class ParameterSet(object):
     def contexts(self):
         """Return a list of all the contexts of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.context>
+
+        Returns
+        --------
+        * (list) a list of all contexts for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='context').keys()
+        return list(self.to_dict(field='context').keys())
 
     def _set_meta(self):
         """
@@ -723,7 +1065,7 @@ class ParameterSet(object):
             else:
                 setattr(self, '_'+field, None)
 
-    def _uniquetwig(self, twig, force_levels=[]):
+    def _uniquetwig(self, twig, force_levels=['qualifier']):
         """
         get the least unique twig for the parameter given by twig that
         will return this single result for THIS PS
@@ -852,7 +1194,9 @@ class ParameterSet(object):
                 # existing parameters so that we know whether they already exist or
                 # still need to be created
 
+                # logger.debug("_check_copy_for {}: attrs={}".format(param.twig, attrs))
                 for attrvalues in itertools.product(*(getattr(ps, '{}s'.format(attr)) for attr in attrs)):
+                    # logger.debug("_check_copy_for {}: attrvalues={}".format(param.twig, attrvalues))
                     # for each attrs[i] (ie component), attrvalues[i] (star01)
                     # we need to look for this parameter, and if it does not exist
                     # then create it by copying param
@@ -864,9 +1208,10 @@ class ParameterSet(object):
                         #    continue
                         metawargs[attr] = attrvalue
 
+                    # logger.debug("_check_copy_for {}: metawargs={}".format(param.twig, metawargs))
                     if not len(self._bundle.filter(check_visible=False, **metawargs)):
                         # then we need to make a new copy
-                        logger.info("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
+                        logger.debug("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
 
                         newparam = param.copy()
 
@@ -900,7 +1245,7 @@ class ParameterSet(object):
                                 if attr in constraint_kwargs.keys():
                                     constraint_kwargs[attr] = attrvalue
 
-                            logger.info("copying constraint '{}' parameter for {}".format(param_constraint.constraint_func, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
+                            logger.debug("copying constraint '{}' parameter for {}".format(param_constraint.constraint_func, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
                             self.add_constraint(func=param_constraint.constraint_func, **constraint_kwargs)
 
         return
@@ -965,30 +1310,65 @@ class ParameterSet(object):
         Open a ParameterSet from a JSON-formatted file.
         This is a constructor so should be called as:
 
+        ```py
+        ps = ParameterSet.open('test.json')
+        ```
 
-        >>> b = ParameterSet.open('test.json')
+        See also:
+        * <phoebe.parameters.Parameter.open>
+        * <phoebe.frontend.bundle.Bundle.open>
 
+        Arguments
+        ---------
+        * `filename` (string): relative or full path to the file
 
-        :parameter str filename: relative or full path to the file
-        :return: instantiated :class:`ParameterSet` object
+        Returns
+        ---------
+        * an instantiated <phoebe.parameters.ParameterSet> object
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
-        data = json.load(f)
+        if _can_ujson:
+            data = ujson.load(f)
+        else:
+            data = json.load(f, object_pairs_hook=parse_json)
         f.close()
         return cls(data)
 
-    def save(self, filename, incl_uniqueid=False):
+    def save(self, filename, incl_uniqueid=False, compact=False):
         """
-        Save the ParameterSet to a JSON-formatted ASCII file
+        Save the ParameterSet to a JSON-formatted ASCII file.
 
-        :parameter str filename: relative or fullpath to the file
-        :return: filename
-        :rtype: str
+        See also:
+        * <phoebe.parameters.Parameter.save>
+        * <phoebe.frontend.bundle.Bundle.save>
+
+        Arguments
+        ----------
+        * `filename` (string): relative or full path to the file
+        * `incl_uniqueid` (bool, optional, default=False): whether to include
+            uniqueids in the file (only needed if its necessary to maintain the
+            uniqueids when reloading)
+        * `compact` (bool, optional, default=False): whether to use compact
+            file-formatting (may be quicker to save/load, but not as easily readable)
+
+        Returns
+        --------
+        * (string) filename
         """
-
+        filename = os.path.expanduser(filename)
         f = open(filename, 'w')
-        f.write(json.dumps(self.to_json(incl_uniqueid=incl_uniqueid),
-                           sort_keys=True, indent=0, separators=(',', ': ')))
+        if compact:
+            if _can_ujson:
+                ujson.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                           sort_keys=False, indent=0)
+            else:
+                logger.warning("for faster compact saving, install ujson")
+                json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                          sort_keys=False, indent=0)
+        else:
+            json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                      sort_keys=True, indent=0, separators=(',', ': '))
         f.close()
 
         return filename
@@ -998,7 +1378,7 @@ class ParameterSet(object):
         [NOT IMPLEMENTED]
 
         The bundle must be in client mode in order to open the web-interface.
-        See :meth:`Bundle:as_client` to switch to client mode.
+        See <phoebe.frontend.bundle.Bundle.as_client> to switch to client mode.
 
         :parameter str client: URL of the running client which must be connected
             to the same server as the bundle
@@ -1023,9 +1403,17 @@ class ParameterSet(object):
 
     def to_list(self, **kwargs):
         """
-        Convert the :class:`ParameterSet` to a list of :class:`Parameter`s
+        Convert the <phoebe.parameters.ParameterSet> to a list of
+        <phoebe.parameters.Parameter> objects.
 
-        :return: list of class:`Parameter` objects
+        Arguments
+        ---------
+        * `**kwargs`: filter arguments sent to
+            <phoebe.parameters.ParameterSet.filter>
+
+        Returns
+        --------
+        * (list) list of <phoebe.parameter.Parameter> objects
         """
         if kwargs:
             return self.filter(**kwargs).to_list()
@@ -1033,16 +1421,37 @@ class ParameterSet(object):
 
     def tolist(self, **kwargs):
         """
-        Alias of :meth:`to_list`
+        Alias of <phoebe.parameters.ParameterSet.to_list>
+
+        Arguments
+        ---------
+        * `**kwargs`: filter arguments sent to
+            <phoebe.parameters.ParameterSet.filter>
+
+        Returns
+        --------
+        * (list) list of <phoebe.parameter.Parameter> objects
         """
         return self.to_list(**kwargs)
 
     def to_list_of_dicts(self, **kwargs):
         """
-        Convert the :class:`ParameterSet` to a list of the dictionary representation
-        of each :class:`Parameter`
+        Convert the <phoebe.parameters.ParameterSet> to a list of the dictionary
+        representation of each <phoebe.parameters.Parameter>.
 
-        :return: list of dicts
+        See also:
+        * <phoebe.parameters.Parameter.to_dict>
+
+        Arguments
+        ----------
+        * `**kwargs`: filter arguments sent to
+            <phoebe.parameters.ParameterSet.filter>
+
+        Returns
+        --------
+        * (list of dicts) list of dictionaries, with each entry in the list
+            representing a single <phoebe.parameters.Parameter> object converted
+            to a dictionary via <phoebe.parameters.Parameter.to_dict>.
         """
         if kwargs:
             return self.filter(**kwargs).to_list_of_dicts()
@@ -1054,11 +1463,21 @@ class ParameterSet(object):
 
     def to_flat_dict(self, **kwargs):
         """
-        Convert the :class:`ParameterSet` to a flat dictionary, with keys being
-        uniquetwigs to access the parameter and values being the :class:`Parameter`
-        objects themselves.
+        Convert the <phoebe.parameters.ParameterSet> to a flat dictionary, with
+        keys being uniquetwigs to access the parameter and values being the
+        <phoebe.parameters.Parameter> objects themselves.
 
-        :return: dict of :class:`Parameter`s
+        See also:
+        * <phoebe.parameters.Parameter.uniquetwig>
+
+        Arguments
+        ----------
+        * `**kwargs`: filter arguments sent to
+            <phoebe.parameters.ParameterSet.filter>
+
+        Returns
+        --------
+        * (dict) uniquetwig: Parameter pairs.
         """
         if kwargs:
             return self.filter(**kwargs).to_flat_dict()
@@ -1066,14 +1485,26 @@ class ParameterSet(object):
 
     def to_dict(self, field=None, include_none=False, **kwargs):
         """
-        Convert the ParameterSet to a structured (nested) dictionary
-        to allow traversing the structure from the bottom up
+        Convert the <phoebe.parameters.ParameterSet> to a structured (nested)
+        dictionary to allow traversing the structure from the bottom up.
 
-        :parameter str field: (optional) build the dictionary with keys at
-            a given level/field.  Can be any of the keys in
-            :func:`meta`.  If None, the keys will be the lowest
-            level in which Parameters have different values.
-        :return: dict of :class:`Parameter`s or :class:`ParameterSet`s
+        See also:
+        * <phoebe.parameters.ParameterSet.to_json>
+        * <phoebe.parameters.ParameterSet.keys>
+        * <phoebe.parameters.ParameterSet.values>
+        * <phoebe.parameters.ParameterSet.items>
+
+        Arguments
+        ----------
+        * `field` (string, optional, default=None): build the dictionary with
+            keys at a given level/field.  Can be any of the keys in
+            <phoebe.parameters.ParameterSet.meta>.  If None, the keys will be
+            the lowest level in which Parameters have different values.
+
+        Returns
+        ---------
+        * (dict) dictionary of <phoebe.parameters.ParameterSet> or
+            <phoebe.parameters.Parameter> objects.
         """
         if kwargs:
             return self.filter(**kwargs).to_dict(field=field)
@@ -1120,23 +1551,29 @@ class ParameterSet(object):
 
     def keys(self):
         """
-        Return the keys from :func:`to_dict`
+        Return the keys from <phoebe.parameters.ParameterSet.to_dict>
 
-        :return: list of strings
+        Returns
+        ---------
+        * (list) list of strings
         """
-        return self.__dict__().keys()
+        return list(self.__dict__().keys())
 
     def values(self):
         """
-        Return the values from :func:`to_dict`
+        Return the values from <phoebe.parmaeters.ParameterSet.to_dict>
 
-        :return: list of :class:`Parameter`s or :class:`ParameterSet`s
+        Returns
+        -------
+        * (list) list of <phoebe.paramters.ParameterSet> or
+            <phoebe.parameters.Parameter> objects.
         """
         return self.__dict__().values()
 
     def items(self):
         """
-        Returns the items (key, value pairs) from :func:`to_dict`
+        Returns the items (key, value pairs) from
+        <phoebe.parmaeters.ParameterSet.to_dict>.
 
         :return: string, :class:`Parameter` or :class:`ParameterSet` pairs
         """
@@ -1144,21 +1581,27 @@ class ParameterSet(object):
 
     def set(self, key, value, **kwargs):
         """
-        Set the value of a Parameter in the ParameterSet.
+        Set the value of a <phoebe.parameters.Parameter> in the
+        <phoebe.parameters.ParameterSet>.
 
-        If :func:`get` would retrieve a Parameter, this will set the
-        value of that parameter.
+        If <phoebe.parameters.ParameterSet.get> with the same value for
+        `key`/`twig` and `**kwargs` would retrieve a single Parameter,
+        this will set the value of that parameter.
 
         Or you can provide 'value@...' or 'default_unit@...', etc
         to specify what attribute to set.
 
-        :parameter str key: the twig (called key here to be analagous
-            to a normal dict)
-        :parameter value: value to set
-        :parameter **kwargs: other filter parameters (must result in
-            returning a single :class:`Parameter`)
-        :return: the value of the :class:`Parameter` after setting the
-            new value (including converting units if applicable)
+        Arguments
+        -----------
+        * `key` (string): the twig (called key here to be analagous to a python
+            dictionary) used for filtering.
+        * `value` (valid value for the matching Parameter): value to set
+        * `**kwargs`: other filter parameters
+
+        Returns
+        --------
+        * (float/array/string/etc): the value of the <phoebe.parameters.Parameter>
+            after setting the value (including converting units if applicable).
         """
         twig = key
 
@@ -1201,6 +1644,10 @@ class ParameterSet(object):
                                             default={})
         else:
             kwargs = {}
+
+        if isinstance(key, int):
+            return self.filter(**kwargs).to_list()[key]
+
         return self.filter_or_get(twig=key, **kwargs)
 
     def __setitem__(self, twig, value):
@@ -1231,50 +1678,88 @@ class ParameterSet(object):
 
     def to_json(self, incl_uniqueid=False):
         """
-        Convert the ParameterSet to a json-compatible dictionary
+        Convert the <phoebe.parameters.ParameterSet> to a json-compatible
+        object.
 
-        :return: list of dictionaries
+        The resulting object will be a list, with one entry per-Parameter
+        being the json representation of that Parameter from
+        <phoebe.parameters.Parameter.to_json>.
+
+        See also:
+        * <phoebe.parameters.Parameter.to_json>
+        * <phoebe.parameters.ParameterSet.to_dict>
+        * <phoebe.parameters.ParameterSet.save>
+
+        Arguments
+        --------
+        * `incl_uniqueid` (bool, optional, default=False): whether to include
+            uniqueids in the file (only needed if its necessary to maintain the
+            uniqueids when reloading)
+
+        Returns
+        -----------
+        * (list of dicts)
         """
         lst = []
         for context in _contexts:
             lst += [v.to_json(incl_uniqueid=incl_uniqueid)
                     for v in self.filter(context=context,
-                                         check_visible=False).to_list()]
+                                         check_visible=False,
+                                         check_default=False).to_list()]
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
     def filter(self, twig=None, check_visible=True, check_default=True,
                check_advanced=False, check_single=False, **kwargs):
         """
-        Filter the ParameterSet based on the meta-tags of the Parameters
-        and return another ParameterSet.
+        Filter the <phoebe.parameters.ParameterSet> based on the meta-tags of the
+        children <phoebe.parameters.Parameter> objects and return another
+        <phoebe.parameters.ParameterSet>.
 
         Because another ParameterSet is returned, these filter calls are
         chainable.
 
-        >>> b.filter(context='component').filter(component='starA')
+        ```py
+        b.filter(context='component').filter(component='starA')
+        ```
 
-        :parameter str twig: (optional) the search twig - essentially a single
-                string with any delimiter (ie '@') that will be parsed
-                into any of the meta-tags.  Example: instead of
-                b.filter(context='component', component='starA'), you
-                could do b.filter('starA@component').
-        :parameter bool check_visible: whether to hide invisible
-                parameters.  These are usually parameters that do not
-                play a role unless the value of another parameter meets
-                some condition.
-        :parameter bool check_default: whether to exclude parameters which
-                have a _default tag (these are parameters which solely exist
-                to provide defaults for when new parameters or datasets are
-                added and the parameter needs to be copied appropriately).
-                Defaults to True.
-        :parameter bool check_advanced: whether to exclude parameters which
-                are considered 'advanced parameters'.  Defaults to False.
-        :parameter bool check_single: whether to exclude ChoiceParameters
-                with only a single choiced.  Defaults to False
-        :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
-                'model', etc).  See :func:`meta` for all possible options.
-        :return: the resulting :class:`ParameterSet`
+        * `check_advanced` (bool, optional, default=False): whether to exclude parameters which
+            are considered "advanced".
+        * `check_single` (bool, optional, default=False): whether to exclude ChoiceParameters
+            with only a single choice.
+        See also:
+        * <phoebe.parameters.ParameterSet.filter_or_get>
+        * <phoebe.parameters.ParameterSet.exclude>
+        * <phoebe.parameters.ParameterSet.get>
+        * <phoebe.parameters.ParameterSet.get_parameter>
+        * <phoebe.parameters.ParameterSet.get_or_create>
+
+        Arguments
+        -----------
+        * `twig` (str, optional, default=None): the search twig - essentially a single
+            string with any delimiter (ie '@') that will be parsed
+            into any of the meta-tags.  Example: instead of
+            `b.filter(context='component', component='starA')`, you
+            could do `b.filter('starA@component')`.
+        * `check_visible` (bool, optional, default=True): whether to hide invisible
+            parameters.  These are usually parameters that do not
+            play a role unless the value of another parameter meets
+            some condition.
+        * `check_default` (bool, optional, default=True): whether to exclude parameters which
+            have a _default tag (these are parameters which solely exist
+            to provide defaults for when new parameters or datasets are
+            added and the parameter needs to be copied appropriately).
+        * `check_advanced` (bool, optional, default=False): whether to exclude parameters which
+            are considered "advanced".
+        * `check_single` (bool, optional, default=False): whether to exclude ChoiceParameters
+            with only a single choice.
+        * `**kwargs`:  meta-tags to search (ie. 'context', 'component',
+            'model', etc).  See <phoebe.parameters.ParameterSet.meta>
+            for all possible options.
+
+        Returns
+        ----------
+        * the resulting <phoebe.parameters.ParameterSet>.
         """
         kwargs['check_visible'] = check_visible
         kwargs['check_default'] = check_default
@@ -1286,36 +1771,51 @@ class ParameterSet(object):
     def get(self, twig=None, check_visible=True, check_default=True,
             check_advanced=False, check_single=False, **kwargs):
         """
-        Get a single parameter from this ParameterSet.  This works exactly the
-        same as filter except there must be only a single result, and the Parameter
-        itself is returned instead of a ParameterSet.
+        Get a single <phoebe.parameters.Parameter> from this
+        <phoebe.parameters.ParameterSet>.  This works exactly the
+        same as <phoebe.parameters.ParameterSet.filter> except there must be only
+        a single result, and the Parameter itself is returned instead of a
+        ParameterSet.
 
-        Also see :meth:`get_parameter` (which is simply an alias of this method)
+        This is identical to <phoebe.parameters.ParameterSet.get_parameter>
 
-        :parameter str twig: (optional) the search twig - essentially a single
-                string with any delimiter (ie '@') that will be parsed
-                into any of the meta-tags.  Example: instead of
-                b.filter(context='component', component='starA'), you
-                could do b.filter('starA@component').
-        :parameter bool check_visible: whether to hide invisible
-                parameters.  These are usually parameters that do not
-                play a role unless the value of another parameter meets
-                some condition.
-        :parameter bool check_default: whether to exclude parameters which
-                have a _default tag (these are parameters which solely exist
-                to provide defaults for when new parameters or datasets are
-                added and the parameter needs to be copied appropriately).
-                Defaults to True.
-        :parameter bool check_advanced: whether to exclude parameters which
-                are considered 'advanced parameters'.  Defaults to False.
-        :parameter bool check_single: whether to exclude ChoiceParameters
-                with only a single choiced.  Defaults to False
-        :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
-                'model', etc).  See :func:`meta` for all possible options.
-        :return: the resulting :class:`Parameter`
-        :raises ValueError: if either 0 or more than 1 results are found
-                matching the search.
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.parameters.ParameterSet.filter_or_get>
+        * <phoebe.parameters.ParameterSet.exclude>
+        * <phoebe.parameters.ParameterSet.get_or_create>
 
+        Arguments
+        -----------
+        * `twig` (str, optional, default=None): the search twig - essentially a single
+            string with any delimiter (ie '@') that will be parsed
+            into any of the meta-tags.  Example: instead of
+            `b.filter(context='component', component='starA')`, you
+            could do `b.filter('starA@component')`.
+        * `check_visible` (bool, optional, default=True): whether to hide invisible
+            parameters.  These are usually parameters that do not
+            play a role unless the value of another parameter meets
+            some condition.
+        * `check_default` (bool, optional, default=True): whether to exclude parameters which
+            have a _default tag (these are parameters which solely exist
+            to provide defaults for when new parameters or datasets are
+            added and the parameter needs to be copied appropriately).
+        * `check_advanced` (bool, optional, default=False): whether to exclude parameters which
+            are considered "advanced".
+        * `check_single` (bool, optional, default=False): whether to exclude ChoiceParameters
+            with only a single choice.
+        * `**kwargs`:  meta-tags to search (ie. 'context', 'component',
+            'model', etc).  See <phoebe.parameters.ParameterSet.meta>
+            for all possible options.
+
+        Returns
+        --------
+        * the resulting <phoebe.parameters.Parameter>.
+
+        Raises
+        -------
+        * ValueError: if either 0 or more than 1 results are found
+            matching the search.
         """
         kwargs['check_visible'] = check_visible
         kwargs['check_default'] = check_default
@@ -1338,45 +1838,57 @@ class ParameterSet(object):
                       check_advanced=False, check_single=False, **kwargs):
         """
 
-        Filter the :class:`ParameterSet` based on the meta-tags of its
-        Parameters and return another :class:`ParameterSet` unless there is
-        exactly 1 result, in which case the :class:`Parameter` itself is
-        returned (set force_ps=True to avoid this from happening or call filter
-        instead).
+        Filter the <phoebe.parameters.ParameterSet> based on the meta-tags of its
+        Parameters and return another <phoebe.parameters.ParameterSet> unless there is
+        exactly 1 result, in which case the <phoebe.parameters.Parameter> itself is
+        returned (set `force_ps=True` to avoid this from happening or call
+        <phoebe.parameters.ParameterSet.filter> instead).
 
-        In the case when another :class:`ParameterSet` is returned, these
-        filter calls are chainable.
+        In the case when another <phoebe.parameters.ParameterSet> is returned, these
+        calls are chainable.
 
-        >>> b.filter_or_get(context='component').filter_or_get(component='starA')
+        ```py
+        b.filter_or_get(context='component').filter_or_get(component='starA')
+        ```
 
-        :parameter str twig: (optional) the search twig - essentially a single
-                string with any delimiter (ie '@') that will be parsed
-                into any of the meta-tags.  Example: instead of
-                b.filter(context='component', component='starA'), you
-                could do b.filter('starA@component').
-        :parameter bool force_ps: whether to force a ParameterSet
-                to be returned even if only a single result is found.
-                This is helpful if you want to write generic code
-                that chains filter calls (since Parameter does not have
-                a filter method).
-        :parameter bool check_visible: whether to hide invisible
-                parameters.  These are usually parameters that do not
-                play a role unless the value of another parameter meets
-                some condition.
-        :parameter bool check_default: whether to exclude parameters which
-                have a _default tag (these are parameters which solely exist
-                to provide defaults for when new parameters or datasets are
-                added and the parameter needs to be copied appropriately).
-                Defaults to True.
-        :parameter bool check_advanced: whether to exclude parameters which
-                are considered 'advanced parameters'.  Defaults to False.
-        :parameter bool check_single: whether to exclude ChoiceParameters
-                with only a single choiced.  Defaults to False
-        :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
-                'model', etc).  See :func:`meta` for all possible options.
-        :return: :class:`Parameter` if length of results is exactly 1 and
-            force_ps==False. Otherwise another :class:`ParameterSet` will be
-            returned.
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.parameters.ParameterSet.exclude>
+        * <phoebe.parameters.ParameterSet.get>
+        * <phoebe.parameters.ParameterSet.get_parameter>
+        * <phoebe.parameters.ParameterSet.get_or_create>
+
+        Arguments
+        -----------
+        * `twig` (str, optional, default=None): the search twig - essentially a single
+            string with any delimiter (ie '@') that will be parsed
+            into any of the meta-tags.  Example: instead of
+            `b.filter(context='component', component='starA')`, you
+            could do `b.filter('starA@component')`.
+        * `check_visible` (bool, optional, default=True): whether to hide invisible
+            parameters.  These are usually parameters that do not
+            play a role unless the value of another parameter meets
+            some condition.
+        * `check_default` (bool, optional, default=True): whether to exclude parameters which
+            have a _default tag (these are parameters which solely exist
+            to provide defaults for when new parameters or datasets are
+            added and the parameter needs to be copied appropriately).
+        * `check_advanced` (bool, optional, default=False): whether to exclude parameters which
+            are considered "advanced".
+        * `check_single` (bool, optional, default=False): whether to exclude ChoiceParameters
+            with only a single choice.
+        * `force_ps` (bool, optional, default=False): whether to force a
+            <phoebe.parameters.ParameterSet> to be returned, even if more than
+            1 result (see also: <phoebe.parameters.ParameterSet.filter>)
+        * `**kwargs`:  meta-tags to search (ie. 'context', 'component',
+            'model', etc).  See <phoebe.parameters.ParameterSet.meta>
+            for all possible options.
+
+        Returns
+        ----------
+        * the resulting <phoebe.parameters.Parameter> object if the length
+            of the results is exactly 1 and `force_ps=False`, otherwise the
+            resulting <phoebe.parameters.ParameterSet>.
         """
 
         if self._bundle is None:
@@ -1384,6 +1896,9 @@ class ParameterSet(object):
             # a ParameterSet say by calling datasets.lc() and having half
             # of the Parameters hidden by this switch
             check_default = False
+
+        if not (twig is None or isinstance(twig, str)):
+            raise TypeError("first argument (twig) must be of type str or None")
 
         if kwargs.get('component', None) == '_default' or\
                 kwargs.get('dataset', None) == '_default' or\
@@ -1412,6 +1927,16 @@ class ParameterSet(object):
 
         params = self.to_list()
 
+        def string_to_time(time):
+            try:
+                return float(time)
+            except ValueError:
+                # allow for passing a twig that needs to resolve a float
+                if self._bundle is None:
+                    return self.get_value(time, context=['system', 'component'])
+                else:
+                    return self._bundle.get_value(time, context=['system', 'component'])
+
         # TODO: replace with key,value in kwargs.items()... unless there was
         # some reason that won't work?
         for key in kwargs.keys():
@@ -1422,13 +1947,18 @@ class ParameterSet(object):
                 #if kwargs[key] is None:
                 #    params = [pi for pi in params if getattr(pi,key) is None]
                 #else:
+                if isinstance(kwargs[key], unicode):
+                    # unicodes can cause all sorts of confusions with fnmatch,
+                    # so let's just cast now and be done with it
+                    kwargs[key] = str(kwargs[key])
+
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None) and
                     (getattr(pi,key)==kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
                     (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and fnmatch(getattr(pi,key),kwargs[key])) or
                     (key=='kind' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
                     (key=='kind' and isinstance(kwargs[key],list) and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
-                    (key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<1e-6))]
+                    (key=='time' and abs(float(getattr(pi,key))-string_to_time(kwargs[key]))<1e-6))]
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
         # handle hiding _default (cheaper than visible_if so let's do first)
@@ -1480,6 +2010,9 @@ class ParameterSet(object):
             elif twigsplit[0] == 'choices':
                 twig = '@'.join(twigsplit[1:])
                 method = 'get_choices'
+            elif twigsplit[0] == 'result':
+                twig = '@'.join(twigsplit[1:])
+                method = 'get_result'
 
             # twigsplit = re.findall(r"[\w']+", twig)
             twigsplit = twig.split('@')
@@ -1524,6 +2057,9 @@ class ParameterSet(object):
             else:
                 return getattr(params[0], method)()
 
+        elif method is not None:
+            raise ValueError("{} results found, could not call {}".format(len(params), method))
+
         # TODO: handle returning 0 results better
 
         ps = ParameterSet(params)
@@ -1541,59 +2077,126 @@ class ParameterSet(object):
                     ps._filter[attr] = tag
         return ps
 
-    def exclude(self, twig=None, check_visible=True, **kwargs):
+    def exclude(self, twig=None, check_visible=True, check_default=True, **kwargs):
         """
-        Exclude the results from this filter from the current ParameterSet.
+        Exclude the results from this filter from the current
+        <phoebe.parameters.ParameterSet>.
 
-        See :meth:`filter` for options.
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.parameters.ParameterSet.filter_or_get>
+        * <phoebe.parameters.ParameterSet.get>
+        * <phoebe.parameters.ParameterSet.get_parameter>
+        * <phoebe.parameters.ParameterSet.get_or_create>
+
+        Arguments
+        -----------
+        * `twig` (str, optional, default=None): the search twig - essentially a single
+            string with any delimiter (ie '@') that will be parsed
+            into any of the meta-tags.  Example: instead of
+            `b.filter(context='component', component='starA')`, you
+            could do `b.filter('starA@component')`.
+        * `check_visible` (bool, optional, default=True): whether to hide invisible
+            parameters.  These are usually parameters that do not
+            play a role unless the value of another parameter meets
+            some condition.
+        * `check_default` (bool, optional, default=True): whether to exclude parameters which
+            have a _default tag (these are parameters which solely exist
+            to provide defaults for when new parameters or datasets are
+            added and the parameter needs to be copied appropriately).
+            Defaults to True.
+        * `**kwargs`:  meta-tags to search (ie. 'context', 'component',
+            'model', etc).  See <phoebe.parameters.ParameterSet.meta>
+            for all possible options.
+
+        Returns
+        ----------
+        * the resulting <phoebe.parameters.ParameterSet>.
         """
         return self - self.filter(twig=twig,
                                   check_visible=check_visible,
+                                  check_default=check_default,
                                   **kwargs)
 
     def get_parameter(self, twig=None, **kwargs):
         """
-        Get a :class:`Parameter` from this ParameterSet.  This simply calls get
+        Get a <phoebe.parameters.Parameter> from this
+        <phoebe.parameters.ParameterSet>.  This is identical to
+        <phoebe.parameters.ParameterSet.get>.
 
-        :parameter str twig: (optional) the search twig - essentially a single
-                string with any delimiter (ie '@') that will be parsed
-                into any of the meta-tags.  Example: instead of
-                b.filter(context='component', component='starA'), you
-                could do b.filter('starA@component').
-        :parameter bool check_visible: whether to hide invisible
-                parameters.  These are usually parameters that do not
-                play a role unless the value of another parameter meets
-                some condition.
-        :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
-                'model', etc).  See :func:`meta` for all possible options.
-        :return: the resulting :class:`Parameter`
-        :raises ValueError: if either 0 or more than 1 results are found
-                matching the search.
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.parameters.ParameterSet.filter_or_get>
+        * <phoebe.parameters.ParameterSet.exclude>
+        * <phoebe.parameters.ParameterSet.get_or_create>
 
+        Arguments
+        -----------
+        * `twig` (str, optional, default=None): the search twig - essentially a single
+            string with any delimiter (ie '@') that will be parsed
+            into any of the meta-tags.  Example: instead of
+            `b.filter(context='component', component='starA')`, you
+            could do `b.filter('starA@component')`.
+        * `check_visible` (bool, optional, default=True): whether to hide invisible
+            parameters.  These are usually parameters that do not
+            play a role unless the value of another parameter meets
+            some condition.
+        * `check_default` (bool, optional, default=True): whether to exclude parameters which
+            have a _default tag (these are parameters which solely exist
+            to provide defaults for when new parameters or datasets are
+            added and the parameter needs to be copied appropriately).
+            Defaults to True.
+        * `**kwargs`:  meta-tags to search (ie. 'context', 'component',
+            'model', etc).  See <phoebe.parameters.ParameterSet.meta>
+            for all possible options.
+
+        Returns
+        --------
+        * the resulting <phoebe.parameters.Parameter>.
+
+        Raises
+        -------
+        * ValueError: if either 0 or more than 1 results are found
+            matching the search.
         """
         return self.get(twig=twig, **kwargs)
 
     def get_or_create(self, qualifier, new_parameter, **kwargs):
         """
-        Get a :class:`Parameter` from the ParameterSet, if it does not exist,
+        Get a <phoebe.parameters.Parameter> from the
+        <phoebe.parameters.ParameterSet>. If it does not exist,
         create and attach it.
 
         Note: running this on a ParameterSet that is NOT a
-        :class:`phoebe.frontend.bundle.Bundle`,
-        will NOT add the Parameter to the bundle, but only the temporary
-        ParameterSet
+        <phoebe.frontend.bundle.Bundle>,
+        will NOT add the Parameter to the Bundle, but only the temporary
+        ParameterSet.
 
-        :parameter str qualifier: the qualifier of the :class:`Parameter`
-            (note, not the twig)
-        :parameter new_parameter: the parameter to attach if no
-                result is found
-        :type new_parameter: :class:`Parameter`
-        :parameter **kwargs: meta-tags to search - will also be applied to
-                new_parameter if it is attached.
-        :return: Parameter, created
-        :rtype: :class:`Parameter`, bool
-        :raises ValueError: if more than 1 result was found using the search
-                criteria.
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.parameters.ParameterSet.filter_or_get>
+        * <phoebe.parameters.ParameterSet.exclude>
+        * <phoebe.parameters.ParameterSet.get>
+        * <phoebe.parameters.ParameterSet.get_parameter>
+
+        Arguments
+        ----------
+        * `qualifier` (string): the qualifier of the Parameter.
+            **NOTE**: this must be a qualifier, not a twig.
+        * `new_parameter`: (<phoebe.parameters.Parameter>): the parameter to
+            attach if no result is found.
+        * `**kwargs`: meta-tags to use when filtering, including `check_visible` and
+            `check_default`.  See <phoebe.parameters.ParameterSet.filter_or_get>.
+
+        Returns
+        ---------
+        * (<phoebe.parameters.Parameter, bool): the Parameter object (either
+            from filtering or newly created) and a boolean telling whether the
+            Parameter was created or not.
+
+        Raises
+        -----------
+        * ValueError: if more than 1 result was found using the filter criteria.
         """
         ps = self.filter_or_get(qualifier=qualifier, **kwargs)
         if isinstance(ps, Parameter):
@@ -1604,7 +2207,7 @@ class ParameterSet(object):
         else:
             self._attach_params(ParameterSet([new_parameter]), **kwargs)
 
-            logger.info("creating and attaching new parameter: {}".format(new_parameter.qualifier))
+            logger.debug("creating and attaching new parameter: {}".format(new_parameter.qualifier))
 
             return self.filter_or_get(qualifier=qualifier, **kwargs), True
 
@@ -1621,16 +2224,24 @@ class ParameterSet(object):
 
     def remove_parameter(self, twig=None, **kwargs):
         """
-        Remove a :class:`Parameter` from the ParameterSet
+        Remove a <phoebe.parameters.Parameter> from the
+        <phoebe.parameters.ParameterSet>.
 
         Note: removing Parameters from a ParameterSet will not remove
         them from any parent ParameterSets
-        (including the :class:`phoebe.frontend.bundle.Bundle`)
+        (including the <phoebe.fontend.bundle.Bundle>).
 
-        :parameter str twig: the twig to search for the parameter
-        :parameter **kwargs: meta-tags to search
-        :raises ValueError: if 0 or more than 1 results are found using the
-                provided search criteria.
+        Arguments
+        --------
+        * `twig` (string, optional, default=None): the twig to search for the
+            parameter (see <phoebe.parameters.ParameterSet.get>)
+        * `**kwargs`: meta-tags to use when filtering, including `check_visible` and
+            `check_default`.  See <phoebe.parameters.ParameterSet.get>.
+
+        Raises
+        ------
+        * ValueError: if 0 or more than 1 results are found using the
+                provided filter criteria.
         """
         param = self.get(twig=twig, **kwargs)
 
@@ -1638,19 +2249,23 @@ class ParameterSet(object):
 
     def remove_parameters_all(self, twig=None, **kwargs):
         """
-        Remove all :class:`Parameter`s that match the search from the
-        ParameterSet.
+        Remove all <phoebe.parameters.Parameter> objects that match the filter
+        from the <phoebe.parameters.ParameterSet>.
 
         Any Parameter that would be included in the resulting ParameterSet
-        from a :func:`filter` call with the same arguments will be
-        removed from this ParameterSet.
+        from a <phoebe.parameters.ParameterSet.filter> call with the same
+        arguments will be removed from this ParameterSet.
 
         Note: removing Parameters from a ParameterSet will not remove
         them from any parent ParameterSets
-        (including the :class:`phoebe.frontend.bundle.Bundle`)
+        (including the <phoebe.frontend.bundle.Bundle>)
 
-        :parameter str twig: the twig to search for the parameter
-        :parameter **kwargs: meta-tags to search
+        Arguments
+        --------
+        * `twig` (string, optional, default=None): the twig to search for the
+            parameter (see <phoebe.parameters.ParameterSet.get>)
+        * `**kwargs`: meta-tags to use when filtering, including `check_visible` and
+            `check_default`.  See <phoebe.parameters.ParameterSet.filter>.
         """
         params = self.filter(twig=twig, check_visible=False, check_default=False, **kwargs)
 
@@ -1660,12 +2275,44 @@ class ParameterSet(object):
     def get_quantity(self, twig=None, unit=None,
                      default=None, t=None, **kwargs):
         """
-        TODO: add documentation
+        Get the quantity of a <phoebe.parameters.Parameter> in this
+        <phoebe.parameters.ParameterSet>.
+
+        Note: this only works for Parameter objects with a `get_quantity` method.
+        These include:
+        * <phoebe.parameters.FloatParameter> (see <phoebe.parameters.FloatParameter.get_quantity>)
+        * <phoebe.parameters.FloatArrayParameter>
+
+        See also:
+        * <phoebe.parameters.ParameterSet.set_quantity>
+        * <phoebe.parameters.ParameterSet.get_value>
+        * <phoebe.parameters.ParameterSet.set_value>
+        * <phoebe.parameters.ParameterSet.set_value_all>
+        * <phoebe.parameters.ParameterSet.get_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit_all>
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to be used to access
+            the Parameter.  See <phoebe.parameters.ParameterSet.get_parameter>.
+        * `unit` (string or unit, optional, default=None): unit to convert the
+            quantity.  If not provided or None, will use the default unit.  See
+            <phoebe.parameters.ParameterSet.get_default_unit>.
+        * `default` (quantity, optional, default=None): value to return if
+            no results are returned by <phoebe.parameters.ParameterSet.get_parameter>
+            given the value of `twig` and `**kwargs`.
+        * `**kwargs`: filter options to be passed along to
+            <phoebe.parameters.ParameterSet.get_parameter>.
+
+        Returns
+        --------
+        * an astropy quantity object
         """
         # TODO: for time derivatives will need to use t instead of time (time
         # gets passed to twig filtering)
 
-        if default is not None is not None:
+        if default is not None:
             # then we need to do a filter first to see if parameter exists
             if not len(self.filter(twig=twig, **kwargs)):
                 return default
@@ -1682,7 +2329,36 @@ class ParameterSet(object):
 
     def set_quantity(self, twig=None, value=None, **kwargs):
         """
-        TODO: add documentation
+        Set the quantity of a <phoebe.parameters.Parameter> in the
+        <phoebe.parameters.ParameterSet>.
+
+        Note: this only works for Parameter objects with a `set_quantity` method.
+        These include:
+        * <phoebe.parameters.FloatParameter> (see <phoebe.parameters.FloatParameter>)
+        * <phoebe.parameters.FloatArrayParameter>
+
+        See also:
+        * <phoebe.parameters.ParameterSet.get_quantity>
+        * <phoebe.parameters.ParameterSet.get_value>
+        * <phoebe.parameters.ParameterSet.set_value>
+        * <phoebe.parameters.ParameterSet.set_value_all>
+        * <phoebe.parameters.ParameterSet.get_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit_all>
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to be used to access
+            the Parameter.  See <phoebe.parameters.ParameterSet.get_parameter>.
+        * `value` (quantity, optional, default=None): quantity to set for the
+            matched Parameter.
+        * `**kwargs`: filter options to be passed along to
+            <phoebe.parameters.ParameterSet.get_parameter> and `set_quantity`.
+
+        Raises
+        --------
+        * ValueError: if a unique match could not be found via
+            <phoebe.parameters.ParameterSet.get_parameter>
         """
         # TODO: handle twig having parameter key (value@, default_unit@, adjust@, etc)
         # TODO: does this return anything (update the docstring)?
@@ -1690,23 +2366,36 @@ class ParameterSet(object):
 
     def get_value(self, twig=None, unit=None, default=None, t=None, **kwargs):
         """
-        Get the value of a :class:`Parameter` in this ParameterSet
+        Get the value of a <phoebe.parameters.Parameter> in this
+        <phoebe.parameters.ParameterSet>.
 
-        :parameter str twig: the twig to search for the parameter
-        :parameter unit: units for the returned result (if
-            applicable).  If None or not provided, the value will
-            be returned in that Parameter's default_unit (if
-            applicable)
-        :type unit: str or astropy.units.Unit
-        :parameter default: what to return if the parameter cannot be found.
-            If this is None (default) then an error will be raised instead.
-            Note that the units of default will not be converted.
-        :parameter time: time at which to compute the
-            value (will only affect time-dependent parameters).  If provided
-            as a float it is assumed that the units are the same as t0.
-            NOTE: this is not fully supported yet, use with caution.
-        :parameter **kwargs: meta-tags to search
-        :return: value (type depeding on the type of the :class:`Parameter`)
+        See also:
+        * <phoebe.parameters.ParameterSet.get_quantity>
+        * <phoebe.parameters.ParameterSet.set_quantity>
+        * <phoebe.parameters.ParameterSet.set_value>
+        * <phoebe.parameters.ParameterSet.set_value_all>
+        * <phoebe.parameters.ParameterSet.get_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit_all>
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to be used to access
+            the Parameter.  See <phoebe.parameters.ParameterSet.get_parameter>.
+        * `unit` (string or unit, optional, default=None): unit to convert the
+            value.  If not provided or None, will use the default unit.  See
+            <phoebe.parameters.ParameterSet.get_default_unit>. `unit` will
+            be ignored for Parameters that do not store quantities.
+        * `default` (quantity, optional, default=None): value to return if
+            no results are returned by <phoebe.parameters.ParameterSet.get_parameter>
+            given the value of `twig` and `**kwargs`.
+        * `**kwargs`: filter options to be passed along to
+            <phoebe.parameters.ParameterSet.get_parameter>.
+
+        Returns
+        --------
+        * (float/array/string) the value of the filtered
+            <phoebe.parameters.Parameter>.
         """
         # TODO: for time derivatives will need to use t instead of time (time
         # gets passed to twig filtering)
@@ -1728,51 +2417,139 @@ class ParameterSet(object):
 
     def set_value(self, twig=None, value=None, **kwargs):
         """
-        Set the value of a :class:`Parameter` in this ParameterSet
+        Set the value of a <phoebe.parameters.Parameter> in this
+        <phoebe.parameters.ParameterSet>.
 
         Note: setting the value of a Parameter in a ParameterSet WILL
         change that Parameter across any parent ParameterSets (including
-        the :class:`phoebe.frontend.bundle.Bundle`)
+        the <phoebe.frontend.bundle.Bundle>).
 
-        :parameter set twig: the twig to search for the parameter
-        :parameter value: the value to set.  Provide units, if necessary, by
-            sending a Quantity object (ie 2.4*u.rad)
-        :parameter **kwargs: meta-tags to search
-        :raises ValueError:  if 0 or more than 1 results are found matching
-            the search criteria.
+        See also:
+        * <phoebe.parameters.ParameterSet.get_quantity>
+        * <phoebe.parameters.ParameterSet.set_quantity>
+        * <phoebe.parameters.ParameterSet.get_value>
+        * <phoebe.parameters.ParameterSet.set_value_all>
+        * <phoebe.parameters.ParameterSet.get_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit_all>
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to be used to access
+            the Parameter.  See <phoebe.parameters.ParameterSet.get_parameter>.
+        * `value` (optional, default=None): valid value to set for the
+            matched Parameter.
+        * `index` (int, optional): only applicable for
+            <phoebe.parmaeters.FloatArrayParameter>.  Passing `index` will call
+            <phoebe.parameters.FloatArrayParameter.set_index_value> and pass
+            `index` instead of <phoebe.parameters.FloatArrayParameter.set_value>.
+        * `**kwargs`: filter options to be passed along to
+            <phoebe.parameters.ParameterSet.get_parameter> and
+            <phoebe.parameters.Parameter.set_value>.
+
+        Raises
+        --------
+        * ValueError: if a unique match could not be found via
+            <phoebe.parameters.ParameterSet.get_parameter>
         """
         # TODO: handle twig having parameter key (value@, default_unit@, adjust@, etc)
         # TODO: does this return anything (update the docstring)?
+        if twig is not None and value is None:
+            # then try to support value as the first argument if no matches with twigs
+            if not isinstance(twig, str):
+                value = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                value = twig
+                twig = None
+
         if "index" in kwargs.keys():
             return self.get_parameter(twig=twig,
                                       **kwargs).set_index_value(value=value,
                                                                 **kwargs)
+
+        if "time" in kwargs.keys():
+            if not len(self.filter(**kwargs)):
+                # then let's try filtering without time and seeing if we get a
+                # FloatArrayParameter so that we can use set_index_value instead
+                time = kwargs.pop("time")
+
+                param = self.get_parameter(twig=twig, **kwargs)
+                if not isinstance(param, FloatArrayParameter):
+                    raise TypeError
+
+                # TODO: do we need to be more clever about time qualifier for
+                # ETV datasets? TODO: is this robust enough... this won't search
+                # for times outside the existing ParameterSet.  We could also
+                # try param.get_parent_ps().get_parameter('time'), but this
+                # won't work when outside the bundle (which is used within
+                # backends.py to set fluxes, etc) print "***
+                # get_parameter(qualifier='times', **kwargs)", {k:v for k,v in
+                # kwargs.items() if k not in ['qualifier']}
+                time_param = self.get_parameter(qualifier='times', **{k:v for k,v in kwargs.items() if k not in ['qualifier']})
+                index = np.where(time_param.get_value()==time)[0]
+
+                return param.set_index_value(value=value, index=index, **kwargs)
+
         return self.get_parameter(twig=twig,
                                   **kwargs).set_value(value=value,
                                                       **kwargs)
 
     def set_value_all(self, twig=None, value=None, check_default=False, **kwargs):
         """
-        Set the value of all returned :class:`Parameter`s in this ParameterSet.
+        Set the value of all returned <phoebe.parameters.Parameter> objects
+        in this <phoebe.parameters.ParameterSet>.
 
-        Any :class:`Parameter` that would be included in the resulting ParameterSet
-        from a :func:`filter` call with the same arguments will have
-        their value set.
+        Any Parameter that would be included in the resulting ParameterSet
+        from a <phoebe.parameters.ParametSet.filter> call with the same arguments
+        will have their value set.
 
         Note: setting the value of a Parameter in a ParameterSet WILL
         change that Parameter across any parent ParameterSets (including
-        the :class:`phoebe.frontend.bundle.Bundle`)
+        the <phoebe.frontend.bundle.Bundle>)
 
-        :parameter str twig: the twig to search for the parameter
-        :parameter value: the value to set.  Provide units, if necessary, by
-                sending a Quantity object (ie 2.4*u.rad)
-        :parameter bool check_default: whether to exclude any default values.
-                Defaults to False (unlike all filtering).  Note that this
-                acts on the current ParameterSet so any filtering done before
-                this call will EXCLUDE defaults by default.
-        :parameter **kwargs: meta-tags to search
+        See also:
+        * <phoebe.parameters.ParameterSet.get_quantity>
+        * <phoebe.parameters.ParameterSet.set_quantity>
+        * <phoebe.parameters.ParameterSet.get_value>
+        * <phoebe.parameters.ParameterSet.set_value>
+        * <phoebe.parameters.ParameterSet.get_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit_all>
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to be used to access
+            the Parameters.  See <phoebe.parameters.ParameterSet.filter>.
+        * `value` (optional, default=None): valid value to set for each
+            matched Parameter.
+        * `index` (int, optional): only applicable for
+            <phoebe.parmaeters.FloatArrayParameter>.  Passing `index` will call
+            <phoebe.parameters.FloatArrayParameter.set_index_value> and pass
+            `index` instead of <phoebe.parameters.FloatArrayParameter.set_value>.
+        * `ignore_none` (bool, optional, default=False): if `ignore_none=True`,
+            no error will be raised if the filter returns 0 results.
+        * `**kwargs`: filter options to be passed along to
+            <phoebe.parameters.ParameterSet.get_parameter> and
+            <phoebe.parameters.Parameter.set_value>.
+
+        Raises
+        -------
+        * ValueError: if the <phoebe.parameters.ParameterSet.filter> call with
+            the given `twig` and `**kwargs` returns 0 results.  This error
+            is ignored if `ignore_none=True`.
         """
-        # TODO support the ability to do PS.set_value_all(value) (no twig - or do we throw warning and request value=value?)
+        if twig is not None and value is None:
+            # then try to support value as the first argument if no matches with twigs
+            if not isinstance(twig, str):
+                value = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                value = twig
+                twig = None
+
         params = self.filter(twig=twig,
                              check_default=check_default,
                              **kwargs).to_list()
@@ -1789,20 +2566,124 @@ class ParameterSet(object):
 
     def get_default_unit(self, twig=None, **kwargs):
         """
-        TODO: add documentation
+        Get the default unit for a <phoebe.parameters.Parameter> in the
+        <phoebe.parameters.ParameterSet>.
+
+        Note: this only works for Parameter objects with a `get_default_unit` method.
+        These include:
+        * <phoebe.parameters.FloatParameter.get_default_unit>
+        * <phoebe.parameters.FloatArrayParameter.get_default_unit>
+
+        See also:
+        * <phoebe.parameters.ParameterSet.get_quantity>
+        * <phoebe.parameters.ParameterSet.set_quantity>
+        * <phoebe.parameters.ParameterSet.get_value>
+        * <phoebe.parameters.ParameterSet.set_value>
+        * <phoebe.parameters.ParameterSet.set_value_all>
+        * <phoebe.parameters.ParameterSet.set_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit_all>
         """
         return self.get_parameter(twig=twig, **kwargs).get_default_unit()
 
     def set_default_unit(self, twig=None, unit=None, **kwargs):
         """
-        TODO: add documentation
+        Set the default unit for a <phoebe.parameters.Parameter> in the
+        <phoebe.parameters.ParameterSet>.
+
+        Note: setting the default_unit of a Parameter in a ParameterSet WILL
+        change that Parameter across any parent ParameterSets (including
+        the <phoebe.frontend.bundle.Bundle>).
+
+        Note: this only works for Parameter objects with a `set_default_unit` method.
+        These include:
+        * <phoebe.parameters.FloatParameter.set_default_unit>
+        * <phoebe.parameters.FloatArrayParameter.set_default_unit>
+
+        See also:
+        * <phoebe.parameters.ParameterSet.get_quantity>
+        * <phoebe.parameters.ParameterSet.set_quantity>
+        * <phoebe.parameters.ParameterSet.get_value>
+        * <phoebe.parameters.ParameterSet.set_value>
+        * <phoebe.parameters.ParameterSet.set_value_all>
+        * <phoebe.parameters.ParameterSet.get_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit_all>
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to be used to access
+            the Parameter.  See <phoebe.parameters.ParameterSet.get_parameter>.
+        * `unit` (unit, optional, default=None): valid unit to set for the
+            matched Parameter.
+        * `**kwargs`: filter options to be passed along to
+            <phoebe.parameters.ParameterSet.get_parameter> and
+            <phoebe.parameters.Parameter.set_value>.
+
+        Raises
+        --------
+        * ValueError: if a unique match could not be found via
+            <phoebe.parameters.ParameterSet.get_parameter>
         """
+        if twig is not None and unit is None:
+            # then try to support value as the first argument if no matches with twigs
+            if isinstance(unit, u.Unit) or not isinstance(twig, str):
+                unit = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                unit = twig
+                twig = None
+
         return self.get_parameter(twig=twig, **kwargs).set_default_unit(unit)
 
     def set_default_unit_all(self, twig=None, unit=None, **kwargs):
         """
-        TODO: add documentation
+        Set the default unit for all <phoebe.parameters.Parameter> objects in the
+        <phoebe.parameters.ParameterSet>.
+
+        Any Parameter that would be included in the resulting ParameterSet
+        from a <phoebe.parameters.ParametSet.filter> call with the same arguments
+        will have their default_unit set.
+
+        Note: setting the default_unit of a Parameter in a ParameterSet WILL
+        change that Parameter across any parent ParameterSets (including
+        the <phoebe.frontend.bundle.Bundle>).
+
+        Note: this only works for Parameter objects with a `set_default_unit` method.
+        These include:
+        * <phoebe.parameters.FloatParameter.set_default_unit>
+        * <phoebe.parameters.FloatArrayParameter.set_default_unit>
+
+        See also:
+        * <phoebe.parameters.ParameterSet.get_quantity>
+        * <phoebe.parameters.ParameterSet.set_quantity>
+        * <phoebe.parameters.ParameterSet.get_value>
+        * <phoebe.parameters.ParameterSet.set_value>
+        * <phoebe.parameters.ParameterSet.set_value_all>
+        * <phoebe.parameters.ParameterSet.get_default_unit>
+        * <phoebe.parameters.ParameterSet.set_default_unit>
+
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to be used to access
+            the Parameters.  See <phoebe.parameters.ParameterSet.filter>.
+        * `unit` (unit, optional, default=None): valid unit to set for each
+            matched Parameter.
+        * `**kwargs`: filter options to be passed along to
+            <phoebe.parameters.ParameterSet.get_parameter> and
+            `set_default_unit`.
         """
+        # TODO: add support for ignore_none as per set_value_all
+        if twig is not None and unit is None:
+            # then try to support value as the first argument if no matches with twigs
+            if isinstance(unit, u.Unit) or not isinstance(twig, str):
+                unit = twig
+                twig = None
+
+            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+                unit = twig
+                twig = None
+
         for param in self.filter(twig=twig, **kwargs).to_list():
             param.set_default_unit(unit)
 
@@ -1848,7 +2729,23 @@ class ParameterSet(object):
 
     def get_description(self, twig=None, **kwargs):
         """
-        TODO: add documentation
+        Get the description of a <phoebe.parameters.Parameter> in the
+        <phoebe.parameters.ParameterSet>.
+
+        This is simply a shortcut to <phoebe.parameters.ParameterSet.get_parameter>
+        and <phoebe.parameters.Parameter.get_description>.
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to be used to access
+            the Parameter.  See <phoebe.parameters.ParameterSet.get_parameter>.
+        * `**kwargs`: filter options to be passed along to
+            <phoebe.parameters.ParameterSet.get_parameter>.
+
+        Returns
+        --------
+        * (string) the description of the filtered
+            <phoebe.parameters.Parameter>.
         """
         return self.get_parameter(twig=twig, **kwargs).get_description()
 
@@ -1892,70 +2789,27 @@ class ParameterSet(object):
         """
         raise NotImplementedError
 
-    def get_plotting_info(self, twig=None, **kwargs):
-        """
-        [ADD DOCUMENTATION]
-        """
 
-        def _unit_to_str(unit, use_latex=True):
-            if unit is None:
-                return ''
+    def _unpack_plotting_kwargs(self, **kwargs):
 
-            if isinstance(unit, str):
-                unit = u.Unit(unit)
 
-            if use_latex:
-                return unit._repr_latex_()
-            else:
-                return unit.to_string()
 
-        def _qualifier_to_label(qualifier):
-            return _plural_to_singular.get(qualifier, qualifier)
-
-        def _get_param_array(ps, qualifier, unit):
-            if len(ps.filter(qualifier=qualifier).times):
-                times = ps.filter(qualifier=qualifier).times
-                param = ps.get_parameter(qualifier=qualifier, time=times[0])
-
-                if not isinstance(param, FloatArrayParameter):
-                    if unit is None:
-                        unit = param.default_unit
-
-                    array = np.array([param.get_value(unit=unit)
-                                      for param in ps.filter(qualifier=qualifier).to_list()])
-                else:
-                    param = None
-            else:
-                param = None
-
-            if param is None:
-                param = ps.get_parameter(qualifier=qualifier)
-                if unit is None:
-                    unit = param.default_unit
-
-                array = param.get_value(unit=unit)
-
-            return param, array, unit
-
-        if isinstance(kwargs.get('time', None), str):
-            # handle allow passing twigs to time
-            time_value = self._bundle.get_value(kwargs['time'], context='component')
-            if isinstance(time_value, float):
-                logger.info("plotting at time={} ('{}')".format(time_value, kwargs['time']))
-                kwargs['time'] = time_value
-            else:
-                raise ValueError("could not convert '{}' to a valid time".format(kwargs['time']))
-
-        # filter the PS further - except we don't want to filter on time, since
-        # that means something else
-
+        # We now need to unpack if the contents within kwargs contain multiple
+        # contexts/datasets/kinds/components/etc.
         # the dataset tag can appear in the compute context as well, so if the
         # context tag isn't in kwargs, let's default it to dataset or model
         kwargs.setdefault('context', ['dataset', 'model'])
 
-        ps = self.filter(twig=twig,
-                         **{k: v for k, v in kwargs.items() if k != 'time'})
-        if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn']:
+        filter_kwargs = {}
+        for k in list(self.meta.keys())+['twig']:
+            if k in ['time']:
+                # time handled later
+                continue
+            filter_kwargs[k] = kwargs.pop(k, None)
+
+        ps = self.filter(**filter_kwargs)
+
+        if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn', 'lp', 'lp_syn']:
             ps = ps.filter(time=kwargs.get('time'))
 
         # If ps returns more than one dataset/model/component, then we need to
@@ -1963,27 +2817,25 @@ class ParameterSet(object):
         # (unless the user provided color in a kwarg).  To choose individual
         # styling, the user must make individual calls and provide the styling
         # options as kwargs.
+
+        # we'll return a list of dictionaries, with each dictionary prepared
+        # to pass directly to autofig
+        return_ = []
+
         if len(ps.contexts) > 1:
-            return_ = []
             for context in ps.contexts:
-                this_return = ps.filter(context=context).get_plotting_info(**kwargs)
+                this_return = ps.filter(context=context)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
-            return_ = []
             for dataset in ps.datasets:
-                if dataset in ['protomesh']:
-                    # let's not automatically plot the protomesh unless its
-                    # requested in which case we'll never enter this loop
-                    continue
-                this_return = ps.filter(dataset=dataset).get_plotting_info(**kwargs)
+                this_return = ps.filter(dataset=dataset)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         # For kinds, we want to ignore the deps - those won't have arrays
         kinds = [m for m in ps.kinds if m[-3:] != 'dep']
-        # ax = kwargs.pop('ax', None)
 
         # If we are asking to plot a dataset that also shows up in columns in
         # the mesh, then remove the mesh kind.  In other words: mesh stuff
@@ -1998,1005 +2850,857 @@ class ParameterSet(object):
             pskinds = [kinds[0]]
 
         if len(ps.kinds) > 1:
-            return_ = []
             for kind in [m for m in pskinds if m[-3:]!='dep']:
-                this_return = ps.filter(kind=kind).get_plotting_info(**kwargs)
+                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.models) > 1:
-            return_ = []
             for model in ps.models:
                 # TODO: change linestyle for models instead of color?
-                this_return = ps.filter(model=model).get_plotting_info(**kwargs)
+                this_return = ps.filter(model=model)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
-        if plotting_backend in ['mpl'] and _use_mpl:
-            axes_3d = isinstance(kwargs.get('ax', plt.gca()), Axes3D)
-            # axes_3d = kwargs.get('ax', plt.gca()).__class__.__name__ in ['Axes3DSubplot', 'Axes3D']
-        else:
-            axes_3d = False
-
-        if ps.kind=='mesh':
-            # then we care about ordering from front to back, both for looping
-            # through components and ordering triangles
-            # NOTE: even though we are calling these x, y, z - we really mean
-            # to get those components from the triangles array
-            xqualifier = kwargs.get('x', 'xs')
-            yqualifier = kwargs.get('y', 'ys')
-            if axes_3d:
-                zqualifier = kwargs.get('z', 'zs')
-
-
-            # All our arrays will need to be sorted front to back, so we need
-            # the centers from the coordinates not covered by xqualifier,
-            # yqualifier. We don't really care the units here, but in case the
-            # user has changed the default units on some of the components to
-            # be different than others, we'll request them all in the same
-            # units.
-            # TODO: should we skip this for axes_3d?
-            sortqualifier = ['xs', 'ys', 'zs']
-            sortqualifier.remove(xqualifier)
-            sortqualifier.remove(yqualifier)
-            sortqualifier = sortqualifier[0]
-
-            components = ps.components
-            if len(ps.times)==1 and len(components) > 1:
-                # otherwise we'll handle this later within the time loop
-                # or if plotting multiple times on the same plot, we just give up on sorting
-                components_sortqualifiers = [np.mean(ps.get_value(sortqualifier, component=c)) for c in components]
-
-                # now get components ordered from back to front
-                components = [components[i] for i in np.argsort(components_sortqualifiers)]
-        else:
-            components = ps.components
-
-        if len(components) > 1:
-            return_ = []
-            for component in components:
-                this_return = ps.filter(component=component).get_plotting_info(**kwargs)
-                return_ += this_return
-            return return_
-
-        if len(ps.times) > 1 and kwargs.get('loop_times', False):
-            # only meshes (and spectra) will be able to iterate over times
-            return_ = []
+        if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
+            # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
-                this_return = ps.filter(time=time).get_plotting_info(**kwargs)
+                this_return = ps.filter(time=time)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
-        if len(ps.times) > 1 and not kwargs.get('time', False):
-            # TODO: we /could/ allow plotting mesh at multiple times simultaneously
-            # but then we need to be a lot smarter with sorting and pulling the
-            # color arrays by concatenation.  Some of the work needed to do this
-            # is already in place (like concatenating the vertex arrays), but
-            # is far from stable and frankly isn't terribly useful.
-            raise NotImplementedError("cannot plot over multiple times")
+        if len(ps.components) > 1:
+            return_ = []
+            for component in ps.components:
+                this_return = ps.filter(component=component)._unpack_plotting_kwargs(**kwargs)
+                return_ += this_return
+            return return_
+
 
         if ps.kind in ['mesh', 'mesh_syn', 'orb', 'orb_syn'] and \
                 ps.context == 'dataset':
             # nothing to plot here... at least for now
             return []
 
-        # We need to handle plotting meshes differently... but only if x, y,
-        # and z are all the coordinates (then we'll plot the triangles).
-        # Otherwise, we will continue and can use the generic x, y plotting (ie
-        # for flux vs r_proj)
-        if ps.kind in ['mesh', 'mesh_syn'] and \
-                kwargs.get('x', 'xs') in ['xs', 'ys', 'zs'] and \
-                kwargs.get('y', 'ys') in ['xs', 'ys', 'zs'] and \
-                kwargs.get('z', 'zs') in ['xs', 'ys', 'zs']:
+        if not len(ps):
+            return []
 
-            # TODO: here we want to call a different plotting function - note
-            # that meshes don't need to iterate over components like everything
-            # else will Keep in mind that we still want this to be plotting-
-            # backend dependent, so perhaps there will be a plotting.mpl_mesh
-            # function which will handle the output from preparing the arrays
+        # Now that we've looped over everything, we can assume that we are dealing
+        # with a SINGLE call.  We need to prepare kwargs so that it can be passed
+        # to autofig.plot or autofig.mesh
 
 
-            if kwargs.get('loop_times', False) or len(ps.times) <= 1:
-                center_sort = np.concatenate([ps.get_value(sortqualifier,
-                                                           component=c,
-                                                           unit=u.solRad if ps.dataset!='protomesh' else None)
-                                              for c in ps.components if c != '_default'])
+        #### SUPPORT DICTIONARIES IN KWARGS
+        # like color={'primary': 'red', 'secondary': 'blue'} or
+        # linestyle={'rv01': 'solid', 'rv02': 'dashed'}
+        # here we need to filter any kwargs that are dictionaries if they match
+        # the current ps
+        for k,v in kwargs.items():
+            if isinstance(v, dict) and 'kwargs' not in k:
+                # overwrite kwargs[k] based on any match in v
+                match = None
+                for kk,vv in v.items():
+                    if kk in ps.meta.values():
+                        if match is not None:
+                            raise ValueError("dictionary {}={} is not unique for {}".format(k,v, ps.meta))
+                        match = vv
+
+                if match is not None:
+                    kwargs[k] = match
+                else:
+                    # remove from the dictionary and fallback on defaults
+                    _dump = kwargs.pop(k)
+
+        #### ALIASES
+        if 'color' in kwargs.keys() and 'colors' not in kwargs.keys() and 'c' not in kwargs.keys():
+            logger.warning("assuming you meant 'c' instead of 'color'")
+            kwargs['c'] = kwargs.pop('color')
+        elif 'colors' in kwargs.keys() and 'c' not in kwargs.keys():
+            logger.warning("assuming you meant 'c' instead of 'colors'")
+            kwargs['c'] = kwargs.pop('colors')
+        if 'facecolor' in kwargs.keys() and 'facecolors' not in kwargs.keys() and 'fc' not in kwargs.keys():
+            logger.warning("assuming you meant 'fc' instead of 'facecolor'")
+            kwargs['fc'] = kwargs.pop('facecolor')
+        elif 'facecolors' in kwargs.keys() and 'fc' not in kwargs.keys():
+            logger.warning("assuming you meant 'fc' instead of 'facecolors'")
+            kwargs['fc'] = kwargs.pop('facecolors')
+        if 'edgecolor' in kwargs.keys() and 'edgecolors' not in kwargs.keys() and 'ec' not in kwargs.keys():
+            logger.warning("assuming you meant 'ec' instead of 'edgecolor'")
+            kwargs['ec'] = kwargs.pop('edgecolor')
+        elif 'edgecolors' in kwargs.keys() and 'ec' not in kwargs.keys():
+            logger.warning("assuming you meant 'ec' instead of 'edgecolors'")
+            kwargs['ec'] = kwargs.pop('edgecolors')
+
+        for d in ['x', 'y', 'z']:
+            if '{}error'.format(d) not in kwargs.keys():
+                if '{}errors'.format(d) in kwargs.keys():
+                    logger.warning("assuming you meant '{}error' instead of '{}errors'".format(d,d))
+                    kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
+
+        def _kwargs_fill_dimension(kwargs, direction, ps):
+            # kwargs[direction] is currently one of the following:
+            # * twig/qualifier
+            # * array/float
+            # * string (applicable for color dimensions)
+            #
+            # if kwargs[direction] is a twig, then we need to change the
+            # entry in the dictionary to be the data-array itself
+
+            current_value = kwargs.get(direction, None)
+
+            #### RETRIEVE DATA ARRAYS
+            if isinstance(current_value, str):
+                if ps.kind not in ['mesh'] and direction in ['fc', 'ec']:
+                    logger.warning("fc and ec are not allowable for dataset={} with kind={}, ignoring {}={}".format(ps.dataset, ps.kind, direction, current_value))
+                    _dump = kwargs.pop(direction)
+                    return kwargs
+
+                elif current_value in ['None', 'none']:
+                    return kwargs
+
+                elif '@' in current_value or current_value in ps.qualifiers or \
+                        (current_value in ['xs', 'ys', 'zs'] and 'xyz_elements' in ps.qualifiers) or \
+                        (current_value in ['us', 'vs', 'ws'] and 'uvw_elements' in ps.qualifiers):
+
+                    if kwargs['autofig_method'] == 'mesh' and current_value in ['xs', 'ys', 'zs']:
+                        # then we actually need to unpack from the xyz_elements
+                        verts = ps.get_quantity(qualifier='xyz_elements')
+                        array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
+                    elif kwargs['autofig_method'] == 'mesh' and current_value in ['us', 'vs', 'ws']:
+                        # then we actually need to unpack from the uvw_elements
+                        verts = ps.get_quantity(qualifier='uvw_elements')
+                        array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
+                    else:
+                        if len(ps.filter(current_value))==1:
+                            array_value = ps.get_quantity(current_value)
+                        elif len(ps.filter(current_value).times) > 1 and ps.get_value(current_value, time=ps.filter(current_value).times[0]):
+                            # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
+                            unit = ps.get_quantity(current_value, time=ps.filter(current_value).times[0]).unit
+                            array_value = np.array([ps.get_quantity(current_value, time=time).to(unit).value for time in ps.filter(current_value).times])*unit
+                        else:
+                            raise ValueError("could not find Parameter for {} in {}".format(current_value, ps.meta))
+
+                    kwargs[direction] = array_value
+
+                    if ps.context == 'dataset' and current_value in sigmas_avail:
+                        # then let's see if there are errors
+                        errorkey = '{}error'.format(direction)
+                        errors = kwargs.get(errorkey, None)
+                        if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
+                            kwargs[errorkey] = errors
+                        elif isinstance(errors, str):
+                            errors = ps.get_quantity(kwargs.get(errorkey))
+                            kwargs[errorkey] = errors
+                        else:
+                            sigmas = ps.get_quantity('sigmas')
+                            if len(sigmas):
+                                kwargs.setdefault(errorkey, sigmas)
+
+                    # now let's set the label for the dimension from the qualifier/twig
+                    kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+
+                    # we'll also keep the qualifier around - autofig doesn't use this
+                    # but we'll keep it so we can set some defaults
+                    kwargs['{}qualifier'.format(direction)] = current_value
+
+                    return kwargs
+
+                elif current_value in ['time', 'times'] and len(ps.times):
+                    kwargs[direction] = sorted([float(t) for t in ps.times])
+                    kwargs['{}qualifier'] = None
+                    return kwargs
+
+                elif current_value in ['wavelengths'] and ps.time is not None:
+                    # these are not tagged with the time, so we need to find them
+                    full_dataset_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'time']}
+                    full_dataset_ps = ps._bundle.filter(**full_dataset_meta)
+                    candidate_params = full_dataset_ps.filter(current_value)
+                    if len(candidate_params) == 1:
+                        kwargs[direction] = candidate_params.get_quantity()
+                        kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+                        kwargs['{}qualifier'.format(direction)] = current_value
+                        return kwargs
+                    elif len(candidate_params) > 1:
+                        raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, candidate_params.twigs))
+                    else:
+                        # then len(candidate_params) == 0
+                        raise ValueError("could not find a match for {}={}".format(direction, current_value))
+
+                elif current_value.split(':')[0] in ['phase', 'phases']:
+                    component_phase = current_value.split(':')[1] \
+                                        if len(current_value.split(':')) > 1 \
+                                        else None
+
+                    if ps.kind in ['etvs']:
+                        times = ps.get_value('time_ecls', unit=u.d)
+                    else:
+                        times = ps.get_value('times', unit=u.d)
+
+                    kwargs[direction] = self._bundle.to_phase(times, component=component_phase, t0=kwargs.get('t0', 't0_supconj')) * u.dimensionless_unscaled
+
+                    kwargs.setdefault('{}label'.format(direction), 'phase:{}'.format(component_phase) if component_phase is not None else 'phase')
+
+                    kwargs['{}qualifier'.format(direction)] = current_value
+
+                    # and we'll set the linebreak so that decreasing phase breaks any lines (allowing for phase wrapping)
+                    kwargs.setdefault('linebreak', '{}-'.format(direction))
+
+                    return kwargs
+
+                elif direction in ['c', 'fc', 'ec']:
+                    # then there is the possibility of referring to a column
+                    # that technnically is attached to a different dataset in
+                    # the same mesh (e.g. rvs@rv01 inside kind=mesh).  Let's
+                    # check for that first.
+
+                    if ps.kind in ['mesh'] and ps._bundle is not None:
+                        full_mesh_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'dataset']}
+                        full_mesh_ps = ps._bundle.filter(**full_mesh_meta)
+                        candidate_params = full_mesh_ps.filter(current_value)
+                        if len(candidate_params) == 1:
+                            kwargs[direction] = candidate_params.get_quantity()
+                            kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+                            kwargs['{}qualifier'.format(direction)] = current_value
+                            return kwargs
+                        elif len(candidate_params) > 1:
+                            raise ValueError("could not find single match for {}={}, found: {}".format(direction, current_value, candidate_params.twigs))
+                        elif current_value in autofig.cyclers._mplcolors:
+                            # no need to raise a warning, this is a valid color
+                            pass
+                        else:
+                            # maybe a hex or anything not in the cycler? or should we raise an error instead?
+                            logger.warning("could not find Parameter match for {}={} at time={}, assuming named color".format(direction, current_value, full_mesh_meta['time']))
+
+                    # Nothing has been found, so we'll assume the string is
+                    # the name of a color.  If the color isn't accepted by
+                    # autofig then autofig will raise an error listing the
+                    # list of allowed colors.
+                    return kwargs
+
+                else:
+                    raise ValueError("could not recognize {} for {} direction in dataset='{}', ps.meta={}".format(current_value, direction, ps.dataset, ps.meta))
+
+            elif _instance_in(current_value, np.ndarray, list, tuple, float, int):
+                # then leave it as-is
+                return kwargs
+            elif current_value is None:
+                return kwargs
             else:
-                center_sort = np.concatenate([ps.get_value(sortqualifier,
-                                                           component=ps.component,
-                                                           time=t,
-                                                           unit=u.solRad if ps.dataset!='protomesh' else None)
-                                              for c in ps.components if c != '_default'
-                                              for t in ps.times])
-
-            plot_inds = np.argsort(center_sort)
+                raise NotImplementedError
 
 
-            # Now let's set some defaults which will be passed on
-            # to mplkwargs. These defaults are obviously designed with matplotlib
-            # in mind, but other backends can either rewrite their own defaults or
-            # try to interpret these
-            if kwargs.pop('use_figure_params', True) and self._bundle is not None:
-                # then we'll pull color/marker/linestyle from the bundle
-                facecolor = kwargs.get('facecolor', None)
-                edgecolor = kwargs.get('edgecolor', None)
-
-                # TODO: this doesn't currently work because all components are plotted in one call.
-                # in order to make this work, we'll need to loop over components according to sortorder
-
-                if facecolor=='<component>':
-                    # raise NotImplementedError("coloring by component not yet supported")
-                    kwargs['facecolor'] = self._bundle.get_value('color', component=ps.component, context='figure')
-                if edgecolor=='<component>':
-                    # raise NotImplementedError("coloring by component not yet supported")
-                    kwargs['edgecolor'] = self._bundle.get_value('color', component=ps.component, context='figure')
+        #### DIRECTION DEFAULTS
+        # define defaults for directions based on ps.kind
+        if ps.kind in ['mesh', 'mesh_syn']:
+            # first determine from any passed values if we're in xyz or uvw
+            # (do not allow mixing between roche and POS)
+            detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
+            if len(detected_qualifiers):
+                coordinate_systems = set(['uvw' if detected_qualifier in ['us', 'vs', 'ws'] else 'xyz' for detected_qualifier in detected_qualifiers if detected_qualifier in ['us', 'vs', 'ws', 'xs', 'ys', 'zs']])
 
 
+                if len(coordinate_systems) == 1:
+                    coordinates = ['xs', 'ys', 'zs'] if list(coordinate_systems)[0] == 'xyz' else ['us', 'vs', 'ws']
+                elif len(coordinate_systems) > 1:
+                    # then we're mixing roche and POS
+                    raise ValueError("cannot mix xyz (roche) and uvw (pos) coordinates while plotting")
+                else:
+                    # then len(coordinate_system) == 0
+                    coordinates = ['us', 'vs', 'ws']
 
-            # if color is provided, it should be used for facecolor and
-            # edgecolor, but if either of those two values are provided, they
-            # should take precedence.
-            color = kwargs.get('color', None)
-            if 'facecolors' in kwargs.keys() and 'facecolor' not in kwargs.keys():
-                logger.warning("assuming you meant 'facecolor' instead of 'facecolors'")
-                kwargs['facecolor'] = kwargs.pop('facecolors')
-            if 'edgecolors' in kwargs.keys() and 'edgecolor' not in kwargs.keys():
-                logger.warning("assuming you meant 'edgecolor' instead of 'edgecolors'")
-                kwargs['edgecolor'] = kwargs.pop('edgecolors')
-            kwargs.setdefault('facecolor', 'w' if color is None else color)
-            kwargs.setdefault('edgecolor', 'k' if color is None else color)
-
-            if kwargs.get('colorlabel', None):
-                kwargs.setdefault('facecolorlabel', kwargs['colorlabel'])
-                kwargs.setdefault('edgecolorlabel', kwargs['colorlabel'])
-
-            if kwargs.get('colorunit', None):
-                kwargs.setdefault('facecolorunit', kwargs['colorunit'])
-                kwargs.setdefault('edgecolorunit', kwargs['colorunit'])
-
-            if kwargs.get('colorlim', None):
-                kwargs.setdefault('facecolorlim', kwargs['colorlim'])
-                kwargs.setdefault('edgecolorlim', kwargs['colorlim'])
-
-            facecolorqualifier = kwargs['facecolor'] if kwargs['facecolor'] in ps.qualifiers else None
-            edgecolorqualifier = kwargs['edgecolor'] if kwargs['edgecolor'] in ps.qualifiers else None
-
-            # TODO: do the same logic with cmap, facecmap, edgecmap as colors
-            # above
-
-            if ps.dataset == 'protomesh':
-                # then the array are dimensionless - which really means in
-                # units of sma
-                kwargs.setdefault('xunit', None)
-                kwargs.setdefault('yunit', None)
-                if axes_3d:
-                    kwargs.setdefault('zunit', None)
             else:
-                kwargs.setdefault('xunit', 'solRad')
-                kwargs.setdefault('yunit', 'solRad')
-                if axes_3d:
-                    kwargs.setdefault('zunit', 'solRad')
-
-            if kwargs['xunit'] != kwargs['yunit']:
-                raise ValueError('xunit and yunit must be the same for mesh plots')
-            if axes_3d and kwargs['xunit']!=kwargs['zunit']:
-                raise ValueError('xunit, yunit, and zunit must be the same for 3d mesh plots')
+                coordinates = ['us', 'vs', 'ws']
 
 
-            if facecolorqualifier is not None:
-                facecolorparam, facecolorarray, default_facecolorunit = _get_param_array(ps,
-                                                                             facecolorqualifier,
-                                                                             kwargs.get('facecolorunit', None))
+            defaults = {}
+            # first we need to know if any of the af_directions are set to
+            # something other than cartesian by the user (in which case we need
+            # to check for the parameter's existence before defaulting and use
+            # scatter instead of mesh plot)
+            mesh_all_cartesian = True
+            for af_direction in ['x', 'y', 'z']:
+                if kwargs.get(af_direction, None) not in [None] + coordinates:
+                    mesh_all_cartesian = False
 
-                kwargs.setdefault('facecolorunit', default_facecolorunit)
+            # now we need to loop again and set any missing defaults
+            for af_direction in ['x', 'y', 'z']:
+                if af_direction in kwargs.keys():
+                    # then default doesn't matter, but we'll set it at what it is
+                    defaults[af_direction] = kwargs[af_direction]
 
-            if edgecolorqualifier is not None:
-                edgecolorparam, edgecolorarray, default_edgecolorunit = _get_param_array(ps,
-                                                                             edgecolorqualifier,
-                                                                             kwargs.get('edgecolorunit', None))
+                    if kwargs[af_direction] in coordinates:
+                        # the provided qualifier could be something else (ie teffs)
+                        # in which case we'll end up doing a scatter instead of
+                        # a mesh plot
 
-                kwargs.setdefault('edgecolorunit', default_edgecolorunit)
+                        # now we'll remove from coordinates still available
+                        coordinates.remove(kwargs[af_direction])
+                else:
+                    # we'll take the first entry remaining in coordinates
+                    coordinate = coordinates.pop(0)
 
-            kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(xqualifier))
-            kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(yqualifier))
-            if axes_3d:
-                kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(zqualifier))
+                    # if mesh_all_cartesian then we're doing a mesh plot
+                    # and know that we have xyz/uvw_elements available.
+                    # Otherwise, we need to check and only apply the default
+                    # if that parameter (xs, ys, zs, us, vs, ws) is available.
+                    # Either way, we've removed this from the coordinates
+                    # list so the next direction will fill from the next available
+                    if mesh_all_cartesian or coordinate in ps.qualifiers:
+                        defaults[af_direction] = coordinate
 
-            if kwargs.get('facecolorbar', False) or kwargs.get('colorbar', False):
-                kwargs.setdefault('facecolorlabel', r"{} ({})".format(_qualifier_to_label(facecolorqualifier), _unit_to_str(kwargs['facecolorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['facecolorunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(facecolorqualifier))
 
-            if kwargs.get('edgecolorbar', False) or kwargs.get('colorbar', False):
-                kwargs.setdefault('edgecolorlabel', r"{} ({})".format(_qualifier_to_label(edgecolorqualifier), _unit_to_str(kwargs['edgecolorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['edgecolorunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(edgecolorqualifier))
+            # since we'll be selecting from the time tag, we need a non-zero tolerance
+            kwargs.setdefault('itol', 1e-6)
 
-            # vertices_xyz are the REAL x, y, z coordinates.  Later we'll convert
-            # to the quantities we want to plot along the x and y axes
+            if mesh_all_cartesian:
+                # then we'll be doing a mesh plot, so set some reasonable defaults
 
-            #vertices_xyz = np.concatenate([ps.get_value('vertices', component=c, time=t, unit=kwargs['xunit']) for c in ps.components for t in ps.times]).reshape((-1, 3, 3))[:, :, :]
+                # units will have handled this in POS (uvw) coordinates, but not
+                # Roche (xyz) as those are unitless
+                kwargs.setdefault('equal_aspect', True)
 
-            if kwargs.get('loop_times', False) or len(ps.times) <= 1:
-                vertices_xyz = np.concatenate([ps.get_value('vertices',
-                                                            component=c,
-                                                            unit=kwargs['xunit'])
-                                               for c in ps.components]).reshape((-1, 3, 3))[:, :, :]
+                # we want the wireframe by default
+                kwargs.setdefault('ec', 'black')
+                kwargs.setdefault('fc', 'white')
             else:
-                vertices_xyz = np.concatenate([ps.get_value('vertices',
-                                                            component=c,
-                                                            time=t,
-                                                            unit=kwargs['xunit'])
-                                               for c in ps.components for t in ps.times]).reshape((-1, 3, 3))[:, :, :]
+                # then even though the scatter may be rs vs cartesian with same
+                # units, let's default to disabling equal aspect ratio
+                kwargs.setdefault('equal_aspect', False)
 
-            # TODO: make this handle 3d by just iterating over zqualifier as
-            # well (but only if 3d)
-            if axes_3d:
-                coordinate_inds = [['xs', 'ys', 'zs'].index(q)
-                                   for q in [xqualifier, yqualifier, zqualifier]]
-            else:
-                coordinate_inds = [['xs', 'ys', 'zs'].index(q)
-                                   for q in [xqualifier, yqualifier]]
+            sigmas_avail = []
 
-            data = vertices_xyz[:, :, coordinate_inds]
+        elif ps.kind in ['orb', 'orb_syn']:
+            # similar logic to meshes above, except we only have uvw
+            coordinates = ['us', 'vs', 'ws']
 
-            # func = getattr(plotting, plotting_backend)
+            defaults = {}
+            for af_direction in ['x', 'y', 'z']:
+                if af_direction in kwargs.keys():
+                    # then default doesn't matter, but we'll set it at what it is
+                    defaults[af_direction] = kwargs[af_direction]
 
-            # logger.info("calling '{}' plotting backend".format(plotting_backend))
+                    if kwargs[af_direction] in coordinates:
+                        # the provided qualifier could be something else (ie teffs)
+                        # in which case we'll end up doing a scatter instead of
+                        # a mesh plot
 
-            # TODO: can we come up with a more clever default label.. maybe
-            # that includes edgecolor/facecolor?
-            default_label = '{}@{}'.format(ps.component, ps.dataset)
-            kwargs.setdefault('label', default_label)
+                        # now we'll remove from coordinates still available
+                        coordinates.remove(kwargs[af_direction])
+                else:
+                    # we'll take the first entry remaining in coordinates
+                    defaults[af_direction] = coordinates.pop(0)
 
-            # kwargs['plotting_backend'] = plotting_backend
-            kwargs['ps'] = ps
-            kwargs['data'] = data
-            kwargs['plot_inds'] = plot_inds
-            kwargs['polycollection'] = True
+            if kwargs.get('projection', None) != '3d':
+                defaults['z'] = 0
 
-            return [kwargs]
-
-            # return func(ps, data, plot_inds, polycollection=True, **kwargs)
-
-        # now we can use ps.kind to guess what columns need plotting
-        if ps.kind in ['orb', 'orb_syn']:
-            if axes_3d:
-                xqualifier = kwargs.get('x', 'xs')
-                yqualifier = kwargs.get('y', 'ys')
-                zqualifier = kwargs.get('z', 'zs')
-            else:
-                xqualifier = kwargs.get('x', 'xs')
-                yqualifier = kwargs.get('y', 'zs')
-                zqualifier = kwargs.get('z', 'ys')
-            timequalifier = 'times'
-        elif ps.kind in ['mesh', 'mesh_syn']:
-            xqualifier = kwargs.get('x', 'r_projs')
-            yqualifier = kwargs.get('y', 'teffs')
-            zqualifier = kwargs.get('z', 'loggs')
-            timequalifier = 'times'
+            sigmas_avail = []
         elif ps.kind in ['lc', 'lc_syn']:
-            xqualifier = kwargs.get('x', 'times')
-            yqualifier = kwargs.get('y', 'fluxes')
-            zqualifier = kwargs.get('z', 0)
-            timequalifier = 'times'
+            defaults = {'x': 'times',
+                        'y': 'fluxes',
+                        'z': 0}
+            sigmas_avail = ['fluxes']
         elif ps.kind in ['rv', 'rv_syn']:
-            xqualifier = kwargs.get('x', 'times')
-            yqualifier = kwargs.get('y', 'rvs')
-            zqualifier = kwargs.get('z', 0)
-            timequalifier = 'times'
+            defaults = {'x': 'times',
+                        'y': 'rvs',
+                        'z': 0}
+            sigmas_avail = ['rvs']
+        elif ps.kind in ['lp', 'lp_syn']:
+            defaults = {'x': 'wavelengths',
+                        'y': 'flux_densities',
+                        'z': 0}
+            sigmas_avail = ['flux_densities']
+
+            # since we'll be selecting from the time tag, we need a non-zero tolerance
+            kwargs.setdefault('itol', 1e-6)
+
+            # if animating or drawing at a single time, we want to show only
+            # the selected item, not all and then highlight the selected item
+            kwargs.setdefault('highlight_linestyle', kwargs.get('linestyle', 'solid'))
+            kwargs.setdefault('highlight_marker', 'None')
+            kwargs.setdefault('highlight_size', kwargs.get('size', 0.02))  # this matches the default in autofig for call._sizes
+            kwargs.setdefault('uncover', True)
+            kwargs.setdefault('trail', 0)
+
         elif ps.kind in ['etv', 'etv_syn']:
-            xqualifier = kwargs.get('x', 'time_ecls')
-            yqualifier = kwargs.get('y', 'etvs')
-            zqualifier = kwargs.get('z', 0)
-            timequalifier = 'time_ecls'
-        elif ps.kind is None:
-            logger.warning("could not find any data")
-            xqualifier = ''
-            yqualifier = ''
-            zqualifier = ''
-            timequalifier = ''
+            defaults = {'x': 'time_ecls',
+                        'y': 'etvs',
+                        'z': 0}
+            sigmas_avail = ['etvs']
         else:
-            raise NotImplementedError("plotting for dataset '{}' with kind '{}' is not yet implemented".format(ps.dataset, ps.kind))
+            logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
+            raise NotImplementedError("defaults for kind {} (dataset: {}) not yet implemented".format(ps.kind, ps.dataset))
 
-        # We'll set these as kwarg defaults so that they can easily be passed
-        # through any other call to plot (when looping over models, components,
-        # kinds below)
-        # color = kwargs.get('color', None)
-        # kwargs.setdefault('linecolor', color)
-        # kwargs.setdefault('markercolor', color)
-        # kwargs.setdefault('color', None)
-        kwargs.setdefault('time', None)
-        kwargs.setdefault('highlight', True)
-        kwargs.setdefault('highlight_marker', 'o')
-        kwargs.setdefault('highlight_ms', None)
-        kwargs.setdefault('highlight_color', None)
-        kwargs.setdefault('uncover', False)
-
-        colorqualifier = kwargs['color'] if kwargs.get('color', False) in ps.qualifiers else None
-
-        # Now let's get the parameters
-
-        # TODO: these are currently warnings that
-        # are ignored because some kinds might not include the defaults (ie
-        # no positions in orb but are in orb_syn)... perhaps this should be
-        # silently handled earlier and should raise an error if we make it this
-        # far (ie the user gave a non-existant qualifier)
-
-        if xqualifier not in ps.qualifiers and \
-                xqualifier.split(':')[0] not in ['phase', 'phases'] and \
-                not (isinstance(xqualifier, float) or
-                     isinstance(xqualifier, int)):
-            logger.warning("attempting to plot but could not find parameter {} - skipping".format(xqualifier))
-            return []
-
-        if yqualifier not in ps.qualifiers and \
-                not (isinstance(yqualifier, float) or
-                     isinstance(yqualifier, int)):
-            logger.warning("attempting to plot but could not find parameter {} - skipping".format(yqualifier))
-            return []
-
-        if axes_3d and \
-                zqualifier not in ps.qualifiers and \
-                not (isinstance(zqualifier, float) or
-                     isinstance(zqualifier, int)):
-            logger.warning("attempting to plot but could not find parameter {} - skipping".format(zqualifier))
-            return []
-
-        # TODO: add other checks to make sure x and y are arrays (and have
-        # default_units)
-
-        # Now we need to get the units, labels, and arrays
-        # If the user provides unit(s), they can either give the unit object or
-        # the string representation, so long as get_value(unit) succeeds
-        # xunit = kwargs.get('xunit', xparam.default_unit)
-        if ps.kind in ['mesh', 'mesh_syn']:  # TODO: add sp and sp_syn
-            # then we're plotting at a single time so the time array doesn't
-            # really make sense (we won't be able to plot anything vs phase or
-            # color by time/phase)
-            tparam = None
-            tarray = []
-        else:
-            tparam = ps.get_parameter(qualifier=timequalifier)
-            tarray = tparam.get_value(unit='d')
-
-        if xqualifier.split(':')[0] in ['phase', 'phases']:
-            # then we need to do things slightly different
-            phased = True
-            component = xqualifier.split(':')[1] \
-                if len(xqualifier.split(':')) > 1 \
-                else None
-            # TODO: check to make sure we have access to tparam._bundle
-            if ps.kind.split('_')[-1] == 'syn':
-                xarray = tparam._bundle.to_phase(tarray,
-                                                 shift=True,
-                                                 component=component,
-                                                 t0=kwargs.get('t0', 't0_supconj'))
+        #### DETERMINE AUTOFIG PLOT TYPE
+        # NOTE: this must be done before calling _kwargs_fill_dimension below
+        cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
+        if ps.kind in ['mesh']:
+            if mesh_all_cartesian:
+                kwargs['autofig_method'] = 'mesh'
             else:
-                # then we don't want to include phase-shifting for obs data
-                xarray = tparam._bundle.to_phase(tarray,
-                                                 shift=False,
-                                                 component=component,
-                                                 t0=kwargs.get('t0', 't0_supconj'))
+                kwargs['autofig_method'] = 'plot'
 
-            # really only used to get the default label for this ps
-            xparam = tparam
-            kwargs.setdefault('xunit', 'cy')
-            if kwargs.get('time', None):
-                kwargs['time'] = self._bundle.to_phase(kwargs['time'],
-                                                       shift=True,
-                                                       component=component,
-                                                       t0=kwargs.get('t0', 't0_supconj'))
-
-        elif isinstance(xqualifier, float) or isinstance(xqualifier, int):
-            xparam = None
-            xarray = np.ones(len(tarray)) * float(xqualifier)
-            kwargs['xunit'] = None
-            kwargs.setdefault('xlabel', '')
-            if not axes_3d:
-                kwargs.setdefault('marker', '+')
-                kwargs.setdefault('markersize', 20)
-                kwargs.setdefault('linestyle', 'none')
+            if self.time is not None:
+                kwargs['i'] = float(self.time)
         else:
-            phased = False
-            xparam, xarray, default_xunit = _get_param_array(ps,
-                                                             xqualifier,
-                                                             kwargs.get('xunit', None))
-            kwargs.setdefault('xunit', default_xunit)
+            kwargs['autofig_method'] = 'plot'
 
-        if isinstance(yqualifier, float) or isinstance(yqualifier, int):
-            yparam = None
-            yarray = np.ones(len(tarray)) * float(yqualifier)
-            kwargs['yunit'] = None
-            kwargs.setdefault('ylabel', '')
-            if not axes_3d:
-                kwargs.setdefault('marker', '|')
-                kwargs.setdefault('markersize', 20)
-                kwargs.setdefault('linestyle', 'none')
+        #### GET DATA ARRAY FOR EACH AUTOFIG "DIRECTION"
+        for af_direction in ['x', 'y', 'z', 'c', 's', 'fc', 'ec']:
+            # set the array and dimension label
+            if af_direction not in kwargs.keys() and af_direction in defaults.keys():
+                # don't want to use setdefault here because we don't want an
+                # entry if the af_direction is not in either dict
+                kwargs[af_direction] = defaults[af_direction]
+            kwargs = _kwargs_fill_dimension(kwargs, af_direction, ps)
 
+        #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
+        # try to find 'times' in the cartesian dimensions:
+        for af_direction in ['x', 'y', 'z']:
+            if kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls']:
+                kwargs['i'] = af_direction
+                break
         else:
-            yparam, yarray, default_yunit = _get_param_array(ps,
-                                                             yqualifier,
-                                                             kwargs.get('yunit', None))
-            if kwargs.pop('norm', False):
-                yarray /= yarray.max()
-
-            kwargs.setdefault('yunit', default_yunit)
-
-        if isinstance(zqualifier, float) or isinstance(zqualifier, int):
-            zparam = None
-            zarray = np.ones(len(tarray)) * float(zqualifier)
-            kwargs['zunit'] = None
-        elif axes_3d:
-            zparam, zarray, default_zunit = _get_param_array(ps,
-                                                             zqualifier,
-                                                             kwargs.get('zunit', None))
-            kwargs.setdefault('zunit', default_zunit)
-
-        else:
-            zparam = None
-            zarray = None
-
-        if colorqualifier is not None:
-            colorparam, colorarray, default_colorunit = _get_param_array(ps,
-                                                                         colorqualifier,
-                                                                         kwargs.get('colorunit', None))
-
-            kwargs.setdefault('colorunit', default_colorunit)
-
-        # and finally, build the label (if it hasn't been already)
-        kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(xqualifier))
-        kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(yqualifier))
-        if axes_3d:
-            kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(zqualifier))
-
-        if kwargs.get('colorbar', False):
-            kwargs.setdefault('colorlabel', r"{} ({})".format(_qualifier_to_label(colorqualifier), _unit_to_str(kwargs['colorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['colorunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(colorqualifier))
-
-        if phased:
-            # then we need to sort all arrays according to phase (xarray)
-            # TODO: do this more efficiently
-            # TODO: this may not always be wanted, sometimes we may want to instead
-            # loop over each cycle and draw multiple lines
-            if axes_3d:
-                if not (len(xarray) and len(yarray) and len(zarray)):
-                    return []
-                xyzt = zip(xarray, yarray, zarray, tarray)
-                xyzt.sort()
-                x, y, z, t = zip(*xyzt)
-                xarray, yarray, zarray, tarray = np.array(x), np.array(y), np.array(z), np.array(t)
+            # then we didn't find a match, so we'll either pass the time
+            # (for a mesh) or times array (otherwise)
+            if ps.time is not None:
+                # a single mesh will pass just that single time on as the
+                # independent variable/direction
+                kwargs['i'] = float(ps.time)
+                kwargs['iqualifier'] = 'ps.times'
+            elif ps.kind in ['etv']:
+                kwargs['i'] = ps.get_quantity(qualifier='time_ecls')
+                kwargs['iqualifier'] = 'time_ecls'
             else:
-                if not (len(xarray) and len(yarray)):
-                    return []
-                xyt = zip(xarray, yarray, tarray)
-                xyt.sort()
-                x, y, t = zip(*xyt)
-                xarray, yarray, tarray = np.array(x), np.array(y), np.array(t)
+                kwargs['i'] = ps.get_quantity(qualifier='times')
+                kwargs['iqualifier'] = 'times'
 
-        # handle getting the indices to plot if uncover is True
-        # TODO: how will uncover handle phased data?
-        if kwargs['uncover'] and isinstance(kwargs['time'], float):
-            logger.debug("uncover up to time={}".format(kwargs['time']))
-            plot_inds = tarray <= kwargs['time']
-        else:
-            # we do xarray here instead of tarray for the cases where tarray =
-            # [] this will happen for meshes and spectra
-            plot_inds = range(len(yarray))
 
-        # Now let's build a default label for the legend.  This should be the
-        # uniquetwig of the PS... since this doesn't really exist, we can just
-        # find the overlap between the x and y twigs
-        # The user will be responsible for showing the legend on the plot, but
-        # we'll label each plot call automatically.
-        # To draw the legend:
-        # ax = ps.plot(...)
-        # ax.legend()
-        # plt.show()
-        if xparam is None:
-            default_label = yparam.uniquetwig
-        elif yparam is None:
-            default_label = xparam.uniquetwig
-        else:
-            # TODO: include zparam.uniquetwig if axes_3d
-            default_label = ''.join(c[2:] for c in list(difflib.ndiff(xparam.uniquetwig, yparam.uniquetwig)) if c[0] == ' ')
-            if default_label[0] == '@':
-                # then let's just trim the leading @
-                default_label = default_label[1:]
-            if default_label.split('@')[0] not in xparam.uniquetwig.split('@')+yparam.uniquetwig.split('@'):
-                # then we had some overlap that doesn't form a whole label
-                # this can happen for "times" and "fluxes", for example
-                # leaving the leading "es".  So let's trim this and only
-                # return the rest
-                default_label = '@'.join(default_label.split('@')[1:])
+        #### STYLE DEFAULTS
+        # set defaults for marker/linestyle depending on whether this is
+        # observational or synthetic data
+        if ps.context == 'dataset':
+            kwargs.setdefault('linestyle', 'none')
+        elif ps.context == 'model':
+            if ps.kind in ['mesh', 'mesh_syn'] and kwargs['autofig_method'] == 'plot':
+                kwargs.setdefault('marker', '^')
+                kwargs.setdefault('linestyle', 'none')
+            else:
+                kwargs.setdefault('marker', 'none')
+
+        # set defaults for colormap and symmetric limits
+        for af_direction in ['c', 'fc', 'ec']:
+            qualifier = kwargs.get('{}qualifier'.format(af_direction), '').split('@')[0]
+            if qualifier in ['rvs']:
+                kwargs.setdefault('{}map'.format(af_direction), 'RdBu_r')
+                if kwargs['{}map'.format(af_direction)] == 'RdBu_r':
+                    # only apply symmetric default if taking the colormap default
+                    kwargs.setdefault('{}lim'.format(af_direction), 'symmetric')
+            elif qualifier in ['vxs', 'vys', 'vzs', 'vus', 'vvs', 'vws']:
+                kwargs.setdefault('{}map'.format(af_direction), 'RdBu')
+                if kwargs['{}map'.format(af_direction)] == 'RdBu':
+                    # only apply symmetric default if taking the colormap default
+                    kwargs.setdefault('{}lim'.format(af_direction), 'symmetric')
+                kwargs.setdefault('{}lim'.format(af_direction), 'symmetric')
+            elif qualifier in ['teffs']:
+                kwargs.setdefault('{}map'.format(af_direction), 'afmhot')
+            elif qualifier in ['loggs']:
+                kwargs.setdefault('{}map'.format(af_direction), 'gnuplot')
+            elif qualifier in ['visibilities']:
+                kwargs.setdefault('{}map'.format(af_direction), 'RdYlGn')
+                kwargs.setdefault('{}lim'.format(af_direction), (0,1))
+
+        #### LABEL FOR LEGENDS
+        attrs = ['component', 'dataset']
+        if len(ps._bundle.models) > 1:
+            attrs += ['model']
+        default_label = '@'.join([getattr(ps, attr) for attr in attrs if getattr(ps, attr) is not None])
         kwargs.setdefault('label', default_label)
 
-        # Now let's try to figure out the plottype (whether to do plot or
-        # scatter or hist, etc) and set some defaults which will be passed on
-        # to mplkwargs. These defaults are obviously designed with matplotlib
-        # in mind, but other backends can either rewrite their own defaults or
-        # try to interpret these
-        if kwargs.pop('use_figure_params', True) and self._bundle is not None:
-            # then we'll pull color/marker/linestyle from the bundle
-            if ps.context=='model':
-                default_color = self._bundle.get_value('color', model=ps.model, context='figure')
-                default_linestyle = self._bundle.get_value('linestyle', model=ps.model, context='figure')
-                default_marker = 'None'
-            else:
-                default_color = self._bundle.get_value('color', dataset=ps.dataset, context='figure')
-                default_linestyle = 'None'
-                default_marker = self._bundle.get_value('marker', dataset=ps.dataset, context='figure')
-            if default_color=='<dataset>':
-                default_color = self._bundle.get_value('color', dataset=ps.dataset, context='figure')
-            if default_linestyle=='<dataset>':
-                default_linestyle = self._bundle.get_value('linestyle', dataset=ps.dataset, context='figure')
-            if default_marker=='<dataset>':
-                default_marker = self._bundle.get_value('marker', component=ps.componet, context='figure')
-            if default_color=='<component>':
-                default_color = self._bundle.get_value('color', component=ps.component, context='figure')
-            if default_linestyle=='<component>':
-                default_linestyle = self._bundle.get_value('linestyle', component=ps.component, context='figure')
-            if default_marker=='<component>':
-                default_marker = self._bundle.get_value('marker', component=ps.component, context='figure')
+        return (kwargs,)
 
-            # print "***", default_color, default_linestyle, default_marker
-
-
-            kwargs.setdefault('color', default_color)
-            kwargs.setdefault('linestyle', default_linestyle)
-            kwargs.setdefault('marker', default_marker)
-        else:
-            kwargs.setdefault('color', None)
-
-
-
-        if ps.context=='model':
-            plottype = 'line'
-            if ps.kind in ['mesh'] and \
-                    isinstance(xparam, FloatArrayParameter) and \
-                    isinstance(yparam, FloatArrayParameter) and \
-                    (zparam is None or
-                     isinstance(zparam, FloatArrayParameter)):
-                kwargs.setdefault('linestyle', 'None')
-                kwargs.setdefault('marker', '^')
-            else:
-                kwargs.setdefault('linestyle', '-')
-                kwargs.setdefault('marker', 'None')
-            kwargs.setdefault('xerrors', None)
-            kwargs.setdefault('yerrors', None)
-        # TODO: handle other things like priors, posteriors, feedback
-        else:
-            # assume data or data-like
-            plottype = 'data'
-            kwargs.setdefault('linestyle', 'None')
-            kwargs.setdefault('marker', 'o')
-            kwargs.setdefault('xerrors', None)
-            kwargs.setdefault('yerrors', 'sigma' if 'sigma' in ps.qualifiers and len(ps.get_value('sigma')) else None)
-
-        # kwargs['plotting_backend'] = plotting_backend
-        kwargs['ps'] = ps
-        # kwargs['xarray'] = xarray
-        # kwargs['yarray'] = yarray
-        if axes_3d:
-            # kwargs['zarray'] = zarray
-            if not (len(xarray) and len(yarray) and len(zarray)):
-                return []
-            kwargs['data'] = (xarray, yarray, zarray, tarray)
-        else:
-            if not (len(xarray) and len(yarray)):
-                return []
-            kwargs['data'] = (xarray, yarray, None, tarray)
-        # kwargs['tarray'] = tarray
-        kwargs['plot_inds'] = plot_inds
-
-        return [kwargs]
-
-    def plot(self, *args, **kwargs):
+    def gcf(self):
         """
-        High-level wrapper around matplotlib (by default, but also has some support
-        for other plotting backends).  This function smartly makes one
-        or multiple calls to the plotting backend based on the type of data.
+        Get the active current figure.
 
-        Individual lines are each given a label (automatic if not provided).
-        To see these in a legend simply call ax.legend([options])
-
-        >>> ax = ps.plot()
-        >>> ax.legend()
-        >>> plt.show()
-
-        :parameter *args: either a twig pointing to a dataset,
-            or dictionaries, where each dictionary gets passed back to
-            :meth:`plot`
-        :parameter float time: Current time.  For spectra and meshes, time
-            is required to determine at which time to draw.  For other types,
-            time will only be used for higlight and uncover (if enabled)
-        :parameter str backend: Plotting backend to use.  Will default to
-            'plotting_backend' from the :class:`phoebe.frontend.bundle.Bundle`
-            settings if not provided.
-
-        :parameter bool highlight: whether to highlight the current time
-            (defaults to True)
-        :parameter str highlight_marker: if highlight==True - what marker-type
-            to use for highlighting the current time (defaults to 'o')
-        :parameter int highlight_ms: if highlight==Ture - what marker-size
-            to use for highlighting the current time
-        :parameter str highlight_color: if highlight==True: what marker-color
-            to use for highlighting the current time
-        :parameter bool uncover: whether to only show data up to the current time
-            (defaults to False)
-
-        :parameter ax: axes to plot on (defaults to plt.gca())
-        :type ax: mpl.axes
-
-        :parameter str x: qualifier or twig of the array to plot on the x-axis (will
-            default based on the kind if not provided).  Must be a valid
-            qualifier with the exception of phase.  To plot phase along the
-            x-axis set x to 'phases' or 'phases:[component]'.  This will use
-            the ephemeris from :meth:`phoebe.frontend.bundle.Bundle.get_ephemeris` if possible.
-        :parameter str y: qualifier or twig of the array to plot on the y-axis
-            (see details for x above)
-        :parameter str z: qualifier or twig of the array to plot on the z-axis if both
-            the backend and ax support 3d plotting (see details for x above)
-        :parameter t0: qualifier or float of the t0 that should be used for
-            phasing, if applicable
-        :type t0: string or float
-        :parameter str xerrors: qualifier of the array to plot as x-errors (will
-            default based on x if not provided)
-        :parameter str yerrors: qualifier of the array to plot as y-errors (will
-            default based on y if not provided)
-        :parameter str zerrors: qualifier of the array to plot as z-errors (will
-            default based on z if not provided)
-
-        :parameter xunit: unit to plot the x-array (will default based on x if not provided)
-        :type xunit: str or astropy.unit.Unit
-        :parameter yunit: unit to plot the y-array (will default based on y if not provided)
-        :type yunit: str or astropy.unit.Unit
-        :parameter zunit: unit to plot the z-array (will default based on z if not provided)
-        :type zunit: str or astropy.unit.Unit
-
-
-        :parameter str xlabel: label for the x-axis (will default based on x if not provided, but
-            will not set if ax already has an xlabel)
-        :parameter str ylabel: label for the y-axis (will default based on y if not provided, but
-            will not set if ax already has an ylabel)
-        :parameter str zlabel: label for the z-axis (will default based on z if not provided, but
-            will not set if ax already has an zlabel)
-
-
-        :parameter tuple xlim: limits for the x-axis (will default based on data if not provided)
-        :parameter tuple ylim: limits for the x-axis (will default based on data if not provided)
-        :parameter tuple zlim: limits for the x-axis (will default based on data if not provided)
-
-        :parameter str label: label to give to ALL lines in this single plotting call (each
-            line with get automatic default labels if not provided)
-
-        :parameter str color: matplotlib recognized color string or the qualifier/twig
-            of an array to use for color (will apply to facecolor and edgecolor for meshes
-            unless those are provided)
-        :parameter str cmap: matplotlib recognized cmap to use if color is
-            a qualifier pointing to an array (will be ignored otherwise)
-        :parameter bool colorbar: whether to display the colorbar (will default to False)
-        :parameter colorunit: unit to plot the color-array (will default based on color if not provided)
-        :type colorunit: str or astropy.unit.Unit
-        :parameter tuple colorlim: limit for the colorbar (in same units as colorunit)
-        :parameter str colorlabel: label for the colorbar, if applicable (will default based on
-            color if not provided)
-
-        :parameter str facecolor: matplotlib recognized color string or the qualifier/twig
-            of an array to use for facecolor (mesh plots only - takes precedence over color)
-        :parameter str facecmap: matplotlib recognized cmap to use if facecolor is
-            a qualifier pointing to an array (will be ignored otherwise)
-        :parameter facecolorbar: whether to display the facecolorbar (will default to False - takes precedence over colorbar)
-        :parameter facecolorunit: unit to plot the facecolor-array (will default based on facecolor if not provided)
-        :type facecolorunit: str or astropy.unit.Unit
-        :parameter tuple facecolorlim: limit for the facecolorbar (in same units as facecolorunit)
-        :parameter str facecolorlabel: label for the facecolorbar, if applicable (will default based on
-            facecolor if not provided)
-
-        :parameter str edgecolor: matplotlib recognized color string or the qualifier/twig
-            of an array to use for edgecolor (mesh plots only - takes precedence over color)
-        :parameter str edgecmap: matplotlib recognized cmap to use if edgecolor is
-            a qualifier pointing to an array (will be ignored otherwise
-        :parameter edgecolorunit: unit to plot the edgecolor-array (will default based on edgecolor if not provided)
-        :type edgecolorunit: str or astropy.unit.Unit
-        :parameter tuple facecolorlim: limit for the facecolorbar (in same units as facecolorunit)
-        :parameter str edgecolorlabel: label for the edgecolorbar, if applicable (will default based on
-            edgecolor if not provided)
-
-        :parameter str save: filename of the resulting animation.  If provided,
-            the animation will be saved automatically.  Either way, the animation
-            object is returned (so you can always call anim.save(fname)).
-        :parameter bool show: whether to automatically show the animation (defaults
-            to False).  Either way, the animation object is returned (so you can
-            always call b.show() or plt.show())
-        :parameter **kwargs: additional kwargs to filter the ParameterSet OR to pass along
-            to the backend plotting call
-
-        :returns: the matplotlib axes (or equivalent for other backends)
+        See also:
+        * <phoebe.parameters.ParameterSet.plot>
+        * <phoebe.parameters.ParameterSet.show>
+        * <phoebe.parameters.ParameterSet.savefig>
+        * <phoebe.parameters.ParameterSet.clf>
         """
+        if self._bundle is None:
+            return autofig.gcf()
 
+        if self._bundle._figure is None:
+            self._bundle._figure = autofig.Figure()
 
-        # TODO: need to handle user sending shortcut mplkwargs like 'ls' or 'ms' (need to turn those into their full versions in kwargs for logic to work)
-        # TODO: need to handle user sending fmt string (again, how do we handle logic, is there a mpl function to retrieve linestyle, marker, etc from the fmt string?)
+        return self._bundle._figure
 
-        # TODO: allow sizes as an array (same as colors)
-        # TODO: color support for errorbars
-        # TODO: auto-color match when marker and line
+    def clf(self):
+        """
+        Clear/reset the active current figure.
 
-        # TODO: support z-axis (do we check to see if the axes supports 3d, or a boolean option, or a separate function for plot3d?)
-        # TODO: plan for supporting priors, feedback, posteriors
+        See also:
+        * <phoebe.parameters.ParameterSet.plot>
+        * <phoebe.parameters.ParameterSet.show>
+        * <phoebe.parameters.ParameterSet.savefig>
+        * <phoebe.parameters.ParameterSet.gcf>
+        """
+        if self._bundle is None:
+            raise ValueError("could not find parent Bundle object")
 
-        # TODO: change xerrors, yerrors -> xerror, yerror ???
+        self._bundle._figure = None
 
-        plot_argss = _parse_plotting_args(args)
+    def plot(self, twig=None, **kwargs):
+        """
+        High-level wrapper around matplotlib that uses
+        [autofig 1.0.0](https://github.com/kecnry/autofig/tree/1.0.0)
+        under-the-hood for automated figure and animation production.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.show>
+        * <phoebe.parameters.ParameterSet.savefig>
+        * <phoebe.parameters.ParameterSet.gcf>
+        * <phoebe.parameters.ParameterSet.clf>
+
+        Note: not all options are listed below.  See the
+        [autofig](https://github.com/kecnry/autofig/tree/1.0.0)
+        tutorials and documentation for more options which are passed along
+        via `**kwargs`.
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to use for filtering
+            prior to plotting.  See <phoebe.parameters.ParameterSet.filter>
+        * `time` (float, optional): time to use for plotting/animating.
+        * `times` (list/array, optional): times to use for animating (will
+            override any value sent to `time`).
+        * `t0` (string/float, optional): qualifier/twig or float of the t0 that
+            should be used for phasing, if applicable.  If provided as a string,
+            `b.get_value(t0)` needs to provide a valid float.
+
+        * `x` (string/float/array, optional): qualifier/twig of the array to plot on the
+            x-axis (will default based on the dataset-kind if not provided).
+            With the exception of phase, `b.get_value(x)` needs to provide a
+            valid float or array.  To plot phase along the x-axis, pass
+            `x='phases'` or `x=phases:[component]`.  This will use the ephemeris
+            from <phoebe.frontend.bundle.Bundle.get_ephemeris(component) if
+            possible to phase the applicable times array.
+        * `y` (string/float/array, optional): qualifier/twig of the array to plot on the
+            y-axis (will default based on the dataset-kind if not provided).
+        * `z` (string/float/array, optional): qualifier/twig of the array to plot on the
+            z-axis.  By default, this will just order the points on a 2D plot.
+            To plot in 3D, also pass `projection='3d'`.
+        * `s` (strong/float/array, optional): qualifier/twig of the array to use
+            for size.  See the [autofig tutorial on size](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/size_modes.ipynb)
+            for more information.
+        * `c` (string/float/array, optional): qualifier/twig of the array to use
+            for color.
+        * `fc` (string/float/array, optional): qualifier/twig of the array to use
+            for facecolor (only applicable for mesh plots).
+        * `ec` (string/float/array, optional): qualifier/twig of the array to use
+            for edgecolor (only applicable for mesh plots).
+
+        * `xerror` (string/float/array, optional): qualifier/twig of the array to plot as
+            x-errors (will default based on `x` if not provided).
+        * `yerror` (string/float/array, optional): qualifier/twig of the array to plot as
+            y-errors (will default based on `y` if not provided).
+        * `zerror` (string/float/array, optional): qualifier/twig of the array to plot as
+            z-errors (will default based on `z` if not provided).
+
+        * `xunit` (string/unit, optional): unit to plot on the x-axis (will
+            default on `x` if not provided).
+        * `yunit` (string/unit, optional): unit to plot on the y-axis (will
+            default on `y` if not provided).
+        * `zunit` (string/unit, optional): unit to plot on the z-axis (will
+            default on `z` if not provided).
+        * `cunit` (string/unit, optional): unit to plot on the color-axis (will
+            default on `c` if not provided).
+        * `fcunit` (string/unit, optional): unit to plot on the facecolor-axis (will
+            default on `fc` if not provided, only applicable for mesh plots).
+        * `ecunit` (string/unit, optional): unit to plot on the edgecolor-axis (will
+            default on `ec` if not provided, only applicable for mesh plots).
+
+        * `xlabel` (string, optional): label for the x-axis (will default on `x`
+            if not provided, but will not set if the axes already has an xlabel).
+        * `ylabel` (string, optional): label for the y-axis (will default on `y`
+            if not provided, but will not set if the axes already has an ylabel).
+        * `zlabel` (string, optional): label for the z-axis (will default on `z`
+            if not provided, but will not set if the axes already has an zlabel).
+        * `slabel` (string, optional): label for the size-axis (will default on `s`
+            if not provided, but will not set if the axes already has an slabel).
+        * `clabel` (string, optional): label for the color-axis (will default on `c`
+            if not provided, but will not set if the axes already has an clabel).
+        * `fclabel` (string, optional): label for the facecolor-axis (will default on `fc`
+            if not provided, but will not set if the axes already has an fclabel,
+            only applicable for mesh plots).
+        * `eclabel` (string, optional): label for the edgecolor-axis (will default on `ec`
+            if not provided, but will not set if the axes already has an eclabel,
+            only applicable for mesh plots).
+
+        * `xlim` (tuple/string, optional): limits for the x-axis (will default on
+            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            for more information/choices.
+        * `ylim` (tuple/string, optional): limits for the y-axis (will default on
+            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            for more information/choices.
+        * `zlim` (tuple/string, optional): limits for the z-axis (will default on
+            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            for more information/choices.
+        * `slim` (tuple/string, optional): limits for the size-axis (will default on
+            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            for more information/choices.
+        * `clim` (tuple/string, optional): limits for the color-axis (will default on
+            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            for more information/choices.
+        * `fclim` (tuple/string, optional): limits for the facecolor-axis (will default on
+            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            for more information/choices.
+        * `eclim` (tuple/string, optional): limits for the edgecolor-axis (will default on
+            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            for more information/choices.
+
+        * `smode` (string, optional): size mode.  See the [autofig tutorial on sizes](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/size_modes.ipynb)
+            for more information.
+
+        * `highlight` (bool, optional, default=True): whether to highlight at the
+            current time.  Only applicable if `time` or `times` provided.
+        * `highlight_marker` (string, optional): marker to use for highlighting.
+            Only applicable if `highlight=True` and `time` or `times` provided.
+        * `highlight_color` (string, optional): color to use for highlighting.
+            Only applicable if `highlight=True` and `time` or `times` provided.
+
+        * `uncover` (bool, optional): whether to uncover data based on the current
+            time.  Only applicable if `time` or `times` provided.
+
+        * `save` (string, optional, default=False): filename to save the
+            figure (or False to not save).
+        * `show` (bool, optional, default=False): whether to show the plot
+        * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `draw_sidebars` (bool, optional, default=True): whether to include
+            any applicable sidebars (colorbar, sizebar, etc).
+        * `draw_title` (bool, optional, default=True): whether to draw axes
+            titles.
+        * `subplot_grid` (tuple, optional, default=None): override the subplot
+            grid used (see [autofig tutorial on subplots](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/subplot_positioning.ipynb)
+            for more details).
+
+        * `save_kwargs` (dict, optional): any kwargs necessary to pass on to
+            save (only applicable if `animate=True`).
+
+        * `**kwargs`: additional keyword arguments are sent along to [autofig](https://github.com/kecnry/autofig/tree/1.0.0).
+
+        Returns
+        --------
+        * (autofig figure, matplotlib figure)
+        """
+        if not _use_autofig:
+            if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
+                raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disasbled")
+            else:
+                raise ImportError("autofig not imported, cannot plot")
 
         # since we used the args trick above, all other options have to be in kwargs
-        do_plot = kwargs.pop('do_plot', True)
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
+        tight_layout = kwargs.pop('tight_layout', False)
+        draw_sidebars = kwargs.pop('draw_sidebars', False)
+        draw_title = kwargs.pop('draw_title', False)
+        subplot_grid = kwargs.pop('subplot_grid', None)
+        animate = kwargs.pop('animate', False)
+        time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
+        if twig is not None:
+            kwargs['twig'] = twig
 
-        return_axes = []
-        return_artists = []
-        return_data = []
-        # this first loop allows for building figures or plotting
-        # multiple twigs at once.
-        for plot_args in plot_argss:
+        plot_kwargss = self._unpack_plotting_kwargs(**kwargs)
 
-            for k, v in kwargs.items():
-                plot_args.setdefault(k,v)
+        # this loop handles any of the automatically-generated
+        # multiple plotting calls, passing each on to autofig
+        for plot_kwargs in plot_kwargss:
+            y = plot_kwargs.get('y', [])
+            if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
+                pass
+            elif not len(y):
+                # a dataset without observational data, for example
+                continue
 
-            plot_infos = self.get_plotting_info(**plot_args)
+            autofig_method = plot_kwargs.pop('autofig_method', 'plot')
+            # we kept the qualifiers around so we could do some default-logic,
+            # but it isn't necessary to pass them on to autofig.
+            plot_kwargs = {k:v for k,v in plot_kwargs.items() if 'qualifier' not in k}
+            logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
+            func = getattr(self.gcf(), autofig_method)
 
-            # this inner-loop handles any of the automatically-generated
-            # multiple plotting calls, but for a SINGLE AXES (ie two components
-            # under the same dataset).
-            for plot_info in plot_infos:
-                func = getattr(plotting, plotting_backend)
+            func(**plot_kwargs)
 
-                logger.info("calling '{}' plotting backend for {}".format(plotting_backend, plot_info['label']))
 
-                # data = (xarray, yarray, zarray, tarray)
-                plot_info['do_plot'] = do_plot
-                if do_plot:
-                    ax, this_artists = func(**plot_info)
-                    return_artists += this_artists
-                    return_axes.append(ax)
-                else:
-                    this_data = func(**plot_info)
-                    return_data += this_data
-
-        if do_plot:
-
-            if plotting_backend in ['mpl'] and not kwargs.get('colorbar', False) and not kwargs.get('facecolorbar', False) and not kwargs.get('edgecolorbar', False):
-                # tight_layout can conflict with colorbar placement
-                try:
-                    plt.gcf().tight_layout()
-                except ValueError:
-                    # this can fail sometimes if axes were added via add_axes
-                    # instead of add_subplot
-                    pass
-
-            if show:
-                self.show()
-            if save:
-                self.savefig(save)
-
-            return return_axes, return_artists
+        if save or show or animate:
+            # NOTE: time, times, will all be included in kwargs
+            try:
+                return self._show_or_save(save, show, animate,
+                                          draw_sidebars=draw_sidebars,
+                                          draw_title=draw_title,
+                                          tight_layout=tight_layout,
+                                          subplot_grid=subplot_grid,
+                                          **kwargs)
+            except Exception as err:
+                self.clf()
+                raise err
         else:
-            return return_data
+            afig = self.gcf()
+            fig = None
+
+            return afig, fig
+
+    def _show_or_save(self, save, show, animate,
+                      draw_sidebars=True,
+                      draw_title=True,
+                      tight_layout=False,
+                      subplot_grid=None,
+                      **kwargs):
+        """
+        Draw/animate and show and/or save a autofig plot
+        """
+        if animate and not show and not save:
+            logger.warning("setting show to True since animate=True and save not provided")
+            show = True
+
+        if animate:
+            # prefer times over time
+            times = kwargs.get('times', kwargs.get('time', None))
+            save_kwargs = kwargs.get('save_kwargs', {})
+
+            if times is None:
+                # then let's try to get all SYNTHETIC times
+                # it would be nice to only do ENABLED, but then we have to worry about compute
+                # it would also be nice to worry about models... but then you should filter first
+                logger.info("no times were providing, so defaulting to animate over all dataset times")
+                times = []
+                for dataset in self.datasets:
+                    ps = self.filter(dataset=dataset, context='model')
+                    if len(ps.times):
+                        # for the case of meshes/spectra
+                        times += [float(t) for t in ps.times]
+                    else:
+                        for param in ps.filter(qualifier='times').to_list():
+                            times += list(param.get_value())
+
+                times = sorted(list(set(times)))
+
+            logger.info("calling autofig.animate(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={}, save_kwargs={})".format(times, draw_sidebars, draw_title, tight_layout, save, show, save_kwargs))
+
+            mplanim = self.gcf().animate(i=times,
+                                         draw_sidebars=draw_sidebars,
+                                         draw_title=draw_title,
+                                         tight_layout=tight_layout,
+                                         subplot_grid=subplot_grid,
+                                         save=save,
+                                         show=show,
+                                         save_kwargs=save_kwargs)
+
+            afig = self.gcf()
+
+            # clear the autofig figure
+            self.clf()
+
+            return afig, mplanim
+
+        else:
+            time = kwargs.get('time', None)
+
+            if isinstance(time, str):
+                time = self.get_value(time, context=['component', 'system'])
+
+            logger.info("calling autofig.draw(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={})".format(time, draw_sidebars, draw_title, tight_layout, save, show))
+            fig = self.gcf().draw(i=time,
+                                  draw_sidebars=draw_sidebars,
+                                  draw_title=draw_title,
+                                  tight_layout=tight_layout,
+                                  subplot_grid=subplot_grid,
+                                  save=save, show=show)
+            # clear the figure so next call will start over and future shows will work
+            afig = self.gcf()
+            self.clf()
+
+            return afig, fig
+
 
     def show(self, **kwargs):
         """
-        Show the plot.  This is really just a very generic wrapper based on the
-        chosen plotting backend.  For matplotlib it is probably just as, if not
-        even more, convenient to simply import matplotlib yourself and call the
-        show method.  However, other backends require saving to temporary html
-        files and opening a webbrowser - so this method provides the ability for
-        a generic call that should work if you choose to change the plotting backend.
+        Draw and show the plot.
 
-        :parameter str backend: which plotting backend to use.  Will default to
-                'plotting_backend' from settings in the
-                :class:`phoebe.frontend.bundle.Bundle` if not provided.
+        See also:
+        * <phoebe.parameters.ParameterSet.plot>
+        * <phoebe.parameters.ParameterSet.savefig>
+        * <phoebe.parameters.ParameterSet.gcf>
+        * <phoebe.parameters.ParameterSet.clf>
+
+        Arguments
+        ----------
+        * `show` (bool, optional, default=True): whether to show the plot
+        * `save` (False/string, optional, default=False): filename to save the
+            figure (or False to not save).
+        * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `draw_sidebars` (bool, optional, default=True): whether to include
+            any applicable sidebars (colorbar, sizebar, etc).
+        * `draw_title` (bool, optional, default=True): whether to draw axes
+            titles.
+        * `subplot_grid` (tuple, optional, default=None): override the subplot
+            grid used (see [autofig tutorial on subplots](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/subplot_positioning.ipynb)
+            for more details).
+        * `time` (float, optional): time to use for plotting/animating.
+        * `times` (list/array, optional): times to use for animating (will
+            override any value sent to `time`).
+        * `save_kwargs` (dict, optional): any kwargs necessary to pass on to
+            save (only applicable if `animate=True`).
+
+        Returns
+        --------
+        * (autofig figure, matplotlib figure)
         """
+        kwargs.setdefault('show', True)
+        kwargs.setdefault('save', False)
+        kwargs.setdefault('animate', False)
+        return self._show_or_save(**kwargs)
 
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
-
-        return getattr(plotting, 'show_{}'.format(plotting_backend))(**kwargs)
-
-    def savefig(self, fname, **kwargs):
+    def savefig(self, filename, **kwargs):
         """
-        Save the plot.  This is really just a very generic wrapper based on the
-        chosen plotting backend.  For matplotlib it is probably just as, if not
-        even more, convenient to simply import matplotlib yourself and call the
-        savefig method.
+        Draw and save the plot.
 
-        :parameter str filename: filename to save to.  Be careful of extensions here...
-                matplotlib accepts many different image formats while other
-                backends will only export to html.
-        :parameter str backend: which plotting backend to use.  Will default to
-                'plotting_backend' from settings in the
-                :class:`phoebe.frontend.bundle.Bundle` if not provided.
+        See also:
+        * <phoebe.parameters.ParameterSet.plot>
+        * <phoebe.parameters.ParameterSet.show>
+        * <phoebe.parameters.ParameterSet.gcf>
+        * <phoebe.parameters.ParameterSet.clf>
+
+        Arguments
+        ----------
+        * `save` (string): filename to save the figure (or False to not save).
+        * `show` (bool, optional, default=False): whether to show the plot
+        * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `draw_sidebars` (bool, optional, default=True): whether to include
+            any applicable sidebars (colorbar, sizebar, etc).
+        * `draw_title` (bool, optional, default=True): whether to draw axes
+            titles.
+        * `subplot_grid` (tuple, optional, default=None): override the subplot
+            grid used (see [autofig tutorial on subplots](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/subplot_positioning.ipynb)
+            for more details).
+        * `time` (float, optional): time to use for plotting/animating.
+        * `times` (list/array, optional): times to use for animating (will
+            override any value sent to `time`).
+        * `save_kwargs` (dict, optional): any kwargs necessary to pass on to
+            save (only applicable if `animate=True`).
+
+        Returns
+        --------
+        * (autofig figure, matplotlib figure)
         """
-
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'matplotlib')
-
-        return getattr(plotting, 'save_{}'.format(plotting_backend))(fname,
-                                                                     **kwargs)
-
-    def animate(self, *args, **kwargs):
-        """
-        NOTE: any drawing done to the figure (or its children axes) before calling
-        animate will remain on every frame and will not update.
-
-        NOTE: if show and save provided, the live plot will be shown first,
-        as soon as the plot is closed the animation will be re-compiled and saved to
-        disk, and then the anim object will be returned.
-
-        NOTE: during 'show' the plotting speed may be slower than the provided
-        interval - especially if plotting meshes.
-
-        :parameter *args: either a twig pointing to a dataset,
-            or dictionaries, where each dictionary gets passed to
-            :meth:`plot` for each frame (see example scripts for more details).
-        :parameter times: list of times - each time will create a single
-            frame in the animation
-        :parameter bool fixed_limits: whether all the axes should have the
-            same limits for each frame (if True), or resizing limits based
-            on the contents of that individual frame (if False).  Note: if False,
-            limits will be automatically set at each frame - meaning manually zooming
-            in the matplotlib will revert at the next drawn frame.
-        :parameter int interval: time interval in ms between each frame (default: 100)
-        :parameter str save: filename of the resulting animation.  If provided,
-            the animation will be saved automatically.  Either way, the animation
-            object is returned (so you can always call anim.save(fname)).
-        :parameter list save_args: any additional arguments that need to be sent
-            to the anim.save call (as extra_args=save_args, see
-            https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
-        :parameter dict save_kwargs: any additional keyword arguments that need
-            to be sent to the anim.save call (as **save_kwargs, see
-            https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
-        :parameter bool show: whether to automatically show the animation (defaults
-            to False).  Either way, the animation object is returned (so you can
-            always call b.show() or plt.show())
-        :parameter kwargs: any additional arguments will be passed along to each
-            call of :meth:`plot`, unless they are already specified
-        :return fname: returns the created filename
-        """
-        # TODO: time vs times?
-
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
-
-        if plotting_backend not in ['mpl']:
-            raise ValueError("animate only supports the mpl backend, for now")
-
-        plot_argss = _parse_plotting_args(args)
-
-        # since we used the args trick above, all other options have to be in kwargs
-        times = kwargs.pop('times', None)
-        fixed_limits = kwargs.pop('fixed_limits', True)
-        interval = kwargs.pop('interval', 100)
-        save = kwargs.pop('save', False)
-        save_args = kwargs.pop('save_args', ())
-        save_kwargs = kwargs.pop('save_kwargs', {})
-        save_kwargs.setdefault('extra_args', save_args)
-        show = kwargs.pop('show', False)
-
-        if times is None:
-            # then let's try to get all SYNTHETIC times
-            # it would be nice to only do ENABLED, but then we have to worry about compute
-            # it would also be nice to worry about models... but then you should filter first
-            times = []
-            for dataset in self.datasets:
-                ps = self.filter(dataset=dataset, context='model')
-                if len(ps.times):
-                    # for the case of meshes/spectra
-                    times += [float(t) for t in ps.times]
-                else:
-                    for param in ps.filter(qualifier='times').to_list():
-                        times += list(param.get_value())
-
-            times = sorted(list(set(times)))
-
-        if fixed_limits:
-            pad = 0.1
-            logger.info("calculating fixed axes limits")
-
-            # To compute axes limits, we'll loop through all the plotting
-            # calls and each time, but we won't actually call plotting.
-            # Instead we'll retrieve the data, see if we need to extend the
-            # limits, and store the limits as an attribute of the mpl axes
-            # instance.  At each time in the actual plotting loop, we'll
-            # then apply these limits so they remain fixed with each frame.
-
-            # TODO: also fix color limits
-
-            plot_argss_fixed_limits = []
-            for plot_args_ in plot_argss:
-                plot_args = plot_args_.copy()
-
-                for k, v in kwargs.items():
-                    plot_args.setdefault(k,v)
-
-                plot_args['time'] = times
-                # TODO: do we need to loop over times for meshes now or can we do it within get_plotting_info?
-                this_kwargss = self.get_plotting_info(loop_times=False, **plot_args)
-
-                for this_kwargs in this_kwargss:
-                    twigs = this_kwargs['ps'].twigs
-                    twig = "@".join([l for l in twigs[0].split('@') if np.all([l in twig.split('@') for twig in twigs])])
-                    #print "*** twig", twig
-                    this_plot_args = {'twig': twig}
-                    #this_plot_args = dict(this_kwargs['ps'].meta)  # TODO: is this causing problems with animate
-                    for k,v in plot_args.items():
-                        if k not in ['twig', 'time']:
-                            this_plot_args.setdefault(k,v)
-
-                    ax = this_plot_args.get('ax', None)
-                    ps = this_kwargs['ps']
-                    # TODO: this logic is also in plotting.mpl - should probably be its own function
-                    if ax is None:
-                        ax = plt.gca()
-                        if hasattr(ax, '_phoebe_kind') and ps.kind != ax._phoebe_kind:
-                            if ps.kind in ['orb', 'mesh']:  # TODO: and xunit==yunit
-                                ax = plotting._mpl_append_axes(plt.gcf(), aspect='equal')
-                            else:
-                                ax = plotting._mpl_append_axes(plt.gcf())
-                        else:
-                            # not sure if we want this - the user may have set the aspect ratio already
-                            if ps.kind in ['orb', 'mesh']:  # TODO: and xunit==yunit
-                                # TODO: for aspect ratio (here and above) can we be smarter and
-                                # check for same units?
-                                ax.set_aspect('equal')
-
-                    ax = mpl_animate.reset_limits(ax, reset=False)  # this just ensures the attributes exist
-                    ax._phoebe_kind = ps.kind
-                    this_plot_args['ax'] = ax
-
-                    if this_kwargs.get('polycollection', False):
-                        data = this_kwargs['data']
-                        xarray = data[:, :, 0]
-                        yarray = data[:, :, 1]
-                        try:
-                            zarray = data[:, :, 2]
-                        except IndexError:
-                            zarray = None
-                    else:
-                        xarray, yarray, zarray, tarray = this_kwargs['data']  # TODO: this may not work for meshes?
-
-                    ax = mpl_animate.handle_limits(ax, xarray, yarray, zarray,
-                                                   xlim=this_kwargs.get('xlim', None),
-                                                   ylim=this_kwargs.get('ylim', None),
-                                                   zlim=this_kwargs.get('zlim', None),
-                                                   reset=False)
-
-                    plot_argss_fixed_limits.append(this_plot_args)
-
-            plot_argss = plot_argss_fixed_limits
-
-        # handle setting defaults from kwargs to each plotting call
-        for plot_args in plot_argss:
-            for k,v in kwargs.items():
-                plot_args.setdefault(k, v)
-            # plot_args.setdefault('highlight', True)
-
-        anim, ao = mpl_animate.animate(self,
-                                       init_ps=self,
-                                       init_time=times[0],
-                                       frames=times,
-                                       fixed_limits=fixed_limits,
-                                       plotting_args=plot_argss,
-                                       interval=interval,
-                                       blit=False)
-        # TODO: blit=True if no meshes?  (adding new artists seems to be a problem with blit)
-
-        if show:
-            logger.info("showing animation")
-            plt.show()
-
-        if save:
-            logger.info("saving animation to {}".format(save))
-            anim.save(save, **save_kwargs)
-
-        return anim
-
+        filename = os.path.expanduser(filename)
+        kwargs.setdefault('show', False)
+        kwargs.setdefault('save', filename)
+        kwargs.setdefault('animate', False)
+        return self._show_or_save(**kwargs)
 
 class Parameter(object):
     def __init__(self, qualifier, value=None, description='', **kwargs):
@@ -3021,34 +3725,34 @@ class Parameter(object):
         - self._dict_fields_other defined in __init__
         - self._dict_fields = _meta_fields_all + self._dict_fields_other in __init__
 
-        :parameter value: value to initialize the parameter
-        :parameter str description: description of the parameter
-        :parameter bundle: (optional) parent :class:`phoebe.frontend.bundle.Bundle`
-        :parameter str uniqueid: uniqueid for the parameter (suggested to leave blank
+        Arguments
+        ------------
+        * `value`: value to initialize the parameter
+        * `description` (string, optional): description of the parameter
+        * `bundle` (<phoebe.frontend.bundle.Bundle>, optional): parent bundle
+            object.
+        * `uniqueid` (string, optional): uniqueid for the parameter (suggested to leave blank
             and a random string will be generated)
-
-        :parameter float time: (optional) value for the time tag
-        :parameter str history: (optional) label for the history tag
-        :parameter str feature: (optional) label for the feature tag
-        :parameter str component: (optional) label for the component tag
-        :parameter str dataset: (optional) label for the dataset tag
-        :parameter str constraint: (optional) label for the constraint tag
-        :parameter str compute: (optional) label for the compute tag
-        :parameter str model: (optional) label for the model tag
-        :parameter str fitting: (optional) label for the fitting tag
-        :parameter str feedback: (optional) label for the feedback tag
-        :parameter str plugin: (optional) label for the plugin tag
-        :parameter str figure: (optional) label for the figure tag
-        :parameter str kind: (optional) label for the kind tag
-        :parameter str context: (optional) which context this parameter belongs in
-
-        :parameter copy_for: (optional) dictionary of filter arguments for which this
-            parameter must be copied (use with caution)
-        :type copy_for: dict or False
-        :parameter str visible_if: (optional) string to check the value of another
+        * `time` (string/float, optional): value for the time tag
+        * `history` (string, optional): label for the history tag
+        * `feature` (string, optional): label for the feature tag
+        * `component` (string, optional): label for the component tag
+        * `dataset` (string, optional): label for the dataset tag
+        * `constraint` (string, optional): label for the constraint tag
+        * `compute` (string, optional): label for the compute tag
+        * `model` (string, optional): label for the model tag
+        * `fitting` (string, optional): label for the fitting tag
+        * `feedback` (string, optional): label for the feedback tag
+        * `plugin` (string, optional): label for the plugin tag
+        * `kind` (string, optional): label for the kind tag
+        * `context` (string, optional): label for the context tag
+        * `copy_for` (dictionary/False, optional, default=False): dictionary of
+            filter arguments for which this parameter must be copied (use with caution)
+        * `visible_if` (string, optional): string to check the value of another
             parameter holding the same meta-tags (except qualifier) to determine
             whether this parameter is visible and therefore shown in filters
-            (example: visible_if='otherqualifier:True')
+            (example: `visible_if='otherqualifier:True'`).  See also
+            <phoebe.parameters.Parameter.is_visible>
         """
 
         uniqueid = kwargs.get('uniqueid', _uniqueid())
@@ -3092,8 +3796,11 @@ class Parameter(object):
         for attr in _meta_fields_twig + self._dict_fields_other:
             attr = '_{}'.format(attr)
             val = getattr(self, attr)
+
             if isinstance(val, unicode) and attr not in ['_copy_for']:
-                setattr(self, attr, str(val))
+              setattr(self, attr, str(val))
+
+
             #if attr == '_copy_for' and isinstance(self._copy_for, str):
             #    print "***", self._copy_for
             #    self._copy_for = json.loads(self._copy_for)
@@ -3115,7 +3822,7 @@ class Parameter(object):
     def __repr__(self):
         """
         """
-        if (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
+        if isinstance(self._value, nparray.ndarray):
             quantity = self._value
         elif hasattr(self, 'quantity'):
             quantity = self.get_quantity()
@@ -3130,7 +3837,7 @@ class Parameter(object):
     def __str__(self):
         """
         """
-        if (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
+        if isinstance(self._value, nparray.ndarray):
             quantity = self._value
         elif hasattr(self, 'quantity'):
             quantity = self.get_quantity()
@@ -3171,11 +3878,17 @@ class Parameter(object):
 
     def copy(self):
         """
-        Deepcopy the parameter (with a new uniqueid).  All other tags will remain
-        the same... so some other tag should be changed before attaching back to
-        a ParameterSet or Bundle.
+        Deepcopy the <phoebe.parameters.Parameter> (with a new uniqueid).
+        All other tags will remain the same... so some other tag should be
+        changed before attaching back to a <phoebe.parameters.ParameterSet> or
+        <phoebe.frontend.bundle.Bundle>.
 
-        :return: the copied :class:`Parameter` object
+        See also:
+        * <phoebe.parameters.Parameter.uniqueid>
+
+        Returns
+        ---------
+        * (<phoebe.parameters.Parameter>): the copied Parameter object
         """
         s = self.to_json()
         cpy = parameter_from_json(s)
@@ -3186,17 +3899,28 @@ class Parameter(object):
 
     def to_string(self):
         """
-        see also :meth:`to_string_short`
+        Return the string representation of the <phoebe.parameters.Parameter>.
 
-        :return: the string representation of the parameter
+        See also:
+        * <phoebe.parameters.Parameter.to_string_short>
+
+        Returns
+        -------
+        * (str): the string representation
         """
         return self.__str__()
 
     def to_string_short(self):
         """
-        see also :meth:`to_string`
+        Return a short/abreviated string representation of the
+        <phoebe.parmaeters.Parameter>.
 
-        :return: a shorter abreviated string reprentation of the parameter
+        See also:
+        * <phoebe.parameters.Parameter.to_string>
+
+        Returns
+        --------
+        * (str): the string representation
         """
         if hasattr(self, 'constrained_by') and len(self.constrained_by) > 0:
             return "* {:>30}: {}".format(self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
@@ -3206,13 +3930,19 @@ class Parameter(object):
     def __dict__(self):
         """
         """
-        d =  {k: getattr(self,k) for k in self._dict_fields}
+        # including uniquetwig for everything can be VERY SLOW, so let's not
+        # include that in the dictionary
+        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig']}
         d['Class'] = self.__class__.__name__
         return d
 
     def to_dict(self):
         """
-        :return: the dictionary representation of the parameter
+        Return the dictionary representation of the <phoebe.parameters.Parameter>.
+
+        Returns
+        -------
+        * (dict): the dictionary representation of the Parameter.
         """
         return self.__dict__()
 
@@ -3233,15 +3963,25 @@ class Parameter(object):
         Open a Parameter from a JSON-formatted file.
         This is a constructor so should be called as:
 
+        ```py
+        param = Parameter.open('test.json')
+        ```
 
-        >>> b = Parameter.open('test.json')
+        See also:
+        * <phoebe.parameters.ParameterSet.open>
+        * <phoebe.frontend.bundle.Bundle.open>
 
+        Arguments
+        ---------
+        * `filename` (string): relative or full path to the file
 
-        :parameter str filename: relative or full path to the file
-        :return: instantiated :class:`Parameter` object
+        Returns
+        -------
+        * (<phoebe.parameters.Parameter): the inistantiated Parameter object.
         """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'r')
-        data = json.load(f)
+        data = json.load(f, object_pairs_hook=parse_json)
         f.close()
         return cls(data)
 
@@ -3249,32 +3989,58 @@ class Parameter(object):
         """
         Save the Parameter to a JSON-formatted ASCII file
 
-        :parameter str filename: relative or fullpath to the file
-        :return: filename
-        :rtype: str
-        """
+        See also:
+        * <phoebe.parameters.ParameterSet.save>
+        * <phoebe.frontend.bundle.Bundle.save>
 
+        Arguments
+        ----------
+        * `filename` (string): relative or full path to the file
+        * `incl_uniqueid` (bool, optional, default=False): whether to include
+            uniqueids in the file (only needed if its necessary to maintain the
+            uniqueids when reloading)
+
+        Returns
+        --------
+        * (string) filename
+        """
+        filename = os.path.expanduser(filename)
         f = open(filename, 'w')
-        f.write(json.dumps(self.to_json(incl_uniqueid=incl_uniqueid),
-                           sort_keys=True, indent=0, separators=(',', ': ')))
+        json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
+                   sort_keys=True, indent=0, separators=(',', ': '))
         f.close()
 
         return filename
 
     def to_json(self, incl_uniqueid=False):
         """
-        :return: a JSON-ready dictionary holding all information for this
-            parameter
+        Convert the <phoebe.parameters.Parameter> to a json-compatible
+        object.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.to_json>
+        * <phoebe.parameters.Parameter.to_dict>
+        * <phoebe.parameters.Parameter.save>
+
+        Arguments
+        --------
+        * `incl_uniqueid` (bool, optional, default=False): whether to include
+            uniqueids in the file (only needed if its necessary to maintain the
+            uniqueids when reloading)
+
+        Returns
+        -----------
+        * (dict)
         """
         def _parse(k, v):
             """
             """
             if k=='value':
-                if isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace):
+                if isinstance(self._value, nparray.ndarray):
                     if self._value.unit is not None and hasattr(self, 'default_unit'):
-                        v = self._value.to(self.default_unit).to_json()
+                        v = self._value.to(self.default_unit).to_dict()
                     else:
-                        v = self._value.to_json()
+                        v = self._value.to_dict()
                 if isinstance(v, u.Quantity):
                     v = self.get_value() # force to be in default units
                 if isinstance(v, np.ndarray):
@@ -3292,7 +4058,7 @@ class Parameter(object):
                 return v
             elif isinstance(v, float) or isinstance(v, int) or isinstance(v, list):
                 return v
-            elif isinstance(v, u.Unit) or isinstance(v, u.CompositeUnit) or isinstance(v, u.IrreducibleUnit):
+            elif _is_unit(v):
                 return str(v.to_string())
             else:
                 try:
@@ -3305,34 +4071,84 @@ class Parameter(object):
     @property
     def attributes(self):
         """
+        Return a list of the attributes of this <phoebe.parameters.Parameter>.
+
+        Returns
+        -------
+        * (list)
         """
         return self._dict_fields_other
 
     def get_attributes(self):
         """
+        Return a list of the attributes of this <phoebe.parameters.Parameter>.
+        This is simply a shortcut to <phoebe.parameters.Parameter.attributes>.
+
+        Returns
+        --------
+        * (list)
         """
         return self.attributes
 
     @property
     def meta(self):
         """
-        See all the meta-tag properties for this Parameter
+        See all the meta-tag properties for this <phoebe.parameters.Parameter>.
 
-        See :meth:`get_meta` for the ability to ignore certain keys
+        See <phoebe.parameters.Parameter.get_meta> for the ability to ignore
+        certain keys.
 
-        :return: an ordered dictionary of all tag properties
+        Returns
+        -------
+        * (dict) an ordered dictionary of all tag properties.
         """
         return self.get_meta()
 
     def get_meta(self, ignore=['uniqueid']):
         """
-        See all the meta-tag properties for this Parameter
+        See all the meta-tag properties for this <phoebe.parameters.Parameter>.
 
-        :parameter list ignore: list of keys to exclude from the returned
-            dictionary
-        :return: an ordered dictionary of tag properties
+        See also:
+        * <phoebe.parameters.Parameter.meta>
+        * <phoebe.parameters.ParameterSet.get_meta>
+
+        Arguments
+        ---------
+        * `ignore` (list, optional, default=['uniqueid']): list of keys to
+            exclude from the returned dictionary
+
+        Returns
+        ----------
+        * (dict) an ordered dictionary of tag properties
         """
         return OrderedDict([(k, getattr(self, k)) for k in _meta_fields_all if k not in ignore])
+
+    @property
+    def tags(self):
+        """
+        Returns a dictionary that lists all available tags.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+        * <phoebe.parameters.Parameter.meta>
+
+        Will include entries from the singular attributes:
+        * <phoebe.parameters.Parameter.context>
+        * <phoebe.parameters.Parameter.kind>
+        * <phoebe.parameters.Parameter.model>
+        * <phoebe.parameters.Parameter.compute>
+        * <phoebe.parameters.Parameter.constraint>
+        * <phoebe.parameters.Parameter.dataset>
+        * <phoebe.parameters.Parameter.component>
+        * <phoebe.parameters.Parameter.feature>
+        * <phoebe.parameters.Parameter.time>
+        * <phoebe.parameters.Parameter.qualifier>
+
+        Returns
+        ----------
+        * (dict) a dictionary of all singular tag attributes.
+        """
+        return self.get_meta(ignore=['uniqueid', 'plugin', 'feedback', 'fitting', 'history', 'twig', 'uniquetwig'])
 
     @property
     def advanced(self):
@@ -3344,84 +4160,182 @@ class Parameter(object):
     @property
     def qualifier(self):
         """
-        :return: qualifier tag of this Parameter
+        Return the qualifier of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.qualifier>
+        * <phoebe.parameters.ParameterSet.qualifiers>
+
+        Returns
+        -------
+        * (str) the qualifier tag of this Parameter.
         """
         return self._qualifier
 
     @property
     def time(self):
         """
-        :return: time tag of this Parameter
+        Return the time of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.time>
+        * <phoebe.parameters.ParameterSet.times>
+
+        Returns
+        -------
+        * (str) the time tag of this Parameter.
         """
-        return str(self._time) if self._time is not None else None
+        # need to force formatting because of the different way numpy.float64 is
+        # handled before numpy 1.14.  See https://github.com/phoebe-project/phoebe2/issues/247
+        return '{:09f}'.format(float(self._time)) if self._time is not None else None
 
     @property
     def history(self):
         """
-        :return: history tag of this Parameter
+        Return the history of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.history>
+        * <phoebe.parameters.ParameterSet.historys>
+
+        Returns
+        -------
+        * (str) the history tag of this Parameter.
         """
         return self._history
 
     @property
     def feature(self):
         """
-        :return: feature tag of this Parameter
+        Return the feature of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.feature>
+        * <phoebe.parameters.ParameterSet.features>
+
+        Returns
+        -------
+        * (str) the feature tag of this Parameter.
         """
         return self._feature
 
     @property
     def component(self):
         """
-        :return: component tag of this Parameter
+        Return the component of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.component>
+        * <phoebe.parameters.ParameterSet.components>
+
+        Returns
+        -------
+        * (str) the component tag of this Parameter.
         """
         return self._component
 
     @property
     def dataset(self):
         """
-        :return: dataset tag of this Parameter
+        Return the dataset of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.dataset>
+        * <phoebe.parameters.ParameterSet.datasets>
+
+        Returns
+        -------
+        * (str) the dataset tag of this Parameter.
         """
         return self._dataset
 
     @property
     def constraint(self):
         """
-        :return: constraint tag of this Parameter
+        Return the constraint of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.constraint>
+        * <phoebe.parameters.ParameterSet.constraints>
+
+        Returns
+        -------
+        * (str) the constraint tag of this Parameter.
         """
         return self._constraint
 
     @property
     def compute(self):
         """
-        :return: compute tag of this Parameter
+        Return the compute of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.compute>
+        * <phoebe.parameters.ParameterSet.computes>
+
+        Returns
+        -------
+        * (str) the compute tag of this Parameter.
         """
         return self._compute
 
     @property
     def model(self):
         """
-        :return: model tag of this Parameter
+        Return the model of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.model>
+        * <phoebe.parameters.ParameterSet.models>
+
+        Returns
+        -------
+        * (str) the model tag of this Parameter.
         """
         return self._model
 
     @property
     def fitting(self):
         """
-        :return: fitting tag of this Parameter
+        Return the fitting of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.fitting>
+        * <phoebe.parameters.ParameterSet.fittings>
+
+        Returns
+        -------
+        * (str) the fitting tag of this Parameter.
         """
         return self._fitting
 
     @property
     def feedback(self):
         """
-        :return: feedback tag of this Parameter
+        Return the feedback of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.feedback>
+        * <phoebe.parameters.ParameterSet.feedbacks>
+
+        Returns
+        -------
+        * (str) the feedback tag of this Parameter.
         """
         return self._feedback
 
     @property
     def plugin(self):
         """
-        :return: plugin tag of this Parameter
+        Return the plugin of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.plugin>
+        * <phoebe.parameters.ParameterSet.plugins>
+
+        Returns
+        -------
+        * (str) the plugin tag of this Parameter.
         """
         return self._plugin
 
@@ -3435,28 +4349,59 @@ class Parameter(object):
     @property
     def kind(self):
         """
-        :return: kind tag of this Parameter
+        Return the kind of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.kind>
+        * <phoebe.parameters.ParameterSet.kinds>
+
+        Returns
+        -------
+        * (str) the kind tag of this Parameter.
         """
         return self._kind
 
     @property
     def context(self):
         """
-        :return: context tag of this Parameter
+        Return the context of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.context>
+        * <phoebe.parameters.ParameterSet.contexts>
+
+        Returns
+        -------
+        * (str) the context tag of this Parameter.
         """
         return self._context
 
     @property
     def uniqueid(self):
         """
-        :return: uniqueid of this Parameter
+        Return the uniqueid of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.uniequids>
+
+        Returns
+        -------
+        * (str) the uniqueid of this Parameter.
         """
         return self._uniqueid
 
     @property
     def uniquetwig_trunc(self):
         """
-        Uniquetwig but truncated if necessary to be <=12 characters
+        Return the uniquetwig but truncated if necessary to be <=12 characters.
+
+        See also:
+        * <phoebe.parameters.Parameter.uniquetwig>
+        * <phoebe.parameters.Parameter.twig>
+
+        Returns
+        --------
+        * (str) the uniquetwig, truncated to 12 characters
         """
         uniquetwig = self.uniquetwig
         if len(uniquetwig) > 30:
@@ -3465,22 +4410,49 @@ class Parameter(object):
             return uniquetwig
 
 
-
     @property
-    def uniquetwig(self, ps=None):
+    def uniquetwig(self):
         """
-        see also :meth:`twig`
-
         Determine the shortest (more-or-less) twig which will point
-        to this single Parameter in a given parent :class:`ParameterSet`
+        to this single <phoebe.parameters.Parameter> in the parent
+        <phoebe.frontend.bundle.Bundle>.
 
-        :parameter ps: :class:`ParameterSet` in which the returned
-            uniquetwig will point to this Parameter.  If not provided
-            or None this will default to the parent :class:`phoebe.frontend.bundle.Bundle`,
-            if available.
-        :return: uniquetwig
-        :rtype: str
+        See <phoebe.parameters.Parameter.get_uniquetwig> (introduced in 2.1.1)
+        for the ability to pass a <phoebe.parameters.ParameterSet>.
+
+        See also:
+        * <phoebe.parameters.Parameter.twig>
+        * <phoebe.parameters.Parameter.uniquetwig_trunc>
+
+        Returns
+        --------
+        * (str) uniquetwig
         """
+        return self.get_uniquetwig()
+
+
+    def get_uniquetwig(self, ps=None):
+        """
+        Determine the shortest (more-or-less) twig which will point
+        to this single <phoebe.parameters.Parameter> in a given parent
+        <phoebe.parameters.ParameterSet>.
+
+        See also:
+        * <phoebe.parameters.Parameter.twig>
+        * <phoebe.parameters.Parameter.uniquetwig_trunc>
+
+        Arguments
+        ----------
+        * `ps` (<phoebe.parameters.ParameterSet>, optional): ParameterSet
+            in which the returned uniquetwig will point to this Parameter.
+            If not provided or None this will default to the parent
+            <phoebe.frontend.bundle.Bundle>, if available.
+
+        Returns
+        --------
+        * (str) uniquetwig
+        """
+
         if ps is None:
             ps = self._bundle
 
@@ -3491,37 +4463,64 @@ class Parameter(object):
     @property
     def twig(self):
         """
-        The twig of a Parameter is a single string with the individual
-        :meth:`meta` tags separated by '@' symbols.  This twig gives
-        a single string which can point back to this Parameter.
+        The twig of a <phoebe.parameters.Parameter> is a single string with the
+        individual <phoebe.parameters.Parameter.meta> tags separated by '@' symbols.
+        This twig gives a single string which can point back to this Parameter.
 
-        see also :meth:`uniquetwig`
+        See also:
+        * <phoebe.parameters.Parameter.uniquetwig>
+        * <phoebe.parameters.ParameterSet.twigs>
 
-        :return: twig (full) of this Parameter
+        Returns
+        --------
+        * (str): the full twig of this Parameter.
         """
         return "@".join([getattr(self, k) for k in _meta_fields_twig if getattr(self, k) is not None])
 
     @property
     def visible_if(self):
         """
-        :return: the visible_if expression for this Parameter
+        Return the `visible_if` expression for this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.Parameter.is_visible>
+
+        Returns
+        --------
+        * (str): the `visible_if` expression for this Parameter
         """
         return self._visible_if
 
     @property
     def is_visible(self):
         """
-        see also :meth:`visible_if`
+        Execute the `visible_if` expression for this <phoebe.parameters.Parameter>
+        and determine whether it is currently visible in the parent
+        <phoebe.parameters.ParameterSet>.
 
-        :return: whether this parameter is currently visible (and
-            therefore shown in ParameterSets and visible to :meth:`ParameterSet.filter`)
-        :rtype: bool
+        If `False`, <phoebe.parameters.ParameterSet.filter> calls must have
+        `check_visible=False` or else this Parameter will be excluded.
+
+        See also:
+        * <phoebe.parameters.Parameter.visible_if>
+
+        Returns
+        --------
+        * (bool):  whether this parameter is currently visible
         """
         def is_visible_single(visible_if):
+            # visible_if syntax: [ignore,these]qualifier:value
+
             if visible_if.lower() == 'false':
                 return False
 
             # otherwise we need to find the parameter we're referencing and check its value
+            if visible_if[0]=='[':
+                remove_metawargs, visible_if = visible_if[1:].split(']')
+                remove_metawargs = remove_metawargs.split(',')
+            else:
+                remove_metawargs = []
+
             qualifier, value = visible_if.split(':')
 
             if 'hierarchy.' in qualifier:
@@ -3546,11 +4545,11 @@ class Parameter(object):
 
                 # the parameter needs to have all the same meta data except qualifier
                 # TODO: switch this to use self.get_parent_ps ?
-                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']).items() if v is not None}
+                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']+remove_metawargs).items() if v is not None}
                 metawargs['qualifier'] = qualifier
-                metawargs['twig'] = None
-                metawargs['uniquetwig'] = None
-                metawargs['uniqueid'] = None
+                # metawargs['twig'] = None
+                # metawargs['uniquetwig'] = None
+                # metawargs['uniqueid'] = None
                 # if metawargs.get('component', None) == '_default':
                     # metawargs['component'] = None
 
@@ -3579,6 +4578,8 @@ class Parameter(object):
 
                 if isinstance(value, str) and value[0] in ['!', '~']:
                     return param.get_value() != value[1:]
+                elif value=='<notempty>':
+                    return len(param.get_value()) > 0
                 else:
                     return param.get_value() == value
 
@@ -3597,6 +4598,13 @@ class Parameter(object):
     @property
     def copy_for(self):
         """
+        Return the `copy_for` expression for this <phoebe.parameters.Parameter>.
+
+        This expression determines which new components and datasets should
+        receive a copy of this Parameter.
+
+        Returns:
+        * (dict) the `copy_for` expression for this Parameter
         """
         return self._copy_for
 
@@ -3604,24 +4612,56 @@ class Parameter(object):
     @property
     def description(self):
         """
-        :return: the description of this parameter
+        Return the `description` of the <phoebe.parameters.Parameter>.  The
+        description is a slightly longer explanation of the Parameter qualifier.
+
+        See also:
+        * <phoebe.parameters.Parameter.get_description>
+        * <phoebe.parameters.ParameterSet.get_description>
+        * <phoebe.parameters.Parameter.qualifier>
+
+        Returns
+        --------
+        * (str) the description
         """
         return self._description
 
     def get_description(self):
         """
-        :return: the description of this parameter
+        Return the `description` of the <phoebe.parameters.Parameter>.  The
+        description is a slightly longer explanation of the Parameter qualifier.
+
+        See also:
+        * <phoebe.parameters.Parameter.description>
+        * <phoebe.parameters.ParameterSet.get_description>
+        * <phoebe.parameters.Parameter.qualifier>
+
+        Returns
+        --------
+        * (str) the description
         """
         return self._description
 
     @property
     def value(self):
         """
-        return the value
+        Return the value of the <phoebe.parameters.Parameter>.  For more options,
+        including units when applicable, use the appropriate `get_value`
+        method instead:
 
-        see :meth:`get_value` for more options, including units when applicable
+        * <phoebe.parameters.FloatParameter.get_value>
+        * <phoebe.parameters.FloatArrayParameter.get_value>
+        * <phoebe.parameters.HierarchyParameter.get_value>
+        * <phoebe.parameters.IntParameter.get_value>
+        * <phoebe.parameters.BoolParameter.get_value>
+        * <phoebe.parameters.ChoiceParameter.get_value>
+        * <phoebe.parameters.SelectParameter.get_value>
+        * <phoebe.parameters.ConstraintParameter.get_value>
+        * <phoebe.parameters.HistoryParameter.get_value>
 
-        :return: the value
+        Returns
+        ---------
+        * (float/int/string/bool): the current value of the Parameter.
         """
 
         return self.get_value()
@@ -3644,11 +4684,16 @@ class Parameter(object):
 
     def get_parent_ps(self):
         """
-        Return a :class:`ParameterSet` of all Parameters in the same
-        :class:`phoebe.frontend.bundle.Bundle` which share the same
-        meta-tags (except qualifier, twig, uniquetwig)
+        Return a <phoebe.parameters.ParameterSet> of all Parameters in the same
+        <phoebe.frontend.bundle.Bundle> which share the same
+        meta-tags (except qualifier, twig, uniquetwig).
 
-        :return: the parent :class:`ParameterSet`
+        See also:
+        * <phoebe.parameters.Parameter.meta>
+
+        Returns
+        ----------
+        * (<phoebe.parameters.ParameterSet>): the parent ParameterSet.
         """
         if self._bundle is None:
             return None
@@ -3659,10 +4704,14 @@ class Parameter(object):
 
     def to_constraint(self):
         """
-        Convert this Parameter to a :class:`ConstraintParameter`.  Use
-        with caution.
+        Convert this <phoebe.parameters.Parameter> to a
+        <phoebe.parameters.ConstraintParameter>.
 
-        :return: the :class:`ConstraintParameter`
+        **NOTE**: this is an advanced functionality: use with caution.
+
+        Returns
+        --------
+        * (<phoebe.parameters.ConstraintParameter): the ConstraintParameter
         """
         return ConstraintParameter(self._bundle, "{%s}" % self.uniquetwig)
 
@@ -3774,6 +4823,18 @@ class Parameter(object):
         """
         return self.__rmath__(other, '/', '__rdiv__')
 
+    def __truediv__(self, other):
+        """
+        """
+        # NOTE: only used in python3
+        return self.__math__(other, '/', '__truediv__')
+
+    def __rtruediv__(self, other):
+        """
+        """
+        # note only used in python3
+        return self.__rmath__(other, '/', '__rtruediv__')
+
     def __pow__(self, other):
         """
         """
@@ -3781,40 +4842,47 @@ class Parameter(object):
 
     def set_uniqueid(self, uniqueid):
         """
-        Set the uniqueid of this Parameter.  There is no real need
-        for a user to call this unless there is some conflict or they
-        manually want to set the uniqueids.
+        Set the `uniqueid` of this <phoebe.parameters.Parameter>.
+        There is no real need for a user to call this unless there is some
+        conflict or they manually want to set the uniqueids.
 
         NOTE: this does not check for conflicts, and having two parameters
         without the same uniqueid (not really unique anymore is it) will
         surely cause unexpected results.  Use with caution.
 
-        :parameter str uniqueid: the new uniqueid
+        See also:
+        * <phoebe.parameters.Parameter.uniqueid>
+
+        Arguments
+        ---------
+        * `uniqueid` (string): the new uniqueid
         """
         # TODO: check to make sure uniqueid is valid (is actually unique within self._bundle and won't cause problems with constraints, etc)
         self._uniqueid = uniqueid
 
     def get_value(self, *args, **kwargs):
         """
-        This method should be overriden by any subclass of Parameter, and should
-        be decorated with the @update_if_client decorator.
+        This method should be overriden by any subclass of
+        <phoebe.parameters.Parameter>, and should be decorated with the
+        @update_if_client decorator.
         Please see the individual classes documentation:
 
-            * :meth:`FloatParameter.get_value`
-            * :meth:`ArrayParameter.get_value`
-            * :meth:`HierarchyParameter.get_value`
-            * :meth:`IntParameter.get_value`
-            * :meth:`BoolParameter.get_value`
-            * :meth:`ChoiceParameter.get_value`
-            * :meth:`ConstraintParameter.get_value`
-            * :meth:`HistoryParameter.get_value`
+        * <phoebe.parameters.FloatParameter.get_value>
+        * <phoebe.parameters.FloatArrayParameter.get_value>
+        * <phoebe.parameters.HierarchyParameter.get_value>
+        * <phoebe.parameters.IntParameter.get_value>
+        * <phoebe.parameters.BoolParameter.get_value>
+        * <phoebe.parameters.ChoiceParameter.get_value>
+        * <phoebe.parameters.SelectParameter.get_value>
+        * <phoebe.parameters.ConstraintParameter.get_value>
+        * <phoebe.parameters.HistoryParameter.get_value>
 
         If subclassing, this method needs to:
-            * cast to the correct type/units, handling defaults
+        * cast to the correct type/units, handling defaults
 
-        :raises NotImplementedError: because this must be subclassed
-
-
+        Raises
+        -------
+        * NoteImplemmentedError: because this must be subclassed
         """
         if self.qualifier in kwargs.keys():
             # then we have an "override" value that was passed, and we should
@@ -3829,23 +4897,26 @@ class Parameter(object):
         be decorated with the @send_if_client decorator
         Please see the individual classes for documentation:
 
-            * :meth:`FloatParameter.set_value`
-            * :meth:`ArrayParameter.set_value`
-            * :meth:`HierarchyParameter.set_value`
-            * :meth:`IntParameter.set_value`
-            * :meth:`BoolParameter.set_value`
-            * :meth:`ChoiceParameter.set_value`
-            * :meth:`ConstraintParameter.set_value`
-            * :meth:`HistoryParameter.set_value`
+        * <phoebe.parameters.FloatParameter.set_value>
+        * <phoebe.parameters.FloatArrayParameter.set_value>
+        * <phoebe.parameters.HierarchyParameter.set_value>
+        * <phoebe.parameters.IntParameter.set_value>
+        * <phoebe.parameters.BoolParameter.set_value>
+        * <phoebe.parameters.ChoiceParameter.set_value>
+        * <phoebe.parameters.SelectParameter.set_value>
+        * <phoebe.parameters.ConstraintParameter.set_value>
+        * <phoebe.parameters.HistoryParameter.set_value>
 
         If subclassing, this method needs to:
-            * check the inputs for the correct format/agreement/cast_type
-            * make sure that converting back to default_unit will work (if applicable)
-            * make sure that in choices (if a choose)
-            * make sure that not out of limits
-            * make sure that not out of prior ??
+        * check the inputs for the correct format/agreement/cast_type
+        * make sure that converting back to default_unit will work (if applicable)
+        * make sure that in choices (if a choose)
+        * make sure that not out of limits
+        * make sure that not out of prior ??
 
-        :raises NotImplementedError: because this must be subclassed
+        Raises
+        -------
+        * NotImplementedError: because this must be subclassed
         """
         raise NotImplementedError # <--- leave this in place, should be subclassed
 
@@ -3856,7 +4927,7 @@ class StringParameter(Parameter):
     """
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(StringParameter, self).__init__(*args, **kwargs)
 
@@ -3868,7 +4939,25 @@ class StringParameter(Parameter):
     @update_if_client
     def get_value(self, **kwargs):
         """
+        Get the current value of the <phoebe.parameters.StringParameter>.
 
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (string) the current or overridden value of the Parameter
         """
         default = super(StringParameter, self).get_value(**kwargs)
         if default is not None: return default
@@ -3877,7 +4966,17 @@ class StringParameter(Parameter):
     @send_if_client
     def set_value(self, value, **kwargs):
         """
+        Set the current value of the <phoebe.parameters.StringParameter>.
 
+        Arguments
+        ----------
+        * `value` (string): the new value of the Parameter.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to the correct type
+            or is not a valid value for the Parameter.
         """
         _orig_value = deepcopy(value)
 
@@ -3898,7 +4997,7 @@ class TwigParameter(Parameter):
     """
     def __init__(self, bundle, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(TwigParameter, self).__init__(*args, **kwargs)
 
@@ -3914,14 +5013,36 @@ class TwigParameter(Parameter):
 
     def get_parameter(self):
         """
-        return the parameter that this points to
+        Return the parameter that the `value` is referencing
+
+        Returns
+        --------
+        * (<phoebe.parameters.Parameter>)
         """
         return self._bundle.get_parameter(uniqueid=self._value)
 
     @update_if_client
     def get_value(self, **kwargs):
         """
+        Get the current value of the <phoebe.parameters.TwigParameter>.
 
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (string) the current or overridden value of the Parameter
         """
         # self._value is the uniqueid of the parameter.  So we need to
         # retrieve that parameter, but display the current uniquetwig
@@ -3937,8 +5058,17 @@ class TwigParameter(Parameter):
     @send_if_client
     def set_value(self, value, **kwargs):
         """
+        Set the current value of the <phoebe.parameters.StringParameter>.
 
-        kwargs are passed on to filter
+        Arguments
+        ----------
+        * `value` (string): the new value of the Parameter.
+        * `**kwargs`: passed on to filter to find the Parameter
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to the correct type
+            or is not a valid value for the Parameter.
         """
         _orig_value = deepcopy(self.get_value())
 
@@ -3956,13 +5086,12 @@ class TwigParameter(Parameter):
 
 
 class ChoiceParameter(Parameter):
-    # TODO: rename to ComboParameter?
     """
     Parameter in which the value has to match one of the pre-defined choices
     """
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(ChoiceParameter, self).__init__(*args, **kwargs)
 
@@ -3975,15 +5104,53 @@ class ChoiceParameter(Parameter):
 
     @property
     def choices(self):
+        """
+        Return the valid list of choices.
+
+        This is identical to: <phoebe.parameters.ChoiceParameter.get_choices>
+
+        Returns
+        ---------
+        * (list) list of valid choices
+        """
         return self._choices
 
     def get_choices(self):
+        """
+        Return the valid list of choices.
+
+        This is identical to: <phoebe.parameters.ChoiceParameter.choices>
+
+        Returns
+        ---------
+        * (list) list of valid choices
+        """
         return self._choices
 
     @update_if_client
     def get_value(self, **kwargs):
         """
+        Get the current value of the <phoebe.parameters.ChoiceParameter>.
 
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+            Note: the provided value is not checked against the valid set
+            of choices (<phoebe.parameters.ChoiceParameter.choices>).
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (string) the current or overridden value of the Parameter
         """
         default = super(ChoiceParameter, self).get_value(**kwargs)
         if default is not None: return default
@@ -3992,7 +5159,18 @@ class ChoiceParameter(Parameter):
     @send_if_client
     def set_value(self, value, run_checks=None, **kwargs):
         """
+        Set the current value of the <phoebe.parameters.ChoiceParameter>.
 
+        Arguments
+        ----------
+        * `value` (string): the new value of the Parameter.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to a string.
+        * ValueError: if `value` is not one of
+            <phoebe.parameters.ChoiceParameter.choices>
         """
         _orig_value = deepcopy(self.get_value())
 
@@ -4000,35 +5178,283 @@ class ChoiceParameter(Parameter):
             value = str(value)
         except:
             raise ValueError("could not cast value to string")
-        else:
-            if self.qualifier=='passband':
-                if value not in self.choices:
-                    self._choices = list_passbands(refresh=True)
 
+        if self.qualifier=='passband':
             if value not in self.choices:
-                raise ValueError("value {} not one of {}".format(value, self.choices))
+                self._choices = list_passbands(refresh=True)
 
-            if self.qualifier=='passband' and value not in list_installed_passbands():
-                # then we need to download and install before setting
-                download_passband(value)
+        if value not in self.choices:
+            raise ValueError("value {} not one of {}".format(value, self.choices))
 
-            self._value = value
+        if self.qualifier=='passband' and value not in list_installed_passbands():
+            # then we need to download and install before setting
+            logger.info("downloading passband: {}".format(value))
+            download_passband(value)
 
-            # run_checks if requested (default)
-            if run_checks is None:
-                run_checks = conf.interactive
-            if run_checks and self._bundle:
-                passed, msg = self._bundle.run_checks()
-                if not passed:
-                    # passed is either False (failed) or None (raise Warning)
-                    logger.warning(msg)
+        self._value = value
 
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+        # run_checks if requested (default)
+        if run_checks is None:
+            run_checks = conf.interactive_checks
+        if run_checks and self._bundle:
+            passed, msg = self._bundle.run_checks()
+            if not passed:
+                # passed is either False (failed) or None (raise Warning)
+                msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
+                logger.warning(msg)
+
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+
+class SelectParameter(Parameter):
+    """
+    Parameter in which the value is a list of pre-defined choices
+    """
+    def __init__(self, *args, **kwargs):
+        """
+        see <phoebe.parameters.Parameter.__init__>
+        """
+        super(SelectParameter, self).__init__(*args, **kwargs)
+
+        self._choices = kwargs.get('choices', [])
+
+        self.set_value(kwargs.get('value', []))
+
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for']
+        self._dict_fields = _meta_fields_all + self._dict_fields_other
+
+    @property
+    def choices(self):
+        """
+        Return the valid list of choices.
+
+        This is identical to: <phoebe.parameters.SelectParameter.get_choices>
+
+        Returns
+        ---------
+        * (list) list of valid choices
+        """
+        return self._choices
+
+    def get_choices(self):
+        """
+        Return the valid list of choices.
+
+        This is identical to: <phoebe.parameters.SelectParameter.choices>
+
+        Returns
+        ---------
+        * (list) list of valid choices
+        """
+        return self._choices
+
+    def valid_selection(self, value):
+        """
+        Determine if `value` is valid given the current value of
+        <phoebe.parameters.SelectParameter.choices>.
+
+        In order to be valid, each item in the list `value` can be one of the
+        items in the list of or match with at least one item by allowing for
+        '*' and '?' wildcards.  Wildcard matching is done via the fnmatch
+        python package.
+
+        See also:
+        * <phoebe.parameters.SelectParameter.remove_not_valid_selections>
+        * <phoebe.parameters.SelectParameter.expand_value>
+
+        Arguments
+        ----------
+        * `value` (string or list): the value to test against the list of choices
+
+        Returns
+        --------
+        * (bool): whether `value` is valid given the choices.
+        """
+        if isinstance(value, list):
+            return np.all([self.valid_selection(v) for v in value])
+
+        if value in self.choices:
+            return True
+
+        # allow for wildcards
+        for choice in self.choices:
+            if fnmatch(choice, value):
+                return True
+
+        return False
+
+    @update_if_client
+    def get_value(self, expand=False, **kwargs):
+        """
+        Get the current value of the <phoebe.parameters.SelectParameter>.
+
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        See also:
+        * <phoebe.parameters.SelectParameter.expand_value>
+
+        Arguments
+        ----------
+        * `expand` (bool, optional, default=False): whether to expand any
+            wildcards in the stored value against the valid choices (see
+            <phoebe.parameters.SelectParameter.choices>)
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (list) the current or overridden value of the Parameter
+        """
+        if expand:
+            return self.expand_value(**kwargs)
+
+        default = super(SelectParameter, self).get_value(**kwargs)
+        if default is not None: return default
+        return self._value
+
+    def expand_value(self, **kwargs):
+        """
+        Get the current value of the <phoebe.parameters.SelectParameter>.
+
+        This is simply a shortcut to <phoebe.parameters.SelectParameter.get_value>
+        but passing `expand=True`.
+
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        See also:
+        * <phoebe.parameters.SelectParameter.valid_selection>
+        * <phoebe.parameters.SelectParameter.remove_not_valid_selections>
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (list) the current or overridden value of the Parameter
+        """
+        selection = []
+        for v in self.get_value(**kwargs):
+            for choice in self.choices:
+                if v==choice and choice not in selection:
+                    selection.append(choice)
+                elif fnmatch(choice, v) and choice not in selection:
+                    selection.append(choice)
+
+        return selection
+
+    @send_if_client
+    def set_value(self, value, run_checks=None, **kwargs):
+        """
+        Set the current value of the <phoebe.parameters.SelectParameter>.
+
+        `value` must be valid according to
+        <phoebe.parmaeters.SelectParameter.valid_selection>, otherwise a
+        ValueError will be raised.
+
+        Arguments
+        ----------
+        * `value` (string): the new value of the Parameter.
+        * `run_checks` (bool, optional): whether to call
+            <phoebe.frontend.bundle.Bundle.run_checks> after setting the value.
+            If `None`, the value in `phoebe.conf.interactive_checks` will be used.
+            This will not raise an error, but will cause a warning in the logger
+            if the new value will cause the system to fail checks.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to the correct type
+        * ValueError: if `value` is not valid for the current choices in
+            <phoebe.parameters.SelectParameter.choices>.
+            See also <phoebe.parameters.SelectParameter.valid_selection>
+        """
+        _orig_value = deepcopy(self.get_value())
+
+        if isinstance(value, str):
+            value = [value]
+
+        if not isinstance(value, list):
+            raise TypeError("value must be a list of strings, received {}".format(type(value)))
+
+        try:
+            value = [str(v) for v in value]
+        except:
+            raise ValueError("could not cast to list of strings")
+
+        invalid_selections = []
+        for v in value:
+            if not self.valid_selection(v):
+                invalid_selections.append(v)
+
+        if len(invalid_selections):
+            raise ValueError("{} are not valid selections.  Choices: {}".format(invalid_selections, self.choices))
+
+        self._value = value
+
+        # run_checks if requested (default)
+        if run_checks is None:
+            run_checks = conf.interactive_checks
+        if run_checks and self._bundle:
+            passed, msg = self._bundle.run_checks()
+            if not passed:
+                # passed is either False (failed) or None (raise Warning)
+                logger.warning(msg)
+
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+
+    def remove_not_valid_selections(self):
+        """
+        Update the value to remove any that are (no longer) valid.  This
+        should not need to be called manually, but is often called internally
+        when components or datasets are removed from the
+        <phoebe.frontend.bundle.Bundle>.
+
+        See also:
+        * <phoebe.parameters.SelectParameter.valid_selection>
+        * <phoebe.parameters.SelectParameter.expand_value>
+        * <phoebe.parameters.SelectParameter.set_value>
+        """
+        value = [v for v in self.get_value() if self.valid_selection(v)]
+        self.set_value(value)
+
+    def __add__(self, other):
+        if isinstance(other, str):
+            other = [other]
+
+        if not isinstance(other, list):
+            return super(SelectParameter, self).__add__(self, other)
+
+        # then we have a list, so we want to append to the existing value
+        return list(set(self.get_value()+other))
+
+    def __sub__(self, other):
+        if isinstance(other, str):
+            other = [other]
+
+        if not isinstance(other, list):
+            return super(SelectParameter, self).__sub__(self, other)
+
+        return [v for v in self.get_value() if v not in other]
 
 class BoolParameter(Parameter):
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(BoolParameter, self).__init__(*args, **kwargs)
 
@@ -4040,7 +5466,25 @@ class BoolParameter(Parameter):
     @update_if_client
     def get_value(self, **kwargs):
         """
+        Get the current value of the <phoebe.parameters.BoolParameter>.
 
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (bool) the current or overridden value of the Parameter
         """
         default = super(BoolParameter, self).get_value(**kwargs)
         if default is not None: return default
@@ -4049,7 +5493,20 @@ class BoolParameter(Parameter):
     @send_if_client
     def set_value(self, value, **kwargs):
         """
+        Set the current value of the <phoebe.parameters.BoolParameter>.
 
+        If not a boolean, `value` is casted as follows:
+        * 'false', 'False', '0' -> `False`
+        * default python casting (0->`False`, other numbers->`True`, strings with length->`True`)
+
+        Arguments
+        ----------
+        * `value` (bool): the new value of the Parameter.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to a boolean
         """
         _orig_value = deepcopy(self.get_value())
 
@@ -4118,7 +5575,7 @@ class UnitParameter(Parameter):
 class DictParameter(Parameter):
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(DictParameter, self).__init__(*args, **kwargs)
 
@@ -4130,7 +5587,25 @@ class DictParameter(Parameter):
     @update_if_client
     def get_value(self, **kwargs):
         """
+        Get the current value of the <phoebe.parameters.DictParameter>.
 
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (dict) the current or overridden value of the Parameter
         """
         default = super(DictParameter, self).get_value(**kwargs)
         if default is not None: return default
@@ -4139,7 +5614,17 @@ class DictParameter(Parameter):
     @send_if_client
     def set_value(self, value, **kwargs):
         """
+        Set the current value of the <phoebe.parameters.DictParameter>.
 
+        Arguments
+        ----------
+        * `value` (dict): the new value of the Parameter.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to the correct type
+            or is not a valid value for the Parameter.
         """
         _orig_value = deepcopy(self.get_value())
 
@@ -4156,7 +5641,7 @@ class DictParameter(Parameter):
 class IntParameter(Parameter):
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(IntParameter, self).__init__(*args, **kwargs)
 
@@ -4170,12 +5655,51 @@ class IntParameter(Parameter):
 
     @property
     def limits(self):
+        """
+        Return the current valid limits for the <phoebe.parameters.IntParameter>.
+
+        This is identical to <phoebe.parameters.IntParameter.get_limits>.
+
+        See also:
+        * <phoebe.parameters.IntParameter.set_limits>
+        * <phoebe.parameters.IntParameter.within_limits>
+
+        Returns
+        --------
+        * (tuple): the current limits, where `None` means no lower/upper limits.
+        """
         return self._limits
 
     def get_limits(self):
+        """
+        Return the current valid limits for the <phoebe.parameters.IntParameter>.
+
+        This is identical to <phoebe.parameters.IntParameter.limits>.
+
+        See also:
+        * <phoebe.parameters.IntParameter.set_limits>
+        * <phoebe.parameters.IntParameter.within_limits>
+
+        Returns
+        --------
+        * (tuple): the current limits, where `None` means no lower/upper limits.
+        """
         return self.limits
 
     def set_limits(self, limits=(None, None)):
+        """
+        Set the limits for the <phoebe.parameters.IntParameter>.
+
+        See also:
+        * <phoebe.parameters.IntParameter.get_limits>
+        * <phoebe.parameters.IntParameter.within_limits>
+
+        Arguments
+        ----------
+        * `limits` (tuple, optional, default=(None, None)): new limits
+            formatted as (`lower`, `upper`) where either value can be `None`
+            (interpretted as no lower/upper limits).
+        """
         if not len(limits)==2:
             raise ValueError("limits must be in the format: (min, max)")
 
@@ -4188,30 +5712,24 @@ class IntParameter(Parameter):
 
     def within_limits(self, value):
         """
-        check whether a value falls within the set limits
+        Check whether a value falls within the set limits.
 
-        :parameter value: float or Quantity to test.  If value is a float, it is
-            assumed that it has the same units as default_units
+        See also:
+        * <phoebe.parameters.IntParameter.get_limits>
+        * <phoebe.parameters.IntParameter.set_limits>
+
+        Arguments
+        --------
+        * `value` (int): the value to check against the current limits.
+
+        Returns
+        --------
+        * (bool): whether `value` is valid according to the limits.
         """
 
         return (self.limits[0] is None or value >= self.limits[0]) and (self.limits[1] is None or value <= self.limits[1])
 
-    @update_if_client
-    def get_value(self, **kwargs):
-        """
-
-        """
-        default = super(IntParameter, self).get_value(**kwargs)
-        if default is not None: return default
-        return self._value
-
-    @send_if_client
-    def set_value(self, value, **kwargs):
-        """
-
-        """
-        _orig_value = deepcopy(self.get_value())
-
+    def _check_value(self, value):
         if isinstance(value, str):
             value = float(value)
 
@@ -4225,18 +5743,73 @@ class IntParameter(Parameter):
             if not self.within_limits(value):
                 raise ValueError("value of {} must be within limits of {}".format(self.qualifier, self.limits))
 
-            self._value = value
+        return value
 
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+    @update_if_client
+    def get_value(self, **kwargs):
+        """
+        Get the current value of the <phoebe.parameters.IntParameter>.
+
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (int) the current or overridden value of the Parameter
+        """
+        default = super(IntParameter, self).get_value(**kwargs)
+        if default is not None: return default
+        return self._value
+
+    @send_if_client
+    def set_value(self, value, **kwargs):
+        """
+        Set the current value of the <phoebe.parameters.IntParameter>.
+
+        See also:
+        * <phoebe.parameters.IntParameter.get_limits>
+        * <phoebe.parameters.IntParameter.set_limits>
+        * <phoebe.parameters.IntParameter.within_limits>
+
+        Arguments
+        ----------
+        * `value` (int): the new value of the Parameter.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to an integer
+        * ValueError: if `value` is outside the limits.  See:
+            <phoebe.parameters.IntParameter.get_limits> and
+            <phoebe.parameters.IntParameter.within_limits>
+        """
+        _orig_value = deepcopy(self.get_value())
+
+        value = self._check_value(value)
+
+        self._value = value
+
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 
 class FloatParameter(Parameter):
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
 
         additional options:
-        default_unit
+        * `default_unit`
         """
         super(FloatParameter, self).__init__(*args, **kwargs)
 
@@ -4250,8 +5823,9 @@ class FloatParameter(Parameter):
         self.set_limits(limits)
 
         unit = kwargs.get('unit', None)  # will default to default_unit in set_value
-        if isinstance(unit, str) or isinstance(unit, unicode):
-            unit = u.Unit(str(unit))
+
+        if isinstance(unit, unicode):
+          unit = u.Unit(str(unit))
 
 
         timederiv = kwargs.get('timederiv', None)
@@ -4270,32 +5844,120 @@ class FloatParameter(Parameter):
 
     @property
     def default_unit(self):
+        """
+        Return the default unit for the <phoebe.parameters.FloatParameter>.
+
+        This is identical to <phoebe.parameters.FloatParameter.get_default_unit>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.set_default_unit>
+
+        Returns
+        --------
+        * (unit): the current default units.
+        """
         return self._default_unit
 
     def get_default_unit(self):
+        """
+        Return the default unit for the <phoebe.parameters.FloatParameter>.
+
+        This is identical to <phoebe.parameters.FloatParameter.default_unit>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.set_default_unit>
+
+        Returns
+        --------
+        * (unit): the current default units.
+        """
         return self.default_unit
 
     def set_default_unit(self, unit):
         """
+        Set the default unit for the <phoebe.parameters.FloatParameter>.
 
+        See also:
+        * <phoebe.parameters.FloatParameter.get_default_unit>
+
+        Arguments
+        --------
+        * `unit` (unit or valid string): the desired new units.  If the Parameter
+            currently has default units, then the new units must be compatible
+            with the current units
+
+        Raises
+        -------
+        * Error: if the new and current units are incompatible.
         """
+        # TODO: add to docstring documentation about what happens (does the value convert, etc)
         # TODO: check to make sure isinstance(unit, astropy.u.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, str) or isinstance(unit, unicode):
-            unit = u.Unit(str(unit))
+        if isinstance(unit, unicode) or isinstance(unit, str):
+          unit = u.Unit(str(unit))
         elif unit is None:
             unit = u.dimensionless_unscaled
+
+        if not _is_unit(unit):
+            raise TypeError("unit must be a Unit")
+
+        if hasattr(self, '_default_unit') and self._default_unit is not None:
+            # we won't use a try except here so that the error comes from astropy
+            check_convert = self._default_unit.to(unit)
 
         self._default_unit = unit
 
     @property
     def limits(self):
+        """
+        Return the current valid limits for the <phoebe.parameters.FloatParameter>.
+
+        This is identical to <phoebe.parameters.FloatParameter.get_limits>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.set_limits>
+        * <phoebe.parameters.FloatParameter.within_limits>
+
+        Returns
+        --------
+        * (tuple): the current limits, where `None` means no lower/upper limits.
+        """
         return self._limits
 
     def get_limits(self):
+        """
+        Return the current valid limits for the <phoebe.parameters.FloatParameter>.
+
+        This is identical to <phoebe.parameters.FloatParameter.get_limits>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.set_limits>
+        * <phoebe.parameters.FloatParameter.within_limits>
+
+        Returns
+        --------
+        * (tuple): the current limits, where `None` means no lower/upper limits.
+        """
         return self.limits
 
     def set_limits(self, limits=(None, None)):
+        """
+        Set the limits for the <phoebe.parameters.FloatParameter>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.get_limits>
+        * <phoebe.parameters.FloatParameter.within_limits>
+
+        Arguments
+        ----------
+        * `limits` (tuple, optional, default=(None, None)): new limits
+            formatted as (`lower`, `upper`) where either value can be `None`
+            (interpretted as no lower/upper limits).  If the individual values
+            are floats (not quantities), they'll be assumed to be in the default
+            units of the Parameter (see
+            <phoebe.parameters.FloatParameter.get_default_unit> and
+            <phoebe.parameters.FloatParameter.set_default_unit>)
+        """
         if not len(limits)==2:
             raise ValueError("limits must be in the format: (min, max)")
 
@@ -4316,10 +5978,23 @@ class FloatParameter(Parameter):
 
     def within_limits(self, value):
         """
-        check whether a value falls within the set limits
+        Check whether a value falls within the set limits.
 
-        :parameter value: float or Quantity to test.  If value is a float, it is
-            assumed that it has the same units as default_units
+        See also:
+        * <phoebe.parameters.FloatParameter.get_limits>
+        * <phoebe.parameters.FloatParameter.set_limits>
+
+        Arguments
+        --------
+        * `value` (float/quantity): the value to check against the current
+            limits.  If `value` is a float, it is assume to have the same
+            units as the default units (see
+            <phoebe.parameters.FloatParameter.get_default_unit> and
+            <phoebe.parameters.FloatParameter.set_default_unit>).
+
+        Returns
+        --------
+        * (bool): whether `value` is valid according to the limits.
         """
 
         if isinstance(value, int) or isinstance(value, float):
@@ -4333,6 +6008,9 @@ class FloatParameter(Parameter):
 
     @property
     def quantity(self):
+        """
+        Shortcut to <phoebe.parameters.FloatParameter.get_quantity>
+        """
         return self.get_quantity()
 
     def get_timederiv(self):
@@ -4348,14 +6026,13 @@ class FloatParameter(Parameter):
     #@update_if_client is on the called get_quantity
     def get_value(self, unit=None, t=None, **kwargs):
         """
-        @param unit: astropy unit
-        @type unit: astropy.units.Unit
-        @param time: time at which to compute the value (will only affect
-            time-dependent parameters)
-        @type time: float (assumes days in same convention as t0) or astropy.Quantity
-            (will handle appropriate unit conversion)
-        @return: value in requested unit
-        @rtype: depends on cast_type
+        Get the current value of the <phoebe.parameters.FloatParameter> or
+        <phoebe.parameters.FloatArrayParameter>.
+
+        This is identical to <phoebe.parameters.FloatParameter.get_quantity>
+        and is just included to match the method names of most other Parameter
+        types.  See the documentation of <phoebe.parameters.FloatParameter.get_quantity>
+        for full details.
         """
         default = super(FloatParameter, self).get_value(**kwargs)
         if default is not None: return default
@@ -4368,14 +6045,32 @@ class FloatParameter(Parameter):
     @update_if_client
     def get_quantity(self, unit=None, t=None, **kwargs):
         """
-        @param unit: astropy unit
-        @type unit: astropy.units.Unit
-        @param time: time at which to compute the value (will only affect
-            time-dependent parameters)
-        @type time: float (assumes days in same convention as t0) or astropy.Quantity
-            (will handle appropriate unit conversion)
-        @return: value in requested unit
-        @rtype: depends on cast_type
+        Get the current quantity of the <phoebe.parameters.FloatParameter> or
+        <phoebe.parameters.FloatArrayParameter>.
+
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.get_quantity>
+
+        Arguments
+        ----------
+        * `unit` (unit or string, optional, default=None): unit to convert the
+            value.  If not provided, will use the default unit (see
+            <phoebe.parameters.FloatParameter.default_unit>)
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (float/array) the current or overridden value of the Parameter
         """
         default = super(FloatParameter, self).get_value(**kwargs) # <- note this is calling get_value on the Parameter object
         if default is not None:
@@ -4385,8 +6080,11 @@ class FloatParameter(Parameter):
         else:
             value = self._value
 
-        if isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace):
-            value = value.to_array()
+        if isinstance(value, nparray.ndarray):
+            if value.unit is not None:
+                value = value.quantity
+            else:
+                value = value.array
 
         if t is not None:
             raise NotImplementedError("timederiv is currently disabled until it can be tested thoroughly")
@@ -4427,12 +6125,24 @@ class FloatParameter(Parameter):
         if unit is None or value is None:
             return value
         else:
-            try:
-                return value.to(unit)
-            except u.core.UnitConversionError as err:
-                raise ValueError(err)
-            except:
-                return value
+            # NOTE: astropy will raise an error if units not compatible
+            return value.to(unit)
+
+    def _check_value(self, value, unit=None):
+        if isinstance(value, tuple) and (len(value) !=2 or isinstance(value[1], float) or isinstance(value[1], int)):
+            # allow passing tuples (this could be a FloatArrayParameter - if it isn't
+            # then this array will fail _check_type below)
+            value = np.asarray(value)
+        # accept tuples (ie 1.2, 'rad') from dictionary access
+        if isinstance(value, tuple) and unit is None:
+            value, unit = value
+        if isinstance(value, str):
+            value = float(value)
+        if isinstance(value, dict) and 'nparray' in value.keys():
+            # then we're loading the JSON version of an nparray object
+            value = nparray.from_dict(value)
+
+        return self._check_type(value), unit
 
     def _check_type(self, value):
         # we do this separately so that FloatArrayParameter can keep this set_value
@@ -4450,57 +6160,85 @@ class FloatParameter(Parameter):
     #@send_if_client is on the called set_quantity
     def set_value(self, value, unit=None, force=False, run_checks=None, **kwargs):
         """
+        Set the current value/quantity of the <phoebe.parameters.FloatParameter>.
+
+        This is identical to <phoebe.parameters.FloatParameter.set_quantity>
+        and is just included to match the method names of most other Parameter
+        types.  See the documentation of <phoebe.parameters.FloatParameter.set_quantity>
+        for full details.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.set_quantity>
+        * <phoebe.parameters.FloatParameter.get_limits>
+        * <phoebe.parameters.FloatParameter.set_limits>
+        * <phoebe.parameters.FloatParameter.within_limits>
         """
         return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks, **kwargs)
 
     @send_if_client
     def set_quantity(self, value, unit=None, force=False, run_checks=None, run_constraints=None, **kwargs):
         """
+        Set the current value/quantity of the <phoebe.parameters.FloatParameter>
+        or <phoebe.parameters.FloatArrayParameter>.
 
-        If unit is not provided, will default to self.default_unit.
-        Units can either be provided by passing a astropy.Quantity (value * astropy.units.Unit)
-        as value, or by passing the astropy.units.Unit to unit.  If units are provided with both
-        but do not agree, an error will be raised.
+        Units can either be passed by providing a Quantity object to `value`
+        OR by passing a unit object (or valid string representation) to `unit`.
+        If units are provided with both but do not agree, an error will be raised.
 
-        :parameter value: new value
-        :type value: depends on cast_type
-        :parameter unit: unit of the provided value (will not change default_unit)
-        :type unit: astropy.units.Unit
-        :parameter bool run_checks: whether to see if the new value will be expected
-            to cause the system to be non-computable (will not raise an error, but
-            will cause a warning in the logger)
+        See also:
+        * <phoebe.parameters.FloatParameter.set_value>
+        * <phoebe.parameters.FloatParameter.get_limits>
+        * <phoebe.parameters.FloatParameter.set_limits>
+        * <phoebe.parameters.FloatParameter.within_limits>
+
+        Arguments
+        ----------
+        * `value` (float/quantity): the new value of the Parameter.
+        * `unit` (unit or valid string, optional, default=None): the unit in
+            which `value` is provided.  If not provided or None, it is assumed
+            that `value` is in the default units (see <phoebe.parameters.FloatParameter.default_unit>
+            and <phoebe.parameters.FloatParameter.set_default_unit>).
+        * `force` (bool, optional, default=False, EXPERIMENTAL): override
+            and set the value of a constrained Parameter.
+        * `run_checks` (bool, optional): whether to call
+            <phoebe.frontend.bundle.Bundle.run_checks> after setting the value.
+            If `None`, the value in `phoebe.conf.interactive_checks` will be used.
+            This will not raise an error, but will cause a warning in the logger
+            if the new value will cause the system to fail checks.
+        * `run_constraints` whether to run any necessary constraints after setting
+            the value.  If `None`, the value in `phoebe.conf.interactive_constraints`
+            will be used.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to a float/quantity.
+        * ValueError: if the units of `value` and `unit` are in disagreement
+        * ValueError: if the provided units are not compatible with the
+            default units.
+        * ValueError: if `value` is outside the limits.  See:
+            <phoebe.parameters.FloatParameter.get_limits> and
+            <phoebe.parameters.FloatParameter.within_limits>
         """
         _orig_value = deepcopy(self.get_value())
 
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
 
-        if isinstance(value, str) or isinstance(value, unicode):
-            value = json.loads(value)
+        # if 'time' in kwargs.keys() and isinstance(self, FloatArrayParameter):
+        #     # then find the correct index and set by index instead
+        #     time_param = self._bundle
 
-        if isinstance(value, list) and len(value)==2 and unit is None and self.__class__.__name__=='FloatParameter':
-            # don't do this for subclasses (FloatArrayParameter)
-            value, unit = value
+        value, unit = self._check_value(value, unit)
 
-        # accept tuples (ie 1.2, 'rad') from dictionary access
-        if isinstance(value, tuple) and unit is None:
-            value, unit = value
-        if isinstance(value, str) or isinstance(value, unicode):
-            value = float(value)
-        if isinstance(value, dict) and 'nphelper' in value.keys():
-            # then we're loading the JSON version of an Arange or Linspace
-            value = nphelpers.from_json(value)
-
-        if isinstance(unit, str) or isinstance(unit, unicode):
+        if isinstance(unit, str):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
-        elif unit is not None and not (isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit) or isinstance(unit, u.IrreducibleUnit)):
+        elif unit is not None and not _is_unit(unit):
             raise TypeError("unit must be an phoebe.u.Unit or None, got {}".format(unit))
 
-        value = self._check_type(value)
-
         # check to make sure value and unit don't clash
-        if isinstance(value, u.Quantity) or ((isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)) and value.unit is not None):
+        if isinstance(value, u.Quantity) or (isinstance(value, nparray.ndarray) and value.unit is not None):
             if unit is not None:
                 # check to make sure they're the same
                 if value.unit != unit:
@@ -4519,16 +6257,14 @@ class FloatParameter(Parameter):
             value = value * self.default_unit
 
         # handle wrapping for angle measurements
-        # TODO: make this work for FloatArrayParameters
-        if value is not None and value.unit.physical_type == 'angle' and self.__class__.__name__ == 'FloatParameter':
-            # NOTE: this may fail for nphelpers.Arange or nphelpers.Linspace
-
-            if not np.isnan(value) and (value > (360*u.deg) or value < (0*u.deg)):
+        if value is not None and value.unit.physical_type == 'angle':
+            # NOTE: this may fail for nparray types
+            if value > (360*u.deg) or value < (0*u.deg):
                 value = value % (360*u.deg)
                 logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
 
-        # make sure the value is within the limits
-        if not self.within_limits(value):
+        # make sure the value is within the limits, if this isn't an array or nan
+        if isinstance(value, float) and not self.within_limits(value):
             raise ValueError("value of {} must be within limits of {}".format(self.qualifier, self.limits))
 
         # make sure we can convert back to the default_unit
@@ -4543,7 +6279,7 @@ class FloatParameter(Parameter):
             self._value = value
 
         if run_constraints is None:
-            run_constraints = conf.interactive
+            run_constraints = conf.interactive_constraints
         if run_constraints:
             for constraint_id in self._in_constraints:
                 #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
@@ -4557,11 +6293,12 @@ class FloatParameter(Parameter):
 
         # run_checks if requested (default)
         if run_checks is None:
-            run_checks = conf.interactive
+            run_checks = conf.interactive_checks
         if run_checks and self._bundle:
             passed, msg = self._bundle.run_checks()
             if not passed:
                 # passed is either False (failed) or None (raise Warning)
+                msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                 logger.warning(msg)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
@@ -4579,7 +6316,19 @@ class FloatParameter(Parameter):
     @property
     def is_constraint(self):
         """
-        returns the expression of the constraint that constrains this parameter
+        Returns the <phoebe.parameters.ConstraintParameter> that constrains
+        this parameter.  If this <phoebe.parameters.FloatParameter> is not
+        constrained, this will return None.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * (None or <phoebe.parameters.ConstraintParameter)
         """
         if self._is_constraint is None:
             return None
@@ -4588,7 +6337,18 @@ class FloatParameter(Parameter):
     @property
     def constrained_by(self):
         """
-        returns a list of parameters that constrain this parameter
+        Returns a list of <phoebe.parameters.Parameter> objects that constrain
+        this <phoebe.parameters.FloatParameter>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * (list of <phoebe.parameters.Parameter>)
         """
         if self._is_constraint is None:
             return []
@@ -4611,7 +6371,18 @@ class FloatParameter(Parameter):
     @property
     def in_constraints(self):
         """
-        returns a list of the expressions in which this parameter constrains another
+        Returns a list of the expressions in which this
+        <phoebe.parameters.FloatParameter> constrains other Parameters.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * (list of expressions)
         """
         expressions = []
         for uniqueid in self._in_constraints:
@@ -4621,7 +6392,18 @@ class FloatParameter(Parameter):
     @property
     def constrains(self):
         """
-        returns a list of parameters that are constrained by this parameter
+        Returns a list of Parameters that are constrained by this
+         <phoebe.parameters.FloatParameter>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+         Returns
+         -------
+         * (list of Parameters)
         """
         params = []
         for constraint in self.in_constraints:
@@ -4635,7 +6417,18 @@ class FloatParameter(Parameter):
     @property
     def related_to(self):
         """
-        returns a list of all parameters that are either constrained by or constrain this parameter
+        Returns a list of all parameters that are either constrained by or
+        constrain this parameter.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+
+         Returns
+         -------
+         * (list of Parameters)
         """
         params = []
         constraints = self.in_constraints
@@ -4657,23 +6450,18 @@ class FloatParameter(Parameter):
 class FloatArrayParameter(FloatParameter):
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
+
+        Additional arguments
+        ---------------------
+        * `allow_none` (bool, optional, default=False)
         """
         self._allow_none = kwargs.get('allow_none', False)
         super(FloatArrayParameter, self).__init__(*args, **kwargs)
 
-        default_unit = kwargs.get('default_unit', None)
+        # NOTE: default_unit and value handled in FloatParameter.__init__()
 
-        self.set_default_unit(default_unit)
-
-        unit = kwargs.get('unit', None)  # will default to default_unit in set_value
-        if isinstance(unit, str) or isinstance(unit, unicode):
-            unit = u.Unit(str(unit))
-
-        value = self._check_type(kwargs.get('value', []))
-        self.set_value(value, unit)
-
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -4703,14 +6491,25 @@ class FloatArrayParameter(FloatParameter):
     @property
     def allow_none(self):
         """
+        Return whether None is an acceptable value in addition to an array
+
+        Returns
+        --------
+        * (bool)
         """
         return self._allow_none
 
     def to_string_short(self):
         """
-        see also :meth:`to_string`
+        Short abbreviated string representation of the
+        <phoebe.parameters.FloatArrayParameter>.
 
-        :return: a shorter abreviated string reprentation of the parameter
+        See also:
+        * <phoebe.parameters.Parameter.to_string>
+
+        Returns
+        --------
+        * (str)
         """
         opt = np.get_printoptions()
         np.set_printoptions(threshold=8, edgeitems=3, linewidth=opt['linewidth']-len(self.uniquetwig)-2)
@@ -4721,40 +6520,54 @@ class FloatArrayParameter(FloatParameter):
     def interp_value(self, **kwargs):
         """
         Interpolate to find the value in THIS array given a value from
-        ANOTHER array in the SAME parent :class:`ParameterSet`
+        ANOTHER array in the SAME parent <phoebe.parameters.ParameterSet>
+        (see <phoebe.parameters.Parameter.get_parent_ps>).
 
-        This currently only supports simple 1d linear interpolation (via
-        numpy.interp) and does no checks to make sure you're interpolating
+        This currently only supports simple 1D linear interpolation (via
+        `numpy.interp`) and does no checks to make sure you're interpolating
         with respect to an independent parameter - so use with caution.
 
-        >>> print this_param.get_parent_ps().qualifiers
-        >>> 'other_qualifier' in this_param.get_parent_ps().qualifiers
+        ```py
+        print this_param.get_parent_ps().qualifiers
+        'other_qualifier' in this_param.get_parent_ps().qualifiers
         True
-        >>> this_param.interp_value(other_qualifier=5)
+        this_param.interp_value(other_qualifier=5)
+        ```
 
-        where other_qualifier must be in this_param.get_parent_ps().qualifiers
-        AND must point to another FloatArrayParameter.
+        where other_qualifier must be in ParentPS.qualifiers
+        AND must point to another <phoebe.parameters.FloatArrayParameter>.
 
         Example:
 
-        >>> b['flux@lc01@model'].interp_value(time=10.2)
+        ```py
+        b['flux@lc01@model'].interp_value(times=10.2)
+        ```
 
         NOTE: Interpolation by phase is not currently supported - but you can use
-        :meth:`phoebe.frontend.bundle.Bundle.to_time` to convert to a valid
+        <phoebe.frontend.bundle.Bundle.to_time> to convert to a valid
         time first (just make sure its in the bounds of the time array).
 
         NOTE: this method does not currently support units.  You must provide
         the interpolating value in its default units and are returned the
         value in the default units (no support for quantities).
 
-        :parameter **kwargs: see examples above, must provide a single
+        Arguments
+        ----------
+        * `**kwargs`: see examples above, must provide a single
             qualifier-value pair to use for interpolation.  In most cases
             this will probably be time=value or wavelength=value.
-        :raises KeyError: if more than one qualifier is passed
-        :raises KeyError: if no qualifier is passed that belongs to the
+
+        Returns
+        --------
+        * (float) the interpolated value.
+
+        Raises
+        --------
+        * KeyError: if more than one qualifier is passed
+        * KeyError: if no qualifier is passed that belongs to the
             parent :class:`ParameterSet`
-        :raises KeyError: if the qualifier does not point to another
-            :class:`FloatArrayParameter`
+        * KeyError: if the qualifier does not point to another
+            <phoebe.parameters.FloatArrayParameter>
         """
         # TODO: add support for units
         # TODO: add support for non-linear interpolation (probably would need to use scipy)?
@@ -4765,9 +6578,16 @@ class FloatArrayParameter(FloatParameter):
 
         qualifier, qualifier_interp_value = kwargs.items()[0]
 
+        if isinstance(qualifier_interp_value, str):
+            # then assume its a twig and try to resolve
+            # for example: time='t0_supconj'
+            qualifier_interp_value = self._bundle.get_value(qualifier_interp_value, context=['system', 'component'])
+
         parent_ps = self.get_parent_ps()
 
         if qualifier not in parent_ps.qualifiers:
+            # TODO: handle plural to singular (having to say
+            # interp_value(times=5) is awkward)
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
 
         qualifier_parameter = parent_ps.get(qualifier=qualifier)
@@ -4780,12 +6600,17 @@ class FloatArrayParameter(FloatParameter):
 
     def append(self, value):
         """
+        Append a value to the end of the array.
+
+        Arguments
+        ---------
+        * `value` (float): the float to append to the end of the current array
         """
         # check units
         if isinstance(value, u.Quantity):
             value = value.to(self.default_unit).value
 
-        if isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace):
+        if isinstance(value, nparray.ndarray):
             value = value.to_array()
 
         new_value = np.append(self.get_value(), value) * self.default_unit
@@ -4793,6 +6618,13 @@ class FloatArrayParameter(FloatParameter):
 
     def set_index_value(self, index, value, **kwargs):
         """
+        Set the value of the array at a given index.
+
+        Arguments
+        -----------
+        * `index` (int): the index of the value to be replaced
+        * `value` (float): the value to be replaced
+        * `**kwargs`: IGNORED
         """
         if isinstance(value, u.Quantity):
             value = value.to(self.default_unit).value
@@ -4803,6 +6635,20 @@ class FloatArrayParameter(FloatParameter):
         lst =self.get_value()#.value
         lst[index] = value
         self.set_value(lst)
+
+    def __add__(self, other):
+        if not (isinstance(other, list) or isinstance(other, np.ndarray)):
+            return super(FloatArrayParameter, self).__add__(self, other)
+
+        # then we have a list, so we want to append to the existing value
+        return np.append(self.get_value(), np.asarray(other))
+
+    def __sub__(self, other):
+        if not (isinstance(other, list) or isinstance(other, np.ndarray)):
+            return super(FloatArrayParameter, self).__add__(self, other)
+
+        # then we have a list, so we want to append to the existing value
+        return np.array([v for v in self.get_value() if v not in other])
 
     # def set_value_at_time(self, time, value, **kwargs):
     #     """
@@ -4836,114 +6682,43 @@ class FloatArrayParameter(FloatParameter):
         elif isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
 
-        elif isinstance(value, dict) and 'nphelper' in value.keys():
-            value = value
+        elif isinstance(value, dict) and 'nparray' in value.keys():
+            value = nparray.from_dict(value)
 
-        elif not (isinstance(value, list) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
+        elif not (isinstance(value, list) or isinstance(value, tuple) or isinstance(value, np.ndarray) or isinstance(value, nparray.ndarray)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise TypeError("value '{}' ({}) could not be cast to array".format(value, type(value)))
 
         return value
 
-    @property
-    def start(self):
+    def set_property(self, **kwargs):
         """
-        Access the 'start' value of an array if set as phoebe.arange or phoebe.linspace
+        Set any property of the underlying [nparray](https://github.com/kecnry/nparray/tree/1.0.0)
+        object.
+
+        Example:
+        ```py
+        param.set_value(start=10, stop=20)
+        ```
+
+        Arguments
+        ----------
+        * `**kwargs`: properties to be set on the underlying nparray object.
+
+        Raises
+        -------
+        * ValueError: if the value is not an nparray object.
         """
-        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
-            raise ValueError("can only access start if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
+        if not isinstance(self._value, nparray.ndarray):
+            raise ValueError("value is not a nparray object")
 
-        return self._value.start
-
-    def set_start(self, start):
-        """
-        Change the 'start' value of an array if set as phoebe.arange or phoebe.linspace
-        """
-        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
-            raise ValueError("can only set start if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
-
-        self._value.set_start(start)
-
-    @property
-    def stop(self):
-        """
-        Access the 'stop' value of an array if set as phoebe.arange or phoebe.linspace
-        """
-        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
-            raise ValueError("can only access start if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
-
-        return self._value.stop
-
-    def set_stop(self, stop):
-        """
-        Change the 'stop' value of an array if set as phoebe.arange or phoebe.linspace
-        """
-        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
-            raise ValueError("can only set stop if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
-
-        self._value.set_stop(stop)
-
-    @property
-    def step(self):
-        """
-        Access the 'step' value of an array if set as phoebe.arange
-        """
-        if not isinstance(self._value, nphelpers.Arange):
-            raise ValueError("can only access step if value is phoebe.frontend.nphelpers.Arange")
-
-        return self._value.step
-
-    def set_step(self, step):
-        """
-        Change the 'stop' value of an array if set as phoebe.arange
-        """
-        if not isinstance(self._value, nphelpers.Arange):
-            raise ValueError("can only set step if value is phoebe.frontend.nphelpers.Arange")
-
-        self._value.set_step(step)
-
-    @property
-    def num(self):
-        """
-        Access the 'num' value of an array if set as phoebe.linspace
-        """
-        if not isinstance(self._value, nphelpers.Linspace):
-            raise ValueError("can only access start if value is phoebe.frontend.nphelpers.Linspace")
-
-        return self._value.num
-
-    def set_num(self, num):
-        """
-        Change the 'stop' value of an array if set as phoebe.linspace
-        """
-        if not isinstance(self._value, nphelpers.Linspace):
-            raise ValueError("can only set num if value is phoebe.frontend.nphelpers.Linspace")
-
-        self._value.set_num(num)
-
-    def convert_to_arange(self):
-        """
-        Convert a value stored as phoebe.linspace to phoebe.arange
-        """
-        if not isinstance(self._value, nphelpers.Linspace):
-            raise ValueError("can only set stop if value is phoebe.frontend.nphelpers.Linspace")
-
-        self._value = self._value.to_arange()
-
-    def convert_to_linspace(self):
-        """
-        Convert a value stored as phoebe.arange to phoebe.linspace
-        """
-        if not isinstance(self._value, nphelpers.Arange):
-            raise ValueError("can only set stop if value is phoebe.frontend.nphelpers.Arange")
-
-        self._value = self._value.to_linspace()
-
+        for property, value in kwargs.items():
+            setattr(self._value, property, value)
 
 class ArrayParameter(Parameter):
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(ArrayParameter, self).__init__(*args, **kwargs)
 
@@ -4954,8 +6729,13 @@ class ArrayParameter(Parameter):
 
     def append(self, value):
         """
+        Append a value to the end of the array.
+
+        Arguments
+        ---------
+        * `value`: the float to append to the end of the current array
         """
-        if isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace):
+        if isinstance(value, nparray.ndarray):
             value = value.to_array()
 
         new_value = np.append(self.get_value(), value)
@@ -4970,12 +6750,30 @@ class ArrayParameter(Parameter):
     @update_if_client
     def get_value(self, **kwargs):
         """
+        Get the current value of the <phoebe.parameters.ArrayParameter>.
 
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (np array) the current or overridden value of the Parameter
         """
         default = super(ArrayParameter, self).get_value(**kwargs)
         if default is not None: return default
 
-        if isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace):
+        if isinstance(self._value, nparray.ndarray):
             return self._value.to_array()
         else:
             return self._value
@@ -4983,7 +6781,17 @@ class ArrayParameter(Parameter):
     @send_if_client
     def set_value(self, value, **kwargs):
         """
+        Set the current value of the <phoebe.parameters.ArrayParameter>.
 
+        Arguments
+        ----------
+        * `value` (Array): the new value of the Parameter.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to the correct type
+            or is not a valid value for the Parameter.
         """
         _orig_value = deepcopy(self._value)
         self._value = np.array(value)
@@ -4993,6 +6801,9 @@ class ArrayParameter(Parameter):
 
 class IntArrayParameter(FloatArrayParameter):
     def __init__(self, *args, **kwargs):
+        """
+        see <phoebe.parameters.Parameter.__init__>
+        """
         kwargs.setdefault('default_unit', u.dimensionless_unscaled)
         super(IntArrayParameter, self).__init__(*args, **kwargs)
 
@@ -5023,17 +6834,42 @@ class IntArrayParameter(FloatArrayParameter):
 
     @property
     def quantity(self):
+        """
+        Shortcut to <phoebe.parameters.IntArrayParameter.get_quantity>.
+        """
         return self.get_quantity()
 
     @update_if_client
     def get_quantity(self, **kwargs):
         """
-        IntParameters don't have units, but we may want a Quantity object returned nonetheless
+        Return a quantity object, even though <phoebe.parameters.IntArrayParameter>
+        do not have units.
+
+        Arguments
+        ---------
+        * `**kwargs`: ignored
+
+        Returns
+        ---------
+        * (quantity)
         """
         return self.get_value() * u.dimensionless_unscaled
 
     @send_if_client
     def set_value(self, value, **kwargs):
+        """
+        Set the current value of the <phoebe.parameters.IntArrayParameter>.
+
+        Arguments
+        ----------
+        * `value` (array of ints): the new value of the Parameter.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to the correct type
+            or is not a valid value for the Parameter.
+        """
         _orig_value = deepcopy(self._value)
         self._value = np.array(value, dtype=np.int)
 
@@ -5044,7 +6880,7 @@ class IntArrayParameter(FloatArrayParameter):
 class HierarchyParameter(StringParameter):
     def __init__(self, value, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         dump = kwargs.pop('qualifier', None)
         kwargs.setdefault('advanced', True)
@@ -5076,6 +6912,18 @@ class HierarchyParameter(StringParameter):
 
     @send_if_client
     def set_value(self, value, update_cache=True, **kwargs):
+        """
+        Set the current value of the <phoebe.parameters.HierarchyParameter>.
+
+        Arguments
+        ----------
+        * `value` (string): the new value of the Parameter.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to a string.
+        """
 
         # TODO: check to make sure valid
 
@@ -5160,8 +7008,20 @@ class HierarchyParameter(StringParameter):
 
         return structure, trace, our_item
 
-    def change_component(self, old_component, new_component):
+    def rename_component(self, old_component, new_component):
         """
+        Swap a component in the <phoebe.parameters.HierarchyParameter>.
+
+        Note that this does NOT update component tags within the
+        <phoebe.parametes.ParameterSet> or <phoebe.frontend.bundle.Bundle>.
+        To change the name of a component, use
+        <phoebe.frontend.bundle.Bundle.rename_component> instead.
+
+        Arguments
+        ----------
+        * `old_component` (string): the current name of the component in the
+            hierarchy
+        * `new_component` (string): the replaced component
         """
         kind = self.get_kind_of(old_component)
         value = self.get_value()
@@ -5174,27 +7034,94 @@ class HierarchyParameter(StringParameter):
 
     def get_components(self):
         """
+        Return a list of all components in the <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_top>
+        * <phoebe.parameters.HierarchyParameter.get_stars>
+        * <phoebe.parameters.HierarchyParameter.get_envelopes>
+        * <phoebe.parameters.HierarchyParameter.get_orbits>
+        * <phoebe.parameters.HierarchyParameter.get_meshables>
+
+        Returns
+        -------
+        * (list of strings)
         """
         l = re.findall(r"[\w']+", self.get_value())
         return l[1::2]
 
     def get_top(self):
         """
+        Return the top-level component in the <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_components>
+        * <phoebe.parameters.HierarchyParameter.get_stars>
+        * <phoebe.parameters.HierarchyParameter.get_envelopes>
+        * <phoebe.parameters.HierarchyParameter.get_orbits>
+        * <phoebe.parameters.HierarchyParameter.get_meshables>
+
+        Returns
+        -------
+        * (string)
         """
         return str(self._parse_repr()[0].split(':')[1])
 
     def get_stars(self):
         """
-        get 'component' of all stars in order primary -> secondary
+        Return a list of all components with kind='star' in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_components>
+        * <phoebe.parameters.HierarchyParameter.get_top>
+        * <phoebe.parameters.HierarchyParameter.get_envelopes>
+        * <phoebe.parameters.HierarchyParameter.get_orbits>
+        * <phoebe.parameters.HierarchyParameter.get_meshables>
+
+        Returns
+        -------
+        * (list of strings)
         """
         l = re.findall(r"[\w']+", self.get_value())
         # now search for indices of star and take the next entry from this flat list
         return [l[i+1] for i,s in enumerate(l) if s=='star']
 
+    def get_envelopes(self):
+        """
+        Return a list of all components with kind='envelope' in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_components>
+        * <phoebe.parameters.HierarchyParameter.get_top>
+        * <phoebe.parameters.HierarchyParameter.get_stars>
+        * <phoebe.parameters.HierarchyParameter.get_orbits>
+        * <phoebe.parameters.HierarchyParameter.get_meshables>
+
+        Returns
+        -------
+        * (list of strings)
+        """
+        l = re.findall(r"[\w']+", self.get_value())
+        # now search for indices of star and take the next entry from this flat list
+        return [l[i+1] for i,s in enumerate(l) if s=='envelope']
 
     def get_orbits(self):
         """
-        get 'component' of all orbits in order primary -> secondary
+        Return a list of all components with kind='orbit' in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_components>
+        * <phoebe.parameters.HierarchyParameter.get_top>
+        * <phoebe.parameters.HierarchyParameter.get_stars>
+        * <phoebe.parameters.HierarchyParameter.get_envelopes>
+        * <phoebe.parameters.HierarchyParameter.get_meshables>
+
+        Returns
+        -------
+        * (list of strings)
         """
         #~ l = re.findall(r"[\w']+", self.get_value())
         # now search for indices of orbit and take the next entry from this flat list
@@ -5206,8 +7133,56 @@ class HierarchyParameter(StringParameter):
                 orbits.append(parent)
         return orbits
 
+    def get_meshables(self):
+        """
+        Return a list of all components that are meshable (generally stars,
+        but also handles the envelope for a contact binary)
+        in the <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_components>
+        * <phoebe.parameters.HierarchyParameter.get_top>
+        * <phoebe.parameters.HierarchyParameter.get_stars>
+        * <phoebe.parameters.HierarchyParameter.get_envelopes>
+        * <phoebe.parameters.HierarchyParameter.get_orbits>
+
+        Returns
+        -------
+        * (list of strings)
+        """
+        l = re.findall(r"[\w']+", self.get_value())
+        # now search for indices of star and take the next entry from this flat list
+        meshables = [l[i+1] for i,s in enumerate(l) if s in ['star', 'envelope']]
+
+        # now we want to remove any star which has a sibling envelope
+        has_sibling_envelope = []
+        for item in meshables:
+            if self.get_sibling_of(item, kind='envelope'):
+                has_sibling_envelope.append(item)
+
+        return [m for m in meshables if m not in has_sibling_envelope]
+
     def get_parent_of(self, component):
         """
+        Get the parent of a component in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_siblings_of>
+        * <phoebe.parameters.HierarchyParameter.get_envelope_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_child_of>
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component under which to search.
+
+        Returns
+        ---------
+        * (string)
         """
         # example:
         # - self.get_value(): "orbit:outer(orbit:inner(star:starA, star:starB), star:starC)"
@@ -5231,6 +7206,28 @@ class HierarchyParameter(StringParameter):
 
     def get_sibling_of(self, component, kind=None):
         """
+        Get the sibling of a component in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        If there is more than one sibling, the first result will be returned.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_parent_of>
+        * <phoebe.parameters.HierarchyParameter.get_siblings_of>
+        * <phoebe.parameters.HierarchyParameter.get_envelope_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_child_of>
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component under which to search.
+        * `kind` (string, optional): filter to match the kind of the component.
+
+        Returns
+        ---------
+        * (string)
         """
         siblings = self.get_siblings_of(component, kind=kind)
         if not len(siblings):
@@ -5241,6 +7238,26 @@ class HierarchyParameter(StringParameter):
 
     def get_siblings_of(self, component, kind=None):
         """
+        Get the siblings of a component in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_parent_of>
+        * <phoebe.parameters.HierarchyParameter.get_siblings_of>
+        * <phoebe.parameters.HierarchyParameter.get_envelope_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_child_of>
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component under which to search.
+        * `kind` (string, optional): filter to match the kind of the component.
+
+        Returns
+        ---------
+        * (list of strings)
         """
 
         structure, trace, item = self._get_structure_and_trace(component)
@@ -5258,13 +7275,60 @@ class HierarchyParameter(StringParameter):
         else:
             return siblings
 
+    def get_envelope_of(self, component):
+        """
+        Get the parent-envelope of a component in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_parent_of>
+        * <phoebe.parameters.HierarchyParameter.get_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_siblings_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_child_of>
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component under which to search.
+
+        Returns
+        ---------
+        * (string)
+        """
+        envelopes = self.get_siblings_of(component, 'envelope')
+        if not len(envelopes):
+            return []
+        else:
+            return envelopes[0]
 
     def get_stars_of_sibling_of(self, component):
         """
-        same as get_sibling_of except if the sibling is an orbit, this will recursively
-        follow the tree to return a list of all stars under that orbit
-        """
+        Get the stars under the sibling of a component in the
+        <phoebe.parameters.HierarchyParameter>.
 
+        This is the same as <phoebe.parameters.Hierarchy.get_sibling_of> except
+        if a sibling is in an orbit, this will recursively follow the tree to
+        return a list of all stars under that orbit.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_parent_of>
+        * <phoebe.parameters.HierarchyParameter.get_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_siblings_of>
+        * <phoebe.parameters.HierarchyParameter.get_envelope_of>
+        * <phoebe.parameters.HierarchyParameter.get_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_child_of>
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component under which to search.
+
+        Returns
+        ---------
+        * (string)
+        """
         sibling = self.get_sibling_of(component)
 
         if sibling in self.get_stars():
@@ -5280,7 +7344,26 @@ class HierarchyParameter(StringParameter):
 
     def get_children_of(self, component, kind=None):
         """
-        get to component labels of the children of a given component
+        Get the children of a component in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_parent_of>
+        * <phoebe.parameters.HierarchyParameter.get_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_siblings_of>
+        * <phoebe.parameters.HierarchyParameter.get_envelope_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_child_of>
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component under which to search.
+        * `kind` (string, optional): filter to match the kind of the component.
+
+        Returns
+        ---------
+        * (list of strings)
         """
 
         structure, trace, item = self._get_structure_and_trace(component)
@@ -5300,8 +7383,30 @@ class HierarchyParameter(StringParameter):
 
     def get_stars_of_children_of(self, component):
         """
-        same as get_children_of except if any of the children are orbits, this will recursively
-        follow the tree to return a list of all children (grandchildren, etc) stars under that orbit
+        Get the stars under the children of a component in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        This is the same as <phoebe.parameters.Hierarchy.get_children_of> except
+        if any of the children is in an orbit, this will recursively follow the tree to
+        return a list of all stars under that orbit.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_parent_of>
+        * <phoebe.parameters.HierarchyParameter.get_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_siblings_of>
+        * <phoebe.parameters.HierarchyParameter.get_envelope_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_child_of>
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component under which to search.
+
+        Returns
+        ---------
+        * (string)
         """
 
         stars = self.get_stars()
@@ -5323,7 +7428,27 @@ class HierarchyParameter(StringParameter):
 
     def get_child_of(self, component, ind, kind=None):
         """
-        get a child (by index) of a given component
+        Get the child (by index) of a component in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_parent_of>
+        * <phoebe.parameters.HierarchyParameter.get_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_siblings_of>
+        * <phoebe.parameters.HierarchyParameter.get_envelope_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_sibling_of>
+        * <phoebe.parameters.HierarchyParameter.get_children_of>
+        * <phoebe.parameters.HierarchyParameter.get_stars_of_children_of>
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component under which to search.
+        * `ind` (int): the index of the child to return (starting at 0)
+        * `kind` (string, optional): filter to match the kind of the component.
+
+        Returns
+        ---------
+        * (string)
         """
         children = self.get_children_of(component, kind=kind)
         if children is None:
@@ -5332,11 +7457,23 @@ class HierarchyParameter(StringParameter):
             return children[ind]
 
 
-
     def get_primary_or_secondary(self, component, return_ind=False):
         """
-        return whether a given component is the 'primary' or 'secondary'
-        component in its parent orbit
+        Return whether a given component is the 'primary' or 'secondary'
+        component in its parent orbit, according to the
+        <phoebe.parameters.HierarchyParameter>.
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component.
+        * `return_ind` (bool, optional, default=False): if `True`, this
+            will return `0` instead of `'primary'` and `1` instead of
+            `'secondary'`.
+
+        Returns
+        --------
+        * (string or int): either 'primary'/'secondary' or 0/1 depending on the
+            value of `return_ind`.
         """
         parent = self.get_parent_of(component)
         if parent is None:
@@ -5355,26 +7492,18 @@ class HierarchyParameter(StringParameter):
 
         return ['primary', 'secondary'][ind]
 
-    def get_meshables(self):
-        """
-        return a list of components that are meshable (generally stars, but handles
-            the envelope for an contact_binary)
-        """
-
-        l = re.findall(r"[\w']+", self.get_value())
-        # now search for indices of star and take the next entry from this flat list
-        meshables = [l[i+1] for i,s in enumerate(l) if s in ['star', 'envelope']]
-
-        # now we want to remove any star which has a sibling envelope
-        has_sibling_envelope = []
-        for item in meshables:
-            if self.get_sibling_of(item, kind='envelope'):
-                has_sibling_envelope.append(item)
-
-        return [m for m in meshables if m not in has_sibling_envelope]
-
     def get_kind_of(self, component):
         """
+        Return the kind of a given component in the
+        <phoebe.parameters.HierarchyParameter>.
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component.
+
+        Returns
+        --------
+        * (string): the kind (star, orbit, envelope, etc) of the component
         """
         structure, trace, item = self._get_structure_and_trace(component)
         item_kind, item_label = item.split(':')
@@ -5397,10 +7526,21 @@ class HierarchyParameter(StringParameter):
 
     def is_contact_binary(self, component):
         """
-        especially useful for constraints
+        Return whether a given component is part of a contact binary,
+        according to the <phoebe.parameters.HierarchyPararameter>.
+        This is especially useful for <phoebe.parameters.ConstraintParameter>.
 
-        tells whether any component (star, envelope) is part of a contact_binary
-        by checking its siblings for an envelope
+        This is done by checking whether any of the component's siblings is
+        an envelope.  See <phoebe.parameters.HierarchyParameter.get_siblings_of>
+        and <phoebe.parameters.HierarchyParameter.get_kind_of>.
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component.
+
+        Returns
+        --------
+        * (bool): whether the given component is part of a contact binary.
         """
         if component not in self._is_contact_binary.keys():
             self._update_cache()
@@ -5421,19 +7561,26 @@ class HierarchyParameter(StringParameter):
 
     def is_binary(self, component):
         """
-        especially useful for constraints
+        Return whether a given component is part of a contact binary,
+        according to the <phoebe.parameters.HierarchyPararameter>.
+        This is especially useful for <phoebe.parameters.ConstraintParameter>.
 
-        tells whether any component (star, envelope) is part of a binary
-        by checking its parent
+        This is done by checking whether the component's parent is an orbit.
+        See <phoebe.parameters.HierarchyParameter.get_parent_of> and
+        <phoebe.parameters.HierarchyParameter.get_kind_of>.
+
+        Arguments
+        ----------
+        * `component` (string): the name of the component.
+
+        Returns
+        --------
+        * (bool): whether the given component is part of a contact binary.
         """
         if component not in self._is_binary.keys():
             self._update_cache()
 
         return self._is_binary.get(component)
-
-
-
-
 
 
 class ConstraintParameter(Parameter):
@@ -5445,7 +7592,7 @@ class ConstraintParameter(Parameter):
     """
     def __init__(self, bundle, value, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(ConstraintParameter, self).__init__(qualifier=kwargs.pop('qualifier', None), value=value, description=kwargs.pop('description', 'constraint'), **kwargs)
 
@@ -5471,24 +7618,54 @@ class ConstraintParameter(Parameter):
 
     @property
     def is_visible(self):
+        """
+        Return whether the <phoebe.parameters.ConstraintParameter> is visible
+        by checking on the visibility of the constrained parameter.
+
+        See:
+        * <phoebe.parameters.ConstraintParameter.constrained_parameter>
+        * <phoebe.parameters.Parameter.is_visible>
+        * <phoebe.parameters.Parameter.visible_if>
+
+        Returns
+        -------
+        * (bool)
+        """
         return self.constrained_parameter.is_visible
 
     @property
     def constraint_func(self):
         """
+        Access the constraint_func tag of this
+        <phoebe.parameters.ConstraintParameter>.
+
+        Returns
+        -------
+        * (str) the constraint_func tag of this Parameter.
         """
         return self._constraint_func
 
     @property
     def constraint_kwargs(self):
         """
+        Access the keyword arguments sent to the constraint.
+
+        Returns
+        ------
+        * (dict)
         """
         return self._constraint_kwargs
 
     @property
     def vars(self):
         """
-        return all the variables in a PS
+        Return all the variables in this <phoebe.parameters.ConstraintParameter>
+        as a <phoebe.parameters.ParameterSet>.
+
+        Return
+        ------
+        * (<phoebe.parameters.ParameterSet>): ParameterSet of all variables in
+            the expression for this constraint.
         """
         # cache _var_params
         if self._var_params is None:
@@ -5550,6 +7727,19 @@ class ConstraintParameter(Parameter):
     @property
     def constrained_parameter(self):
         """
+        Access the <phoebe.parameters.Parameter> that is constrained (i.e.
+        solved for) by this <phoebe.parameters.ConstraintParameter>.
+
+        This is identical to
+        <phoebe.parameters.ConstraintParameter.get_constrained_parameter>.
+
+        See also:
+        * <phoebe.parameters.ConstraintParameter.flip_for>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+
+        Returns
+        -------
+        * (<phoebe.parameters>parameter>)
         """
         # try:
         if True:
@@ -5559,12 +7749,44 @@ class ConstraintParameter(Parameter):
 
     def get_constrained_parameter(self):
         """
+        Access the <phoebe.parameters.Parameter> that is constrained (i.e.
+        solved for) by this <phoebe.parameters.ConstraintParameter>.
+
+        This is identical to
+        <phoebe.parameters.ConstraintParameter.constrained_parameter>.
+
+        See also:
+        * <phoebe.parameters.ConstraintParameter.flip_for>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+
+        Returns
+        -------
+        * (<phoebe.parameters>parameter>)
         """
         return self.get_parameter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, check_visible=False)
 
     def get_parameter(self, twig=None, **kwargs):
         """
-        get a parameter from those that are variables
+        Access one of the <phoebe.parameters.Parameter> object that is a variable
+        in the <phoebe.parameters.ConstraintParameter>.
+
+        **NOTE**: if the filtering results in more than one result, the first
+        will be taken instead of raising an error.
+
+        Arguments
+        ----------
+        * `twig` (string, optional): twig to use for filtering.  See
+            <phoebe.parameters.ParameterSet.get_parameter>
+        * `**kwargs`: other tags used for filtering.  See
+            <phoebe.parameters.ParameterSet.get_parameter>
+
+        Returns
+        --------
+        * (<phoebe.parameters.Parameter>)
+
+        Raises
+        -------
+            * KeyError: if the filtering results in 0 matches
         """
         kwargs['twig'] = twig
         kwargs['check_default'] = False
@@ -5585,27 +7807,80 @@ class ConstraintParameter(Parameter):
 
     @property
     def default_unit(self):
+        """
+        Return the default unit for the <phoebe.parameters.ConstraintParameter>.
+
+        This is identical to <phoebe.parameters.ConstraintParameter.get_default_unit>.
+
+        See also:
+        * <phoebe.parameters.ConstraintParameter.set_default_unit>
+
+        Returns
+        --------
+        * (unit): the current default units.
+        """
         return self._default_unit
 
     def get_default_unit(self):
+        """
+        Return the default unit for the <phoebe.parameters.ConstraintParameter>.
+
+        This is identical to <phoebe.parameters.ConstraintParameter.default_unit>.
+
+        See also:
+        * <phoebe.parameters.ConstraintParameter.set_default_unit>
+
+        Returns
+        --------
+        * (unit): the current default units.
+        """
         return self.default_unit
 
     def set_default_unit(self, unit):
         """
+        Set the default unit for the <phoebe.parameters.ConstraintParameter>.
 
+        See also:
+        * <phoebe.parameters.ConstraintParameter.get_default_unit>
+
+        Arguments
+        --------
+        * `unit` (unit or valid string): the desired new units.  If the Parameter
+            currently has default units, then the new units must be compatible
+            with the current units
+
+        Raises
+        -------
+        * Error: if the new and current units are incompatible.
         """
-        # TODO: check to make sure isinstance(unit, astropy.units.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, str) or isinstance(unit, unicode):
+        if isinstance(unit, unicode) or isinstance(unit, str):
             unit = u.Unit(str(unit))
+
+        if not _is_unit(unit):
+            raise TypeError("unit must be a Unit")
+
+        if hasattr(self, '_default_unit') and self._default_unit is not None:
+            # we won't use a try except here so that the error comes from astropy
+            check_convert = self._default_unit.to(unit)
+
 
         self._default_unit = unit
 
     #@send_if_client   # TODO: this breaks
     def set_value(self, value, **kwargs):
         """
+        Set the current value of the <phoebe.parameters.ConstraintParameter>.
 
-        kwargs are passed on to filter
+        Arguments
+        ----------
+        * `value` (string): the new value of the Parameter.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to a string.
+        * Error: if `value` could not be parsed into a valid constraint expression.
         """
         _orig_value = deepcopy(self.get_value())
 
@@ -5645,11 +7920,26 @@ class ConstraintParameter(Parameter):
 
     @property
     def expr(self):
+        """
+        Return the expression of the <phoebe.parameters.ConstraintParameter>.
+        This is just a shortcut to
+        <phoebe.parameters.ConstraintParameter.get_value>.
+
+        Returns
+        -------
+        * (float)
+        """
         return self.get_value()
 
     #@update_if_client  # TODO: this breaks
     def get_value(self):
         """
+        Return the expression/value of the
+        <phoebe.parameters.ConstraintParameter>.
+
+        Returns
+        -------
+        * (float)
         """
         # for access to the sympy-safe expr, just use self._expr
         expr = self._value
@@ -5689,7 +7979,7 @@ class ConstraintParameter(Parameter):
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
             return ConstraintParameter(self._bundle, "(%s) %s %f" % (self.expr, symbol, other.si.value), default_unit=(getattr(self.result, mathfunc)(other).unit))
-        elif (isinstance(other, u.Unit) or isinstance(other, u.CompositeUnit) or isinstance(other, u.IrreducibleUnit)) and mathfunc=='__mul__':
+        elif _is_unit(other) and mathfunc=='__mul__':
             # here we'll fake the unit to become a quantity so that we still return a ConstraintParameter
             return self*(1*other)
         else:
@@ -5713,7 +8003,7 @@ class ConstraintParameter(Parameter):
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
             return ConstraintParameter(self._bundle, "%f %s (%s)" % (other.si.value, symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other).unit))
-        elif (isinstance(other, u.Unit) or isinstance(other, u.CompositeUnit) or isinstance(other, u.IrreducibleUnit)) and mathfunc=='__mul__':
+        elif _is_unit(other) and mathfunc=='__mul__':
             # here we'll fake the unit to become a quantity so that we still return a ConstraintParameter
             return self*(1*other)
         else:
@@ -5749,17 +8039,40 @@ class ConstraintParameter(Parameter):
     @property
     def result(self):
         """
-        get the current value (as a quantity) of this expression
+        Get the current value (as a quantity) of the result of the expression
+        of this <phoebe.parameters.ConstraintParameter>.
+
+        This is identical to <phoebe.parameters.ConstraintParameter.get_result>.
+
+        Returns
+        --------
+        * (quantity): the current result of evaluating the constraint expression.
         """
         return self.get_result()
 
     def get_result(self, t=None):
         """
+        Get the current value (as a quantity) of the result of the expression
+        of this <phoebe.parameters.ConstraintParameter>.
+
+        This is identical to <phoebe.parameters.ConstraintParameter.result>.
+
+        Returns
+        --------
+        * (quantity): the current result of evaluating the constraint expression.
         """
         # TODO: optimize this:
         # almost half the time is being spent on self.get_value() of which most is spent on var.update_user_label
         # second culprit is converting everything to si
         # third culprit is the dictionary comprehensions
+
+        # in theory, it would be nice to prepare this list at the module import
+        # level, but that causes an infinite loop in the imports, so we'll
+        # do a re-import here.  If this causes significant lag, it may be worth
+        # trying to resolve the infinite loop.
+        from phoebe.constraints import builtin
+        _constraint_builtin_funcs = [f for f in dir(builtin) if isinstance(getattr(builtin, f), types.FunctionType)]
+        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'sqrt']
 
         def eq_needs_builtin(eq):
             for func in _constraint_builtin_funcs:
@@ -5799,13 +8112,21 @@ class ConstraintParameter(Parameter):
 
                 values = get_values(self._vars, safe_label=False)
 
-                from phoebe.constraints.builtin import ecosw2per0, esinw2per0,\
-                        t0_perpass_to_supconj, t0_supconj_to_perpass,\
-                        t0_ref_to_supconj, t0_supconj_to_ref,\
-                        rochepotential2rpole, rocherpole2potential,\
-                        rotstarpotential2rpole, rotstarrpole2potential
+                # cannot do from builtin import *
+                for func in _constraint_builtin_funcs:
+                    # I should be shot for doing this...
+                    # in order for eval to work, the builtin functions need
+                    # to be imported at the top-level, but I don't really want
+                    # to do from builtin import * (and even if I did, python
+                    # yells at me for doing that), so instead we'll add them
+                    # to the locals dictionary.
+                    locals()[func] = getattr(builtin, func)
 
-                value = float(eval(eq.format(**values)))
+                try:
+                    value = float(eval(eq.format(**values)))
+                except:
+                    value = np.nan
+
 
             else:
                 # the following works for np arrays
@@ -5845,9 +8166,25 @@ class ConstraintParameter(Parameter):
 
     def flip_for(self, twig=None, expression=None, **kwargs):
         """
-        flip the constraint to solve for for any of the parameters in the expression
+        Flip the constraint expression to solve for for any of the parameters
+        in the expression.
 
-        expression (optional if sympy available, required if not)
+        The filtering (with `twig` and `**kwargs`) must find a single match
+        among the Parameters in the expression.  See
+        <phoebe.parameters.ConstraintParameter.vars> and
+        <phoebe.parameters.ConstraintParameter.get_parameter>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+
+        Arguments
+        ----------
+        * `twig` (string, optional): the twig of the Parameter to constraint (solve_for).
+        * `expression` (string, optional): provide the new expression.  If not
+            provided, the expression will be pulled from the constraint func
+            if possible, or solved for analytically if sympy is installed.
+        * `**kwargs`: tags to be used for filtering for the newly constrained
+            Parameter.
         """
 
         _orig_expression = self.get_value()
@@ -5908,6 +8245,9 @@ class ConstraintParameter(Parameter):
         self._kind = newly_constrained_param.kind
 
         self._value = str(expression)
+        # reset the default_unit so that set_default_unit doesn't complain
+        # about incompatible units
+        self._default_unit = None
         self.set_default_unit(newly_constrained_param.default_unit)
 
         self._update_bookkeeping()
@@ -5918,7 +8258,18 @@ class ConstraintParameter(Parameter):
 class HistoryParameter(Parameter):
     def __init__(self, bundle, redo_func, redo_kwargs, undo_func, undo_kwargs, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
+
+        This Parameter should never be created manually, but instead handled
+        by the <phoebe.frontend.bundle.Bundle>.
+
+        Arguments
+        -----------
+        * `bundle`
+        * `redo_func`
+        * `redo_kwargs`
+        * `undo_func`
+        * `undo_kwargs`
         """
         dump = kwargs.pop('qualifier', None)
         kwargs['context'] = 'history'
@@ -5932,9 +8283,9 @@ class HistoryParameter(Parameter):
 
         # if a function itself is passed instead of the string name, convert
         if hasattr(redo_func, '__call__'):
-            redo_func = redo_func.func_name
+            redo_func = redo_func.__name__
         if hasattr(undo_func, '__call__'):
-            undo_func = undo_func.func_name
+            undo_func = undo_func.__name__
 
         # check to make sure the funcs are valid methods of the bundle
         if not hasattr(self._bundle, redo_func):
@@ -5968,6 +8319,14 @@ class HistoryParameter(Parameter):
 
     def to_string_short(self):
         """
+        An abbreviated string representation of the <phoebe.parameters.HistoryParameter>.
+
+        See also:
+        * <phoebe.parameters.Parameter.to_string>
+
+        Returns
+        ----------
+        * (string)
         """
         # this is what will be printed when in a PS (ie bundle.get_history())
         return "redo: {}, undo: {}".format(self.redo_str, self.undo_str)
@@ -6072,7 +8431,7 @@ class JobParameter(Parameter):
     """
     def __init__(self, b, location, status_method, retrieve_method, server_status=None, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         _qualifier = kwargs.pop('qualifier', None)
         super(JobParameter, self).__init__(qualifier='detached_job', **kwargs)
@@ -6117,9 +8476,12 @@ class JobParameter(Parameter):
 
     def set_value(self, *args, **kwargs):
         """
-        JobParameter is read-only
+        <phoebe.parameters.JobParameter> is read-only.  Calling set_value
+        will raise an Error.
 
-        :raises NotImplementedError: because this never will be
+        Raises
+        --------
+        * NotImplementedError: because this never will be
         """
 
         raise NotImplementedError("JobParameter is a read-only parameter.  Call status or attach()")
