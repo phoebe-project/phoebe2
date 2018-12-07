@@ -40,9 +40,9 @@ def test_binary(plot=False):
         if plot: print("alb = {}".format(alb))
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        if plot:(print "running phoebe2 model...")
+        if plot:print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model')
-        if plot:(print "running phoebe1 model...")
+        if plot:print("running phoebe1 model...")
         b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
