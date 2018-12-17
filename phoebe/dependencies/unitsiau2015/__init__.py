@@ -131,15 +131,18 @@ _physical_types_to_solar = {'length': 'solRad',
                             'mass': 'solMass',
                             'time': 'd',
                             'speed': 'solRad/d',
+                            'angle': 'rad',
+                            'angular speed': 'rad/d',
                             'dimensionless': ''}
 
 def _get_physical_type(object):
-    if isinstance(object, u.Quantity):
-        unit = object.unit
-    elif isinstance(object, u.Unit):
+
+    if hasattr(object, 'physical_type'):
         unit = object
+    elif isinstance(object, u.Quantity):
+        unit = object.unit
     else:
-        raise NotImplementedError
+        raise NotImplementedError("object {} with type={} not supported for _get_physical_type".format(object, type(object)))
 
     return unit.physical_type
 

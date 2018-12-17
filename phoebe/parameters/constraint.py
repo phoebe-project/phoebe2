@@ -8,6 +8,8 @@ import logging
 logger = logging.getLogger("CONSTRAINT")
 logger.addHandler(logging.NullHandler())
 
+list_of_constraints_requiring_si = []
+
 
 def _get_system_ps(b, item, context='component'):
     """
