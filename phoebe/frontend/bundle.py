@@ -129,6 +129,10 @@ class Bundle(ParameterSet):
         self._params = []
         super(Bundle, self).__init__(params=params)
 
+        # flags for handling functionality not available to files imported from
+        # older version of PHOEBE.
+        self._import_before_v211 = False
+
         # since this is a subclass of PS, some things try to access the bundle
         # by self._bundle, in this case we just need to fake that to refer to
         # self
@@ -205,12 +209,16 @@ class Bundle(ParameterSet):
         if phoebe_version_import == phoebe_version_this:
             return b
         elif phoebe_version_import > phoebe_version_this:
-            print("WARNING: importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating")
-            logger.warning("importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating".format(phoebe_version_import))
+            warning = "importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating".format(phoebe_version_import)
+            print("WARNING: {}".format(warning))
+            logger.warning(warning)
             return b
 
         if phoebe_version_import < StrictVersion("2.1.1"):
-            logger.warning("importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  Forcing all constraints to stay in SI".format(phoebe_version_import))
+            b._import_before_v211 = True
+            warning = "Importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
+            print("WARNING: {}".format(warning))
+            logger.warning(warning)
 
         if phoebe_version_import < StrictVersion("2.1.0"):
             logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
@@ -963,6 +971,9 @@ class Bundle(ParameterSet):
         - string representation (preferably passed through hierarchy already)
         - func and strings/PSs/params to pass to function
         """
+
+        if self._import_before_v211:
+            raise ValueError("This bundle was created before constraints in solar units were supported and therefore cannot call set_hierarchy.  Either downgrade PHOEBE or re-create this system from scratch if you need to change the hierarchy.")
 
         # need to run any constraints since some may be deleted and rebuilt
         changed_params = self.run_delayed_constraints()
