@@ -202,6 +202,7 @@ class Bundle(ParameterSet):
         if phoebe_version_import == phoebe_version_this:
             return b
         elif phoebe_version_import > phoebe_version_this:
+            print("WARNING: importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating")
             logger.warning("importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating".format(phoebe_version_import))
             return b
         elif phoebe_version_import < StrictVersion("2.1.0"):
