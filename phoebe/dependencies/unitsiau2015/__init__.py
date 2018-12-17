@@ -129,6 +129,8 @@ TODO: eventually consider adopting this as a "base" unit
 """
 _physical_types_to_solar = {'length': 'solRad',
                             'mass': 'solMass',
+                            'temperature', 'solTeff',
+                            'power', 'solLum',
                             'time': 'd',
                             'speed': 'solRad/d',
                             'angle': 'rad',
