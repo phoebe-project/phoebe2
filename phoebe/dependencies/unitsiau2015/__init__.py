@@ -121,6 +121,56 @@ solTeff = def_unit(['solTeff', 'T_sun', 'Tsun'], c.si.T_sun, namespace=ns,
 
 _register_unit(solTeff)
 
+"""
+astropy also doesn't have any ability to convert to solar units, so we'll provide
+a function for that.
+
+TODO: eventually consider adopting this as a "base" unit
+"""
+_physical_types_to_solar = {'length': 'solRad',
+                            'mass': 'solMass',
+                            'time': 'd',
+                            'speed': 'solRad/d',
+                            'dimensionless': ''}
+
+def _get_physical_type(object):
+    if isinstance(object, u.Quantity):
+        unit = object.unit
+    elif isinstance(object, u.Unit):
+        unit = object
+    else:
+        raise NotImplementedError
+
+    return unit.physical_type
+
+def can_convert_to_solar(object):
+    return _get_physical_type(object) in _physical_types_to_solar.keys()
+
+def to_solar(object):
+    """
+    Arguments
+    ----------
+    * `object` (quantity or unit)
+
+    Returns
+    ----------
+    * quantity or unit in applicable solar units
+
+    Raises
+    --------
+    * NotImplementedError: if cannot convert to solar
+    """
+    physical_type = _get_physical_type(object)
+
+    if physical_type not in _physical_types_to_solar.keys():
+        raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
+
+    return object.to(_physical_types_to_solar.get(physical_type))
+
+u.can_convert_to_solar = can_convert_to_solar
+u.to_solar = to_solar
+
+
 
 """
 And lastly, let's do all remaining cleanup

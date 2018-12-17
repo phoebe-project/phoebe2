@@ -2567,6 +2567,7 @@ class Bundle(ParameterSet):
                                                model=lhs.model,
                                                constraint_func=func.__name__,
                                                constraint_kwargs=constraint_kwargs,
+                                               in_solar_units=func.__name__=='mass',
                                                value=rhs,
                                                default_unit=lhs.default_unit,
                                                description='expression that determines the constraint')

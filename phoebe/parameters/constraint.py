@@ -757,6 +757,7 @@ def mass(b, component, solve_for=None, **kwargs):
     q = b.get_parameter(qualifier='q', **metawargs)
 
     G = c.G.to('solRad3 / (solMass d2)')
+    G.keep_in_solar_units = True
 
     if hier.get_primary_or_secondary(component) == 'primary':
         qthing = 1.0+q
