@@ -651,7 +651,7 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
 
     if solve_for in [None, sma1]:
         lhs = sma1
-        rhs = (sma2**3 * qthing1 * period1**2/period2**2)**(1./3)
+        rhs = (sma2**3 * qthing1 * period1**2/period2**2)**"(1./3)"
     else:
         # TODO: add other options to solve_for
         raise NotImplementedError
@@ -772,12 +772,12 @@ def mass(b, component, solve_for=None, **kwargs):
     elif solve_for==sma:
 
         lhs = sma
-        rhs = ((mass * period**2 * qthing * G)/(4 * np.pi**2))**(1./3)
+        rhs = ((mass * period**2 * qthing * G)/(4 * np.pi**2))**"(1./3)"
 
     elif solve_for==period:
 
         lhs = period
-        rhs = ((4 * np.pi**2 * sma**3)/(mass * qthing * G))**(1./2)
+        rhs = ((4 * np.pi**2 * sma**3)/(mass * qthing * G))**"(1./2)"
 
     elif solve_for==q:
         # TODO: implement this so that one mass can be solved for sma and the

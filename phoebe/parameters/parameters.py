@@ -5527,6 +5527,8 @@ class ConstraintParameter(Parameter):
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
             return ConstraintParameter(self._bundle, "(%s) %s %f" % (self.expr, symbol, _value_for_constraint(other, self)), default_unit=(getattr(self.result, mathfunc)(other).unit))
+        elif isinstance(other, str):
+            return ConstraintParameter(self._bundle, "(%s) %s %s" % (self.expr, symbol, other), default_unit=(getattr(self.result, mathfunc)(eval(other)).unit))
         elif _is_unit(other) and mathfunc=='__mul__':
             # here we'll fake the unit to become a quantity so that we still return a ConstraintParameter
             return self*(1*other)
@@ -5551,6 +5553,8 @@ class ConstraintParameter(Parameter):
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
             return ConstraintParameter(self._bundle, "%f %s (%s)" % (_value_for_constraint(other, self), symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other).unit))
+        elif isinstance(other, str):
+            return ConstraintParameter(self._bundle, "%s %s (%s)" % (other, symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(eval(other)).unit))
         elif _is_unit(other) and mathfunc=='__mul__':
             # here we'll fake the unit to become a quantity so that we still return a ConstraintParameter
             return self*(1*other)
