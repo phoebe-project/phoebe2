@@ -37,13 +37,25 @@ app._killable = False
 app.config['SECRET_KEY'] = 'phoebesecret'
 socketio = SocketIO(app)
 
-def _uniqueid(N=30):
+def _uniqueid(N=16):
     """
     :parameter int N: number of character in the uniqueid
     :return: the uniqueid
     :rtype: str
     """
     return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.ascii_lowercase) for _ in range(N))
+
+def _new_bundleid(N=6):
+    """
+    will have 52**N uniqueids available.  But we'll check for duplicates just to
+    make sure.
+    """
+    uniqueid = _uniqueid(N=N)
+    if uniqueid not in app._bundles.keys():
+        return uniqueid
+    else:
+        # you should really enter the lottery, unless N is <= 3
+        return _new_bundleid(N=N)
 
 ################################## ADDITIONAL IMPORTS ##########################
 
@@ -151,40 +163,83 @@ def test():
         print("test", phoebe.__version__, app._parent)
     return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent}, api=True)
 
-@app.route("/clients", methods=['GET'])
+@app.route('/new_bundle/<string:type>', methods=['GET'])
 @crossdomain(origin='*')
-def clients():
+def new_bundle(type):
+    """
+    Initiate a new bundle object, store it to local memory, and return the bundleid.
+    The client is then responsible for making an additional call to access parameters, etc.
+
+    type: 'binary:detached'
+    """
     if app._verbose:
-        print("clients", app._clients)
+        print("new_bundle(type={})".format(type))
 
-    return _get_response({'success': True, 'clients': app._clients}, api=True)
+    def _new_bundle(constructor, **kwargs):
+        try:
+            b = getattr(phoebe, constructor)(**kwargs)
+        except Exception as err:
+            return _get_response({'success': False, 'error': str(err)}, api=True)
+        else:
+            bundleid = _new_bundleid()
+            # app.bundles[bundleid] = b
+            return _get_response({'success': True, 'bundleid': bundleid}, api=True)
 
-@app.route("/<string:bundleid>/json", methods=['GET'])
-@crossdomain(origin='*')
-def get_json(bundleid):
-    if app._verbose:
-        print("GET request for json")
+    if type == 'single':
+        return _new_bundle('default_star')
+    elif type == 'binary:detached':
+        return _new_bundle('default_binary')
+    # elif type == 'binary:detached:primary':
+        # return _new_bundle('default_binary', semidetached='primary')
+    # elif type == 'binary:detached:secondary':
+        # return _new_bundle('default_binary', semidetached='secondary')
+    elif type == 'binary:contact':
+        return _new_bundle('default_binary', contact_binary=True)
+    # elif type == 'triple:12:detached':
+    #     return _new_bundle('default_triple', inner_as_primary=False, inner_as_contact=False)
+    # elif type == 'triple:12:contact':
+    #     return _new_bundle('default_triple', inner_as_primary=False, inner_as_contact=True)
+    # elif type == 'triple:21:detached':
+    #     return _new_bundle('default_triple', inner_as_primary=True, inner_as_contact=False)
+    # elif type == 'triple:21:contact':
+    #     return _new_bundle('default_triple', inner_as_primary=True, inner_as_contact=True)
+    else:
+        return _get_response({'success': False, 'error': 'bundle with type "{}" not implemented'.format(type)}, api=True)
 
-    b = app._bundles[bundleid]
+# @app.route("/clients", methods=['GET'])
+# @crossdomain(origin='*')
+# def clients():
+#     if app._verbose:
+#         print("clients", app._clients)
+#
+#     return _get_response({'success': True, 'clients': app._clients}, api=True)
 
-    data = b.to_json(incl_uniqueid=True)
+# @app.route("/<string:bundleid>/json", methods=['GET'])
+# @crossdomain(origin='*')
+# def get_json(bundleid):
+#     if app._verbose:
+#         print("GET request for json")
+#
+#     b = app._bundles[bundleid]
+#
+#     data = b.to_json(incl_uniqueid=True)
+#
+#     #print "returning json response"
+#     return _get_response(data, bundleid=bundleid, api=True)
 
-    #print "returning json response"
-    return _get_response(data, bundleid=bundleid, api=True)
+# @app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET'])
+# def serve_figure(bundleid, figure):
+#     fname = '{}_{}.png'.format(bundleid, figure)
+#     if app._verbose:
+#         print("serve_figure", fname)
+#     return send_from_directory(_dir_tmpimages, fname)
 
-@app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET'])
-def serve_figure(bundleid, figure):
-    fname = '{}_{}.png'.format(bundleid, figure)
-    if app._verbose:
-        print("serve_figure", fname)
-    return send_from_directory(_dir_tmpimages, fname)
-
-@app.route("/<string:bundleid>/figure_mpl/<string:figure>", methods=['GET'])
-def serve_figure_mpl(bundleid, figure):
-    fname = '{}_{}.mpl'.format(bundleid, figure)
-    if app._verbose:
-        print("serve_figure_mpl", fname)
-    return send_from_directory(_dir_tmpimages, fname)
+# @app.route("/<string:bundleid>/figure_mpl/<string:figure>", methods=['GET'])
+# def serve_figure_mpl(bundleid, figure):
+#     fname = '{}_{}.mpl'.format(bundleid, figure)
+#     if app._verbose:
+#         print("serve_figure_mpl", fname)
+#     return send_from_directory(_dir_tmpimages, fname)
 
 
 ############################# WEBSOCKET ROUTES ################################
@@ -406,27 +461,6 @@ def deregister_client(msg):
         app._clients.remove(clientid)
 
     emit('clients changed', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}}, broadcast=True)
-
-########## BUNDLE CREATION
-@socketio.on('new_bundle')
-def new_bundle(msg):
-    if app._verbose:
-        print("new_bundle")
-
-    id_ = msg.pop('id', None)
-    constructor = msg.pop('constructor')
-
-    try:
-        b = getattr(phoebe, constructor)()
-    except Exception as err:
-        emit('msg', {'success': False, 'id': packetid, 'level': 'error', 'msg': err.message}, broadcast=False)
-
-    else:
-        # b.add_dataset('lc', times=phoebe.linspace(0,1,11))
-        # b.add_figure('lc')
-        bundleid = _uniqueid()
-        app._bundles[bundleid] = b
-        emit('bundle', {'success': True, 'id': id_, 'data': {'bundleid': bundleid}}, broadcast=False)
 
 ########## TAGS/FILTERING
 @socketio.on('tags')
