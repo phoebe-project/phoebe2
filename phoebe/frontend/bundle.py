@@ -198,8 +198,8 @@ class Bundle(ParameterSet):
         b = cls(data)
 
         version = b.get_value('phoebe_version')
-        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.1.1')
-        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.1.1')
+        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.1.2')
+        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.1.2')
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
@@ -214,7 +214,7 @@ class Bundle(ParameterSet):
             logger.warning(warning)
             return b
 
-        if phoebe_version_import < StrictVersion("2.1.1"):
+        if phoebe_version_import < StrictVersion("2.1.2"):
             b._import_before_v211 = True
             warning = "Importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
             print("WARNING: {}".format(warning))
