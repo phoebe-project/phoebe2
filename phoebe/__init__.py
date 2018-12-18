@@ -10,7 +10,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.1.0'
+__version__ = '2.1.1'
 
 import os
 import sys as _sys
@@ -78,7 +78,8 @@ class MPI(object):
         # this is a bit of a hack and will only work with openmpi, but environment
         # variables seem to be the only way to detect whether the script was run
         # via mpirun or not
-        if 'OMPI_COMM_WORLD_SIZE' in os.environ.keys():
+        evars = os.environ.keys()
+        if 'OMPI_COMM_WORLD_SIZE' in evars or 'MV2_COMM_WORLD_SIZE' in evars or 'PMI_SIZE' in evars:
             from mpi4py import MPI as mpi4py
             self._within_mpirun = True
             self._internal_mpi = True
