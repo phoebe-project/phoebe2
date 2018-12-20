@@ -239,6 +239,16 @@ def _uniqueid(n=30):
 def _is_unit(unit):
     return isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit) or isinstance(unit, u.IrreducibleUnit)
 
+def _value_for_constraint(item, constraintparam=None):
+    if getattr(item, 'keep_in_solar_units', False):
+        # for example, constants defined in the constraint itself can have
+        # this attribute added to force them to stay in solar units in the constraint
+        return item.value
+    elif constraintparam is not None and constraintparam.in_solar_units:
+        return u.to_solar(item).value
+    else:
+        return item.si.value
+
 
 def parameter_from_json(dictionary, bundle=None):
     """Load a single parameter from a JSON dictionary.
@@ -4622,6 +4632,8 @@ class Parameter(object):
     def __math__(self, other, symbol, mathfunc):
         """
         """
+
+
         try:
             # print "***", type(other), mathfunc
             if isinstance(other, ConstraintParameter):
@@ -4645,8 +4657,7 @@ class Parameter(object):
                 default_unit = getattr(self_quantity, mathfunc)(other_quantity).unit
                 return ConstraintParameter(self._bundle, "{%s} %s {%s}" % (self.uniquetwig, symbol, other.uniquetwig), default_unit=default_unit)
             elif isinstance(other, u.Quantity):
-                #~ print "***", self.uniquetwig, "{%s} %s %f" % (self.uniquetwig, symbol, other.si.value)
-                return ConstraintParameter(self._bundle, "{%s} %s %0.30f" % (self.uniquetwig, symbol, other.si.value), default_unit=(getattr(self.quantity, mathfunc)(other).unit))
+                return ConstraintParameter(self._bundle, "{%s} %s %0.30f" % (self.uniquetwig, symbol, _value_for_constraint(other)), default_unit=(getattr(self.quantity, mathfunc)(other).unit))
             elif isinstance(other, float) or isinstance(other, int):
                 if symbol in ['+', '-'] and hasattr(self, 'default_unit'):
                     # assume same units as self (NOTE: NOT NECESSARILY SI) if addition or subtraction
@@ -4654,7 +4665,7 @@ class Parameter(object):
                 else:
                     # assume dimensionless
                     other = float(other)*u.dimensionless_unscaled
-                return ConstraintParameter(self._bundle, "{%s} %s %f" % (self.uniquetwig, symbol, other.si.value), default_unit=(getattr(self.quantity, mathfunc)(other).unit))
+                return ConstraintParameter(self._bundle, "{%s} %s %f" % (self.uniquetwig, symbol, _value_for_constraint(other)), default_unit=(getattr(self.quantity, mathfunc)(other).unit))
             elif isinstance(other, u.Unit) and mathfunc=='__mul__':
                 return self.quantity*other
             else:
@@ -4671,7 +4682,7 @@ class Parameter(object):
             elif isinstance(other, Parameter):
                 return ConstraintParameter(self._bundle, "{%s} %s {%s}" % (other.uniquetwig, symbol, self.uniquetwig), default_unit=(getattr(self.quantity, mathfunc)(other.quantity).unit))
             elif isinstance(other, u.Quantity):
-                return ConstraintParameter(self._bundle, "%0.30f %s {%s}" % (other.si.value, symbol, self.uniquetwig), default_unit=(getattr(self.quantity, mathfunc)(other).unit))
+                return ConstraintParameter(self._bundle, "%0.30f %s {%s}" % (_value_for_constraint(other), symbol, self.uniquetwig), default_unit=(getattr(self.quantity, mathfunc)(other).unit))
             elif isinstance(other, float) or isinstance(other, int):
                 if symbol in ['+', '-'] and hasattr(self, 'default_unit'):
                     # assume same units as self if addition or subtraction
@@ -4679,7 +4690,7 @@ class Parameter(object):
                 else:
                     # assume dimensionless
                     other = float(other)*u.dimensionless_unscaled
-                return ConstraintParameter(self._bundle, "%f %s {%s}" % (other.si.value, symbol, self.uniquetwig), default_unit=(getattr(self.quantity, mathfunc)(other).unit))
+                return ConstraintParameter(self._bundle, "%f %s {%s}" % (_value_for_constraint(other), symbol, self.uniquetwig), default_unit=(getattr(self.quantity, mathfunc)(other).unit))
             elif isinstance(other, u.Unit) and mathfunc=='__mul__':
                 return self.quantity*other
             else:
@@ -6300,9 +6311,6 @@ class FloatParameter(Parameter):
         return params
 
 
-#    def sin(self):
-#        return np.sin(self.get_value(unit=u.rad))
-
 class FloatArrayParameter(FloatParameter):
     def __init__(self, *args, **kwargs):
         """
@@ -7466,9 +7474,10 @@ class ConstraintParameter(Parameter):
         self._var_params = None
         self._constraint_func = kwargs.get('constraint_func', None)
         self._constraint_kwargs = kwargs.get('constraint_kwargs', {})
+        self._in_solar_units = kwargs.get('in_solar_units', False)
         self.set_value(value)
         self.set_default_unit(default_unit)
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'in_solar_units']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -7510,6 +7519,12 @@ class ConstraintParameter(Parameter):
         * (dict)
         """
         return self._constraint_kwargs
+
+    @property
+    def in_solar_units(self):
+        """
+        """
+        return self._in_solar_units
 
     @property
     def vars(self):
@@ -7801,14 +7816,15 @@ class ConstraintParameter(Parameter):
         return expr
 
     def __repr__(self):
+        expr = "{} ({})".format(self.expr, "solar units" if self.in_solar_units else "SI")
         if self.qualifier is not None:
             lhs = '{'+self.get_constrained_parameter().uniquetwig+'}'
-            return "<ConstraintParameter: {} = {} => {}>".format(lhs, self.expr, self.result)
+            return "<ConstraintParameter: {} = {} => {}>".format(lhs, expr, self.result)
         else:
-            return "<ConstraintParameter: {} => {}>".format(self.expr, self.result)
+            return "<ConstraintParameter: {} => {}>".format(expr, self.result)
 
     def __str__(self):
-        return "Constrains (qualifier): {}\nExpression in SI (value): {}\nCurrent Result (result): {}".format(self.qualifier, self.expr, self.result)
+        return "Constrains (qualifier): {}\nExpression in {} (value): {}\nCurrent Result (result): {}".format(self.qualifier, 'solar units' if self.in_solar_units else 'SI', self.expr, self.result)
 
     def __math__(self, other, symbol, mathfunc):
         #~ print "*** ConstraintParameter.__math__ other.type", type(other)
@@ -7819,7 +7835,7 @@ class ConstraintParameter(Parameter):
             return ConstraintParameter(self._bundle, "(%s) %s {%s}" % (self.expr, symbol, other.uniquetwig), default_unit=(getattr(self.result, mathfunc)(other.quantity).unit))
         elif isinstance(other, u.Quantity):
             #print "***", other, type(other), isinstance(other, ConstraintParameter)
-            return ConstraintParameter(self._bundle, "(%s) %s %0.30f" % (self.expr, symbol, other.si.value), default_unit=(getattr(self.result, mathfunc)(other).unit))
+            return ConstraintParameter(self._bundle, "(%s) %s %0.30f" % (self.expr, symbol, _value_for_constraint(other, self)), default_unit=(getattr(self.result, mathfunc)(other).unit))
         elif isinstance(other, float) or isinstance(other, int):
             if symbol in ['+', '-']:
                 # assume same units as self (NOTE: NOT NECESSARILY SI) if addition or subtraction
@@ -7827,7 +7843,9 @@ class ConstraintParameter(Parameter):
             else:
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
-            return ConstraintParameter(self._bundle, "(%s) %s %f" % (self.expr, symbol, other.si.value), default_unit=(getattr(self.result, mathfunc)(other).unit))
+            return ConstraintParameter(self._bundle, "(%s) %s %f" % (self.expr, symbol, _value_for_constraint(other, self)), default_unit=(getattr(self.result, mathfunc)(other).unit))
+        elif isinstance(other, str):
+            return ConstraintParameter(self._bundle, "(%s) %s %s" % (self.expr, symbol, other), default_unit=(getattr(self.result, mathfunc)(eval(other)).unit))
         elif _is_unit(other) and mathfunc=='__mul__':
             # here we'll fake the unit to become a quantity so that we still return a ConstraintParameter
             return self*(1*other)
@@ -7843,7 +7861,7 @@ class ConstraintParameter(Parameter):
             return ConstraintParameter(self._bundle, "{%s} %s (%s)" % (other.uniquetwig, symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other.quantity).unit))
         elif isinstance(other, u.Quantity):
             #~ print "*** rmath", other, type(other)
-            return ConstraintParameter(self._bundle, "%0.30f %s (%s)" % (other.si.value, symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other).unit))
+            return ConstraintParameter(self._bundle, "%0.30f %s (%s)" % (_value_for_constraint(other, self), symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other).unit))
         elif isinstance(other, float) or isinstance(other, int):
             if symbol in ['+', '-']:
                 # assume same units as self if addition or subtraction
@@ -7851,7 +7869,9 @@ class ConstraintParameter(Parameter):
             else:
                 # assume dimensionless
                 other = float(other)*u.dimensionless_unscaled
-            return ConstraintParameter(self._bundle, "%f %s (%s)" % (other.si.value, symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other).unit))
+            return ConstraintParameter(self._bundle, "%f %s (%s)" % (_value_for_constraint(other, self), symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(other).unit))
+        elif isinstance(other, str):
+            return ConstraintParameter(self._bundle, "%s %s (%s)" % (other, symbol, self.expr), default_unit=(getattr(self.result, mathfunc)(eval(other)).unit))
         elif _is_unit(other) and mathfunc=='__mul__':
             # here we'll fake the unit to become a quantity so that we still return a ConstraintParameter
             return self*(1*other)
@@ -7931,9 +7951,15 @@ class ConstraintParameter(Parameter):
             return False
 
         def get_values(vars, safe_label=True):
-            # use np.float64 so that dividing by zero will results in a
+            # use np.float64 so that dividing by zero will result in a
             # np.inf
-            return {var.safe_label if safe_label else var.user_label: np.float64(var.get_quantity(t=t).si.value) if var.get_parameter()!=self.constrained_parameter else np.float64(var.get_quantity().si.value) for var in vars}
+            def _single_value(quantity):
+                if self.in_solar_units:
+                    return np.float64(u.to_solar(quantity).value)
+                else:
+                    return np.float64(quantity.si.value)
+
+            return {var.safe_label if safe_label else var.user_label: _single_value(var.get_quantity(t=t)) if var.get_parameter()!=self.constrained_parameter else _single_value(var.get_quantity()) for var in vars}
 
         eq = self.get_value()
 
@@ -8006,7 +8032,10 @@ class ConstraintParameter(Parameter):
         # let's assume the math was correct to give SI and we want units stored in self.default_units
 
         if self.default_unit is not None:
-            convert_scale = self.default_unit.to_system(u.si)[0].scale
+            if self.in_solar_units:
+                convert_scale = u.to_solar(self.default_unit)
+            else:
+                convert_scale = self.default_unit.to_system(u.si)[0].scale
             #value = float(value/convert_scale) * self.default_unit
             value = value/convert_scale * self.default_unit
 
