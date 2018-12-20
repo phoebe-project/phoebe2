@@ -10,7 +10,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.1.1'
+__version__ = '2.1.2'
 
 import os
 import sys as _sys
