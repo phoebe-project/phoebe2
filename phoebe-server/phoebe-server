@@ -140,6 +140,50 @@ def crossdomain(origin=None, methods=None, headers=None,
         return update_wrapper(wrapped_function, f)
     return decorator
 
+############################ BUNDLE MANIPULATION ###############################
+
+def _value_string(param):
+    param_type = param.__class__.__name__
+
+    if param_type in ['StringParameter', 'ChoiceParameter', 'HierarchyParameter']:
+        return param.get_value()
+    elif param_type in ['ConstraintParameter']:
+        return "(Constraint)"
+    elif param_type in ['JobParameter']:
+        return param.get_status()
+    elif param_type in ['UnitParameter']:
+        return str(param.get_value().to_string())
+    elif param_type in ['IntParameter', 'DictParameter', 'BoolParameter']:
+        return str(param.get_value())
+    elif param_type in ['FloatParameter']:
+        return str(param.get_value())
+    elif param_type in ['FloatArrayParameter']:
+        if isinstance(param._value, phoebe.dependencies.nparray.nparray.ArrayWrapper):
+            return param._value.__str__()
+        else:
+            arr = param.get_value()
+            # unit = str(param.get_default_unit())
+            if len(arr):
+                return "[{} ... {} ({})]".format(arr[0], arr[-1], len(arr))
+            else:
+                return "[] (empty)"
+    else:
+        return '({})'.format(param_type)
+
+def _param_json(param):
+    p = {'class': param.__class__.__name__,
+         'valuestr': _value_string(param),
+         'description': param.description,
+         'readonly': param.context in ['model'] or param.qualifier in ['phoebe_version']
+         }
+
+    for k,v in param.meta.items():
+        if k in ['time', 'history', 'fitting', 'feedback', 'plugin']:
+            continue
+        p[k] = v
+
+    return p
+
 
 ############################ HTTP ROUTES ######################################
 def _get_response(data, status_code=200, included=None, api=False, **metawargs):
@@ -182,7 +226,7 @@ def new_bundle(type):
             return _get_response({'success': False, 'error': str(err)}, api=True)
         else:
             bundleid = _new_bundleid()
-            # app.bundles[bundleid] = b
+            app._bundles[bundleid] = b
             return _get_response({'success': True, 'bundleid': bundleid}, api=True)
 
     if type == 'single':
@@ -205,6 +249,27 @@ def new_bundle(type):
     #     return _new_bundle('default_triple', inner_as_primary=True, inner_as_contact=True)
     else:
         return _get_response({'success': False, 'error': 'bundle with type "{}" not implemented'.format(type)}, api=True)
+
+@app.route('/bundle/<string:bundleid>', methods=['GET'])
+@crossdomain(origin='*')
+def bundle(bundleid):
+    """
+    """
+    if app._verbose:
+        print("bundle(bundleid={})".format(bundleid))
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
+
+    b = app._bundles.get(bundleid)
+
+    parameters = {param.uniqueid: _param_json(param) for param in b.to_list()}
+    tags = b.tags
+
+    return _get_response({'success': True, 'parameters': parameters, 'tags': tags}, api=True)
+
+
+
 
 # @app.route("/clients", methods=['GET'])
 # @crossdomain(origin='*')
@@ -263,33 +328,6 @@ def _value(param, exclude_model=False):
 
     return value
 
-def _value_string(param):
-    param_type = param.__class__.__name__
-
-    if param_type in ['StringParameter', 'ChoiceParameter', 'HierarchyParameter']:
-        return param.get_value()
-    elif param_type in ['ConstraintParameter']:
-        return "(Constraint)"
-    elif param_type in ['JobParameter']:
-        return param.get_status()
-    elif param_type in ['UnitParameter']:
-        return str(param.get_value().to_string())
-    elif param_type in ['IntParameter', 'DictParameter', 'BoolParameter']:
-        return str(param.get_value())
-    elif param_type in ['FloatParameter']:
-        return str(param.get_value())
-    elif param_type in ['FloatArrayParameter']:
-        if isinstance(param._value, phoebe.dependencies.nparray.nparray.ArrayWrapper):
-            return param._value.__str__()
-        else:
-            arr = param.get_value()
-            # unit = str(param.get_default_unit())
-            if len(arr):
-                return "[{} ... {} ({})]".format(arr[0], arr[-1], len(arr))
-            else:
-                return "[] (empty)"
-    else:
-        return '({})'.format(param_type)
 
 def _params(b, ps=None, includeids=[], check_visible=True, check_default=False,
             check_advanced=False, check_single=False,
