@@ -104,7 +104,7 @@ class MPI(object):
 
 
     def __repr__(self):
-        return "<MPI internal_mpi={} myrank={} nprocs={}>".format(self.internal_mpi, self.myrank, self.nprocs)
+        return "<MPI mode={} myrank={} nprocs={}>".format(self.mode, self.myrank, self.nprocs)
 
     @property
     def mode(self):
