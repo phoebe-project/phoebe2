@@ -29,6 +29,11 @@ app._clients = []
 app._verbose = True
 app._killable = False
 
+# we'll disable sorting the responses by keys so that we can control the sorting
+# by qualifier instead of uniqueid.  This will sacrifice caching ability in the
+# browser unless we set the order of all keys to be consistent.
+app.config['JSON_SORT_KEYS'] = False
+
 # Create the Flask-SQLAlchemy object and an SQLite database
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///phoebe.db'
 # db = flask.ext.sqlalchemy.SQLAlchemy(app)
@@ -170,12 +175,27 @@ def _value_string(param):
     else:
         return '({})'.format(param_type)
 
-def _param_json(param):
-    p = {'class': param.__class__.__name__,
+def _param_json_overview(param):
+    p = {'uniqueid': param.uniqueid,
+         'class': param.__class__.__name__,
          'valuestr': _value_string(param),
-         'description': param.description,
-         'readonly': param.context in ['model'] or param.qualifier in ['phoebe_version']
+         'readonly': param.context in ['model'] or param.qualifier in ['phoebe_version'],
          }
+
+    advanced_filter = []
+    if not param.is_visible:
+        advanced_filter.append('not_visible')
+    if '_default' in [param.component, param.dataset]:
+        advanced_filter.append('is_default')
+    if param.advanced:
+        advanced_filter.append('is_advanced')
+    if hasattr(param, 'choices') and len(param.choices) <= 1:
+        advanced_filter.append('is_single')
+    if param.context=='constraint':
+        advanced_filter.append('is_constraint')
+
+    p['advanced_filter'] = advanced_filter
+
 
     for k,v in param.meta.items():
         if k in ['time', 'history', 'fitting', 'feedback', 'plugin']:
@@ -183,6 +203,29 @@ def _param_json(param):
         p[k] = v
 
     return p
+
+def _param_json_detailed(param):
+    p  = {'description': param.description}
+
+    if param.__class__.__name__ == 'ConstraintParameter':
+        p['related_to'] = {p.uniqueid: p.twig for p in param.vars.to_list()}
+        p['constraint'] = {}
+        p['constrains'] = {p.uniqueid: p.twig for p in [param.constrained_parameter]}
+    else:
+        p['related_to'] = {p.uniqueid: p.twig for p in param.related_to} if hasattr(param, 'related_to') else {}
+        p['constraint'] = {p.uniqueid: p.twig for p in [param.is_constraint]} if hasattr(param, 'is_constraint') and param.is_constraint is not None else {}
+        p['constrains'] = {p.uniqueid: p.twig for p in param.constrains} if hasattr(param, 'constrains') else {}
+
+    if hasattr(param, 'limits'):
+        if hasattr(param, 'default_unit'):
+            p['limits'] = [l.to(param.default_unit).value if l is not None else None for l in param.limits] + [param.default_unit.to_string()]
+        else:
+            p['limits'] = param.limits + [None]
+    else:
+        p['limits'] = None
+
+    return p
+
 
 
 ############################ HTTP ROUTES ######################################
@@ -199,12 +242,12 @@ def _get_response(data, status_code=200, included=None, api=False, **metawargs):
     else:
         return d
 
-@app.route("/test", methods=['GET'])
+@app.route("/info", methods=['GET'])
 @crossdomain(origin='*')
 def test():
     # TODO: include version info?
     if app._verbose:
-        print("test", phoebe.__version__, app._parent)
+        print("info", phoebe.__version__, app._parent)
     return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent}, api=True)
 
 @app.route('/new_bundle/<string:type>', methods=['GET'])
@@ -258,17 +301,51 @@ def bundle(bundleid):
     if app._verbose:
         print("bundle(bundleid={})".format(bundleid))
 
+    def sort(group, tags):
+        if group=='contexts':
+            # try to order contexts in same order as shown in UI.. then fill in with the rest
+            lst = [k for k in ['constraint', 'component', 'feature', 'dataset', 'figure', 'compute', 'model'] if k in tags]
+            for k in tags:
+                if k not in lst:
+                    lst.append(k)
+            return lst
+        else:
+            return sorted(tags)
+
+
     if bundleid not in app._bundles.keys():
         return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
 
     b = app._bundles.get(bundleid)
 
-    parameters = {param.uniqueid: _param_json(param) for param in b.to_list()}
-    tags = b.tags
+    param_list = sorted([_param_json_overview(param) for param in b.to_list()], key=lambda p: p['qualifier'])
+    param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
 
-    return _get_response({'success': True, 'parameters': parameters, 'tags': tags}, api=True)
+    tags = {k: sort(k, v) for k,v in b.tags.items()}
 
+    return _get_response({'success': True, 'parameters': param_dict, 'tags': tags}, api=True)
 
+@app.route('/parameter/<string:bundleid>/<string:uniqueid>', methods=['GET'])
+@crossdomain(origin='*')
+def parameter(bundleid, uniqueid):
+    """
+    """
+    if app._verbose:
+        print("parameter(bundleid={}, uniqueid={})".format(bundleid, uniqueid))
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
+
+    b = app._bundles.get(bundleid)
+
+    try:
+        param = b.get_parameter(uniqueid=uniqueid)
+    except:
+        return _get_response({'success': False, 'error': 'could not find parameter with uniqueid={}'.format(uniqueid)}, api=True)
+
+    data = _param_json_detailed(param)
+
+    return _get_response({'success': True, 'parameter': data}, api=True)
 
 
 # @app.route("/clients", methods=['GET'])
@@ -500,179 +577,7 @@ def deregister_client(msg):
 
     emit('clients changed', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}}, broadcast=True)
 
-########## TAGS/FILTERING
-@socketio.on('tags')
-def tags(msg):
-    if app._verbose:
-        start = datetime.now()
-        print("tags")
 
-    ALLOW_OR = True
-
-    bundleid = msg.pop('bundleid')
-    b = app._bundles[bundleid]
-
-    filter_ = msg.get('filter', {})
-
-    checks = msg.get('checks', {})
-    check_visible = checks.get('check_visible', True)
-    check_default = checks.get('check_default', False)
-    check_advanced = checks.get('check_advanced', False)
-    check_single = checks.get('check_single', False)
-    subtract_constraint = checks.get('subtract_constraint', False)
-
-    tags = {}
-    tags_nselected = {}
-
-    params_visible = b.filter(check_default=check_default,
-                              check_visible=check_visible,
-                              check_advanced=check_advanced,
-                              check_single=check_single)
-
-    params_selected = params_visible.filter(**filter_)
-
-    if subtract_constraint:
-        params_visible -= params_visible.filter(context='constraint')
-        params_selected -= params_selected.filter(context='constraint')
-
-    ps_tags = params_selected.tags
-    for section, section_tags in b.filter(check_default=check_default,
-                                          check_visible=check_visible,
-                                          check_advanced=check_advanced,
-                                          check_single=check_single).tags.items():
-
-        if subtract_constraint:
-            if section=='constraint':
-                continue
-            if section=='context':
-                section_tags.remove('constraint')
-
-        nselected = 0
-        tags[section] = OrderedDict()
-        if ALLOW_OR and section in filter_.keys():
-            # then let's store the filtered PS without this key,value pair
-            section_available_for_or = b.filter(check_default=check_default,
-                                                check_visible=check_visible,
-                                                check_advanced=check_advanced,
-                                                check_single=check_single,
-                                                **{k:v for k,v in filter_.items() if k!=section})
-        else:
-            section_available_for_or = []
-
-        for tag in sorted(section_tags):
-            selected = tag in filter_.get(section, [])
-            if ALLOW_OR and section in filter_.keys():
-                # then we want available to be if the filtered PS without sending
-                # this key-value would still allow other entries to be added (ie by OR)
-                available = tag in section_available_for_or
-            else:
-                available = tag in ps_tags[section]
-
-            if selected:
-                nselected += 1
-            tags[section][tag] = {'selected': selected,
-                                  'available': available}
-
-        tags_nselected[section] = nselected
-
-    nparams = len(params_visible)
-    nhidden = len(b.filter(check_default=False,
-                           check_visible=False,
-                           check_advanced=False,
-                           check_single=False)) - nparams
-
-    if app._verbose:
-        print("tags microseconds:", (datetime.now()-start).microseconds)
-        print("tags: ", tags)
-
-    emit('tags', {'success': True, 'data': {'bundleid': bundleid, 'tags': tags, 'tagsnselected': tags_nselected, 'nparams': nparams, 'nhidden': nhidden}}, broadcast=False)
-
-@socketio.on('figures')
-def figures(msg):
-    if app._verbose:
-        print("figures")
-
-    packetid = msg.pop('id', None)
-
-    bundleid = msg.get('bundleid')
-    b = app._bundles[bundleid]
-
-    figures = b.figures
-
-    emit('figures', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'figures': figures}}, broadcast=False)
-
-
-@socketio.on('filter')
-def filter(msg):
-    if app._verbose:
-        start = datetime.now()
-        print("filter")
-
-    bundleid = msg.get('bundleid')
-    b = app._bundles[bundleid]
-
-    filter_ = msg.get('filter', {})
-
-    sort_by = msg.get('sort_by', 'qualifier')
-
-    checks = msg.get('checks', {})
-    check_visible = checks.get('check_visible', True)
-    check_default = checks.get('check_default', False)
-    check_advanced = checks.get('check_advanced', False)
-    check_single = checks.get('check_single', False)
-    subtract_constraint = checks.get('subtract_constraint', False)
-
-
-    print("filter: {}, sort_by: {}, check_default: {}, check_visible: {}, check_advanced: {}, check_single: {}, subtract_constraint: {}".format(filter_, sort_by, check_default, check_visible, check_advanced, check_single, subtract_constraint))
-
-    params, nparams = _params(b, includeids=msg.get('includeids', []),
-                              check_visible=check_visible, check_default=check_default,
-                              check_advanced=check_advanced, check_single=check_single,
-                              subtract_constraint=subtract_constraint, sort_by=sort_by,
-                              exclude_model = True,
-                              **filter_)
-
-    if app._verbose:
-        print("filter microseconds:", (datetime.now()-start).microseconds)
-
-    emit('filter', {'success': True, 'data': {'bundleid': bundleid, 'params': params, 'nparams': nparams}}, broadcast=False)
-
-@socketio.on('information')
-def information(msg):
-    if app._verbose:
-        print("information", msg)
-
-    id_ = msg.pop('id', None)
-
-    bundleid = msg.pop('bundleid')
-    b = app._bundles[bundleid]
-
-    param = b.get_parameter(uniqueid=msg.get('uniqueid', None))
-
-    data = {}
-    data['description'] = param.description
-    data['meta'] = param.meta
-    if param.__class__.__name__ == 'ConstraintParameter':
-        data['related_to'] = {p.uniqueid: p.twig for p in param.vars.to_list()}
-        data['constrains'] = {p.uniqueid: p.twig for p in [param.constrained_parameter]}
-        data['constraint'] = {}
-    else:
-        data['related_to'] = {p.uniqueid: p.twig for p in param.related_to} if hasattr(param, 'related_to') else {}
-        data['constraint'] = {p.uniqueid: p.twig for p in [param.is_constraint]} if hasattr(param, 'is_constraint') and param.is_constraint is not None else {}
-        data['constrains'] = {p.uniqueid: p.twig for p in param.constrains} if hasattr(param, 'constrains') else {}
-
-    if hasattr(param, 'limits'):
-        if hasattr(param, 'default_unit'):
-            data['limits'] = [l.to(param.default_unit).value if l is not None else None for l in param.limits] + [param.default_unit.to_string()]
-        else:
-            data['limits'] = param.limits + [None]
-    else:
-        data['limits'] = None
-
-    if app._verbose:
-        print(data)
-
-    emit('information', {'success': True, 'id': id_, 'data': data}, broadcast=False)
 
 ########## PARAMETERS
 @socketio.on('set_value')
