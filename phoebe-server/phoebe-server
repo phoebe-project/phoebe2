@@ -14,7 +14,7 @@ PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server
 """
 
 try:
-    from flask import Flask, jsonify, request, redirect, make_response, send_from_directory
+    from flask import Flask, jsonify, request, redirect, Response, make_response, send_from_directory
     from flask_socketio import SocketIO, emit, join_room, leave_room
     #import flask.ext.sqlalchemy
 except ImportError:
@@ -292,6 +292,55 @@ def new_bundle(type):
     #     return _new_bundle('default_triple', inner_as_primary=True, inner_as_contact=True)
     else:
         return _get_response({'success': False, 'error': 'bundle with type "{}" not implemented'.format(type)}, api=True)
+
+
+@app.route('/open_bundle', methods=['POST'])
+@crossdomain(origin='*')
+def open_bundle():
+    """
+    """
+    if app._verbose:
+        print("open_bundle")
+
+    # if 'file' not in request.files:
+
+    file = request.files['file']
+
+    try:
+        b = phoebe.Bundle(json.load(file))
+    except Exception as err:
+        return _get_response({'success': False, 'error': str(err)}, api=True)
+
+    bundleid = _new_bundleid()
+    app._bundles[bundleid] = b
+
+    return _get_response({'success': True, 'bundleid': bundleid}, api=True)
+
+@app.route('/save_bundle/<string:bundleid>', methods=['GET'])
+@crossdomain(origin='*')
+def save_bundle(bundleid):
+    """
+    """
+    if app._verbose:
+        print("save_bundle(bundleid={})".format(bundleid))
+
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
+
+    b = app._bundles.get(bundleid)
+
+    data = b.to_json(incl_uniqueid=True)
+
+    resp = jsonify(data)
+    # resp.default_mimetype = "application/json"
+    # resp.content_type = "attachment"
+    # resp.content_type = "application/octet-stream"
+    # print resp.headers
+    resp.headers.set('Content-Type', 'text/json')
+    resp.headers.set('Content-Disposition', 'attachment', filename='{}.bundle'.format(bundleid))
+
+    return resp
 
 @app.route('/bundle/<string:bundleid>', methods=['GET'])
 @crossdomain(origin='*')
