@@ -202,11 +202,59 @@ def _value_string(param):
     else:
         return '({})'.format(param_type)
 
+def _choices(parameter):
+    if hasattr(parameter, 'choices'):
+        return parameter.choices
+    elif parameter.__class__.__name__ == 'BoolParameter':
+        return ['True', 'False']
+    # elif parameter.__class__.__name__ == 'UnitParameter':
+        # return _unit_choices(parameter.get_value())
+    else:
+        return None
+
+def _unit_choices(unit):
+    physical_type = unit.physical_type
+
+    if physical_type == 'dimensionless':
+        if unit.to_string() in ['', 'dimensionless']:
+            pass
+        else:
+            physical_types = [un.physical_type for un in unit.bases]
+            if all([pt=='time' for pt in physical_types]):
+                # then we're time/time, eg. s / yr
+                # NOTE: doing same units on numerator and denominator will force this to be dimensionless
+                # and then we won't know that its time at all.
+                return ['d / yr', 'h / d', 'h / yr', 'min / d', 'min / h', 'min / yr', 's / min', 's / h', 's / d', 's / yr']
+            else:
+                return [unit.to_string()]
+    elif physical_type == 'time':
+        return ['yr', 'd', 'h', 'min', 's']
+    elif physical_type == 'mass':
+        return ['solMass', 'jupiterMass', 'earthMass', 'kg', 'g']
+    elif physical_type == 'length':
+        return ['solRad', 'jupiterRad', 'earthRad', 'AU', 'pc', 'km', 'm', 'cm']
+    elif physical_type == 'area':
+        return ['solRad2', 'jupiterRad2', 'earthRad2', 'AU2', 'pc2', 'km2', 'm2', 'cm2']
+    elif physical_type == 'volume':
+        return ['solRad3', 'jupiterRad3', 'earthRad3', 'AU3', 'pc3', 'km3', 'm3', 'cm3']
+    elif physical_type == 'speed':
+        return ['solRad / d', 'solRad / s', 'km / h', 'km / s', 'm / h', 'm / s']
+    elif physical_type == 'angle':
+        return ['rad', 'deg']
+    elif physical_type == 'angular speed':
+        return ['rad / yr', 'rad / d', 'rad / h', 'rad / s', 'deg / yr', 'deg / d', 'deg / h', 'deg / s']
+    elif physical_type == 'temperature':
+        # astropy cannot convert to u.deg_C or u.imperial.deg_F
+        return ['K']
+    else:
+        return [unit.to_string()]
+
 def _param_json_overview(param):
     p = {'uniqueid': param.uniqueid,
          'class': param.__class__.__name__,
          'valuestr': _value_string(param),
-         'readonly': param.context in ['model'] or param.qualifier in ['phoebe_version'],
+         'unitstr': param.default_unit.to_string() if hasattr(param, 'default_unit') else '',
+         'readonly': param.context in ['model'] or param.qualifier in ['phoebe_version'] or (hasattr(param, 'is_constraint') and param.is_constraint is not None),
          }
 
     advanced_filter = []
@@ -218,6 +266,7 @@ def _param_json_overview(param):
         advanced_filter.append('is_advanced')
     if hasattr(param, 'choices') and len(param.choices) <= 1:
         advanced_filter.append('is_single')
+        p['readonly'] = True
     if param.context=='constraint':
         advanced_filter.append('is_constraint')
 
@@ -248,8 +297,16 @@ def _param_json_detailed(param):
             p['limits'] = [l.to(param.default_unit).value if l is not None else None for l in param.limits] + [param.default_unit.to_string()]
         else:
             p['limits'] = param.limits + [None]
-    else:
-        p['limits'] = None
+    # else:
+        # p['limits'] = None
+
+    if hasattr(param, 'choices') or param.__class__.__name__ in ['BoolParameter']:
+        p['choices'] = _choices(param)
+
+    if hasattr(param, 'default_unit'):
+        p['unit_choices'] = _unit_choices(param.default_unit)
+    # else:
+        # p['unit_choices'] = None
 
     return p
 
@@ -277,7 +334,10 @@ def info():
 
     bundle_memory_cleanup()
 
-    return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent, 'clients': app._clients, 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle}, api=True)
+    return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent,
+                          'nclients': len(app._clients), 'clients': app._clients,
+                          'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle},
+                          api=True)
 
 @app.route('/new_bundle/<string:type>', methods=['GET'])
 @crossdomain(origin='*')
@@ -441,161 +501,8 @@ def parameter(bundleid, uniqueid):
 
     return _get_response({'success': True, 'parameter': data}, api=True)
 
-# @app.route("/<string:bundleid>/json", methods=['GET'])
-# @crossdomain(origin='*')
-# def get_json(bundleid):
-#     if app._verbose:
-#         print("GET request for json")
-#
-#     b = app._bundles[bundleid]
-#
-#     data = b.to_json(incl_uniqueid=True)
-#
-#     #print "returning json response"
-#     return _get_response(data, bundleid=bundleid, api=True)
-
-# @app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET'])
-# def serve_figure(bundleid, figure):
-#     fname = '{}_{}.png'.format(bundleid, figure)
-#     if app._verbose:
-#         print("serve_figure", fname)
-#     return send_from_directory(_dir_tmpimages, fname)
-
-# @app.route("/<string:bundleid>/figure_mpl/<string:figure>", methods=['GET'])
-# def serve_figure_mpl(bundleid, figure):
-#     fname = '{}_{}.mpl'.format(bundleid, figure)
-#     if app._verbose:
-#         print("serve_figure_mpl", fname)
-#     return send_from_directory(_dir_tmpimages, fname)
-
 
 ############################# WEBSOCKET ROUTES ################################
-def _value(param, exclude_model=False):
-
-    if isinstance(param._value, phoebe.dependencies.nparray.nparray.ArrayWrapper):
-        value = param._value.to_json()
-    elif isinstance(param, phoebe.parameters.UnitParameter):
-        value = str(param.get_value().to_string())
-    else:
-        value = param.get_value()
-
-    if isinstance(value, np.ndarray):
-        # TODO: for now we always truncate the values for these big arrays... but
-        # the python client will need the actual data or a way to poll for it
-        if (exclude_model or True) and param.context == 'model':
-            #then it'll be read only (for the desktop-client)
-            value = None
-        else:
-            value = value.tolist()
-
-    return value
-
-
-def _params(b, ps=None, includeids=[], check_visible=True, check_default=False,
-            check_advanced=False, check_single=False,
-            subtract_constraint=False, sort_by='qualifier', exclude_model=False,
-            **filter_):
-    def _unitchoices(unit):
-        physical_type = unit.physical_type
-
-        if physical_type == 'dimensionless':
-            if unit.to_string() in ['', 'dimensionless']:
-                pass
-            else:
-                physical_types = [un.physical_type for un in unit.bases]
-                if all([pt=='time' for pt in physical_types]):
-                    # then we're time/time, eg. s / yr
-                    # NOTE: doing same units on numerator and denominator will force this to be dimensionless
-                    # and then we won't know that its time at all.
-                    return ['d / yr', 'h / d', 'h / yr', 'min / d', 'min / h', 'min / yr', 's / min', 's / h', 's / d', 's / yr']
-                else:
-                    return [unit.to_string()]
-        elif physical_type == 'time':
-            return ['yr', 'd', 'h', 'min', 's']
-        elif physical_type == 'mass':
-            return ['solMass', 'jupiterMass', 'earthMass', 'kg', 'g']
-        elif physical_type == 'length':
-            return ['solRad', 'jupiterRad', 'earthRad', 'AU', 'pc', 'km', 'm', 'cm']
-        elif physical_type == 'area':
-            return ['solRad2', 'jupiterRad2', 'earthRad2', 'AU2', 'pc2', 'km2', 'm2', 'cm2']
-        elif physical_type == 'volume':
-            return ['solRad3', 'jupiterRad3', 'earthRad3', 'AU3', 'pc3', 'km3', 'm3', 'cm3']
-        elif physical_type == 'speed':
-            return ['solRad / d', 'solRad / s', 'km / h', 'km / s', 'm / h', 'm / s']
-        elif physical_type == 'angle':
-            return ['rad', 'deg']
-        elif physical_type == 'angular speed':
-            return ['rad / yr', 'rad / d', 'rad / h', 'rad / s', 'deg / yr', 'deg / d', 'deg / h', 'deg / s']
-        elif physical_type == 'temperature':
-            # astropy cannot convert to u.deg_C or u.imperial.deg_F
-            return ['K']
-        else:
-            return [unit.to_string()]
-
-    def _choices(parameter):
-        if hasattr(parameter, 'choices'):
-            return parameter.choices
-        elif parameter.__class__.__name__ == 'BoolParameter':
-            return ['True', 'False']
-        elif parameter.__class__.__name__ == 'UnitParameter':
-            return _unitchoices(parameter.get_value())
-        else:
-            return None
-
-
-    if ps is None:
-        ps = b.filter(check_visible=check_visible, check_default=check_default,
-                      check_advanced=check_advanced, check_single=check_single, **filter_)
-    elif isinstance(ps, list):
-        ps = phoebe.parameters.ParameterSet(ps)
-    elif isinstance(ps, phoebe.Parameter):
-        ps = phoebe.parameters.ParameterSet([ps])
-    elif not isinstance(ps, phoebe.ParameterSet):
-        raise TypeError("ps must be of type ParameterSet not {}".format(type(ps)))
-
-    if subtract_constraint:
-        ps -= ps.filter(context='constraint')
-
-    if len(includeids):
-        ps += b.filter(check_visible=False, check_default=False,
-                       check_advanced=False, check_single=False,
-                       uniqueid=includeids)
-
-    ps += phoebe.parameters.ParameterSet(b.run_delayed_constraints())
-    nparams = len(ps)
-    params = ps.to_dict(field=sort_by, include_none=True)  # key, PS
-
-    for k, ps in params.items():
-        this_params = {}
-        for p in ps.to_list():
-            typ = p.__class__.__name__
-            pdict = {'twig': p.uniquetwig, 'uniqueid': p.uniqueid, 'valuestr': _value_string(p), 'type': typ, 'attributes': {'value': _value(p, exclude_model=exclude_model)}}
-            pdict['meta'] = p.meta
-            pdict['readonly'] = p.context in ['model'] or p.qualifier in ['phoebe_version']
-
-            pdict['choices'] = _choices(p)
-
-            if hasattr(p, 'is_constraint'):
-                pdict['constrained'] = p.is_constraint is not None
-
-            if hasattr(p, 'default_unit'):
-                pdict['valueunit'] = p.default_unit.to_string()
-
-                # NOTE: if any of these should be converted to an html form in the
-                # desktop app, those cases need to be explicitly defined in parameters.jsx
-                pdict['unitchoices'] = _unitchoices(p.default_unit)
-            else:
-                pdict['valueunit'] = None
-                # pdict['unitchoices'] = False
-
-            # if app._verbose:
-                # print pdict
-
-            this_params[p.uniqueid] = pdict
-
-        params[k] = this_params
-
-    return params, nparams
 
 ########## SOCKET ERRORS
 @socketio.on_error()
