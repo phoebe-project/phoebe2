@@ -322,24 +322,6 @@ def new_bundle(type):
     else:
         return _get_response({'success': False, 'error': 'bundle with type "{}" not implemented'.format(type)}, api=True)
 
-@app.route('/transfer_bundle/<string:oldserverhost>/<string:bundleid>', methods=['GET'])
-@crossdomain(origin='*')
-def transfer_bundle(oldserverhost, bundleid):
-    if app._verbose:
-        print("transfer_bundle(oldserverhost={}, bundleid={})".format(oldserverhost, bundleid))
-
-    # TODO: pass along clientid so oldserverhost can close the bundle if able
-    resp = urllib2.urlopen("http://"+oldserverhost+"/save_bundle/"+bundleid)
-    b = phoebe.Bundle(json.load(resp))
-    resp.close()
-
-    bundleid = _new_bundleid(bundleid)
-    app._bundles[bundleid] = b
-    app._last_access_per_bundle[bundleid] = datetime.now()
-    # app._clients_per_bundle[bundleid] = [clientid]
-
-    return _get_response({'success': True, 'bundleid': bundleid}, api=True)
-
 @app.route('/open_bundle', methods=['POST'])
 @crossdomain(origin='*')
 def open_bundle():
@@ -348,16 +330,29 @@ def open_bundle():
     if app._verbose:
         print("open_bundle")
 
-    # if 'file' not in request.files:
+    try:
+        data = json.loads(request.data)
+    except ValueError:
+        data = {}
 
-    file = request.files['file']
+    if 'file' in request.files:
+        if app._verbose: print("opening bundle from file")
+        file = request.files['file']
+        bundle_data = json.load(file)
+    else:
+        if app._verbose: print("opening bundle from json data")
+        bundle_data = json.loads(data['json'])
+
 
     try:
-        b = phoebe.Bundle(json.load(file))
+        b = phoebe.Bundle(bundle_data)
     except Exception as err:
         return _get_response({'success': False, 'error': str(err)}, api=True)
 
-    bundleid = _new_bundleid()
+    bundleid = data.get('bundleid', None)
+    if app._verbose:
+        print("trying bundleid={}".format(bundleid))
+    bundleid = _new_bundleid(bundleid)
     app._bundles[bundleid] = b
     app._last_access_per_bundle[bundleid] = datetime.now()
 
