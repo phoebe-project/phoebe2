@@ -1,5 +1,6 @@
 #from phoebe.c import h, c, k_B
 #from phoebe import u
+from phoebe import __version__ as phoebe_version
 
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
@@ -18,6 +19,7 @@ import sys
 import glob
 import shutil
 import json
+import time
 
 try:
     # For Python 3.0 and later
@@ -179,6 +181,9 @@ class Passband:
         self.version = version
         self.comments = comments
 
+        # Initialize an empty timestamp. This will get set by calling the save() method.
+        self.timestamp = None
+
         # Passband transmission function table:
         ptf_table = np.loadtxt(ptf).T
         ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
@@ -216,12 +221,18 @@ class Passband:
         """
         struct = dict()
 
+        print('originating phoebe version: %s' % phoebe_version)
+        struct['originating_phoebe_version'] = phoebe_version
+
         struct['content']         = self.content
         struct['atmlist']         = self.atmlist
         struct['pbset']           = self.pbset
         struct['pbname']          = self.pbname
         struct['effwl']           = self.effwl
         struct['calibrated']      = self.calibrated
+        struct['version']         = self.version
+        struct['comments']        = self.comments
+        struct['reference']       = self.reference
         struct['ptf_table']       = self.ptf_table
         struct['ptf_wl']          = self.wl
         struct['ptf_func']        = self.ptf_func
@@ -249,6 +260,9 @@ class Passband:
             struct['_ck2004_ldint_photon_grid'] = self._ck2004_ldint_photon_grid
         if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
+
+        # Finally, timestamp the file:
+        struct['timestamp'] = self.timestamp = time.ctime()
 
         f = open(archive, 'wb')
         marshal.dump(struct, f)
@@ -292,6 +306,33 @@ class Passband:
         self.pbname = struct['pbname']
         self.effwl = struct['effwl']
         self.calibrated = struct['calibrated']
+
+        # these are new additions and not every pb file has them.
+        try:
+            self.opv = struct['originating_phoebe_version']
+        except:
+            self.opv = None
+
+        try:
+            self.version = struct['version']
+        except:
+            self.version = None
+
+        try:
+            self.comments = struct['comments']
+        except:
+            self.comments = None
+        
+        try:
+            self.reference = struct['reference']
+        except:
+            self.reference = None
+        
+        try:
+            self.timestamp = struct['timestamp']
+        except:
+            self.timestamp = None
+
         self.ptf_table = struct['ptf_table']
         self.ptf_table['wl'] = np.fromstring(self.ptf_table['wl'], dtype='float64')
         self.ptf_table['fl'] = np.fromstring(self.ptf_table['fl'], dtype='float64')
