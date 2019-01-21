@@ -150,6 +150,10 @@ class Bundle(ParameterSet):
         self._params = []
         super(Bundle, self).__init__(params=params)
 
+        # flags for handling functionality not available to files imported from
+        # older version of PHOEBE.
+        self._import_before_v211 = False
+
         # since this is a subclass of PS, some things try to access the bundle
         # by self._bundle, in this case we just need to fake that to refer to
         # self
@@ -219,14 +223,17 @@ class Bundle(ParameterSet):
         * an instantiated <phoebe.frontend.bundle.Bundle> object
         """
         filename = os.path.expanduser(filename)
+        logger.debug("importing from {}".format(filename))
         f = open(filename, 'r')
         data = json.load(f)
         f.close()
         b = cls(data)
 
         version = b.get_value('phoebe_version')
-        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.1.0')
-        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.1.0')
+        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.1.2')
+        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.1.2')
+
+        logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
         # update the entry in the PS, so if this is saved again it will have the new version
         b.set_value('phoebe_version', __version__)
@@ -234,9 +241,18 @@ class Bundle(ParameterSet):
         if phoebe_version_import == phoebe_version_this:
             return b
         elif phoebe_version_import > phoebe_version_this:
-            logger.warning("importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating".format(phoebe_version_import))
+            warning = "importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating".format(phoebe_version_import)
+            print("WARNING: {}".format(warning))
+            logger.warning(warning)
             return b
-        elif phoebe_version_import < StrictVersion("2.1.0"):
+
+        if phoebe_version_import < StrictVersion("2.1.2"):
+            b._import_before_v211 = True
+            warning = "Importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
+            print("WARNING: {}".format(warning))
+            logger.warning(warning)
+
+        if phoebe_version_import < StrictVersion("2.1.0"):
             logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
 
             def _ps_dict(ps):
@@ -1129,6 +1145,9 @@ class Bundle(ParameterSet):
         * `**kwargs`: IGNORED
         """
 
+        if self._import_before_v211:
+            raise ValueError("This bundle was created before constraints in solar units were supported and therefore cannot call set_hierarchy.  Either downgrade PHOEBE or re-create this system from scratch if you need to change the hierarchy.")
+
         # need to run any constraints since some may be deleted and rebuilt
         changed_params = self.run_delayed_constraints()
 
@@ -1181,6 +1200,7 @@ class Bundle(ParameterSet):
 
         for component in self.hierarchy.get_envelopes():
             # we need two of the three [comp_env] + self.hierarchy.get_siblings_of(comp_env) to have constraints
+            logger.debug('re-creating requiv constraints')
             existing_requiv_constraints = self.filter(constraint_func='requiv_to_pot', component=[component]+self.hierarchy.get_siblings_of(component))
             if len(existing_requiv_constraints) == 2:
                 # do we need to rebuild these?
@@ -1302,13 +1322,14 @@ class Bundle(ParameterSet):
                 if self.hierarchy.is_contact_binary(component):
                     # then we're in a contact binary and need to create pot<->requiv constraints
                     # NOTE: pot_min and pot_max are handled above at the envelope level
-                    logger.debug('re-creating requiv_max (contact) constraint for {}'.format(component))
+                    logger.debug('re-creating requiv_detached_max (contact) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_detached_max',
                                        component=component)):
                         # then we're changing from detached to contact so should remove the detached constraint first
                         self.remove_constraint(constraint_func='requiv_detached_max', component=component)
 
+                    logger.debug('re-creating requiv_contact_max (contact) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_contact_max',
                                        component=component)):
@@ -1323,7 +1344,7 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.requiv_contact_max, component,
                                             constraint=self._default_label('requiv_max', context='constraint'))
 
-                    logger.debug('re-creating requiv_min (contact) constraint for {}'.format(component))
+                    logger.debug('re-creating requiv_contact_min (contact) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_contact_min',
                                        component=component)):
@@ -1353,6 +1374,7 @@ class Bundle(ParameterSet):
                         # then we're changing from contact to detached so should remove the detached constraint first
                         self.remove_constraint(constraint_func='requiv_contact_max', component=component)
 
+                    logger.debug('re-creating requiv_detached_max (detached) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_detached_max',
                                        component=component)):
@@ -3035,6 +3057,7 @@ class Bundle(ParameterSet):
                                                model=lhs.model,
                                                constraint_func=func.__name__,
                                                constraint_kwargs=constraint_kwargs,
+                                               in_solar_units=func.__name__ not in constraint.list_of_constraints_requiring_si,
                                                value=rhs,
                                                default_unit=lhs.default_unit,
                                                description='expression that determines the constraint')
