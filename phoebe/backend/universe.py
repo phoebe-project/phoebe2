@@ -1891,6 +1891,17 @@ class Star_roche(Star):
             # NOTE: if we ever want to break volume conservation in time,
             # get_target_volume will need to take time or true anomaly
             target_volume = np.float64(self.get_target_volume(scaled=False))
+            instantaneous_vcrit = libphoebe.roche_misaligned_critical_volume(q, F, d, s)
+
+            logger.debug("libphoebe.roche_misaligned_critical_volume(q={}, F={}, d={}, s={}) => {}".format(q, F, d, s, instantaneous_vcrit))
+            if target_volume > instantaneous_vcrit:
+                if abs(target_volume - instantaneous_vcrit) / target_volume < 1e-10:
+                    logger.warning("target_volume of {} slightly over critical value, likely due to numerics: setting to critical value of {}".format(target_volume, instantaneous_vcrit))
+                    target_volume = instantaneous_vcrit
+                else:
+                    raise ValueError("volume is exceeding critical value")
+
+            logger.debug("libphoebe.roche_misaligned_Omega_at_vol(vol={}, q={}, F={}, d={}, s={})".format(target_volume, q, F, d, s))
 
             Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
                                                           q, F, d, s.astype(np.float64))
