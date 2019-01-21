@@ -31,11 +31,11 @@ matrix:
         apt:
           sources: [ubuntu-toolchain-r-test]
           packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
- 
+
     - os: osx
       compiler: clang
       env: MACOSX_DEPLOYMENT_TARGET=10.9 CXX=clang++ CC=clang PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 NOSETESTS=0
-      osx_image: xcode7.3
+      osx_image: xcode9.4
 
     # Try with various versions of numpy/astropy with default compiler
     - os: linux
@@ -45,7 +45,7 @@ matrix:
         apt:
           sources: [ubuntu-toolchain-r-test]
           packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
-          
+
     - os: linux
       compiler: g++-5
       env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1'
@@ -62,7 +62,7 @@ matrix:
         apt:
           sources: [ubuntu-toolchain-r-test]
           packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
-          
+
   allow_failures:
     - env: NUMPY_VERSION=dev
 
