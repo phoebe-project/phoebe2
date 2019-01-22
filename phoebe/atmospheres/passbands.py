@@ -1374,6 +1374,12 @@ def _init_passbands(refresh=False):
             for f in os.listdir(path):
                 if f=='README':
                     continue
+                if sys.version_info[0] < 3 and f.split('.')[-1] == 'pb3':
+                    # then this is a python3 passband but we're in python 2
+                    continue
+                elif f.split('.')[-1] == 'pb':
+                    # then this is a python 2 passband but we're in python 3
+                    continue
                 _init_passband(path+f)
 
         #Check if _pbdir_env has been set and load those passbands too
@@ -1587,7 +1593,12 @@ def list_online_passbands(refresh=False, full_dict=False):
     global _online_passbands
     if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
 
-        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands_full'
+        branch = 'master'
+        branch = 'python3_and_versioning'  # REMOVE ONCE TESTED
+        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/{}/passbands/list_online_passbands_full'.format(branch)
+        if sys.version_info[0] == 3:
+            url += "_pb3"
+
         try:
             resp = urlopen(url)
         except URLError:
