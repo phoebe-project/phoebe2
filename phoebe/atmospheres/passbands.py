@@ -12,6 +12,7 @@ import numpy as np
 from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
 import marshal
+import pickle
 import types
 import libphoebe
 import os
@@ -68,7 +69,7 @@ else:
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
                  wlunits=u.AA, calibrated=False, reference='', version=1.0,
-                 comments='', oversampling=1, from_file=False):
+                 comments='', oversampling=1, spl_order=3, from_file=False):
         """
         <phoebe.atmospheres.passbands.Passband> class holds data and tools for
         passband-related computations, such as blackbody intensity, model
@@ -146,6 +147,8 @@ class Passband:
             about the passband.
         * `oversampling` (int, optional, default=1): the multiplicative factor
             of PTF dispersion to attain higher integration accuracy.
+        * `spl_order` (int, optional, default=3): spline order for fitting
+            the passband transmission function.
         * `from_file` (bool, optional, default=False): a switch that instructs
             the class instance to skip all calculations and load all data from
             the file passed to the <phoebe.atmospheres.passbands.Passband.load>
@@ -193,12 +196,12 @@ class Passband:
         self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
 
         # Spline fit to the energy-weighted passband transmission function table:
-        self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0)
+        self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=spl_order)
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
         self.ptf_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_func, 0)
 
         # Spline fit to the photon-weighted passband transmission function table:
-        self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0)
+        self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0, k=spl_order)
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
@@ -221,7 +224,6 @@ class Passband:
         """
         struct = dict()
 
-        print('originating phoebe version: %s' % phoebe_version)
         struct['originating_phoebe_version'] = phoebe_version
 
         struct['content']         = self.content
@@ -264,9 +266,11 @@ class Passband:
         # Finally, timestamp the file:
         struct['timestamp'] = self.timestamp = time.ctime()
 
-        f = open(archive, 'wb')
-        marshal.dump(struct, f)
-        f.close()
+        with open(archive, 'wb') as f:
+            if sys.version_info[0] < 3:
+                marshal.dump(struct, f)
+            else:
+                pickle.dump(struct, f, protocol=3)
 
     @classmethod
     def load(cls, archive):
@@ -288,14 +292,15 @@ class Passband:
         * an instatiated <phoebe.atmospheres.passbands.Passband> object.
         """
         logger.debug("loading passband from {}".format(archive))
-        f = open(archive, 'rb')
-        try:
-            struct = marshal.load(f)
-        except Exception as e:
-            print("failed to load passband from {}".format(archive))
-            f.close()
-            raise e
-        f.close()
+        with open(archive, 'rb') as f:
+            try:
+                if sys.version_info[0] < 3:
+                    struct = marshal.load(f)
+                else:
+                    struct = pickle.load(f)
+            except Exception as e:
+                print("failed to load passband from {}".format(archive))
+                raise e
 
         self = cls(from_file=True)
 
@@ -308,30 +313,11 @@ class Passband:
         self.calibrated = struct['calibrated']
 
         # these are new additions and not every pb file has them.
-        try:
-            self.opv = struct['originating_phoebe_version']
-        except:
-            self.opv = None
-
-        try:
-            self.version = struct['version']
-        except:
-            self.version = None
-
-        try:
-            self.comments = struct['comments']
-        except:
-            self.comments = None
-        
-        try:
-            self.reference = struct['reference']
-        except:
-            self.reference = None
-        
-        try:
-            self.timestamp = struct['timestamp']
-        except:
-            self.timestamp = None
+        self.opv = struct.get('originating_phoebe_version', None)
+        self.version = struct.get('version', None)
+        self.comments = struct.get('comments', None)
+        self.reference = struct.get('reference', None)
+        self.timestamp = struct.get('timestamp', None)
 
         self.ptf_table = struct['ptf_table']
         self.ptf_table['wl'] = np.fromstring(self.ptf_table['wl'], dtype='float64')
