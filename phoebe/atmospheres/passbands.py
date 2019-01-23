@@ -296,8 +296,10 @@ class Passband:
             try:
                 if sys.version_info[0] < 3:
                     struct = marshal.load(f)
+                    marshaled = True
                 else:
                     struct = pickle.load(f)
+                    marshaled = False
             except Exception as e:
                 print("failed to load passband from {}".format(archive))
                 raise e
@@ -320,35 +322,50 @@ class Passband:
         self.timestamp = struct.get('timestamp', None)
 
         self.ptf_table = struct['ptf_table']
-        self.ptf_table['wl'] = np.fromstring(self.ptf_table['wl'], dtype='float64')
-        self.ptf_table['fl'] = np.fromstring(self.ptf_table['fl'], dtype='float64')
-        self.wl = np.fromstring(struct['ptf_wl'], dtype='float64')
+        if marshaled:
+            self.ptf_table['wl'] = np.fromstring(self.ptf_table['wl'], dtype='float64')
+            self.ptf_table['fl'] = np.fromstring(self.ptf_table['fl'], dtype='float64')
+            self.wl = np.fromstring(struct['ptf_wl'], dtype='float64')
+        else:
+            self.wl = struct['ptf_wf']
         self.ptf_area = struct['ptf_area']
         self.ptf_photon_area = struct['ptf_photon_area']
 
-        self.ptf_func = list(struct['ptf_func'])
-        self.ptf_func[0] = np.fromstring(self.ptf_func[0])
-        self.ptf_func[1] = np.fromstring(self.ptf_func[1])
-        self.ptf_func = tuple(self.ptf_func)
+        if marshaled:
+            self.ptf_func = list(struct['ptf_func'])
+            self.ptf_func[0] = np.fromstring(self.ptf_func[0])
+            self.ptf_func[1] = np.fromstring(self.ptf_func[1])
+            self.ptf_func = tuple(self.ptf_func)
+        else:
+            self.ptf_func = struct['ptf_func']
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
 
-        self.ptf_photon_func = list(struct['ptf_photon_func'])
-        self.ptf_photon_func[0] = np.fromstring(self.ptf_photon_func[0])
-        self.ptf_photon_func[1] = np.fromstring(self.ptf_photon_func[1])
-        self.ptf_photon_func = tuple(self.ptf_photon_func)
+        if marshaled:
+            self.ptf_photon_func = list(struct['ptf_photon_func'])
+            self.ptf_photon_func[0] = np.fromstring(self.ptf_photon_func[0])
+            self.ptf_photon_func[1] = np.fromstring(self.ptf_photon_func[1])
+            self.ptf_photon_func = tuple(self.ptf_photon_func)
+        else:
+            self.ptf_photon_func = struct['ptf_photon_func']
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
 
         if 'blackbody' in self.content:
-            self._bb_func_energy = list(struct['_bb_func_energy'])
-            self._bb_func_energy[0] = np.fromstring(self._bb_func_energy[0])
-            self._bb_func_energy[1] = np.fromstring(self._bb_func_energy[1])
-            self._bb_func_energy = tuple(self._bb_func_energy)
+            if marshaled:
+                self._bb_func_energy = list(struct['_bb_func_energy'])
+                self._bb_func_energy[0] = np.fromstring(self._bb_func_energy[0])
+                self._bb_func_energy[1] = np.fromstring(self._bb_func_energy[1])
+                self._bb_func_energy = tuple(self._bb_func_energy)
+            else:
+                self._bb_func_energy = struct['_bb_func_energy']
             self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
 
-            self._bb_func_photon = list(struct['_bb_func_photon'])
-            self._bb_func_photon[0] = np.fromstring(self._bb_func_photon[0])
-            self._bb_func_photon[1] = np.fromstring(self._bb_func_photon[1])
-            self._bb_func_photon = tuple(self._bb_func_photon)
+            if marshaled:
+                self._bb_func_photon = list(struct['_bb_func_photon'])
+                self._bb_func_photon[0] = np.fromstring(self._bb_func_photon[0])
+                self._bb_func_photon[1] = np.fromstring(self._bb_func_photon[1])
+                self._bb_func_photon = tuple(self._bb_func_photon)
+            else:
+                self._bb_func_photon = struct['_bb_func_photon']
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
@@ -362,37 +379,57 @@ class Passband:
 
         if 'ck2004' in self.content:
             # CASTELLI & KURUCZ (2004):
-            # Axes needs to be a tuple of np.arrays, and grid a np.array:
-            self._ck2004_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_axes']))
-            self._ck2004_energy_grid = np.fromstring(struct['_ck2004_energy_grid'], dtype='float64')
-            self._ck2004_energy_grid = self._ck2004_energy_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
-            self._ck2004_photon_grid = np.fromstring(struct['_ck2004_photon_grid'], dtype='float64')
-            self._ck2004_photon_grid = self._ck2004_photon_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+            if marshaled:
+                # Axes needs to be a tuple of np.arrays, and grid a np.array:
+                self._ck2004_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_axes']))
+                self._ck2004_energy_grid = np.fromstring(struct['_ck2004_energy_grid'], dtype='float64')
+                self._ck2004_energy_grid = self._ck2004_energy_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+                self._ck2004_photon_grid = np.fromstring(struct['_ck2004_photon_grid'], dtype='float64')
+                self._ck2004_photon_grid = self._ck2004_photon_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+            else:
+                self._ck2004_axes = struct['_ck2004_axes']
+                self._ck2004_energy_grid = struct['_ck2004_energy_grid']
+                self._ck2004_photon_grid = struct['_ck2004_photon_grid']
 
         if 'ck2004_all' in self.content:
             # CASTELLI & KURUCZ (2004) all intensities:
-            # Axes needs to be a tuple of np.arrays, and grid a np.array:
-            self._ck2004_intensity_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_intensity_axes']))
-            self._ck2004_Imu_energy_grid = np.fromstring(struct['_ck2004_Imu_energy_grid'], dtype='float64')
-            self._ck2004_Imu_energy_grid = self._ck2004_Imu_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
-            self._ck2004_Imu_photon_grid = np.fromstring(struct['_ck2004_Imu_photon_grid'], dtype='float64')
-            self._ck2004_Imu_photon_grid = self._ck2004_Imu_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
-            self._ck2004_boosting_energy_grid = np.fromstring(struct['_ck2004_boosting_energy_grid'], dtype='float64')
-            self._ck2004_boosting_energy_grid = self._ck2004_boosting_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
-            self._ck2004_boosting_photon_grid = np.fromstring(struct['_ck2004_boosting_photon_grid'], dtype='float64')
-            self._ck2004_boosting_photon_grid = self._ck2004_boosting_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+            if marshaled:
+                # Axes needs to be a tuple of np.arrays, and grid a np.array:
+                self._ck2004_intensity_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_intensity_axes']))
+                self._ck2004_Imu_energy_grid = np.fromstring(struct['_ck2004_Imu_energy_grid'], dtype='float64')
+                self._ck2004_Imu_energy_grid = self._ck2004_Imu_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+                self._ck2004_Imu_photon_grid = np.fromstring(struct['_ck2004_Imu_photon_grid'], dtype='float64')
+                self._ck2004_Imu_photon_grid = self._ck2004_Imu_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+                self._ck2004_boosting_energy_grid = np.fromstring(struct['_ck2004_boosting_energy_grid'], dtype='float64')
+                self._ck2004_boosting_energy_grid = self._ck2004_boosting_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+                self._ck2004_boosting_photon_grid = np.fromstring(struct['_ck2004_boosting_photon_grid'], dtype='float64')
+                self._ck2004_boosting_photon_grid = self._ck2004_boosting_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+            else:
+                self._ck2004_intensity_axes = struct['_ck2004_intensity_axes']
+                self._ck2004_Imu_energy_grid = struct['_ck2004_Imu_energy_grid']
+                self._ck2004_Imu_photon_grid = struct['_ck2004_Imu_photon_grid']
+                self._ck2004_boosting_energy_grid = struct['_ck2004_boosting_energy_grid']
+                self._ck2004_boosting_photon_grid = struct['_ck2004_boosting_photon_grid']
 
         if 'ck2004_ld' in self.content:
-            self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_ld_energy_grid'], dtype='float64')
-            self._ck2004_ld_energy_grid = self._ck2004_ld_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
-            self._ck2004_ld_photon_grid = np.fromstring(struct['_ck2004_ld_photon_grid'], dtype='float64')
-            self._ck2004_ld_photon_grid = self._ck2004_ld_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
+            if marshaled:
+                self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_ld_energy_grid'], dtype='float64')
+                self._ck2004_ld_energy_grid = self._ck2004_ld_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
+                self._ck2004_ld_photon_grid = np.fromstring(struct['_ck2004_ld_photon_grid'], dtype='float64')
+                self._ck2004_ld_photon_grid = self._ck2004_ld_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
+            else:
+                self._ck2004_ld_energy_grid = struct['_ck2004_ld_energy_grid']
+                self._ck2004_ld_photon_grid = struct['_ck2004_ld_photon_grid']
 
         if 'ck2004_ldint' in self.content:
-            self._ck2004_ldint_energy_grid = np.fromstring(struct['_ck2004_ldint_energy_grid'], dtype='float64')
-            self._ck2004_ldint_energy_grid = self._ck2004_ldint_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
-            self._ck2004_ldint_photon_grid = np.fromstring(struct['_ck2004_ldint_photon_grid'], dtype='float64')
-            self._ck2004_ldint_photon_grid = self._ck2004_ldint_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
+            if marshaled:
+                self._ck2004_ldint_energy_grid = np.fromstring(struct['_ck2004_ldint_energy_grid'], dtype='float64')
+                self._ck2004_ldint_energy_grid = self._ck2004_ldint_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
+                self._ck2004_ldint_photon_grid = np.fromstring(struct['_ck2004_ldint_photon_grid'], dtype='float64')
+                self._ck2004_ldint_photon_grid = self._ck2004_ldint_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
+            else:
+                self._ck2004_ldint_energy_grid = struct['_ck2004_ldint_energy_grid']
+                self._ck2004_ldint_photon_grid = struct['_ck2004_ldint_photon_grid']
 
         return self
 
