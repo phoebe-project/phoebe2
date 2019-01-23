@@ -60,11 +60,7 @@ if not os.path.exists(_pbdir_local):
     logger.info("creating directory {}".format(_pbdir_local))
     os.makedirs(_pbdir_local)
 
-if not os.getenv('PHOEBE_PBDIR','False')=='False':
-    _pbdir_env = os.getenv('PHOEBE_PBDIR')
-else:
-    _pbdir_env = None
-
+_pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
@@ -1407,7 +1403,7 @@ def _init_passbands(refresh=False):
         # load global passbands (in install directory) next and then local
         # (in .phoebe directory) second so that local passbands override
         # global passbands whenever there is a name conflict
-        for path in [_pbdir_global, _pbdir_local]:
+        for path in list_passband_directories():
             for f in os.listdir(path):
                 if f=='README':
                     continue
@@ -1418,15 +1414,6 @@ def _init_passbands(refresh=False):
                     # then this is a python 2 passband but we're in python 3
                     continue
                 _init_passband(path+f)
-
-        #Check if _pbdir_env has been set and load those passbands too
-        if not _pbdir_env == None:
-            for path in [_pbdir_env]:
-                for f in os.listdir(path):
-                    if f=='README':
-                        continue
-                    _init_passband(path+f)
-
 
         _initialized = True
 
@@ -1553,7 +1540,7 @@ def list_passband_directories():
     --------
     * (list of strings): global and local passband installation directories.
     """
-    return _pbdir_global, _pbdir_local
+    return [p for p in [_pbdir_global, _pbdir_local, _pbdir_env] if p is not None]
 
 def list_passbands(refresh=False):
     """

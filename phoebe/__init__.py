@@ -7,6 +7,8 @@ Available environment variables:
 * PHOEBE_ENABLE_ONLINE_PASSBANDS=TRUE/FALSE (whether to query for online passbands and download on-the-fly: defaults to True)
 * PHOEBE_ENABLE_MPI=TRUE/FALSE (whether to use internal parallelization: defaults to True if within mpirun, otherwise False, can override in python with phoebe.mpi.on() and phoebe.mpi.off())
 * PHOEBE_MPI_NPROCS=INT (number of procs to spawn in mpi is enabled but not running within mpirun: defaults to 4, only applicable if not within mpirun and PHOEBE_ENABLE_MPI=TRUE or phoebe.mpi.on() called, can override in python by passing nprocs to phoebe.mpi.on() or by setting phoebe.mpi.nprocs)
+* PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
+
 
 """
 
