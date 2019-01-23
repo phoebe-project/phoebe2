@@ -1,6 +1,8 @@
+import sys
 import numpy as np
 
 from phoebe.algorithms import ceclipse
+from phoebe.utils import _bytes
 import libphoebe
 
 import logging
@@ -166,7 +168,7 @@ def native(meshes, xs, ys, zs, expose_horizon=False, horizon_method='boolean'):
                                      normals_flat,
                                      tvisibilities=True,
                                      taweights=True,
-                                     method=bytes(horizon_method),
+                                     method=_bytes(horizon_method),
                                      horizon=expose_horizon)
 
     visibilities = meshes.unpack_column_flat(info['tvisibilities'], computed_type='triangles')

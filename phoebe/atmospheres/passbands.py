@@ -327,7 +327,7 @@ class Passband:
             self.ptf_table['fl'] = np.fromstring(self.ptf_table['fl'], dtype='float64')
             self.wl = np.fromstring(struct['ptf_wl'], dtype='float64')
         else:
-            self.wl = struct['ptf_wf']
+            self.wl = struct['ptf_wl']
         self.ptf_area = struct['ptf_area']
         self.ptf_photon_area = struct['ptf_photon_area']
 

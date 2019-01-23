@@ -8,6 +8,7 @@ import copy
 from phoebe.atmospheres import passbands
 from phoebe.distortions import roche, rotstar
 from phoebe.backend import eclipse, oc_geometry, mesh, mesh_wd
+from phoebe.utils import _bytes
 import libphoebe
 
 from phoebe import u
@@ -20,6 +21,7 @@ logger.addHandler(logging.NullHandler())
 
 _basedir = os.path.dirname(os.path.abspath(__file__))
 _pbdir = os.path.abspath(os.path.join(_basedir, '..', 'atmospheres', 'tables', 'passbands'))
+
 
 """
 Class/SubClass Structure of Universe.py:
@@ -209,20 +211,20 @@ class System(object):
         """
         TODO: add documentation
         """
-        return self._bodies.keys()
+        return list(self._bodies.keys())
 
     def values(self):
         """
         TODO: add documentation
         """
-        return self._bodies.values()
+        return list(self._bodies.values())
 
     @property
     def bodies(self):
         """
         TODO: add documentation
         """
-        return self.values()
+        return list(self.values())
 
     def get_body(self, component):
         """
@@ -386,6 +388,7 @@ class System(object):
 
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
+            support = 'vertices'
             fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
@@ -394,7 +397,7 @@ class System(object):
                                                                                        fluxes_intrins_per_body,
                                                                                        ld_func_and_coeffs,
                                                                                        self.irrad_method.title(),
-                                                                                       support=b'vertices'
+                                                                                       support=_bytes(support)
                                                                                        )
 
             fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
@@ -420,7 +423,7 @@ class System(object):
                                                                             ld_func_and_coeffs,
                                                                             ld_inds_flat,
                                                                             self.irrad_method.title(),
-                                                                            support=b'vertices'
+                                                                            support=_bytes('vertices')
                                                                             )
 
 
