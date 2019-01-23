@@ -396,7 +396,7 @@ class System(object):
                                                                                        irrad_frac_refls_per_body,
                                                                                        fluxes_intrins_per_body,
                                                                                        ld_func_and_coeffs,
-                                                                                       self.irrad_method.title(),
+                                                                                       _bytes(self.irrad_method.title()),
                                                                                        support=_bytes(support)
                                                                                        )
 
@@ -422,7 +422,7 @@ class System(object):
                                                                             fluxes_intrins_flat,
                                                                             ld_func_and_coeffs,
                                                                             ld_inds_flat,
-                                                                            self.irrad_method.title(),
+                                                                            _bytes(self.irrad_method.title()),
                                                                             support=_bytes('vertices')
                                                                             )
 
