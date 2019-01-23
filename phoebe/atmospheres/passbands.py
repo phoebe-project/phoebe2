@@ -1382,7 +1382,7 @@ def _init_passband(fullpath):
     """
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
-    _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.atmlist, 'pb': None}
+    _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.atmlist, 'timestamp': pb.timestamp, 'pb': None}
 
 def _init_passbands(refresh=False):
     """
@@ -1542,7 +1542,7 @@ def list_passband_directories():
     """
     return [p for p in [_pbdir_global, _pbdir_local, _pbdir_env] if p is not None]
 
-def list_passbands(refresh=False):
+def list_passbands(refresh=False, full_dict=False):
     """
     For convenience, this function is available at the top-level as
     <phoebe.list_passbands>.
@@ -1559,14 +1559,27 @@ def list_passbands(refresh=False):
         of fallback on cached values.  Passing `refresh=True` should only
         be necessary if new passbands have been installed or added to the
         online repository since importing PHOEBE.
+    * `full_dict` (bool, optional, default=False): whether to return the full
+        dictionary of information about each passband or just the list
+        of names.
 
     Returns
     --------
-    * (list of strings)
+    * (list of strings or dictionary)
     """
-    return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
+    if full_dict:
+        d = list_online_passbands(refresh, True)
+        for k in d.keys():
+            d[k]['installed'] = False
+        # installed passband always overrides online
+        for k,v in list_installed_passbands(refresh, True).items():
+            d[k] = v
+            d[k]['installed'] = True
+        return d
+    else:
+        return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
 
-def list_installed_passbands(refresh=False):
+def list_installed_passbands(refresh=False, full_dict=False):
     """
     For convenience, this function is available at the top-level as
     <phoebe.list_installed_passbands>.
@@ -1582,15 +1595,21 @@ def list_installed_passbands(refresh=False):
         of fallback on cached values.  Passing `refresh=True` should only
         be necessary if new passbands have been installed or added to the
         online repository since importing PHOEBE.
+    * `full_dict` (bool, optional, default=False): whether to return the full
+        dictionary of information about each passband or just the list
+        of names.
 
     Returns
     --------
-    * (list of strings)
+    * (list of strings or dictionary)
     """
     if refresh:
         _init_passbands(True)
 
-    return [k for k,v in _pbtable.items() if v['fname'] is not None]
+    if full_dict:
+        return {k:v for k,v in _pbtable.items() if v['fname'] is not None}
+    else:
+        return [k for k,v in _pbtable.items() if v['fname'] is not None]
 
 def list_online_passbands(refresh=False, full_dict=False):
     """
