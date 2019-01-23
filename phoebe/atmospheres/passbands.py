@@ -11,6 +11,7 @@ from astropy import units as u
 import numpy as np
 from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
+from datetime import datetime
 import marshal
 import pickle
 import types
@@ -1377,12 +1378,22 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
+def _timestamp_to_dt(timestamp):
+    return datetime.strptime(timestamp, "%a %b %d %H:%M:%S %Y")
+
 def _init_passband(fullpath):
     """
     """
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
-    _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.atmlist, 'timestamp': pb.timestamp, 'pb': None}
+    passband = pb.pbset+':'+pb.pbname
+    _pbtable[passband] = {'fname': fullpath, 'atms': pb.atmlist, 'timestamp': pb.timestamp, 'pb': None}
+
+    if update_passband_available(passband):
+        msg = 'passband "{}" has a newer version available.  Run phoebe.download_passband("{}") or phoebe.update_all_passbands() to update.'.format(passband, passband)
+        # NOTE: logger probably not available yet, so we'll also use a print statement
+        print('PHOEBE: {}'.format(msg))
+        logger.warning(msg)
 
 def _init_passbands(refresh=False):
     """
@@ -1410,7 +1421,7 @@ def _init_passbands(refresh=False):
                 if sys.version_info[0] < 3 and f.split('.')[-1] == 'pb3':
                     # then this is a python3 passband but we're in python 2
                     continue
-                elif f.split('.')[-1] == 'pb':
+                elif sys.version_info[0] >=3 and f.split('.')[-1] == 'pb':
                     # then this is a python 2 passband but we're in python 3
                     continue
                 _init_passband(path+f)
@@ -1522,6 +1533,93 @@ def download_passband(passband, local=True):
         raise IOError("unable to download {} passband - check connection".format(passband))
     else:
         _init_passband(passband_fname_local)
+
+def update_passband_available(passband):
+    """
+    For convenience, this function is available at the top-level as
+    <phoebe.update_passband_available>.
+
+    Check if a newer version of a given passband is available from the online repository.
+
+    If so, you can update by calling <phoebe.atmospheres.passbands.download_passband>.
+
+    See also:
+    * <phoebe.atmospheres.passbands.list_all_update_passbands_available>
+    * <phoebe.atmospheres.passbands.download_passband>
+    * <phoebe.atmospheres.passbands.update_all_passbands>
+
+    Arguments
+    -----------
+    * `passband` (string): name of the passband
+
+    Returns
+    -----------
+    * (bool): whether a newer version is available
+    """
+    if passband not in list_online_passbands():
+        return False
+
+    if _pbtable[passband]['timestamp'] is None:
+        if _online_passbands[passband]['timestamp'] is not None:
+            return True
+
+    elif _timestamp_to_dt(_pbtable[passband]['timestamp']) < _timestamp_to_dt(_online_passbands[passband]['timestamp']):
+        return True
+
+    return False
+
+def list_all_update_passbands_available():
+    """
+    For convenicence, this function is available at the top-lelve as
+    <phoebe.list_all_update_passbands_available>.
+
+    See also:
+    * <phoebe.atmospheres.passbands.update_passband_available>
+    * <phoebe.atmospheres.passbands.download_passband>
+    * <phoebe.atmospheres.passbands.update_all_passbands>
+
+    Returns
+    ----------
+    * (list of string): list of passbands with newer versions available online
+    """
+
+    return [p for p in list_installed_passbands() if update_passband_available(p)]
+
+def update_all_passbands(local=True):
+    """
+    For convenience, this function is available at the top-level as
+    <phoebe.update_all_passbands>.
+
+    Download and install updates for all passbands from the
+    [phoebe2-tables](https://github.com/phoebe-project/phoebe2-tables) repository.
+
+    This will install into the directory dictated by `local`, regardless of the
+    location of the original file.  `local`=True passbands always override
+    `local=False`.
+
+    The local and global installation directories can be listed by calling
+    <phoebe.atmospheres.passbands.list_passband_directories>.  The local
+    (`local=True`) directory is generally at
+    `~/.phoebe/atmospheres/tables/passbands`, and the global (`local=False`)
+    directory is in the PHOEBE installation directory.
+
+    See also:
+    * <phoebe.atmospheres.passbands.update_passband_available>
+
+
+    Arguments
+    ----------
+    * `local` (bool, optional, default=True): whether to install to the local/user
+        directory or the PHOEBE installation directory.  If `local=False`, you
+        must have the necessary permissions to write to the installation
+        directory.
+
+    Raises
+    --------
+    * IOError: if internet connection fails.
+    """
+    for passband in list_all_update_passbands_available():
+        download_passband(passband, local=local)
 
 def list_passband_directories():
     """
@@ -1639,7 +1737,7 @@ def list_online_passbands(refresh=False, full_dict=False):
         branch = 'master'
         branch = 'python3_and_versioning'  # REMOVE ONCE TESTED
         url = 'http://github.com/phoebe-project/phoebe2-tables/raw/{}/passbands/list_online_passbands_full'.format(branch)
-        if sys.version_info[0] == 3:
+        if sys.version_info[0] >= 3:
             url += "_pb3"
 
         try:
