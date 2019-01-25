@@ -29,7 +29,11 @@ def removefile(f):
 
 
 def find_version_gcc(s):
-  return s.split()[-2]
+  try:
+     return s.split()[-2]
+  except:
+     print(s)
+     raise ValueError
 
 
 def __find_version_clang(s):
