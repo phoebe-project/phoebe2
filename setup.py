@@ -32,8 +32,7 @@ def find_version_gcc(s):
   try:
      return s.split()[-2]
   except:
-     print(s)
-     raise ValueError
+     raise ValueError("find_version_gcc split failed on: {}".format(s))
 
 
 def __find_version_clang(s):
