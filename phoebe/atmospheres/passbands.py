@@ -1735,7 +1735,6 @@ def list_online_passbands(refresh=False, full_dict=False):
     if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
 
         branch = 'master'
-        branch = 'python3_and_versioning'  # REMOVE ONCE TESTED
         url = 'http://github.com/phoebe-project/phoebe2-tables/raw/{}/passbands/list_online_passbands_full'.format(branch)
         if sys.version_info[0] >= 3:
             url += "_pb3"
