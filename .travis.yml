@@ -54,13 +54,14 @@ matrix:
           sources: [ubuntu-toolchain-r-test]
           packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
 
-    # - os: linux
-    #   compiler: g++-5
-    #   env: CXX=g++05 CC=gcc-5 PYTHON_VERSION=3.5 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1
-    #   addons:
-    #     apt:
-    #       sources: [ubuntu-toolchain-r-test]
-    #       packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
+    # Try with Python 3
+    - os: linux
+      compiler: g++-5
+      env: CXX=g++05 CC=gcc-5 PYTHON_VERSION=3.5 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1
+      addons:
+        apt:
+          sources: [ubuntu-toolchain-r-test]
+          packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
 
     # and lastly, run the benchmarks
     - os: linux
