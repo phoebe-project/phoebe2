@@ -1595,9 +1595,9 @@ class Meshes(object):
             else:
                 raise TypeError("components should be list or string, not {}".format(type(components)))
         elif isinstance(value, dict):
-            components = value.keys()
+            components = list(value.keys())
         elif isinstance(value, list):
-            components = self._dict.keys()
+            components = list(self._dict.keys())
             value = {c: v for c,v in zip(components, value)}
 
         if offset:

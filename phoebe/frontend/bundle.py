@@ -27,7 +27,7 @@ from phoebe.parameters import feature as _feature
 from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
-from phoebe.atmospheres.passbands import _pbtable
+from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, _timestamp_to_dt
 from phoebe.utils import _bytes
 import libphoebe
 
@@ -1658,16 +1658,25 @@ class Bundle(ParameterSet):
                     return False,\
                         'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1])
 
-
-        # check to make sure passband supports the selected atm
+        # run passband checks
+        installed_pbs = list_installed_passbands(full_dict=True)
+        online_pbs = list_online_passbands(full_dict=True)
         for pbparam in self.filter(qualifier='passband').to_list():
             pb = pbparam.get_value()
-            pbatms = _pbtable[pb]['atms']
+            pbatms = installed_pbs[pb]['atms']
             # NOTE: atms are not attached to datasets, but per-compute and per-component
+            # check to make sure passband supports the selected atm
             for atmparam in self.filter(qualifier='atm', kind='phoebe').to_list():
                 atm = atmparam.get_value()
                 if atm not in pbatms:
                     return False, "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig)
+
+            # check to see if passband timestamp is recent enough for reddening, etc.
+            if False: # if reddening is non-zero: and also update timestamp to the release of extinction-ready passbands
+                if installed_pbs[pb]['timestamp'] is None or _timestamp_to_dt(installed_pbs[pb]['timestamp']) < _timestamp_to_dt("Wed Jan 25 12:00:00 2019"):
+                    return False,\
+                        'installed passband "{}" does not support reddening/extinction.  Call phoebe.download_passband("{}") or phoebe.update_all_passbands() to update to the latest version.'.format(pb, pb)
+
 
         # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
