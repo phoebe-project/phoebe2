@@ -90,7 +90,7 @@ def _new_bundleid(uniqueid=None, N=6):
 
 ################################## ADDITIONAL IMPORTS ##########################
 
-import mpltracker  # https://www.github.com/kecnry/mpltracker
+# import mpltracker  # https://www.github.com/kecnry/mpltracker
 import phoebe
 import numpy as np
 import matplotlib.pyplot as plt
