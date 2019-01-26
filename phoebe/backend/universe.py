@@ -379,16 +379,15 @@ class System(object):
         if np.all([body.is_convex for body in self.bodies]):
             logger.info("handling reflection (convex case), method='{}'".format(self.irrad_method))
 
-            vertices_per_body = meshes.get_column('vertices').values()
-            triangles_per_body = meshes.get_column('triangles').values()
-            normals_per_body = meshes.get_column('vnormals').values()
-            areas_per_body = meshes.get_column('areas').values()
-            irrad_frac_refls_per_body = meshes.get_column('irrad_frac_refl', computed_type='for_computations').values()
-            teffs_intrins_per_body = meshes.get_column('teffs', computed_type='for_computations').values()
+            vertices_per_body = list(meshes.get_column('vertices').values())
+            triangles_per_body = list(meshes.get_column('triangles').values())
+            normals_per_body = list(meshes.get_column('vnormals').values())
+            areas_per_body = list(meshes.get_column('areas').values())
+            irrad_frac_refls_per_body = list(meshes.get_column('irrad_frac_refl', computed_type='for_computations').values())
+            teffs_intrins_per_body = list(meshes.get_column('teffs', computed_type='for_computations').values())
 
-            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
+            ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
-            support = 'vertices'
             fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
@@ -397,7 +396,7 @@ class System(object):
                                                                                        fluxes_intrins_per_body,
                                                                                        ld_func_and_coeffs,
                                                                                        _bytes(self.irrad_method.title()),
-                                                                                       support=_bytes(support)
+                                                                                       support=_bytes('vertices')
                                                                                        )
 
             fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
@@ -405,14 +404,14 @@ class System(object):
         else:
             logger.info("handling reflection (general case), method='{}'".format(self.irrad_method))
 
-            vertices_flat = meshes.get_column_flat('vertices')
-            triangles_flat = meshes.get_column_flat('triangles')
-            normals_flat = meshes.get_column_flat('vnormals')
-            areas_flat = meshes.get_column_flat('areas')
-            irrad_frac_refls_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations')
+            vertices_flat = list(meshes.get_column_flat('vertices'))
+            triangles_flat = list(meshes.get_column_flat('triangles'))
+            normals_flat = list(meshes.get_column_flat('vnormals'))
+            areas_flat = list(meshes.get_column_flat('areas'))
+            irrad_frac_refls_flat = list(meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations'))
 
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.mesh_bodies]
-            ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)})
+            ld_inds_flat = list(meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)}))
 
             fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
                                                                             triangles_flat,
