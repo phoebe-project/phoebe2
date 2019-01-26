@@ -57,7 +57,7 @@ matrix:
     # Try with Python 3.5 (earliest supported version) and latest minor version (3.7)
     - os: linux
       compiler: g++-5
-      env: CXX=g++5 CC=gcc-5 PYTHON_VERSION=3.5 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=3.5 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]
@@ -65,7 +65,7 @@ matrix:
 
     - os: linux
       compiler: g++-5
-      env: CXX=g++5 CC=gcc-5 PYTHON_VERSION=3.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=3.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]
@@ -82,6 +82,7 @@ matrix:
 
   allow_failures:
     # run with development versions of numpy as astropy (require python 3.5+)
+    - env: NUMPY_VERSION=dev
     - os: linux
       compiler: g++-5
       env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=3.7 NUMPY_VERSION=dev ASTROPY_VERSION=dev NOSETESTS=1
