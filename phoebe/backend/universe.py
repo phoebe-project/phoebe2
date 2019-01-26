@@ -404,14 +404,14 @@ class System(object):
         else:
             logger.info("handling reflection (general case), method='{}'".format(self.irrad_method))
 
-            vertices_flat = list(meshes.get_column_flat('vertices'))
-            triangles_flat = list(meshes.get_column_flat('triangles'))
-            normals_flat = list(meshes.get_column_flat('vnormals'))
-            areas_flat = list(meshes.get_column_flat('areas'))
-            irrad_frac_refls_flat = list(meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations'))
+            vertices_flat = meshes.get_column_flat('vertices') # np.ndarray
+            triangles_flat = meshes.get_column_flat('triangles') # np.ndarray
+            normals_flat = meshes.get_column_flat('vnormals') # np.ndarray
+            areas_flat = meshes.get_column_flat('areas') # np.ndarray
+            irrad_frac_refls_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations') # np.ndarray
 
-            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.mesh_bodies]
-            ld_inds_flat = list(meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)}))
+            ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.mesh_bodies] # list
+            ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)}) # np.ndarray
 
             fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
                                                                             triangles_flat,
