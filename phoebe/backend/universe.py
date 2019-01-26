@@ -2628,8 +2628,8 @@ class Envelope(Body):
             triangind_primsec_f[indices_prim] = new_triangle_indices_prim
             triangind_secprim_f[indices_sec] = new_triangle_indices_sec
 
-            mesh['triangles'][triangind_primsec] = triangind_primsec_f.reshape(len(triangind_primsec_f) / 3, 3)
-            mesh['triangles'][triangind_secprim] = triangind_secprim_f.reshape(len(triangind_secprim_f) / 3, 3)
+            mesh['triangles'][triangind_primsec] = triangind_primsec_f.reshape(len(triangind_primsec_f) // 3, 3)
+            mesh['triangles'][triangind_secprim] = triangind_secprim_f.reshape(len(triangind_secprim_f) // 3, 3)
 
             # NOTE: this doesn't update the stored entries for scalars (volume, area, etc)
             mesh_halves = [mesh.take(env_comp_triangles==0, env_comp_verts==0), mesh.take(env_comp_triangles==1, env_comp_verts==1)]
