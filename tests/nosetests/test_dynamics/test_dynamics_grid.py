@@ -42,7 +42,7 @@ def _phoebe_v_photodynam(b, period, plot=False):
 
     times = np.linspace(0, 5*period, 21)
 
-    b.add_dataset('orb', times=times, dataset='orb01', components=b.hierarchy.get_stars())
+    b.add_dataset('orb', times=times, dataset='orb01', component=b.hierarchy.get_stars())
     # photodynam and phoebe should have the same nbody defaults... if for some reason that changes,
     # then this will probably fail
     b.add_compute('photodynam', compute='pdcompute')
@@ -86,7 +86,7 @@ def _frontend_v_backend(b, ltte, period, plot=False):
     # TODO: loop over ltte=True,False
 
     times = np.linspace(0, 5*period, 101)
-    b.add_dataset('orb', times=times, dataset='orb01', components=b.hierarchy.get_stars())
+    b.add_dataset('orb', times=times, dataset='orb01', component=b.hierarchy.get_stars())
     b.add_compute('phoebe', dynamics_method='keplerian', compute='keplerian', ltte=ltte)
     b.add_compute('phoebe', dynamics_method='bs', compute='nbody', ltte=ltte)
 
