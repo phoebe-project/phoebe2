@@ -3178,9 +3178,10 @@ class Bundle(ParameterSet):
         changes = []
         for constraint_id in self._delayed_constraints:
             param = self.run_constraint(uniqueid=constraint_id, return_parameter=True)
-            changes.append(param)
+            if param not in changes:
+                changes.append(param)
         self._delayed_constraints = []
-        return list(set(changes))
+        return changes
 
     def compute_pblums(self, compute=None, **kwargs):
         """
