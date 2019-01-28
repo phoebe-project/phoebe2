@@ -83,14 +83,13 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
 
 
             if plot:
-                print "{}@{}@{} max diff: {}".format(qualifier, component, dataset, max(np.abs(phoebe1_val-phoebe2_val)))
+                print("{}@{}@{} max diff: {}".format(qualifier, component, dataset, max(np.abs(phoebe1_val-phoebe2_val))))
 
             if plot:
                 x1 = b.get_value(section='model', model='phoebe1model', component=component, dataset='mesh01', qualifier='xs')
                 # x2 = b.get_value(section='model', model='phoebe2model', component=component, dataset='mesh01', qualifier='xs')[::2]
 
                 fig, (ax1, ax2) = plt.subplots(1,2)
-                # print 'comps', len(x), len(phoebe1_val), len(phoebe2_val)
                 ax1.plot(x1, phoebe1_val, 'bo')
                 ax1.plot(x1, phoebe2_val, 'r.')
 
