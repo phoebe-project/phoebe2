@@ -1247,7 +1247,15 @@ class ParameterSet(object):
             other = ParameterSet([other])
 
         if isinstance(other, ParameterSet):
-            return ParameterSet(list(set(self._params + other._params)))
+            # NOTE: used to have the following but doesn't work in python3
+            # because the Parameters aren't hashable:
+            # return ParameterSet(list(set(self._params+other._params)))
+            lst = self._params
+            for p in other._params:
+                if p not in lst:
+                    lst.append(p)
+
+            return ParameterSet(lst)
         else:
             raise NotImplementedError
 
