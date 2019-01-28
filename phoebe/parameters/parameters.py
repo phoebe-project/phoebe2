@@ -8088,7 +8088,8 @@ class ConstraintParameter(Parameter):
         currently_constrained_var = self._get_var(qualifier=self.qualifier, component=self.component)
         currently_constrained_param = currently_constrained_var.get_parameter() # or self.constrained_parameter
 
-        import constraint
+        # cannot be at the top, or will cause circular import
+        from . import constraint
         if self.constraint_func is not None and hasattr(constraint, self.constraint_func):
             # then let's see if the method is capable of resolving for use
             # try:

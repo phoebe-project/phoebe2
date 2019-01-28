@@ -1,7 +1,7 @@
 import numpy as np
 #from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
-from phoebe.parameters import *
+from phoebe.parameters.parameters import ParameterSet, ConstraintParameter, FloatParameter
 from phoebe import u, c
 
 import logging
