@@ -1,11 +1,6 @@
 """
 can also be run with mpirun -np 8 python test_mpi.py
 """
-
-# for fair timing comparisons, let's disable checking for online passbands
-import os
-os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE'
-
 import phoebe
 import numpy as np
 
@@ -31,6 +26,11 @@ def test_mpi(plot=False, npoints=8):
     return b
 
 if __name__ == '__main__':
+    # for fair timing comparisons, let's disable checking for online passbands
+    import os
+    os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE'
+
+
     logger = phoebe.logger(clevel='WARNING')
 
     b = test_mpi(plot=False, npoints=1001)
