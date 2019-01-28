@@ -1717,7 +1717,7 @@ class Bundle(ParameterSet):
                         return check
 
                 if ld_func != 'interp':
-                    check = libphoebe.ld_check(ld_func, ld_coeffs)
+                    check = libphoebe.ld_check(_bytes(ld_func), ld_coeffs)
                     if not check:
                         return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
 
