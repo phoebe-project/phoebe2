@@ -1436,7 +1436,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 # loop through lcs
 
     for x in range(len(lcs)):
-        quals = eb.filter(dataset=lcs[x], context='dataset')+eb.filter(dataset=lcs[x], context='compute')
+        quals = eb.filter(dataset=lcs[x], context=['dataset', 'compute'])
         #phoebe 2 is ALWAYS times so pass time as the ind variable
         parnames.append('phoebe_lc_indep['+str(x+1)+']')
         parvals.append('Time (HJD)')
