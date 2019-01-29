@@ -15,7 +15,6 @@ def _keplerian_v_nbody(b, ltte, period, plot=False):
 
     # TODO: loop over ltte=True,False (once keplerian dynamics supports the switch)
 
-    # b.add_compute(dynamics_method='bs')
     b.set_value('dynamics_method', 'bs')
 
     times = np.linspace(0, 5*period, 101)
@@ -110,19 +109,13 @@ def _frontend_v_backend(b, ltte, period, plot=False):
             assert(np.allclose(b.get_value('vvs', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vvs[ci], rtol=1e-7, atol=1e-4))
             assert(np.allclose(b.get_value('vws', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vws[ci], rtol=1e-7, atol=1e-4))
 
-
-
-
     # KEPLERIAN
     # do backend keplerian
     b_ts, b_us, b_vs, b_ws, b_vus, b_vvs, b_vws = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times, compute='keplerian', ltte=ltte)
 
-
     # do frontend keplerian
     b.run_compute('keplerian', model='keplerianresults')
 
-
-    # TODO: loop over components and assert
     for ci,comp in enumerate(b.hierarchy.get_stars()):
         # TODO: can we lower tolerance?
         assert(np.allclose(b.get_value('times', model='keplerianresults', component=comp, unit=u.d), b_ts, rtol=0, atol=1e-08))
@@ -148,7 +141,7 @@ def test_binary(plot=False):
     for system in [system1,system2,system3]:
         for q in [0.5,1.]:
             for ltte in [True, False]:
-
+                print("test_dynamics_grid: sma={}, period={}, q={}, ltte={}".format(system[0], system[1], q, ltte))
                 b = phoebe.default_binary()
                 b.set_default_unit_all('sma', u.AU)
                 b.set_default_unit_all('period', u.d)
@@ -156,28 +149,9 @@ def test_binary(plot=False):
                 b.set_value('sma@binary',system[0])
                 b.set_value('period@binary', system[1])
                 b.set_value('q', q)
+
                 _keplerian_v_nbody(b, ltte, system[1], plot=plot)
-
-                b = phoebe.default_binary()
-                b.set_default_unit_all('sma', u.AU)
-                b.set_default_unit_all('period', u.d)
-
-                b.set_value('sma@binary',system[0])
-                b.set_value('period@binary', system[1])
-                b.set_value('q', q)
                 _frontend_v_backend(b, ltte, system[1], plot=plot)
-
-    #for system in [system1,system2,system3]:
-    #for q in [0.5,1.]:
-        #b = phoebe.Bundle.default_binary()
-        #b.set_default_unit_all('sma', u.AU)
-        #b.set_default_unit_all('period', u.d)
-
-        #b.set_value('sma@binary',system[0])
-        #b.set_value('period@binary', system[1])
-        #b.set_value('q', q)
-        #_phoebe_v_photodynam(b, system[1], plot=plot)
-
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
