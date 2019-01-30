@@ -4020,8 +4020,8 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
 
     keywords:
       choice: integer, default 0
-          0 - primary lobe is exists
-          1 - secondary lobe is exists
+          0 - primary lobe
+          1 - secondary lobe
         for contacts choice is 0 or 1
         choice controls where is the begining the triangulation
 
@@ -5164,8 +5164,8 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
 
     keywords:
       choice: integer, default 0
-          0 - primary lobe is exists
-          1 - secondary lobe is exists
+          0 - primary lobe
+          1 - secondary lobe
         for contacts choice is 0 or 1
         choice controls where is the begining the triangulation
 
@@ -5546,8 +5546,8 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
 
     keywords:
       choice: integer, default 0
-          0 - primary lobe is exists
-          1 - secondary lobe is exists
+          0 - primary lobe
+          1 - secondary lobe
         for contacts choice is 0 or 1
         choice controls where is the begining the triangulation
 

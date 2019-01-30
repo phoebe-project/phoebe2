@@ -30,7 +30,7 @@ from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.dependencies import nparray
-from phoebe.atmospheres.passbands import _pbtable
+from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, _timestamp_to_dt
 from phoebe.utils import _bytes
 import libphoebe
 
@@ -1687,16 +1687,25 @@ class Bundle(ParameterSet):
                     return False,\
                         'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1])
 
-
-        # check to make sure passband supports the selected atm
+        # run passband checks
+        installed_pbs = list_installed_passbands(full_dict=True)
+        online_pbs = list_online_passbands(full_dict=True)
         for pbparam in self.filter(qualifier='passband').to_list():
             pb = pbparam.get_value()
-            pbatms = _pbtable[pb]['atms']
+            pbatms = installed_pbs[pb]['atms']
             # NOTE: atms are not attached to datasets, but per-compute and per-component
+            # check to make sure passband supports the selected atm
             for atmparam in self.filter(qualifier='atm', kind='phoebe').to_list():
                 atm = atmparam.get_value()
                 if atm not in pbatms:
                     return False, "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig)
+
+            # check to see if passband timestamp is recent enough for reddening, etc.
+            if False: # if reddening is non-zero: and also update timestamp to the release of extinction-ready passbands
+                if installed_pbs[pb]['timestamp'] is None or _timestamp_to_dt(installed_pbs[pb]['timestamp']) < _timestamp_to_dt("Wed Jan 25 12:00:00 2019"):
+                    return False,\
+                        'installed passband "{}" does not support reddening/extinction.  Call phoebe.download_passband("{}") or phoebe.update_all_passbands() to update to the latest version.'.format(pb, pb)
+
 
         # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
@@ -1737,7 +1746,7 @@ class Bundle(ParameterSet):
                         return check
 
                 if ld_func != 'interp':
-                    check = libphoebe.ld_check(ld_func, ld_coeffs)
+                    check = libphoebe.ld_check(_bytes(ld_func), ld_coeffs)
                     if not check:
                         return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
 
@@ -3280,9 +3289,10 @@ class Bundle(ParameterSet):
         changes = []
         for constraint_id in self._delayed_constraints:
             param = self.run_constraint(uniqueid=constraint_id, return_parameter=True)
-            changes.append(param)
+            if param not in changes:
+                changes.append(param)
         self._delayed_constraints = []
-        return list(set(changes))
+        return changes
 
     def compute_pblums(self, compute=None, **kwargs):
         """
@@ -3670,7 +3680,7 @@ class Bundle(ParameterSet):
             f.write("bdict = json.loads(\"\"\"{}\"\"\")\n".format(json.dumps(self.to_json())))
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
-            compute_kwargs = kwargs.items()+[('compute', compute), ('model', model), ('do_create_fig_params', do_create_fig_params)]
+            compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', model), ('do_create_fig_params', do_create_fig_params)]
             compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(v) if isinstance(v, str) else v) for k,v in compute_kwargs])
             f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
             if do_create_fig_params:

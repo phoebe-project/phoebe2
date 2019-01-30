@@ -26,12 +26,12 @@ def _keplerian_v_nbody(b, plot=False):
     for ci in range(len(b.hierarchy.get_stars())):
         # TODO: make atol lower (currently 1e-5 solRad which is awfully big, but 1e-6 currently fails!)
         if plot:
-            print("max atol xs:", nb_xs[ci] - k_xs[ci])
-            print("max atol ys:", nb_ys[ci] - k_ys[ci])
-            print("max atol zs:", nb_zs[ci] - k_zs[ci])
-            print("max atol vxs:", nb_vxs[ci] - k_vxs[ci])
-            print("max atol vys:", nb_vys[ci] - k_vys[ci])
-            print("max atol vzs:", nb_vzs[ci] - k_vzs[ci])
+            print("max atol xs:", nb_us[ci] - k_us[ci])
+            print("max atol ys:", nb_vs[ci] - k_vs[ci])
+            print("max atol zs:", nb_ws[ci] - k_ws[ci])
+            print("max atol vxs:", nb_vus[ci] - k_vus[ci])
+            print("max atol vys:", nb_vvs[ci] - k_vvs[ci])
+            print("max atol vzs:", nb_vws[ci] - k_vws[ci])
 
         assert(np.allclose(nb_us[ci], k_us[ci], atol=1e-5))
         assert(np.allclose(nb_vs[ci], k_vs[ci], atol=1e-5))

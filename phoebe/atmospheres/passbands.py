@@ -1,5 +1,6 @@
 #from phoebe.c import h, c, k_B
 #from phoebe import u
+from phoebe import __version__ as phoebe_version
 
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
@@ -10,7 +11,9 @@ from astropy import units as u
 import numpy as np
 from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
+from datetime import datetime
 import marshal
+import pickle
 import types
 import libphoebe
 import os
@@ -18,6 +21,7 @@ import sys
 import glob
 import shutil
 import json
+import time
 
 try:
     # For Python 3.0 and later
@@ -57,16 +61,12 @@ if not os.path.exists(_pbdir_local):
     logger.info("creating directory {}".format(_pbdir_local))
     os.makedirs(_pbdir_local)
 
-if not os.getenv('PHOEBE_PBDIR','False')=='False':
-    _pbdir_env = os.getenv('PHOEBE_PBDIR')
-else:
-    _pbdir_env = None
-
+_pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
                  wlunits=u.AA, calibrated=False, reference='', version=1.0,
-                 comments='', oversampling=1, from_file=False):
+                 comments='', oversampling=1, spl_order=3, from_file=False):
         """
         <phoebe.atmospheres.passbands.Passband> class holds data and tools for
         passband-related computations, such as blackbody intensity, model
@@ -144,6 +144,8 @@ class Passband:
             about the passband.
         * `oversampling` (int, optional, default=1): the multiplicative factor
             of PTF dispersion to attain higher integration accuracy.
+        * `spl_order` (int, optional, default=3): spline order for fitting
+            the passband transmission function.
         * `from_file` (bool, optional, default=False): a switch that instructs
             the class instance to skip all calculations and load all data from
             the file passed to the <phoebe.atmospheres.passbands.Passband.load>
@@ -179,6 +181,9 @@ class Passband:
         self.version = version
         self.comments = comments
 
+        # Initialize an empty timestamp. This will get set by calling the save() method.
+        self.timestamp = None
+
         # Passband transmission function table:
         ptf_table = np.loadtxt(ptf).T
         ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
@@ -188,12 +193,12 @@ class Passband:
         self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
 
         # Spline fit to the energy-weighted passband transmission function table:
-        self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0)
+        self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=spl_order)
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
         self.ptf_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_func, 0)
 
         # Spline fit to the photon-weighted passband transmission function table:
-        self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0)
+        self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0, k=spl_order)
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
@@ -216,12 +221,17 @@ class Passband:
         """
         struct = dict()
 
+        struct['originating_phoebe_version'] = phoebe_version
+
         struct['content']         = self.content
         struct['atmlist']         = self.atmlist
         struct['pbset']           = self.pbset
         struct['pbname']          = self.pbname
         struct['effwl']           = self.effwl
         struct['calibrated']      = self.calibrated
+        struct['version']         = self.version
+        struct['comments']        = self.comments
+        struct['reference']       = self.reference
         struct['ptf_table']       = self.ptf_table
         struct['ptf_wl']          = self.wl
         struct['ptf_func']        = self.ptf_func
@@ -250,9 +260,14 @@ class Passband:
         if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
-        f = open(archive, 'wb')
-        marshal.dump(struct, f)
-        f.close()
+        # Finally, timestamp the file:
+        struct['timestamp'] = self.timestamp = time.ctime()
+
+        with open(archive, 'wb') as f:
+            if sys.version_info[0] < 3:
+                marshal.dump(struct, f)
+            else:
+                pickle.dump(struct, f, protocol=3)
 
     @classmethod
     def load(cls, archive):
@@ -274,14 +289,17 @@ class Passband:
         * an instatiated <phoebe.atmospheres.passbands.Passband> object.
         """
         logger.debug("loading passband from {}".format(archive))
-        f = open(archive, 'rb')
-        try:
-            struct = marshal.load(f)
-        except Exception as e:
-            print("failed to load passband from {}".format(archive))
-            f.close()
-            raise e
-        f.close()
+        with open(archive, 'rb') as f:
+            try:
+                if sys.version_info[0] < 3:
+                    struct = marshal.load(f)
+                    marshaled = True
+                else:
+                    struct = pickle.load(f)
+                    marshaled = False
+            except Exception as e:
+                print("failed to load passband from {}".format(archive))
+                raise e
 
         self = cls(from_file=True)
 
@@ -292,36 +310,59 @@ class Passband:
         self.pbname = struct['pbname']
         self.effwl = struct['effwl']
         self.calibrated = struct['calibrated']
+
+        # these are new additions and not every pb file has them.
+        self.opv = struct.get('originating_phoebe_version', None)
+        self.version = struct.get('version', None)
+        self.comments = struct.get('comments', None)
+        self.reference = struct.get('reference', None)
+        self.timestamp = struct.get('timestamp', None)
+
         self.ptf_table = struct['ptf_table']
-        self.ptf_table['wl'] = np.fromstring(self.ptf_table['wl'], dtype='float64')
-        self.ptf_table['fl'] = np.fromstring(self.ptf_table['fl'], dtype='float64')
-        self.wl = np.fromstring(struct['ptf_wl'], dtype='float64')
+        if marshaled:
+            self.ptf_table['wl'] = np.fromstring(self.ptf_table['wl'], dtype='float64')
+            self.ptf_table['fl'] = np.fromstring(self.ptf_table['fl'], dtype='float64')
+            self.wl = np.fromstring(struct['ptf_wl'], dtype='float64')
+        else:
+            self.wl = struct['ptf_wl']
         self.ptf_area = struct['ptf_area']
         self.ptf_photon_area = struct['ptf_photon_area']
 
-        self.ptf_func = list(struct['ptf_func'])
-        self.ptf_func[0] = np.fromstring(self.ptf_func[0])
-        self.ptf_func[1] = np.fromstring(self.ptf_func[1])
-        self.ptf_func = tuple(self.ptf_func)
+        if marshaled:
+            self.ptf_func = list(struct['ptf_func'])
+            self.ptf_func[0] = np.fromstring(self.ptf_func[0])
+            self.ptf_func[1] = np.fromstring(self.ptf_func[1])
+            self.ptf_func = tuple(self.ptf_func)
+        else:
+            self.ptf_func = struct['ptf_func']
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
 
-        self.ptf_photon_func = list(struct['ptf_photon_func'])
-        self.ptf_photon_func[0] = np.fromstring(self.ptf_photon_func[0])
-        self.ptf_photon_func[1] = np.fromstring(self.ptf_photon_func[1])
-        self.ptf_photon_func = tuple(self.ptf_photon_func)
+        if marshaled:
+            self.ptf_photon_func = list(struct['ptf_photon_func'])
+            self.ptf_photon_func[0] = np.fromstring(self.ptf_photon_func[0])
+            self.ptf_photon_func[1] = np.fromstring(self.ptf_photon_func[1])
+            self.ptf_photon_func = tuple(self.ptf_photon_func)
+        else:
+            self.ptf_photon_func = struct['ptf_photon_func']
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
 
         if 'blackbody' in self.content:
-            self._bb_func_energy = list(struct['_bb_func_energy'])
-            self._bb_func_energy[0] = np.fromstring(self._bb_func_energy[0])
-            self._bb_func_energy[1] = np.fromstring(self._bb_func_energy[1])
-            self._bb_func_energy = tuple(self._bb_func_energy)
+            if marshaled:
+                self._bb_func_energy = list(struct['_bb_func_energy'])
+                self._bb_func_energy[0] = np.fromstring(self._bb_func_energy[0])
+                self._bb_func_energy[1] = np.fromstring(self._bb_func_energy[1])
+                self._bb_func_energy = tuple(self._bb_func_energy)
+            else:
+                self._bb_func_energy = struct['_bb_func_energy']
             self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
 
-            self._bb_func_photon = list(struct['_bb_func_photon'])
-            self._bb_func_photon[0] = np.fromstring(self._bb_func_photon[0])
-            self._bb_func_photon[1] = np.fromstring(self._bb_func_photon[1])
-            self._bb_func_photon = tuple(self._bb_func_photon)
+            if marshaled:
+                self._bb_func_photon = list(struct['_bb_func_photon'])
+                self._bb_func_photon[0] = np.fromstring(self._bb_func_photon[0])
+                self._bb_func_photon[1] = np.fromstring(self._bb_func_photon[1])
+                self._bb_func_photon = tuple(self._bb_func_photon)
+            else:
+                self._bb_func_photon = struct['_bb_func_photon']
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
@@ -335,37 +376,57 @@ class Passband:
 
         if 'ck2004' in self.content:
             # CASTELLI & KURUCZ (2004):
-            # Axes needs to be a tuple of np.arrays, and grid a np.array:
-            self._ck2004_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_axes']))
-            self._ck2004_energy_grid = np.fromstring(struct['_ck2004_energy_grid'], dtype='float64')
-            self._ck2004_energy_grid = self._ck2004_energy_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
-            self._ck2004_photon_grid = np.fromstring(struct['_ck2004_photon_grid'], dtype='float64')
-            self._ck2004_photon_grid = self._ck2004_photon_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+            if marshaled:
+                # Axes needs to be a tuple of np.arrays, and grid a np.array:
+                self._ck2004_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_axes']))
+                self._ck2004_energy_grid = np.fromstring(struct['_ck2004_energy_grid'], dtype='float64')
+                self._ck2004_energy_grid = self._ck2004_energy_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+                self._ck2004_photon_grid = np.fromstring(struct['_ck2004_photon_grid'], dtype='float64')
+                self._ck2004_photon_grid = self._ck2004_photon_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+            else:
+                self._ck2004_axes = struct['_ck2004_axes']
+                self._ck2004_energy_grid = struct['_ck2004_energy_grid']
+                self._ck2004_photon_grid = struct['_ck2004_photon_grid']
 
         if 'ck2004_all' in self.content:
             # CASTELLI & KURUCZ (2004) all intensities:
-            # Axes needs to be a tuple of np.arrays, and grid a np.array:
-            self._ck2004_intensity_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_intensity_axes']))
-            self._ck2004_Imu_energy_grid = np.fromstring(struct['_ck2004_Imu_energy_grid'], dtype='float64')
-            self._ck2004_Imu_energy_grid = self._ck2004_Imu_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
-            self._ck2004_Imu_photon_grid = np.fromstring(struct['_ck2004_Imu_photon_grid'], dtype='float64')
-            self._ck2004_Imu_photon_grid = self._ck2004_Imu_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
-            self._ck2004_boosting_energy_grid = np.fromstring(struct['_ck2004_boosting_energy_grid'], dtype='float64')
-            self._ck2004_boosting_energy_grid = self._ck2004_boosting_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
-            self._ck2004_boosting_photon_grid = np.fromstring(struct['_ck2004_boosting_photon_grid'], dtype='float64')
-            self._ck2004_boosting_photon_grid = self._ck2004_boosting_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+            if marshaled:
+                # Axes needs to be a tuple of np.arrays, and grid a np.array:
+                self._ck2004_intensity_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_intensity_axes']))
+                self._ck2004_Imu_energy_grid = np.fromstring(struct['_ck2004_Imu_energy_grid'], dtype='float64')
+                self._ck2004_Imu_energy_grid = self._ck2004_Imu_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+                self._ck2004_Imu_photon_grid = np.fromstring(struct['_ck2004_Imu_photon_grid'], dtype='float64')
+                self._ck2004_Imu_photon_grid = self._ck2004_Imu_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+                self._ck2004_boosting_energy_grid = np.fromstring(struct['_ck2004_boosting_energy_grid'], dtype='float64')
+                self._ck2004_boosting_energy_grid = self._ck2004_boosting_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+                self._ck2004_boosting_photon_grid = np.fromstring(struct['_ck2004_boosting_photon_grid'], dtype='float64')
+                self._ck2004_boosting_photon_grid = self._ck2004_boosting_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+            else:
+                self._ck2004_intensity_axes = struct['_ck2004_intensity_axes']
+                self._ck2004_Imu_energy_grid = struct['_ck2004_Imu_energy_grid']
+                self._ck2004_Imu_photon_grid = struct['_ck2004_Imu_photon_grid']
+                self._ck2004_boosting_energy_grid = struct['_ck2004_boosting_energy_grid']
+                self._ck2004_boosting_photon_grid = struct['_ck2004_boosting_photon_grid']
 
         if 'ck2004_ld' in self.content:
-            self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_ld_energy_grid'], dtype='float64')
-            self._ck2004_ld_energy_grid = self._ck2004_ld_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
-            self._ck2004_ld_photon_grid = np.fromstring(struct['_ck2004_ld_photon_grid'], dtype='float64')
-            self._ck2004_ld_photon_grid = self._ck2004_ld_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
+            if marshaled:
+                self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_ld_energy_grid'], dtype='float64')
+                self._ck2004_ld_energy_grid = self._ck2004_ld_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
+                self._ck2004_ld_photon_grid = np.fromstring(struct['_ck2004_ld_photon_grid'], dtype='float64')
+                self._ck2004_ld_photon_grid = self._ck2004_ld_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
+            else:
+                self._ck2004_ld_energy_grid = struct['_ck2004_ld_energy_grid']
+                self._ck2004_ld_photon_grid = struct['_ck2004_ld_photon_grid']
 
         if 'ck2004_ldint' in self.content:
-            self._ck2004_ldint_energy_grid = np.fromstring(struct['_ck2004_ldint_energy_grid'], dtype='float64')
-            self._ck2004_ldint_energy_grid = self._ck2004_ldint_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
-            self._ck2004_ldint_photon_grid = np.fromstring(struct['_ck2004_ldint_photon_grid'], dtype='float64')
-            self._ck2004_ldint_photon_grid = self._ck2004_ldint_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
+            if marshaled:
+                self._ck2004_ldint_energy_grid = np.fromstring(struct['_ck2004_ldint_energy_grid'], dtype='float64')
+                self._ck2004_ldint_energy_grid = self._ck2004_ldint_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
+                self._ck2004_ldint_photon_grid = np.fromstring(struct['_ck2004_ldint_photon_grid'], dtype='float64')
+                self._ck2004_ldint_photon_grid = self._ck2004_ldint_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
+            else:
+                self._ck2004_ldint_energy_grid = struct['_ck2004_ldint_energy_grid']
+                self._ck2004_ldint_photon_grid = struct['_ck2004_ldint_photon_grid']
 
         return self
 
@@ -1317,12 +1378,22 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
+def _timestamp_to_dt(timestamp):
+    return datetime.strptime(timestamp, "%a %b %d %H:%M:%S %Y")
+
 def _init_passband(fullpath):
     """
     """
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
-    _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.atmlist, 'pb': None}
+    passband = pb.pbset+':'+pb.pbname
+    _pbtable[passband] = {'fname': fullpath, 'atms': pb.atmlist, 'timestamp': pb.timestamp, 'pb': None}
+
+    if update_passband_available(passband):
+        msg = 'passband "{}" has a newer version available.  Run phoebe.download_passband("{}") or phoebe.update_all_passbands() to update.'.format(passband, passband)
+        # NOTE: logger probably not available yet, so we'll also use a print statement
+        print('PHOEBE: {}'.format(msg))
+        logger.warning(msg)
 
 def _init_passbands(refresh=False):
     """
@@ -1343,20 +1414,17 @@ def _init_passbands(refresh=False):
         # load global passbands (in install directory) next and then local
         # (in .phoebe directory) second so that local passbands override
         # global passbands whenever there is a name conflict
-        for path in [_pbdir_global, _pbdir_local]:
+        for path in list_passband_directories():
             for f in os.listdir(path):
                 if f=='README':
                     continue
+                if sys.version_info[0] < 3 and f.split('.')[-1] == 'pb3':
+                    # then this is a python3 passband but we're in python 2
+                    continue
+                elif sys.version_info[0] >=3 and f.split('.')[-1] == 'pb':
+                    # then this is a python 2 passband but we're in python 3
+                    continue
                 _init_passband(path+f)
-
-        #Check if _pbdir_env has been set and load those passbands too
-        if not _pbdir_env == None:
-            for path in [_pbdir_env]:
-                for f in os.listdir(path):
-                    if f=='README':
-                        continue
-                    _init_passband(path+f)
-
 
         _initialized = True
 
@@ -1466,6 +1534,93 @@ def download_passband(passband, local=True):
     else:
         _init_passband(passband_fname_local)
 
+def update_passband_available(passband):
+    """
+    For convenience, this function is available at the top-level as
+    <phoebe.update_passband_available>.
+
+    Check if a newer version of a given passband is available from the online repository.
+
+    If so, you can update by calling <phoebe.atmospheres.passbands.download_passband>.
+
+    See also:
+    * <phoebe.atmospheres.passbands.list_all_update_passbands_available>
+    * <phoebe.atmospheres.passbands.download_passband>
+    * <phoebe.atmospheres.passbands.update_all_passbands>
+
+    Arguments
+    -----------
+    * `passband` (string): name of the passband
+
+    Returns
+    -----------
+    * (bool): whether a newer version is available
+    """
+    if passband not in list_online_passbands():
+        return False
+
+    if _pbtable[passband]['timestamp'] is None:
+        if _online_passbands[passband]['timestamp'] is not None:
+            return True
+
+    elif _timestamp_to_dt(_pbtable[passband]['timestamp']) < _timestamp_to_dt(_online_passbands[passband]['timestamp']):
+        return True
+
+    return False
+
+def list_all_update_passbands_available():
+    """
+    For convenicence, this function is available at the top-lelve as
+    <phoebe.list_all_update_passbands_available>.
+
+    See also:
+    * <phoebe.atmospheres.passbands.update_passband_available>
+    * <phoebe.atmospheres.passbands.download_passband>
+    * <phoebe.atmospheres.passbands.update_all_passbands>
+
+    Returns
+    ----------
+    * (list of string): list of passbands with newer versions available online
+    """
+
+    return [p for p in list_installed_passbands() if update_passband_available(p)]
+
+def update_all_passbands(local=True):
+    """
+    For convenience, this function is available at the top-level as
+    <phoebe.update_all_passbands>.
+
+    Download and install updates for all passbands from the
+    [phoebe2-tables](https://github.com/phoebe-project/phoebe2-tables) repository.
+
+    This will install into the directory dictated by `local`, regardless of the
+    location of the original file.  `local`=True passbands always override
+    `local=False`.
+
+    The local and global installation directories can be listed by calling
+    <phoebe.atmospheres.passbands.list_passband_directories>.  The local
+    (`local=True`) directory is generally at
+    `~/.phoebe/atmospheres/tables/passbands`, and the global (`local=False`)
+    directory is in the PHOEBE installation directory.
+
+    See also:
+    * <phoebe.atmospheres.passbands.update_passband_available>
+
+
+    Arguments
+    ----------
+    * `local` (bool, optional, default=True): whether to install to the local/user
+        directory or the PHOEBE installation directory.  If `local=False`, you
+        must have the necessary permissions to write to the installation
+        directory.
+
+    Raises
+    --------
+    * IOError: if internet connection fails.
+    """
+    for passband in list_all_update_passbands_available():
+        download_passband(passband, local=local)
+
 def list_passband_directories():
     """
     For convenience, this function is available at the top-level as
@@ -1483,9 +1638,9 @@ def list_passband_directories():
     --------
     * (list of strings): global and local passband installation directories.
     """
-    return _pbdir_global, _pbdir_local
+    return [p for p in [_pbdir_global, _pbdir_local, _pbdir_env] if p is not None]
 
-def list_passbands(refresh=False):
+def list_passbands(refresh=False, full_dict=False):
     """
     For convenience, this function is available at the top-level as
     <phoebe.list_passbands>.
@@ -1502,14 +1657,27 @@ def list_passbands(refresh=False):
         of fallback on cached values.  Passing `refresh=True` should only
         be necessary if new passbands have been installed or added to the
         online repository since importing PHOEBE.
+    * `full_dict` (bool, optional, default=False): whether to return the full
+        dictionary of information about each passband or just the list
+        of names.
 
     Returns
     --------
-    * (list of strings)
+    * (list of strings or dictionary)
     """
-    return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
+    if full_dict:
+        d = list_online_passbands(refresh, True)
+        for k in d.keys():
+            d[k]['installed'] = False
+        # installed passband always overrides online
+        for k,v in list_installed_passbands(refresh, True).items():
+            d[k] = v
+            d[k]['installed'] = True
+        return d
+    else:
+        return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
 
-def list_installed_passbands(refresh=False):
+def list_installed_passbands(refresh=False, full_dict=False):
     """
     For convenience, this function is available at the top-level as
     <phoebe.list_installed_passbands>.
@@ -1525,15 +1693,21 @@ def list_installed_passbands(refresh=False):
         of fallback on cached values.  Passing `refresh=True` should only
         be necessary if new passbands have been installed or added to the
         online repository since importing PHOEBE.
+    * `full_dict` (bool, optional, default=False): whether to return the full
+        dictionary of information about each passband or just the list
+        of names.
 
     Returns
     --------
-    * (list of strings)
+    * (list of strings or dictionary)
     """
     if refresh:
         _init_passbands(True)
 
-    return [k for k,v in _pbtable.items() if v['fname'] is not None]
+    if full_dict:
+        return {k:v for k,v in _pbtable.items() if v['fname'] is not None}
+    else:
+        return [k for k,v in _pbtable.items() if v['fname'] is not None]
 
 def list_online_passbands(refresh=False, full_dict=False):
     """
@@ -1560,7 +1734,11 @@ def list_online_passbands(refresh=False, full_dict=False):
     global _online_passbands
     if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
 
-        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands_full'
+        branch = 'master'
+        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/{}/passbands/list_online_passbands_full'.format(branch)
+        if sys.version_info[0] >= 3:
+            url += "_pb3"
+
         try:
             resp = urlopen(url)
         except URLError:

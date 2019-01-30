@@ -1285,7 +1285,15 @@ class ParameterSet(object):
             other = ParameterSet([other])
 
         if isinstance(other, ParameterSet):
-            return ParameterSet(list(set(self._params + other._params)))
+            # NOTE: used to have the following but doesn't work in python3
+            # because the Parameters aren't hashable:
+            # return ParameterSet(list(set(self._params+other._params)))
+            lst = self._params
+            for p in other._params:
+                if p not in lst:
+                    lst.append(p)
+
+            return ParameterSet(lst)
         else:
             raise NotImplementedError
 
@@ -1967,7 +1975,7 @@ class ParameterSet(object):
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
                     (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and fnmatch(getattr(pi,key),kwargs[key])) or
                     (key=='kind' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
-                    (key=='kind' and isinstance(kwargs[key],list) and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
+                    (key=='kind' and hasattr(kwargs[key],'__iter__') and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
                     (key=='time' and abs(float(getattr(pi,key))-string_to_time(kwargs[key]))<1e-6))]
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
@@ -8231,7 +8239,8 @@ class ConstraintParameter(Parameter):
         currently_constrained_var = self._get_var(qualifier=self.qualifier, component=self.component)
         currently_constrained_param = currently_constrained_var.get_parameter() # or self.constrained_parameter
 
-        import constraint
+        # cannot be at the top, or will cause circular import
+        from . import constraint
         if self.constraint_func is not None and hasattr(constraint, self.constraint_func):
             # then let's see if the method is capable of resolving for use
             # try:
