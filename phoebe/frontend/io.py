@@ -702,10 +702,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
                 try:
                     eb.set_value_all(check_visible=False, **d)
-    #                del d['value']
-     #               print "Value", eb.get_value(**d)
-                except ValueError, msg:
-                    raise ValueError(msg.message + " ({})".format(d))
+                except ValueError as exc:
+                    raise ValueError(exc.args[0] + " ({})".format(d))
 
 #Now rvs
     for x in range(1,rvno+1):
@@ -1438,7 +1436,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 # loop through lcs
 
     for x in range(len(lcs)):
-        quals = eb.filter(dataset=lcs[x], context='dataset')+eb.filter(dataset=lcs[x], context='compute')
+        quals = eb.filter(dataset=lcs[x], context=['dataset', 'compute'])
         #phoebe 2 is ALWAYS times so pass time as the ind variable
         parnames.append('phoebe_lc_indep['+str(x+1)+']')
         parvals.append('Time (HJD)')
@@ -1800,9 +1798,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
             if param.get_value(**kwargs) == 0:
                 #Legacy phoebe will calculate reflection no matter what.
                 # Turn off reflection switch but keep albedos
-                logger.warning('To completely remove irradiation effects in \
-                                Phoebe Legacy irrad_frac_refl_bol must be set \
-                                to zero for both components')
+                logger.warning('To completely remove irradiation effects in PHOEBE Legacy irrad_frac_refl_bol must be set to zero for both components')
                 pname = 'phoebe_reffect_switch'
                 val = '0'
                 ptype='boolean'

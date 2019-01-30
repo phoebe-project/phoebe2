@@ -37,12 +37,12 @@ def test_binary(plot=False):
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [0, 0.5, 1.0]:
-        if plot: print "alb = {}".format(alb)
+        if plot: print("alb = {}".format(alb))
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        if plot: print "running phoebe2 model..."
+        if plot:print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model')
-        if plot: print "running phoebe1 model..."
+        if plot:print("running phoebe1 model...")
         b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
@@ -51,7 +51,7 @@ def test_binary(plot=False):
         if plot:
             # phoebe2_maxintensabs = b.get_value('intens_norm_abs', component='primary').max()
             # phoebe2_maxintensrel = b.get_value('intens_norm_rel', component='primary').max()
-            # print "alb={} phoebe1.max={} phoebe2.max={}, phoebe2.maxintensabs={} phoebe2.maxintensrel={}".format(alb, phoebe1_val.max(), phoebe2_val.max(), phoebe2_maxintensabs, phoebe2_maxintensrel)
+            # print("alb={} phoebe1.max={} phoebe2.max={}, phoebe2.maxintensabs={} phoebe2.maxintensrel={}".format(alb, phoebe1_val.max(), phoebe2_val.max(), phoebe2_maxintensabs, phoebe2_maxintensrel))
 
             b.plot(dataset='lc01', ylim=(1.96, 2.02), show=True)
 
@@ -87,12 +87,12 @@ def test_contact(plot=False):
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [0, 0.5, 1.0]:
-        if plot: print "alb = {}".format(alb)
+        if plot: print("alb = {}".format(alb))
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        if plot: print "running phoebe2 model..."
+        if plot: print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model')
-        if plot: print "running phoebe1 model..."
+        if plot: print("running phoebe1 model...")
         b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
@@ -101,7 +101,7 @@ def test_contact(plot=False):
         if plot:
             # phoebe2_maxintensabs = b.get_value('intens_norm_abs', component='primary').max()
             # phoebe2_maxintensrel = b.get_value('intens_norm_rel', component='primary').max()
-            # print "alb={} phoebe1.max={} phoebe2.max={}, phoebe2.maxintensabs={} phoebe2.maxintensrel={}".format(alb, phoebe1_val.max(), phoebe2_val.max(), phoebe2_maxintensabs, phoebe2_maxintensrel)
+            # print("alb={} phoebe1.max={} phoebe2.max={}, phoebe2.maxintensabs={} phoebe2.maxintensrel={}".format(alb, phoebe1_val.max(), phoebe2_val.max(), phoebe2_maxintensabs, phoebe2_maxintensrel))
 
             b.plot(dataset='lc01', show=True)
 

@@ -138,7 +138,7 @@ T lagrange_point_L3(
   // Discussing F = 0
   //
 
-  if (F == 0)  return std::nan("");
+  if (F == 0)  return std::numeric_limits<T>::quiet_NaN();
 
   T x,
     a = F*F*delta*delta*delta;

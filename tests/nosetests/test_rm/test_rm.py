@@ -22,12 +22,12 @@ def _beta_vs_legacy(b, plot=False):
 
     phoebe2_val = b.get_value('rvs@primary@phnumresults@phnum')
     phoebe1_val = b.get_value('rvs@primary@legnumresults@legnum')
-    if plot: print "rv@primary max abs diff: {}".format(max(np.abs(phoebe1_val-phoebe2_val)))
+    if plot: print("rv@primary max abs diff: {}".format(max(np.abs(phoebe1_val-phoebe2_val))))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=0., atol=2.0))
 
     phoebe2_val = b.get_value('rvs@secondary@phnumresults@phnum')
     phoebe1_val = b.get_value('rvs@secondary@legnumresults@legnum')
-    if plot: print "rv@secondary max abs diff: {}".format(max(np.abs(phoebe1_val-phoebe2_val)))
+    if plot: print("rv@secondary max abs diff: {}".format(max(np.abs(phoebe1_val-phoebe2_val))))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=0., atol=2.0))
 
 def test_binary(plot=False):
@@ -46,7 +46,7 @@ def test_binary(plot=False):
     b.add_compute('legacy', compute='legnum', ltte=False, atm='extern_planckint', rv_method='flux-weighted', refl_num=0)
 
     for syncpar in [1./4, 4]:
-        print "setting syncpar@primary to", syncpar
+        print("setting syncpar@primary to", syncpar)
         b.set_value('syncpar@primary', syncpar)
         _beta_vs_legacy(b, plot=plot)
 

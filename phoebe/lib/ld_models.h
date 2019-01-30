@@ -366,7 +366,7 @@ namespace LD {
       }
       default:
         std::cerr << "LD::D::This model is not supported\n";
-        return std::nan("");
+        return std::numeric_limits<T>::quiet_NaN();
     }
   }
 
@@ -404,7 +404,7 @@ namespace LD {
         return utils::m_pi*(1 - (42*p[0] + 70*p[1] + 90*p[2] + 105*p[3])/210);
       default:
         std::cerr << "LD::D0::This model is not supported\n";
-        return std::nan("");
+        return std::numeric_limits<T>::quiet_NaN();
     }
   }
 
@@ -532,8 +532,6 @@ namespace LD {
 
   template <class T>
   bool check(TLDmodel_type choice, T *p) {
-
-    bool ok;
 
     switch (choice) {
 

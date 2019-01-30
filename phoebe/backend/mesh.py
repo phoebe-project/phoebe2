@@ -1431,7 +1431,7 @@ class Meshes(object):
         """
         self._dict = {component: body.mesh for component, body in items.items()}
         #self._component_by_no = {body.comp_no: component for component, body in items.items()}
-        self._components = items.keys()
+        self._components = list(items.keys())
         self._parent_envelope_of = parent_envelope_of
 
     def items(self):
@@ -1444,13 +1444,13 @@ class Meshes(object):
         """
         TODO: add documentation
         """
-        return self._dict.keys()
+        return list(self._dict.keys())
 
     def values(self):
         """
         TODO: add documentation
         """
-        return self._dict.values()
+        return list(self._dict.values())
 
     def __getitem__(self, key):
         """
@@ -1566,7 +1566,7 @@ class Meshes(object):
             if isinstance(components, str):
                 components = [components]
         else:
-            components = self.keys()
+            components = list(self.keys())
 
         return {c: get_field(c, field, computed_type) for c in components}
 
@@ -1595,9 +1595,9 @@ class Meshes(object):
             else:
                 raise TypeError("components should be list or string, not {}".format(type(components)))
         elif isinstance(value, dict):
-            components = value.keys()
+            components = list(value.keys())
         elif isinstance(value, list):
-            components = self._dict.keys()
+            components = list(self._dict.keys())
             value = {c: v for c,v in zip(components, value)}
 
         if offset:

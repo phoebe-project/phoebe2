@@ -26,19 +26,20 @@ def test_binary(plot=False):
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
+
     #turn off albedos (legacy requirement)
     b.set_value_all('irrad_frac_refl_bol',  0.0)
 
-    if plot: print "running phoebe2 model..."
+    print("running phoebe2 model...")
     b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
-    if plot: print "running phoebe1 model..."
+    print("running phoebe1 model...")
     b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 
     phoebe2_val = b.get_value('fluxes@phoebe2model')
     phoebe1_val = b.get_value('fluxes@phoebe1model')
 
     if plot:
-        print "rel: ", ((phoebe2_val-phoebe1_val)/phoebe2_val).max()
+        print("rel: ", ((phoebe2_val-phoebe1_val)/phoebe2_val).max())
 
         # b.plot(dataset='mesh01', show=True)
 

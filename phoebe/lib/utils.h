@@ -21,12 +21,37 @@ namespace utils {
   const double m_4pi = 12.5663706143591729538505735331180167998; // 4 pi
   const double m_4pi3 = 4.18879020478639098461685784437267226645; // 4 pi/3
   const double m_pi3 = 1.04719755119659774615421446109316806665; // pi/3
+  const double m_pi2 = 1.57079632679489661923132169163975209992; // pi/2
   const double m_e = 2.71828182845904523533978449066641588615; // e
   const double m_1_e = 0.36787944117144232159552377016146086744; // 1/e
 
   template<class T>
   constexpr T pi() {return T(3.14159265358979323846264338327950419984L);};
-
+  
+  /*
+    Approximation formula for ArcCos
+    
+    Input:
+      x in [-1,1]
+    Return:
+      arccos(x) in [0,pi]
+      
+    Ref: 
+      p.81 Handbook of Mathematical Functions, by M. Abramowitz and I. Stegun 
+  */ 
+  float __acosf(const float & x) {
+    
+    if (x ==  0) return 1.57079632679489;
+    if (x >=  1) return 0;
+    if (x <= -1) return 3.14159265358979;
+    
+    float 
+      t = std::abs(x),
+      s = std::sqrt(1-t)*(1.5707288 + t*(-0.2121144 + (0.074261 - 0.0187293*t)*t));
+    
+    return (x > 0 ? s : 3.14159265358979 - s);
+  }
+  
   /*
     Return square of the value.
 
@@ -910,7 +935,7 @@ namespace utils {
 
     int i  = flt(t, x, n);
 
-    if (i == 0 || i == -1) return std::nan("");
+    if (i == 0 || i == -1) return std::numeric_limits<T>::quiet_NaN();
 
     return (y[i]*(x[i] - t) + y[i-1]*(t - x[i-1]))/(x[i] - x[i-1]);
   }
@@ -941,10 +966,10 @@ namespace utils {
       if (x > 0)
         return std::numeric_limits<T>::infinity();
       else
-        return std::nan("");
+        return std::numeric_limits<T>::quiet_NaN();
     }
 
-    if (x < -m_1_e || std::isnan(x)) return std::nan("");
+    if (x < -m_1_e || std::isnan(x)) return std::numeric_limits<T>::quiet_NaN();
 
     //
     // calculating approximation

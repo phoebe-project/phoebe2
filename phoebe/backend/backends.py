@@ -1,6 +1,11 @@
 import os
 import numpy as np
-import commands
+
+try:
+  import commands
+except:
+  import subprocess as commands
+
 import tempfile
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import ParameterSet
@@ -239,7 +244,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 needed_syns.append(needed_syn_info)
 
     if by_time and len(times):
-        ti = zip(times, infolists)
+        ti = list(zip(times, infolists))
         ti.sort()
         times, infolists = zip(*ti)
 
@@ -1209,10 +1214,9 @@ class LegacyBackend(BaseBackendByDataset):
         """
         logger.debug("rank:{}/{} LegacyBackend._worker_setup: creating temporary phoebe file".format(mpi.myrank, mpi.nprocs))
 
-        #make phoebe 1 file
-        # TODO: do we cleanup this temp file?
-        tmp_file = tempfile.NamedTemporaryFile()
-        io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
+        # make phoebe 1 file
+        tmp_filename = temp_name = next(tempfile._get_candidate_names())
+        io.pass_to_legacy(b, filename=tmp_filename, compute=compute, **kwargs)
         phb1.init()
         try:
             if hasattr(phb1, 'auto_configure'):
@@ -1224,7 +1228,7 @@ class LegacyBackend(BaseBackendByDataset):
         except SystemError:
             raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
 
-        phb1.open(tmp_file.name)
+        phb1.open(tmp_filename)
 
         # build lookup tables between the dataset labels and the indices needed
         # to pass to phoebe legacy
@@ -1242,6 +1246,8 @@ class LegacyBackend(BaseBackendByDataset):
             rvinds[rvcurve] = rvind
 
         computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+
+        os.remove(tmp_filename)
 
         return dict(lcinds=lcinds,
                     rvinds=rvinds,

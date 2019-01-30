@@ -129,7 +129,8 @@ void raise_exception(const std::string & str){
     level = 1: output for python exception
     level = 2: output for python exception and
                additional explanation to exceptions
-    level = 3: all possible output -- debug mode
+    level = 3: -- did not decide what this should be --
+    level = 4: all possible output -- debug mode
 
   Input:
     level
@@ -183,8 +184,8 @@ PyObject *PyArray_FromVector(std::vector<T> &V){
   npy_intp dims[1] = {N};
 
   #if defined(USING_SimpleNewFromData)
-  T *p = new T [N];
-
+  //T *p = new T [N];
+  T *p = (T*) PyObject_Malloc(N*sizeof(T));
   std::copy(V.begin(), V.end(), p);
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
@@ -202,7 +203,8 @@ PyObject *PyArray_FromVector(int N, T *V){
   npy_intp dims[1] = {N};
 
   #if defined(USING_SimpleNewFromData)
-  T *p = new T [N];
+  //T *p = new T [N];
+  T *p = (T*) PyObject_Malloc(N*sizeof(T));
   std::copy(V, V + N, p);
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
@@ -233,7 +235,9 @@ PyObject *PyArray_From3DPointVector(std::vector<T3Dpoint<T>> &V){
   npy_intp dims[2] = {N, 3};
 
   #if defined(USING_SimpleNewFromData)
-  T *p = new T [3*N], *b = p;
+  //T *p = new T [3*N];
+  T *p = (T*) PyObject_Malloc(3*N*sizeof(T));
+  T *b = p;
   for (auto && v : V) for (int i = 0; i < 3; ++i) *(b++) = v[i];
   PyObject *pya = PyArray_SimpleNewFromData(2, dims, PyArray_TypeNum<T>(), p);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
@@ -384,7 +388,6 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
   return results;
 }
 
-
 /*
   C++ wrapper for Python code:
 
@@ -482,17 +485,12 @@ static PyObject *roche_misaligned_transf(PyObject *self, PyObject *args) {
     return NULL;
   }
 
-  double *res = new double [2];
-  res[0] = std::atan2(-s[1], s[2]);
-  res[1] = std::atan2(s[0], std::sqrt(1 - s[0]*s[0]));
+  double res[2]={
+    std::atan2(-s[1], s[2]),
+    std::atan2(s[0], std::sqrt(1 - s[0]*s[0]))
+  };
 
-  npy_intp dims[1] = {2};
-
-  PyObject *o_res = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, res);
-
-  PyArray_ENABLEFLAGS((PyArrayObject *)o_res, NPY_ARRAY_OWNDATA);
-
-  return o_res;
+  return PyArray_FromVector(2, res);
 }
 
 /*
@@ -3340,8 +3338,8 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
 
   double
     *x = (double*) PyArray_DATA(o_x),
-    *g = new double [4];
-
+    g[4];
+    
   if (PyFloat_Check(o_misalignment)) {
 
     p[3] = PyFloat_AsDouble(o_misalignment);
@@ -3368,16 +3366,10 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
     return NULL;
   }
 
-  npy_intp dims[1] = {4};
-
-  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
-
-  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
-
   if (verbosity_level>=4)
     report_stream << fname << "::END" << std::endl;
 
-  return pya;
+  return PyArray_FromVector(4, g);
 }
 
 
@@ -3678,8 +3670,8 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
 
   double
     *x = (double*) PyArray_DATA(o_x),
-    *g = new double [3];
-
+    g[3];
+    
   if (PyFloat_Check(o_misalignment)) {
 
     p[3] = PyFloat_AsDouble(o_misalignment);
@@ -3704,16 +3696,10 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
     return NULL;
   }
 
-  npy_intp dims[1] = {3};
-
-  PyObject *res = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
-
-  PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
-
   if (verbosity_level>=4)
     report_stream << fname << "::END" << std::endl;
 
-  return res;
+  return PyArray_FromVector(3, g);
 }
 
 
@@ -4034,8 +4020,8 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
 
     keywords:
       choice: integer, default 0
-          0 - primary lobe is exists
-          1 - secondary lobe is exists
+          0 - primary lobe
+          1 - secondary lobe
         for contacts choice is 0 or 1
         choice controls where is the begining the triangulation
 
@@ -5178,8 +5164,8 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
 
     keywords:
       choice: integer, default 0
-          0 - primary lobe is exists
-          1 - secondary lobe is exists
+          0 - primary lobe
+          1 - secondary lobe
         for contacts choice is 0 or 1
         choice controls where is the begining the triangulation
 
@@ -5560,8 +5546,8 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
 
     keywords:
       choice: integer, default 0
-          0 - primary lobe is exists
-          1 - secondary lobe is exists
+          0 - primary lobe
+          1 - secondary lobe
         for contacts choice is 0 or 1
         choice controls where is the begining the triangulation
 
@@ -5843,7 +5829,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
          march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
         );
 
-    if (error == 0) march.central_points(V, Tr, C, NatC, GatC);
+    if (error == 0 && !march.central_points(V, Tr, C, NatC, GatC)) error = 4;
 
   } else {
     if (rotated) {
@@ -5857,7 +5843,8 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
           march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
         );
 
-      if (error == 0) march.central_points(V, Tr, C, NatC, GatC);
+      if (error == 0 && !march.central_points(V, Tr, C, NatC, GatC)) error = 4;
+      
     } else {
       double params[] = {q, F, d, s[0], s[1], s[2], Omega0};
 
@@ -5869,7 +5856,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
           march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
         );
 
-      if (error == 0) march.central_points(V, Tr, C, NatC, GatC);
+      if (error == 0 && !march.central_points(V, Tr, C, NatC, GatC)) error = 4;
     }
   }
 
@@ -5893,6 +5880,9 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
       return NULL;
     case 2:
       raise_exception("Projections are failing!");
+      return NULL;
+    case 4:
+      raise_exception("Central points did not converge!");
       return NULL;
   }
 
@@ -7722,7 +7712,157 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
 
   return results;
 }
+/*
+  Calculate an rough approximation of the surface average updated
+  exitance F_{0,b}' and radiosity F_{out,b} for both bodies b=A, B
+  in a binary system of two spheres separated by distance d
 
+  Python:
+
+    dict = radiosity_redistrib_1dmodel(d, radiusA, reflectA, redistr_typeA,
+                                          radiusB, reflectB, redistr_typeB)
+  where positional parameters:
+
+    d: float - distance between stars
+    radiusA: float - radius of the star A
+    reflectA: float - reflection of star A
+    F0A: average exitance of star A
+    redistr_typeA: int - redistribution type of star A
+      0: global - uniform global redistribution
+      1: horiz  - horizontal redistribution
+      2: local - local redistribution
+
+    radiusB: float - radius of the star B
+    reflectb: float - reflection of star B
+    F0B: average exitance of star B
+    redistr_typeB: int - redistribution type of star B
+      0: global - uniform global redistribution
+      1: horiz  - horizontal redistribution
+      2: local - local redistribution
+
+Returns:
+
+    dict - dictionary
+
+  with keywords
+
+    radiosityA: float - Surface average of radiosity for body A
+    update-exitanceA: float - Surface average of updated exitance for body A
+    radiosityB: float - Surface average of radiosity for body B
+    update-exitanceB: float - Surface average of updated exitance for body B
+
+Example:
+  import libphoebe 
+
+  d=5
+  radiusA=2.
+  reflectA=0.3
+  F0A=1.0
+  redistr_typeA=0
+
+  radiusB=1.
+  reflectB=0.7
+  F0B=2.0
+  redistr_typeB=0
+
+  res= libphoebe.radiosity_redistrib_1dmodel(d,
+                                        radiusA, reflectA, F0A, redistr_typeA,
+                                        radiusB, reflectB, F0B, redistr_typeB)
+ 
+ {'update-emittanceB': 2.0410763114593298, 'update-emittanceA': 1.0206982972948087, 'radiosityB': 2.012322893437799, 'radiosityA': 1.014488808106366}
+
+*/
+static PyObject *radiosity_redistrib_1dmodel(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  auto fname = "radiosity_redistrib_1dmodel"_s;
+
+  //
+  // Reading arguments
+  //
+
+ char *kwlist[] = {
+    (char*)"d",
+    (char*)"radiusA",
+    (char*)"reflectA",
+    (char*)"F0A",
+    (char*)"redistr_typeA",
+    (char*)"radiusB",
+    (char*)"reflectB",
+    (char*)"F0B",
+    (char*)"redistr_typeB",
+    NULL
+  };
+
+  int rtypeA, rtypeB;
+
+  double d, rA, rhoA, F0A, rB, rhoB, F0B;
+
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "ddddidddi", kwlist,
+      &d,
+      &rA,
+      &rhoA,
+      &F0A,
+      &rtypeA,
+      &rB,
+      &rhoB,
+      &F0B,
+      &rtypeB)
+    ){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  double
+    /* limb-darkended radosity operator coefficient */
+    LldAB = utils::sqr(rA/d)*0.5,
+    LldBA = utils::sqr(rB/d)*0.5,
+
+    /* Lambertian radosity operator coefficient */
+    LLAB = LldAB,
+    LLBA = LldBA,
+
+    DA = (rtypeA == 0 || rtypeA == 1 ? 0.5 : 1),
+    DB = (rtypeB == 0 || rtypeB == 1 ? 0.5 : 1),
+
+    /* auxiliary variables */
+    GA = LldBA*F0B,
+    GB = LldAB*F0A,
+
+    TAB = LldAB*DA*(1 - rhoA) + LLAB*rhoA,
+    TBA = LldBA*DB*(1 - rhoB) + LLBA*rhoB,
+
+    det = 1 - TAB*TBA,
+
+    FinA = (GA + TBA*GB)/det,
+    FinB = (TAB*GA + GB)/det,
+
+    /* update-exitance: body A */
+    F1Ad = F0A + DA*(1 - rhoA)*FinA,
+    F1An = F0A + (1 - DA)*(1 - rhoA)*FinA,
+
+    /* update-exitance: body B */
+    F1Bd = F0B + DB*(1 - rhoB)*FinB,
+    F1Bn = F0B + (1 - DB)*(1 - rhoB)*FinB,
+
+    /* radiosity: body A */
+    FoutAd = F1Ad + rhoA*FinA,
+    FoutAn = F1An,
+
+    /* radiosity: body B */
+    FoutBd = F1Bd + rhoB*FinB,
+    FoutBn = F1Bn;
+
+  PyObject *results = PyDict_New();
+
+  PyDict_SetItemStringStealRef(results, "update-emittanceA", PyFloat_FromDouble((F1Ad + F1An)/2));
+  PyDict_SetItemStringStealRef(results, "radiosityA", PyFloat_FromDouble((FoutAd + FoutAn)/2));
+
+  PyDict_SetItemStringStealRef(results, "update-emittanceB", PyFloat_FromDouble((F1Bd + F1Bn)/2));
+  PyDict_SetItemStringStealRef(results, "radiosityB", PyFloat_FromDouble((FoutBd + FoutBn)/2));
+
+  return results;
+}
 
 /*
   C++ wrapper for Python code:
@@ -7767,6 +7907,8 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
 */
 static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject *keywds){
 
+  auto fname = "roche_central_points"_s;
+  
   //
   // Reading arguments
   //
@@ -7806,7 +7948,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
       &PyBool_Type, &o_cnormals,
       &PyBool_Type, &o_cnormgrads
       )){
-    raise_exception("roche_central_points::Problem reading arguments");
+    raise_exception(fname + "::Problem reading arguments.");
     return NULL;
   }
 
@@ -7815,8 +7957,10 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
   if (o_cnormgrads) b_cnormgrads = PyObject_IsTrue(o_cnormgrads);
 
 
-  if (!b_centers && !b_cnormals && !b_cnormgrads) return NULL;
-
+  if (!b_centers && !b_cnormals && !b_cnormgrads) {
+     raise_exception(fname + "::Nothing to compute.");
+     return NULL;
+   }
   //
   // Storing data
   //
@@ -7836,7 +7980,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
   Tmarching<double, Tgen_roche<double>> march(params);
 
   //
-  // Calculte the central points
+  // Calculate the central points
   //
 
   std::vector<double> *GatC = 0;
@@ -7849,7 +7993,10 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
 
   if (b_cnormgrads) GatC = new std::vector<double>;
 
-  march.central_points(V, Tr, C, NatC, GatC);
+  if (!march.central_points(V, Tr, C, NatC, GatC)){
+    raise_exception(fname + "::Problem with projection onto surface.");
+    return NULL;
+  }
 
   //
   // Returning results
@@ -9619,7 +9766,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
       return PyFloat_FromDouble(ylog);
     else {
       raise_exception(fname + "::Failed to calculate Planck central intensity");
-      return PyFloat_FromDouble(std::nan(""));
+      return PyFloat_FromDouble(std::numeric_limits<double>::quiet_NaN());
     }
 
   } else if (
@@ -9659,7 +9806,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
 
     for (double *r = results, *r_e = r + n; r != r_e;  ++r, ++t)
       if (!wd_atm::planckint_onlylog(*t, ifil, planck_table, *r)) {
-        *r = std::nan("");
+        *r = std::numeric_limits<double>::quiet_NaN();
         ok = false;
       }
 
@@ -9916,7 +10063,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       // do calculation
       if (!wd_atm::atmx_onlylog(t, logg, r[1], ifil, planck_table, atm_table, r[0])) {
         raise_exception(fname + "::Failed to calculate logarithm of intensity");
-        r[0] = std::nan("");
+        r[0] = std::numeric_limits<double>::quiet_NaN();
       }
 
     } else {  // calculation whole array
@@ -9940,7 +10087,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         r[1] = *pabunin;
 
         if (!wd_atm::atmx_onlylog(*pt, *plogg, r[1], ifil, planck_table, atm_table, r[0])) {
-          r[0] = std::nan("");
+          r[0] = std::numeric_limits<double>::quiet_NaN();
           ok = false;
         }
       }
@@ -9964,7 +10111,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         oresults = PyFloat_FromDouble(r);
       else {
         raise_exception(fname + "::Failed to calculate logarithm of intensity");
-        oresults = PyFloat_FromDouble(std::nan(""));
+        oresults = PyFloat_FromDouble(std::numeric_limits<double>::quiet_NaN());
       }
 
     } else { // calculation whole array
@@ -9990,7 +10137,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         tmp = *pabunin;
 
         if (!wd_atm::atmx_onlylog(*pt, *plogg, tmp, ifil, planck_table, atm_table, *r)) {
-          *r = std::nan("");
+          *r = std::numeric_limits<double>::quiet_NaN();
           ok = false;
         }
       }
@@ -10234,10 +10381,10 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
             0 for discussing left lobe
             1 for discussing right lobe
 
+    larea: boolean, default True
     lvolume: boolean, default True
     ldvolume: boolean, default True
-    larea: boolean, default True
-
+  
     epsA : float, default 1e-12
       relative precision of the area
 
@@ -10252,6 +10399,8 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
     dictionary
 
   with keywords
+    larea: area of the left or right Roche lobe
+      float:
 
     lvolume: volume of the left or right Roche lobe
       float:
@@ -10259,10 +10408,7 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
     ldvolume: dvolume/dOmega of the left or right Roche lobe
       float:
 
-    larea: area of the left or right Roche lobe
-      float:
-
-  Example:
+    Example:
     import libphoebe
 
     x=0.7       # where we cut it
@@ -10293,6 +10439,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
     (char*)"choice",
     (char*)"larea",
     (char*)"lvolume",
+    (char*)"ldvolume",
     (char*)"epsA",
     (char*)"epsV",
     (char*)"epsdV",
@@ -10309,7 +10456,7 @@ static PyObject *roche_contact_partial_area_volume(PyObject *self, PyObject *arg
   double x, q, d, Omega0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dddd|iO!O!ddd", kwlist,
+      args, keywds,  "dddd|iO!O!O!ddd", kwlist,
       &x, &q, &d, &Omega0,  // necessary
       &choice,
       &PyBool_Type, o_r,
@@ -11241,6 +11388,11 @@ static PyMethodDef Methods[] = {
     "Background setup of radiosity redistribution problem with limb "
     "darkening for n separate convex bodies using chosen reflection model."},
 
+{ "radiosity_redistrib_1dmodel",
+    (PyCFunction)radiosity_redistrib_1dmodel,
+    METH_VARARGS|METH_KEYWORDS,
+    "Calculating a rough approximate of the surface average updated-exitance "
+    "and radiosity for both bodies of a binary system composed of two spheres."},
 // --------------------------------------------------------------------
 
   { "roche_reprojecting_vertices",

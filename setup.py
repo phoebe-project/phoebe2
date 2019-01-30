@@ -3,7 +3,7 @@ import sys
 try:
   import numpy
 except ImportError:
-  print "Numpy is needed for running and building of PHOEBE"
+  print("Numpy is needed for running and building of PHOEBE")
   sys.exit(1)
 
 from numpy.distutils.core import setup, Extension
@@ -17,14 +17,6 @@ import platform
 import os
 import re
 
-
-#
-# Setup for MS Windows
-#
-
-if platform.system() == 'Windows':
-  os.environ['VS90COMNTOOLS'] = os.environ['VS140COMNTOOLS']
-
 #
 # Auxiliary functions
 #
@@ -37,7 +29,10 @@ def removefile(f):
 
 
 def find_version_gcc(s):
-  return s.split()[-2]
+  if len(s):
+     return s.split()[-2]
+  else:
+     return ''
 
 
 def __find_version_clang(s):
@@ -63,147 +58,129 @@ def find_version_intel(s):
 #
 # Check the platform and C++ compiler (g++ > 5.0)
 #
-def check_compiler(compiler, extensions, compiler_name):
+def check_unix_compiler(plat, plat_ver, compiler, extensions, compiler_name):
 
   status = False
 
-  plat = platform.system()
-  plat_ver = platform.release();
+  s = os.popen(compiler_name + " --version").readline().strip()
 
-  print("OS: %s" %(plat))
-  print("OS version: %s" %(plat_ver))
+  # debug output
+  print("Compiler: %s"%(compiler_name))
+  print("Compiler version: %s"%(s))
 
-  if plat == 'Windows':
+  compiler_found = False;
+  version_ok = False;
 
-    # we don't do checks, as we don't know to make them
-    status = True
+  # GCC compiler
+  if re.search(r'gcc', compiler_name) or re.search(r'^g\+\+', compiler_name):
+    name = 'gcc'
+    compiler_found = True
+    ver = find_version_gcc(s)
+    if ver != '': version_ok = LooseVersion(ver) >= LooseVersion("5.0")
 
-  # this should cover Linux and Mac
-  elif plat in ['Linux', 'Darwin']:
+  # LLVm clang compiler
+  elif re.search(r'^clang', compiler_name):
+    name = 'clang'
+    compiler_found = True
 
-    s = os.popen(compiler_name + " --version").readline().strip()
+    # https://stackoverflow.com/questions/19774778/when-is-it-necessary-to-use-use-the-flag-stdlib-libstdc
+    if plat == 'Darwin':
+      opt ="-stdlib=libc++"
+      if LooseVersion(plat_ver) < LooseVersion("13.0"): #OS X Mavericks
+        for e in extensions:
+          if not (opt in e.extra_compile_args):
+            e.extra_compile_args.append(opt)
 
-    # debug output
-    print("Compiler: %s"%(compiler_name))
-    print("Compiler version: %s"%(s))
+    ver = find_version_clang(s)
 
-    compiler_found = False;
-    version_ok = False;
+    if ver != '':
+      if ver[0] == 'clang': # CLANG version
+        version_ok = LooseVersion(ver[1]) >= LooseVersion("3.3")
+      else:                 # LLVM version
+        version_ok = LooseVersion(ver[1]) >= LooseVersion("7.0")
 
-    # GCC compiler
-    if re.search(r'gcc', compiler_name) or re.search(r'^g\+\+', compiler_name):
-      name = 'gcc'
-      compiler_found = True
-      ver = find_version_gcc(s)
-      if ver != '': version_ok = LooseVersion(ver) >= LooseVersion("5.0")
+  # Intel compilers
+  elif re.search(r'^icc', compiler_name) or re.search(r'^icpc', compiler_name):
+    name = 'icc'
+    compiler_found = True
 
-    # LLVm clang compiler
-    elif re.search(r'^clang', compiler_name):
-      name = 'clang'
-      compiler_found = True
+    ver = find_version_intel(s)
+    version_ok = LooseVersion(ver) >= LooseVersion("16")
 
-      # https://stackoverflow.com/questions/19774778/when-is-it-necessary-to-use-use-the-flag-stdlib-libstdc
-      if plat == 'Darwin':
-        opt ="-stdlib=libc++"
-        if LooseVersion(plat_ver) < LooseVersion("13.0"): #OS X Mavericks
-          for e in extensions:
-            if not (opt in e.extra_compile_args):
-              e.extra_compile_args.append(opt)
+  # compiler could be masquerading under different name
+  # check this out:
+  #  ln -s `which gcc` a
+  #  CC=`pwd`/a python check_compiler.py
 
-      ver = find_version_clang(s)
+  if not compiler_found:
 
-      if ver != '':
-        if ver[0] == 'clang': # CLANG version
-          version_ok = LooseVersion(ver[1]) >= LooseVersion("3.3")
-        else:                 # LLVM version
-          version_ok = LooseVersion(ver[1]) >= LooseVersion("7.0")
+    import tempfile
+    import random
+    import string
 
-    # Intel compilers
-    elif re.search(r'^icc', compiler_name) or re.search(r'^icpc', compiler_name):
-      name = 'icc'
-      compiler_found = True
+    tempdir = tempfile.gettempdir();
 
-      ver = find_version_intel(s)
-      version_ok = LooseVersion(ver) >= LooseVersion("16")
+    pat = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+    src = pat+'_compiler_check.c'
+    exe = pat+'_compiler_check.exe'
+    obj = pat+'_compiler_check.o'
 
-    # compiler could be masquerading under different name
-    # check this out:
-    #  ln -s `which gcc` a
-    #  CC=`pwd`/a python check_compiler.py
+    with open(tempdir + '/' + src, 'w') as tmp:
+      tmp.writelines(
+        ['#include <stdio.h>\n',
+         'int main(int argc, char *argv[]) {\n',
+          '#if defined (__INTEL_COMPILER)\n',
+          '  printf("icc %d.%d", __INTEL_COMPILER, __INTEL_COMPILER_UPDATE);\n',
+          '#elif defined(__clang__)\n',
+          '  printf("clang %d.%d.%d", __clang_major__, __clang_minor__, __clang_patchlevel__);\n',
+          '#elif defined(__GNUC__)\n',
+          '  printf("gcc %d.%d.%d\\n",__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__);\n',
+          '#else\n',
+          '  printf("not_gcc");\n',
+          '#endif\n',
+          'return 0;\n',
+          '}\n'
+        ])
 
-    if not compiler_found:
+    try:
+      objects = compiler.compile([tempdir+'/'+ src], output_dir='/')
+      compiler.link_executable(objects, exe, output_dir = tempdir)
 
-      import tempfile
-      import random
-      import string
+      out = os.popen(tempdir+'/'+ exe).read()
 
-      tempdir = tempfile.gettempdir();
+      if len(out) != 0:
+        name, ver = out.split(' ')
 
-      pat = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
-      src = pat+'_compiler_check.c'
-      exe = pat+'_compiler_check.exe'
-      obj = pat+'_compiler_check.o'
+        if name == 'gcc':
+          version_ok = LooseVersion(ver) >= LooseVersion("5.0")
+          compiler_found = True
 
-      with open(tempdir + '/' + src, 'w') as tmp:
-        tmp.writelines(
-          ['#include <stdio.h>\n',
-           'int main(int argc, char *argv[]) {\n',
-            '#if defined (__INTEL_COMPILER)\n',
-            '  printf("icc %d.%d", __INTEL_COMPILER, __INTEL_COMPILER_UPDATE);\n',
-            '#elif defined(__clang__)\n',
-            '  printf("clang %d.%d.%d", __clang_major__, __clang_minor__, __clang_patchlevel__);\n',
-            '#elif defined(__GNUC__)\n',
-            '  printf("gcc %d.%d.%d\\n",__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__);\n',
-            '#else\n',
-            '  printf("not_gcc");\n',
-            '#endif\n',
-            'return 0;\n',
-            '}\n'
-          ])
+        if name == 'clang':
+          version_ok = LooseVersion(ver) >= LooseVersion("3.3") # not LLVM version !!!
+          compiler_found = True
 
-      try:
-        objects = compiler.compile([tempdir+'/'+ src], output_dir='/')
-        compiler.link_executable(objects, exe, output_dir = tempdir)
-
-        out = os.popen(tempdir+'/'+ exe).read()
-
-        if len(out) != 0:
-          name, ver = out.split(' ')
-
-          if name == 'gcc':
-            version_ok = LooseVersion(ver) >= LooseVersion("5.0")
-            compiler_found = True
-
-          if name == 'clang':
-            version_ok = LooseVersion(ver) >= LooseVersion("3.3") # not LLVM version !!!
-            compiler_found = True
-
-          if name == 'icc':
-            version_ok = LooseVersion(ver) >= LooseVersion("1600")
-            compiler_found = True
-      except:
-        print("Unable to build a test program to determine the compiler.")
-        status = False
-
-      # Cleanup
-      removefile(tempdir+'/'+ src)
-      removefile(tempdir+'/'+ exe)
-      removefile(tempdir+'/'+ obj)
-
-    if compiler_found:
-      if version_ok:
-        print("Ready to compile with %s %s." % (name, ver))
-        status = True
-      else:
-        print("Compiler is too old. PHOEBE requires gcc 5.0, clang 3.3, or icc 1600 or above.\nThe found compiler is %s %s." % (name, ver))
-        status = False
-    else:
-      print("Did not recognize the compiler %s." % (compiler_name))
+        if name == 'icc':
+          version_ok = LooseVersion(ver) >= LooseVersion("1600")
+          compiler_found = True
+    except:
+      print("Unable to build a test program to determine the compiler.")
       status = False
 
+    # Cleanup
+    removefile(tempdir+'/'+ src)
+    removefile(tempdir+'/'+ exe)
+    removefile(tempdir+'/'+ obj)
+
+  if compiler_found:
+    if version_ok:
+      print("Ready to compile with %s %s." % (name, ver))
+      status = True
+    else:
+      print("Compiler is too old. PHOEBE requires gcc 5.0, clang 3.3, or icc 1600 or above.\nThe found compiler is %s %s." % (name, ver))
+      status = False
   else:
-    print("Unknown architecture, so no pre-checks done. Please report in the case of build failure.")
-    status = True
+    print("Did not recognize the compiler %s." % (compiler_name))
+    status = False
 
   return status
 
@@ -211,18 +188,35 @@ def check_compiler(compiler, extensions, compiler_name):
 # Hooking the building of extentions
 #
 class build_check(build_ext):
+
   def build_extensions(self):
-    if (
-        check_compiler(self.compiler, self.extensions, self.compiler.compiler_cxx[0]) and
-        check_compiler(self.compiler, self.extensions, self.compiler.compiler_so[0])
-       ):
 
-      for e in self.extensions:
-        print("  extra_args=%s"%(e.extra_compile_args))
+    plat = platform.system()
+    plat_ver = platform.release();
 
+    print("OS: %s" %(plat))
+    print("OS version: %s" %(plat_ver))
+
+    if plat == 'Windows':
+
+      print("On windows we don't perform checks")
       build_ext.build_extensions(self)
+
+    elif plat in ['Linux', 'Darwin']:
+      if (
+          check_unix_compiler(plat, plat_ver, self.compiler, self.extensions, self.compiler.compiler_cxx[0]) and
+          check_unix_compiler(plat, plat_ver, self.compiler, self.extensions, self.compiler.compiler_so[0])
+         ):
+
+        for e in self.extensions:
+          print("  extra_args=%s"%(e.extra_compile_args))
+
+        build_ext.build_extensions(self)
+      else:
+        print("Cannot build phoebe2. Please check the dependencies and try again.")
+        sys.exit(1)
     else:
-      print("Cannot build phoebe2. Please check the dependencies and try again.")
+      print("Unknown architecture, so no pre-checks done. Please report in the case of build failure.")
       sys.exit(1)
 #
 # Setting up the external modules
@@ -264,7 +258,7 @@ class import_check(Command):
     try:
       import sympy
       sympy_version = sympy.__version__
-      if LooseVersion(sympy_version) < StrictVersion('1.0'):
+      if LooseVersion(sympy_version) < LooseVersion('1.0'):
         optional.append('sympy 1.0+')
     except:
       optional.append('sympy')
@@ -291,7 +285,7 @@ class PhoebeBuildCommand(build_py):
 
 ext_modules = [
     Extension('libphoebe',
-      sources = ['./phoebe/lib/libphoebe.cpp'],
+      sources = ['phoebe/lib/libphoebe.cpp'],
       language='c++',
       extra_compile_args = ["-std=c++11"],
       include_dirs=[numpy.get_include()]
@@ -300,6 +294,7 @@ ext_modules = [
     Extension('phoebe.algorithms.ceclipse',
       language='c++',
       sources = ['phoebe/algorithms/ceclipse.cpp'],
+      extra_compile_args = ["-O0"],
       include_dirs=[numpy.get_include()]
       ),
 ]
@@ -313,9 +308,9 @@ setup (name = 'phoebe',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.0',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.3',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.utils', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.unitsiau2015'],
-       install_requires=['numpy>=1.10','scipy>=0.17','astropy>=1.0,<3.0'],
+       install_requires=['numpy>=1.10','scipy>=0.17','astropy>=1.0,<3.0' if sys.version_info[0] < 3 else 'astropy>=1.0'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                     },
        ext_modules = ext_modules,

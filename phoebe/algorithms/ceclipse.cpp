@@ -1,12 +1,36 @@
 #include <iostream>
 #include <vector>
+#include <cmath>
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
-#include "Python.h"
-#include "numpy/arrayobject.h"
+#include <Python.h>
+#include <numpy/arrayobject.h>
 
-//typedef int8_t npy_bool;
+// Porting to Python 3
+// Ref: http://python3porting.com/cextensions.html
+#if PY_MAJOR_VERSION >= 3
+  #define MOD_ERROR_VAL NULL
+  #define MOD_SUCCESS_VAL(val) val
+  #define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
+  #define MOD_DEF(ob, name, doc, methods) \
+        static struct PyModuleDef moduledef = { \
+          PyModuleDef_HEAD_INIT, name, doc, -1, methods, }; \
+        ob = PyModule_Create(&moduledef);
+
+  // adding missing declarations and functions
+  #define PyString_Type PyBytes_Type
+  #define PyString_AsString PyBytes_AsString
+  #define PyString_Check PyBytes_Check
+  #define PyInt_FromLong PyLong_FromLong
+#else
+  #define MOD_ERROR_VAL
+  #define MOD_SUCCESS_VAL(val)
+  #define MOD_INIT(name) PyMODINIT_FUNC init##name(void)
+  #define MOD_DEF(ob, name, doc, methods) \
+        ob = Py_InitModule3(name, methods, doc);
+#endif
+
 
 void convex_hull(double const* const points, int n_points,
                  std::vector<double>& myhull, int& h_points,
@@ -23,6 +47,11 @@ void inside_hull_iterative(double const* const testpoints, int n_points,
 void inside_hull_sorted(double const* const testpoints, int n_points,
                  std::vector<double>& myhull, int& h_points,
                  int& turn_index, npy_bool *inside);
+
+void raise_exception(const std::string & str){
+  std::cerr << str << std::endl;
+  PyErr_SetString(PyExc_TypeError, str.c_str());
+}
 
 
 /* Perform a Graham scan and check which points are inside the hull
@@ -45,9 +74,8 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
  
   if (!PyArg_ParseTuple(args, "O!O!", 
         &PyArray_Type, &arr1, 
-        &PyArray_Type, &arr2) ) 
-  {
-    std::cerr << "graham_scan_inside_hull::Problem reading arguments\n";
+        &PyArray_Type, &arr2)) {
+    raise_exception("graham_scan_inside_hull::Problem reading arguments");
     return NULL;
   }
   
@@ -66,9 +94,11 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
     h_points = 100,
     turn_index = 0;
   
-  npy_bool *inside = new npy_bool [t_points];
-  
   convex_hull(points, n_points, myhull, h_points, turn_index);    
+ 
+  npy_intp  dims_inside[1] = {t_points};
+  PyObject *inside_arr = PyArray_SimpleNew(1, dims_inside, NPY_BOOL);
+  npy_bool *inside = (npy_bool*)PyArray_DATA((PyArrayObject *)inside_arr);
   
   // The following are different versions of the algorithm
   //inside_hull(testpoints, t_points, myhull, h_points, turn_index, inside);
@@ -76,20 +106,10 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
   inside_hull_sorted(testpoints, t_points, myhull, h_points, turn_index, inside);
   
   // Store results 
-  npy_intp 
-    dims_hull[2] = {h_points, 2},
-    dims_inside[1] = {t_points};
-  
-  double *_hull = new double [2*h_points];
-  memcpy(_hull, &(myhull[0]), 2*h_points*sizeof(double));
-      
-  PyObject 
-    *hull_arr = PyArray_SimpleNewFromData(2, dims_hull, NPY_DOUBLE, _hull),
-    *inside_arr = PyArray_SimpleNewFromData(1, dims_inside, NPY_BOOL, inside);
- 
-  PyArray_ENABLEFLAGS((PyArrayObject *)hull_arr, NPY_ARRAY_OWNDATA);
-  PyArray_ENABLEFLAGS((PyArrayObject *)inside_arr, NPY_ARRAY_OWNDATA);
-  
+  npy_intp dims_hull[2] = {h_points, 2};
+  PyObject *hull_arr = PyArray_SimpleNew(2, dims_hull, NPY_DOUBLE);
+  memcpy(PyArray_DATA((PyArrayObject *)hull_arr), &(myhull[0]), 2*h_points*sizeof(double));
+
   PyObject *res = PyTuple_New(2);
   PyTuple_SetItem(res, 0, hull_arr);
   PyTuple_SetItem(res, 1, inside_arr);
@@ -630,46 +650,31 @@ int main()
 }
 */
 
-
-
-
-
-// register all functions
-static PyMethodDef ceclipseMethods[] = {
-  {"graham_scan_inside_hull",  graham_scan_inside_hull}, //python name, C name
-  {NULL, NULL, 0, NULL} //required ending
+static PyMethodDef Ceclipse_Methods[] = {
+    {"graham_scan_inside_hull",
+     graham_scan_inside_hull,
+     METH_VARARGS,
+     "Creating convex hull and do Graham scan"},
+  
+    {NULL,  NULL, 0, NULL} // terminator record
 };
 
+static char const *Ceclipse_Docstring = "Module for eclipsing with constructing a convex hull";
 
+/* module initialization */
+MOD_INIT(ceclipse) {
 
-#if PY_MAJOR_VERSION >= 3
-    static struct PyModuleDef moduledef = {
-        PyModuleDef_HEAD_INIT,
-        "ceclipse",     /* m_name */
-        "This is a module",  /* m_doc */
-        -1,                  /* m_size */
-        ceclipseMethods,    /* m_methods */
-        NULL,                /* m_reload */
-        NULL,                /* m_traverse */
-        NULL,                /* m_clear */
-        NULL,                /* m_free */
-    };
-#endif
+  PyObject *backend;
 
+  MOD_DEF(backend, "ceclipse", Ceclipse_Docstring, Ceclipse_Methods)
 
+  if (!backend) return MOD_ERROR_VAL;
 
-PyMODINIT_FUNC
-#if PY_MAJOR_VERSION >= 3
-PyInit_ceclipse(void)
-#else
-initceclipse(void)
-#endif
-{
-#if PY_MAJOR_VERSION >= 3
-  (void) PyModule_Create(&moduledef);
-#else
-  (void) Py_InitModule3("ceclipse", ceclipseMethods,"ceclipse doc");
+  // Added to handle Numpy arrays
+  // Ref:
+  // * http://docs.scipy.org/doc/numpy-1.10.1/user/c-info.how-to-extend.html
   import_array();
-#endif
+
+  return MOD_SUCCESS_VAL(backend);
 }
 

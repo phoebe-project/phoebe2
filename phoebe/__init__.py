@@ -7,6 +7,8 @@ Available environment variables:
 * PHOEBE_ENABLE_ONLINE_PASSBANDS=TRUE/FALSE (whether to query for online passbands and download on-the-fly: defaults to True)
 * PHOEBE_ENABLE_MPI=TRUE/FALSE (whether to use internal parallelization: defaults to True if within mpirun, otherwise False, can override in python with phoebe.mpi.on() and phoebe.mpi.off())
 * PHOEBE_MPI_NPROCS=INT (number of procs to spawn in mpi is enabled but not running within mpirun: defaults to 4, only applicable if not within mpirun and PHOEBE_ENABLE_MPI=TRUE or phoebe.mpi.on() called, can override in python by passing nprocs to phoebe.mpi.on() or by setting phoebe.mpi.nprocs)
+* PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
+
 
 """
 
@@ -78,7 +80,8 @@ class MPI(object):
         # this is a bit of a hack and will only work with openmpi, but environment
         # variables seem to be the only way to detect whether the script was run
         # via mpirun or not
-        if 'OMPI_COMM_WORLD_SIZE' in os.environ.keys():
+        evars = os.environ.keys()
+        if 'OMPI_COMM_WORLD_SIZE' in evars or 'MV2_COMM_WORLD_SIZE' in evars or 'PMI_SIZE' in evars:
             from mpi4py import MPI as mpi4py
             self._within_mpirun = True
             self._internal_mpi = True
@@ -103,7 +106,7 @@ class MPI(object):
 
 
     def __repr__(self):
-        return "<MPI internal_mpi={} myrank={} nprocs={}>".format(self.internal_mpi, self.myrank, self.nprocs)
+        return "<MPI mode={} myrank={} nprocs={}>".format(self.mode, self.myrank, self.nprocs)
 
     @property
     def mode(self):
@@ -169,9 +172,9 @@ class MPI(object):
             raise ValueError("detach not available within mpirun")
 
         if self.enabled:
-            return 'mpirun -np %d python {} &>/dev/null &' % self.nprocs
+            return 'mpiexec -np %d python {}' % self.nprocs
         else:
-            return 'python {} &>/dev/null &'
+            return 'python {}'
 
     def shutdown_workers(self):
         if self.within_mpirun and self.myrank == 0:
@@ -274,23 +277,56 @@ conf = Settings()
 # make packages available at top-level
 from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
-from .atmospheres.passbands import install_passband, download_passband, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-# from .parameters import *
+from .atmospheres.passbands import install_passband, uninstall_all_passbands, download_passband, update_passband_available, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
 from .parameters import hierarchy, component, compute, constraint, dataset
 from .frontend.bundle import Bundle
-# from .backend import *
 from .backend import backends as _backends
-import utils as _utils
+from . import utils as _utils
 
-import dynamics as dynamics
-import distortions as distortions
-import algorithms as algorithms
+from . import dynamics as dynamics
+from . import distortions as distortions
+from . import algorithms as algorithms
 import libphoebe
 
 # Shortcut to building logger
 def logger(*args, **kwargs):
     """
-    shortcut to :func:`utils.get_basic_logger`
+    Return a basic logger via a log file and/or terminal.
+
+    Example 1: log only to the console, accepting levels "INFO" and above
+    ```py
+    logger = logger()
+    ```
+
+    Example 2: log only to the console, accepting levels "DEBUG" and above
+    ```py
+    logger(clevel='DEBUG')
+    ```
+
+    Example 3: log only to a file, accepting levels "DEBUG" and above
+    ```py
+    logger(clevel=None,filename='mylog.log')
+    ```
+
+    Example 4: log only to a file, accepting levels "INFO" and above
+    ```py
+    logger(clevel=None,flevel='INFO',filename='mylog.log')
+    ```
+
+    Example 5: log to the terminal (INFO and above) and file (DEBUG and above)
+    ```py
+    logger(filename='mylog.log')
+    ```
+
+    Arguments
+    ----------
+    * `clevel` (string, optional): level to be logged to the console.
+        One of: "ERROR", "WARNING", "INFO", "DEBUG".
+    * `flevel` (string, optional): level to be logged to the file.
+        Must also provide `filename`.  One of: "ERROR", "WARNING", "INFO", "DEBUG".
+    * `filename` (string, optional): path to the file to log at the `flevel` level.
+    * `style` (string, optional, default='default'): style to use for logging.
+        One of: "default", "minimal", "grandpa".
     """
     if mpi.within_mpirun and mpi.myrank == 0:
         # tell the workers to invoke the same logger
@@ -347,24 +383,120 @@ def default_triple(*args, **kwargs):
 
 # Shortcuts to settings
 def reset_settings():
+    """
+    Reset all configuration settings (interactivity, etc) but NOT MPI settings.
+
+    See also:
+    * <phoebe.interactive_on>
+    * <phoebe.interactive_off>
+    * <phoebe.interactive_constraints_on>
+    * <phoebe.interactive_constraints_off>
+    * <phoebe.interactive_checks_on>
+    * <phoebe.interactive_checks_off>
+    """
     conf.reset()
 
 def interactive_on():
+    """
+    Turn on both interactive constraints and interactive checks
+
+    See also:
+    * <phoebe.interactive_off>
+    * <phoebe.interactive_constraints_on>
+    * <phoebe.interactive_checks_on>
+    """
     conf.interactive_on()
 
 def interactive_off():
+    """
+    **USE WITH CAUTION**
+
+    Turn off both interactive constraints and interactive checks
+
+    See also:
+    * <phoebe.interactive_on>
+    * <phoebe.interactive_constraints_off>
+    * <phoebe.interactive_checks_off>
+    """
     conf.interactive_off()
 
 def interactive_constraints_on():
+    """
+    Turn interactive constraints on.  When enabled, PHOEBE will update all
+    constraints whenever a <phoebe.parameters.Parameter> value is changed.
+    Although this adds to the run-time, it ensures that all values are updated
+    when accessed.
+
+    By default, interactive constraints are always on unless disabled.
+
+    See also:
+    * <phoebe.interactive_constraints_off>
+    """
     conf.interactive_constraints_on()
 
 def interactive_constraints_off():
+    """
+    **USE WITH CAUTION**
+
+    Turn interactive constraints off.  When disabled, PHOEBE will **NOT** update
+    constraints whenever a <phoebe.parameters.Parameter> value is changed, but
+    will instead wait until needed (for example, by
+    <phoebe.frontend.bundle.Bundle.run_compute>).  Accessing/printing the value
+    of a constrained Parameter, may be out-of-date when interactive constraints
+    is off.
+
+    By default, interactive constraints are always on unless disabled.
+
+    To update constraints manually, you can call
+    <phoebe.frontend.bundle.Bundle.run_delayed_constraints>.
+
+    See also:
+    * <phoebe.interactive_constraints_on>
+    """
     conf.interactive_constraints_off()
 
 def interactive_checks_on():
+    """
+    Turn interactive checks on.  When enabled, PHOEBE will run system checks
+    (<phoebe.frontend.bundle.Bundle.run_checks>) after any
+    <phoebe.parameters.Parameter> value is changed and will log any issues
+    to the logger as a warning.  In order to see these messages, you must
+    have a logger enabled with at least the "WARNING" level (see <phoebe.logger>).
+
+    Whether interactive checks is on or off, system checks will be run when
+    calling <phoebe.frontend.bundle.Bundle.run_compute> and will raise
+    an error if failing.
+
+    By default, interactive checks is ON if running PHOEBE in an interactive
+    console (or Jupyter notebook), but OFF if running in a script (to save
+    time but also save confusing logger messages).
+
+    See also:
+    * <phoebe.interactive_checks_off>
+    """
     conf.interactive_checks_on()
 
 def interactive_checks_off():
+    """
+    Turn interactive checks off.  When disabled, PHOEBE will **NOT** run system checks
+    (<phoebe.frontend.bundle.Bundle.run_checks>) after any
+    <phoebe.parameters.Parameter> value is changed and will **NOT** log any issues
+    to the logger as a warning.
+
+    Whether interactive checks is on or off, system checks will be run when
+    calling <phoebe.frontend.bundle.Bundle.run_compute> and will raise
+    an error if failing.
+
+    To manually run system checks at any time, you can call
+    <phoebe.frontend.bundle.Bundle.run_checks>.
+
+    By default, interactive checks is ON if running PHOEBE in an interactive
+    console (or Jupyter notebook), but OFF if running in a script (to save
+    time but also save confusing logger messages).
+
+    See also:
+    * <phoebe.interactive_checks_on>
+    """
     conf.interactive_checks_off()
 
 def devel_on():
@@ -375,9 +507,53 @@ def devel_off():
 
 # Shortcuts to MPI options
 def mpi_on(nprocs=None):
+    """
+    ENABLE PHOEBE to use MPI (parallelization).
+
+    Default case:
+    * If PHOEBE is run within an mpirun environment, MPI is ENABLED by default.
+    * If PHOEBE is not run within an mpirun environment, MPI is DISABLED by default.
+
+    When MPI is enabled, PHOEBE will do the following:
+    * if within mpirun: uses PHOEBE's built-in per-dataset or per-time
+        parallelization
+    * if not within mpirun (ie. in a serial python environment): will spawn a
+        separate thread at <phoebe.frontend.bundle.Bundle.run_compute>,
+        using `nprocs` processors.  This separate thread will be detached
+        from the main thread if sending `detach=True` to
+        <phoebe.frontend.bundle.Bundle.run_compute>.
+
+    See also:
+    * <phoebe.mpi_off>
+
+    Arguments
+    ----------
+    * `nprocs` (int, optional): number of processors.  Only applicable if **NOT**
+        within mpirun (see above).
+    """
     mpi.on(nprocs=nprocs)
 
 def mpi_off():
+    """
+    Run PHOEBE in Serial Mode.
+
+    Default case:
+    * If PHOEBE is run within an mpirun environment, MPI is ENABLED by default.
+    * If PHOEBE is not run within an mpirun environment, MPI is DISABLED by default.
+
+    When MPI is disabled, PHOEBE will do the following:
+    * if within mpirun: PHOEBE will run equally on all processors.  The user can
+        customize parallelization with access to `phoebe.mpi.nprocs`,
+        `phoebe.mpi.myrank`.
+    * if not within mpirun (ie. in a serial python environment): PHOEBE will
+        run on a single processor in serial-mode.  Compute jobs can still
+        be detached from the main thread by sending `detach=True` to
+        <phoebe.frontend.bundle.Bundle.run_compute> but will stll run
+        on a single processor.
+
+    See also:
+    * <phoebe.mpi_on>
+    """
     mpi.off()
 
 # let's use magic to shutdown the workers when the user-script is complete

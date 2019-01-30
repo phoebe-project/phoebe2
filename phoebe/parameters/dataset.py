@@ -57,14 +57,37 @@ def _empty_array(kwargs, qualifier):
 
 def lc(**kwargs):
     """
-    Create parameters for a new light curve dataset.
+    Create a <phoebe.parameters.ParameterSet> for a light curve dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_dataset>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `times` (array/quantity, optional): observed times.
+    * `fluxes` (array/quantity, optional): observed flux.
+    * `sigmas` (array/quantity, optional): errors on flux measurements.
+    * `ld_func` (string, optional): limb-darkening model.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.
+    * `passband` (string, optional): passband.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy of photons.
+    * `pblum_ref` (string, optional): whether to use this components pblum or to
+        couple to that from another component in the system.
+    * `pblum` (float/quantity, optional): passband luminosity (defined at t0).
+    * `l3` (float/quantity, optional): third light.
+    * `exptime` (float/quantity, optional): exposure time of the observations
+        (`times` is defined at the mid-exposure).
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     obs_params = []
@@ -103,7 +126,7 @@ def lc_dep(is_lc=True, **kwargs):
     # NOTE: these need to be added to the exception in bundle.add_dataset so that the kwargs get applied correctly
     dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
     dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, allow_none=True, description='Limb darkening coefficients')]
-    passbands.init_passbands()  # NOTE: this only actually does something on the first call
+    passbands._init_passbands()  # NOTE: this only actually does something on the first call
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
     dep_params += [FloatParameter(qualifier='ebv', value=kwargs.get('ebv', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Passband extinction E(B-V)')]
     dep_params += [FloatParameter(qualifier='Rv', value=kwargs.get('Rv', 3.1), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Extinction law parameter (=Av/E(B-V))')]
@@ -123,14 +146,31 @@ def lc_dep(is_lc=True, **kwargs):
 
 def rv(**kwargs):
     """
-    Create parameters for a new radial velocity dataset.
+    Create a <phoebe.parameters.ParameterSet> for a radial velocity dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_dataset>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `times` (array/quantity, optional): observed times.
+    * `rvs` (array/quantity, optional): observed radial velocities.
+    * `sigmas` (array/quantity, optional): errors on radial velocity measurements.
+    * `ld_func` (string, optional): limb-darkening model.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.
+    * `passband` (string, optional): passband.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy of photons.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     obs_params = []
@@ -172,14 +212,31 @@ def rv_dep(**kwargs):
 
 def lp(**kwargs):
     """
-    Create parameters for a new line profile dataset.
+    Create a <phoebe.parameters.ParameterSet> for a line profile dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_dataset>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `wavelengths` (array/quantity, optional): observed wavelengths.
+    * `flux_densities` (array/quantity, optional): observed flux densities.
+    * `sigmas` (array/quantity, optional): errors on flux densities measurements.
+    * `ld_func` (string, optional): limb-darkening model.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.
+    * `passband` (string, optional): passband.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy of photons.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     obs_params = []
@@ -285,7 +342,7 @@ def etv_dep(**kwargs):
     # TODO: add these back in if we implement an etv_method that actually needs fluxes
     #dep_params += [ChoiceParameter(qualifier='ld_func', value=kwargs.get('ld_func', 'logarithmic'), choices=_ld_func_choices, description='Limb darkening model')]
     #dep_params += [FloatArrayParameter(qualifier='ld_coeffs', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=None, description='Limb darkening coefficients')]
-    #passbands.init_passbands()  # TODO: possibly move to the import of the passbands module
+    #passbands._init_passbands()  # TODO: possibly move to the import of the passbands module
     #dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands._pbtable.keys(), description='Passband')]
 
 
@@ -293,14 +350,24 @@ def etv_dep(**kwargs):
 
 def orb(**kwargs):
     """
-    Create parameters for a new orbit dataset.
+    Create a <phoebe.parameters.ParameterSet> for an orbit dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_dataset>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `times` (array/quantity, optional): observed times.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     obs_params = []
@@ -347,14 +414,27 @@ def orb_dep(**kwargs):
 
 def mesh(**kwargs):
     """
-    Create parameters for a new mesh dataset.
+    Create a <phoebe.parameters.ParameterSet> for a mesh dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_dataset>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `times` (array/quantity, optional): observed times.
+    * `include_times` (string, optional): append to times from the following
+        datasets/time standards
+    * `columns` (list, optional): columns to expose within the mesh.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     obs_params = []

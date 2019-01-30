@@ -33,16 +33,16 @@ def test_binary(plot=False):
         b.set_value('gravb_bol', component='primary', value=gravb)
 
 
-        if plot: print "running phoebe2 model..."
+        print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
-        if plot: print "running phoebe1 model..."
+        print("running phoebe1 model...")
         b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
 
         if plot:
-            print "max (rel):", abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()
+            print("max (rel):", abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 
             b.plot(dataset='lc01', show=True)
 

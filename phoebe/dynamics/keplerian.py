@@ -329,8 +329,8 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
             #scale_factor = 1.0/c.c.value * c.R_sun.value/(24*3600.)
             scale_factor = (c.R_sun/c.c).to(u.d).value
 
-            def propertime_barytime_residual(t):
-                pos, vel, euler = binary_dynamics_nested(time, period, ecc, sma, \
+            def propertime_barytime_residual(t, time):
+                pos, vel, euler = binary_dynamics_nested(t, period, ecc, sma, \
                                 t0_perpass, per0, long_an, incl, dpdt, deccdt, \
                                 dperdt, components=component, t0=t0, vgamma=vgamma, \
                                 mass_conservation=mass_conservation)
@@ -338,7 +338,7 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
                 return t - z*scale_factor - time
 
             # Finding that right time is easy with a Newton optimizer:
-            propertimes = [newton(propertime_barytime_residual, time) for \
+            propertimes = [newton(propertime_barytime_residual, time, args=(time,)) for \
                time in times]
             propertimes = np.array(propertimes).ravel()
 
