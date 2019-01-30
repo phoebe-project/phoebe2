@@ -1796,6 +1796,9 @@ class Bundle(ParameterSet):
         * `component` (string, optional): name of the component to attach the
             feature.  Note: only optional if only a single possibility otherwise.
         * `feature` (string, optional): name of the newly-created feature.
+        * `overwrite` (boolean, optional, default=False): whether to overwrite
+            an existing feature with the same `feature` tag.  If False,
+            an error will be raised.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -1820,7 +1823,7 @@ class Bundle(ParameterSet):
                                               **{'context': 'feature',
                                                  'kind': func.__name__}))
 
-        self._check_label(kwargs['feature'])
+        self._check_label(kwargs['feature'], allow_overwrite=kwargs.get('overwrite', False))
 
         if component is None:
             stars = self.hierarchy.get_meshables()
@@ -1842,6 +1845,9 @@ class Bundle(ParameterSet):
                      'component': component,
                      'feature': kwargs['feature'],
                      'kind': func.__name__}
+
+        if kwargs.get('overwrite', False):
+            self.remove_feature(feature=kwargs['feature'])
 
         self._attach_params(params, **metawargs)
 
@@ -2015,6 +2021,9 @@ class Bundle(ParameterSet):
              of a function (as a string) that can be found in the
              <phoebe.parameters.compute> module.
         * `component` (string, optional): name of the newly-created feature.
+        * `overwrite` (boolean, optional, default=False): whether to overwrite
+            an existing component with the same `component` tag.  If False,
+            an error will be raised.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -2046,7 +2055,7 @@ class Bundle(ParameterSet):
                                                  'kind': fname}))
 
         if kwargs.pop('check_label', True):
-            self._check_label(kwargs['component'])
+            self._check_label(kwargs['component'], allow_overwrite=kwargs.get('overwrite', False))
 
         params, constraints = func(**kwargs)
 
@@ -2054,6 +2063,9 @@ class Bundle(ParameterSet):
         metawargs = {'context': 'component',
                      'component': kwargs['component'],
                      'kind': fname}
+
+        if kwargs.get('overwrite', False):
+            self.remove_component(component=kwargs['component'])
 
         self._attach_params(params, **metawargs)
 
@@ -2456,6 +2468,9 @@ class Bundle(ParameterSet):
             valid options for `component` and how it will default if not provided
             based on the value of `kind`.
         * `dataset` (string, optional): name of the newly-created feature.
+        * `overwrite` (boolean, optional, default=False): whether to overwrite
+            an existing dataset with the same `dataset` tag.  If False,
+            an error will be raised.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -2485,7 +2500,7 @@ class Bundle(ParameterSet):
                                                  'kind': func.__name__}))
 
         if kwargs.pop('check_label', True):
-            self._check_label(kwargs['dataset'])
+            self._check_label(kwargs['dataset'], allow_overwrite=kwargs.get('overwrite', False))
 
         kind = func.__name__
 
@@ -2563,6 +2578,10 @@ class Bundle(ParameterSet):
             obs_kwargs = {}
 
         obs_params, constraints = func(**obs_kwargs)
+
+        if kwargs.get('overwrite', False):
+            self.remove_dataset(dataset=kwargs['dataset'])
+
         self._attach_params(obs_params, **obs_metawargs)
 
         for constraint in constraints:
@@ -3259,6 +3278,9 @@ class Bundle(ParameterSet):
              of a function (as a string) that can be found in the
              <phoebe.parameters.compute> module.
         * `compute` (string, optional): name of the newly-created compute options.
+        * `overwrite` (boolean, optional, default=False): whether to overwrite
+            an existing set of compute options with the same `compute` tag.  If False,
+            an error will be raised.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -3277,7 +3299,7 @@ class Bundle(ParameterSet):
                                               **{'context': 'compute',
                                                  'kind': func.__name__}))
 
-        self._check_label(kwargs['compute'])
+        self._check_label(kwargs['compute'], allow_overwrite=kwargs.get('overwrite', False))
 
         params = func(**kwargs)
         # TODO: similar kwargs logic as in add_dataset (option to pass dict to
@@ -3287,6 +3309,9 @@ class Bundle(ParameterSet):
         metawargs = {'context': 'compute',
                      'kind': func.__name__,
                      'compute': kwargs['compute']}
+
+        if kwargs.get('overwrite', False):
+            self.remove_compute(compute=kwargs['compute'])
 
         logger.info("adding {} '{}' compute to bundle".format(metawargs['kind'], metawargs['compute']))
         self._attach_params(params, **metawargs)
@@ -3419,6 +3444,9 @@ class Bundle(ParameterSet):
             you attach a rv to a single component, the model will still only
             compute for that single component.  ALSO NOTE: this option is ignored
             if `detach=True` (at least for now).
+        * `overwrite` (boolean, optional, default=True): whether to overwrite
+            an existing model with the same `model` tag.  If False,
+            an error will be raised.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -3458,11 +3486,11 @@ class Bundle(ParameterSet):
         if model is None:
             model = 'latest'
 
-        if model in self.models:
+        self._check_label(model, allow_overwrite=kwargs.get('overwrite', True))
+
+        if model in self.models and kwargs.get('overwrite', True):
             logger.warning("overwriting model: {}".format(model))
             self.remove_model(model)
-
-        self._check_label(model)
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]

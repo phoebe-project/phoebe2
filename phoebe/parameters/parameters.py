@@ -1225,7 +1225,7 @@ class ParameterSet(object):
 
         return
 
-    def _check_label(self, label):
+    def _check_label(self, label, allow_overwrite=False):
         """Check to see if the label is allowed."""
 
         if not isinstance(label, str):
@@ -1236,8 +1236,8 @@ class ParameterSet(object):
                              .format(label))
         if not re.match("^[a-z,A-Z,0-9,_]*$", label):
             raise ValueError("label '{}' is forbidden - only alphabetic, numeric, and '_' characters are allowed in labels".format(label))
-        if len(self.filter(twig=label, check_visible=False)):
-            raise ValueError("label '{}' is already in use".format(label))
+        if len(self.filter(twig=label, check_visible=False)) and not allow_overwrite:
+            raise ValueError("label '{}' is already in use.  Remove first or pass overwrite=True, if available.".format(label))
         if label[0] in ['_']:
             raise ValueError("first character of label is a forbidden character")
 
