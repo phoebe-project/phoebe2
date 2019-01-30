@@ -294,6 +294,7 @@ ext_modules = [
     Extension('phoebe.algorithms.ceclipse',
       language='c++',
       sources = ['phoebe/algorithms/ceclipse.cpp'],
+      extra_compile_args = ["-O0"],
       include_dirs=[numpy.get_include()]
       ),
 ]
