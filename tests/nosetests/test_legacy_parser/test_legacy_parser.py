@@ -41,7 +41,6 @@ def legacy_test(filename='default.phoebe', verbose=False):
     lcs = lcs[::-1]
     rvs = b.get_dataset(kind='rv').datasets
     rvs = rvs[::-1]
-    print rvs
     # phb2 compute
 
     fluxes = []
@@ -89,7 +88,7 @@ def legacy_test(filename='default.phoebe', verbose=False):
         err_val = phb1.getpar('phoebe_rv_indweight', x)
         comp = phb1.getpar('phoebe_rv_dep', x).split(' ')[0].lower()
         id = phb1.getpar('phoebe_rv_id', x)
-        print "id", id
+        print("id", id)
         if comp == 'primary':
             comp_name = 'cow'
         elif comp == 'secondary':

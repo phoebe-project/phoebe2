@@ -1717,7 +1717,7 @@ class Bundle(ParameterSet):
                         return check
 
                 if ld_func != 'interp':
-                    check = libphoebe.ld_check(ld_func, ld_coeffs)
+                    check = libphoebe.ld_check(_bytes(ld_func), ld_coeffs)
                     if not check:
                         return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
 
@@ -3178,9 +3178,10 @@ class Bundle(ParameterSet):
         changes = []
         for constraint_id in self._delayed_constraints:
             param = self.run_constraint(uniqueid=constraint_id, return_parameter=True)
-            changes.append(param)
+            if param not in changes:
+                changes.append(param)
         self._delayed_constraints = []
-        return list(set(changes))
+        return changes
 
     def compute_pblums(self, compute=None, **kwargs):
         """
@@ -3560,7 +3561,7 @@ class Bundle(ParameterSet):
             f.write("bdict = json.loads(\"\"\"{}\"\"\")\n".format(json.dumps(self.to_json())))
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
-            compute_kwargs = kwargs.items()+[('compute', compute), ('model', model)]
+            compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', model)]
             compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(v) if isinstance(v, str) else v) for k,v in compute_kwargs])
             f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
             f.write("model_ps.save('_{}.out', incl_uniqueid=True)\n".format(jobid))
