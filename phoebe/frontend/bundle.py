@@ -1035,6 +1035,7 @@ class Bundle(ParameterSet):
     def _handle_pblum_defaults(self):
         """
         """
+        logger.debug("calling _handle_pblum_defaults")
 
         changed_params = self.run_delayed_constraints()
 
@@ -1043,7 +1044,9 @@ class Bundle(ParameterSet):
         # meshablerefs = hier.get_meshables()  # TODO: consider for overcontacts
         starrefs = hier.get_stars()  # TODO: consider for overcontacts
         for param in self.filter(qualifier='pblum_ref',
-                                 context='dataset').to_list():
+                                 context='dataset',
+                                 check_visible=False,
+                                 check_default=False).to_list():
             param._choices = ['self'] + starrefs
             if param.value == '':
                 # then this was the default from the parameter itself, so we
@@ -1057,6 +1060,7 @@ class Bundle(ParameterSet):
     def _handle_dataset_selectparams(self):
         """
         """
+        logger.debug("calling _handle_dataset_selectparams")
 
         changed_param = self.run_delayed_constraints()
 
@@ -3232,6 +3236,7 @@ class Bundle(ParameterSet):
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets attached to the bundle.
+        * `**kwargs`: any additional kwargs are sent to override compute options
 
         Returns
         ----------
