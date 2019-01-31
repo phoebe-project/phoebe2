@@ -736,7 +736,7 @@ def freq(b, component, solve_for=None, **kwargs):
 
     elif solve_for == period:
         lhs = period
-        rhs = freq / (2 * np.pi)
+        rhs = 2 * np.pi / freq
 
     else:
         raise NotImplementedError
