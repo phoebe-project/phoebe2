@@ -3417,6 +3417,11 @@ class ParameterSet(object):
         * `uncover` (bool, optional): whether to uncover data based on the current
             time.  Only applicable if `time` or `times` provided.
 
+        * `legend` (bool, optional, default=False): whether to draw a legend for
+            this axes.
+        * `legend_kwargs` (dict, optional):  keyword arguments (position,
+            formatting, etc) to be passed on to [plt.legend](https://matplotlib.org/api/_as_gen/matplotlib.pyplot.legend.html)
+
         * `save` (string, optional, default=False): filename to save the
             figure (or False to not save).
         * `show` (bool, optional, default=False): whether to show the plot
