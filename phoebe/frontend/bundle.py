@@ -1848,6 +1848,9 @@ class Bundle(ParameterSet):
 
         if kwargs.get('overwrite', False):
             self.remove_feature(feature=kwargs['feature'])
+            # check the label again, just in case kwargs['feature'] belongs to
+            # something other than feature
+            self._check_label(kwargs['feature'], allow_overwrite=False)
 
         self._attach_params(params, **metawargs)
 
@@ -2066,6 +2069,9 @@ class Bundle(ParameterSet):
 
         if kwargs.get('overwrite', False):
             self.remove_component(component=kwargs['component'])
+            # check the label again, just in case kwargs['component'] belongs to
+            # something other than component
+            self._check_label(kwargs['component'], allow_overwrite=False)
 
         self._attach_params(params, **metawargs)
 
@@ -2581,6 +2587,9 @@ class Bundle(ParameterSet):
 
         if kwargs.get('overwrite', False):
             self.remove_dataset(dataset=kwargs['dataset'])
+            # check the label again, just in case kwargs['dataset'] belongs to
+            # something other than dataset
+            self._check_label(kwargs['dataset'], allow_overwrite=False)
 
         self._attach_params(obs_params, **obs_metawargs)
 
@@ -3312,6 +3321,9 @@ class Bundle(ParameterSet):
 
         if kwargs.get('overwrite', False):
             self.remove_compute(compute=kwargs['compute'])
+            # check the label again, just in case kwargs['compute'] belongs to
+            # something other than compute
+            self._check_label(kwargs['compute'], allow_overwrite=False)
 
         logger.info("adding {} '{}' compute to bundle".format(metawargs['kind'], metawargs['compute']))
         self._attach_params(params, **metawargs)
@@ -3491,6 +3503,9 @@ class Bundle(ParameterSet):
         if model in self.models and kwargs.get('overwrite', True):
             logger.warning("overwriting model: {}".format(model))
             self.remove_model(model)
+            # check the label again, just in case model belongs to something
+            # other than model
+            self._check_label(model, allow_overwrite=False)
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
