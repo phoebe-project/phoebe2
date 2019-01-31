@@ -155,6 +155,20 @@ def sqrt(param):
     """
     return ConstraintParameter(param._bundle, "sqrt({})".format(_get_expr(param)))
 
+def log10(param):
+    """
+    Allows using the log10 function in a constraint
+
+    Arguments
+    ----------------
+    * `param` (<phoebe.parameters.Parameter>)
+
+    Returns
+    -----------
+    * (<phoebe.parameters.ConstraintParameter>)
+    """
+    return ConstraintParameter(param._bundle, "log10({})".format(_get_expr(param)))
+
 #}
 #{ Built-in functions (see phoebe.constraints.builtin for actual functions)
 def roche_requiv_L1(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno=1):
@@ -851,6 +865,59 @@ def semidetached(b, component, solve_for=None, **kwargs):
     if solve_for in [requiv, None]:
         lhs = requiv
         rhs = 1.0*requiv_critical
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'component': component}
+
+def logg(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint for logg at requiv for a star.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'logg' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'mass', 'requiv').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+    comp_ps = b.get_component(component=component)
+
+    requiv = comp_ps.get_parameter(qualifier='requiv')
+    mass = comp_ps.get_parameter(qualifier='mass')
+
+    metawargs = comp_ps.meta
+    metawargs.pop('qualifier')
+    logg_def = FloatParameter(qualifier='logg', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')
+    logg, created = b.get_or_create('logg', logg_def, **metawargs)
+
+    G = c.G.to('solRad3 / (solMass d2)')
+    G.keep_in_solar_units = True
+
+    if solve_for in [logg, None]:
+        lhs = logg
+        rhs = log10(mass / requiv**2 * G)
+    elif solve_for in [requiv]:
+        lhs = requiv
+        rhs = sqrt((mass*G)/10**logg)
+    elif solve_for in [mass]:
+        lhs = mass
+        rhs = requiv**2 * 10**logg / G
     else:
         raise NotImplementedError
 
