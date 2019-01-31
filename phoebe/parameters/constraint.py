@@ -923,6 +923,55 @@ def logg(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, {'component': component}
 
+def vsini(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint for vsini at requiv for a star.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint>.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the component in which this
+        constraint should be built.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'vsini' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'incl', 'freq', 'requiv').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+    comp_ps = b.get_component(component=component)
+
+    requiv = comp_ps.get_parameter(qualifier='requiv')
+    freq = comp_ps.get_parameter(qualifier='freq')
+    incl = comp_ps.get_parameter(qualifier='incl')
+
+    metawargs = comp_ps.meta
+    metawargs.pop('qualifier')
+    vsini_def = FloatParameter(qualifier='vsini', value=1.0, default_unit=u.km/u.s, description='vsini at requiv')
+    vsini, created = b.get_or_create('vsini', vsini_def, **metawargs)
+
+
+    if solve_for in [vsini, None]:
+        lhs = vsini
+        rhs = requiv * freq / (2*np.pi) * sin(incl)
+    elif solve_for in [freq]:
+        # will likely need to flip freq constraint for period first
+        lhs = freq
+        rhs = vsini * (2*np.pi) / (requiv * sin(incl))
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'component': component}
 
 #}
 #{ Inter-component constraints
