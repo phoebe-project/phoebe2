@@ -2684,7 +2684,7 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, warning_only=True)
+        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True)
 
         return self.filter(dataset=kwargs['dataset'])
 
@@ -3343,7 +3343,7 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, warning_only=True)
+        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True)
 
         return self.get_compute(**metawargs)
 
@@ -3461,9 +3461,10 @@ class Bundle(ParameterSet):
             you attach a rv to a single component, the model will still only
             compute for that single component.  ALSO NOTE: this option is ignored
             if `detach=True` (at least for now).
-        * `overwrite` (boolean, optional, default=True): whether to overwrite
+        * `overwrite` (boolean, optional, default=model=='latest'): whether to overwrite
             an existing model with the same `model` tag.  If False,
-            an error will be raised.
+            an error will be raised.  This defaults to True if `model` is not provided
+            or is 'latest', otherwise it will default to False.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -3503,9 +3504,9 @@ class Bundle(ParameterSet):
         if model is None:
             model = 'latest'
 
-        self._check_label(model, allow_overwrite=kwargs.get('overwrite', True))
+        self._check_label(model, allow_overwrite=kwargs.get('overwrite', model=='latest'))
 
-        if model in self.models and kwargs.get('overwrite', True):
+        if model in self.models and kwargs.get('overwrite', model=='latest'):
             logger.warning("overwriting model: {}".format(model))
             self.remove_model(model)
             # check the label again, just in case model belongs to something
@@ -3552,7 +3553,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        self._kwargs_checks(kwargs, ['skip_checks', 'jobid'])
+        self._kwargs_checks(kwargs, ['skip_checks', 'jobid', 'overwrite'])
 
         if not kwargs.get('skip_checks', False):
             passed, msg = self.run_checks(computes=computes, **kwargs)
