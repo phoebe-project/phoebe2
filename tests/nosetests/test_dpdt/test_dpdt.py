@@ -36,9 +36,9 @@ def test_binary(plot=False):
 
 
         print("running phoebe2 model...")
-        b.run_compute(compute='phoebe2', model='phoebe2model')
+        b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
         print("running phoebe1 model...")
-        b.run_compute(compute='phoebe1', model='phoebe1model')
+        b.run_compute(compute='phoebe1', model='phoebe1model', overwrite=True)
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
