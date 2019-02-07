@@ -27,7 +27,7 @@ from phoebe.parameters import feature as _feature
 from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
-from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, _timestamp_to_dt
+from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, _timestamp_to_dt
 from phoebe.utils import _bytes
 import libphoebe
 
@@ -1547,9 +1547,9 @@ class Bundle(ParameterSet):
 
         Arguments
         -----------
-        * `compute` (string, optional, default=None): the compute options to use
-            when running checks.  If None (or not provided), all available compute
-            options will be considered.
+        * `compute` (string or list of strings, optional, default=None): the
+            compute options to use  when running checks.  If None (or not provided),
+            all available compute options will be considered.
         * `**kwargs`: overrides for any parameter (given as qualifier=value pairs)
 
         Returns
@@ -1778,6 +1778,120 @@ class Bundle(ParameterSet):
 
         # we've survived all tests
         return True, ''
+
+    def recommended_citations(self, compute=None, dataset=None):
+        """
+        Provides recommended citations from the given bundle based on the
+        current parameter values and attached datasets/compute options.
+
+        This list is not necessarily complete, but can be useful to make sure
+        appropriate references are being cited/acknowledged.  The returned
+        dictionary includes a list for each entry why its being included.
+
+        Included citations:
+        * PHOEBE release papers based on physics included in the model (for
+            example: the 2.1 release paper will be suggested if there is a
+            line profile dataset or misalignment in the system).
+        * Atmosphere table citations, when available/applicable.
+        * Passband table citations, when available/applicable.
+        * Dependency (astropy, numpy, etc) citations, when available/applicable.
+
+        Arguments
+        ------------
+        `compute` (string or list of strings, optional, default=None): only
+            consider a single (or list of) compute options.  If None or not
+            provided, will default to all attached compute options.
+        `dataset` (string or list of strings, optional, default=None): only
+            consider a single (or list of) datasets.  If None or not provided,
+            will default to all attached datasets.
+
+        Returns
+        ----------
+        (dict): dictionary with keys being the reference name and values as a
+            dictionary with information about that reference: including a
+            url if applicable and a list of detected uses within the current
+            <phoebe.frontend.bundle.Bundle>.
+        """
+
+        if compute is None:
+            computes = self.computes
+        elif isinstance(compute, str):
+            computes = [compute]
+        elif isinstance(compute, list):
+            computes = compute
+        else:
+            raise TypeError("compute must be type None, string, or list")
+
+        if dataset is None:
+            datasets = self.datasets
+        elif isinstance(dataset, str):
+            datasets = [dataset]
+        elif isinstance(dataset, list):
+            datasets = dataset
+        else:
+            raise TypeError("dataset must be type None, string, or list")
+
+
+        # ref: url pairs
+        citation_urls = {'Prsa & Zwitter (2005)': 'https://ui.adsabs.harvard.edu/?#abs/2005ApJ...628..426P',
+                         'Prsa et al. (2016)': 'https://ui.adsabs.harvard.edu/?#abs/2016ApJS..227...29P',
+                         'Horvat et al. (2018)': 'https://ui.adsabs.harvard.edu/?#abs/2016ApJS..227...29P',
+                         'Castelli & Kurucz (2004)': 'https://ui.adsabs.harvard.edu/#abs/2004astro.ph..5087C',
+                         'numpy/scipy': 'https://www.scipy.org/citing.html',
+                         'astropy': 'https://www.astropy.org/acknowledging.html',
+                        }
+
+        # ref: [reasons] pairs
+        recs = {}
+        def _add_reason(recs, ref, reason):
+            if ref not in recs.keys():
+                recs[ref] = []
+            if reason not in recs[ref]:
+                recs[ref].append(reason)
+            return recs
+
+        recs = _add_reason(recs, 'Prsa et al. (2016)', 'general PHOEBE 2 framework')
+
+        # check for backends
+        for compute in computes:
+            if self.get_compute(compute).kind == 'phoebe':
+                recs = _add_reason(recs, 'Prsa et al. (2016)', 'PHOEBE 2 backend')
+            if self.get_compute(compute).kind == 'legacy':
+                recs = _add_reason(recs, 'Prsa & Zwitter (2005)', 'PHOEBE 1 (legacy) backend')
+                # TODO: include Wilson & Devinney?
+
+
+        # check for presence of datasets that require PHOEBE releases
+        for dataset in datasets:
+            if ['lp'] in self.get_dataset(dataset).kinds:
+                recs = _add_reason(recs, 'Horvat et al. (2018)', 'support for line profile datasets')
+
+        # check for any enabled physics that requires specific PHOEBE releases
+        for component in self.hierarchy.get_stars():
+            if self.get_value(qualifier='pitch', component=component, context='component') != 0. or self.get_value(qualifier='yaw', component=component, context='component') != 0.:
+                recs = _add_reason(recs, 'Horvat et al. (2018)', 'support for misaligned system')
+
+        # provide any references from passband tables
+        for pb_param in self.filter(qualifier='passband', dataset=datasets, component=self.hierarchy.get_stars()).to_list():
+            pbname = pb_param.get_value()
+            pb = get_passband(pb)
+            if pb.reference is not None:
+                recs = _add_reason(recs, pb.reference, '{} passband'.format(pbname))
+
+        # provide any references from atms
+        for atm_param in self.filter(qualifier='atm', component=self.hierarchy.get_stars(), compute=computes).to_list():
+            atmname = atm_param.get_value()
+            if atmname == 'ck2004':
+                recs = _add_reason(recs, 'Castelli & Kurucz (2004)', 'ck2004 atmosphere tables')
+            elif atmname in ['extern_planckint', 'extern_atmx']:
+                recs = _add_reason(recs, 'Prsa & Zwitter (2005)', '{} atmosphere tables'.format(atmname))
+
+        # provide references from dependencies
+        recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
+        recs = _add_reason(recs, 'astropy', 'astropy dependency within PHOEBE')
+
+        return {r: {'url': citation_urls.get(r, None), 'uses': v} for r,v in recs.items()}
+
 
     def add_feature(self, kind, component=None, **kwargs):
         """
