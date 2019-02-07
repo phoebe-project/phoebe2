@@ -1739,7 +1739,7 @@ class Bundle(ParameterSet):
                             if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
                                 return False, "ld_func='interp' only supported by atm='ck2004'.  Either change atm@{}@{} or ld_func@{}@{}.".format(component, compute, component, dataset)
                             else:
-                                return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that support atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
+                                return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
         # mesh-consistency checks
         for compute in computes:
