@@ -1547,6 +1547,9 @@ class Bundle(ParameterSet):
 
         Arguments
         -----------
+        * `compute` (string, optional, default=None): the compute options to use
+            when running checks.  If None (or not provided), all available compute
+            options will be considered.
         * `**kwargs`: overrides for any parameter (given as qualifier=value pairs)
 
         Returns
@@ -1557,6 +1560,10 @@ class Bundle(ParameterSet):
 
         # make sure all constraints have been run
         changed_params = self.run_delayed_constraints()
+
+        computes = kwargs.pop('compute', self.computes)
+        if isinstance(computes, str):
+            computes = [computes]
 
         hier = self.hierarchy
         if hier is None:
@@ -1726,13 +1733,16 @@ class Bundle(ParameterSet):
                         return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
 
                 if ld_func=='interp':
-                    for compute in kwargs.get('computes', self.computes):
+                    for compute in computes:
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         if atm != 'ck2004':
-                            return False, "ld_func='interp' only supported by atm='ck2004'.  Either change atm@{} or ld_func@{}@{}".format(component, component, dataset)
+                            if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
+                                return False, "ld_func='interp' only supported by atm='ck2004'.  Either change atm@{}@{} or ld_func@{}@{}.".format(component, compute, component, dataset)
+                            else:
+                                return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that support atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
         # mesh-consistency checks
-        for compute in self.computes:
+        for compute in computes:
             mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
@@ -3556,7 +3566,7 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, ['skip_checks', 'jobid', 'overwrite'])
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(computes=computes, **kwargs)
+            passed, msg = self.run_checks(compute=computes, **kwargs)
             if passed is None:
                 # then just raise a warning
                 logger.warning(msg)
