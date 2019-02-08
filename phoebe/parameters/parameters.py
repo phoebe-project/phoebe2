@@ -1632,7 +1632,7 @@ class ParameterSet(object):
         else:
             kwargs = {}
 
-        self.set(twig, value, **kwargs)
+        self.set(twig, value, allow_value_as_first_arg=False, **kwargs)
 
     def __contains__(self, twig):
         """
@@ -2398,13 +2398,13 @@ class ParameterSet(object):
         """
         # TODO: handle twig having parameter key (value@, default_unit@, adjust@, etc)
         # TODO: does this return anything (update the docstring)?
-        if twig is not None and value is None:
+        if twig is not None and value is None and kwargs.get('allow_value_as_first_arg', True):
             # then try to support value as the first argument if no matches with twigs
             if not isinstance(twig, str):
                 value = twig
                 twig = None
 
-            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+            elif not len(self.filter(twig=twig, check_default=False, **kwargs)):
                 value = twig
                 twig = None
 
@@ -6549,7 +6549,7 @@ class FloatArrayParameter(FloatParameter):
         if self.allow_none and value is None:
             value = None
 
-        if isinstance(value, u.Quantity):
+        elif isinstance(value, u.Quantity):
             if isinstance(value.value, float) or isinstance(value.value, int):
                 value = np.array([value])
 

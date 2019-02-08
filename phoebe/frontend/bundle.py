@@ -1695,11 +1695,11 @@ class Bundle(ParameterSet):
             # ['interp', 'uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa']
             if ld_func == 'interp':
                 return True,
-            elif ld_func in ['linear'] and len(ld_coeffs)==1:
+            elif ld_func in ['linear'] and (ld_coeffs is None or len(ld_coeffs)==1):
                 return True,
-            elif ld_func in ['logarithmic', 'square_root', 'quadratic'] and len(ld_coeffs)==2:
+            elif ld_func in ['logarithmic', 'square_root', 'quadratic'] and (ld_coeffs is None or len(ld_coeffs)==2):
                 return True,
-            elif ld_func in ['power'] and len(ld_coeffs)==4:
+            elif ld_func in ['power'] and (ld_coeffs is None or len(ld_coeffs)==4):
                 return True,
             else:
                 return False, "ld_coeffs={} wrong length for ld_func='{}'.".format(ld_coeffs, ld_func)
@@ -1707,13 +1707,13 @@ class Bundle(ParameterSet):
         for component in self.hierarchy.get_stars():
             # first check ld_coeffs_bol vs ld_func_bol
             ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', check_visible=False, **kwargs))
-            ld_coeffs = np.asarray(self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs))
+            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs)
             check = ld_coeffs_len(ld_func, ld_coeffs)
             if not check[0]:
                 return check
 
-            if ld_func != 'interp':
-                check = libphoebe.ld_check(_bytes(ld_func), ld_coeffs)
+            if ld_func != 'interp' and ld_coeffs is not None:
+                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
                 if not check:
                     return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
 
@@ -1721,14 +1721,14 @@ class Bundle(ParameterSet):
                 if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
                     continue
                 ld_func = str(self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs))
-                ld_coeffs = np.asarray(self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs))
+                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
                 if ld_coeffs is not None:
                     check = ld_coeffs_len(ld_func, ld_coeffs)
                     if not check[0]:
                         return check
 
-                if ld_func != 'interp':
-                    check = libphoebe.ld_check(_bytes(ld_func), ld_coeffs)
+                if ld_func != 'interp' and ld_coeffs is not None:
+                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
                     if not check:
                         return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
 
