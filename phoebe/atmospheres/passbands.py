@@ -245,6 +245,10 @@ class Passband:
             struct['_ck2004_axes'] = self._ck2004_axes
             struct['_ck2004_energy_grid'] = self._ck2004_energy_grid
             struct['_ck2004_photon_grid'] = self._ck2004_photon_grid
+        if 'phoenix' in self.content:
+            struct['_phoenix_axes'] = self._phoenix_axes
+            struct['_phoenix_energy_grid'] = self._phoenix_energy_grid
+            struct['_phoenix_photon_grid'] = self._phoenix_photon_grid
         if 'ck2004_all' in self.content:
             struct['_ck2004_intensity_axes'] = self._ck2004_intensity_axes
             struct['_ck2004_Imu_energy_grid'] = self._ck2004_Imu_energy_grid
@@ -387,6 +391,20 @@ class Passband:
                 self._ck2004_axes = struct['_ck2004_axes']
                 self._ck2004_energy_grid = struct['_ck2004_energy_grid']
                 self._ck2004_photon_grid = struct['_ck2004_photon_grid']
+
+        if 'phoenix' in self.content:
+            # PHOENIX (Husser et al. 2013):
+            if marshaled:
+                # Axes needs to be a tuple of np.arrays, and grid a np.array:
+                self._phoenix_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_phoenix_axes']))
+                self._phoenix_energy_grid = np.fromstring(struct['_phoenix_energy_grid'], dtype='float64')
+                self._phoenix_energy_grid = self._phoenix_energy_grid.reshape(len(self._phoenix_axes[0]), len(self._phoenix_axes[1]), len(self._phoenix_axes[2]), 1)
+                self._phoenix_photon_grid = np.fromstring(struct['_phoenix_photon_grid'], dtype='float64')
+                self._phoenix_photon_grid = self._phoenix_photon_grid.reshape(len(self._phoenix_axes[0]), len(self._phoenix_axes[1]), len(self._phoenix_axes[2]), 1)
+            else:
+                self._phoenix_axes = struct['_phoenix_axes']
+                self._phoenix_energy_grid = struct['_phoenix_energy_grid']
+                self._phoenix_photon_grid = struct['_phoenix_photon_grid']
 
         if 'ck2004_all' in self.content:
             # CASTELLI & KURUCZ (2004) all intensities:
@@ -649,7 +667,6 @@ class Passband:
 
         # PHOENIX uses fits files to store the tables.
         from astropy.io import fits
-        import sys
 
         models = glob.glob(path+'/*fits')
         Nmodels = len(models)
@@ -671,7 +688,6 @@ class Passband:
             Teff[i] = float(model[3:8])
             logg[i] = float(model[9:13])
             abun[i] = float(model[13:17])
-            # print(i, Teff[i], logg[i], abun[i])
 
             wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
