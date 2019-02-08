@@ -635,6 +635,73 @@ class Passband:
         self.content.append('ck2004')
         self.atmlist.append('ck2004')
 
+    def compute_phoenix_response(self, path, verbose=False):
+        """
+        Computes PHOENIX (Husser et al. 2013, A&A 553, 6) intensities across the entire
+        range of model atmospheres.
+
+        Arguments
+        -----------
+        * `path` (string): path to the directory containing ck2004 SEDs.
+        * `verbose` (bool, optional, default=False): switch to determine whether
+            computing progress should be printed on screen.
+        """
+
+        # PHOENIX uses fits files to store the tables.
+        from astropy.io import fits
+        import sys
+
+        models = glob.glob(path+'/*fits')
+        Nmodels = len(models)
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+        InormE, InormP = np.empty(Nmodels), np.empty(Nmodels)
+
+        if verbose:
+            print('Computing PHOENIX (Husser et al. 2013) passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+
+        wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
+
+        for i, model in enumerate(models):
+            with fits.open(model) as hdu:
+                intensities = hdu[0].data[-1,:]*1e-1
+            spc = np.vstack((wavelengths, intensities))
+
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[3:8])
+            logg[i] = float(model[9:13])
+            abun[i] = float(model[13:17])
+            # print(i, Teff[i], logg[i], abun[i])
+
+            wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            fl *= self.ptf(wl)
+            flP = fl*wl
+            InormE[i] = np.log10(fl.sum()/self.ptf_area*(wl[1]-wl[0]))             # energy-weighted intensity
+            InormP[i] = np.log10(flP.sum()/self.ptf_photon_area*(wl[1]-wl[0]))     # photon-weighted intensity
+            if verbose:
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
+                sys.stdout.flush()
+
+        if verbose:
+            print('')
+
+        # Store axes (Teff, logg, abun) and the full grid of Inorm, with
+        # nans where the grid isn't complete.
+        self._phoenix_axes = (np.unique(Teff), np.unique(logg), np.unique(abun))
+
+        self._phoenix_energy_grid = np.nan*np.ones((len(self._phoenix_axes[0]), len(self._phoenix_axes[1]), len(self._phoenix_axes[2]), 1))
+        self._phoenix_photon_grid = np.nan*np.ones((len(self._phoenix_axes[0]), len(self._phoenix_axes[1]), len(self._phoenix_axes[2]), 1))
+        for i, I0 in enumerate(InormE):
+            self._phoenix_energy_grid[Teff[i] == self._phoenix_axes[0], logg[i] == self._phoenix_axes[1], abun[i] == self._phoenix_axes[2], 0] = I0
+        for i, I0 in enumerate(InormP):
+            self._phoenix_photon_grid[Teff[i] == self._phoenix_axes[0], logg[i] == self._phoenix_axes[1], abun[i] == self._phoenix_axes[2], 0] = I0
+
+        # Tried radial basis functions but they were just terrible.
+        #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
+        self.content.append('phoenix')
+        self.atmlist.append('phoenix')
+
     def compute_ck2004_intensities(self, path, particular=None, verbose=False):
         """
         Computes direction-dependent passband intensities using Castelli
@@ -1099,6 +1166,12 @@ class Passband:
 
         return Inorm
 
+    def _Inorm_phoenix(self, Teff, logg, abun, photon_weighted=False):
+        req = np.vstack((Teff, logg, abun)).T
+        Inorm = libphoebe.interp(req, self._phoenix_axes, 10**self._phoenix_photon_grid if photon_weighted else 10**self._phoenix_energy_grid).T[0]
+
+        return Inorm
+
     def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
@@ -1186,6 +1259,9 @@ class Passband:
 
         elif atm == 'ck2004' and 'ck2004' in self.content:
             retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
+
+        elif atm == 'phoenix' and 'phoenix' in self.content:
+            retval = self._Inorm_phoenix(Teff, logg, abun, photon_weighted=photon_weighted)
 
         else:
             raise NotImplementedError('atm={} not supported by {}:{}'.format(atm, self.pbset, self.pbname))
