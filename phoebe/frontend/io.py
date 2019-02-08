@@ -251,7 +251,11 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, dir='./'):
         path = dir
 
     load_file = os.path.join(path, filename)
-    lcdata = np.loadtxt(load_file)
+    try:
+        lcdata = np.loadtxt(load_file)
+    except IOError:
+        logger.warning("Could not load data file referenced at {}. Dataset will be empty.".format(load_file))
+        return {}
     ncol = len(lcdata[0])
     if dep == 'Magnitude':
         mag = lcdata[:,1]
@@ -293,7 +297,11 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
         path = dir
 
     load_file = os.path.join(path, filename)
-    rvdata = np.loadtxt(load_file)
+    try:
+        rvdata = np.loadtxt(load_file)
+    except IOError:
+        logger.warning("Could not load data file referenced at {}. Dataset will be empty.".format(load_file))
+        return {}
 
     d ={}
     d['phoebe_rv_time'] = rvdata[:,0]
@@ -772,7 +780,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             rv_dict.update(data_dict)
 
-            time = rv_dict['phoebe_rv_time']
+            time = rv_dict.get('phoebe_rv_time', [])
         #
 
         rv_dataset = det_dataset(eb, passband, dataid, comp, time)
