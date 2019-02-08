@@ -2972,7 +2972,7 @@ class Bundle(ParameterSet):
 
         if 'solve_for' in kwargs.keys():
             # solve_for is a twig, we need to pass the parameter
-            kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'])
+            kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model'])
 
         lhs, rhs, constraint_kwargs = func(self, *func_args, **kwargs)
         # NOTE that any component parameters required have already been
