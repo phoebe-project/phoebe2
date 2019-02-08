@@ -3199,9 +3199,11 @@ class ParameterSet(object):
 
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
         # try to find 'times' in the cartesian dimensions:
+        iqualifier = kwargs.pop('i', 'times')
         for af_direction in ['x', 'y', 'z']:
-            if kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls']:
+            if kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]:
                 kwargs['i'] = af_direction
+                kwargs['iqualifier'] = None
                 break
         else:
             # then we didn't find a match, so we'll either pass the time
@@ -3209,15 +3211,38 @@ class ParameterSet(object):
             if ps.time is not None:
                 # a single mesh will pass just that single time on as the
                 # independent variable/direction
-                kwargs['i'] = float(ps.time)
-                kwargs['iqualifier'] = 'ps.times'
+                if iqualifier=='times':
+                    kwargs['i'] = float(ps.time)
+                    kwargs['iqualifier'] = 'ps.times'
+                elif iqualifier.split(':')[0] == 'phases':
+                    # TODO: need to test this
+                    component = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
+                    kwargs['i'] = self._bundle.to_phase(float(ps.time), component=component)
+                    kwargs['iqualifier'] = iqualifier
+                else:
+                    raise NotImplementedError
             elif ps.kind in ['etv']:
-                kwargs['i'] = ps.get_quantity(qualifier='time_ecls')
-                kwargs['iqualifier'] = 'time_ecls'
+                if iqualfier=='times':
+                    kwargs['i'] = ps.get_quantity(qualifier='time_ecls')
+                    kwargs['iqualifier'] = 'time_ecls'
+                elif iqualifier.split(':')[0] == 'phases':
+                    # TODO: need to test this
+                    icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
+                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='time_ecls'), component=icomponent)
+                    kwargs['iqualifier'] = iqualifier
+                else:
+                    raise NotImplementedError
             else:
-                kwargs['i'] = ps.get_quantity(qualifier='times')
-                kwargs['iqualifier'] = 'times'
-
+                if iqualifier=='times':
+                    kwargs['i'] = ps.get_quantity(qualifier='times')
+                    kwargs['iqualifier'] = 'times'
+                elif iqualifier.split(':')[0] == 'phases':
+                    # TODO: need to test this
+                    icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
+                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='times'), component=icomponent)
+                    kwargs['iqualifier'] = iqualifier
+                else:
+                    raise NotImplementedError
 
         #### STYLE DEFAULTS
         # set defaults for marker/linestyle depending on whether this is
@@ -3344,6 +3369,12 @@ class ParameterSet(object):
             for facecolor (only applicable for mesh plots).
         * `ec` (string/float/array, optional): qualifier/twig of the array to use
             for edgecolor (only applicable for mesh plots).
+
+        * `i` (string, optional, default='time'): qualifier/twig to use for the
+            independent variable.  In the vast majority of cases, using the default
+            is sufficient.  If `x` is phase, then setting `i` to phase as well
+            will sort and connect the points in phase-order instead of the default
+            behavior or time-order.
 
         * `xerror` (string/float/array, optional): qualifier/twig of the array to plot as
             x-errors (will default based on `x` if not provided).
