@@ -3506,7 +3506,7 @@ class Bundle(ParameterSet):
             will be ignored: context, compute.
         """
         kwargs['compute'] = compute
-        kwargs['context'] = 'comute'
+        kwargs['context'] = 'compute'
         self.remove_parameters_all(**kwargs)
 
     def remove_computes_all(self):
