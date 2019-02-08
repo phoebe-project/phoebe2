@@ -1468,9 +1468,14 @@ class Bundle(ParameterSet):
 
     def _kwargs_checks(self, kwargs, additional_allowed_keys=[],
                        additional_forbidden_keys=[],
-                       warning_only=False):
+                       warning_only=False,
+                       ps=None):
         """
         """
+        if ps is None:
+            # then check against the entire bundle
+            ps = self
+
         allowed_keys = self.qualifiers +\
                         parameters._meta_fields_filter +\
                         ['skip_checks', 'check_default', 'check_visible'] +\
@@ -1497,7 +1502,7 @@ class Bundle(ParameterSet):
 
                 continue
 
-            for param in self.filter(qualifier=key).to_list():
+            for param in ps.filter(qualifier=key).to_list():
                 if hasattr(param, 'valid_selection'):
                     if not param.valid_selection(value):
                         msg = "{}={} not valid with choices={}".format(key, value, param.choices)
@@ -3671,13 +3676,14 @@ class Bundle(ParameterSet):
         # any kwargs that were used just to filter for get_compute should  be
         # removed so that they aren't passed on to all future get_value(...
         # **kwargs) calls
+        computes_ps = self.get_compute(compute=compute, **kwargs)
         for k in parameters._meta_fields_filter:
             if k in kwargs.keys():
                 dump = kwargs.pop(k)
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        self._kwargs_checks(kwargs, ['skip_checks', 'jobid', 'overwrite'])
+        self._kwargs_checks(kwargs, ['skip_checks', 'jobid', 'overwrite'], ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
             passed, msg = self.run_checks(compute=computes, **kwargs)
