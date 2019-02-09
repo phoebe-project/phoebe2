@@ -1100,6 +1100,9 @@ class Bundle(ParameterSet):
         Set the hierarchy of the system, and recreate/rerun all necessary
         constraints (can be slow).
 
+        For a list of all constraints that are automatically set based on the
+        hierarchy, see <phoebe.frontend.bundle.Bundle.add_constraint>.
+
         See the built-in functions for building hierarchy reprentations:
         * <phoebe.parmaeters.hierarchy>
         * <phoebe.parameters.hierarchy.binaryorbit>
@@ -3050,6 +3053,10 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.run_constraint>
         * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
 
+        For a list of optional built-in constraints, see <phoebe.parameters.constraint>
+        including:
+        * <phoebe.parameters.constraint.semidetached>
+
         The following are automatically included for all orbits, during
         <phoebe.frontend.bundle.Bundle.add_component> for a
         <phoebe.parameters.component.orbit>:
@@ -3069,9 +3076,7 @@ class Bundle(ParameterSet):
 
         Additionally, some constraints are automatically handled by the hierarchy in
         <phoebe.frontend.bundle.Bundle.set_hierarchy> or when loading a default
-        system.
-
-        The following are automatically included for a
+        system.  The following are automatically included for a
         <phoebe.frontend.bundle.Bundle.default_binary>:
         * <phoebe.parameters.constraint.mass>
         * <phoebe.parameters.constraint.comp_sma>
@@ -3085,22 +3090,6 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.constraint.requiv_contact_max> (contact only)
         * <phoebe.parameters.constraint.fillout_factor> (contact only)
         * <phoebe.parameters.constraint.requiv_to_pot> (contact only)
-
-
-        The following are automatically included for a
-        <phoebe.frontend.bundle.Bundle.default_star>:
-
-
-        The following are automatically included for an envelope in a contact
-        binary:
-
-
-
-        For a list of optional built-in constraints, see <phoebe.parameters.constraint>
-        including:
-        * <phoebe.parameters.constraint.semidetached>
-
-
 
         Arguments
         ------------
