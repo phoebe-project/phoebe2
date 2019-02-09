@@ -6943,6 +6943,9 @@ class HierarchyParameter(StringParameter):
         """
         Return a list of all components in the <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_top>
         * <phoebe.parameters.HierarchyParameter.get_stars>
@@ -6961,6 +6964,9 @@ class HierarchyParameter(StringParameter):
         """
         Return the top-level component in the <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_components>
         * <phoebe.parameters.HierarchyParameter.get_stars>
@@ -6978,6 +6984,9 @@ class HierarchyParameter(StringParameter):
         """
         Return a list of all components with kind='star' in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         See also:
         * <phoebe.parameters.HierarchyParameter.get_components>
@@ -6999,6 +7008,9 @@ class HierarchyParameter(StringParameter):
         Return a list of all components with kind='envelope' in the
         <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_components>
         * <phoebe.parameters.HierarchyParameter.get_top>
@@ -7018,6 +7030,9 @@ class HierarchyParameter(StringParameter):
         """
         Return a list of all components with kind='orbit' in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         See also:
         * <phoebe.parameters.HierarchyParameter.get_components>
@@ -7046,6 +7061,9 @@ class HierarchyParameter(StringParameter):
         but also handles the envelope for a contact binary)
         in the <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_components>
         * <phoebe.parameters.HierarchyParameter.get_top>
@@ -7073,6 +7091,9 @@ class HierarchyParameter(StringParameter):
         """
         Get the parent of a component in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         See also:
         * <phoebe.parameters.HierarchyParameter.get_sibling_of>
@@ -7116,6 +7137,9 @@ class HierarchyParameter(StringParameter):
         Get the sibling of a component in the
         <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         If there is more than one sibling, the first result will be returned.
 
         See also:
@@ -7147,6 +7171,9 @@ class HierarchyParameter(StringParameter):
         """
         Get the siblings of a component in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         See also:
         * <phoebe.parameters.HierarchyParameter.get_parent_of>
@@ -7187,6 +7214,9 @@ class HierarchyParameter(StringParameter):
         Get the parent-envelope of a component in the
         <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_parent_of>
         * <phoebe.parameters.HierarchyParameter.get_sibling_of>
@@ -7214,6 +7244,9 @@ class HierarchyParameter(StringParameter):
         """
         Get the stars under the sibling of a component in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         This is the same as <phoebe.parameters.Hierarchy.get_sibling_of> except
         if a sibling is in an orbit, this will recursively follow the tree to
@@ -7254,6 +7287,9 @@ class HierarchyParameter(StringParameter):
         Get the children of a component in the
         <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_parent_of>
         * <phoebe.parameters.HierarchyParameter.get_sibling_of>
@@ -7292,6 +7328,9 @@ class HierarchyParameter(StringParameter):
         """
         Get the stars under the children of a component in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         This is the same as <phoebe.parameters.Hierarchy.get_children_of> except
         if any of the children is in an orbit, this will recursively follow the tree to
@@ -7338,6 +7377,9 @@ class HierarchyParameter(StringParameter):
         Get the child (by index) of a component in the
         <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_parent_of>
         * <phoebe.parameters.HierarchyParameter.get_sibling_of>
@@ -7369,6 +7411,9 @@ class HierarchyParameter(StringParameter):
         Return whether a given component is the 'primary' or 'secondary'
         component in its parent orbit, according to the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+        <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         Arguments
         ----------
@@ -7403,6 +7448,9 @@ class HierarchyParameter(StringParameter):
         """
         Return the kind of a given component in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         Arguments
         ----------
@@ -7441,6 +7489,9 @@ class HierarchyParameter(StringParameter):
         an envelope.  See <phoebe.parameters.HierarchyParameter.get_siblings_of>
         and <phoebe.parameters.HierarchyParameter.get_kind_of>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         Arguments
         ----------
         * `component` (string): the name of the component.
@@ -7475,6 +7526,9 @@ class HierarchyParameter(StringParameter):
         This is done by checking whether the component's parent is an orbit.
         See <phoebe.parameters.HierarchyParameter.get_parent_of> and
         <phoebe.parameters.HierarchyParameter.get_kind_of>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         Arguments
         ----------

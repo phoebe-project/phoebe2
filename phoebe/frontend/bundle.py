@@ -1458,7 +1458,14 @@ class Bundle(ParameterSet):
 
     def get_hierarchy(self):
         """
-        Get the hierarchy parameter
+        Get the hierarchy parameter.
+
+        See <phoebe.parameters.HierarchyParameter>, including:
+        * <phoebe.parameters.HierarchyParameter.get_components>
+        * <phoebe.parameters.HierarchyParameter.get_top>
+        * <phoebe.parameters.HierarchyParameter.get_stars>
+        * <phoebe.parameters.HierarchyParameter.get_envelopes>
+        * <phoebe.parameters.HierarchyParameter.get_orbits>
 
         Returns
         --------
@@ -3032,7 +3039,68 @@ class Bundle(ParameterSet):
 
     def add_constraint(self, *args, **kwargs):
         """
-        Add a constraint to the Bundle.
+        Add a <phoebe.parameters.ConstraintParameter> to the
+        <phoebe.frontend.bundle.Bundle>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
+
+        The following are automatically included for all orbits, during
+        <phoebe.frontend.bundle.Bundle.add_component> for a
+        <phoebe.parameters.component.orbit>:
+        * <phoebe.parameters.constraint.asini>
+        * <phoebe.parameters.constraint.ecosw>
+        * <phoebe.parameters.constraint.esinw>
+        * <phoebe.parameters.constraint.t0_perpass_supconj>
+        * <phoebe.parameters.constraint.t0_ref_supconj>
+        * <phoebe.parameters.constraint.mean_anom>
+        * <phoebe.parameters.constraint.freq>
+
+        The following are automatically included for all stars, during
+        <phoebe.frontend.bundle.Bundle.add_component> for a
+        <phoebe.parameters.component.star>:
+        * <phoebe.parameters.constraint.freq>
+        * <phoebe.parameters.constraint.irrad_frac>
+
+        Additionally, some constraints are automatically handled by the hierarchy in
+        <phoebe.frontend.bundle.Bundle.set_hierarchy> or when loading a default
+        system.
+
+        The following are automatically included for a
+        <phoebe.frontend.bundle.Bundle.default_binary>:
+        * <phoebe.parameters.constraint.mass>
+        * <phoebe.parameters.constraint.comp_sma>
+        * <phoebe.parameters.constraint.rotation_period> (detached only)
+        * <phoebe.parameters.constraint.pitch> (detached only)
+        * <phoebe.parameters.constraint.yaw> (detached only)
+        * <phoebe.parameters.constraint.requiv_detached_max> (detached only)
+        * <phoebe.parameters.constraint.potential_contact_min> (contact only)
+        * <phoebe.parameters.constraint.potential_contact_max> (contact only)
+        * <phoebe.parameters.constraint.requiv_contact_min> (contact only)
+        * <phoebe.parameters.constraint.requiv_contact_max> (contact only)
+        * <phoebe.parameters.constraint.fillout_factor> (contact only)
+        * <phoebe.parameters.constraint.requiv_to_pot> (contact only)
+
+
+        The following are automatically included for a
+        <phoebe.frontend.bundle.Bundle.default_star>:
+
+
+        The following are automatically included for an envelope in a contact
+        binary:
+
+
+
+        For a list of optional built-in constraints, see <phoebe.parameters.constraint>
+        including:
+        * <phoebe.parameters.constraint.semidetached>
+
+
 
         Arguments
         ------------
@@ -3157,6 +3225,11 @@ class Bundle(ParameterSet):
 
         See also:
         * <phoebe.parameters.ParameterSet.get>
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
 
         Arguments
         ----------
@@ -3178,6 +3251,12 @@ class Bundle(ParameterSet):
 
         See also:
         * <phoebe.parameters.ParameterSet.remove_parameters_all>
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
 
         Arguments
         ----------
@@ -3223,6 +3302,13 @@ class Bundle(ParameterSet):
     def flip_constraint(self, twig=None, solve_for=None, **kwargs):
         """
         Flip an existing constraint to solve for a different parameter.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
 
         Arguments
         ----------
@@ -3274,6 +3360,17 @@ class Bundle(ParameterSet):
         parameter.  In general, there shouldn't be any need to manually
         call this - constraints should automatically be run whenever a
         dependent parameter's value is change.
+
+        If interactive constraints are disabled via <phoebe.interactive_constraints_off>,
+        then you can manually call this method or <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
+        to manually update the constraint value.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
 
         Arguments
         -------------
@@ -3331,9 +3428,26 @@ class Bundle(ParameterSet):
 
     def run_delayed_constraints(self):
         """
-        Manually run any delayed constraints.  See also:
+        Manually run any delayed constraints.  In general, there shouldn't be any need to manually
+        call this - constraints should automatically be run whenever a
+        dependent parameter's value is change.
+
+        If interactive constraints are disabled via <phoebe.interactive_constraints_off>,
+        then you can manually call this method or <phoebe.frontend.bundle.Bundle.run_constraint>
+        to manually update the constraint value.
+
+        See also:
         * <phoebe.interactive_constraints_on>
         * <phoebe.interactive_constraints_off>
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+
+        Returns
+        ---------
+        * (list): list of changed <phoebe.parameters.Parameter> objects.
 
         """
         changes = []
@@ -3352,8 +3466,10 @@ class Bundle(ParameterSet):
         (and any coupling) are computed at t0@system.
 
         This method is only for convenience and will be recomputed internally
-        within run_compute.  Alternatively, you can create a mesh dataset
-        and request any specific pblum to be exposed (per-time).
+        within <phoebe.frontend.bundle.Bundle.run_compute>.  Alternatively, you
+        can create a mesh dataset (see <phoebe.frontend.bundle.Bundle.add_dataset>
+        and <phoebe.parameters.dataset.mesh>) and request any specific pblum to
+        be exposed (per-time).
 
         Arguments
         ------------
@@ -3365,7 +3481,7 @@ class Bundle(ParameterSet):
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets attached to the bundle.
-        * `**kwargs`: any additional kwargs are sent to override compute options
+        * `**kwargs`: any additional kwargs are sent to override compute options.
 
         Returns
         ----------
