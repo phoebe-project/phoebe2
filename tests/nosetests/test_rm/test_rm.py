@@ -13,8 +13,8 @@ def _beta_vs_legacy(b, plot=False):
 
 
 
-    b.run_compute('phnum', model='phnumresults')
-    b.run_compute('legnum', model='legnumresults')
+    b.run_compute('phnum', model='phnumresults', overwrite=True)
+    b.run_compute('legnum', model='legnumresults', overwrite=True)
 
 
     if plot:
@@ -38,7 +38,7 @@ def test_binary(plot=False):
     times = np.linspace(-0.2,1.2*period,51)
 
     #turn off albedos (legacy requirement)
-    b.set_value_all('irrad_frac_refl_bol',  0.0)    
+    b.set_value_all('irrad_frac_refl_bol',  0.0)
 
     b.add_dataset('rv', times=times, dataset='rv01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
 

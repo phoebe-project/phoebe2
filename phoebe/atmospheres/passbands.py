@@ -1559,7 +1559,10 @@ def update_passband_available(passband):
     if passband not in list_online_passbands():
         return False
 
-    if _pbtable[passband]['timestamp'] is None:
+    if _online_passbands[passband]['timestamp'] is None:
+        return False
+
+    elif _pbtable[passband]['timestamp'] is None:
         if _online_passbands[passband]['timestamp'] is not None:
             return True
 

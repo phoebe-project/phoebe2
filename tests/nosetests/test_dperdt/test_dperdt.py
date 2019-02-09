@@ -28,15 +28,15 @@ def test_binary(plot=False):
     b.set_value_all('ecc', 0.2)
 
     #turn off albedos (legacy requirement)
-    b.set_value_all('irrad_frac_refl_bol',  0.0)    
+    b.set_value_all('irrad_frac_refl_bol',  0.0)
 
     for dperdt in [-0.5, -0.25, 0.25, 0.5]:
         b.set_value('dperdt', dperdt)
 
         print("running phoebe2 model...")
-        b.run_compute(compute='phoebe2', model='phoebe2model')
+        b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
         print("running phoebe1 model...")
-        b.run_compute(compute='phoebe1', model='phoebe1model')
+        b.run_compute(compute='phoebe1', model='phoebe1model', overwrite=True)
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')

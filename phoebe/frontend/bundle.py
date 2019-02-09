@@ -27,7 +27,7 @@ from phoebe.parameters import feature as _feature
 from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
-from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, _timestamp_to_dt
+from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, _timestamp_to_dt
 from phoebe.utils import _bytes
 import libphoebe
 
@@ -1100,6 +1100,9 @@ class Bundle(ParameterSet):
         Set the hierarchy of the system, and recreate/rerun all necessary
         constraints (can be slow).
 
+        For a list of all constraints that are automatically set based on the
+        hierarchy, see <phoebe.frontend.bundle.Bundle.add_constraint>.
+
         See the built-in functions for building hierarchy reprentations:
         * <phoebe.parmaeters.hierarchy>
         * <phoebe.parameters.hierarchy.binaryorbit>
@@ -1458,7 +1461,14 @@ class Bundle(ParameterSet):
 
     def get_hierarchy(self):
         """
-        Get the hierarchy parameter
+        Get the hierarchy parameter.
+
+        See <phoebe.parameters.HierarchyParameter>, including:
+        * <phoebe.parameters.HierarchyParameter.get_components>
+        * <phoebe.parameters.HierarchyParameter.get_top>
+        * <phoebe.parameters.HierarchyParameter.get_stars>
+        * <phoebe.parameters.HierarchyParameter.get_envelopes>
+        * <phoebe.parameters.HierarchyParameter.get_orbits>
 
         Returns
         --------
@@ -1468,9 +1478,14 @@ class Bundle(ParameterSet):
 
     def _kwargs_checks(self, kwargs, additional_allowed_keys=[],
                        additional_forbidden_keys=[],
-                       warning_only=False):
+                       warning_only=False,
+                       ps=None):
         """
         """
+        if ps is None:
+            # then check against the entire bundle
+            ps = self
+
         allowed_keys = self.qualifiers +\
                         parameters._meta_fields_filter +\
                         ['skip_checks', 'check_default', 'check_visible'] +\
@@ -1497,7 +1512,7 @@ class Bundle(ParameterSet):
 
                 continue
 
-            for param in self.filter(qualifier=key).to_list():
+            for param in ps.filter(qualifier=key).to_list():
                 if hasattr(param, 'valid_selection'):
                     if not param.valid_selection(value):
                         msg = "{}={} not valid with choices={}".format(key, value, param.choices)
@@ -1547,6 +1562,9 @@ class Bundle(ParameterSet):
 
         Arguments
         -----------
+        * `compute` (string or list of strings, optional, default=None): the
+            compute options to use  when running checks.  If None (or not provided),
+            all available compute options will be considered.
         * `**kwargs`: overrides for any parameter (given as qualifier=value pairs)
 
         Returns
@@ -1557,6 +1575,10 @@ class Bundle(ParameterSet):
 
         # make sure all constraints have been run
         changed_params = self.run_delayed_constraints()
+
+        computes = kwargs.pop('compute', self.computes)
+        if isinstance(computes, str):
+            computes = [computes]
 
         hier = self.hierarchy
         if hier is None:
@@ -1688,11 +1710,11 @@ class Bundle(ParameterSet):
             # ['interp', 'uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa']
             if ld_func == 'interp':
                 return True,
-            elif ld_func in ['linear'] and len(ld_coeffs)==1:
+            elif ld_func in ['linear'] and (ld_coeffs is None or len(ld_coeffs)==1):
                 return True,
-            elif ld_func in ['logarithmic', 'square_root', 'quadratic'] and len(ld_coeffs)==2:
+            elif ld_func in ['logarithmic', 'square_root', 'quadratic'] and (ld_coeffs is None or len(ld_coeffs)==2):
                 return True,
-            elif ld_func in ['power'] and len(ld_coeffs)==4:
+            elif ld_func in ['power'] and (ld_coeffs is None or len(ld_coeffs)==4):
                 return True,
             else:
                 return False, "ld_coeffs={} wrong length for ld_func='{}'.".format(ld_coeffs, ld_func)
@@ -1700,13 +1722,13 @@ class Bundle(ParameterSet):
         for component in self.hierarchy.get_stars():
             # first check ld_coeffs_bol vs ld_func_bol
             ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', check_visible=False, **kwargs))
-            ld_coeffs = np.asarray(self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs))
+            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs)
             check = ld_coeffs_len(ld_func, ld_coeffs)
             if not check[0]:
                 return check
 
-            if ld_func != 'interp':
-                check = libphoebe.ld_check(_bytes(ld_func), ld_coeffs)
+            if ld_func != 'interp' and ld_coeffs is not None:
+                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
                 if not check:
                     return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
 
@@ -1714,25 +1736,28 @@ class Bundle(ParameterSet):
                 if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
                     continue
                 ld_func = str(self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs))
-                ld_coeffs = np.asarray(self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs))
+                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
                 if ld_coeffs is not None:
                     check = ld_coeffs_len(ld_func, ld_coeffs)
                     if not check[0]:
                         return check
 
-                if ld_func != 'interp':
-                    check = libphoebe.ld_check(_bytes(ld_func), ld_coeffs)
+                if ld_func != 'interp' and ld_coeffs is not None:
+                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
                     if not check:
                         return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
 
                 if ld_func=='interp':
-                    for compute in kwargs.get('computes', self.computes):
+                    for compute in computes:
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         if atm != 'ck2004':
-                            return False, "ld_func='interp' only supported by atm='ck2004'.  Either change atm@{} or ld_func@{}@{}".format(component, component, dataset)
+                            if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
+                                return False, "ld_func='interp' only supported by atm='ck2004'.  Either change atm@{}@{} or ld_func@{}@{}.".format(component, compute, component, dataset)
+                            else:
+                                return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
         # mesh-consistency checks
-        for compute in self.computes:
+        for compute in computes:
             mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
@@ -1768,6 +1793,120 @@ class Bundle(ParameterSet):
 
         # we've survived all tests
         return True, ''
+
+    def recommended_citations(self, compute=None, dataset=None):
+        """
+        Provides recommended citations from the given bundle based on the
+        current parameter values and attached datasets/compute options.
+
+        This list is not necessarily complete, but can be useful to make sure
+        appropriate references are being cited/acknowledged.  The returned
+        dictionary includes a list for each entry why its being included.
+
+        Included citations:
+        * PHOEBE release papers based on physics included in the model (for
+            example: the 2.1 release paper will be suggested if there is a
+            line profile dataset or misalignment in the system).
+        * Atmosphere table citations, when available/applicable.
+        * Passband table citations, when available/applicable.
+        * Dependency (astropy, numpy, etc) citations, when available/applicable.
+
+        Arguments
+        ------------
+        `compute` (string or list of strings, optional, default=None): only
+            consider a single (or list of) compute options.  If None or not
+            provided, will default to all attached compute options.
+        `dataset` (string or list of strings, optional, default=None): only
+            consider a single (or list of) datasets.  If None or not provided,
+            will default to all attached datasets.
+
+        Returns
+        ----------
+        (dict): dictionary with keys being the reference name and values as a
+            dictionary with information about that reference: including a
+            url if applicable and a list of detected uses within the current
+            <phoebe.frontend.bundle.Bundle>.
+        """
+
+        if compute is None:
+            computes = self.computes
+        elif isinstance(compute, str):
+            computes = [compute]
+        elif isinstance(compute, list):
+            computes = compute
+        else:
+            raise TypeError("compute must be type None, string, or list")
+
+        if dataset is None:
+            datasets = self.datasets
+        elif isinstance(dataset, str):
+            datasets = [dataset]
+        elif isinstance(dataset, list):
+            datasets = dataset
+        else:
+            raise TypeError("dataset must be type None, string, or list")
+
+
+        # ref: url pairs
+        citation_urls = {'Prsa & Zwitter (2005)': 'https://ui.adsabs.harvard.edu/?#abs/2005ApJ...628..426P',
+                         'Prsa et al. (2016)': 'https://ui.adsabs.harvard.edu/?#abs/2016ApJS..227...29P',
+                         'Horvat et al. (2018)': 'https://ui.adsabs.harvard.edu/?#abs/2016ApJS..227...29P',
+                         'Castelli & Kurucz (2004)': 'https://ui.adsabs.harvard.edu/#abs/2004astro.ph..5087C',
+                         'numpy/scipy': 'https://www.scipy.org/citing.html',
+                         'astropy': 'https://www.astropy.org/acknowledging.html',
+                        }
+
+        # ref: [reasons] pairs
+        recs = {}
+        def _add_reason(recs, ref, reason):
+            if ref not in recs.keys():
+                recs[ref] = []
+            if reason not in recs[ref]:
+                recs[ref].append(reason)
+            return recs
+
+        recs = _add_reason(recs, 'Prsa et al. (2016)', 'general PHOEBE 2 framework')
+
+        # check for backends
+        for compute in computes:
+            if self.get_compute(compute).kind == 'phoebe':
+                recs = _add_reason(recs, 'Prsa et al. (2016)', 'PHOEBE 2 backend')
+            if self.get_compute(compute).kind == 'legacy':
+                recs = _add_reason(recs, 'Prsa & Zwitter (2005)', 'PHOEBE 1 (legacy) backend')
+                # TODO: include Wilson & Devinney?
+
+
+        # check for presence of datasets that require PHOEBE releases
+        for dataset in datasets:
+            if ['lp'] in self.get_dataset(dataset).kinds:
+                recs = _add_reason(recs, 'Horvat et al. (2018)', 'support for line profile datasets')
+
+        # check for any enabled physics that requires specific PHOEBE releases
+        for component in self.hierarchy.get_stars():
+            if self.get_value(qualifier='pitch', component=component, context='component') != 0. or self.get_value(qualifier='yaw', component=component, context='component') != 0.:
+                recs = _add_reason(recs, 'Horvat et al. (2018)', 'support for misaligned system')
+
+        # provide any references from passband tables
+        for pb_param in self.filter(qualifier='passband', dataset=datasets, component=self.hierarchy.get_stars()).to_list():
+            pbname = pb_param.get_value()
+            pb = get_passband(pb)
+            if pb.reference is not None:
+                recs = _add_reason(recs, pb.reference, '{} passband'.format(pbname))
+
+        # provide any references from atms
+        for atm_param in self.filter(qualifier='atm', component=self.hierarchy.get_stars(), compute=computes).to_list():
+            atmname = atm_param.get_value()
+            if atmname == 'ck2004':
+                recs = _add_reason(recs, 'Castelli & Kurucz (2004)', 'ck2004 atmosphere tables')
+            elif atmname in ['extern_planckint', 'extern_atmx']:
+                recs = _add_reason(recs, 'Prsa & Zwitter (2005)', '{} atmosphere tables'.format(atmname))
+
+        # provide references from dependencies
+        recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
+        recs = _add_reason(recs, 'astropy', 'astropy dependency within PHOEBE')
+
+        return {r: {'url': citation_urls.get(r, None), 'uses': v} for r,v in recs.items()}
+
 
     def add_feature(self, kind, component=None, **kwargs):
         """
@@ -2684,7 +2823,7 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, warning_only=True)
+        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True)
 
         return self.filter(dataset=kwargs['dataset'])
 
@@ -2903,7 +3042,54 @@ class Bundle(ParameterSet):
 
     def add_constraint(self, *args, **kwargs):
         """
-        Add a constraint to the Bundle.
+        Add a <phoebe.parameters.ConstraintParameter> to the
+        <phoebe.frontend.bundle.Bundle>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
+
+        For a list of optional built-in constraints, see <phoebe.parameters.constraint>
+        including:
+        * <phoebe.parameters.constraint.semidetached>
+
+        The following are automatically included for all orbits, during
+        <phoebe.frontend.bundle.Bundle.add_component> for a
+        <phoebe.parameters.component.orbit>:
+        * <phoebe.parameters.constraint.asini>
+        * <phoebe.parameters.constraint.ecosw>
+        * <phoebe.parameters.constraint.esinw>
+        * <phoebe.parameters.constraint.t0_perpass_supconj>
+        * <phoebe.parameters.constraint.t0_ref_supconj>
+        * <phoebe.parameters.constraint.mean_anom>
+        * <phoebe.parameters.constraint.freq>
+
+        The following are automatically included for all stars, during
+        <phoebe.frontend.bundle.Bundle.add_component> for a
+        <phoebe.parameters.component.star>:
+        * <phoebe.parameters.constraint.freq>
+        * <phoebe.parameters.constraint.irrad_frac>
+
+        Additionally, some constraints are automatically handled by the hierarchy in
+        <phoebe.frontend.bundle.Bundle.set_hierarchy> or when loading a default
+        system.  The following are automatically included for a
+        <phoebe.frontend.bundle.Bundle.default_binary>:
+        * <phoebe.parameters.constraint.mass>
+        * <phoebe.parameters.constraint.comp_sma>
+        * <phoebe.parameters.constraint.rotation_period> (detached only)
+        * <phoebe.parameters.constraint.pitch> (detached only)
+        * <phoebe.parameters.constraint.yaw> (detached only)
+        * <phoebe.parameters.constraint.requiv_detached_max> (detached only)
+        * <phoebe.parameters.constraint.potential_contact_min> (contact only)
+        * <phoebe.parameters.constraint.potential_contact_max> (contact only)
+        * <phoebe.parameters.constraint.requiv_contact_min> (contact only)
+        * <phoebe.parameters.constraint.requiv_contact_max> (contact only)
+        * <phoebe.parameters.constraint.fillout_factor> (contact only)
+        * <phoebe.parameters.constraint.requiv_to_pot> (contact only)
 
         Arguments
         ------------
@@ -3028,6 +3214,11 @@ class Bundle(ParameterSet):
 
         See also:
         * <phoebe.parameters.ParameterSet.get>
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
 
         Arguments
         ----------
@@ -3049,6 +3240,12 @@ class Bundle(ParameterSet):
 
         See also:
         * <phoebe.parameters.ParameterSet.remove_parameters_all>
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
 
         Arguments
         ----------
@@ -3094,6 +3291,13 @@ class Bundle(ParameterSet):
     def flip_constraint(self, twig=None, solve_for=None, **kwargs):
         """
         Flip an existing constraint to solve for a different parameter.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
 
         Arguments
         ----------
@@ -3145,6 +3349,17 @@ class Bundle(ParameterSet):
         parameter.  In general, there shouldn't be any need to manually
         call this - constraints should automatically be run whenever a
         dependent parameter's value is change.
+
+        If interactive constraints are disabled via <phoebe.interactive_constraints_off>,
+        then you can manually call this method or <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
+        to manually update the constraint value.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraint>
 
         Arguments
         -------------
@@ -3202,9 +3417,26 @@ class Bundle(ParameterSet):
 
     def run_delayed_constraints(self):
         """
-        Manually run any delayed constraints.  See also:
+        Manually run any delayed constraints.  In general, there shouldn't be any need to manually
+        call this - constraints should automatically be run whenever a
+        dependent parameter's value is change.
+
+        If interactive constraints are disabled via <phoebe.interactive_constraints_off>,
+        then you can manually call this method or <phoebe.frontend.bundle.Bundle.run_constraint>
+        to manually update the constraint value.
+
+        See also:
         * <phoebe.interactive_constraints_on>
         * <phoebe.interactive_constraints_off>
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+
+        Returns
+        ---------
+        * (list): list of changed <phoebe.parameters.Parameter> objects.
 
         """
         changes = []
@@ -3223,8 +3455,10 @@ class Bundle(ParameterSet):
         (and any coupling) are computed at t0@system.
 
         This method is only for convenience and will be recomputed internally
-        within run_compute.  Alternatively, you can create a mesh dataset
-        and request any specific pblum to be exposed (per-time).
+        within <phoebe.frontend.bundle.Bundle.run_compute>.  Alternatively, you
+        can create a mesh dataset (see <phoebe.frontend.bundle.Bundle.add_dataset>
+        and <phoebe.parameters.dataset.mesh>) and request any specific pblum to
+        be exposed (per-time).
 
         Arguments
         ------------
@@ -3236,7 +3470,7 @@ class Bundle(ParameterSet):
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets attached to the bundle.
-        * `**kwargs`: any additional kwargs are sent to override compute options
+        * `**kwargs`: any additional kwargs are sent to override compute options.
 
         Returns
         ----------
@@ -3343,7 +3577,7 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, warning_only=True)
+        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True)
 
         return self.get_compute(**metawargs)
 
@@ -3382,7 +3616,7 @@ class Bundle(ParameterSet):
             will be ignored: context, compute.
         """
         kwargs['compute'] = compute
-        kwargs['context'] = 'comute'
+        kwargs['context'] = 'compute'
         self.remove_parameters_all(**kwargs)
 
     def remove_computes_all(self):
@@ -3461,9 +3695,10 @@ class Bundle(ParameterSet):
             you attach a rv to a single component, the model will still only
             compute for that single component.  ALSO NOTE: this option is ignored
             if `detach=True` (at least for now).
-        * `overwrite` (boolean, optional, default=True): whether to overwrite
+        * `overwrite` (boolean, optional, default=model=='latest'): whether to overwrite
             an existing model with the same `model` tag.  If False,
-            an error will be raised.
+            an error will be raised.  This defaults to True if `model` is not provided
+            or is 'latest', otherwise it will default to False.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -3503,9 +3738,9 @@ class Bundle(ParameterSet):
         if model is None:
             model = 'latest'
 
-        self._check_label(model, allow_overwrite=kwargs.get('overwrite', True))
+        self._check_label(model, allow_overwrite=kwargs.get('overwrite', model=='latest'))
 
-        if model in self.models and kwargs.get('overwrite', True):
+        if model in self.models and kwargs.get('overwrite', model=='latest'):
             logger.warning("overwriting model: {}".format(model))
             self.remove_model(model)
             # check the label again, just in case model belongs to something
@@ -3546,16 +3781,17 @@ class Bundle(ParameterSet):
         # any kwargs that were used just to filter for get_compute should  be
         # removed so that they aren't passed on to all future get_value(...
         # **kwargs) calls
+        computes_ps = self.get_compute(compute=compute, **kwargs)
         for k in parameters._meta_fields_filter:
             if k in kwargs.keys():
                 dump = kwargs.pop(k)
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        self._kwargs_checks(kwargs, ['skip_checks', 'jobid'])
+        self._kwargs_checks(kwargs, ['skip_checks', 'jobid', 'overwrite'], ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(computes=computes, **kwargs)
+            passed, msg = self.run_checks(compute=computes, **kwargs)
             if passed is None:
                 # then just raise a warning
                 logger.warning(msg)
