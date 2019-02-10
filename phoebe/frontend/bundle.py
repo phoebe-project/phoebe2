@@ -2778,9 +2778,9 @@ class Bundle(ParameterSet):
                                            value=value,
                                            check_visible=False,
                                            ignore_none=True)
-                    except:
+                    except Exception as err:
                         self.remove_dataset(dataset=kwargs['dataset'])
-                        raise ValueError("could not set value for {}={}, dataset has not been added".format(k, value))
+                        raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
 
             elif k in ['dataset']:
                 pass
@@ -2809,9 +2809,9 @@ class Bundle(ParameterSet):
                                        value=v,
                                        check_visible=False,
                                        ignore_none=True)
-                except:
+                except Exception as err:
                     self.remove_dataset(dataset=kwargs['dataset'])
-                    raise ValueError("could not set value for {}={}, dataset has not been added".format(k, v))
+                    raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added.".format(k, v, err.message))
 
 
         redo_kwargs = deepcopy({k:v if not isinstance(v, nparray.ndarray) else v.to_json() for k,v in kwargs.items()})
