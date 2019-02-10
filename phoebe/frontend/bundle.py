@@ -2775,7 +2775,7 @@ class Bundle(ParameterSet):
                 # then we must flip the constraint
                 # TODO: this will probably break with triple support - we'll need to handle the multiple orbit components by accepting the dictionary.
                 # For now we'll assume the component is top-level binary
-                self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times', check_nan=False)
+                self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times')
 
         for k, v in kwargs.items():
             if isinstance(v, dict):
@@ -3340,7 +3340,13 @@ class Bundle(ParameterSet):
 
         param = self.get_constraint(**kwargs)
 
-        if kwargs.pop('check_nan', True) and np.any(np.isnan([p.get_value() for p in param.vars.to_list()])):
+        def _check_nan(value):
+            if isinstance(value, np.ndarray):
+                return np.any(np.isnan(value))
+            else:
+                return np.isnan(value)
+
+        if kwargs.pop('check_nan', True) and np.any([_check_nan(p.get_value()) for p in param.vars.to_list()]):
             raise ValueError("cannot flip constraint while the value of {} is nan".format([p.twig for p in param.vars.to_list() if np.isnan(p.get_value())]))
 
         if solve_for is None:
