@@ -2726,7 +2726,7 @@ class Bundle(ParameterSet):
         else:
             obs_kwargs = {}
 
-        obs_params, constraints = func(**obs_kwargs)
+        obs_params, constraints = func(dataset=kwargs['dataset'], **obs_kwargs)
 
         if kwargs.get('overwrite', False):
             self.remove_dataset(dataset=kwargs['dataset'])
@@ -2766,6 +2766,19 @@ class Bundle(ParameterSet):
         # values can be overridden by the supplied kwargs
         self._handle_pblum_defaults()
         self._handle_dataset_selectparams()
+
+        if 'compute_phases' in kwargs.keys():
+            if 'compute_times' in kwargs.keys():
+                self.remove_dataset(dataset=kwargs['dataset'])
+                raise ValueError("cannot provide both 'compute_phases' and 'compute_times'. Dataset has not been added.")
+            else:
+                # then we must flip the constraint
+                # TODO: this will probably break with triple support - we'll need to handle the multiple orbit components by accepting the dictionary.
+                # For now we'll assume the component is top-level binary
+                self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times', check_nan=False)
+                if not isinstance(kwargs['compute_phases'], dict):
+                    # we don't want to call set_value_all because that will try to set the default, and we could only flip ONE of the constraints
+                    kwargs['compute_phases'] = {self.hierarchy.get_top(): kwargs['compute_phases']}
 
         for k, v in kwargs.items():
             if isinstance(v, dict):
@@ -2814,7 +2827,15 @@ class Bundle(ParameterSet):
                     raise ValueError("could not set value for {}={}, dataset has not been added".format(k, v))
 
 
-        redo_kwargs = deepcopy({k:v if not isinstance(v, nparray.ndarray) else v.to_json() for k,v in kwargs.items()})
+        def _to_safe_value(v):
+            if isinstance(v, nparray.ndarray):
+                return v.to_json()
+            elif isinstance(v, dict):
+                return {k: _to_safe_value(v) for k,v in v.items()}
+            else:
+                return v
+
+        redo_kwargs = deepcopy({k:_to_safe_value(v) for k,v in kwargs.items()})
         redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_dataset',
                           redo_kwargs=redo_kwargs,
@@ -3313,6 +3334,8 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, additional_allowed_keys=['check_nan'])
 
         kwargs['twig'] = twig
+        kwargs['check_default'] = False
+        kwargs['check_visible'] = False
         redo_kwargs = deepcopy(kwargs)
         undo_kwargs = deepcopy(kwargs)
 

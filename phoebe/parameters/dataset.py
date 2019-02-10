@@ -113,10 +113,19 @@ def lc_syn(syn=True, **kwargs):
     if not syn:
         syn_params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
 
+        # syn_params += [FloatArrayParameter(qualifier='phases', value=_empty_array(kwargs, 'phases'), default_unit=u.cycle, description='Observed phases')]
+        # syn_params += [ChoiceParameter(qualifier='phase_component', value='', choices=[''], description='Component to use for phases<->times')]
+        # syn_params += [ChoiceParameter(qualifier='phase_t0', value='t0_perpass', choices=['t0', 't0_perpass', 't0_supconj', 't0_ref'], description='t0 to use for phases<->times')]
+
+        syn_params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        syn_params += [FloatArrayParameter(qualifier='compute_phases', copy_for={'kind': ['orbit'], 'component': '*'}, component='_default', value=kwargs.get('compute_phases', []),default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+
 
     #~ syn_params += [FloatArrayParameter(qualifier='exptime', value=kwargs.get('exptime', []), default_unit=u.s, description='Signal exposure time')]
 
     constraints = []
+    if not syn:
+        constraints += [(constraint.compute_phase, kwargs.get('component', '_default'), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 
@@ -190,8 +199,13 @@ def rv_syn(syn=True, **kwargs):
     if not syn:
         syn_params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
 
+        syn_params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        syn_params += [FloatArrayParameter(qualifier='compute_phases', copy_for={'kind': ['orbit'], 'component': '*'}, component='_default', value=kwargs.get('compute_phases', []),default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+
 
     constraints = []
+    if not syn:
+        constraints += [(constraint.compute_phase, kwargs.get('component', '_default'), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 
@@ -265,10 +279,17 @@ def lp_syn(syn=True, **kwargs):
     for time in times:
         # but do allow per-component flux_densities and sigmas
         syn_params += [FloatArrayParameter(qualifier='flux_densities', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'flux_densities'), default_unit=u.W/(u.m**2*u.nm), description='Flux density per wavelength (must be same length as wavelengths or empty)')]
+
         if not syn:
             syn_params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
 
+            syn_params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+            syn_params += [FloatArrayParameter(qualifier='compute_phases', copy_for={'kind': ['orbit'], 'component': '*'}, component='_default', value=kwargs.get('compute_phases', []),default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+
+
     constraints = []
+    if not syn:
+        constraints += [(constraint.compute_phase, kwargs.get('component', '_default'), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 
@@ -397,7 +418,14 @@ def orb_syn(syn=True, **kwargs):
         syn_params += [FloatArrayParameter(qualifier='vvs', value=_empty_array(kwargs, 'vvs'), default_unit=u.km/u.s, description='V velocity')]
         syn_params += [FloatArrayParameter(qualifier='vws', value=_empty_array(kwargs, 'vws'), default_unit=u.km/u.s, description='W velocity')]
 
+    else:
+        syn_params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        syn_params += [FloatArrayParameter(qualifier='compute_phases', copy_for={'kind': ['orbit'], 'component': '*'}, component='_default', value=kwargs.get('compute_phases', []),default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+
+
     constraints = []
+    if not syn:
+        constraints += [(constraint.compute_phase, kwargs.get('component', '_default'), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 

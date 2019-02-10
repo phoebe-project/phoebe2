@@ -4799,6 +4799,16 @@ class Parameter(object):
         """
         return self.__math__(other, '**', '__pow__')
 
+    def __mod__(self, other):
+        """
+        """
+        return self.__math__(other, '%', '__mod__')
+
+    def __rmod__(self, other):
+        """
+        """
+        return self.__rmath__(other, '%', '__rmod__')
+
     def set_uniqueid(self, uniqueid):
         """
         Set the `uniqueid` of this <phoebe.parameters.Parameter>.
@@ -8061,8 +8071,9 @@ class ConstraintParameter(Parameter):
 
         eq = self.get_value()
 
+        values = get_values(self._vars, safe_label=_use_sympy or not eq_needs_builtin(eq))
+
         if _use_sympy and not eq_needs_builtin(eq):
-            values = get_values(self._vars, safe_label=True)
             values['I'] = 1 # CHEATING MAGIC
             # just to be safe, let's reinitialize the sympy vars
             for v in self._vars:
@@ -8083,8 +8094,6 @@ class ConstraintParameter(Parameter):
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
 
-                values = get_values(self._vars, safe_label=False)
-
                 # cannot do from builtin import *
                 for func in _constraint_builtin_funcs:
                     # I should be shot for doing this...
@@ -8103,7 +8112,6 @@ class ConstraintParameter(Parameter):
 
             else:
                 # the following works for np arrays
-                values = get_values(self._vars, safe_label=True)
 
                 # if any of the arrays are empty (except the one we're filling)
                 # then we want to return an empty array as well (the math would fail)
