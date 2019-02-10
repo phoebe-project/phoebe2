@@ -2726,7 +2726,7 @@ class Bundle(ParameterSet):
         else:
             obs_kwargs = {}
 
-        obs_params, constraints = func(dataset=kwargs['dataset'], **obs_kwargs)
+        obs_params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **obs_kwargs)
 
         if kwargs.get('overwrite', False):
             self.remove_dataset(dataset=kwargs['dataset'])
@@ -2776,9 +2776,6 @@ class Bundle(ParameterSet):
                 # TODO: this will probably break with triple support - we'll need to handle the multiple orbit components by accepting the dictionary.
                 # For now we'll assume the component is top-level binary
                 self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times', check_nan=False)
-                if not isinstance(kwargs['compute_phases'], dict):
-                    # we don't want to call set_value_all because that will try to set the default, and we could only flip ONE of the constraints
-                    kwargs['compute_phases'] = {self.hierarchy.get_top(): kwargs['compute_phases']}
 
         for k, v in kwargs.items():
             if isinstance(v, dict):
@@ -3334,8 +3331,8 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, additional_allowed_keys=['check_nan'])
 
         kwargs['twig'] = twig
-        kwargs['check_default'] = False
-        kwargs['check_visible'] = False
+        # kwargs['check_default'] = False
+        # kwargs['check_visible'] = False
         redo_kwargs = deepcopy(kwargs)
         undo_kwargs = deepcopy(kwargs)
 
@@ -3934,7 +3931,9 @@ class Bundle(ParameterSet):
                         exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
                         if exptime > 0:
                             if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
-                                times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
+                                times_ds = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset')
+                                if not len(times_ds):
+                                    times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
                                 # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
                                 fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
                                 # NOTE: this is hardcoded for LCs which is the
