@@ -7553,6 +7553,25 @@ class HierarchyParameter(StringParameter):
 
         return self._is_binary.get(component)
 
+    def is_time_dependent(self):
+        """
+        Return whether the system has any time-dependent parameters (other than
+        phase-dependent).
+
+        Returns
+        ---------
+        * (bool): whether the system is time-dependent
+        """
+        for orbit in self.get_orbits():
+            if self._bundle.get_value('dpdt', component=orbit, context='component') != 0:
+                return True
+            if self._bundle.get_value('dperdt', component=orbit, context='component') != 0:
+                return True
+            if conf.devel and self._bundle.get_value('deccdt', component=orbit, context='component') != 0:
+                return True
+
+        return False
+
 
 class ConstraintParameter(Parameter):
     """
