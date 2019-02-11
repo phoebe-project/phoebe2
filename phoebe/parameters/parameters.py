@@ -7553,6 +7553,22 @@ class HierarchyParameter(StringParameter):
 
         return self._is_binary.get(component)
 
+    def is_misaligned(self):
+        """
+        Return whether the system is misaligned.
+
+        Returns
+        ---------
+        * (bool): whether the system is misaligned.
+        """
+        for component in self.get_stars():
+            if self._bundle.get_value('pitch', component=component, context='component') != 0:
+                return True
+            if self._bundle.get_value('yaw', component=component, context='component') != 0:
+                return True
+
+        return False
+
     def is_time_dependent(self):
         """
         Return whether the system has any time-dependent parameters (other than
