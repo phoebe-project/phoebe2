@@ -283,13 +283,10 @@ def lp_syn(syn=True, **kwargs):
         if not syn:
             syn_params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
 
-            syn_params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-            syn_params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+            # syn_params += [FloatArrayParameter(qualifier='compute_wavelengths', value=kwargs.get('compute_wavelengths', []), default_unit=u.nm, description='Wwavelengths to use during run_compute.  If empty, will use times parameter')]
 
 
     constraints = []
-    if not syn:
-        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 
