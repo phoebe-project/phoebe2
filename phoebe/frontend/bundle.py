@@ -3050,7 +3050,6 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.remove_constraint>
         * <phoebe.frontend.bundle.Bundle.run_constraint>
         * <phoebe.frontend.bundle.Bundle.flip_constraint>
-        * <phoebe.frontend.bundle.Bundle.run_constraint>
         * <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
 
         For a list of optional built-in constraints, see <phoebe.parameters.constraint>
@@ -3603,7 +3602,7 @@ class Bundle(ParameterSet):
 
     def remove_compute(self, compute, **kwargs):
         """
-        Remove a 'compute' from the bundleself.
+        Remove a 'compute' from the bundle.
 
         See also:
         * <phoebe.parameters.ParameterSet.remove_parameters_all>
