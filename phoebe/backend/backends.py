@@ -174,7 +174,8 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 timequalifier = _timequalifier_by_kind(dataset_kind)
                 timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
                 # print "*****", dataset_kind, dataset_ps.kinds, timequalifier, timecomponent
-                this_times = dataset_ps.get_value(qualifier='compute_times', component=timecomponent, unit=u.d)
+                # NOTE: compute_times is not component-dependent, but times can be (i.e. for RV datasets)
+                this_times = dataset_ps.get_value(qualifier='compute_times', unit=u.d)
                 if not len(this_times):
                     this_times = dataset_ps.get_value(qualifier=timequalifier, component=timecomponent, unit=u.d)
 

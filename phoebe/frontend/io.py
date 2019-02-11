@@ -1546,10 +1546,11 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     for y in range(len(rvs)):
 
         #get rv qualifiers
-        quals = eb.filter(dataset=rvs[y], context='dataset')+eb.filter(dataset=rvs[y], context='compute')
+        quals = eb.filter(dataset=rvs[y], context=['dataset', 'compute'])
 
         #cycle through components
-        comps = quals.components
+        comps = quals.filter(qualifier='times').components
+        # comps = eb.hierarchy.get_stars()
 
         rv_type = {primary:{'curve' : '"Primary RV"', 'comp_int' : 1} , \
         secondary: {'curve':'"Secondary RV"', 'comp_int':2}}

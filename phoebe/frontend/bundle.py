@@ -2804,6 +2804,8 @@ class Bundle(ParameterSet):
                     # passband-dependent (ie lc_dep) parameters do not have
                     # assigned components
                     components_ = None
+                elif k in ['compute_times', 'compute_phases']:
+                    components_ = self.hierarchy.get_top()
                 elif components == [None]:
                     components_ = None
                 elif user_provided_components:
@@ -4084,6 +4086,9 @@ class Bundle(ParameterSet):
         """
         dataset_ps = self.get_dataset(dataset=dataset)
         dataset_kind = dataset_ps.filter(kind='*dep').kind
+
+        model_ps = self.get_model(model=model).filter(dataset=dataset, component=component)
+
         if dataset_kind == 'lc_dep':
             qualifier = 'fluxes'
         elif dataset_kind == 'rv_dep':
@@ -4093,12 +4098,17 @@ class Bundle(ParameterSet):
             # NOTE: add to documentation if adding support for other datasets
             raise NotImplementedError("compute_residuals not implemented for dataset with kind='{}'".format(dataset_kind))
 
-        model_param = self.get_model(model=model).filter(dataset=dataset).get_parameter(qualifier)
         dataset_param = dataset_ps.get_parameter(qualifier, component=component)
+        model_param = model_ps.get_parameter(qualifier)
 
         # TODO: do we need to worry about conflicting units?
         # NOTE: this should automatically handle interpolating in phases, if necessary
-        times = dataset_ps.get_value('times')
+        times = dataset_ps.get_value('times', component=component)
+        if not len(times):
+            raise ValueError("no times in the dataset: {}@{}".format(dataset, component))
+        if not len(dataset_param.get_value()) == len(times):
+            raise ValueError("{}@{} and {}@{} do not have the same length, cannot compute residuals".format(qualifier, dataset, 'times', dataset))
+
         residuals = np.asarray(dataset_param.interp_value(times=times) - model_param.interp_value(times=times))
 
         return residuals
