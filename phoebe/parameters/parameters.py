@@ -2740,6 +2740,94 @@ class ParameterSet(object):
         raise NotImplementedError
 
 
+    def compute_residuals(self, model=None, dataset=None, component=None, as_quantity=True):
+        """
+        Compute residuals between the observed values in a dataset and the
+        corresponding model.
+
+        Currently supports the following datasets:
+        * <phoebe.parameters.dataset.lc>
+        * <phoebe.parameters.dataset.rv>
+
+        If necessary (due to the `compute_times`/`compute_phases` parameters
+        or a change in the dataset `times` since the model was computed),
+        interpolation will be handled, in time-space if possible, and in
+        phase-space otherwise. See
+        <phoebe.parameters.FloatArrayParameter.interp_value>.
+
+        Arguments
+        -----------
+        * `model` (string, optional, default=None): model to compare against
+            observations.  Required if more than one model exist.
+        * `dataset` (string, optional, default=None): dataset for comparison.
+            Required if more than one dataset exist.
+        * `component` (string, optional, default=None): component for comparison.
+            Required only if more than one component exist in the dataset (for
+            RVs, for example)
+        * `as_quantity` (bool, default=True): whether to return a quantity object.
+
+        Returns
+        -----------
+        * (array) array of residuals with same length as the times array of the
+            corresponding dataset.
+
+        Raises
+        ----------
+        * ValueError: if the provided filter options (`model`, `dataset`,
+            `component`) do not result in a single parameter for comparison.
+        * NotImplementedError: if the dataset kind is not supported for residuals.
+        """
+        if not len(self.filter(context='dataset').datasets):
+            dataset_ps = self._bundle.get_dataset(dataset=dataset)
+        else:
+            dataset_ps = self.filter(dataset=dataset, context='dataset')
+
+        dataset_kind = dataset_ps.filter(kind='*dep').kind
+
+        if not len(self.filter(context='model').models):
+            model_ps = self._bundle.get_model(model=model).filter(dataset=dataset, component=component)
+        else:
+            model_ps = self.filter(model=model, context='model').filter(dataset=dataset, component=component)
+
+        if dataset_kind == 'lc_dep':
+            qualifier = 'fluxes'
+        elif dataset_kind == 'rv_dep':
+            qualifier = 'rvs'
+        else:
+            # TODO: lp compared for a given time interpolating in wavelength?
+            # NOTE: add to documentation if adding support for other datasets
+            raise NotImplementedError("compute_residuals not implemented for dataset with kind='{}' (model={}, dataset={}, component={})".format(dataset_kind, model, dataset, component))
+
+        dataset_param = dataset_ps.get_parameter(qualifier, component=component)
+        model_param = model_ps.get_parameter(qualifier)
+
+        # TODO: do we need to worry about conflicting units?
+        # NOTE: this should automatically handle interpolating in phases, if necessary
+        times = dataset_ps.get_value('times', component=component)
+        if not len(times):
+            raise ValueError("no times in the dataset: {}@{}".format(dataset, component))
+        if not len(dataset_param.get_value()) == len(times):
+            if len(dataset_param.get_value())==0:
+                # then the dataset was empty, so let's just return an empty array
+                if as_quantity:
+                    return np.asarray([]) * dataset_param.default_unit
+                else:
+                    return np.asarray([])
+            else:
+                raise ValueError("{}@{}@{} and {}@{}@{} do not have the same length, cannot compute residuals".format(qualifier, component, dataset, 'times', component, dataset))
+
+        if dataset_param.default_unit != model_param.default_unit:
+            raise ValueError("model and dataset do not have the same default_unit, cannot interpolate")
+
+        residuals = np.asarray(dataset_param.interp_value(times=times) - model_param.interp_value(times=times))
+
+        if as_quantity:
+            return residuals * dataset_param.default_unit
+        else:
+            return residuals
+
+
+
     def _unpack_plotting_kwargs(self, **kwargs):
 
 
@@ -2920,6 +3008,9 @@ class ParameterSet(object):
                         # then we actually need to unpack from the uvw_elements
                         verts = ps.get_quantity(qualifier='uvw_elements')
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
+                    elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
+                        # then we actually need to pull the times from the dataset instead of the model since the length may not match
+                        array_value = ps._bundle.get_value('times', dataset=ps.dataset, component=ps.component, context='dataset')
                     else:
                         if len(ps.filter(current_value, check_visible=False))==1:
                             array_value = ps.get_quantity(current_value, check_visible=False)
@@ -2981,7 +3072,11 @@ class ParameterSet(object):
                                         if len(current_value.split(':')) > 1 \
                                         else None
 
-                    if ps.kind in ['etvs']:
+
+                    if 'residuals' in kwargs.values():
+                        # then we actually need to pull the times from the dataset instead of the model since the length may not match
+                        times = ps._bundle.get_value('times', dataset=ps.dataset, component=ps.component, context='dataset')
+                    elif ps.kind in ['etvs']:
                         times = ps.get_value('time_ecls', unit=u.d)
                     else:
                         times = ps.get_value('times', unit=u.d)
@@ -2994,6 +3089,20 @@ class ParameterSet(object):
 
                     # and we'll set the linebreak so that decreasing phase breaks any lines (allowing for phase wrapping)
                     kwargs.setdefault('linebreak', '{}-'.format(direction))
+
+                    return kwargs
+
+                elif current_value in ['residuals']:
+                    if ps.model is None:
+                        logger.info("skipping residuals for dataset")
+                        return {}
+
+                    # we're currently within the MODEL context
+                    kwargs[direction] = ps.compute_residuals(model=ps.model, dataset=ps.dataset, component=ps.component, as_quantity=True)
+                    kwargs.setdefault('{}label'.format(direction), '{} residuals'.format({'lc': 'flux', 'rv': 'rv'}.get(ps.kind, '')))
+                    kwargs['{}qualifier'.format(direction)] = current_value
+                    kwargs.setdefault('linestyle', 'none')
+                    kwargs.setdefault('marker', '+')
 
                     return kwargs
 
@@ -3197,6 +3306,7 @@ class ParameterSet(object):
         #### GET DATA ARRAY FOR EACH AUTOFIG "DIRECTION"
         for af_direction in ['x', 'y', 'z', 'c', 's', 'fc', 'ec']:
             # set the array and dimension label
+            # logger.debug("af_direction={}, kwargs={}, defaults={}".format(af_direction, kwargs, defaults))
             if af_direction not in kwargs.keys() and af_direction in defaults.keys():
                 # don't want to use setdefault here because we don't want an
                 # entry if the af_direction is not in either dict
@@ -3361,10 +3471,13 @@ class ParameterSet(object):
             With the exception of phase, `b.get_value(x)` needs to provide a
             valid float or array.  To plot phase along the x-axis, pass
             `x='phases'` or `x=phases:[component]`.  This will use the ephemeris
-            from <phoebe.frontend.bundle.Bundle.get_ephemeris(component) if
+            from <phoebe.frontend.bundle.Bundle.get_ephemeris>(component) if
             possible to phase the applicable times array.
         * `y` (string/float/array, optional): qualifier/twig of the array to plot on the
-            y-axis (will default based on the dataset-kind if not provided).
+            y-axis (will default based on the dataset-kind if not provided).  To
+            plot residuals along the y-axis, pass `y='residuals'`.  This will
+            call <phoebe.frontend.bundle.Bundle.compute_residuals> for the given
+            dataset/model.
         * `z` (string/float/array, optional): qualifier/twig of the array to plot on the
             z-axis.  By default, this will just order the points on a 2D plot.
             To plot in 3D, also pass `projection='3d'`.
