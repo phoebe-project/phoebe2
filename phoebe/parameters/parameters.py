@@ -1255,7 +1255,9 @@ class ParameterSet(object):
                 if p not in lst:
                     lst.append(p)
 
-            return ParameterSet(lst)
+            ps = ParameterSet(lst)
+            ps._bundle = self._bundle
+            return ps
         else:
             raise NotImplementedError
 
@@ -1266,7 +1268,9 @@ class ParameterSet(object):
             other = ParameterSet([other])
 
         if isinstance(other, ParameterSet):
-            return ParameterSet([p for p in self._params if p not in other._params])
+            ps = ParameterSet([p for p in self._params if p not in other._params])
+            ps._bundle = self._bundle
+            return ps
         else:
             raise NotImplementedError
 
@@ -1280,7 +1284,9 @@ class ParameterSet(object):
             other = ParameterSet([other])
 
         if isinstance(other, ParameterSet):
-            return ParameterSet([p for p in self._params if p in other._params])
+            ps = ParameterSet([p for p in self._params if p in other._params])
+            ps._bundle = self._bundle
+            return ps
         else:
             raise NotImplementedError
 
