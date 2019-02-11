@@ -1794,12 +1794,13 @@ class Bundle(ParameterSet):
         # we've survived all tests
         return True, ''
 
-    def recommended_citations(self, compute=None, dataset=None):
+    def references(self, compute=None, dataset=None):
         """
-        Provides recommended citations from the given bundle based on the
+        Provides a list of used references from the given bundle based on the
         current parameter values and attached datasets/compute options.
 
-        This list is not necessarily complete, but can be useful to make sure
+        This list is not necessarily complete, but can be useful to find
+        publications for various features/models used as well as to make sure
         appropriate references are being cited/acknowledged.  The returned
         dictionary includes a list for each entry why its being included.
 
