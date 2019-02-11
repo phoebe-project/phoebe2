@@ -6458,12 +6458,23 @@ class FloatArrayParameter(FloatParameter):
         Example:
 
         ```py
-        b['flux@lc01@model'].interp_value(times=10.2)
+        b['fluxes@lc01@model'].interp_value(times=10.2)
         ```
 
-        NOTE: Interpolation by phase is not currently supported - but you can use
-        <phoebe.frontend.bundle.Bundle.to_time> to convert to a valid
-        time first (just make sure its in the bounds of the time array).
+        The only exception is when interpolating in phase-space, in which
+        case the 'times' qualifier must be found in the ParentPS.  Interpolating
+        in phase-space is only allowed if there are no time derivatives present
+        in the system.  This can be checked with
+        <phoebe.parameters.HierarchyParameter.is_time_dependent>.  To interpolate
+        in phases:
+
+        ```
+        b['fluxes@lc01@model'].interp_value(phases=0.5)
+        ```
+
+        Additionally, when interpolating in time but the time is outside the
+        available range, phase-interpolation will automatically be attempted,
+        with a warning raised via the <phoebe.logger>.
 
         NOTE: this method does not currently support units.  You must provide
         the interpolating value in its default units and are returned the
@@ -6471,6 +6482,10 @@ class FloatArrayParameter(FloatParameter):
 
         Arguments
         ----------
+        * `component` (string, optional): if interpolating in phases, `component`
+            will be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `t0` (string/float, optional): if interpolating in phases, `t0` will
+            be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `**kwargs`: see examples above, must provide a single
             qualifier-value pair to use for interpolation.  In most cases
             this will probably be time=value or wavelength=value.
@@ -6503,17 +6518,37 @@ class FloatArrayParameter(FloatParameter):
 
         parent_ps = self.get_parent_ps()
 
-        if qualifier not in parent_ps.qualifiers:
+        if qualifier not in parent_ps.qualifiers and not (qualifier=='phases' and 'times' in parent_ps.qualifiers):
             # TODO: handle plural to singular (having to say
             # interp_value(times=5) is awkward)
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
 
-        qualifier_parameter = parent_ps.get(qualifier=qualifier)
+        if qualifier=='times':
+            times = parent_ps.get_value(qualifier='times')
+            if qualifier_interp_value < times.min() or qualifier_interp_value > times.max():
+                qualifier_interp_value_time = qualifier_interp_value
+                qualifier = 'phases'
+                qualifier_interp_value = self._bundle.to_phase(qualifier_interp_value_time, **{k:v for k,v in kwargs.items() if k in ['component', 't0']})
+                logger.warning("time={} outside of interpolation limits ({} -> {})... attempting to interpolate at phase={}".format(qualifier_interp_value_time, times.min(), times.max(), qualifier_interp_value))
 
-        if not isinstance(qualifier_parameter, FloatArrayParameter):
-            raise KeyError("'{}' does not point to a FloatArrayParameter".format(qualifier))
 
-        return np.interp(qualifier_interp_value, qualifier_parameter.get_value(), self.get_value())
+        if qualifier=='phases':
+            if self._bundle.hierarchy.is_time_dependent():
+                raise ValueError("cannot interpolate in phase for time-dependent systems")
+
+            times = parent_ps.get_value(qualifier='times')
+            phases = self._bundle.to_phase(times, **{k:v for k,v in kwargs.items() if k in ['component', 't0']})
+
+            return np.interp(qualifier_interp_value, phases, self.get_value())
+
+        else:
+
+            qualifier_parameter = parent_ps.get(qualifier=qualifier)
+
+            if not isinstance(qualifier_parameter, FloatArrayParameter):
+                raise KeyError("'{}' does not point to a FloatArrayParameter".format(qualifier))
+
+            return np.interp(qualifier_interp_value, qualifier_parameter.get_value(), self.get_value())
 
 
     def append(self, value):
