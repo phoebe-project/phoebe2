@@ -4098,7 +4098,8 @@ class Bundle(ParameterSet):
 
         # TODO: do we need to worry about conflicting units?
         # NOTE: this should automatically handle interpolating in phases, if necessary
-        residuals = np.asarray([dataset_param.interp_value(times=t) - model_param.interp_value(times=t) for t in dataset_ps.get_value('times')])
+        times = dataset_ps.get_value('times')
+        residuals = np.asarray(dataset_param.interp_value(times=times) - model_param.interp_value(times=times))
 
         return residuals
 

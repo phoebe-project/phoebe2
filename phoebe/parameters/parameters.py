@@ -6525,11 +6525,11 @@ class FloatArrayParameter(FloatParameter):
 
         if qualifier=='times':
             times = parent_ps.get_value(qualifier='times')
-            if qualifier_interp_value < times.min() or qualifier_interp_value > times.max():
+            if np.any(qualifier_interp_value < times.min()) or np.any(qualifier_interp_value > times.max()):
                 qualifier_interp_value_time = qualifier_interp_value
                 qualifier = 'phases'
                 qualifier_interp_value = self._bundle.to_phase(qualifier_interp_value_time, **{k:v for k,v in kwargs.items() if k in ['component', 't0']})
-                logger.warning("time={} outside of interpolation limits ({} -> {})... attempting to interpolate at phase={}".format(qualifier_interp_value_time, times.min(), times.max(), qualifier_interp_value))
+                logger.warning("times={} outside of interpolation limits ({} -> {})... attempting to interpolate at phases={}".format(qualifier_interp_value_time, times.min(), times.max(), qualifier_interp_value))
 
 
         if qualifier=='phases':
