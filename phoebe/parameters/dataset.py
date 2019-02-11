@@ -125,7 +125,7 @@ def lc_syn(syn=True, **kwargs):
 
     constraints = []
     if not syn:
-        constraints += [(constraint.compute_phase, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 
@@ -205,7 +205,7 @@ def rv_syn(syn=True, **kwargs):
 
     constraints = []
     if not syn:
-        constraints += [(constraint.compute_phase, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 
@@ -289,7 +289,7 @@ def lp_syn(syn=True, **kwargs):
 
     constraints = []
     if not syn:
-        constraints += [(constraint.compute_phase, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 
@@ -425,7 +425,7 @@ def orb_syn(syn=True, **kwargs):
 
     constraints = []
     if not syn:
-        constraints += [(constraint.compute_phase, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 

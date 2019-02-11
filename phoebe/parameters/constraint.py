@@ -1685,8 +1685,37 @@ def passband_ratio(b, *args, **kwargs):
 #}
 #{ Dataset constraints
 
-def compute_phase(b, component, dataset, solve_for=None, **kwargs):
+def compute_phases(b, component, dataset, solve_for=None, **kwargs):
     """
+    Create a constraint for the translation between compute_phases and compute_times.
+
+    This constraint is automatically created and attached for all datasets
+    via <phoebe.frontend.bundle.Bundle.add_dataset>.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('compute_phase', component=b.hierarchy.get_top(), dataset='dataset')`.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `component` (string): the label of the orbit or component in which the
+        `period` should be found.
+    * `dataset` (string): the label of the dataset in which to find the
+        `compute_times` and `compute_phases` parameters.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'compute_phases' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'compute_times').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
     ds = b.get_dataset(dataset, check_default=False)
     compute_times = ds.get_parameter(qualifier='compute_times')
