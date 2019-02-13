@@ -1685,6 +1685,7 @@ class Bundle(ParameterSet):
                         'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1])
 
         # run passband checks
+        all_pbs = list_passbands(full_dict=True)
         installed_pbs = list_installed_passbands(full_dict=True)
         online_pbs = list_online_passbands(full_dict=True)
         for pbparam in self.filter(qualifier='passband').to_list():
@@ -1736,16 +1737,23 @@ class Bundle(ParameterSet):
                 if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
                     continue
                 ld_func = str(self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs))
+                ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
                 ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
-                if ld_coeffs is not None:
-                    check = ld_coeffs_len(ld_func, ld_coeffs)
-                    if not check[0]:
-                        return check
+                pb = self.get_value(qualifier='passband', dataset=dataset, context='dataset', check_visible=False, **kwargs)
 
-                if ld_func != 'interp' and ld_coeffs is not None:
-                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
-                    if not check:
-                        return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
+                if ld_func != 'interp':
+                    if ld_coeffs_source != 'none':
+                        if ld_coeffs_source not in all_pbs[pb]['atms_ld']:
+                            return False, 'passband={} does not support ld_coeffs_source={}'.format(pb, ld_coeffs_source)
+
+                    else:
+                        check = ld_coeffs_len(ld_func, ld_coeffs)
+                        if not check[0]:
+                            return check
+
+                        check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+                        if not check:
+                            return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
 
                 if ld_func=='interp':
                     for compute in computes:

@@ -1387,7 +1387,7 @@ def _init_passband(fullpath):
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
     passband = pb.pbset+':'+pb.pbname
-    _pbtable[passband] = {'fname': fullpath, 'atms': pb.atmlist, 'timestamp': pb.timestamp, 'pb': None}
+    _pbtable[passband] = {'fname': fullpath, 'atms': pb.atmlist, 'atms_ld': [atm for atm in pb.atmlist if '{}_ld'.format(atm) in pb.content], 'timestamp': pb.timestamp, 'pb': None}
 
     if update_passband_available(passband):
         msg = 'passband "{}" has a newer version available.  Run phoebe.download_passband("{}") or phoebe.update_all_passbands() to update.'.format(passband, passband)
@@ -1409,7 +1409,7 @@ def _init_passbands(refresh=False):
         # available locally will override
         online_passbands = list_online_passbands(full_dict=True, refresh=refresh)
         for pb, info in online_passbands.items():
-            _pbtable[pb] = {'fname': None, 'atms': info['atms'], 'pb': None}
+            _pbtable[pb] = {'fname': None, 'atms': info['atms'], 'atms_ld': info.get('atms_ld', ['ck2004']), 'pb': None}
 
         # load global passbands (in install directory) next and then local
         # (in .phoebe directory) second so that local passbands override
