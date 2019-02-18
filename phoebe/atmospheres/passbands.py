@@ -1948,6 +1948,67 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
 
     return factor * sigma_sb.value * Teff**4 / np.pi
 
+
+def phoenix_interpolated_intensities(mu_phoenix, intensity_phoenix, mu_interp):
+
+    '''
+    Recomputes PHOENIX intensities towards the limb.
+
+    The PHOENIX intensities are recomputed past the inflection point using the
+    tangent in the inflection point. Mus are rescaled such that mu=0 where the
+    tangent in the inflection point intersects the x-axis.
+    '''
+
+    from scipy.interpolate import interp1d
+
+    def mu_inflection(mu, g2):
+
+        argmin = np.argmax(g2)
+        argmax = np.argmin(g2)
+        g2_interp = interp1d(g2[argmin:argmax], mu[argmin:argmax])
+        return g2_interp([0.])
+
+
+    def tangent(mu, s, g, mu_infl):
+        
+        g1_interp = interp1d(mu, g)
+        s_interp = interp1d(mu, s)
+
+        g_infl = g1_interp(mu_infl)
+        s_infl = s_interp(mu_infl)
+
+        n_tan = s_infl - g_infl*mu_infl
+
+        return [g_infl, n_tan]
+
+    # compute the first and second gradient
+    g1 = np.gradient(intensity_phoenix, mu_phoenix)
+    g2 = np.gradient(g1, mu_phoenix)
+
+    # compute the inflection point and tangent
+    mu_infl = mu_inflection(mu_phoenix, g2)
+    k, n = tangent(mu_phoenix, intensity_phoenix, g1, mu_infl)
+
+    # compute mu where y-tangent = 0
+    mu0 = -n/k
+
+    # recompute intensities
+    intensity = intensity_phoenix.copy()
+    intensity[mu_phoenix<mu_infl] = k*mu_phoenix[mu_phoenix<mu_infl] + n
+    intensity[mu_phoenix<mu0] = 0.
+
+    # compute "lost" fraction of the intensity
+    lost_frac = (np.sum(intensity_phoenix)-np.sum(intensity))/np.sum(intensity_phoenix)
+
+    # renormalize mus on 0 to 1
+    mus_norm = np.cos(np.pi/2*np.arccos(mu_phoenix)/np.arccos(mu0))
+
+    # interpolate intensities in user-provided mus
+    intensity_interp = interp1d(mus_norm, intensity)
+
+    return intensity_interp(mu_interp), lost_frac
+
+
 if __name__ == '__main__':
 
     # Testing LD stuff:
