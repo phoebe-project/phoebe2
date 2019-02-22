@@ -728,9 +728,11 @@ class Passband:
         '''
 
         def mu_inflection(mu, g2):
-            argmin = np.argmax(g2)
+
             argmax = np.argmin(g2)
-            g2_interp = interpolate.interp1d(g2[argmin:argmax], mu[argmin:argmax])
+            argmin = np.argmax(g2[0:argmax])
+            g2_interp = interpolate.interp1d(g2[argmin:argmax+1], mu[argmin:argmax+1])
+
             return g2_interp([0.])
 
         def tangent(mu, s, g, mu_infl):
@@ -745,6 +747,7 @@ class Passband:
             return [g_infl, n_tan]
 
         # compute the first and second gradient
+
         g1 = np.gradient(intensity_phoenix, mu_phoenix)
         g2 = np.gradient(g1, mu_phoenix)
 
@@ -961,10 +964,9 @@ class Passband:
             # plt.show()
 
             flEint = self._rescale_phoenix_intensities(mu, mus, flEint)
-
             # plt.plot(mu, flEint/flEint[-1], 'g-')
             # exit()
-
+            
             for cmi, cmu in enumerate(mus):
                 fl = intensities[cmi,:]
 
@@ -1012,8 +1014,8 @@ class Passband:
                 flEint = flE.sum()
                 flPint = flP.sum()
 
-                flEint = self._rescale_phoenix_intensities(mu, mus, flEint)
-                flPint = self._rescale_phoenix_intensities(mu, mus, flPint)
+                # flEint = self._rescale_phoenix_intensities(mu, mus, flEint)
+                # flPint = self._rescale_phoenix_intensities(mu, mus, flPint)
 
                 # calculate mean boosting coefficient and use it to get
                 # boosting factors for energy (E) and photon (P) weighted
@@ -1031,7 +1033,7 @@ class Passband:
             if verbose:
                 sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
                 sys.stdout.flush()
-
+            
         if verbose:
             print('')
 
