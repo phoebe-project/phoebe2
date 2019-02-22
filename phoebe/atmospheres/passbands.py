@@ -718,6 +718,55 @@ class Passband:
         self.content.append('phoenix')
         self.atmlist.append('phoenix')
 
+    def _rescale_phoenix_intensities(self, mu_interp, mu_phoenix, intensity_phoenix):
+        '''
+        Rescales spherical PHOENIX intensities so that I(mu=0) = 0.
+
+        The PHOENIX intensities are recomputed past the inflection point using the
+        tangent in the inflection point. Mus are rescaled such that mu=0 where the
+        tangent in the inflection point intersects the x-axis.
+        '''
+
+        def mu_inflection(mu, g2):
+            argmin = np.argmax(g2)
+            argmax = np.argmin(g2)
+            g2_interp = interpolate.interp1d(g2[argmin:argmax], mu[argmin:argmax])
+            return g2_interp([0.])
+
+        def tangent(mu, s, g, mu_infl):
+            g1_interp = interpolate.interp1d(mu, g)
+            s_interp = interpolate.interp1d(mu, s)
+
+            g_infl = g1_interp(mu_infl)
+            s_infl = s_interp(mu_infl)
+
+            n_tan = s_infl - g_infl*mu_infl
+
+            return [g_infl, n_tan]
+
+        # compute the first and second gradient
+        g1 = np.gradient(intensity_phoenix, mu_phoenix)
+        g2 = np.gradient(g1, mu_phoenix)
+
+        # compute the inflection point and tangent
+        mu_infl = mu_inflection(mu_phoenix, g2)
+        k, n = tangent(mu_phoenix, intensity_phoenix, g1, mu_infl)
+
+        # compute mu where y-tangent = 0
+        mu0 = -n/k
+
+        # recompute intensities
+        intensity_phoenix[mu_phoenix<mu_infl] = k*mu_phoenix[mu_phoenix<mu_infl] + n
+        intensity_phoenix[mu_phoenix<mu0] = 0.
+
+        # renormalize mus on 0 to 1
+        mus_norm = np.cos(np.pi/2*np.arccos(mu_phoenix)/np.arccos(mu0))
+
+        # interpolate intensities in user-provided mus
+        intensity_interp = interpolate.interp1d(mus_norm, intensity_phoenix)
+
+        return intensity_interp(mu_interp)
+    
     def compute_ck2004_intensities(self, path, particular=None, verbose=False):
         """
         Computes direction-dependent passband intensities using Castelli
@@ -852,6 +901,168 @@ class Passband:
             self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
 
         self.content.append('ck2004_all')
+
+    def compute_phoenix_intensities(self, path, particular=None, verbose=False):
+        """
+        Computes direction-dependent passband intensities using spherical
+        PHOENIX (Husser et al. 2013) model atmospheres.
+
+        Arguments
+        -----------
+        * `path` (string): path to the directory with SEDs in FITS format.
+        * `particular` (string, optional, default=None): particular file in
+            `path` to be processed; if None, all files in the directory are
+            processed.
+        * `verbose` (bool, optional, default=False): set to True to display
+            progress in the terminal.
+        """
+
+        # PHOENIX uses fits files to store the tables.
+        from astropy.io import fits
+
+        if verbose:
+            print('Computing PHOENIX (Husser et al. 2013) passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+
+        models = glob.glob(path+'/*fits')
+        Nmodels = len(models)
+
+        # the values of mu are hard-coded to the ck2004 values for 1-to-1 comparison:
+        mu = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+
+        ImuE, ImuP = np.empty(Nmodels*len(mu)), np.empty(Nmodels*len(mu))
+        # boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
+
+        wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
+        keep = (wavelengths >= self.ptf_table['wl'][0]) & (wavelengths <= self.ptf_table['wl'][-1])
+        wl = wavelengths[keep]
+
+        for i, model in enumerate(models):
+            with fits.open(model) as hdu:
+                mus = hdu[1].data
+                intensities = hdu[0].data*1e-1
+
+                # trim the spectrum at passband limits:
+                intensities = intensities[:,keep]
+
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[3:8])
+            logg[i] = float(model[9:13])
+            abun[i] = float(model[13:17])
+
+            flE = self.ptf(wl)*intensities
+            # flP = wl*flE
+            flEint = flE.sum(axis=1)
+            # flPint = flP.sum(axis=0)
+
+            # import matplotlib.pyplot as plt
+            # plt.plot(mus, flEint/flEint[-1], 'b-')
+            # plt.show()
+
+            flEint = self._rescale_phoenix_intensities(mu, mus, flEint)
+
+            # plt.plot(mu, flEint/flEint[-1], 'g-')
+            # exit()
+
+            for cmi, cmu in enumerate(mus):
+                fl = intensities[cmi,:]
+
+                # make a log-scale copy for boosting and fit a Legendre
+                # polynomial to the Imu envelope by way of sigma clipping;
+                # then compute a Legendre series derivative to get the
+                # boosting index; we only take positive fluxes to keep the
+                # log well defined.
+
+                # lnwl = np.log(wl[fl > 0])
+                # lnfl = np.log(fl[fl > 0]) + 5*lnwl
+
+                # First Legendre fit to the data:
+                # envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
+                # continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                # diff = lnfl-continuum
+                # sigma = np.std(diff)
+                # clipped = (diff > -sigma)
+
+                # Sigma clip to get the continuum:
+                # while True:
+                #     Npts = clipped.sum()
+                #     envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
+                #     continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                #     diff = lnfl-continuum
+
+                    # clipping will sometimes unclip already clipped points
+                    # because the fit is slightly different, which can lead
+                    # to infinite loops. To prevent that, we never allow
+                    # clipped points to be resurrected, which is achieved
+                    # by the following bitwise condition (array comparison):
+                #     clipped = clipped & (diff > -sigma)
+
+                #     if clipped.sum() == Npts:
+                #         break
+
+                # derivative = np.polynomial.legendre.legder(envelope, 1)
+                # boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
+
+                # calculate energy (E) and photon (P) weighted fluxes and
+                # their integrals.
+
+                flE = self.ptf(wl)*fl
+                flP = wl*flE
+                flEint = flE.sum()
+                flPint = flP.sum()
+
+                flEint = self._rescale_phoenix_intensities(mu, mus, flEint)
+                flPint = self._rescale_phoenix_intensities(mu, mus, flPint)
+
+                # calculate mean boosting coefficient and use it to get
+                # boosting factors for energy (E) and photon (P) weighted
+                # fluxes.
+
+                # boostE = (flE[fl > 0]*boosting_index).sum()/flEint
+                # boostP = (flP[fl > 0]*boosting_index).sum()/flPint
+                # boostingE[i] = boostE
+                # boostingP[i] = boostP
+
+                dwl = wl[1]-wl[0]
+                ImuE[i*len(mu)+cmi] = np.log10(flEint/self.ptf_area*dwl)        # energy-weighted intensity
+                ImuP[i*len(mu)+cmi] = np.log10(flPint/self.ptf_photon_area*dwl) # photon-weighted intensity
+
+            if verbose:
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
+                sys.stdout.flush()
+
+        if verbose:
+            print('')
+
+        # Store axes (Teff, logg, abun, mu) and the full grid of Imu,
+        # with nans where the grid isn't complete. Imu-s come in two
+        # flavors: energy-weighted intensities and photon-weighted
+        # intensities, based on the detector used.
+
+        self._phoenix_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mu))
+        self._phoenix_Imu_energy_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
+        self._phoenix_Imu_photon_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1))
+        # self._ck2004_boosting_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+        # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+
+        # Set the limb (mu=0) to 0; in log this actually means
+        # flux=1W/m2, but for all practical purposes that is still 0.
+        # self._ck2004_Imu_energy_grid[:,:,:,0,:] = 0.0
+        # self._ck2004_Imu_photon_grid[:,:,:,0,:] = 0.0
+        # self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
+        # self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
+
+        for i, Imu in enumerate(ImuE):
+            self._phoenix_Imu_energy_grid[Teff[i] == self._phoenix_intensity_axes[0], logg[i] == self._phoenix_intensity_axes[1], abun[i] == self._phoenix_intensity_axes[2], mu[i] == self._phoenix_intensity_axes[3], 0] = Imu
+        for i, Imu in enumerate(ImuP):
+            self._phoenix_Imu_photon_grid[Teff[i] == self._phoenix_intensity_axes[0], logg[i] == self._phoenix_intensity_axes[1], abun[i] == self._phoenix_intensity_axes[2], mu[i] == self._phoenix_intensity_axes[3], 0] = Imu
+        # for i, Bavg in enumerate(boostingE):
+        #     self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+        # for i, Bavg in enumerate(boostingP):
+        #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+
+        self.content.append('phoenix_all')
 
     def _ldlaw_lin(self, mu, xl):
         return 1.0-xl*(1-mu)
@@ -1947,67 +2158,6 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
         Teff = np.array((Teff,))
 
     return factor * sigma_sb.value * Teff**4 / np.pi
-
-
-def phoenix_interpolated_intensities(mu_phoenix, intensity_phoenix, mu_interp):
-
-    '''
-    Recomputes PHOENIX intensities towards the limb.
-
-    The PHOENIX intensities are recomputed past the inflection point using the
-    tangent in the inflection point. Mus are rescaled such that mu=0 where the
-    tangent in the inflection point intersects the x-axis.
-    '''
-
-    from scipy.interpolate import interp1d
-
-    def mu_inflection(mu, g2):
-
-        argmin = np.argmax(g2)
-        argmax = np.argmin(g2)
-        g2_interp = interp1d(g2[argmin:argmax], mu[argmin:argmax])
-        return g2_interp([0.])
-
-
-    def tangent(mu, s, g, mu_infl):
-        
-        g1_interp = interp1d(mu, g)
-        s_interp = interp1d(mu, s)
-
-        g_infl = g1_interp(mu_infl)
-        s_infl = s_interp(mu_infl)
-
-        n_tan = s_infl - g_infl*mu_infl
-
-        return [g_infl, n_tan]
-
-    # compute the first and second gradient
-    g1 = np.gradient(intensity_phoenix, mu_phoenix)
-    g2 = np.gradient(g1, mu_phoenix)
-
-    # compute the inflection point and tangent
-    mu_infl = mu_inflection(mu_phoenix, g2)
-    k, n = tangent(mu_phoenix, intensity_phoenix, g1, mu_infl)
-
-    # compute mu where y-tangent = 0
-    mu0 = -n/k
-
-    # recompute intensities
-    intensity = intensity_phoenix.copy()
-    intensity[mu_phoenix<mu_infl] = k*mu_phoenix[mu_phoenix<mu_infl] + n
-    intensity[mu_phoenix<mu0] = 0.
-
-    # compute "lost" fraction of the intensity
-    lost_frac = (np.sum(intensity_phoenix)-np.sum(intensity))/np.sum(intensity_phoenix)
-
-    # renormalize mus on 0 to 1
-    mus_norm = np.cos(np.pi/2*np.arccos(mu_phoenix)/np.arccos(mu0))
-
-    # interpolate intensities in user-provided mus
-    intensity_interp = interp1d(mus_norm, intensity)
-
-    return intensity_interp(mu_interp), lost_frac
-
 
 if __name__ == '__main__':
 
