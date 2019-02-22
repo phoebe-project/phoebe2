@@ -940,6 +940,7 @@ class Passband:
         wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
         keep = (wavelengths >= self.ptf_table['wl'][0]) & (wavelengths <= self.ptf_table['wl'][-1])
         wl = wavelengths[keep]
+        dwl = wl[1]-wl[0]
 
         for i, model in enumerate(models):
             with fits.open(model) as hdu:
@@ -955,20 +956,25 @@ class Passband:
             abun[i] = float(model[13:17])
 
             flE = self.ptf(wl)*intensities
-            # flP = wl*flE
             flEint = flE.sum(axis=1)
-            # flPint = flP.sum(axis=0)
-
-            # import matplotlib.pyplot as plt
-            # plt.plot(mus, flEint/flEint[-1], 'b-')
-            # plt.show()
-
             flEint = self._rescale_phoenix_intensities(mu, mus, flEint)
-            # plt.plot(mu, flEint/flEint[-1], 'g-')
-            # exit()
+
+            flP = wl*flE
+            flPint = flP.sum(axis=1)
+            flPint = self._rescale_phoenix_intensities(mu, mus, flPint)
+
+            ImuE[i*len(mu):(i+1)*len(mu)] = np.log10(flEint/self.ptf_area*dwl)        # energy-weighted intensity
+            ImuP[i*len(mu):(i+1)*len(mu)] = np.log10(flPint/self.ptf_photon_area*dwl) # photon-weighted intensity
+
+            if verbose:
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
+                sys.stdout.flush()
             
-            for cmi, cmu in enumerate(mus):
-                fl = intensities[cmi,:]
+        if verbose:
+            print('')
+
+            # for cmi, cmu in enumerate(mus):
+            #     fl = intensities[cmi,:]
 
                 # make a log-scale copy for boosting and fit a Legendre
                 # polynomial to the Imu envelope by way of sigma clipping;
@@ -1009,14 +1015,6 @@ class Passband:
                 # calculate energy (E) and photon (P) weighted fluxes and
                 # their integrals.
 
-                flE = self.ptf(wl)*fl
-                flP = wl*flE
-                flEint = flE.sum()
-                flPint = flP.sum()
-
-                # flEint = self._rescale_phoenix_intensities(mu, mus, flEint)
-                # flPint = self._rescale_phoenix_intensities(mu, mus, flPint)
-
                 # calculate mean boosting coefficient and use it to get
                 # boosting factors for energy (E) and photon (P) weighted
                 # fluxes.
@@ -1026,16 +1024,7 @@ class Passband:
                 # boostingE[i] = boostE
                 # boostingP[i] = boostP
 
-                dwl = wl[1]-wl[0]
-                ImuE[i*len(mu)+cmi] = np.log10(flEint/self.ptf_area*dwl)        # energy-weighted intensity
-                ImuP[i*len(mu)+cmi] = np.log10(flPint/self.ptf_photon_area*dwl) # photon-weighted intensity
 
-            if verbose:
-                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
-                sys.stdout.flush()
-            
-        if verbose:
-            print('')
 
         # Store axes (Teff, logg, abun, mu) and the full grid of Imu,
         # with nans where the grid isn't complete. Imu-s come in two
@@ -1056,9 +1045,9 @@ class Passband:
         # self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
 
         for i, Imu in enumerate(ImuE):
-            self._phoenix_Imu_energy_grid[Teff[i] == self._phoenix_intensity_axes[0], logg[i] == self._phoenix_intensity_axes[1], abun[i] == self._phoenix_intensity_axes[2], mu[i] == self._phoenix_intensity_axes[3], 0] = Imu
+            self._phoenix_Imu_energy_grid[Teff[i/len(mu)] == self._phoenix_intensity_axes[0], logg[i/len(mu)] == self._phoenix_intensity_axes[1], abun[i/len(mu)] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
         for i, Imu in enumerate(ImuP):
-            self._phoenix_Imu_photon_grid[Teff[i] == self._phoenix_intensity_axes[0], logg[i] == self._phoenix_intensity_axes[1], abun[i] == self._phoenix_intensity_axes[2], mu[i] == self._phoenix_intensity_axes[3], 0] = Imu
+            self._phoenix_Imu_photon_grid[Teff[i/len(mu)] == self._phoenix_intensity_axes[0], logg[i/len(mu)] == self._phoenix_intensity_axes[1], abun[i/len(mu)] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
         # for i, Bavg in enumerate(boostingE):
         #     self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
         # for i, Bavg in enumerate(boostingP):
