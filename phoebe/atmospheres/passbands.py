@@ -255,6 +255,12 @@ class Passband:
             struct['_ck2004_Imu_photon_grid'] = self._ck2004_Imu_photon_grid
             struct['_ck2004_boosting_energy_grid'] = self._ck2004_boosting_energy_grid
             struct['_ck2004_boosting_photon_grid'] = self._ck2004_boosting_photon_grid
+        if 'phoenix_all' in self.content:
+            struct['_phoenix_intensity_axes'] = self._phoenix_intensity_axes
+            struct['_phoenix_Imu_energy_grid'] = self._phoenix_Imu_energy_grid
+            struct['_phoenix_Imu_photon_grid'] = self._phoenix_Imu_photon_grid
+            # struct['_ck2004_boosting_energy_grid'] = self._ck2004_boosting_energy_grid
+            # struct['_ck2004_boosting_photon_grid'] = self._ck2004_boosting_photon_grid
         if 'ck2004_ld' in self.content:
             struct['_ck2004_ld_energy_grid'] = self._ck2004_ld_energy_grid
             struct['_ck2004_ld_photon_grid'] = self._ck2004_ld_photon_grid
@@ -425,6 +431,26 @@ class Passband:
                 self._ck2004_Imu_photon_grid = struct['_ck2004_Imu_photon_grid']
                 self._ck2004_boosting_energy_grid = struct['_ck2004_boosting_energy_grid']
                 self._ck2004_boosting_photon_grid = struct['_ck2004_boosting_photon_grid']
+
+        if 'phoenix_all' in self.content:
+            # PHOENIX spherical model atmohperes (Husser et al. 2013), all intensities:
+            if marshaled:
+                # Axes needs to be a tuple of np.arrays, and grid a np.array:
+                self._phoenix_intensity_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_phoenix_intensity_axes']))
+                self._phoenix_Imu_energy_grid = np.fromstring(struct['_phoenix_Imu_energy_grid'], dtype='float64')
+                self._phoenix_Imu_energy_grid = self._phoenix_Imu_energy_grid.reshape(len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1)
+                self._phoenix_Imu_photon_grid = np.fromstring(struct['_phoenix_Imu_photon_grid'], dtype='float64')
+                self._phoenix_Imu_photon_grid = self._phoenix_Imu_photon_grid.reshape(len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1)
+                # self._phoenix_boosting_energy_grid = np.fromstring(struct['_phoenix_boosting_energy_grid'], dtype='float64')
+                # self._phoenix_boosting_energy_grid = self._phoenix_boosting_energy_grid.reshape(len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1)
+                # self._phoenix_boosting_photon_grid = np.fromstring(struct['_phoenix_boosting_photon_grid'], dtype='float64')
+                # self._phoenix_boosting_photon_grid = self._phoenix_boosting_photon_grid.reshape(len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), len(self._phoenix_intensity_axes[3]), 1)
+            else:
+                self._phoenix_intensity_axes = struct['_phoenix_intensity_axes']
+                self._phoenix_Imu_energy_grid = struct['_phoenix_Imu_energy_grid']
+                self._phoenix_Imu_photon_grid = struct['_phoenix_Imu_photon_grid']
+                # self._phoenix_boosting_energy_grid = struct['_phoenix_boosting_energy_grid']
+                # self._phoenix_boosting_photon_grid = struct['_phoenix_boosting_photon_grid']
 
         if 'ck2004_ld' in self.content:
             if marshaled:
@@ -675,7 +701,7 @@ class Passband:
         InormE, InormP = np.empty(Nmodels), np.empty(Nmodels)
 
         if verbose:
-            print('Computing PHOENIX (Husser et al. 2013) passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+            print('Computing PHOENIX (Husser et al. 2013) normal passband intensities for %s:%s.' % (self.pbset, self.pbname))
 
         wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
 
@@ -924,7 +950,7 @@ class Passband:
         from astropy.io import fits
 
         if verbose:
-            print('Computing PHOENIX (Husser et al. 2013) passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+            print('Computing PHOENIX (Husser et al. 2013) specific passband intensities for %s:%s.' % (self.pbset, self.pbname))
 
         models = glob.glob(path+'/*fits')
         Nmodels = len(models)
