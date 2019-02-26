@@ -267,6 +267,9 @@ class Passband:
         if 'ck2004_ldint' in self.content:
             struct['_ck2004_ldint_energy_grid'] = self._ck2004_ldint_energy_grid
             struct['_ck2004_ldint_photon_grid'] = self._ck2004_ldint_photon_grid
+        if 'phoenix_ldint' in self.content:
+            struct['_phoenix_ldint_energy_grid'] = self._phoenix_ldint_energy_grid
+            struct['_phoenix_ldint_photon_grid'] = self._phoenix_ldint_photon_grid
         if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
@@ -471,6 +474,16 @@ class Passband:
             else:
                 self._ck2004_ldint_energy_grid = struct['_ck2004_ldint_energy_grid']
                 self._ck2004_ldint_photon_grid = struct['_ck2004_ldint_photon_grid']
+
+        if 'phoenix_ldint' in self.content:
+            if marshaled:
+                self._phoenix_ldint_energy_grid = np.fromstring(struct['_phoenix_ldint_energy_grid'], dtype='float64')
+                self._phoenix_ldint_energy_grid = self._phoenix_ldint_energy_grid.reshape(len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), 1)
+                self._phoenix_ldint_photon_grid = np.fromstring(struct['_phoenix_ldint_photon_grid'], dtype='float64')
+                self._phoenix_ldint_photon_grid = self._phoenix_ldint_photon_grid.reshape(len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), 1)
+            else:
+                self._phoenix_ldint_energy_grid = struct['_phoenix_ldint_energy_grid']
+                self._phoenix_ldint_photon_grid = struct['_phoenix_ldint_photon_grid']
 
         return self
 
@@ -1254,6 +1267,52 @@ class Passband:
 
         self.content.append('ck2004_ldint')
 
+    def compute_phoenix_ldints(self):
+        """
+        Computes integrated limb darkening profiles for PHOENIX atmospheres.
+        These are used for intensity-to-flux transformations. The evaluated
+        integral is:
+
+        ldint = 2 \pi \int_0^1 Imu mu dmu
+        """
+
+        if 'phoenix_all' not in self.content:
+            print('PHOENIX (Husser et al. 2013) intensities are not computed yet. Please compute those first.')
+            return None
+
+        ldaxes = self._phoenix_intensity_axes
+        ldtable = self._phoenix_Imu_energy_grid
+        pldtable = self._phoenix_Imu_photon_grid
+
+        self._phoenix_ldint_energy_grid = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
+        self._phoenix_ldint_photon_grid = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
+
+        mu = ldaxes[3]
+        Imu = 10**ldtable[:,:,:,:]/10**ldtable[:,:,:,-1:]
+        pImu = 10**pldtable[:,:,:,:]/10**pldtable[:,:,:,-1:]
+
+        # To compute the fluxes, we need to evaluate \int_0^1 2pi Imu mu dmu.
+
+        for a in range(len(ldaxes[0])):
+            for b in range(len(ldaxes[1])):
+                for c in range(len(ldaxes[2])):
+
+                    ldint = 0.0
+                    pldint = 0.0
+                    for i in range(len(mu)-1):
+                        ki = (Imu[a,b,c,i+1]-Imu[a,b,c,i])/(mu[i+1]-mu[i])
+                        ni = Imu[a,b,c,i]-ki*mu[i]
+                        ldint += ki/3*(mu[i+1]**3-mu[i]**3) + ni/2*(mu[i+1]**2-mu[i]**2)
+
+                        pki = (pImu[a,b,c,i+1]-pImu[a,b,c,i])/(mu[i+1]-mu[i])
+                        pni = pImu[a,b,c,i]-pki*mu[i]
+                        pldint += pki/3*(mu[i+1]**3-mu[i]**3) + pni/2*(mu[i+1]**2-mu[i]**2)
+
+                    self._phoenix_ldint_energy_grid[a,b,c] = 2*ldint
+                    self._phoenix_ldint_photon_grid[a,b,c] = 2*pldint
+
+        self.content.append('phoenix_ldint')
+
     def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0,
                                     atm='ck2004', ld_func='power',
                                     photon_weighted=False):
@@ -1436,6 +1495,16 @@ class Passband:
 
         return Imu
 
+    def _Imu_phoenix(self, Teff, logg, abun, mu, photon_weighted=False):
+        if not hasattr(Teff, '__iter__'):
+            req = np.array(((Teff, logg, abun, mu),))
+            Imu = libphoebe.interp(req, self._phoenix_intensity_axes, 10**self._phoenix_Imu_photon_grid if photon_weighted else 10**self._phoenix_Imu_energy_grid)[0][0]
+        else:
+            req = np.vstack((Teff, logg, abun, mu)).T
+            Imu = libphoebe.interp(req, self._phoenix_intensity_axes, 10**self._phoenix_Imu_photon_grid if photon_weighted else 10**self._phoenix_Imu_energy_grid).T[0]
+
+        return Imu
+
     def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
         """
 
@@ -1554,8 +1623,14 @@ class Passband:
 
         if ld_func == 'interp':
             # The 'interp' LD function works only for model atmospheres:
-            if atm == 'ck2004' and 'ck2004' in self.content:
+            if atm == 'ck2004' and 'ck2004_all' in self.content:
                 retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
+                nanmask = np.isnan(retval)
+                if np.any(nanmask):
+                    raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
+                return retval
+            elif atm == 'phoenix' and 'phoenix_all' in self.content:
+                retval = self._Imu_phoenix(Teff, logg, abun, mu, photon_weighted=photon_weighted)
                 nanmask = np.isnan(retval)
                 if np.any(nanmask):
                     raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
@@ -1596,6 +1671,16 @@ class Passband:
 
         return ldint
 
+    def _ldint_phoenix(self, Teff, logg, abun, photon_weighted):
+        if not hasattr(Teff, '__iter__'):
+            req = np.array(((Teff, logg, abun),))
+            ldint = libphoebe.interp(req, self._phoenix_axes, self._phoenix_ldint_photon_grid if photon_weighted else self._phoenix_ldint_energy_grid)[0][0]
+        else:
+            req = np.vstack((Teff, logg, abun)).T
+            ldint = libphoebe.interp(req, self._phoenix_axes, self._ck2004_phoenix_photon_grid if photon_weighted else self._phoenix_ldint_energy_grid).T[0]
+
+        return ldint
+
     def ldint(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         """
         Arguments
@@ -1625,6 +1710,8 @@ class Passband:
         if ld_func == 'interp':
             if atm == 'ck2004':
                 retval = self._ldint_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
+            elif atm == 'phoenix':
+                retval = self._ldint_phoenix(Teff, logg, abun, photon_weighted=photon_weighted)
             else:
                 raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
             nanmask = np.isnan(retval)
