@@ -203,13 +203,13 @@ class Passband:
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
     def __repr__(self):
-        return('<Passband: %s:%s>' % (self.pbset, self.pbname))
+        return '<Passband: %s:%s>' % (self.pbset, self.pbname)
 
     def __str__(self):
         # old passband files do not have versions embedded, that is why we have to do this:
         if not hasattr(self, 'version'):
             self.version = 1.0
-        return('Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content))
+        return 'Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content)
 
     def save(self, archive):
         """
@@ -1788,7 +1788,7 @@ class Passband:
 def _timestamp_to_dt(timestamp):
     return datetime.strptime(timestamp, "%a %b %d %H:%M:%S %Y")
 
-def _init_passband(fullpath):
+def _init_passband(fullpath, check_for_update=True):
     """
     """
     logger.info("initializing passband at {}".format(fullpath))
@@ -1796,7 +1796,7 @@ def _init_passband(fullpath):
     passband = pb.pbset+':'+pb.pbname
     _pbtable[passband] = {'fname': fullpath, 'atms': pb.atmlist, 'timestamp': pb.timestamp, 'pb': None}
 
-    if update_passband_available(passband):
+    if check_for_update and update_passband_available(passband):
         msg = 'passband "{}" has a newer version available.  Run phoebe.download_passband("{}") or phoebe.update_all_passbands() to update.'.format(passband, passband)
         # NOTE: logger probably not available yet, so we'll also use a print statement
         print('PHOEBE: {}'.format(msg))
