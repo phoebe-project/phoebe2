@@ -1735,7 +1735,7 @@ class Bundle(ParameterSet):
                 if ld_func=='interp':
                     for compute in computes:
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
-                        if atm != 'ck2004':
+                        if atm != 'ck2004' and atm != 'phoenix':
                             if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
                                 return False, "ld_func='interp' only supported by atm='ck2004'.  Either change atm@{}@{} or ld_func@{}@{}.".format(component, compute, component, dataset)
                             else:
