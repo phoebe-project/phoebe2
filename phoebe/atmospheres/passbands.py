@@ -1448,21 +1448,36 @@ class Passband:
             or if `ld_func` is not recognized.
         """
 
-        if 'ck2004_ld' not in self.content:
+        if atm == 'ck2004' and 'ck2004_ld' not in self.content:
             print('Castelli & Kurucz (2004) limb darkening coefficients are not computed yet. Please compute those first.')
             return None
 
-        if photon_weighted:
+        if atm == 'phoenix' and 'phoenix_ld' not in self.content:
+            print('PHOENIX (Husser et al. 2013) limb darkening coefficients are not computed yet. Please compute those first.')
+            return None
+
+        if atm == 'ck2004' and photon_weighted:
+            axes = self._ck2004_intensity_axes
             table = self._ck2004_ld_photon_grid
-        else:
+        elif atm == 'phoenix' and photon_weighted:
+            axes = self._phoenix_intensity_axes
+            table = self._phoenix_ld_photon_grid
+        elif atm == 'ck2004' and not photon_weighted:
+            axes = self._ck2004_intensity_axes
             table = self._ck2004_ld_energy_grid
+        elif atm == 'phoenix' and not photon_weighted:
+            axes = self._phoenix_intensity_axes
+            table = self._phoenix_ld_energy_grid
+        else:
+            print('atm=%s is not supported for LD interpolation.' % atm)
+            return None
 
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun),))
-            ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table)[0]
+            ld_coeffs = libphoebe.interp(req, axes[0:3], table)[0]
         else:
             req = np.vstack((Teff, logg, abun)).T
-            ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table).T
+            ld_coeffs = libphoebe.interp(req, axes[0:3], table).T
 
         if ld_func == 'linear':
             return ld_coeffs[0:1]
