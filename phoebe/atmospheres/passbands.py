@@ -1180,6 +1180,34 @@ class Passband:
 
         self.content.append('ck2004_ld')
 
+    def export_phoenix_atmtab(self):
+        """
+        Exports PHOENIX intensity table to a PHOEBE legacy compatible format.
+        """
+
+        teffs = self._phoenix_axes[0]
+        tlow, tup = teffs[0], teffs[-1]
+        trel = (teffs-tlow)/(tup-tlow)
+
+        for abun in range(len(self._phoenix_axes[2])):
+            for logg in range(len(self._phoenix_axes[1])):
+                logI = self._phoenix_energy_grid[:,logg,abun,0]+1 # +1 to take care of WD units
+
+                # find the last non-nan value:
+                if np.isnan(logI).sum() > 0:
+                    imax = len(teffs)-np.where(~np.isnan(logI[::-1]))[0][0]
+
+                    # interpolate any in-between nans:
+                    missing, xs = np.isnan(logI[:imax]), lambda z: z.nonzero()[0]
+                    logI[:imax][missing] = np.interp(xs(missing), xs(~missing), logI[:imax][~missing])
+                else:
+                    imax = len(teffs)
+
+                Cl = np.polynomial.legendre.legfit(trel[:imax], logI[:imax], 9)
+
+                print('%8.1f %7.1f % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E' % (teffs[0], teffs[imax-1], Cl[0], Cl[1], Cl[2], Cl[3], Cl[4], Cl[5], Cl[6], Cl[7], Cl[8], Cl[9]))
+
+
     def export_legacy_ldcoeffs(self, models, filename=None, photon_weighted=True):
         """
         Exports CK2004 limb darkening coefficients to a PHOEBE legacy
