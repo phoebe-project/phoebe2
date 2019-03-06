@@ -264,6 +264,9 @@ class Passband:
         if 'ck2004_ld' in self.content:
             struct['_ck2004_ld_energy_grid'] = self._ck2004_ld_energy_grid
             struct['_ck2004_ld_photon_grid'] = self._ck2004_ld_photon_grid
+        if 'phoenix_ld' in self.content:
+            struct['_phoenix_ld_energy_grid'] = self._phoenix_ld_energy_grid
+            struct['_phoenix_ld_photon_grid'] = self._phoenix_ld_photon_grid
         if 'ck2004_ldint' in self.content:
             struct['_ck2004_ldint_energy_grid'] = self._ck2004_ldint_energy_grid
             struct['_ck2004_ldint_photon_grid'] = self._ck2004_ldint_photon_grid
@@ -464,6 +467,16 @@ class Passband:
             else:
                 self._ck2004_ld_energy_grid = struct['_ck2004_ld_energy_grid']
                 self._ck2004_ld_photon_grid = struct['_ck2004_ld_photon_grid']
+
+        if 'phoenix_ld' in self.content:
+            if marshaled:
+                self._phoenix_ld_energy_grid = np.fromstring(struct['_phoenix_ld_energy_grid'], dtype='float64')
+                self._phoenix_ld_energy_grid = self._phoenix_ld_energy_grid.reshape(len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), 11)
+                self._phoenix_ld_photon_grid = np.fromstring(struct['_phoenix_ld_photon_grid'], dtype='float64')
+                self._phoenix_ld_photon_grid = self._phoenix_ld_photon_grid.reshape(len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), 11)
+            else:
+                self._phoenix_ld_energy_grid = struct['_phoenix_ld_energy_grid']
+                self._phoenix_ld_photon_grid = struct['_phoenix_ld_photon_grid']
 
         if 'ck2004_ldint' in self.content:
             if marshaled:
@@ -1180,6 +1193,77 @@ class Passband:
 
         self.content.append('ck2004_ld')
 
+    def compute_phoenix_ldcoeffs(self, weighting='uniform', plot_diagnostics=False):
+        """
+        Computes limb darkening coefficients from PHOENIX atmospheres for the linear,
+        log, square root, quadratic and power laws.
+
+        Arguments
+        ----------
+        * `weighting` (string, optional, default='uniform'): determines how data
+            points should be weighted.
+            * 'uniform':  do not apply any per-point weighting
+            * 'interval': apply weighting based on the interval widths
+        """
+        if 'phoenix_all' not in self.content:
+            print('PHOENIX (Husser et al. 2013) intensities are not computed yet. Please compute those first.')
+            return None
+
+        self._phoenix_ld_energy_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), 11))
+        self._phoenix_ld_photon_grid = np.nan*np.ones((len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), 11))
+        mus = self._phoenix_intensity_axes[3] # starts with 0
+        if weighting == 'uniform':
+            sigma = np.ones(len(mus))
+        elif weighting == 'interval':
+            delta = np.concatenate( (np.array((mus[1]-mus[0],)), mus[1:]-mus[:-1]) )
+            sigma = 1./np.sqrt(delta)
+        else:
+            print('Weighting scheme \'%s\' is unsupported. Please choose among [\'uniform\', \'interval\']')
+            return None
+
+        for Tindex in range(len(self._phoenix_intensity_axes[0])):
+            for lindex in range(len(self._phoenix_intensity_axes[1])):
+                for mindex in range(len(self._phoenix_intensity_axes[2])):
+                    IsE = 10**self._phoenix_Imu_energy_grid[Tindex,lindex,mindex,:].flatten()
+                    fEmask = np.isfinite(IsE)
+                    if len(IsE[fEmask]) <= 1:
+                        continue
+                    IsE /= IsE[fEmask][-1]
+
+                    cElin,  pcov = cfit(f=self._ldlaw_lin,    xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5])
+                    cElog,  pcov = cfit(f=self._ldlaw_log,    xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5])
+                    cEsqrt, pcov = cfit(f=self._ldlaw_sqrt,   xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5])
+                    cEquad, pcov = cfit(f=self._ldlaw_quad,   xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5])
+                    cEnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5, 0.5, 0.5])
+                    self._phoenix_ld_energy_grid[Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
+
+                    IsP = 10**self._phoenix_Imu_photon_grid[Tindex,lindex,mindex,:].flatten()
+                    fPmask = np.isfinite(IsP)
+                    IsP /= IsP[fPmask][-1]
+
+                    cPlin,  pcov = cfit(f=self._ldlaw_lin,    xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5])
+                    cPlog,  pcov = cfit(f=self._ldlaw_log,    xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5])
+                    cPsqrt, pcov = cfit(f=self._ldlaw_sqrt,   xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5])
+                    cPquad, pcov = cfit(f=self._ldlaw_quad,   xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5])
+                    cPnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5, 0.5, 0.5])
+                    self._phoenix_ld_photon_grid[Tindex, lindex, mindex] = np.hstack((cPlin, cPlog, cPsqrt, cPquad, cPnlin))
+
+                    if plot_diagnostics:
+                        if Tindex == 10 and lindex == 9 and mindex == 5:
+                            print(self._phoenix_intensity_axes[0][Tindex], self._phoenix_intensity_axes[1][lindex], self._phoenix_intensity_axes[2][mindex])
+                            print(mus, IsE)
+                            print(cElin, cElog, cEsqrt)
+                            import matplotlib.pyplot as plt
+                            plt.plot(mus[fEmask], IsE[fEmask], 'bo')
+                            plt.plot(mus[fEmask], self._ldlaw_lin(mus[fEmask], *cElin), 'r-')
+                            plt.plot(mus[fEmask], self._ldlaw_log(mus[fEmask], *cElog), 'g-')
+                            plt.plot(mus[fEmask], self._ldlaw_sqrt(mus[fEmask], *cEsqrt), 'y-')
+                            plt.plot(mus[fEmask], self._ldlaw_quad(mus[fEmask], *cEquad), 'm-')
+                            plt.plot(mus[fEmask], self._ldlaw_nonlin(mus[fEmask], *cEnlin), 'k-')
+                            plt.show()
+
+        self.content.append('phoenix_ld')
+
     def export_phoenix_atmtab(self):
         """
         Exports PHOENIX intensity table to a PHOEBE legacy compatible format.
@@ -1206,7 +1290,6 @@ class Passband:
                 Cl = np.polynomial.legendre.legfit(trel[:imax], logI[:imax], 9)
 
                 print('%8.1f %7.1f % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E' % (teffs[0], teffs[imax-1], Cl[0], Cl[1], Cl[2], Cl[3], Cl[4], Cl[5], Cl[6], Cl[7], Cl[8], Cl[9]))
-
 
     def export_legacy_ldcoeffs(self, models, filename=None, photon_weighted=True):
         """
