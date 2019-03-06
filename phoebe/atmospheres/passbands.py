@@ -1432,11 +1432,12 @@ class Passband:
 
         Arguments
         ------------
-        * `Teff`
-        * `logg`
-        * `abun`
-        * `atm`
-        * `ld_func`
+        * `Teff` (float or array, default=5772): effective temperature
+        * `logg` (float or array, default=4.43): surface gravity in cgs
+        * `abun` (float or array, default=0.0): log-abundance in solar log-abundances
+        * `atm` (string, default='ck2004'): model atmosphere table: 'ck2004' or 'phoenix'
+        * `ld_func` (string, default='power'): limb darkening fitting function: 'linear',
+          'logarithmic', 'square_root', 'quadratic', 'power' or 'all'
         * `photon_weighted` (bool, optional, default=False): photon/energy switch
 
         Returns
@@ -1446,7 +1447,6 @@ class Passband:
             (see also <phoebe.atmospheres.passbands.Passband.compute_ck2004_ldcoeffs>)
             or if `ld_func` is not recognized.
         """
-        # TODO: improve documentation for arguments above
 
         if 'ck2004_ld' not in self.content:
             print('Castelli & Kurucz (2004) limb darkening coefficients are not computed yet. Please compute those first.')
