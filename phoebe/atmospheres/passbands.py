@@ -1291,7 +1291,7 @@ class Passband:
 
                 print('%8.1f %7.1f % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E % 16.9E' % (teffs[0], teffs[imax-1], Cl[0], Cl[1], Cl[2], Cl[3], Cl[4], Cl[5], Cl[6], Cl[7], Cl[8], Cl[9]))
 
-    def export_legacy_ldcoeffs(self, models, filename=None, photon_weighted=True):
+    def export_legacy_ldcoeffs(self, models, atm='ck2004', filename=None, photon_weighted=True):
         """
         Exports CK2004 limb darkening coefficients to a PHOEBE legacy
         compatible format.
@@ -1300,15 +1300,27 @@ class Passband:
         -----------
         * `models` (string): the path (including the filename) of legacy's
             models.list
+        * `atm` (string, default='ck2004'): atmosphere model, 'ck2004' or 'phoenix'
         * `filename` (string, optional, default=None): output filename for
             storing the table
         * `photon_weighted` (bool, optional, default=True): photon/energy switch
         """
 
-        if photon_weighted:
+        if atm == 'ck2004' and photon_weighted:
+            axes = self._ck2004_intensity_axes
             grid = self._ck2004_ld_photon_grid
-        else:
+        elif atm == 'phoenix' and photon_weighted:
+            axes = self._phoenix_intensity_axes
+            grid = self._phoenix_ld_photon_grid
+        elif atm == 'ck2004' and not photon_weighted:
+            axes = self._ck2004_intensity_axes
             grid = self._ck2004_ld_energy_grid
+        elif atm == 'phoenix' and not photon_weighted:
+            axes = self._phoenix_intensity_axes
+            grid = self._phoenix_ld_energy_grid
+        else:
+            print('atmosphere model %s cannot be exported.' % atm)
+            return None
 
         if filename is not None:
             import time
@@ -1317,17 +1329,17 @@ class Passband:
             f.write('# PASSBAND  %s\n' % self.pbname)
             f.write('# VERSION   1.0\n\n')
             f.write('# Exported from PHOEBE-2 passband on %s\n' % (time.ctime()))
-            f.write('# The coefficients are computed for the %s-weighted regime.\n\n' % ('photon' if photon_weighted else 'energy'))
+            f.write('# The coefficients are computed for the %s-weighted regime from %s atmospheres.\n\n' % ('photon' if photon_weighted else 'energy', atm))
 
         mods = np.loadtxt(models)
         for mod in mods:
-            Tindex = np.argwhere(self._ck2004_intensity_axes[0] == mod[0])[0][0]
-            lindex = np.argwhere(self._ck2004_intensity_axes[1] == mod[1]/10)[0][0]
-            mindex = np.argwhere(self._ck2004_intensity_axes[2] == mod[2]/10)[0][0]
+            Tindex = np.argwhere(axes[0] == mod[0])[0][0]
+            lindex = np.argwhere(axes[1] == mod[1]/10)[0][0]
+            mindex = np.argwhere(axes[2] == mod[2]/10)[0][0]
             if filename is None:
                 print('%6.3f '*11 % tuple(grid[Tindex, lindex, mindex].tolist()))
             else:
-                f.write(('%6.3f '*11+'\n') % tuple(self._ck2004_ld_photon_grid[Tindex, lindex, mindex].tolist()))
+                f.write(('%6.3f '*11+'\n') % tuple(grid[Tindex, lindex, mindex].tolist()))
 
         if filename is not None:
             f.close()
@@ -1424,7 +1436,7 @@ class Passband:
 
         self.content.append('phoenix_ldint')
 
-    def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0,
+    def interpolate_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0,
                                     atm='ck2004', ld_func='power',
                                     photon_weighted=False):
         """
@@ -1767,7 +1779,7 @@ class Passband:
         if ld_coeffs is None:
             # LD function can be passed without coefficients; in that
             # case we need to interpolate them from the tables.
-            ld_coeffs = self.interpolate_ck2004_ldcoeffs(Teff, logg, abun, atm, ld_func, photon_weighted)
+            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, atm, ld_func, photon_weighted)
 
         if ld_func == 'linear':
             retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
@@ -1846,7 +1858,7 @@ class Passband:
             return retval
 
         if ld_coeffs is None:
-            ld_coeffs = self.interpolate_ck2004_ldcoeffs(Teff, logg, abun, atm, ld_func, photon_weighted)
+            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, atm, ld_func, photon_weighted)
 
         if ld_func == 'linear':
             retval = 1-ld_coeffs[0]/3
