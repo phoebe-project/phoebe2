@@ -97,6 +97,15 @@ def arctan(param):
     """
     return ConstraintParameter(param._bundle, "arctan({})".format(_get_expr(param)))
 
+def arctan2(param1, param2):
+    """
+    Allows using the arctan2 function in a constraint
+
+    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
+    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    """
+    return ConstraintParameter(param1._bundle, "arctan2({}, {})".format(_get_expr(param1), _get_expr(param2)))
+
 def abs(param):
     """
     Allows using the abs (absolute value) function in a constraint
@@ -284,7 +293,7 @@ def asini(b, orbit, solve_for=None):
         raise NotImplementedError
 
     #- return lhs, rhs, args_as_pss
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 def esinw(b, orbit, solve_for=None, **kwargs):
     """
@@ -309,24 +318,56 @@ def esinw(b, orbit, solve_for=None, **kwargs):
     esinw_def = FloatParameter(qualifier='esinw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
     esinw, created = b.get_or_create('esinw', esinw_def, **metawargs)
 
+    ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
+    ecosw, ecosw_created = b.get_or_create('ecosw', ecosw_def, **metawargs)
+
+    ecosw_constrained = kwargs.get('ecosw_constrained', len(ecosw.constrained_by) > 0)
+    # print("~~~esinw constraint: solve_for={}, ecosw_constrained={}".format(solve_for.qualifier if solve_for is not None else "None", ecosw_constrained))
+
     ecc = b.get_parameter(qualifier='ecc', **metawargs)
     per0 = b.get_parameter(qualifier='per0', **metawargs)
 
     if solve_for in [None, esinw]:
         lhs = esinw
         rhs = ecc * sin(per0)
+        if not ecosw_created and not ecosw_constrained:
+            if per0.is_constraint:
+                per0.is_constraint.constraint_kwargs['esinw_constrained'] = True
+                per0.is_constraint.flip_for('per0', force=True)
+            elif ecc.is_constraint:
+                ecc.is_constraint.constraint_kwargs['esinw_constrained'] = True
+                ecc.is_constraint.flip_for('ecc', force=True)
+
     elif solve_for == ecc:
         lhs = ecc
-        rhs = esinw / sin(per0)
+        if ecosw_constrained:
+            rhs = esinw / sin(per0)
+        else:
+            rhs = (esinw**2 + ecosw**2)**0.5
+            # the other constraint needs to also follow the alternate equations
+            if per0.is_constraint and 'esinw_constrained' not in per0.is_constraint.constraint_kwargs.keys():
+                # print("~~~esinw constraint: attempting to also flip per0 constraint")
+                per0.is_constraint.constraint_kwargs['esinw_constrained'] = False
+                per0.is_constraint.flip_for('per0', force=True)
+
     elif solve_for == per0:
         lhs = per0
-        #rhs = arcsin(esinw/ecc)
-        rhs = esinw2per0(ecc, esinw)
-
+        if ecosw_constrained:
+            # cannot just do arcsin because ecc may be zero
+            rhs = esinw2per0(ecc, esinw)
+        else:
+            rhs = arctan2(esinw, ecosw)
+            # the other constraint needs to also follow the alternate equations
+            if ecc.is_constraint and 'esinw_constrained' not in ecc.is_constraint.constraint_kwargs.keys():
+                # print("~~~esinw constraint: attempting to also flip ecc constraint")
+                ecc.is_constraint.constraint_kwargs['esinw_constrained'] = False
+                ecc.is_constraint.flip_for('ecc', force=True)
+    elif solve_for == ecosw:
+        raise NotImplementedError("cannot solve this constraint for 'ecosw' since it was originally 'esinw'")
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
 def ecosw(b, orbit, solve_for=None, **kwargs):
     """
@@ -351,24 +392,56 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
     ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
     ecosw, created = b.get_or_create('ecosw', ecosw_def, **metawargs)
 
+    esinw_def = FloatParameter(qualifier='esinw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
+    esinw, esinw_created = b.get_or_create('esinw', esinw_def, **metawargs)
+
+    esinw_constrained = kwargs.get('esinw_constrained', len(esinw.constrained_by) > 0)
+    # print("~~~ecosw constraint: solve_for={}, esinw_constrained={}".format(solve_for.qualifier if solve_for is not None else "None", esinw_constrained))
+
     ecc = b.get_parameter(qualifier='ecc', **metawargs)
     per0 = b.get_parameter(qualifier='per0', **metawargs)
 
     if solve_for in [None, ecosw]:
         lhs = ecosw
         rhs = ecc * cos(per0)
+        if not esinw_created and not esinw_constrained:
+            if per0.is_constraint:
+                per0.is_constraint.constraint_kwargs['ecosw_constrained'] = True
+                per0.is_constraint.flip_for('per0', force=True)
+            elif ecc.is_constraint:
+                ecc.is_constraint.constraint_kwargs['ecosw_constrained'] = True
+                ecc.is_constraint.flip_for('ecc', force=True)
 
     elif solve_for == ecc:
         lhs = ecc
-        rhs = ecosw / cos(per0)
+        if esinw_constrained:
+            rhs = ecosw / cos(per0)
+        else:
+            rhs = (esinw**2 + ecosw**2)**0.5
+            # the other constraint needs to also follow the alternate equations
+            if per0.is_constraint and 'ecosw_constrained' not in per0.is_constraint.constraint_kwargs.keys():
+                # print("~~~ecosw constraint: attempting to also flip per0 constraint")
+                per0.is_constraint.constraint_kwargs['ecosw_constrained'] = False
+                per0.is_constraint.flip_for('per0', force=True)
+
     elif solve_for == per0:
         lhs = per0
-        #rhs = arccos(ecosw/ecc)
-        rhs = ecosw2per0(ecc, ecosw)
+        if esinw_constrained:
+            # cannot just do arccos because ecc may be 0
+            rhs = ecosw2per0(ecc, ecosw)
+        else:
+            rhs = arctan2(esinw, ecosw)
+            # the other constraint needs to also follow the alternate equations
+            if ecc.is_constraint and 'ecosw_constrained' not in ecc.is_constraint.constraint_kwargs.keys():
+                # print("~~~ecosw constraint: attempting to also flip per0 constraint")
+                ecc.is_constraint.constraint_kwargs['ecosw_constrained'] = False
+                ecc.is_constraint.flip_for('ecc', force=True)
+    elif solve_for == esinw:
+        raise NotImplementedError("cannot solve this constraint for 'esinw' since it was originally 'ecosw'")
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
 def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     """
@@ -410,7 +483,7 @@ def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 def t0(*args, **kwargs):
     """
@@ -456,7 +529,7 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 
 def mean_anom(b, orbit, solve_for=None, **kwargs):
@@ -479,7 +552,7 @@ def mean_anom(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 def _true_anom_to_phase(true_anom, period, ecc, per0):
     """
@@ -530,7 +603,7 @@ def ph_supconj(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 def ph_infconj(b, orbit, solve_for=None, **kwargs):
     """
@@ -555,7 +628,7 @@ def ph_infconj(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 def ph_perpass(b, orbit, solve_for=None, **kwargs):
     """
@@ -579,7 +652,7 @@ def ph_perpass(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 
 
@@ -620,7 +693,7 @@ def freq(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 #}
 #{ Inter-orbit constraints
@@ -658,7 +731,7 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
         # TODO: add other options to solve_for
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit1': orbit1, 'orbit2': orbit2}
+    return lhs, rhs, [], {'orbit1': orbit1, 'orbit2': orbit2}
 
 #}
 #{ Intra-component constraints
@@ -683,7 +756,7 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def semidetached(b, component, solve_for=None, **kwargs):
     """
@@ -700,7 +773,7 @@ def semidetached(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 
 #}
@@ -792,7 +865,7 @@ def mass(b, component, solve_for=None, **kwargs):
         # TODO: solve for other options
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 
 def comp_sma(b, component, solve_for=None, **kwargs):
@@ -854,7 +927,7 @@ def comp_sma(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 
 def requiv_detached_max(b, component, solve_for=None, **kwargs):
@@ -908,7 +981,7 @@ def requiv_detached_max(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("requiv_detached_max can only be solved for requiv_max")
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def potential_contact_min(b, component, solve_for=None, **kwargs):
     """
@@ -946,7 +1019,7 @@ def potential_contact_min(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("potential_contact_min can only be solved for requiv_min")
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def potential_contact_max(b, component, solve_for=None, **kwargs):
     """
@@ -984,7 +1057,7 @@ def potential_contact_max(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("potential_contact_max can only be solved for requiv_max")
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def requiv_contact_min(b, component, solve_for=None, **kwargs):
     """
@@ -1023,7 +1096,7 @@ def requiv_contact_min(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("requiv_contact_min can only be solved for requiv_min")
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def requiv_contact_max(b, component, solve_for=None, **kwargs):
     """
@@ -1062,7 +1135,7 @@ def requiv_contact_max(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("requiv_contact_max can only be solved for requiv_max")
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def fillout_factor(b, component, solve_for=None, **kwargs):
     """
@@ -1103,7 +1176,7 @@ def fillout_factor(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("fillout_factor can not be solved for {}".format(solve_for))
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def rotation_period(b, component, solve_for=None, **kwargs):
     """
@@ -1155,7 +1228,7 @@ def rotation_period(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def pitch(b, component, solve_for=None, **kwargs):
     """
@@ -1201,7 +1274,7 @@ def pitch(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def yaw(b, component, solve_for=None, **kwargs):
     """
@@ -1247,7 +1320,7 @@ def yaw(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 
 #}
@@ -1316,7 +1389,7 @@ def time_ephem(b, component, dataset, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component, 'dataset': dataset}
+    return lhs, rhs, [], {'component': component, 'dataset': dataset}
 
 def etv(b, component, dataset, solve_for=None, **kwargs):
     """
@@ -1334,7 +1407,7 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component, 'dataset': dataset}
+    return lhs, rhs, [], {'component': component, 'dataset': dataset}
 
 #}
 
@@ -1371,4 +1444,4 @@ def requiv_to_pot(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}

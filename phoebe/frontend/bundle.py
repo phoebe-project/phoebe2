@@ -2576,7 +2576,7 @@ class Bundle(ParameterSet):
             # solve_for is a twig, we need to pass the parameter
             kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'])
 
-        lhs, rhs, constraint_kwargs = func(self, *func_args, **kwargs)
+        lhs, rhs, addl_vars, constraint_kwargs = func(self, *func_args, **kwargs)
         # NOTE that any component parameters required have already been
         # created by this point
 
@@ -2589,6 +2589,7 @@ class Bundle(ParameterSet):
                                                model=lhs.model,
                                                constraint_func=func.__name__,
                                                constraint_kwargs=constraint_kwargs,
+                                               addl_vars=addl_vars,
                                                in_solar_units=func.__name__ not in constraint.list_of_constraints_requiring_si,
                                                value=rhs,
                                                default_unit=lhs.default_unit,
