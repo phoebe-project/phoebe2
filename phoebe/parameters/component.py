@@ -28,6 +28,17 @@ def orbit(component, **kwargs):
     see <phoebe.parameters.ParameterSet.set_value> to set/change the values
     after creating the Parameters.
 
+    The following constraints are returned, and will automtically be applied
+    if attaching to the <phoebe.frontend.bundle.Bundle> via
+    <phoebe.frontend.bundle.Bundle.add_component>:
+    * <phoebe.parameters.constraint.asini>
+    * <phoebe.parameters.constraint.ecosw>
+    * <phoebe.parameters.constraint.esinw>
+    * <phoebe.parameters.constraint.t0_perpass_supconj>
+    * <phoebe.parameters.constraint.t0_ref_supconj>
+    * <phoebe.parameters.constraint.mean_anom>
+    * <phoebe.parameters.constraint.freq>
+
     Arguments
     ----------
     * `period` (float/quantity, optional): orbital period.
@@ -105,6 +116,12 @@ def star(component, **kwargs):
     passed on to set the values as described in the arguments below.  Alternatively,
     see <phoebe.parameters.ParameterSet.set_value> to set/change the values
     after creating the Parameters.
+
+    The following constraints are returned, and will automtically be applied
+    if attaching to the <phoebe.frontend.bundle.Bundle> via
+    <phoebe.frontend.bundle.Bundle.add_component>:
+    * <phoebe.parameters.constraint.freq>
+    * <phoebe.parameters.constraint.irrad_frac>
 
     Arguments
     ----------

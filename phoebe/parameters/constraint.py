@@ -235,8 +235,14 @@ def asini(b, orbit, solve_for=None):
     """
     Create a constraint for asini in an orbit.
 
+    This constraint is automatically included for all orbits, during
+    <phoebe.frontend.bundle.Bundle.add_component> for a
+    <phoebe.parameters.component.orbit>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('asini', orbit='binary')`, where `orbit` is one of
+     <phoebe.parameters.HierarchyParameter.get_orbits>.
 
     If any of the required parameters ('asini', 'sma', 'incl') do not
     exist in the orbit, they will be created.
@@ -301,8 +307,14 @@ def esinw(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for esinw in an orbit.
 
+    This constraint is automatically included for all orbits, during
+    <phoebe.frontend.bundle.Bundle.add_component> for a
+    <phoebe.parameters.component.orbit>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint>  as
+     `b.add_constraint('esinw', orbit='binary')`, where `orbit` is one of
+     <phoebe.parameters.HierarchyParameter.get_orbits>.
 
     If 'esinw' does not exist in the orbit, it will be created
 
@@ -356,8 +368,14 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for ecosw in an orbit.
 
+    This constraint is automatically included for all orbits, during
+    <phoebe.frontend.bundle.Bundle.add_component> for a
+    <phoebe.parameters.component.orbit>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('ecosw', orbit='binary')`, where `orbit` is one of
+     <phoebe.parameters.HierarchyParameter.get_orbits>.
 
     If 'ecosw' does not exist in the orbit, it will be created
 
@@ -412,8 +430,14 @@ def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     Create a constraint for t0_perpass in an orbit - allowing translating between
     t0_perpass and t0_supconj.
 
+    This constraint is automatically included for all orbits, during
+    <phoebe.frontend.bundle.Bundle.add_component> for a
+    <phoebe.parameters.component.orbit>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('t0_perpass_supconj', orbit='binary')`, where `orbit` is
+     one of <phoebe.parameters.HierarchyParameter.get_orbits>.
 
     Arguments
     -----------
@@ -465,11 +489,8 @@ def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
 
 def t0(*args, **kwargs):
     """
-    shortcut to <phoebe.parameters.constraint.t0_perpass> for backwards
+    shortcut to <phoebe.parameters.constraint.t0_perpass_supconj> for backwards
     compatibility.
-
-    This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
     """
     return t0_perpass_supconj(*args, **kwargs)
 
@@ -478,8 +499,14 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
     Create a constraint for t0_ref in an orbit - allowing translating between
     t0_ref and t0_supconj.
 
+    This constraint is automatically included for all orbits, during
+    <phoebe.frontend.bundle.Bundle.add_component> for a
+    <phoebe.parameters.component.orbit>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('t0_ref_supconj', orbit='binary')`, where `orbit` is
+     one of <phoebe.parameters.HierarchyParameter.get_orbits>.
 
     Arguments
     -----------
@@ -529,8 +556,15 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
 
 def mean_anom(b, orbit, solve_for=None, **kwargs):
     """
+
+    This constraint is automatically included for all orbits, during
+    <phoebe.frontend.bundle.Bundle.add_component> for a
+    <phoebe.parameters.component.orbit>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('mean_anom', orbit='binary')`, where `orbit` is
+     one of <phoebe.parameters.HierarchyParameter.get_orbits>.
 
     Arguments
     -----------
@@ -588,7 +622,9 @@ def _true_anom_to_phase(true_anom, period, ecc, per0):
 def ph_supconj(b, orbit, solve_for=None, **kwargs):
     """
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('ph_supconj', orbit='binary')`, where `orbit` is
+     one of <phoebe.parameters.HierarchyParameter.get_orbits>.
     """
     orbit_ps = _get_system_ps(b, orbit)
 
@@ -624,8 +660,13 @@ def ph_supconj(b, orbit, solve_for=None, **kwargs):
 
 def ph_infconj(b, orbit, solve_for=None, **kwargs):
     """
+    This constraint is automatically added for binary systems via
+    <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('ph_infconj', orbit='binary')`, where `orbit` is
+     one of <phoebe.parameters.HierarchyParameter.get_orbits>.
     """
     orbit_ps = _get_system_ps(b, orbit)
 
@@ -651,7 +692,9 @@ def ph_infconj(b, orbit, solve_for=None, **kwargs):
 def ph_perpass(b, orbit, solve_for=None, **kwargs):
     """
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('ph_perpass', orbit='binary')`, where `orbit` is
+     one of <phoebe.parameters.HierarchyParameter.get_orbits>.
     """
     orbit_ps = _get_system_ps(b, orbit)
 
@@ -685,13 +728,20 @@ def freq(b, component, solve_for=None, **kwargs):
     freq = 2 * pi / period
     ```
 
+    This constraint is automatically added all <phoebe.parameters.component.star>
+    and <phoebe.parameters.component.orbit> components via
+    <phoebe.frontend.bundle.Bundle.add_component>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('freq', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_orbits> or
+     <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------
     * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
-    * `component` (string): the label of the orbit or component in which this
+    * `component` (string): the label of the orbit or star in which this
         constraint should be built.
     * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
         'freq' should not be the derived/constrained parameter, provide which
@@ -722,7 +772,7 @@ def freq(b, component, solve_for=None, **kwargs):
 
     elif solve_for == period:
         lhs = period
-        rhs = freq / (2 * np.pi)
+        rhs = 2 * np.pi / freq
 
     else:
         raise NotImplementedError
@@ -778,8 +828,14 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
     Create a constraint to ensure that energy is conserved and all incident
     light is accounted for.
 
+    This constraint is automatically included for all orbits, during
+    <phoebe.frontend.bundle.Bundle.add_component> for a
+    <phoebe.parameters.component.star>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('irrad_frac', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------
@@ -822,7 +878,9 @@ def semidetached(b, component, solve_for=None, **kwargs):
     Create a constraint to force requiv to be semidetached.
 
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('semidetached', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------
@@ -878,8 +936,13 @@ def mass(b, component, solve_for=None, **kwargs):
     Create a constraint for the mass of a star based on Kepler's third
     law from its parent orbit.
 
+    This constraint is automatically created and attached for all stars
+    in binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('mass', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     If 'mass' does not exist in the component, it will be created.
 
@@ -969,8 +1032,13 @@ def comp_sma(b, component, solve_for=None, **kwargs):
     parent orbit.  This is NOT the same as the semi-major axes OF
     the parent orbit
 
+    This constraint is automatically created and attached for all stars
+    in binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('mass', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     If 'sma' does not exist in the component, it will be created
 
@@ -1043,8 +1111,13 @@ def requiv_detached_max(b, component, solve_for=None, **kwargs):
     Create a constraint to determine the critical (at L1) value of
     requiv.
 
+    This constraint is automatically created and attached for all stars
+    in detached binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('requiv_detached_max', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------
@@ -1112,8 +1185,13 @@ def potential_contact_min(b, component, solve_for=None, **kwargs):
     potential at which a constact will underflow.  This will only be used
     for contacts for pot_min.
 
+    This constraint is automatically created and attached for all stars
+    in contact binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('potential_contact_min', component='common_envelope')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_envelopes>.
 
     Arguments
     -----------
@@ -1164,8 +1242,13 @@ def potential_contact_max(b, component, solve_for=None, **kwargs):
     potential at which a constact will underflow.  This will only be used
     for contacts for pot_min.
 
+    This constraint is automatically created and attached for all stars
+    in contact binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('potential_contact_min', component='common_envelope')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_envelopes>.
 
     Arguments
     -----------
@@ -1216,8 +1299,13 @@ def requiv_contact_min(b, component, solve_for=None, **kwargs):
     requiv at which a constact will underflow.  This will only be used
     for contacts for requiv_min.
 
+    This constraint is automatically created and attached for all stars
+    in contact binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('requiv_contact_min', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------
@@ -1269,8 +1357,13 @@ def requiv_contact_max(b, component, solve_for=None, **kwargs):
     requiv at which a constact will overflow.  This will only be used
     for contacts for requiv_max.
 
+    This constraint is automatically created and attached for all stars
+    in contact binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('requiv_contact_min', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------
@@ -1320,8 +1413,13 @@ def fillout_factor(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the fillout factor of a contact envelope.
 
+    This constraint is automatically created and attached for all stars
+    in contact binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('potential_contact_min', component='common_envelope')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_envelopes>.
 
     Arguments
     -----------
@@ -1376,8 +1474,13 @@ def rotation_period(b, component, solve_for=None, **kwargs):
     Create a constraint for the rotation period of a star given its orbital
     period and synchronicity parameters.
 
+    This constraint is automatically created and attached for all stars
+    in detached binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('rotation_period', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------
@@ -1440,8 +1543,13 @@ def pitch(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the inclination of a star relative to its parent orbit.
 
+    This constraint is automatically created and attached for all stars
+    in detached binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('pitch', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------
@@ -1499,8 +1607,13 @@ def yaw(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the inclination of a star relative to its parent orbit.
 
+    This constraint is automatically created and attached for all stars
+    in detached binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('yaw', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------
@@ -1654,8 +1767,14 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
 
 def requiv_to_pot(b, component, solve_for=None, **kwargs):
     """
+    This constraint is automatically created and attached for all stars
+    in contact binary orbits via <phoebe.frontend.bundle.Bundle.set_hierarchy>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('requiv_to_pot', component='common_envelope')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_envelopes> or
+     <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------
