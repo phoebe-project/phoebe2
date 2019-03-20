@@ -6660,7 +6660,9 @@ class FloatArrayParameter(FloatParameter):
             times = parent_ps.get_value(qualifier='times')
             phases = self._bundle.to_phase(times, **{k:v for k,v in kwargs.items() if k in ['component', 't0']})
 
-            return np.interp(qualifier_interp_value, phases, self.get_value())
+            sort = phases.argsort()
+
+            return np.interp(qualifier_interp_value, phases[sort], self.get_value()[sort])
 
         else:
 
