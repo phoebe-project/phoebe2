@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger("CONSTRAINT")
 logger.addHandler(logging.NullHandler())
 
-list_of_constraints_requiring_si = []
+list_of_constraints_requiring_si = ['logg']
 
 
 def _get_system_ps(b, item, context='component'):
@@ -964,18 +964,17 @@ def logg(b, component, solve_for=None, **kwargs):
     logg_def = FloatParameter(qualifier='logg', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')
     logg, created = b.get_or_create('logg', logg_def, **metawargs)
 
-    G = c.G.to('solRad3 / (solMass d2)')
-    G.keep_in_solar_units = True
+    G = c.G
 
     if solve_for in [logg, None]:
         lhs = logg
-        rhs = log10(mass / requiv**2 * G)
+        rhs = log10(mass / requiv**2 * G * 100)
     elif solve_for in [requiv]:
         lhs = requiv
-        rhs = sqrt((mass*G)/10**logg)
+        rhs = sqrt((mass*G * 100)/10**logg)
     elif solve_for in [mass]:
         lhs = mass
-        rhs = requiv**2 * 10**logg / G
+        rhs = requiv**2 * 10**logg / ( G * 100)
     else:
         raise NotImplementedError
 
