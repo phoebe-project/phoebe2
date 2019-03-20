@@ -1734,6 +1734,8 @@ class Star(Body):
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
+            # ! Because the interpolation within Imu will otherwise fail.
+            # ! It would be best to pass only [visibilities > 0] elements to Imu.
             abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
                                      logg=self.mesh.loggs.for_computations,
                                      abun=self.mesh.abuns.for_computations,
