@@ -267,7 +267,7 @@ class Passband:
             if sys.version_info[0] < 3:
                 marshal.dump(struct, f)
             else:
-                pickle.dump(struct, f, protocol=3)
+                pickle.dump(struct, f, protocol=4)
 
     @classmethod
     def load(cls, archive):
