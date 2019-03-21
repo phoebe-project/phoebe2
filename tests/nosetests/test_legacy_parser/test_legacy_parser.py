@@ -67,8 +67,8 @@ def _legacy_test(filename='default.phoebe', verbose=False):
         ldx1, ldy1 = b.filter(dataset=lcs[x], qualifier='ld_coeffs', component='cow').get_value()
 
         ld_coeffs1 =[phb1.getpar('phoebe_ld_lcx1', x), phb1.getpar('phoebe_ld_lcy1', x), phb1.getpar('phoebe_ld_lcx2', x), phb1.getpar('phoebe_ld_lcy2', x)]
-        ldx1, ldy1 = b.filter(dataset=lcs[x], qualifier='ld_coeffs', component='cow').get_value()
-        ldx2, ldy2 = b.filter(dataset=lcs[x], qualifier='ld_coeffs', component='pig').get_value()
+        ldx1, ldy1 = b.filter(dataset=id, qualifier='ld_coeffs', component='cow').get_value()
+        ldx2, ldy2 = b.filter(dataset=id, qualifier='ld_coeffs', component='pig').get_value()
         ld_coeffs2 = [ldx1, ldy1, ldx2, ldy2]
         if verbose: print("checking ld coeffs in "+str(lcs[x]))
         assert(np.all(ld_coeffs1==ld_coeffs2))
