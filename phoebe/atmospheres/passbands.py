@@ -809,11 +809,11 @@ class Passband:
 
         # compute mu where y-tangent = 0
         mu0 = -n/k
-	# for passbands that don't trail off, mu0 is always < 0
-	# using that to catch them and cut off at the true end-point
-	if mu0 < mu_phoenix.min():
-	    mu_infl = mu_phoenix.min()
-	    mu0 = mu_phoenix.min()
+        # for passbands that don't trail off, mu0 is always < 0
+        # using that to catch them and cut off at the true end-point
+        if mu0 < mu_phoenix.min():
+            mu_infl = mu_phoenix.min()
+            mu0 = mu_phoenix.min()
 
         # recompute intensities
         intensity_phoenix[mu_phoenix<mu_infl] = k*mu_phoenix[mu_phoenix<mu_infl] + n
@@ -821,15 +821,15 @@ class Passband:
 
         # renormalize mus on 0 to 1
         mus_norm = np.cos(np.pi/2*np.arccos(mu_phoenix)/np.arccos(mu0))
-	
-	# if there's no real cut-off, above computation returns lowest value approx. 1e-17
-	# additional rescaling to fix mus_norm on range [0.,1.]
- 	if mus_norm.min() > 0:
-	    mus_norm = (mus_norm - mus_norm.min())/(mus_norm-mus_norm.min()).max()
- 
+
+        # if there's no real cut-off, above computation returns lowest value approx. 1e-17
+        # additional rescaling to fix mus_norm on range [0.,1.]
+        if mus_norm.min() > 0:
+            mus_norm = (mus_norm - mus_norm.min())/(mus_norm-mus_norm.min()).max()
+
         # interpolate intensities in user-provided mus
         intensity_interp = interpolate.interp1d(mus_norm, intensity_phoenix)
-	return intensity_interp(mu_interp)
+        return intensity_interp(mu_interp)
 
 
     def compute_ck2004_intensities(self, path, particular=None, verbose=False):
