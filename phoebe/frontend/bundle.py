@@ -1100,6 +1100,9 @@ class Bundle(ParameterSet):
         Set the hierarchy of the system, and recreate/rerun all necessary
         constraints (can be slow).
 
+        For a list of all constraints that are automatically set based on the
+        hierarchy, see <phoebe.frontend.bundle.Bundle.add_constraint>.
+
         See the built-in functions for building hierarchy reprentations:
         * <phoebe.parmaeters.hierarchy>
         * <phoebe.parameters.hierarchy.binaryorbit>
@@ -1458,7 +1461,14 @@ class Bundle(ParameterSet):
 
     def get_hierarchy(self):
         """
-        Get the hierarchy parameter
+        Get the hierarchy parameter.
+
+        See <phoebe.parameters.HierarchyParameter>, including:
+        * <phoebe.parameters.HierarchyParameter.get_components>
+        * <phoebe.parameters.HierarchyParameter.get_top>
+        * <phoebe.parameters.HierarchyParameter.get_stars>
+        * <phoebe.parameters.HierarchyParameter.get_envelopes>
+        * <phoebe.parameters.HierarchyParameter.get_orbits>
 
         Returns
         --------
@@ -1468,9 +1478,14 @@ class Bundle(ParameterSet):
 
     def _kwargs_checks(self, kwargs, additional_allowed_keys=[],
                        additional_forbidden_keys=[],
-                       warning_only=False):
+                       warning_only=False,
+                       ps=None):
         """
         """
+        if ps is None:
+            # then check against the entire bundle
+            ps = self
+
         allowed_keys = self.qualifiers +\
                         parameters._meta_fields_filter +\
                         ['skip_checks', 'check_default', 'check_visible'] +\
@@ -1497,7 +1512,7 @@ class Bundle(ParameterSet):
 
                 continue
 
-            for param in self.filter(qualifier=key).to_list():
+            for param in ps.filter(qualifier=key).to_list():
                 if hasattr(param, 'valid_selection'):
                     if not param.valid_selection(value):
                         msg = "{}={} not valid with choices={}".format(key, value, param.choices)
@@ -1779,12 +1794,13 @@ class Bundle(ParameterSet):
         # we've survived all tests
         return True, ''
 
-    def recommended_citations(self, compute=None, dataset=None):
+    def references(self, compute=None, dataset=None):
         """
-        Provides recommended citations from the given bundle based on the
+        Provides a list of used references from the given bundle based on the
         current parameter values and attached datasets/compute options.
 
-        This list is not necessarily complete, but can be useful to make sure
+        This list is not necessarily complete, but can be useful to find
+        publications for various features/models used as well as to make sure
         appropriate references are being cited/acknowledged.  The returned
         dictionary includes a list for each entry why its being included.
 
@@ -2763,9 +2779,9 @@ class Bundle(ParameterSet):
                                            value=value,
                                            check_visible=False,
                                            ignore_none=True)
-                    except:
+                    except Exception as err:
                         self.remove_dataset(dataset=kwargs['dataset'])
-                        raise ValueError("could not set value for {}={}, dataset has not been added".format(k, value))
+                        raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
 
             elif k in ['dataset']:
                 pass
@@ -2794,9 +2810,9 @@ class Bundle(ParameterSet):
                                        value=v,
                                        check_visible=False,
                                        ignore_none=True)
-                except:
+                except Exception as err:
                     self.remove_dataset(dataset=kwargs['dataset'])
-                    raise ValueError("could not set value for {}={}, dataset has not been added".format(k, v))
+                    raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added.".format(k, v, err.message))
 
 
         redo_kwargs = deepcopy({k:v if not isinstance(v, nparray.ndarray) else v.to_json() for k,v in kwargs.items()})
@@ -3027,7 +3043,53 @@ class Bundle(ParameterSet):
 
     def add_constraint(self, *args, **kwargs):
         """
-        Add a constraint to the Bundle.
+        Add a <phoebe.parameters.ConstraintParameter> to the
+        <phoebe.frontend.bundle.Bundle>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
+
+        For a list of optional built-in constraints, see <phoebe.parameters.constraint>
+        including:
+        * <phoebe.parameters.constraint.semidetached>
+
+        The following are automatically included for all orbits, during
+        <phoebe.frontend.bundle.Bundle.add_component> for a
+        <phoebe.parameters.component.orbit>:
+        * <phoebe.parameters.constraint.asini>
+        * <phoebe.parameters.constraint.ecosw>
+        * <phoebe.parameters.constraint.esinw>
+        * <phoebe.parameters.constraint.t0_perpass_supconj>
+        * <phoebe.parameters.constraint.t0_ref_supconj>
+        * <phoebe.parameters.constraint.mean_anom>
+        * <phoebe.parameters.constraint.freq>
+
+        The following are automatically included for all stars, during
+        <phoebe.frontend.bundle.Bundle.add_component> for a
+        <phoebe.parameters.component.star>:
+        * <phoebe.parameters.constraint.freq>
+        * <phoebe.parameters.constraint.irrad_frac>
+
+        Additionally, some constraints are automatically handled by the hierarchy in
+        <phoebe.frontend.bundle.Bundle.set_hierarchy> or when loading a default
+        system.  The following are automatically included for a
+        <phoebe.frontend.bundle.Bundle.default_binary>:
+        * <phoebe.parameters.constraint.mass>
+        * <phoebe.parameters.constraint.comp_sma>
+        * <phoebe.parameters.constraint.rotation_period> (detached only)
+        * <phoebe.parameters.constraint.pitch> (detached only)
+        * <phoebe.parameters.constraint.yaw> (detached only)
+        * <phoebe.parameters.constraint.requiv_detached_max> (detached only)
+        * <phoebe.parameters.constraint.potential_contact_min> (contact only)
+        * <phoebe.parameters.constraint.potential_contact_max> (contact only)
+        * <phoebe.parameters.constraint.requiv_contact_min> (contact only)
+        * <phoebe.parameters.constraint.requiv_contact_max> (contact only)
+        * <phoebe.parameters.constraint.fillout_factor> (contact only)
+        * <phoebe.parameters.constraint.requiv_to_pot> (contact only)
 
         Arguments
         ------------
@@ -3152,6 +3214,11 @@ class Bundle(ParameterSet):
 
         See also:
         * <phoebe.parameters.ParameterSet.get>
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
 
         Arguments
         ----------
@@ -3173,6 +3240,12 @@ class Bundle(ParameterSet):
 
         See also:
         * <phoebe.parameters.ParameterSet.remove_parameters_all>
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
 
         Arguments
         ----------
@@ -3218,6 +3291,13 @@ class Bundle(ParameterSet):
     def flip_constraint(self, twig=None, solve_for=None, **kwargs):
         """
         Flip an existing constraint to solve for a different parameter.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
 
         Arguments
         ----------
@@ -3269,6 +3349,17 @@ class Bundle(ParameterSet):
         parameter.  In general, there shouldn't be any need to manually
         call this - constraints should automatically be run whenever a
         dependent parameter's value is change.
+
+        If interactive constraints are disabled via <phoebe.interactive_constraints_off>,
+        then you can manually call this method or <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
+        to manually update the constraint value.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
 
         Arguments
         -------------
@@ -3326,9 +3417,26 @@ class Bundle(ParameterSet):
 
     def run_delayed_constraints(self):
         """
-        Manually run any delayed constraints.  See also:
+        Manually run any delayed constraints.  In general, there shouldn't be any need to manually
+        call this - constraints should automatically be run whenever a
+        dependent parameter's value is change.
+
+        If interactive constraints are disabled via <phoebe.interactive_constraints_off>,
+        then you can manually call this method or <phoebe.frontend.bundle.Bundle.run_constraint>
+        to manually update the constraint value.
+
+        See also:
         * <phoebe.interactive_constraints_on>
         * <phoebe.interactive_constraints_off>
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+
+        Returns
+        ---------
+        * (list): list of changed <phoebe.parameters.Parameter> objects.
 
         """
         changes = []
@@ -3347,20 +3455,22 @@ class Bundle(ParameterSet):
         (and any coupling) are computed at t0@system.
 
         This method is only for convenience and will be recomputed internally
-        within run_compute.  Alternatively, you can create a mesh dataset
-        and request any specific pblum to be exposed (per-time).
+        within <phoebe.frontend.bundle.Bundle.run_compute>.  Alternatively, you
+        can create a mesh dataset (see <phoebe.frontend.bundle.Bundle.add_dataset>
+        and <phoebe.parameters.dataset.mesh>) and request any specific pblum to
+        be exposed (per-time).
 
         Arguments
         ------------
         * `compute` (string, optional, default=None): label of the compute
-            options (note required if only one is attached to the bundle).
+            options (not required if only one is attached to the bundle).
         * `component` (string or list of strings, optional): label of the
             component(s) requested. If not provided, will be provided for all
             components in the hierarchy.
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets attached to the bundle.
-        * `**kwargs`: any additional kwargs are sent to override compute options
+        * `**kwargs`: any additional kwargs are sent to override compute options.
 
         Returns
         ----------
@@ -3493,7 +3603,7 @@ class Bundle(ParameterSet):
 
     def remove_compute(self, compute, **kwargs):
         """
-        Remove a 'compute' from the bundleself.
+        Remove a 'compute' from the bundle.
 
         See also:
         * <phoebe.parameters.ParameterSet.remove_parameters_all>
@@ -3671,13 +3781,14 @@ class Bundle(ParameterSet):
         # any kwargs that were used just to filter for get_compute should  be
         # removed so that they aren't passed on to all future get_value(...
         # **kwargs) calls
+        computes_ps = self.get_compute(compute=compute, **kwargs)
         for k in parameters._meta_fields_filter:
             if k in kwargs.keys():
                 dump = kwargs.pop(k)
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        self._kwargs_checks(kwargs, ['skip_checks', 'jobid', 'overwrite'])
+        self._kwargs_checks(kwargs, ['skip_checks', 'jobid', 'overwrite'], ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
             passed, msg = self.run_checks(compute=computes, **kwargs)
