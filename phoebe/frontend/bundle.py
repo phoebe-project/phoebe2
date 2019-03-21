@@ -41,6 +41,9 @@ import logging
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
+if sys.version_info[0] == 3:
+  unicode = str
+
 
 # Attempt imports for client requirements
 try:

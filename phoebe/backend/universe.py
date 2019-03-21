@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import newton
 from scipy.special import sph_harm as Y
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
-import os
+import sys, os
 import copy
 
 from phoebe.atmospheres import passbands
@@ -14,6 +14,9 @@ import libphoebe
 from phoebe import u
 from phoebe import c
 from phoebe import conf
+
+if sys.version_info[0] == 3:
+  unicode = str
 
 import logging
 logger = logging.getLogger("UNIVERSE")
