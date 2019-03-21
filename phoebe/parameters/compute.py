@@ -147,7 +147,7 @@ def legacy(**kwargs):
     to compute radial velocities and light curves for binary systems
     (>2 stars not supported).  The code is available here:
 
-    http://phoebe-project.org/1.0
+    [http://phoebe-project.org/1.0](http://phoebe-project.org/1.0)
 
     PHOEBE 1.0 and the 'phoebeBackend' python interface must be installed
     and available on the system in order to use this plugin.
