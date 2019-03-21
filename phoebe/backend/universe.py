@@ -1718,7 +1718,7 @@ class Star(Body):
             ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
                              logg=self.mesh.loggs.for_computations,
                              abun=self.mesh.abuns.for_computations,
-                             atm=atm,
+                             ldatm=atm,
                              ld_func=ld_func,
                              ld_coeffs=ld_coeffs,
                              photon_weighted=intens_weighting=='photon')
@@ -1729,16 +1729,20 @@ class Star(Body):
                                               logg=self.mesh.loggs.for_computations,
                                               abun=self.mesh.abuns.for_computations,
                                               atm=atm,
+                                              ldatm=atm,
                                               ldint=ldint,
                                               photon_weighted=intens_weighting=='photon')
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
+            # ! Because the interpolation within Imu will otherwise fail.
+            # ! It would be best to pass only [visibilities > 0] elements to Imu.
             abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
                                      logg=self.mesh.loggs.for_computations,
                                      abun=self.mesh.abuns.for_computations,
                                      mu=abs(self.mesh.mus_for_computations),
                                      atm=atm,
+                                     ldatm=atm,
                                      ldint=ldint,
                                      ld_func=ld_func,
                                      ld_coeffs=ld_coeffs,
