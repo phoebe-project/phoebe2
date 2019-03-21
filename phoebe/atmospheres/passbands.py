@@ -831,7 +831,6 @@ class Passband:
         intensity_interp = interpolate.interp1d(mus_norm, intensity_phoenix)
         return intensity_interp(mu_interp)
 
-
     def compute_ck2004_intensities(self, path, particular=None, verbose=False):
         """
         Computes direction-dependent passband intensities using Castelli
@@ -1447,7 +1446,7 @@ class Passband:
         self.content.append('phoenix_ldint')
 
     def interpolate_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0,
-                                    atm='ck2004', ld_func='power',
+                                    ldatm='ck2004', ld_func='power',
                                     photon_weighted=False):
         """
         Interpolate the passband-stored table of LD model coefficients.
@@ -1457,7 +1456,7 @@ class Passband:
         * `Teff` (float or array, default=5772): effective temperature
         * `logg` (float or array, default=4.43): surface gravity in cgs
         * `abun` (float or array, default=0.0): log-abundance in solar log-abundances
-        * `atm` (string, default='ck2004'): model atmosphere table: 'ck2004' or 'phoenix'
+        * `ldatm` (string, default='ck2004'): limb darkening table: 'ck2004' or 'phoenix'
         * `ld_func` (string, default='power'): limb darkening fitting function: 'linear',
           'logarithmic', 'square_root', 'quadratic', 'power' or 'all'
         * `photon_weighted` (bool, optional, default=False): photon/energy switch
@@ -1470,28 +1469,28 @@ class Passband:
             or if `ld_func` is not recognized.
         """
 
-        if atm == 'ck2004' and 'ck2004_ld' not in self.content:
+        if ldatm == 'ck2004' and 'ck2004_ld' not in self.content:
             print('Castelli & Kurucz (2004) limb darkening coefficients are not computed yet. Please compute those first.')
             return None
 
-        if atm == 'phoenix' and 'phoenix_ld' not in self.content:
+        if ldatm == 'phoenix' and 'phoenix_ld' not in self.content:
             print('PHOENIX (Husser et al. 2013) limb darkening coefficients are not computed yet. Please compute those first.')
             return None
 
-        if atm == 'ck2004' and photon_weighted:
+        if ldatm == 'ck2004' and photon_weighted:
             axes = self._ck2004_intensity_axes
             table = self._ck2004_ld_photon_grid
-        elif atm == 'phoenix' and photon_weighted:
+        elif ldatm == 'phoenix' and photon_weighted:
             axes = self._phoenix_intensity_axes
             table = self._phoenix_ld_photon_grid
-        elif atm == 'ck2004' and not photon_weighted:
+        elif ldatm == 'ck2004' and not photon_weighted:
             axes = self._ck2004_intensity_axes
             table = self._ck2004_ld_energy_grid
-        elif atm == 'phoenix' and not photon_weighted:
+        elif ldatm == 'phoenix' and not photon_weighted:
             axes = self._phoenix_intensity_axes
             table = self._phoenix_ld_energy_grid
         else:
-            print('atm=%s is not supported for LD interpolation.' % atm)
+            print('ldatm=%s is not supported for LD interpolation.' % ldatm)
             return None
 
         if not hasattr(Teff, '__iter__'):
@@ -1514,7 +1513,7 @@ class Passband:
         elif ld_func == 'all':
             return ld_coeffs
         else:
-            print('ld_func=%s is invalid; please choose from [linear, logarithmic, square_root, quadratic, power, all].')
+            print('ld_func=%s is invalid; please choose from [linear, logarithmic, square_root, quadratic, power, all].' % ld_func)
             return None
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11,
@@ -1653,7 +1652,7 @@ class Passband:
 
         return Imu
 
-    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
         """
 
         Arguments
@@ -1662,7 +1661,8 @@ class Passband:
         * `logg`
         * `abun`
         * `atm`
-        * `ldint` (string, optional, default='ck2004'): integral of the limb
+        * `ldatm`
+        * `ldint` (string, optional, default=None): integral of the limb
             darkening function, \int_0^1 \mu L(\mu) d\mu. Its general role is to
             convert intensity to flux. In this method, however, it is only needed
             for blackbody atmospheres because they are not limb-darkened (i.e.
@@ -1704,14 +1704,14 @@ class Passband:
             else:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
             if ldint is None:
-                ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
+                ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
 
         elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
             if ldint is None:
-                ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
+                ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
 
         elif atm == 'extern_atmx' and 'extern_atmx' in self.content:
@@ -1729,10 +1729,10 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: atm=%s, Teff=%s, logg=%s, abun=%s' % (atm, Teff[nanmask], logg[nanmask], abun[nanmask]))
+            raise ValueError('atmosphere parameters out of bounds: atm=%s, ldatm=%s, Teff=%s, logg=%s, abun=%s' % (atm, ldatm, Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
-    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
         """
         Arguments
         ----------
@@ -1740,6 +1740,7 @@ class Passband:
         * `logg`
         * `abun`
         * `atm`
+        * `ldatm`
         * `ldint` (string, optional, default='ck2004'): integral of the limb
             darkening function, \int_0^1 \mu L(\mu) d\mu. Its general role is to
             convert intensity to flux. In this method, however, it is only needed
@@ -1789,18 +1790,18 @@ class Passband:
         if ld_coeffs is None:
             # LD function can be passed without coefficients; in that
             # case we need to interpolate them from the tables.
-            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, atm, ld_func, photon_weighted)
+            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted)
 
         if ld_func == 'linear':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
         elif ld_func == 'logarithmic':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_log(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_log(mu, *ld_coeffs)
         elif ld_func == 'square_root':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_sqrt(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_sqrt(mu, *ld_coeffs)
         elif ld_func == 'quadratic':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_quad(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_quad(mu, *ld_coeffs)
         elif ld_func == 'power':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_nonlin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldatm=ldatm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_nonlin(mu, *ld_coeffs)
         else:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
@@ -1829,14 +1830,14 @@ class Passband:
 
         return ldint
 
-    def ldint(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
+    def ldint(self, Teff=5772., logg=4.43, abun=0.0, ldatm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         """
         Arguments
         ----------
         * `Teff`
         * `logg`
         * `abun`
-        * `atm`
+        * `ldatm`
         * `ld_func` (string, optional, default='interp') limb darkening
             function.  One of: linear, sqrt, log, quadratic, power, interp.
         * `ld_coeffs` (list, optional, default=None): limb darkening coefficients
@@ -1856,19 +1857,19 @@ class Passband:
         """
         # TODO: improve docstring
         if ld_func == 'interp':
-            if atm == 'ck2004':
+            if ldatm == 'ck2004':
                 retval = self._ldint_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
-            elif atm == 'phoenix':
+            elif ldatm == 'phoenix':
                 retval = self._ldint_phoenix(Teff, logg, abun, photon_weighted=photon_weighted)
             else:
-                raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
+                raise ValueError('ldatm={} not supported with ld_func=interp'.format(ldatm))
             nanmask = np.isnan(retval)
             if np.any(nanmask):
                 raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
             return retval
 
         if ld_coeffs is None:
-            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, atm, ld_func, photon_weighted)
+            ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted)
 
         if ld_func == 'linear':
             retval = 1-ld_coeffs[0]/3
@@ -1880,7 +1881,6 @@ class Passband:
             retval = 1-ld_coeffs[0]/3-ld_coeffs[1]/6
         elif ld_func == 'power':
             retval = 1-ld_coeffs[0]/5-ld_coeffs[1]/3-3.*ld_coeffs[2]/7-ld_coeffs[3]/2
-
         else:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
@@ -1921,6 +1921,8 @@ class Passband:
         * NotImplementedError: if `atm` is not supported (not one of 'ck2004'
             or 'blackbody').
         """
+        # TODO: implement phoenix boosting.
+        
         if atm == 'ck2004':
             retval = self._bindex_ck2004(Teff, logg, abun, mu, atm, photon_weighted)
         elif atm == 'blackbody':
