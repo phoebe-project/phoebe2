@@ -5,6 +5,7 @@ but won't run detached (ie. detach=True will be ignored)
 
 import phoebe
 import numpy as np
+import sys
 
 def test_mpi(plot=False, npoints=8):
     phoebe.reset_settings()
@@ -30,6 +31,9 @@ def test_mpi(plot=False, npoints=8):
     phoebe.mpi_off()
 
     return b
+
+if sys.version_info[0] >= 3:
+    test_mpi.__test__ = False
 
 if __name__ == '__main__':
     # for fair timing comparisons, let's disable checking for online passbands

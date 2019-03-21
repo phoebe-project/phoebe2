@@ -3,6 +3,7 @@ can also be run with mpirun -np 8 python test_mpi.py
 """
 import phoebe
 import numpy as np
+import sys
 
 
 def test_mpi(plot=False, npoints=8):
@@ -24,6 +25,10 @@ def test_mpi(plot=False, npoints=8):
     phoebe.mpi_off()
 
     return b
+
+
+if sys.version_info[0] >= 3:
+    test_mpi.__test__ = False
 
 if __name__ == '__main__':
     # for fair timing comparisons, let's disable checking for online passbands

@@ -1794,12 +1794,13 @@ class Bundle(ParameterSet):
         # we've survived all tests
         return True, ''
 
-    def recommended_citations(self, compute=None, dataset=None):
+    def references(self, compute=None, dataset=None):
         """
-        Provides recommended citations from the given bundle based on the
+        Provides a list of used references from the given bundle based on the
         current parameter values and attached datasets/compute options.
 
-        This list is not necessarily complete, but can be useful to make sure
+        This list is not necessarily complete, but can be useful to find
+        publications for various features/models used as well as to make sure
         appropriate references are being cited/acknowledged.  The returned
         dictionary includes a list for each entry why its being included.
 
@@ -2788,9 +2789,9 @@ class Bundle(ParameterSet):
                                            value=value,
                                            check_visible=False,
                                            ignore_none=True)
-                    except:
+                    except Exception as err:
                         self.remove_dataset(dataset=kwargs['dataset'])
-                        raise ValueError("could not set value for {}={}, dataset has not been added".format(k, value))
+                        raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
 
             elif k in ['dataset']:
                 pass
@@ -2821,9 +2822,9 @@ class Bundle(ParameterSet):
                                        value=v,
                                        check_visible=False,
                                        ignore_none=True)
-                except:
+                except Exception as err:
                     self.remove_dataset(dataset=kwargs['dataset'])
-                    raise ValueError("could not set value for {}={}, dataset has not been added".format(k, v))
+                    raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added.".format(k, v, err.message))
 
 
         def _to_safe_value(v):
@@ -3070,7 +3071,6 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.remove_constraint>
         * <phoebe.frontend.bundle.Bundle.run_constraint>
         * <phoebe.frontend.bundle.Bundle.flip_constraint>
-        * <phoebe.frontend.bundle.Bundle.run_constraint>
         * <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
 
         For a list of optional built-in constraints, see <phoebe.parameters.constraint>
@@ -3631,7 +3631,7 @@ class Bundle(ParameterSet):
 
     def remove_compute(self, compute, **kwargs):
         """
-        Remove a 'compute' from the bundleself.
+        Remove a 'compute' from the bundle.
 
         See also:
         * <phoebe.parameters.ParameterSet.remove_parameters_all>

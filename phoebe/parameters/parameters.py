@@ -3574,6 +3574,10 @@ class ParameterSet(object):
         * `legend_kwargs` (dict, optional):  keyword arguments (position,
             formatting, etc) to be passed on to [plt.legend](https://matplotlib.org/api/_as_gen/matplotlib.pyplot.legend.html)
 
+        * `fig` (matplotlib figure, optional): figure to use for plotting.  If
+            not provided, will use plt.gcf().  Ignored unless `save`, `show`,
+            or `animate`.
+
         * `save` (string, optional, default=False): filename to save the
             figure (or False to not save).
         * `show` (bool, optional, default=False): whether to show the plot
@@ -3743,6 +3747,9 @@ class ParameterSet(object):
         * `save` (False/string, optional, default=False): filename to save the
             figure (or False to not save).
         * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `fig` (matplotlib figure, optional): figure to use for plotting.  If
+            not provided, will use plt.gcf().  Ignored unless `save`, `show`,
+            or `animate`.
         * `draw_sidebars` (bool, optional, default=True): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
         * `draw_title` (bool, optional, default=True): whether to draw axes
@@ -3780,6 +3787,9 @@ class ParameterSet(object):
         * `save` (string): filename to save the figure (or False to not save).
         * `show` (bool, optional, default=False): whether to show the plot
         * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `fig` (matplotlib figure, optional): figure to use for plotting.  If
+            not provided, will use plt.gcf().  Ignored unless `save`, `show`,
+            or `animate`.
         * `draw_sidebars` (bool, optional, default=True): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
         * `draw_title` (bool, optional, default=True): whether to draw axes
