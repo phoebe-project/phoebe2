@@ -3057,8 +3057,6 @@ class Bundle(ParameterSet):
         including:
         * <phoebe.parameters.constraint.semidetached>
         * <phoebe.parameters.constraint.logg>
-        * <phoebe.parameters.constraint.vrot>
-        * <phoebe.parameters.constraint.vsini>
 
         The following are automatically included for all orbits, during
         <phoebe.frontend.bundle.Bundle.add_component> for a
@@ -3076,6 +3074,7 @@ class Bundle(ParameterSet):
         <phoebe.parameters.component.star>:
         * <phoebe.parameters.constraint.freq>
         * <phoebe.parameters.constraint.irrad_frac>
+        * <phoebe.parameters.constraint.logg>
 
         Additionally, some constraints are automatically handled by the hierarchy in
         <phoebe.frontend.bundle.Bundle.set_hierarchy> or when loading a default

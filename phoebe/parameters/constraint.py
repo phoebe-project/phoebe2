@@ -742,7 +742,7 @@ def freq(b, component, solve_for=None, **kwargs):
     freq = 2 * pi / period
     ```
 
-    This constraint is automatically added all <phoebe.parameters.component.star>
+    This constraint is automatically included for all <phoebe.parameters.component.star>
     and <phoebe.parameters.component.orbit> components via
     <phoebe.frontend.bundle.Bundle.add_component>.
 
@@ -842,9 +842,9 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
     Create a constraint to ensure that energy is conserved and all incident
     light is accounted for.
 
-    This constraint is automatically included for all orbits, during
-    <phoebe.frontend.bundle.Bundle.add_component> for a
-    <phoebe.parameters.component.star>.
+    This constraint is automatically included for all
+    <phoebe.parameters.component.star> during
+    <phoebe.frontend.bundle.Bundle.add_component>.
 
     This is usually passed as an argument to
      <phoebe.frontend.bundle.Bundle.add_constraint> as
@@ -932,8 +932,14 @@ def logg(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for logg at requiv for a star.
 
+    This constraint is automatically included for all
+    <phoebe.parameters.component.star> during
+    <phoebe.frontend.bundle.Bundle.add_component>.
+
     This is usually passed as an argument to
-     <phoebe.frontend.bundle.Bundle.add_constraint>.
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('logg', component='primary')`, where `component` is
+     one of <phoebe.parameters.HierarchyParameter.get_stars>.
 
     Arguments
     -----------

@@ -122,6 +122,7 @@ def star(component, **kwargs):
     <phoebe.frontend.bundle.Bundle.add_component>:
     * <phoebe.parameters.constraint.freq>
     * <phoebe.parameters.constraint.irrad_frac>
+    * <phoebe.parameters.constraint.logg>
 
     Arguments
     ----------
