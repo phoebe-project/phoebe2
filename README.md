@@ -56,11 +56,15 @@ PHOEBE 2 has a steep learning curve. There is no graphical front-end as of yet; 
     >>> import phoebe
     >>>
 
-To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.1/#Tutorials) hosted on the PHOEBE webpage.
+To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.1/) hosted on the PHOEBE webpage.
 
 
 CHANGELOG
 ----------
+
+### 2.1.4 - freq constraint hotfix
+
+* This fixes the inversion of the frequency constraint when flipping to solve for period.
 
 ### 2.1.3 - overflow error for semidetached systems hotfix
 

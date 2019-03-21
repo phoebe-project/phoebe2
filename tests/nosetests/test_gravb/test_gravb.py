@@ -27,16 +27,16 @@ def test_binary(plot=False):
     b.set_value_all('ld_coeffs', [0.0])
 
     #turn off albedos (legacy requirement)
-    b.set_value_all('irrad_frac_refl_bol',  0.0)    
+    b.set_value_all('irrad_frac_refl_bol',  0.0)
 
     for gravb in [0.1, 0.9]:
         b.set_value('gravb_bol', component='primary', value=gravb)
 
 
         print("running phoebe2 model...")
-        b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
+        b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model', overwrite=True)
         print("running phoebe1 model...")
-        b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
+        b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model', overwrite=True)
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')

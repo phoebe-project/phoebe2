@@ -93,7 +93,7 @@ def test_binary(plot=False):
                 b.set_value_all('ld_coeffs', ld_coeffs)
 
 
-            b.run_compute(compute='phoebe2', model='phoebe2model')
+            b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
 
             if plot:
                 print("running phoebe1 model atm={}, ld_func={}, ld_coeffs={}...".format(atm_ph1, ld_func_ph1, ld_coeffs_ph1))
@@ -102,7 +102,7 @@ def test_binary(plot=False):
             b.set_value_all('ld_func', ld_func_ph1)
             b.set_value_all('ld_coeffs', ld_coeffs_ph1)
 
-            b.run_compute(compute='phoebe1', model='phoebe1model')
+            b.run_compute(compute='phoebe1', model='phoebe1model', overwrite=True)
 
             phoebe2_val = b.get_value('fluxes@phoebe2model')
             phoebe1_val = b.get_value('fluxes@phoebe1model')
@@ -148,7 +148,7 @@ def test_binary(plot=False):
 
                 b.set_value_all('ld_coeffs', ld_coeffs)
 
-                b.run_compute(compute='phoebe2', model='phoebe2model')
+                b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
 
                 med_fluxes.append(np.median(b.get_value('fluxes@phoebe2model')))
 

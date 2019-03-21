@@ -1225,7 +1225,7 @@ class ParameterSet(object):
 
         return
 
-    def _check_label(self, label):
+    def _check_label(self, label, allow_overwrite=False):
         """Check to see if the label is allowed."""
 
         if not isinstance(label, str):
@@ -1236,8 +1236,8 @@ class ParameterSet(object):
                              .format(label))
         if not re.match("^[a-z,A-Z,0-9,_]*$", label):
             raise ValueError("label '{}' is forbidden - only alphabetic, numeric, and '_' characters are allowed in labels".format(label))
-        if len(self.filter(twig=label, check_visible=False)):
-            raise ValueError("label '{}' is already in use".format(label))
+        if len(self.filter(twig=label, check_visible=False)) and not allow_overwrite:
+            raise ValueError("label '{}' is already in use.  Remove first or pass overwrite=True, if available.".format(label))
         if label[0] in ['_']:
             raise ValueError("first character of label is a forbidden character")
 
@@ -1255,7 +1255,9 @@ class ParameterSet(object):
                 if p not in lst:
                     lst.append(p)
 
-            return ParameterSet(lst)
+            ps = ParameterSet(lst)
+            ps._bundle = self._bundle
+            return ps
         else:
             raise NotImplementedError
 
@@ -1266,7 +1268,9 @@ class ParameterSet(object):
             other = ParameterSet([other])
 
         if isinstance(other, ParameterSet):
-            return ParameterSet([p for p in self._params if p not in other._params])
+            ps = ParameterSet([p for p in self._params if p not in other._params])
+            ps._bundle = self._bundle
+            return ps
         else:
             raise NotImplementedError
 
@@ -1280,7 +1284,9 @@ class ParameterSet(object):
             other = ParameterSet([other])
 
         if isinstance(other, ParameterSet):
-            return ParameterSet([p for p in self._params if p in other._params])
+            ps = ParameterSet([p for p in self._params if p in other._params])
+            ps._bundle = self._bundle
+            return ps
         else:
             raise NotImplementedError
 
@@ -1632,7 +1638,7 @@ class ParameterSet(object):
         else:
             kwargs = {}
 
-        self.set(twig, value, **kwargs)
+        self.set(twig, value, allow_value_as_first_arg=False, **kwargs)
 
     def __contains__(self, twig):
         """
@@ -2398,13 +2404,13 @@ class ParameterSet(object):
         """
         # TODO: handle twig having parameter key (value@, default_unit@, adjust@, etc)
         # TODO: does this return anything (update the docstring)?
-        if twig is not None and value is None:
+        if twig is not None and value is None and kwargs.get('allow_value_as_first_arg', True):
             # then try to support value as the first argument if no matches with twigs
             if not isinstance(twig, str):
                 value = twig
                 twig = None
 
-            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+            elif not len(self.filter(twig=twig, check_default=False, **kwargs)):
                 value = twig
                 twig = None
 
@@ -3199,9 +3205,11 @@ class ParameterSet(object):
 
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
         # try to find 'times' in the cartesian dimensions:
+        iqualifier = kwargs.pop('i', 'times')
         for af_direction in ['x', 'y', 'z']:
-            if kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls']:
+            if kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]:
                 kwargs['i'] = af_direction
+                kwargs['iqualifier'] = None
                 break
         else:
             # then we didn't find a match, so we'll either pass the time
@@ -3209,15 +3217,38 @@ class ParameterSet(object):
             if ps.time is not None:
                 # a single mesh will pass just that single time on as the
                 # independent variable/direction
-                kwargs['i'] = float(ps.time)
-                kwargs['iqualifier'] = 'ps.times'
+                if iqualifier=='times':
+                    kwargs['i'] = float(ps.time)
+                    kwargs['iqualifier'] = 'ps.times'
+                elif iqualifier.split(':')[0] == 'phases':
+                    # TODO: need to test this
+                    component = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
+                    kwargs['i'] = self._bundle.to_phase(float(ps.time), component=component)
+                    kwargs['iqualifier'] = iqualifier
+                else:
+                    raise NotImplementedError
             elif ps.kind in ['etv']:
-                kwargs['i'] = ps.get_quantity(qualifier='time_ecls')
-                kwargs['iqualifier'] = 'time_ecls'
+                if iqualfier=='times':
+                    kwargs['i'] = ps.get_quantity(qualifier='time_ecls')
+                    kwargs['iqualifier'] = 'time_ecls'
+                elif iqualifier.split(':')[0] == 'phases':
+                    # TODO: need to test this
+                    icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
+                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='time_ecls'), component=icomponent)
+                    kwargs['iqualifier'] = iqualifier
+                else:
+                    raise NotImplementedError
             else:
-                kwargs['i'] = ps.get_quantity(qualifier='times')
-                kwargs['iqualifier'] = 'times'
-
+                if iqualifier=='times':
+                    kwargs['i'] = ps.get_quantity(qualifier='times')
+                    kwargs['iqualifier'] = 'times'
+                elif iqualifier.split(':')[0] == 'phases':
+                    # TODO: need to test this
+                    icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
+                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='times'), component=icomponent)
+                    kwargs['iqualifier'] = iqualifier
+                else:
+                    raise NotImplementedError
 
         #### STYLE DEFAULTS
         # set defaults for marker/linestyle depending on whether this is
@@ -3345,6 +3376,12 @@ class ParameterSet(object):
         * `ec` (string/float/array, optional): qualifier/twig of the array to use
             for edgecolor (only applicable for mesh plots).
 
+        * `i` (string, optional, default='time'): qualifier/twig to use for the
+            independent variable.  In the vast majority of cases, using the default
+            is sufficient.  If `x` is phase, then setting `i` to phase as well
+            will sort and connect the points in phase-order instead of the default
+            behavior or time-order.
+
         * `xerror` (string/float/array, optional): qualifier/twig of the array to plot as
             x-errors (will default based on `x` if not provided).
         * `yerror` (string/float/array, optional): qualifier/twig of the array to plot as
@@ -3416,6 +3453,15 @@ class ParameterSet(object):
 
         * `uncover` (bool, optional): whether to uncover data based on the current
             time.  Only applicable if `time` or `times` provided.
+
+        * `legend` (bool, optional, default=False): whether to draw a legend for
+            this axes.
+        * `legend_kwargs` (dict, optional):  keyword arguments (position,
+            formatting, etc) to be passed on to [plt.legend](https://matplotlib.org/api/_as_gen/matplotlib.pyplot.legend.html)
+
+        * `fig` (matplotlib figure, optional): figure to use for plotting.  If
+            not provided, will use plt.gcf().  Ignored unless `save`, `show`,
+            or `animate`.
 
         * `save` (string, optional, default=False): filename to save the
             figure (or False to not save).
@@ -3586,6 +3632,9 @@ class ParameterSet(object):
         * `save` (False/string, optional, default=False): filename to save the
             figure (or False to not save).
         * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `fig` (matplotlib figure, optional): figure to use for plotting.  If
+            not provided, will use plt.gcf().  Ignored unless `save`, `show`,
+            or `animate`.
         * `draw_sidebars` (bool, optional, default=True): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
         * `draw_title` (bool, optional, default=True): whether to draw axes
@@ -3623,6 +3672,9 @@ class ParameterSet(object):
         * `save` (string): filename to save the figure (or False to not save).
         * `show` (bool, optional, default=False): whether to show the plot
         * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `fig` (matplotlib figure, optional): figure to use for plotting.  If
+            not provided, will use plt.gcf().  Ignored unless `save`, `show`,
+            or `animate`.
         * `draw_sidebars` (bool, optional, default=True): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
         * `draw_title` (bool, optional, default=True): whether to draw axes
@@ -6544,7 +6596,7 @@ class FloatArrayParameter(FloatParameter):
         if self.allow_none and value is None:
             value = None
 
-        if isinstance(value, u.Quantity):
+        elif isinstance(value, u.Quantity):
             if isinstance(value.value, float) or isinstance(value.value, int):
                 value = np.array([value])
 
@@ -6907,6 +6959,9 @@ class HierarchyParameter(StringParameter):
         """
         Return a list of all components in the <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_top>
         * <phoebe.parameters.HierarchyParameter.get_stars>
@@ -6925,6 +6980,9 @@ class HierarchyParameter(StringParameter):
         """
         Return the top-level component in the <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_components>
         * <phoebe.parameters.HierarchyParameter.get_stars>
@@ -6942,6 +7000,9 @@ class HierarchyParameter(StringParameter):
         """
         Return a list of all components with kind='star' in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         See also:
         * <phoebe.parameters.HierarchyParameter.get_components>
@@ -6963,6 +7024,9 @@ class HierarchyParameter(StringParameter):
         Return a list of all components with kind='envelope' in the
         <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_components>
         * <phoebe.parameters.HierarchyParameter.get_top>
@@ -6982,6 +7046,9 @@ class HierarchyParameter(StringParameter):
         """
         Return a list of all components with kind='orbit' in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         See also:
         * <phoebe.parameters.HierarchyParameter.get_components>
@@ -7010,6 +7077,9 @@ class HierarchyParameter(StringParameter):
         but also handles the envelope for a contact binary)
         in the <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_components>
         * <phoebe.parameters.HierarchyParameter.get_top>
@@ -7037,6 +7107,9 @@ class HierarchyParameter(StringParameter):
         """
         Get the parent of a component in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         See also:
         * <phoebe.parameters.HierarchyParameter.get_sibling_of>
@@ -7080,6 +7153,9 @@ class HierarchyParameter(StringParameter):
         Get the sibling of a component in the
         <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         If there is more than one sibling, the first result will be returned.
 
         See also:
@@ -7111,6 +7187,9 @@ class HierarchyParameter(StringParameter):
         """
         Get the siblings of a component in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         See also:
         * <phoebe.parameters.HierarchyParameter.get_parent_of>
@@ -7151,6 +7230,9 @@ class HierarchyParameter(StringParameter):
         Get the parent-envelope of a component in the
         <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_parent_of>
         * <phoebe.parameters.HierarchyParameter.get_sibling_of>
@@ -7178,6 +7260,9 @@ class HierarchyParameter(StringParameter):
         """
         Get the stars under the sibling of a component in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         This is the same as <phoebe.parameters.Hierarchy.get_sibling_of> except
         if a sibling is in an orbit, this will recursively follow the tree to
@@ -7218,6 +7303,9 @@ class HierarchyParameter(StringParameter):
         Get the children of a component in the
         <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_parent_of>
         * <phoebe.parameters.HierarchyParameter.get_sibling_of>
@@ -7256,6 +7344,9 @@ class HierarchyParameter(StringParameter):
         """
         Get the stars under the children of a component in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         This is the same as <phoebe.parameters.Hierarchy.get_children_of> except
         if any of the children is in an orbit, this will recursively follow the tree to
@@ -7302,6 +7393,9 @@ class HierarchyParameter(StringParameter):
         Get the child (by index) of a component in the
         <phoebe.parameters.HierarchyParameter>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         See also:
         * <phoebe.parameters.HierarchyParameter.get_parent_of>
         * <phoebe.parameters.HierarchyParameter.get_sibling_of>
@@ -7333,6 +7427,9 @@ class HierarchyParameter(StringParameter):
         Return whether a given component is the 'primary' or 'secondary'
         component in its parent orbit, according to the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+        <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         Arguments
         ----------
@@ -7367,6 +7464,9 @@ class HierarchyParameter(StringParameter):
         """
         Return the kind of a given component in the
         <phoebe.parameters.HierarchyParameter>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         Arguments
         ----------
@@ -7405,6 +7505,9 @@ class HierarchyParameter(StringParameter):
         an envelope.  See <phoebe.parameters.HierarchyParameter.get_siblings_of>
         and <phoebe.parameters.HierarchyParameter.get_kind_of>.
 
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
+
         Arguments
         ----------
         * `component` (string): the name of the component.
@@ -7439,6 +7542,9 @@ class HierarchyParameter(StringParameter):
         This is done by checking whether the component's parent is an orbit.
         See <phoebe.parameters.HierarchyParameter.get_parent_of> and
         <phoebe.parameters.HierarchyParameter.get_kind_of>.
+
+        To access the HierarchyParameter from the Bundle, see
+         <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         Arguments
         ----------
