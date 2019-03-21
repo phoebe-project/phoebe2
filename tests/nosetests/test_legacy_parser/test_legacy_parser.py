@@ -34,21 +34,25 @@ def _legacy_test(filename='default.phoebe', verbose=False):
     fluxes = []
     vels = []
     vels2 = []
+    lc_id = []
+    rv_id = []
 
     for x in range(len(lcs)):
         # load file
+        id = phb1.getpar('phoebe_lc_id', x)
+        lc_id.append(id)
         datafile = phb1.getpar('phoebe_lc_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
-        time = b.filter(dataset=lcs[x], qualifier='times').get_value()
+        time = b.filter(dataset=id, qualifier='times').get_value()
         # get third column value
         err_val = phb1.getpar('phoebe_lc_indweight', x)
         print("checking time in "+str(lcs[x]))
         assert(np.all(time==data[:,0]))
-        flux = b.filter(dataset=lcs[x], qualifier='fluxes').get_value()
+        flux = b.filter(dataset=id, qualifier='fluxes').get_value()
         if verbose: print("checking flux in "+str(lcs[x]))
         if verbose: print("x={}, datafile={}, lcs[x]={}".format(x, datafile, lcs[x]))
         assert(np.all(flux==data[:,1]))
-        sigma = b.filter(dataset=lcs[x], qualifier='sigmas').get_value()
+        sigma = b.filter(dataset=id, qualifier='sigmas').get_value()
         if verbose: print("checking sigma in "+str(lcs[x]))
 
         if err_val == 'Standard deviation':
@@ -77,6 +81,7 @@ def _legacy_test(filename='default.phoebe', verbose=False):
         err_val = phb1.getpar('phoebe_rv_indweight', x)
         comp = phb1.getpar('phoebe_rv_dep', x).split(' ')[0].lower()
         id = phb1.getpar('phoebe_rv_id', x)
+        rv_id.append(id)
         print("id", id)
         if comp == 'primary':
             comp_name = 'cow'
@@ -128,10 +133,10 @@ def _legacy_test(filename='default.phoebe', verbose=False):
             sec = sec+1
 
     b.run_compute(kind='legacy')
-    for x in range(len(lcs)):
-        lc2 = b.filter('fluxes', context='model', dataset=lcs[x]).get_value()
-        time = b.filter('times', context='model', dataset=lcs[x]).get_value()
-        if verbose: print("comparing lightcurve "+str(lcs[x]))
+    for x in range(len(lc_id)):
+        lc2 = b.filter('fluxes', context='model', dataset=lc_id[x]).get_value()
+        time = b.filter('times', context='model', dataset=lc_id[x]).get_value()
+        if verbose: print("comparing lightcurve "+str(lc_id[x]))
 
         assert(np.allclose(fluxes[x], lc2, atol=1e-5))
 
