@@ -6,7 +6,7 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
+#phoebe.devel_on()
 
 def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
@@ -36,9 +36,9 @@ def test_binary(plot=False):
 
 
         print("running phoebe2 model...")
-        b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
+        b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model', overwrite=True)
         print("running phoebe1 model...")
-        b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
+        b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model', overwrite=True)
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')

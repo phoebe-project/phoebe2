@@ -1559,9 +1559,15 @@ def update_passband_available(passband):
     if passband not in list_online_passbands():
         return False
 
-    if _pbtable[passband]['timestamp'] is None:
+    if _online_passbands[passband]['timestamp'] is None:
+        return False
+
+    elif _pbtable[passband]['timestamp'] is None:
         if _online_passbands[passband]['timestamp'] is not None:
             return True
+
+    elif _online_passbands[passband]['timestamp'] is None:
+        return False
 
     elif _timestamp_to_dt(_pbtable[passband]['timestamp']) < _timestamp_to_dt(_online_passbands[passband]['timestamp']):
         return True
@@ -1755,7 +1761,7 @@ def list_online_passbands(refresh=False, full_dict=False):
                 else:
                     return []
         else:
-            _online_passbands = json.loads(resp.read(), object_pairs_hook=parse_json)
+            _online_passbands = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json)
 
     if full_dict:
         return _online_passbands

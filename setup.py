@@ -294,7 +294,6 @@ ext_modules = [
     Extension('phoebe.algorithms.ceclipse',
       language='c++',
       sources = ['phoebe/algorithms/ceclipse.cpp'],
-      extra_compile_args = ["-O0"],
       include_dirs=[numpy.get_include()]
       ),
 ]
@@ -308,7 +307,7 @@ setup (name = 'phoebe',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.3',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.4',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.utils', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.unitsiau2015'],
        install_requires=['numpy>=1.10','scipy>=0.17','astropy>=1.0,<3.0' if sys.version_info[0] < 3 else 'astropy>=1.0'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],

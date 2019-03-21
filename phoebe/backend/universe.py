@@ -1734,6 +1734,8 @@ class Star(Body):
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
+            # ! Because the interpolation within Imu will otherwise fail.
+            # ! It would be best to pass only [visibilities > 0] elements to Imu.
             abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
                                      logg=self.mesh.loggs.for_computations,
                                      abun=self.mesh.abuns.for_computations,
@@ -1948,7 +1950,7 @@ class Star_roche(Star):
                                                                 delta=delta,
                                                                 choice=0,
                                                                 full=True,
-                                                                max_triangles=ntriangles*2,
+                                                                max_triangles=int(ntriangles*1.5),
                                                                 vertices=True,
                                                                 triangles=True,
                                                                 centers=True,
@@ -2133,7 +2135,7 @@ class Star_roche_envelope_half(Star):
                                                      delta=delta,
                                                      choice=2,
                                                      full=True,
-                                                     max_triangles=ntriangles*2,
+                                                     max_triangles=int(ntriangles*1.5),
                                                      vertices=True,
                                                      triangles=True,
                                                      centers=True,
@@ -2303,7 +2305,7 @@ class Star_rotstar(Star):
             new_mesh = libphoebe.rotstar_misaligned_marching_mesh(*mesh_args,
                                                                   delta=delta,
                                                                   full=True,
-                                                                  max_triangles=ntriangles*2,
+                                                                  max_triangles=int(ntriangles*1.5),
                                                                   vertices=True,
                                                                   triangles=True,
                                                                   centers=True,
@@ -2455,7 +2457,7 @@ class Star_sphere(Star):
             new_mesh = libphoebe.sphere_marching_mesh(*mesh_args,
                                                       delta=delta,
                                                       full=True,
-                                                      max_triangles=ntriangles*2,
+                                                      max_triangles=int(ntriangles*1.5),
                                                       vertices=True,
                                                       triangles=True,
                                                       centers=True,
