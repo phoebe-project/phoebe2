@@ -3536,7 +3536,7 @@ class ParameterSet(object):
                                           **kwargs)
             except Exception as err:
                 self.clf()
-                raise err
+                raise
         else:
             afig = self.gcf()
             fig = None
