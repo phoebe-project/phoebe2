@@ -1728,10 +1728,14 @@ class Bundle(ParameterSet):
             if not check[0]:
                 return check
 
-            if ld_func != 'interp' and ld_coeffs is not None:
+            if ld_func != 'interp':
                 check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
                 if not check:
                     return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
+
+                for compute in computes:
+                    if self.get_compute(compute).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
+                        return False, "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
 
             for dataset in self.datasets:
                 if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
@@ -1754,6 +1758,11 @@ class Bundle(ParameterSet):
                         check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
                         if not check:
                             return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
+
+                        for compute in computes:
+                            if self.get_compute(compute).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
+                                return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
+
 
                 if ld_func=='interp':
                     for compute in computes:
