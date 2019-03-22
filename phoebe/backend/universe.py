@@ -1073,7 +1073,7 @@ class Star(Body):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
+                 ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -1115,6 +1115,7 @@ class Star(Body):
         self.passband = passband
         self.intens_weighting = intens_weighting
         self.ld_coeffs = ld_coeffs
+        self.ld_coeffs_source = ld_coeffs_source
         self.ld_func = ld_func
         self.lp_profile_rest = lp_profile_rest
 
@@ -1242,6 +1243,8 @@ class Star(Body):
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, ld_func=ld_func_override) for ds in datasets_intens}
         ld_coeffs_override = kwargs.pop('ld_coeffs', None)
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, ld_coeffs=ld_coeffs_override) for ds in datasets_intens}
+        ld_coeffs_source_override = kwargs.pop('ld_coeffs_source', None)
+        ld_coeffs_source = {ds: b.get_value('ld_coeffs_source', dataset=ds, component=component, check_visible=False, ld_coeffs_source=ld_coeffs_source_override) for ds in datasets_intens}
         ld_func_bol_override = kwargs.pop('ld_func_bol', None)
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', check_visible=False, ld_func_bol=ld_func_bol_override)
         ld_coeffs_bol_override = kwargs.pop('ld_coeffs_bol', None)
@@ -1265,6 +1268,7 @@ class Star(Body):
                    intens_weighting,
                    ld_func,
                    ld_coeffs,
+                   ld_coeffs_source,
                    lp_profile_rest,
                    requiv,
                    sma,
@@ -1700,7 +1704,19 @@ class Star(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
+        ldatm = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, None))
+        if ldatm != 'none':
+            # then ld_coeffs was a hidden parameter anyways, but the backend
+            # needs None passed to use ldatm
+            ld_coeffs = None
+        if ld_func == 'interp':
+            # then ld_coeffs_source is a hidden parameter to the user, but the
+            # backend needs to know to use the same atmosphere
+            ldatm = atm
+
         boosting_method = kwargs.get('boosting_method', self.boosting_method)
+
+        logger.debug("ld_func={}, ld_coeffs={}, atm={}, ldatm={}".format(ld_func, ld_coeffs, atm, ldatm))
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
@@ -1718,7 +1734,7 @@ class Star(Body):
             ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
                              logg=self.mesh.loggs.for_computations,
                              abun=self.mesh.abuns.for_computations,
-                             ldatm=atm,
+                             ldatm=ldatm,
                              ld_func=ld_func,
                              ld_coeffs=ld_coeffs,
                              photon_weighted=intens_weighting=='photon')
@@ -1729,7 +1745,7 @@ class Star(Body):
                                               logg=self.mesh.loggs.for_computations,
                                               abun=self.mesh.abuns.for_computations,
                                               atm=atm,
-                                              ldatm=atm,
+                                              ldatm=ldatm,
                                               ldint=ldint,
                                               photon_weighted=intens_weighting=='photon')
 
@@ -1742,7 +1758,7 @@ class Star(Body):
                                      abun=self.mesh.abuns.for_computations,
                                      mu=abs(self.mesh.mus_for_computations),
                                      atm=atm,
-                                     ldatm=atm,
+                                     ldatm=ldatm,
                                      ldint=ldint,
                                      ld_func=ld_func,
                                      ld_coeffs=ld_coeffs,
@@ -1801,7 +1817,7 @@ class Star_roche(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
+                 ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -1824,7 +1840,7 @@ class Star_roche(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
-                                         ld_func, ld_coeffs,
+                                         ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
                                          requiv, sma,
                                          polar_direction_uvw,
@@ -2000,7 +2016,7 @@ class Star_roche_envelope_half(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
+                 ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -2027,7 +2043,7 @@ class Star_roche_envelope_half(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
-                                         ld_func, ld_coeffs,
+                                         ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
                                          requiv, sma,
                                          polar_direction_uvw,
@@ -2182,7 +2198,7 @@ class Star_rotstar(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
+                 ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -2204,7 +2220,7 @@ class Star_rotstar(Star):
                                            do_mesh_offset, mesh_init_phi,
 
                                            atm, datasets, passband, intens_weighting,
-                                           ld_func, ld_coeffs,
+                                           ld_func, ld_coeffs, ld_coeffs_source,
                                            lp_profile_rest,
                                            requiv, sma,
                                            polar_direction_uvw,
@@ -2343,7 +2359,7 @@ class Star_sphere(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
+                 ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -2366,7 +2382,7 @@ class Star_sphere(Star):
                                           do_mesh_offset, mesh_init_phi,
 
                                           atm, datasets, passband, intens_weighting,
-                                          ld_func, ld_coeffs,
+                                          ld_func, ld_coeffs, ld_coeffs_source,
                                           lp_profile_rest,
                                           requiv, sma,
                                           polar_direction_uvw,
