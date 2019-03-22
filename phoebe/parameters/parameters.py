@@ -3207,7 +3207,7 @@ class ParameterSet(object):
         # try to find 'times' in the cartesian dimensions:
         iqualifier = kwargs.pop('i', 'times')
         for af_direction in ['x', 'y', 'z']:
-            if kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]:
+            if kwargs['autofig_method'] != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
                 kwargs['i'] = af_direction
                 kwargs['iqualifier'] = None
                 break
@@ -3220,6 +3220,9 @@ class ParameterSet(object):
                 if iqualifier=='times':
                     kwargs['i'] = float(ps.time)
                     kwargs['iqualifier'] = 'ps.times'
+                elif isinstance(iqualifier, float):
+                    kwargs['i'] = iqualifier
+                    kwargs['iqualifier'] = iqualifier
                 elif iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     component = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
