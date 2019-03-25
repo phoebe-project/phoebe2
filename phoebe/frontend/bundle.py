@@ -3059,6 +3059,7 @@ class Bundle(ParameterSet):
         For a list of optional built-in constraints, see <phoebe.parameters.constraint>
         including:
         * <phoebe.parameters.constraint.semidetached>
+        * <phoebe.parameters.constraint.logg>
 
         The following are automatically included for all orbits, during
         <phoebe.frontend.bundle.Bundle.add_component> for a
@@ -3076,6 +3077,7 @@ class Bundle(ParameterSet):
         <phoebe.parameters.component.star>:
         * <phoebe.parameters.constraint.freq>
         * <phoebe.parameters.constraint.irrad_frac>
+        * <phoebe.parameters.constraint.logg>
 
         Additionally, some constraints are automatically handled by the hierarchy in
         <phoebe.frontend.bundle.Bundle.set_hierarchy> or when loading a default
@@ -3161,7 +3163,7 @@ class Bundle(ParameterSet):
 
         if 'solve_for' in kwargs.keys():
             # solve_for is a twig, we need to pass the parameter
-            kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'])
+            kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model'])
 
         lhs, rhs, constraint_kwargs = func(self, *func_args, **kwargs)
         # NOTE that any component parameters required have already been
