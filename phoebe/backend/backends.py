@@ -11,6 +11,7 @@ from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import ParameterSet
 from phoebe import dynamics
 from phoebe.backend import universe, etvs, horizon_analytic
+from phoebe.atmospheres import passbands
 from phoebe.distortions  import roche
 from phoebe.frontend import io
 import phoebe.frontend.bundle
@@ -1212,6 +1213,27 @@ class LegacyBackend(BaseBackendByDataset):
     def _worker_setup(self, b, compute, infolist, **kwargs):
         """
         """
+        # handle any limb-darkening interpolation
+        # TODO: move this to a dedicated function to be used by any alternate backend?
+        for ldcs_param in b.filter(qualifier='ld_coeffs_source').to_list():
+            ldcs = ldcs_param.get_value()
+            if ldcs == 'none':
+                continue
+
+            passband = b.get_value(qualifier='passband', dataset=ldcs_param.dataset)
+            ld_func = b.get_value(qualifier='ld_func', dataset=ldcs_param.dataset, component=ldcs_param.component)
+
+            logger.info("interpolating {} ld_coeffs for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
+            pb = passbands.get_passband(passband)
+            teff = b.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K')
+            logg = b.get_value(qualifier='logg', component=ldcs_param.component, context='component')
+            abun = b.get_value(qualifier='abun', component=ldcs_param.component, context='component')
+            photon_weighted = b.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset') == 'photon'
+            ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
+
+            logger.info("interpolated {} ld_coeffs={}".format(ld_func, ld_coeffs))
+            b.set_value(qualifier='ld_coeffs', component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
+
         logger.debug("rank:{}/{} LegacyBackend._worker_setup: creating temporary phoebe file".format(mpi.myrank, mpi.nprocs))
 
         # make phoebe 1 file

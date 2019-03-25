@@ -3207,7 +3207,7 @@ class ParameterSet(object):
         # try to find 'times' in the cartesian dimensions:
         iqualifier = kwargs.pop('i', 'times')
         for af_direction in ['x', 'y', 'z']:
-            if kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]:
+            if kwargs['autofig_method'] != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
                 kwargs['i'] = af_direction
                 kwargs['iqualifier'] = None
                 break
@@ -3220,6 +3220,9 @@ class ParameterSet(object):
                 if iqualifier=='times':
                     kwargs['i'] = float(ps.time)
                     kwargs['iqualifier'] = 'ps.times'
+                elif isinstance(iqualifier, float):
+                    kwargs['i'] = iqualifier
+                    kwargs['iqualifier'] = iqualifier
                 elif iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     component = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
@@ -3536,7 +3539,7 @@ class ParameterSet(object):
                                           **kwargs)
             except Exception as err:
                 self.clf()
-                raise err
+                raise
         else:
             afig = self.gcf()
             fig = None
@@ -4814,6 +4817,11 @@ class Parameter(object):
         """
         """
         return self.__math__(other, '**', '__pow__')
+
+    def __rpow__(self, other):
+        """
+        """
+        return self.__rmath__(other, '**', '__rpow__')
 
     def set_uniqueid(self, uniqueid):
         """
@@ -8055,7 +8063,7 @@ class ConstraintParameter(Parameter):
         # trying to resolve the infinite loop.
         from phoebe.constraints import builtin
         _constraint_builtin_funcs = [f for f in dir(builtin) if isinstance(getattr(builtin, f), types.FunctionType)]
-        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'sqrt']
+        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'sqrt', 'log10']
 
         def eq_needs_builtin(eq):
             for func in _constraint_builtin_funcs:
