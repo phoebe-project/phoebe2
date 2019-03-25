@@ -970,7 +970,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb.flip_constraint('requiv@primary', 'pot@contact_envelope')
     if 'Linear' in ldlaw:
 
-        ldcos = eb.filter('ld_coeffs')
+        ldcos = eb.filter('ld_coeffs', check_visible=False)
         ldcosbol = eb.filter('ld_coeffs_bol')
         for x in range(len(ldcos)):
             val = ldcos[x].value[0]
@@ -1444,7 +1444,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 # loop through lcs
 
     for x in range(len(lcs)):
-        quals = eb.filter(dataset=lcs[x], context=['dataset', 'compute'])
+        quals = eb.filter(dataset=lcs[x], context=['dataset', 'compute'], check_visible=False)
         #phoebe 2 is ALWAYS times so pass time as the ind variable
         parnames.append('phoebe_lc_indep['+str(x+1)+']')
         parvals.append('Time (HJD)')
@@ -1546,7 +1546,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     for y in range(len(rvs)):
 
         #get rv qualifiers
-        quals = eb.filter(dataset=rvs[y], context='dataset')+eb.filter(dataset=rvs[y], context='compute')
+        quals = eb.filter(dataset=rvs[y], context=['dataset', 'compute'], check_visible=False)
 
         #cycle through components
         comps = quals.components

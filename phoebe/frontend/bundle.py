@@ -1688,6 +1688,7 @@ class Bundle(ParameterSet):
                         'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1])
 
         # run passband checks
+        all_pbs = list_passbands(full_dict=True)
         installed_pbs = list_installed_passbands(full_dict=True)
         online_pbs = list_online_passbands(full_dict=True)
         for pbparam in self.filter(qualifier='passband').to_list():
@@ -1730,32 +1731,48 @@ class Bundle(ParameterSet):
             if not check[0]:
                 return check
 
-            if ld_func != 'interp' and ld_coeffs is not None:
+            if ld_func != 'interp':
                 check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
                 if not check:
                     return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
+
+                for compute in computes:
+                    if self.get_compute(compute).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
+                        return False, "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
 
             for dataset in self.datasets:
                 if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
                     continue
                 ld_func = str(self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs))
+                ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
                 ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
-                if ld_coeffs is not None:
-                    check = ld_coeffs_len(ld_func, ld_coeffs)
-                    if not check[0]:
-                        return check
+                pb = self.get_value(qualifier='passband', dataset=dataset, context='dataset', check_visible=False, **kwargs)
 
-                if ld_func != 'interp' and ld_coeffs is not None:
-                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
-                    if not check:
-                        return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
+                if ld_func != 'interp':
+                    if ld_coeffs_source != 'none':
+                        if ld_coeffs_source not in all_pbs[pb]['atms_ld']:
+                            return False, 'passband={} does not support ld_coeffs_source={}'.format(pb, ld_coeffs_source)
+
+                    else:
+                        check = ld_coeffs_len(ld_func, ld_coeffs)
+                        if not check[0]:
+                            return check
+
+                        check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+                        if not check:
+                            return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
+
+                        for compute in computes:
+                            if self.get_compute(compute).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
+                                return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
+
 
                 if ld_func=='interp':
                     for compute in computes:
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
-                        if atm != 'ck2004':
+                        if atm != 'ck2004' and atm != 'phoenix':
                             if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
-                                return False, "ld_func='interp' only supported by atm='ck2004'.  Either change atm@{}@{} or ld_func@{}@{}.".format(component, compute, component, dataset)
+                                return False, "ld_func='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_func@{}@{}.".format(atm, component, compute, component, dataset)
                             else:
                                 return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
@@ -1856,6 +1873,7 @@ class Bundle(ParameterSet):
                          'Prsa et al. (2016)': 'https://ui.adsabs.harvard.edu/?#abs/2016ApJS..227...29P',
                          'Horvat et al. (2018)': 'https://ui.adsabs.harvard.edu/?#abs/2016ApJS..227...29P',
                          'Castelli & Kurucz (2004)': 'https://ui.adsabs.harvard.edu/#abs/2004astro.ph..5087C',
+                         'Husser et al. (2013)': 'https://ui.adsabs.harvard.edu/#abs/2013A&A...553A...6H',
                          'numpy/scipy': 'https://www.scipy.org/citing.html',
                          'astropy': 'https://www.astropy.org/acknowledging.html',
                         }
@@ -1902,8 +1920,17 @@ class Bundle(ParameterSet):
             atmname = atm_param.get_value()
             if atmname == 'ck2004':
                 recs = _add_reason(recs, 'Castelli & Kurucz (2004)', 'ck2004 atmosphere tables')
+            elif atmname == 'phoenix':
+                recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables')
             elif atmname in ['extern_planckint', 'extern_atmx']:
                 recs = _add_reason(recs, 'Prsa & Zwitter (2005)', '{} atmosphere tables'.format(atmname))
+
+        for atm_param in self.filter(qualifier='ld_coeffs_source', component=self.hierarchy.get_stars()).to_list():
+            atmname = atm_param.get_value()
+            if atmname == 'ck2004':
+                recs = _add_reason(recs, 'Castelli & Kurucz (2004)', 'ck2004 atmosphere tables for limb-darkening interpolation')
+            elif atmname == 'phoenix':
+                recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables for limb-darkening interpolation')
 
         # provide references from dependencies
         recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')

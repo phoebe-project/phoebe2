@@ -6,8 +6,6 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
-
 def _get_ld_coeffs(ld_coeff, ld_func):
     # length of ld_coeffs depends on ld_func
     if ld_coeff is None:
@@ -50,11 +48,16 @@ def test_binary(plot=False):
         # exact comparisons, so we'll get close and leave a really lose
         # tolerance.
 
-        ld_coeff_loop = [None] if ld_func=='interp' else [0.2]
+        ld_coeff_loop = [None] if ld_func=='interp' else [0.2, 'ck2004']
 
         for ld_coeff in ld_coeff_loop:
 
-            ld_coeffs = _get_ld_coeffs(ld_coeff, ld_func)
+            if isinstance(ld_coeff, str):
+                ld_coeffs = None
+                ld_coeffs_source = ld_coeff
+            else:
+                ld_coeffs = _get_ld_coeffs(ld_coeff, ld_func)
+                ld_coeffs_source = 'none'
 
 
             if ld_func=='interp':
@@ -84,23 +87,24 @@ def test_binary(plot=False):
                 exact_comparison = False
 
             if plot:
-                print("running phoebe2 model atm={}, ld_func={}, ld_coeffs={}...".format(atm, ld_func, ld_coeffs))
+                print("running phoebe2 model atm={}, ld_func={}, ld_coeffs={} ld_coeffs_source={}...".format(atm, ld_func, ld_coeffs, ld_coeffs_source))
 
 
             b.set_value_all('atm@phoebe2', atm)
             b.set_value_all('ld_func', ld_func)
             if ld_coeffs is not None:
-                b.set_value_all('ld_coeffs', ld_coeffs)
-
+                b.set_value_all('ld_coeffs', ld_coeffs, check_visible=False)
+            b.set_value_all('ld_coeffs_source', ld_coeffs_source, check_visible=False)
 
             b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
 
             if plot:
-                print("running phoebe1 model atm={}, ld_func={}, ld_coeffs={}...".format(atm_ph1, ld_func_ph1, ld_coeffs_ph1))
+                print("running phoebe1 model atm={}, ld_func={}, ld_coeffs={}, ld_coeffs_source={}...".format(atm_ph1, ld_func_ph1, ld_coeffs_ph1, ld_coeffs_source))
 
             b.set_value_all('atm@phoebe1', atm_ph1)
             b.set_value_all('ld_func', ld_func_ph1)
-            b.set_value_all('ld_coeffs', ld_coeffs_ph1)
+            if ld_coeffs_ph1 is not None:
+                b.set_value_all('ld_coeffs', ld_coeffs_ph1, check_visible=False)
 
             b.run_compute(compute='phoebe1', model='phoebe1model', overwrite=True)
 
@@ -137,16 +141,24 @@ def test_binary(plot=False):
 
             med_fluxes = []
             if ld_func == 'power':
-                ld_coeff_loop = [0.0, 0.2]
+                ld_coeff_loop = [0.0, 0.2, 'ck2004']
             elif ld_func == 'logarithmic':
-                ld_coeff_loop = [0.2, 0.6]
+                ld_coeff_loop = [0.2, 0.6, 'ck2004']
             else:
-                ld_coeff_loop = [0.0, 0.3]
+                ld_coeff_loop = [0.0, 0.3, 'ck2004']
 
             for ld_coeff in ld_coeff_loop:
-                ld_coeffs = _get_ld_coeffs(ld_coeff, ld_func)
 
-                b.set_value_all('ld_coeffs', ld_coeffs)
+                if isinstance(ld_coeff, str):
+                    ld_coeffs = None
+                    ld_coeffs_source = ld_coeff
+                else:
+                    ld_coeffs = _get_ld_coeffs(ld_coeff, ld_func)
+                    ld_coeffs_source = 'none'
+
+                if ld_coeffs is not None:
+                    b.set_value_all('ld_coeffs', ld_coeffs, check_visible=False)
+                b.set_value_all('ld_coeffs_source', ld_coeffs_source, check_visible=False)
 
                 b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
 
