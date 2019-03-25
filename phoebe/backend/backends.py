@@ -1226,13 +1226,7 @@ class LegacyBackend(BaseBackendByDataset):
             logger.info("interpolating {} ld_coeffs for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
             pb = passbands.get_passband(passband)
             teff = b.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K')
-
-            # TODO: replace with value from logg constraint once/if implemented
-            G = c.G.value
-            mass = b.get_value(qualifier='mass', component=ldcs_param.component, context='component', unit='kg')
-            requiv = b.get_value(qualifier='requiv', component=ldcs_param.component, context='component', unit='m')
-            logg = np.log10(mass / requiv**2 * G * 100)
-
+            logg = b.get_value(qualifier='logg', component=ldcs_param.component, context='component')
             abun = b.get_value(qualifier='abun', component=ldcs_param.component, context='component')
             photon_weighted = b.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset') == 'photon'
             ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
