@@ -680,6 +680,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
         eb.set_value_all(check_visible= False, **d)
 
+        # disable interpolating ld coefficients
+        eb.set_value_all(qualifier='ld_coeffs_source', dataset=dataid, value='none', check_visible=False)
+
     #set pblum reference
 
         if decoupled_luminosity == 0:
@@ -792,6 +795,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
 
         eb.set_value_all(check_visible= False, **d)
+
+        # disable interpolating ld coefficients
+        eb.set_value_all(qualifier='ld_coeffs_source', dataset=dataid, value='none', check_visible=False)
+
 
     #get available passbands and set
 

@@ -11,7 +11,7 @@ _ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root
 
 
 passbands._init_passbands()  # TODO: move to module import
-_ld_coeffs_source_choices = ['none'] + list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms_ld']]))
+_ld_coeffs_source_choices = ['none', 'auto'] + list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms_ld']]))
 
 global _mesh_columns
 global _pbdep_columns
@@ -129,7 +129,7 @@ def lc_dep(is_lc=True, **kwargs):
 
     # NOTE: these need to be added to the exception in bundle.add_dataset so that the kwargs get applied correctly
     dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
-    dep_params += [ChoiceParameter(qualifier='ld_coeffs_source', visible_if='ld_func:!interp', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs_source', 'none'), choices=_ld_coeffs_source_choices, description='Source for limb darkening coefficients (or \'none\' to provide manually)')]
+    dep_params += [ChoiceParameter(qualifier='ld_coeffs_source', visible_if='ld_func:!interp', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs_source', 'auto'), choices=_ld_coeffs_source_choices, description='Source for limb darkening coefficients (\'none\' to provide manually, \'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
     dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp,ld_coeffs_source:none', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
     passbands._init_passbands()  # NOTE: this only actually does something on the first call
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]

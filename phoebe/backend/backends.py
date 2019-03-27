@@ -1220,6 +1220,13 @@ class LegacyBackend(BaseBackendByDataset):
             if ldcs == 'none':
                 continue
 
+            if ldcs=='auto':
+                atm = b.get_value(qualifier='atm', compute=compute, component=ldcs_param.component)
+                if atm in ['extern_atmx', 'extern_planckint']:
+                    ldcs = 'ck2004'
+                else:
+                    lcds = atm
+
             passband = b.get_value(qualifier='passband', dataset=ldcs_param.dataset)
             ld_func = b.get_value(qualifier='ld_func', dataset=ldcs_param.dataset, component=ldcs_param.component)
 

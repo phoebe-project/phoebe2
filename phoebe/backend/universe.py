@@ -1707,7 +1707,17 @@ class Star(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
-        ldatm = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, None))
+        ldatm = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none'))
+        if ldatm == 'auto':
+            if atm == 'blackbody':
+                ldatm = 'ck2004'
+            elif atm == 'extern_atmx':
+                ldatm = 'ck2004'
+            elif atm == 'extern_planckint':
+                ldatm = 'ck2004'
+            else:
+                ldatm = atm
+
         if ldatm != 'none':
             # then ld_coeffs was a hidden parameter anyways, but the backend
             # needs None passed to use ldatm
@@ -1726,6 +1736,9 @@ class Star(Body):
         if lc_method=='numerical':
 
             pb = passbands.get_passband(passband)
+
+            if ldatm != 'none' and '{}_ld'.format(ldatm) not in pb.content:
+                raise ValueError("{} not supported for limb-darkening.  Try changing the value of the ld_coeffs_source parameter".format(ldatm))
 
             if intens_weighting=='photon':
                 ptfarea = pb.ptf_photon_area/pb.h/pb.c

@@ -1749,11 +1749,11 @@ class Bundle(ParameterSet):
                 pb = self.get_value(qualifier='passband', dataset=dataset, context='dataset', check_visible=False, **kwargs)
 
                 if ld_func != 'interp':
-                    if ld_coeffs_source != 'none':
+                    if ld_coeffs_source not in ['none', 'auto']:
                         if ld_coeffs_source not in all_pbs[pb]['atms_ld']:
                             return False, 'passband={} does not support ld_coeffs_source={}'.format(pb, ld_coeffs_source)
 
-                    else:
+                    elif ld_coeffs_source == 'none':
                         check = ld_coeffs_len(ld_func, ld_coeffs)
                         if not check[0]:
                             return check
