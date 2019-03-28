@@ -861,6 +861,9 @@ class Passband:
 
         Returns: n/a
         """
+
+        # PHOENIX uses fits files to store the tables.
+        from astropy.io import fits
         
         if Ebv is None:
             Ebv = np.linspace(0.,3.,90)
