@@ -283,7 +283,11 @@ class Passband:
         if 'ck2004_ext' in self.content:
             struct['_ck2004_extinct_axes']= self._ck2004_extinct_axes
             struct['_ck2004_extinct_energy_grid'] = self._ck2004_extinct_energy_grid
-            struct['_ck2004_extinct_photon_grid'] = self._ck2004_extinct_energy_grid
+            struct['_ck2004_extinct_photon_grid'] = self._ck2004_extinct_photon_grid
+        if 'phoenix_ext' in self.content:
+            struct['_phoenix_extinct_axes']= self._phoenix_extinct_axes
+            struct['_phoenix_extinct_energy_grid'] = self._phoenix_extinct_energy_grid
+            struct['_phoenix_extinct_photon_grid'] = self._phoenix_extinct_photon_grid
         if 'phoenix_ldint' in self.content:
             struct['_phoenix_ldint_energy_grid'] = self._phoenix_ldint_energy_grid
             struct['_phoenix_ldint_photon_grid'] = self._phoenix_ldint_photon_grid
@@ -409,6 +413,12 @@ class Passband:
             self._ck2004_extinct_photon_grid = np.fromstring(struct['_ck2004_extinct_photon_grid'], dtype='float64')
             self._ck2004_extinct_photon_grid = self._ck2004_extinct_photon_grid.reshape(len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1)
 
+        if 'phoenix_ext' in self.content:
+            self._phoenix_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_phoenix_extinct_axes']))
+            self._phoenix_extinct_energy_grid = np.fromstring(struct['_phoenix_extinct_energy_grid'], dtype='float64')
+            self._phoenix_extinct_energy_grid = self._phoenix_extinct_energy_grid.reshape(len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1)
+            self._phoenix_extinct_photon_grid = np.fromstring(struct['_phoenix_extinct_photon_grid'], dtype='float64')
+            self._phoenix_extinct_photon_grid = self._phoenix_extinct_photon_grid.reshape(len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1)
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
@@ -837,6 +847,105 @@ class Passband:
             
         self.content.append('ck2004_ext')
         self.atmlist.append('ck2004_ext')
+
+
+    def compute_phoenix_reddening(self, path, Ebv=None, Rv=None, verbose=False):
+        """
+        Computes mean effect of reddening (a weighted average) on passband using phoenix atmospheres and CCM89 prescription of extinction
+
+        @path: path to the directory containing phoenix SEDs
+        @verbose: switch to determine whether computing progress should
+        be printed on screen
+        @Ebv: colour discrepancies E(B-V)
+        @Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+
+        Returns: n/a
+        """
+        
+        if Ebv is None:
+            Ebv = np.linspace(0.,3.,90)
+            
+        if Rv is None:
+            Rv = np.linspace(2.,6.,40)
+          
+        models = glob.glob(path+'/*fits')
+        Nmodels = len(models)
+        
+        NEbv = len(Ebv)
+        NRv = len(Rv)
+        
+        Ns = NEbv*NRv
+        combos = Nmodels*Ns
+        
+        Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
+        Rv1 = np.tile(Rv, combos/NRv)
+      
+        # auxilary matrix for storing Ebv and Rv per model
+        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]),1)
+        M = np.ascontiguousarray(M)
+        
+        # Store the length of the filename extensions for parsing:
+        offset = len(models[0])-models[0].rfind('.')
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+
+        # extinctE , extinctP per model
+        extinctE , extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
+        
+        if verbose:
+            print('Computing PHOENIX (Husser et al. 2013) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+
+                    
+        wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
+
+        for i, model in enumerate(models):
+            with fits.open(model) as hdu:
+                intensities = hdu[0].data[-1,:]*1e-1
+            spc = np.vstack((wavelengths, intensities))
+
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[3:8])
+            logg[i] = float(model[9:13])
+            abun[i] = float(model[13:17])
+
+            wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            fl *= self.ptf(wl)
+            flP = fl*wl
+
+#            Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
+            Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
+            flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
+            
+            extinctE[i], extinctP[i]= np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
+          
+            if verbose:
+                if 100*i % (len(models)) == 0:
+                    print('%d%% done.' % (100*i/(Nmodels-1)))
+
+
+               
+        # Store axes (Teff, logg, abun) and the full grid of Inorm, with
+        # nans where the grid isn't complete.
+        self._phoenix_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
+
+        Teff=np.repeat(Teff, Ns)
+        logg=np.repeat(logg, Ns)
+        abun=np.repeat(abun, Ns)
+        
+        self._phoenix_extinct_energy_grid = np.nan*np.ones((len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1))
+        self._phoenix_extinct_photon_grid = np.copy(self._phoenix_extinct_energy_grid)
+        
+        flatE = extinctE.flat
+        flatP = extinctP.flat
+        
+        for i in xrange(combos):
+            t = (Teff[i] == self._phoenix_extinct_axes[0], logg[i] == self._phoenix_extinct_axes[1], abun[i] == self._phoenix_extinct_axes[2], Ebv1[i] == self._phoenix_extinct_axes[3], Rv1[i] == self._phoenix_extinct_axes[4], 0)
+            self._phoenix_extinct_energy_grid[t] = flatE[i]
+            self._phoenix_extinct_photon_grid[t] = flatP[i]
+            
+        self.content.append('phoenix_ext')
+        self.atmlist.append('phoenix_ext')
 
 
 
@@ -1738,6 +1847,24 @@ class Passband:
                 extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table).T[0]
             return extinct_factor
 
+        if atm == 'phoenix':
+            if 'phoenix_ext' not in self.content:
+                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
+
+            if photon_weighted:
+                table = self._phoenix_extinct_photon_grid
+            else:
+                table = self._phoenix_extinct_energy_grid
+
+            if not hasattr(Teff, '__iter__'):
+                req = np.array(((Teff, logg, abun, extinct, Rv),))
+                extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes[0:5], table)[0][0]
+            else:
+                extinct=extinct*np.ones(len(Teff))
+                Rv=Rv*np.ones(len(Teff))
+                req = np.vstack((Teff, logg, abun, extinct, Rv)).T
+                extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes[0:5], table).T[0]
+            return extinct_factor
 
 
         elif atm != 'blackbody':
