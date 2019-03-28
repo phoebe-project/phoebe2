@@ -11070,6 +11070,343 @@ static PyObject *roche_contact_Omega_at_partial_vol(PyObject *self, PyObject *ar
   return PyFloat_FromDouble(w[1]);
 }
 
+
+/*
+  Computes monochromatic blackbody intensity in W/m^3 using the
+  Planck function:
+  
+    intensity = planck_function (lam, Teff)
+    
+    B_\lambda (\lambda ,T)= \frac {2hc^2}{\lambda^5}\frac {1}{e^{\frac {hc}{\lambda k_{\mathrm {B} }T}}-1}
+  
+  Input:
+    lam : wavelength in m
+      float
+    or
+      1- rank numpy array
+    
+    Teff: effective temperature in K
+      float
+    or
+      1- rank numpy array
+    
+  Returns: monochromatic blackbody intensity:
+      float : if lam and Teff are float  
+    or   
+      1-rank numpy array : if lam or Teff are 1-rank numpy arrays 
+    or 
+      2-rank numpy array : if lam and Teff are 1-rank numpy arrays
+*/ 
+static PyObject *planck_function(PyObject *self, PyObject *args) {
+  
+  const double A = 1.1910429526245747e-16; // = 2 h c^2 [m4 kg / s3];
+  const double B = 0.014387773538277205;   // = hc/k [mK];
+  
+  const char *fname = "planck_function";
+    
+  //
+  // Reading arguments
+  //
+
+  PyObject *o_lam, *o_Teff;
+ 
+  if (!PyArg_ParseTuple(args, "OO", &o_lam, &o_Teff)) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  //
+  // Read lambdas
+  //
+  int n_lam = -1;
+  double *p_lam, lam;
+  
+  if (PyFloat_Check(o_lam)) {
+    lam =  PyFloat_AS_DOUBLE(o_lam);
+    p_lam = &lam;
+  } else if (PyArray_Check(o_lam)) {
+    n_lam = PyArray_DIM((PyArrayObject *)o_lam, 0);
+    p_lam = (double*)PyArray_DATA((PyArrayObject *)o_lam);
+  } else {
+    std::cerr << fname << ":: This type of input of lambdas is not supported\n";
+    return NULL;
+  }
+
+  //
+  // Read tempeatures
+  //
+
+  int n_Teff = -1;
+  double *p_Teff, Teff;
+  
+  if (PyFloat_Check(o_Teff)) {
+    Teff = PyFloat_AS_DOUBLE(o_Teff);
+    p_Teff = &Teff;
+  } else if (PyArray_Check(o_Teff)) {
+    n_Teff = PyArray_DIM((PyArrayObject*)o_Teff, 0);
+    p_Teff = (double*)PyArray_DATA((PyArrayObject *)o_Teff);
+  } else {
+    std::cerr << fname << ":: This type of input of Teff is not supported\n";
+    return NULL;
+  }
+  
+  //
+  // if both arguments are float the result if float
+  //
+  if (n_lam < 0 && n_Teff < 0)
+    return (lam == 0 ? 0 : PyFloat_FromDouble(A/std::pow(lam,5)/(std::exp(B/(lam*Teff)) - 1)));
+  
+  //
+  // At least one of the arguments is numpy array and 
+  // the result is numpy array
+  //
+  npy_intp dims[2];
+  PyObject *o_r;
+  
+  if (n_lam < 0 && n_Teff > 0) {        // Teff is array => result is array 
+    n_lam = 1;
+    dims[0] = n_Teff;
+    o_r = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+    
+  } else if (n_lam > 0 && n_Teff < 0) { // lam is array => result is array
+    n_Teff = 1;
+    dims[0] = n_lam;
+    o_r = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+    
+  } else { // both are arrays => => result is a matrix 
+    dims[0] = n_lam;
+    dims[1] = n_Teff;
+    o_r = PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+  }
+  
+  double 
+    tmp, tmp2, 
+    *r = (double *)PyArray_DATA((PyArrayObject *)o_r);
+  
+  for (int i = 0; i < n_lam; ++i) {
+    lam = p_lam[i];
+    if (lam != 0) {
+      tmp = A/std::pow(lam, 5);
+      tmp2 = B/lam;
+      for (int j = 0; j < n_Teff; ++j)
+        *(r++) = tmp/(std::exp(tmp2/p_Teff[j]) - 1);
+    } else for (int j = 0; j < n_Teff; ++j) *(r++) = 0;
+  }
+  
+  return o_r;
+}
+
+/*
+  Computing CCM89 extinction value as a value of wavelength
+  
+  Input:
+    lam: wavelength in m
+      float
+    or
+      1- rank numpy array
+    
+  Returns: extinction coefficients:
+      1-rank numpy array: two values
+    or
+      2-rank numpy array: array of two values
+*/ 
+static PyObject *CCM89_extinction(PyObject *self, PyObject *args) {
+  
+  const char *fname = "CCM89_extinction";
+    
+  //
+  // Reading arguments
+  //
+         
+  PyObject *o_lam;
+ 
+  if (!PyArg_ParseTuple(args, "O", &o_lam)) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  //
+  // Reading variables and reserving space for results
+  //
+  
+  int n;
+  npy_intp dims[2];
+  PyObject *o_r;
+  double *l, lam;
+  
+  if (PyFloat_Check(o_lam)) {
+    n = 1;
+    lam = PyFloat_AS_DOUBLE(o_lam);
+    l = &lam;
+    
+    dims[0] = 2;
+    o_r = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+
+  } else if (PyArray_Check(o_lam)) {
+    n = PyArray_DIM((PyArrayObject*)o_lam, 0);
+    l = (double*)PyArray_DATA((PyArrayObject *)o_lam);
+    
+    dims[0] = n;
+    dims[1] = 2;
+    o_r = PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+   
+  } else {
+    std::cerr << fname << ":: This type of input of lambdas is not supported\n";
+    return NULL;
+  }
+
+  
+  //
+  // Calculating results
+  //
+
+      
+  double 
+    x, y, y2, 
+    *r = (double *)PyArray_DATA((PyArrayObject *)o_r);
+  
+  do {
+    
+    x = 1e-6/(*(l++));
+
+    if (0.3 <= x && x <= 1.1) {
+      y = std::pow(x, 1.61);
+      *(r++) = 0.574*y;
+      *(r++) = -0.527*y;
+    } else if (x <= 3.3) {
+      y = x - 1.82;
+      //ax = 1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
+      *(r++) = 1 + y*(0.17699 + y*(-0.50447 + y*(-0.02427 + y*(0.72085 + y*(0.01979 + (-0.7753 + 0.32999*y)*y)))));
+      //bx = 1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
+      *(r++) = y*(1.41338 + y*(2.28305 + y*(1.07233 + y*(-5.38434 + y*(-0.62251 + (5.3026 - 2.09002*y)*y)))));
+    } else if (x <= 5.9) {
+      *(r++) = 1.752 - 0.316*x - 0.104/(utils::sqr(x - 4.67) + 0.341);
+      *(r++) = -3.090 + 1.825*x + 1.206/(utils::sqr(x - 4.62) + 0.263);
+    } else if (x <= 8.0) {
+      y = x - 5.9;
+      y2 = y*y;
+      *(r++) = 1.752 - 0.316*x - 0.104/(utils::sqr(x - 4.67) + 0.341) - (0.04473 + 0.009779*y)*y2;
+      *(r++) =- 3.090 + 1.825*x + 1.206/(utils::sqr(x - 4.62) + 0.263) + (0.2130 + 0.1207*y)*y2;
+    } else if (x <= 10) {
+      y = x - 8;
+      //ax = -1.073 - 0.628*y + 0.137*y**2 - 0.070*y**3;
+      *(r++) = -1.073 + y*(-0.628 + (0.137 - 0.07*y)*y);
+      //bx = 13.670 + 4.257*y + 0.420*y**2 + 0.374*y**3
+      *(r++) = 13.67 + y*(4.257 + (0.42 + 0.374*y)*y);
+    } else {
+      std::cerr 
+        << fname 
+        << "Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)\n";
+      return NULL;
+    }
+  } while (--n);
+  
+  return o_r;
+}
+
+
+/*
+  Computing Gordon et al. (2009) extinction value as a value of wavelength
+  
+  Input:
+    lam: wavelength in m
+      float
+    or
+      1- rank numpy array
+    
+  Returns: extinction coefficients:
+      1-rank numpy array: two values
+    or
+      2-rank numpy array: array of two values
+*/ 
+static PyObject *gordon_extinction(PyObject *self, PyObject *args) {
+  
+  const char *fname = "gordon_extinction";
+    
+  //
+  // Reading arguments
+  //
+         
+  PyObject *o_lam;
+ 
+  if (!PyArg_ParseTuple(args, "O", &o_lam)) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  //
+  // Reading variables and reserving space for results
+  //
+  
+  int n;
+  npy_intp dims[2];
+  PyObject *o_r;
+  double *l, lam;
+  
+  if (PyFloat_Check(o_lam)) {
+    n = 1;
+    lam = PyFloat_AS_DOUBLE(o_lam);
+    l = &lam;
+    
+    dims[0] = 2;
+    o_r = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+
+  } else if (PyArray_Check(o_lam)) {
+    n = PyArray_DIM((PyArrayObject*)o_lam, 0);
+    l = (double*)PyArray_DATA((PyArrayObject *)o_lam);
+    
+    dims[0] = n;
+    dims[1] = 2;
+    o_r = PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+   
+  } else {
+    std::cerr << fname << ":: This type of input of lambdas is not supported\n";
+    return NULL;
+  }
+
+  
+  //
+  // Calculating results
+  //
+
+      
+  double 
+    x, y, x59square, 
+    *r = (double *)PyArray_DATA((PyArrayObject *)o_r);
+  
+  do {
+    
+    x = 1e-6/(*(l++));
+
+    if (0.3 <= x && x <= 1.1) {
+      y = std::pow(x, 1.61);
+      *(r++) = 0.574*y;
+      *(r++) = -0.527*y;
+    } else if (x <= 3.3) {
+      y = x - 1.82;
+      //ax = 1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
+      *(r++) = 1 + y*(0.17699 + y*(-0.50447 + y*(-0.02427 + y*(0.72085 + y*(0.01979 + (-0.7753 + 0.32999*y)*y)))));
+      //bx = 1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
+      *(r++) = y*(1.41338 + y*(2.28305 + y*(1.07233 + y*(-5.38434 + y*(-0.62251 + (5.3026 - 2.09002*y)*y)))));
+    } else if (x <= 5.9) {
+      *(r++) = 1.896 - 0.372*x - 0.0108/((x - 4.57)*(x - 4.57) + 0.0422);
+      *(r++) = -3.503 + 2.057*x + 0.718/((x - 4.59)*(x - 4.59) + 0.0530);
+    } else if (x <= 11.0) {
+      x59square=(x - 5.9)*(x - 5.9);
+      *(r++) = 1.896 - 0.372*x - 0.0108/((x - 4.57)*(x - 4.57) + 0.0422) - 0.110*x59square - 0.0099*x59square*(x - 5.9);
+      *(r++) = -3.503 + 2.057*x + 0.718/((x - 4.59)*(x - 4.59) + 0.0530) + 0.537*x59square + 0.0530*x59square*(x - 5.9);
+    } else {
+      std::cerr 
+        << fname 
+        << "Passband wavelength outside the range defined for CCM89 and Gordon et al. (2009) extinction (0.1-3.3 micron)\n";
+      return NULL;
+    }
+  } while (--n);
+  
+  return o_r;
+}
+
+
 /*
   Define functions in module
 
@@ -11577,6 +11914,26 @@ static PyMethodDef Methods[] = {
     "Determine the value of the potential at a partial volume for the contact "
     "Roche lobe at given mass ratio q and separation d."},
 
+// --------------------------------------------------------------------
+
+
+ {"planck_function", 
+  planck_function,
+  METH_VARARGS, 
+  "Calculate monochromatic blackbody intensity at a given wavelength and "
+  "temperature."},  
+  
+   {"CCM89_extinction", 
+  CCM89_extinction,
+  METH_VARARGS, 
+  "Calculate CCM89 extinction coefficients for a given wavelength"},  
+  
+  {"gordon_extinction", 
+  gordon_extinction,
+  METH_VARARGS, 
+  "Calculate Gordon et al. (2009, UV) and CCM89 (OPT-IR) extinction coefficients for a given wavelength"},  
+
+  
 // --------------------------------------------------------------------
 
   {"setup_verbosity",
