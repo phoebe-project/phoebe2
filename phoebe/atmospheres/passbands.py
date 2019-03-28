@@ -1030,7 +1030,7 @@ class Passband:
             if verbose:
                 sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
                 sys.stdout.flush()
-            
+
         if verbose:
             print('')
 
@@ -1922,7 +1922,7 @@ class Passband:
             or 'blackbody').
         """
         # TODO: implement phoenix boosting.
-        
+
         if atm == 'ck2004':
             retval = self._bindex_ck2004(Teff, logg, abun, mu, atm, photon_weighted)
         elif atm == 'blackbody':
@@ -2133,7 +2133,7 @@ def update_passband_available(passband):
 
 def list_all_update_passbands_available():
     """
-    For convenicence, this function is available at the top-lelve as
+    For convenicence, this function is available at the top-level as
     <phoebe.list_all_update_passbands_available>.
 
     See also:

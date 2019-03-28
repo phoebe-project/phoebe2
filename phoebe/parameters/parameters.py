@@ -3470,9 +3470,9 @@ class ParameterSet(object):
             figure (or False to not save).
         * `show` (bool, optional, default=False): whether to show the plot
         * `animate` (bool, optional, default=False): whether to animate the figure.
-        * `draw_sidebars` (bool, optional, default=True): whether to include
+        * `draw_sidebars` (bool, optional, default=False): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
-        * `draw_title` (bool, optional, default=True): whether to draw axes
+        * `draw_title` (bool, optional, default=False): whether to draw axes
             titles.
         * `subplot_grid` (tuple, optional, default=None): override the subplot
             grid used (see [autofig tutorial on subplots](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/subplot_positioning.ipynb)
