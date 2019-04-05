@@ -3479,6 +3479,101 @@ class Bundle(ParameterSet):
         self._delayed_constraints = []
         return changes
 
+    def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):
+        """
+        Compute the interpolated limb darkening coefficients.
+
+        This method is only for convenicence and will be recomputed internally
+        within <phoebe.frontend.bundle.Bundle.run_compute> for all backends
+        that require per-star limb-darkening coefficients.  Note that the default
+        <phoebe.parameters.compute.phoebe> backend will instead interpolate
+        limb-darkening coefficients **per-element**.
+
+        Coefficients will only be interpolated/returned for those where `ld_func`
+        is not 'interp' and `ld_coeffs_source` is not 'none'.
+
+        Note:
+        * for backends without `atm` compute options, 'ck2004' will be used.
+
+        Arguments
+        ------------
+        * `compute` (string, optional, default=None): label of the compute
+            options (not required if only one is attached to the bundle).
+        * `component` (string or list of strings, optional): label of the
+            component(s) requested. If not provided, will be provided for all
+            components in the hierarchy.
+        * `dataset` (string or list of strings, optional): label of the
+            dataset(s) requested.  If not provided, will be provided for all
+            datasets attached to the bundle.
+        * `set_value` (bool, optional, default=False): apply the interpolated
+            values to the respective `ld_coeffs` parameters.
+        * `**kwargs`: any additional kwargs are sent to override compute options.
+
+        Returns
+        ----------
+        * (dict) computed ld_coeffs in a dictionary with keys formatted as
+            component@dataset and the pblums as values (arrays with appropriate
+            length given the respective value of `ld_func`.
+        """
+
+        datasets = kwargs.pop('dataset', self.datasets)
+        components = kwargs.pop('component', self.components)
+
+        # don't allow things like model='mymodel', etc
+        forbidden_keys = parameters._meta_fields_filter
+        self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
+
+        if compute is None:
+            if len(self.computes)==1:
+                compute = self.computes[0]
+            else:
+                raise ValueError("must provide compute")
+        if not isinstance(compute, str):
+            raise TypeError("compute must be a single value (string)")
+
+        ld_coeffs_ret = {}
+        for ldcs_param in self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components).to_list():
+            ldcs = ldcs_param.get_value()
+            if ldcs == 'none':
+                continue
+
+            if ldcs=='auto':
+                try:
+                    atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component)
+                except ValueError:
+                    # not all backends have atm as an option
+                    logger.warning("backend compute='{}' has no 'atm' option: falling back on ck2004 for ld_coeffs interpolation".format(compute))
+                    atm = 'ck2004'
+
+                if atm in ['extern_atmx', 'extern_planckint']:
+                    ldcs = 'ck2004'
+                else:
+                    ldcs = atm
+
+            passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset)
+            ld_func = self.get_value(qualifier='ld_func', dataset=ldcs_param.dataset, component=ldcs_param.component)
+
+            if ld_func == 'interp':
+                # really shouldn't happen as the ld_coeffs_source parameter should not be visible
+                # and so shouldn't be included in the loop
+                raise ValueError("cannot interpolating ld_coeffs for ld_func='interp'")
+
+            logger.info("interpolating {} ld_coeffs for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
+            pb = get_passband(passband)
+            teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K')
+            logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component')
+            abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component')
+            photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset') == 'photon'
+            ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
+
+            logger.info("interpolated {} ld_coeffs={}".format(ld_func, ld_coeffs))
+
+            ld_coeffs_ret["{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = ld_coeffs
+            if set_value:
+                self.set_value(qualifier='ld_coeffs', component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
+
+        return ld_coeffs_ret
+
     def compute_pblums(self, compute=None, **kwargs):
         """
         Compute the passband luminosities that will be applied to the system,
@@ -3491,6 +3586,10 @@ class Bundle(ParameterSet):
         can create a mesh dataset (see <phoebe.frontend.bundle.Bundle.add_dataset>
         and <phoebe.parameters.dataset.mesh>) and request any specific pblum to
         be exposed (per-time).
+
+        Note:
+        * for backends without `atm` compute options, 'ck2004' will be used.
+        * for backends without `mesh_method` compute options, 'roche' will be used.
 
         Arguments
         ------------
@@ -3522,8 +3621,12 @@ class Bundle(ParameterSet):
                 compute = self.computes[0]
             else:
                 raise ValueError("must provide compute")
+        if not isinstance(compute, str):
+            raise TypeError("compute must be a single value (string)")
 
-        system = backends.PhoebeBackend()._create_system_and_compute_pblums(self, compute, **kwargs)
+        compute_kind = self.get_compute(compute).kind
+
+        system = backends.PhoebeBackend()._create_system_and_compute_pblums(self, compute if compute_kind=='phoebe' else None, **kwargs)
 
         pblums = {}
         for component, star in system.items():
