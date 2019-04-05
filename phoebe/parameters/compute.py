@@ -23,6 +23,9 @@ def phoebe(**kwargs):
     [list of publications](https://phoebe-project/org/publications) and cite
     the appropriate references.
 
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
+
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
     <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
@@ -147,13 +150,16 @@ def legacy(**kwargs):
     to compute radial velocities and light curves for binary systems
     (>2 stars not supported).  The code is available here:
 
-    [http://phoebe-project.org/1.0](http://phoebe-project.org/1.0)
+    http://phoebe-project.org/1.0
 
     PHOEBE 1.0 and the 'phoebeBackend' python interface must be installed
     and available on the system in order to use this plugin.
 
     When using this backend, please cite
     * Prsa & Zwitter (2005), ApJ, 628, 426
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
 
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
@@ -211,18 +217,42 @@ def legacy(**kwargs):
 
 def photodynam(**kwargs):
     """
-    Compute options for using Josh Carter's 'photodynam' code as a
-    backend (must be installed).
+    Create a <phoebe.parameters.ParameterSet> for compute options for Josh
+    Carter's `photodynam` code.
+
+    Use `photodynam` to compute radial velocities and light curves.
+    `photodynam` must be installed and available on the system in order to use
+    this plugin.  The code is available here:
+
+    http://github.com/phoebe-project/photodynam
+
+    When using this backend, please cite
+    * Science 4 February 2011: Vol. 331 no. 6017 pp. 562-565 DOI:10.1126/science.1201274
+    * MNRAS (2012) 420 (2): 1630-1635. doi: 10.1111/j.1365-2966.2011.20151.x
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_compute`
+    <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    Please see :func:`phoebe.backend.backends.photodynam` for a list of sources to
-    cite when using this backend.
+    Arguments
+    ----------
+    * `enabled` (bool, optional): whether to create synthetics in compute/fitting
+        run.
+    * `stepsize` (float, optional, default=0.01): stepsize to use for dynamics
+        integration.
+    * `orbiterror` (float, optional, default=1e-20): error to use for dynamics
+        integration.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
     """
     if not conf.devel:
         raise NotImplementedError("'photodynam' backend not officially supported for this release.  Enable developer mode to test.")
@@ -231,8 +261,8 @@ def photodynam(**kwargs):
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
-    params += [FloatParameter(qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='blah')]
-    params += [FloatParameter(qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='blah')]
+    params += [FloatParameter(qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='Stepsize to use for dynamics integration')]
+    params += [FloatParameter(qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='Error to use for dynamics integraton')]
 
     # TODO: remove this option and instead use time0@system
     #params += [FloatParameter(qualifier='time0', value=kwargs.get('time0', 0.0), default_unit=u.d, description='Time to start the integration')]
@@ -241,18 +271,77 @@ def photodynam(**kwargs):
 
 def jktebop(**kwargs):
     """
-    Compute options for using John Southworth's 'jktebop' code as a
-    backend (must be installed).
+    Create a <phoebe.parameters.ParameterSet> for compute options for John
+    Southworth's `jktebop` code.
+
+    Use `jktebop` to compute radial velocities and light curves for binary systems.
+    `jktebop` must be installed and available on the system in order to use
+    this plugin.  The code is available here (currently tested with v34):
+
+    http://www.astro.keele.ac.uk/jkt/codes/jktebop.html
+
+    Please see the link above for a list of publications to cite when using this
+    code.
+
+    According to jktebop's website:
+
+        JKTEBOP models the two components as biaxial spheroids for the
+        calculation of the reflection and ellipsoidal effects,
+        and as spheres for the eclipse shapes.
+
+    Note that the wrapper around jktebop only uses its forward model.
+    `jktebop` also includes its own fitting methods, including bootstrapping.
+    Those capabilities cannot be accessed from PHOEBE.
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
+
+    The following parameters are "exported/translated" when using the jktebop
+    backend.
+
+    Star:
+    * requiv
+    * gravb_bol
+    * irrad_frac_refl_bol
+    * teff (currently used as an estimate for surface brightness ratio)
+
+    Orbit:
+    * sma
+    * incl
+    * q
+    * ecos
+    * esinw
+    * period
+    * t0_supconj
+
+    Dataset (LC only):
+    * ld_func (must not be 'interp')
+    * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
+
+    The following parameters are populated in the resulting model when using the
+    jktebop backend.
+
+    LCs:
+    * times
+    * fluxes
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_compute`
+    <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    Please see :func:`phoebe.backend.backends.jktebop` for a list of sources to
-    cite when using this backend.
+    Arguments
+    ----------
+    * `enabled` (bool, optional): whether to create synthetics in compute/fitting
+        run.
+    * `ringsize` (float, optional, default=5): integration ring size.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
     """
     if not conf.devel:
         raise NotImplementedError("'jktebop' backend not officially supported for this release.  Enable developer mode to test.")

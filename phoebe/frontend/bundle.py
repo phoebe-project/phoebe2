@@ -1765,16 +1765,23 @@ class Bundle(ParameterSet):
                         for compute in computes:
                             if self.get_compute(compute).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
                                 return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
+                            if self.get_compute(compute).kind in ['jktebop'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic']:
+                                return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
 
 
                 if ld_func=='interp':
                     for compute in computes:
-                        atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
-                        if atm != 'ck2004' and atm != 'phoenix':
-                            if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
-                                return False, "ld_func='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_func@{}@{}.".format(atm, component, compute, component, dataset)
-                            else:
-                                return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
+                        try:
+                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
+                        except ValueError:
+                            # not all backends have atm as a parameter/option
+                            continue
+                        else:
+                            if atm != 'ck2004' and atm != 'phoenix':
+                                if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
+                                    return False, "ld_func='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_func@{}@{}.".format(atm, component, compute, component, dataset)
+                                else:
+                                    return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
         # mesh-consistency checks
         for compute in computes:
@@ -1876,6 +1883,7 @@ class Bundle(ParameterSet):
                          'Husser et al. (2013)': 'https://ui.adsabs.harvard.edu/#abs/2013A&A...553A...6H',
                          'numpy/scipy': 'https://www.scipy.org/citing.html',
                          'astropy': 'https://www.astropy.org/acknowledging.html',
+                         'jktebop': 'http://www.astro.keele.ac.uk/jkt/codes/jktebop.html'
                         }
 
         # ref: [reasons] pairs
@@ -1896,6 +1904,8 @@ class Bundle(ParameterSet):
             if self.get_compute(compute).kind == 'legacy':
                 recs = _add_reason(recs, 'Prsa & Zwitter (2005)', 'PHOEBE 1 (legacy) backend')
                 # TODO: include Wilson & Devinney?
+            if self.get_compute(compute).kind == 'jktebop':
+                recs = _add_reason(recs, 'jktebop', 'jktebop backend')
 
 
         # check for presence of datasets that require PHOEBE releases
@@ -3589,7 +3599,9 @@ class Bundle(ParameterSet):
 
         Note:
         * for backends without `atm` compute options, 'ck2004' will be used.
-        * for backends without `mesh_method` compute options, 'roche' will be used.
+        * for backends without `mesh_method` compute options, the most appropriate
+            method will be chosen.  'roche' will be used whenever applicable,
+            otherwise 'sphere' will be used.
 
         Arguments
         ------------
@@ -3626,7 +3638,14 @@ class Bundle(ParameterSet):
 
         compute_kind = self.get_compute(compute).kind
 
-        system = backends.PhoebeBackend()._create_system_and_compute_pblums(self, compute if compute_kind=='phoebe' else None, **kwargs)
+        if compute_kind in ['legacy']:
+            kwargs.setdefault('distortion_method', 'roche')
+        elif compute_kind in ['jktebop']:
+            kwargs.setdefault('distortion_method', 'sphere')
+
+        system_compute = compute if compute_kind=='phoebe' else None
+        logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
+        system = backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, **kwargs)
 
         pblums = {}
         for component, star in system.items():

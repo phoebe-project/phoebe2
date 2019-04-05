@@ -154,6 +154,7 @@ class System(object):
             else:
                 # then hopefully compute is the parameterset
                 compute_ps = compute
+
             eclipse_method = compute_ps.get_value(qualifier='eclipse_method', **kwargs)
             horizon_method = compute_ps.get_value(qualifier='horizon_method', check_visible=False, **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
@@ -170,6 +171,7 @@ class System(object):
             irrad_method = 'none'
             boosting_method = 'none'
             mesh_init_phi = 0.0
+            compute_ps = None
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
         # the current module - now this doesn't really make sense since we only
@@ -181,6 +183,9 @@ class System(object):
         meshables = hier.get_meshables()
         def get_distortion_method(hier, compute_ps, component, **kwargs):
             if hier.get_kind_of(component) in ['envelope']:
+                return 'roche'
+
+            if compute_ps is None:
                 return 'roche'
 
             if compute_ps.get_value('mesh_method', component=component, **kwargs)=='wd':
@@ -380,7 +385,7 @@ class System(object):
         fluxes_intrins_flat = meshes.pack_column_flat(fluxes_intrins_per_body)
 
         if np.all([body.is_convex for body in self.bodies]):
-            logger.info("handling reflection (convex case), method='{}'".format(self.irrad_method))
+            logger.debug("handling reflection (convex case), method='{}'".format(self.irrad_method))
 
             vertices_per_body = list(meshes.get_column('vertices').values())
             triangles_per_body = list(meshes.get_column('triangles').values())
@@ -405,7 +410,7 @@ class System(object):
             fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
 
         else:
-            logger.info("handling reflection (general case), method='{}'".format(self.irrad_method))
+            logger.debug("handling reflection (general case), method='{}'".format(self.irrad_method))
 
             vertices_flat = meshes.get_column_flat('vertices') # np.ndarray
             triangles_flat = meshes.get_column_flat('triangles') # np.ndarray
@@ -1215,7 +1220,7 @@ class Star(Body):
             ntriangles_override = kwargs.pop('ntriangle', None)
             kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, ntriangles=ntriangles_override) if compute is not None else 1000
             distortion_method_override = kwargs.pop('distortion_method', None)
-            kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, distortion_method=distortion_method_override) if compute is not None else 'roche'
+            kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, distortion_method=distortion_method_override) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
         elif mesh_method == 'wd':
             gridsize_override = kwargs.pop('gridsize', None)
             kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, gridsize=gridsize_override) if compute is not None else 30
@@ -1237,7 +1242,7 @@ class Star(Body):
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
         atm_override = kwargs.pop('atm', None)
-        atm = b.get_value('atm', compute=compute, component=component, atm=atm_override) if compute is not None else 'blackbody'
+        atm = b.get_value('atm', compute=compute, component=component, atm=atm_override) if compute is not None else 'ck2004'
         passband_override = kwargs.pop('passband', None)
         passband = {ds: b.get_value('passband', dataset=ds, passband=passband_override) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)

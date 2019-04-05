@@ -529,14 +529,7 @@ class BaseBackendByDataset(BaseBackend):
 
 class PhoebeBackend(BaseBackendByTime):
     """
-    Run the PHOEBE 2.0 backend.  This is the default built-in backend
-    so no other pre-requisites are required.
-
-    When using this backend, please cite
-        * TODO: include list of citations
-
-    When using dynamics_method=='nbody', please cite:
-        * TODO: include list of citations for reboundx
+    See <phoebe.parameters.compute.phoebe>.
 
     Parameters that are used by this backend:
 
@@ -1158,37 +1151,7 @@ class PhoebeBackend(BaseBackendByTime):
 
 class LegacyBackend(BaseBackendByDataset):
     """
-    Use PHOEBE 1.0 (legacy) which is based on the Wilson-Devinney code
-    to compute radial velocities and light curves for binary systems
-    (>2 stars not supported).  The code is available here:
-
-    http://phoebe-project.org/1.0
-
-    PHOEBE 1.0 and the 'phoebeBackend' python interface must be installed
-    and available on the system in order to use this plugin.
-
-    When using this backend, please cite
-        * Prsa & Zwitter (2005), ApJ, 628, 426
-
-    Parameters that are used by this backend:
-
-    * Compute:
-        * all parameters in :func:`phoebe.parameters.compute.legacy`
-    * Orbit:
-        * TOOD: list these
-    * Star:
-        * TODO: list these
-    * lc dataset:
-        * TODO: list these
-
-    Values that are filled by this backend:
-
-    * lc:
-        * times
-        * fluxes
-    * rv (dynamical only):
-        * times
-        * rvs
+    See <phoebe.parameters.compute.legacy>.
 
     The run method in this class will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
@@ -1213,10 +1176,10 @@ class LegacyBackend(BaseBackendByDataset):
     def _worker_setup(self, b, compute, infolist, **kwargs):
         """
         """
+        logger.debug("rank:{}/{} LegacyBackend._worker_setup: creating temporary phoebe file".format(mpi.myrank, mpi.nprocs))
+
         # handle any limb-darkening interpolation
         b.compute_ld_coeffs(compute, set_value=True)
-
-        logger.debug("rank:{}/{} LegacyBackend._worker_setup: creating temporary phoebe file".format(mpi.myrank, mpi.nprocs))
 
         # make phoebe 1 file
         tmp_filename = temp_name = next(tempfile._get_candidate_names())
@@ -1503,22 +1466,7 @@ class LegacyBackend(BaseBackendByDataset):
 
 class PhotodynamBackend(BaseBackendByDataset):
     """
-    Use Josh Carter's photodynamical code (photodynam) to compute
-    velocities (dynamical only), orbital positions and velocities
-    (center of mass only), and light curves (assumes spherical stars).
-    The code is available here:
-
-    https://github.com/dfm/photodynam
-
-    photodynam must be installed and available on the system in order to
-    use this plugin.
-
-    Please cite both
-
-    * Science 4 February 2011: Vol. 331 no. 6017 pp. 562-565 DOI:10.1126/science.1201274
-    * MNRAS (2012) 420 (2): 1630-1635. doi: 10.1111/j.1365-2966.2011.20151.x
-
-    when using this code.
+    See <phoebe.parameters.compute.photodynam>.
 
     Parameters that are used by this backend:
 
@@ -1762,50 +1710,7 @@ class PhotodynamBackend(BaseBackendByDataset):
 
 class JktebopBackend(BaseBackendByDataset):
     """
-    Use John Southworth's code (jktebop) to compute radial velocities
-    and light curves.  The code is available here:
-
-    http://www.astro.keele.ac.uk/jkt/codes/jktebop.html
-
-    jktebop must be installed and available on the system in order to
-    use this plugin.
-
-    Please see the link above for a list of publications to cite when using this
-    code.
-
-    According to jktebop's website:
-
-        JKTEBOP models the two components as biaxial spheroids for the
-        calculation of the reflection and ellipsoidal effects,
-        and as spheres for the eclipse shapes.
-
-    Note that the wrapper around jktebop only uses its forward model.
-    Jktebop also includes its own fitting kinds, including bootstrapping.
-    Those capabilities cannot be accessed from PHOEBE.
-
-    Parameters that are used by this backend:
-
-    * Compute:
-        -  all parameters in :func:`phoebe.parameters.compute.jktebop`
-
-    * Orbit:
-        - TODO: list these
-
-    * Star:
-        - TODO: list these
-
-    * lc dataset:
-        - TODO :list these
-
-    Values that are filled by this backend:
-
-    * lc:
-        - times
-        - fluxes
-
-    * rv (dynamical only):
-        - times
-        - rvs
+    See <phoebe.parameters.compute.jktebop>.
 
     This run method in this class will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
@@ -1815,7 +1720,7 @@ class JktebopBackend(BaseBackendByDataset):
         # check whether jktebop is installed
         out = commands.getoutput('jktebop')
         if 'not found' in out:
-            raise ImportError('jktebop executable not found')
+            raise ImportError('jktebop executable not found.')
 
         hier = b.get_hierarchy()
 
@@ -1825,13 +1730,22 @@ class JktebopBackend(BaseBackendByDataset):
         if len(starrefs) != 2 or len(orbitrefs) != 1:
             raise ValueError("jktebop backend only accepts binary systems")
 
-        logger.warning("JKTEBOP backend is still in development/testing and is VERY experimental")
+        # handled in bundle checks
+        # for dataset in b.filter(compute=compute, context='compute', qualifier='enabled', value=True).datasets:
+        #     for comp in starrefs:
+        #         if b.get_value('ld_func', component=comp, dataset=datset, context='dataset') == 'interp':
+        #             raise ValueError("jktebop backend does not accept ld_func='interp'")
+
+        logger.warning("jktebop backend is still in development/testing and is VERY experimental")
 
 
     def _worker_setup(self, b, compute, infolist, **kwargs):
         """
         """
         logger.debug("rank:{}/{} JktebopBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
+        # handle any limb-darkening interpolation
+        b.compute_ld_coeffs(compute, set_value=True)
+
 
         computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
@@ -1843,8 +1757,8 @@ class JktebopBackend(BaseBackendByDataset):
 
         ringsize = computeparams.get_value('ringsize', unit=u.deg, **kwargs)
 
-        rA = b.get_value('rpole', component=starrefs[0], context='component', unit=u.solRad)
-        rB = b.get_value('rpole', component=starrefs[1], context='component', unit=u.solRad)
+        rA = b.get_value('requiv', component=starrefs[0], context='component', unit=u.solRad)
+        rB = b.get_value('requiv', component=starrefs[1], context='component', unit=u.solRad)
         sma = b.get_value('sma', component=orbitref, context='component', unit=u.solRad)
         incl = b.get_value('incl', component=orbitref, context='component', unit=u.deg)
         q = b.get_value('q', component=orbitref, context='component')
@@ -1859,51 +1773,73 @@ class JktebopBackend(BaseBackendByDataset):
         t0_supconj = b.get_value('t0_supconj', component=orbitref, context='component', unit=u.d)
 
 
-        return dict()
+        return dict(compute=compute,
+                    starrefs=starrefs,
+                    oritref=orbitref,
+                    ringsize=ringsize,
+                    rA=rA, rB=rB,
+                    sma=sma, incl=incl, q=q,
+                    ecosw=ecosw, esinw=esinw,
+                    gravbA=gravbA, gravbB=gravbB,
+                    period=period, t0_supconj=t0_supconj)
 
     def _run_single_dataset(self, b, info, **kwargs):
         """
         """
         logger.debug("rank:{}/{} JktebopBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
 
+        compute = kwargs.get('compute')
+        starrefs = kwargs.get('starrefs')
+        orbitref = kwargs.get('orbitref')
+        ringsize = kwargs.get('ringsize')
+        rA = kwargs.get('rA')
+        rB = kwargs.get('rB')
+        sma = kwargs.get('sma')
+        incl = kwargs.get('incl')
+        q = kwargs.get('q')
+        ecosw = kwargs.get('ecosw')
+        esinw = kwargs.get('esinw')
+        gravbA = kwargs.get('gravbA')
+        gravbB = kwargs.get('gravbB')
+        period = kwargs.get('period')
+        t0_supconj = kwargs.get('t0_supconj')
+
         # get dataset-dependent things that we need
         l3 = b.get_value('l3', dataset=info['dataset'], context='dataset')
-        # TODO: need to sum up pblums of each component - so need to write a function which will use the phoebe2 backend
-        # to compute pblums that are coupled (or they need to be computed as constraints - I guess we'll see how fast that function runs)
-        try:
-            pblum = sum([b.get_value('pblum', dataset=info['dataset'], component=starref, context='dataset') for starref in starrefs])  # TODO: supposed to be in mags?
-        except:
-            raise ValueError("jktebop backend currently only supports decoupled pblums (b.set_value_all('pblum_ref', 'self'))")
 
-        logger.warning("pblum in jktebop is sum of pblums (per-component): {}".format(pblum))
-        pblum = -2.5 * np.log10(pblum) + 0.0
+        logger.info("computing pblums for jktebop 'light scale factor'")
+        # pblum_sum = sum([p.value/4*np.pi for p in b.compute_pblums(dataset=info['dataset'], component=starrefs, compute=compute).values()])
+        pblum_sum = b.compute_pblums(dataset=info['dataset'], component=starrefs[0], compute=compute).values()[0].value / (4*np.pi)
+
+        # logger.warning("pblum in jktebop is sum of pblums (per-component): {}".format(pblum_sum))
+        ref_mag = 0.0
+        lsf = -2.5 * np.log10(pblum_sum) + ref_mag
+        logger.debug("jktebop light scale factor: {}".format(lsf))
+
 
         ldfuncA = b.get_value('ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
         ldfuncB = b.get_value('ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
 
-        ldcoeffsA = b.get_value('ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset')
-        ldcoeffsB = b.get_value('ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset')
-
-        if len(ldcoeffsA) != 2:
-            logger.warning("ld_coeffs not compatible with jktebop - setting to (0.5,0.5)")
-            ldcoeffsA = (0.5,0.5)
-        if len(ldcoeffsB) != 2:
-            logger.warning("ld_coeffs not compatible with jktebop - setting to (0.5,0.5)")
-            ldcoeffsB = (0.5,0.5)
+        # use check_visible=False to access the ld_coeffs from
+        # compute_ld_coeffs(set_value=True) done in _worker_setup
+        ldcoeffsA = b.get_value('ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsB = b.get_value('ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
 
         albA = b.get_value('irrad_frac_refl_bol', component=starrefs[0], context='component')
         albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
 
+        # this is just a hack for now... we really need surface brightness ratio
         tratio = b.get_value('teff', component=starrefs[0], context='component', unit=u.K) / b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
 
         # provide translation from phoebe's 'ld_func' to jktebop's 'LD law type'
         ldfuncs = {'linear': 'lin',
-                'logarithmic': 'log',
-                'square_root': 'sqrt',
-                'quadratic': 'quad'}
+                   'logarithmic': 'log',
+                   'square_root': 'sqrt',
+                   'quadratic': 'quad'}
 
         # let's make sure we'll be able to make the translation later
         if ldfuncA not in ldfuncs.keys() or ldfuncB not in ldfuncs.keys():
+            # NOTE: this is now handle in b.run_checks, so should never happen
             # TODO: provide a more useful error statement
             raise ValueError("jktebop only accepts the following options for ld_func: {}".format(ldfuncs.keys()))
 
@@ -1936,10 +1872,10 @@ class JktebopBackend(BaseBackendByDataset):
 
         fi.write('{:5} {:11} LD law type for star A     LD law type for star B\n'.format(ldfuncs[ldfuncA], ldfuncs[ldfuncB]))
         fi.write('{:5} {:11} LD star A (linear coeff)   LD star B (linear coeff)\n'.format(ldcoeffsA[0], ldcoeffsB[0]))
-        fi.write('{:5} {:11} LD star A (nonlin coeff)   LD star B (nonlin coeff)\n'.format(ldcoeffsA[1], ldcoeffsB[1]))
+        fi.write('{:5} {:11} LD star A (nonlin coeff)   LD star B (nonlin coeff)\n'.format(ldcoeffsA[1] if len(ldcoeffsA)==2 else 0.0, ldcoeffsB[1] if len(ldcoeffsB)==2 else 0.0))
 
         fi.write('{:5} {:11} Reflection effect star A   Reflection effect star B\n'.format(albA, albB))
-        fi.write('{:5} {:11} Phase of primary eclipse   Light scale factor (mag)\n'.format(0.0, pblum))
+        fi.write('{:5} {:11} Phase of primary eclipse   Light scale factor (mag)\n'.format(0.0, lsf))
         fi.write('{:13}      Orbital period of eclipsing binary system (days)\n'.format(period))
         fi.write('{:13}      Reference time of primary minimum (HJD)\n'.format(t0_supconj))
 
@@ -2018,9 +1954,8 @@ class JktebopBackend(BaseBackendByDataset):
         times_all = b.to_time(phases_all)  # in days
         mags_interp = np.interp(info['times'], times_all, mags_all)
 
-        logger.warning("converting from mags from JKTEBOP to flux")
-        ref_mag = 0  # TODO: what should we do with this?? - option in jktebop compute?
-        fluxes = 10**((mags_interp-ref_mag)/-2.5) * 2  # 2 seems to be necessary - probably from a difference in pblum conventions (or just normalization???)
+        logger.warning("converting from mags from jktebop to flux")
+        fluxes = 10**((ref_mag-mags_interp)/2.5) / (4*np.pi) # 2 seems to be necessary - probably from a difference in pblum conventions (or just normalization???)
 
         packetlist.append(_make_packet('times',
                                        info['times']*u.d,
