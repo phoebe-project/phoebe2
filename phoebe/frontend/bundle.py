@@ -1883,7 +1883,10 @@ class Bundle(ParameterSet):
                          'Husser et al. (2013)': 'https://ui.adsabs.harvard.edu/#abs/2013A&A...553A...6H',
                          'numpy/scipy': 'https://www.scipy.org/citing.html',
                          'astropy': 'https://www.astropy.org/acknowledging.html',
-                         'jktebop': 'http://www.astro.keele.ac.uk/jkt/codes/jktebop.html'
+                         'jktebop': 'http://www.astro.keele.ac.uk/jkt/codes/jktebop.html',
+                         'Carter et al. (2011)': 'https://ui.adsabs.harvard.edu/abs/2011Sci...331..562C',
+                         'Andras (2012)': 'https://ui.adsabs.harvard.edu/abs/2012MNRAS.420.1630P'
+
                         }
 
         # ref: [reasons] pairs
@@ -1901,11 +1904,14 @@ class Bundle(ParameterSet):
         for compute in computes:
             if self.get_compute(compute).kind == 'phoebe':
                 recs = _add_reason(recs, 'Prsa et al. (2016)', 'PHOEBE 2 backend')
-            if self.get_compute(compute).kind == 'legacy':
+            elif self.get_compute(compute).kind == 'legacy':
                 recs = _add_reason(recs, 'Prsa & Zwitter (2005)', 'PHOEBE 1 (legacy) backend')
                 # TODO: include Wilson & Devinney?
-            if self.get_compute(compute).kind == 'jktebop':
+            elif self.get_compute(compute).kind == 'jktebop':
                 recs = _add_reason(recs, 'jktebop', 'jktebop backend')
+            elif self.get_compute(compute).kind == 'photodynam':
+                recs = _add_reason(recs, 'Carter et al. (2011)', 'photodynam backend')
+                recs = _add_reason(recs, 'Andras (2012)', 'photodynam backend')
 
 
         # check for presence of datasets that require PHOEBE releases
@@ -3516,7 +3522,8 @@ class Bundle(ParameterSet):
             dataset(s) requested.  If not provided, will be provided for all
             datasets attached to the bundle.
         * `set_value` (bool, optional, default=False): apply the interpolated
-            values to the respective `ld_coeffs` parameters.
+            values to the respective `ld_coeffs` parameters (even if not
+            currently visible).
         * `**kwargs`: any additional kwargs are sent to override compute options.
 
         Returns

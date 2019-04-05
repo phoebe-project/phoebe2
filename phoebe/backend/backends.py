@@ -1516,6 +1516,8 @@ class PhotodynamBackend(BaseBackendByDataset):
         """
         logger.debug("rank:{}/{} PhotodynamBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
 
+        b.compute_ld_coeffs(compute=compute, set_value=True)
+
         computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
 
@@ -1527,7 +1529,8 @@ class PhotodynamBackend(BaseBackendByDataset):
         time0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
 
 
-        return dict(starrefs=starrefs,
+        return dict(compute=compute,
+                    starrefs=starrefs,
                     orbitrefs=orbitrefs,
                     step_size=step_size,
                     orbit_error=orbit_error,
@@ -1539,6 +1542,7 @@ class PhotodynamBackend(BaseBackendByDataset):
         logger.debug("rank:{}/{} PhotodynamBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
 
 
+        compute = kwargs.get('compute')
         starrefs = kwargs.get('starrefs')
         orbitrefs = kwargs.get('orbitrefs')
         step_size = kwargs.get('step_size')
@@ -1560,16 +1564,14 @@ class PhotodynamBackend(BaseBackendByDataset):
                 for star in starrefs])+'\n')
 
         if info['kind'] == 'lc':
-            # TODO: support pblum_ref
-            pblums = [b.get_value(qualifier='pblum', component=star,
-                        context='dataset', dataset=info['dataset'])
-                        for star in starrefs]  # TODO: units or unitless?
+            pblums = [b.compute_pblums(compute, dataset=info['dataset'], component=starref).values()[0].value for starref in starrefs]
 
             u1s, u2s = [], []
             for star in starrefs:
                 if b.get_value(qualifier='ld_func', component=star, dataset=info['dataset'], context='dataset') == 'quadratic':
                     ld_coeffs = b.get_value(qualifier='ld_coeffs', component=star, dataset=info['dataset'], context='dataset')
                 else:
+                    # TODO: can we still interpolate for quadratic manually using b.compute_ld_coeffs?
                     ld_coeffs = (0,0)
                     logger.warning("ld_func for {} {} must be 'quadratic' for the photodynam backend, but is not: defaulting to quadratic with coeffs of {}".format(star, info['dataset'], ld_coeffs))
 

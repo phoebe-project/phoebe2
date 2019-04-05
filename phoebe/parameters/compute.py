@@ -233,6 +233,50 @@ def photodynam(**kwargs):
     See also:
     * <phoebe.frontend.bundle.Bundle.references>
 
+    The following parameters are "exported/translated" when using the photodynam
+    backend:
+
+    System:
+    * t0
+
+    Star:
+    * mass
+    * requiv
+
+    Orbit:
+    * sma
+    * ecc
+    * incl
+    * per0
+    * long_an
+    * mean_anom
+
+    Dataset:
+    * ld_func (only supports quadratic)
+    * ld_coeffs (will use <phoebe.frontend.bundle.Bundle.compute_ld_coeffs if necessary)
+    * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums if necessary)
+
+
+    The following parameters are populated in the resulting model when using the
+    photodynam backend:
+
+    LCs:
+    * times
+    * fluxes
+
+    RVs (dynamical only):
+    * times
+    * rvs
+
+    ORBs:
+    * times
+    * us
+    * vs
+    * ws
+    * vus
+    * vvs
+    * vws
+
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
     <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
@@ -297,7 +341,7 @@ def jktebop(**kwargs):
     * <phoebe.frontend.bundle.Bundle.references>
 
     The following parameters are "exported/translated" when using the jktebop
-    backend.
+    backend:
 
     Star:
     * requiv
@@ -317,9 +361,11 @@ def jktebop(**kwargs):
     Dataset (LC only):
     * ld_func (must not be 'interp')
     * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
+    * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums if necessary)
+
 
     The following parameters are populated in the resulting model when using the
-    jktebop backend.
+    jktebop backend:
 
     LCs:
     * times
