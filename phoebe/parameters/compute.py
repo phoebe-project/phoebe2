@@ -150,7 +150,7 @@ def legacy(**kwargs):
     to compute radial velocities and light curves for binary systems
     (>2 stars not supported).  The code is available here:
 
-    http://phoebe-project.org/1.0
+    [http://phoebe-project.org/1.0](http://phoebe-project.org/1.0)
 
     PHOEBE 1.0 and the 'phoebeBackend' python interface must be installed
     and available on the system in order to use this plugin.
@@ -217,6 +217,10 @@ def legacy(**kwargs):
 
 def photodynam(**kwargs):
     """
+    **This backend is EXPERIMENTAL and requires developer mode to be enabled**
+
+    **DO NOT USE FOR SCIENCE**
+
     Create a <phoebe.parameters.ParameterSet> for compute options for Josh
     Carter's `photodynam` code.
 
@@ -224,7 +228,7 @@ def photodynam(**kwargs):
     `photodynam` must be installed and available on the system in order to use
     this plugin.  The code is available here:
 
-    http://github.com/phoebe-project/photodynam
+    [http://github.com/phoebe-project/photodynam](http://github.com/phoebe-project/photodynam)
 
     When using this backend, please cite
     * Science 4 February 2011: Vol. 331 no. 6017 pp. 562-565 DOI:10.1126/science.1201274
@@ -253,8 +257,8 @@ def photodynam(**kwargs):
 
     Dataset:
     * ld_func (only supports quadratic)
-    * ld_coeffs (will use <phoebe.frontend.bundle.Bundle.compute_ld_coeffs if necessary)
-    * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums if necessary)
+    * ld_coeffs (will use <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
+    * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums> if necessary)
 
 
     The following parameters are populated in the resulting model when using the
@@ -315,6 +319,10 @@ def photodynam(**kwargs):
 
 def jktebop(**kwargs):
     """
+    **This backend is EXPERIMENTAL and requires developer mode to be enabled**
+
+    **DO NOT USE FOR SCIENCE**
+
     Create a <phoebe.parameters.ParameterSet> for compute options for John
     Southworth's `jktebop` code.
 
@@ -322,10 +330,13 @@ def jktebop(**kwargs):
     `jktebop` must be installed and available on the system in order to use
     this plugin.  The code is available here (currently tested with v34):
 
-    http://www.astro.keele.ac.uk/jkt/codes/jktebop.html
+    [http://www.astro.keele.ac.uk/jkt/codes/jktebop.html](http://www.astro.keele.ac.uk/jkt/codes/jktebop.html)
 
     Please see the link above for a list of publications to cite when using this
     code.
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
 
     According to jktebop's website:
 
@@ -336,9 +347,6 @@ def jktebop(**kwargs):
     Note that the wrapper around jktebop only uses its forward model.
     `jktebop` also includes its own fitting methods, including bootstrapping.
     Those capabilities cannot be accessed from PHOEBE.
-
-    See also:
-    * <phoebe.frontend.bundle.Bundle.references>
 
     The following parameters are "exported/translated" when using the jktebop
     backend:
@@ -361,7 +369,7 @@ def jktebop(**kwargs):
     Dataset (LC only):
     * ld_func (must not be 'interp')
     * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
-    * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums if necessary)
+    * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums> if necessary)
 
 
     The following parameters are populated in the resulting model when using the

@@ -1841,16 +1841,16 @@ class Bundle(ParameterSet):
 
         Arguments
         ------------
-        `compute` (string or list of strings, optional, default=None): only
+        * `compute` (string or list of strings, optional, default=None): only
             consider a single (or list of) compute options.  If None or not
             provided, will default to all attached compute options.
-        `dataset` (string or list of strings, optional, default=None): only
+        * `dataset` (string or list of strings, optional, default=None): only
             consider a single (or list of) datasets.  If None or not provided,
             will default to all attached datasets.
 
         Returns
         ----------
-        (dict): dictionary with keys being the reference name and values as a
+        * (dict): dictionary with keys being the reference name and values as a
             dictionary with information about that reference: including a
             url if applicable and a list of detected uses within the current
             <phoebe.frontend.bundle.Bundle>.
@@ -3506,7 +3506,10 @@ class Bundle(ParameterSet):
         limb-darkening coefficients **per-element**.
 
         Coefficients will only be interpolated/returned for those where `ld_func`
-        is not 'interp' and `ld_coeffs_source` is not 'none'.
+        is not 'interp' and `ld_coeffs_source` is not 'none'.  The values of
+        the `ld_coeffs` parameter will be returned for cases where `ld_func` is
+        not `interp` but `ld_coeffs_source` is 'none'.  Cases where `ld_func` is
+        'interp' will not be included in the output.
 
         Note:
         * for backends without `atm` compute options, 'ck2004' will be used.
@@ -3529,7 +3532,7 @@ class Bundle(ParameterSet):
         Returns
         ----------
         * (dict) computed ld_coeffs in a dictionary with keys formatted as
-            component@dataset and the pblums as values (arrays with appropriate
+            component@dataset and the ld_coeffs as values (arrays with appropriate
             length given the respective value of `ld_func`.
         """
 
@@ -3552,6 +3555,8 @@ class Bundle(ParameterSet):
         for ldcs_param in self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components).to_list():
             ldcs = ldcs_param.get_value()
             if ldcs == 'none':
+                ld_coeffs_ret["{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+
                 continue
 
             if ldcs=='auto':
