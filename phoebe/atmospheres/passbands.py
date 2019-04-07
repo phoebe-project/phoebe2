@@ -2133,7 +2133,7 @@ def update_passband_available(passband):
 
 def list_all_update_passbands_available():
     """
-    For convenicence, this function is available at the top-level as
+    For convenience, this function is available at the top-level as
     <phoebe.list_all_update_passbands_available>.
 
     See also:

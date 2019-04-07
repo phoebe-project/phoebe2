@@ -196,7 +196,11 @@ class Bundle(ParameterSet):
 
     @classmethod
     def open(cls, filename):
-        """Open a new bundle.
+        """
+        For convenience, this function is available at the top-level as
+        <phoebe.open> or <phoebe.load>.
+
+        Open a new bundle.
 
         Open a bundle from a JSON-formatted PHOEBE 2 file.
         This is a constructor so should be called as:
@@ -414,13 +418,20 @@ class Bundle(ParameterSet):
 
     @classmethod
     def from_legacy(cls, filename, add_compute_legacy=True, add_compute_phoebe=True):
-        """Load a bundle from a PHOEBE 1.0 Legacy file.
+        """
+        For convenience, this function is available at the top-level as
+        <phoebe.from_legacy>.
+
+        Load a bundle from a PHOEBE 1.0 Legacy file.
 
         This is a constructor so should be called as:
 
         ```py
         b = Bundle.from_legacy('myfile.phoebe')
         ```
+
+        See also:
+        * <phoebe.parameters.compute.legacy>
 
         Arguments
         ------------
@@ -444,7 +455,11 @@ class Bundle(ParameterSet):
 
     @classmethod
     def default_star(cls, starA='starA'):
-        """Load a bundle with a default single star as the system.
+        """
+        For convenience, this function is available at the top-level as
+        <phoebe.default_star>.
+
+        Load a bundle with a default single star as the system.
 
         sun
 
@@ -472,7 +487,11 @@ class Bundle(ParameterSet):
     @classmethod
     def default_binary(cls, starA='primary', starB='secondary', orbit='binary',
                        contact_binary=False):
-        """Load a bundle with a default binary as the system.
+        """
+        For convenience, this function is available at the top-level as
+        <phoebe.default_binary>.
+
+        Load a bundle with a default binary as the system.
 
         primary - secondary
 
@@ -531,7 +550,11 @@ class Bundle(ParameterSet):
                        starA='starA', starB='starB', starC='starC',
                        inner='inner', outer='outer',
                        contact_envelope='contact_envelope'):
-        """Load a bundle with a default triple system.
+        """
+        For convenience, this function is available at the top-level as
+        <phoebe.from_legacy>.
+
+        Load a bundle with a default triple system.
 
         Set inner_as_primary based on what hierarchical configuration you want.
 

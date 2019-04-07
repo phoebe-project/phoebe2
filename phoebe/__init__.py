@@ -366,20 +366,32 @@ if mpi.within_mpirun and mpi.enabled and mpi.myrank != 0:
 def open(*args, **kwargs):
     return Bundle.open(*args, **kwargs)
 
+open.__doc__ = Bundle.open.__doc__
+
 def load(*args, **kwargs):
     return Bundle.open(*args, **kwargs)
+
+load.__doc__ = Bundle.open.__doc__
 
 def from_legacy(*args, **kwargs):
     return Bundle.from_legacy(*args, **kwargs)
 
+from_legacy.__doc__ = Bundle.from_legacy.__doc__
+
 def default_star(*args, **kwargs):
     return Bundle.default_star(*args, **kwargs)
+
+default_star.__doc__ = Bundle.default_star.__doc__
 
 def default_binary(*args, **kwargs):
     return Bundle.default_binary(*args, **kwargs)
 
+default_binary.__doc__ = Bundle.default_binary.__doc__
+
 def default_triple(*args, **kwargs):
     return Bundle.default_triple(*args, **kwargs)
+
+default_triple.__doc__ = Bundle.default_triple.__doc__
 
 # Shortcuts to settings
 def reset_settings():
