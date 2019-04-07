@@ -30,6 +30,14 @@ except ImportError:
 else:
     _use_phb1 = True
 
+try:
+    import ellc
+except ImportError:
+    raise ImportError("ellc not installed.")
+    _use_ellc = False
+else:
+    _use_ellc = True
+
 import logging
 logger = logging.getLogger("BACKENDS")
 logger.addHandler(logging.NullHandler())
@@ -531,29 +539,9 @@ class PhoebeBackend(BaseBackendByTime):
     """
     See <phoebe.parameters.compute.phoebe>.
 
-    Parameters that are used by this backend:
-
-    * Compute:
-        * all parameters in :func:`phoebe.parameters.compute.phoebe`
-    * Orbit:
-        * TOOD: list these
-    * Star:
-        * TODO: list these
-    * lc dataset:
-        * TODO: list these
-
-    Values that are filled by this backend:
-
-    * lc:
-        * times
-        * fluxes
-    * rv (dynamical only):
-        * times
-        * rvs
-
-    The run method of this class will almost always be called through the bundle, using
-        * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
-        * :meth:`phoebe.frontend.bundle.Bundle.run_compute`
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_compute>
+    * <phoebe.frontend.bundle.Bundle.run_compute>
     """
 
     def run_checks(self, b, compute, times=[], **kwargs):
@@ -1154,8 +1142,8 @@ class LegacyBackend(BaseBackendByDataset):
     See <phoebe.parameters.compute.legacy>.
 
     The run method in this class will almost always be called through the bundle, using
-        * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
-        * :meth:`phoebe.frontend.bundle.Bundle.run_compute`
+    * <phoebe.frontend.bundle.Bundle.add_compute>
+    * <phoebe.frontend.bundle.Bundle.run_compute>
     """
 
     def run_checks(self, b, compute, times=[], **kwargs):
@@ -1468,41 +1456,9 @@ class PhotodynamBackend(BaseBackendByDataset):
     """
     See <phoebe.parameters.compute.photodynam>.
 
-    Parameters that are used by this backend:
-
-    * Compute:
-        - all parameters in :func:`phoebe.parameters.compute.photodynam`
-
-    * Orbit:
-        - sma
-        - ecc
-        - incl
-        - per0
-        - long_an
-        - t0_perpass
-
-    * Star:
-        - mass
-        - radius
-
-    * lc dataset:
-        - pblum
-        - ld_coeffs (if ld_func=='linear')
-
-    Values that are filled by this backend:
-
-    * lc:
-        - times
-        - fluxes
-
-    * rv (dynamical only):
-        - times
-        - rvs
-
     The run method in this class will almost always be called through the bundle, using
-        * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
-        * :meth:`phoebe.frontend.bundle.Bundle.run_compute`
-
+    * <phoebe.frontend.bundle.Bundle.add_compute>
+    * <phoebe.frontend.bundle.Bundle.run_compute>
     """
     def run_checks(self, b, compute, times=[], **kwargs):
         # check whether photodynam is installed
@@ -1564,6 +1520,7 @@ class PhotodynamBackend(BaseBackendByDataset):
                 for star in starrefs])+'\n')
 
         if info['kind'] == 'lc':
+            # TODO: this will make two meshing calls, let's create and extract from the dicionary instead
             pblums = [b.compute_pblums(compute, dataset=info['dataset'], component=starref).values()[0].value for starref in starrefs]
 
             u1s, u2s = [], []
@@ -1968,5 +1925,271 @@ class JktebopBackend(BaseBackendByDataset):
                                        fluxes,
                                        None,
                                        info))
+
+        return packetlist
+
+class EllcBackend(BaseBackendByDataset):
+    """
+    See <phoebe.parameters.compute.ellc>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_compute>
+    * <phoebe.frontend.bundle.Bundle.run_compute>
+    """
+    def run_checks(self, b, compute, times=[], **kwargs):
+        # check whether ellc is installed
+        if not _use_ellc:
+            raise ImportError("could not import ellc")
+
+        hier = b.get_hierarchy()
+
+        starrefs  = hier.get_stars()
+        orbitrefs = hier.get_orbits()
+
+        if len(starrefs) != 2 or len(orbitrefs) != 1:
+            raise ValueError("ellc backend only accepts binary systems")
+
+        logger.warning("ellc backend is still in development/testing and is VERY experimental")
+
+
+    def _worker_setup(self, b, compute, infolist, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} EllcBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
+        # handle any limb-darkening interpolation
+        b.compute_ld_coeffs(compute, set_value=True)
+
+
+        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        hier = b.get_hierarchy()
+
+        starrefs  = hier.get_stars()
+        orbitrefs = hier.get_orbits()
+
+        orbitref = orbitrefs[0]
+
+        shape_1 = computeparams.get_value('distortion_method', component=starrefs[0])
+        shape_2 = computeparams.get_value('distortion_method', component=starrefs[1])
+
+        hf_1 = computeparams.get_value('hf', component=starrefs[0], check_visible=False)
+        hf_2 = computeparams.get_value('hf', component=starrefs[1], check_visible=False)
+
+        grid_1 = computeparams.get_value('grid', component=starrefs[0])
+        grid_2 = computeparams.get_value('grid', component=starrefs[1])
+
+        exact_grav = computeparams.get_value('exact_grav')
+
+        a = b.get_value('sma', component=orbitref, context='component', unit=u.solRad)
+        radius_1 = b.get_value('requiv', component=starrefs[0], context='component', unit=u.solRad) / a
+        radius_2 = b.get_value('requiv', component=starrefs[1], context='component', unit=u.solRad) / a
+
+        period = b.get_value('period', component=orbitref, context='component', unit=u.d)
+        q = b.get_value('q', component=orbitref, context='component')
+
+        # TODO: there seems to be a convention flip between primary and secondary star in ellc... maybe we can just address via t_zero?
+        t_zero = b.get_value('t0_supconj', component=orbitref, context='component', unit=u.d)
+
+        incl = b.get_value('incl', component=orbitref, context='component', unit=u.deg)
+        didt = 0.0
+        # didt = b.get_value('dincldt', component=orbitref, context='component', unit=u.deg/u.d) * period
+
+        ecc = b.get_value('ecc', component=orbitref, context='component')
+        w = b.get_value('per0', component=orbitref, context='component', unit=u.rad)
+
+        domdt = b.get_value('dperdt', component=orbitref, context='component', unit=u.deg/u.d) * period
+
+        gdc_1 = b.get_value('gravb_bol', component=starrefs[0], context='component')
+        gdc_2 = b.get_value('gravb_bol', component=starrefs[1], context='component')
+
+        rotfac_1 = b.get_value('syncpar', component=starrefs[0], context='component')
+        rotfac_2 = b.get_value('syncpar', component=starrefs[1], context='component')
+
+        f_c = np.sqrt(ecc) * np.cos(w)
+        f_s = np.sqrt(ecc) * np.sin(w)
+
+
+        return dict(compute=compute,
+                    starrefs=starrefs,
+                    oritref=orbitref,
+                    shape_1=shape_1, shape_2=shape_2,
+                    grid_1=grid_1, grid_2=grid_2,
+                    exact_grav=exact_grav,
+                    radius_1=radius_1, radius_2=radius_2,
+                    incl=incl,
+                    t_zero=t_zero,
+                    period=period,
+                    q=q,
+                    a=a,
+                    f_c=f_c, f_s=f_s,
+                    didt=didt, domdt=domdt,
+                    gdc_1=gdc_1, gdc_2=gdc_2,
+                    rotfac_1=rotfac_1, rotfac_2=rotfac_2)
+
+    def _run_single_dataset(self, b, info, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} EllcBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
+
+        compute = kwargs.get('compute')
+        starrefs = kwargs.get('starrefs')
+        orbitref = kwargs.get('orbitref')
+
+        grid_1 = kwargs.get('grid_1')
+        grid_2 = kwargs.get('grid_2')
+        shape_1 = kwargs.get('shape_1')
+        shape_2 = kwargs.get('shape_2')
+        hf_1 = kwargs.get('hf_1')
+        hf_2 = kwargs.get('hf_2')
+
+        exact_grav = kwargs.get('exact_grav')
+
+        radius_1 = kwargs.get('radius_2')
+        radius_2 = kwargs.get('radius_1')
+
+        incl = kwargs.get('incl')
+
+        t_zero = kwargs.get('t_zero')
+        period = kwargs.get('period')
+        a = kwargs.get('a')
+        q = kwargs.get('q')
+
+        f_c = kwargs.get('f_c')
+        f_s = kwargs.get('f_s')
+
+        didt = kwargs.get('didt')
+        domdt = kwargs.get('domdt')
+
+        gdc_1 = kwargs.get('gdc_1')
+        gdc_2 = kwargs.get('gdc_2')
+
+        rotfac_1 = kwargs.get('rotfac_1')
+        rotfac_2 = kwargs.get('rotfac_2')
+
+
+        # get dataset-dependent things that we need
+        ldfuncA = b.get_value('ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
+        ldfuncB = b.get_value('ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
+
+        # use check_visible=False to access the ld_coeffs from
+        # compute_ld_coeffs(set_value=True) done in _worker_setup
+        ldcoeffsA = b.get_value('ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsB = b.get_value('ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
+
+        # albA = b.get_value('irrad_frac_refl_bol', component=starrefs[0], context='component')
+        # albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
+
+        if info['kind'] == 'lc':
+            light_3 = b.get_value('l3', dataset=info['dataset'], context='dataset')
+
+            # this is just a hack for now, we'll eventually want the true sb ratio
+            logger.info("computing sbratio from pblums for dataset='{}'".format(info['dataset']))
+            pblums = b.compute_pblums(compute=compute, dataset=info['dataset'], component=starrefs)
+            sbratio = pblums['{}@{}'.format(starrefs[0], info['dataset'])].value / pblums['{}@{}'.format(starrefs[1], info['dataset'])].value
+
+            t_exp = b.get_value('exptime', dataset=info['dataset'], context='dataset')
+
+            # move outside above 'lc' if-statement once exptime is supported for RVs in phoebe
+            if b.get_value('fti_method', compute=compute, dataset=info['dataset'], context='compute') == 'oversample':
+                n_int = b.get_value('fti_oversample', compute=compute, dataset=info['dataset'], context='compute')
+            else:
+                n_int = 1
+
+            fluxes = ellc.lc(info['times'],
+                             radius_1, radius_2,
+                             sbratio,
+                             incl,
+                             light_3,
+                             t_zero, period, a, q,
+                             f_c, f_s,
+                             ldc_1=None, ldc_2=None,
+                             gdc_1=gdc_1, gdc_2=gdc_2,
+                             didt=didt, domdt=domdt,
+                             rotfac_1=rotfac_1, rotfac_2=rotfac_2,
+                             hf_1=hf_1, hf_2=hf_2,
+                             bfac_1=None, bfac_2=None,
+                             heat_1=None, heat_2=None,
+                             lambda_1=None, lambda_2=None,
+                             vsini_1=None, vsini_2=None,
+                             t_exp=t_exp, n_int=n_int,
+                             grid_1=grid_1, grid_2=grid_2,
+                             ld_1=None, ld_2=None,
+                             shape_1=shape_1, shape_2=shape_2,
+                             spots_1=None, spots_2=None,
+                             exact_grav=exact_grav,
+                             verbose=1)
+
+            # TODO: we already called compute_pblums for sbratio... let's not call it twice
+
+            # ellc returns "arbitrary" flux values... let's try to rescale
+            # to our flux units to be compatible with other backends
+            pblum_sum = np.sum([pblum.value for pblum in b.compute_pblums(dataset=info['dataset'], component=starrefs, compute=compute).values()])
+            fluxes *= pblum_sum / (4*np.pi)
+
+            # fill packets
+            packetlist = []
+
+            packetlist.append(_make_packet('times',
+                                           info['times']*u.d,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('fluxes',
+                                           fluxes,
+                                           None,
+                                           info))
+
+        elif info['kind'] == 'rv':
+            rv_method = b.get_value('rv_method', compute=compute, dataset=info['dataset'], component=info['component'], context='compute')
+            flux_weighted = rv_method == 'flux-weighted'
+            if flux_weighted:
+                raise NotImplementedError("flux-weighted does not seem to work in ellc")
+
+            # surface-brightness ratio shouldn't matter for rvs...
+            sbratio = 1.0
+
+            # enable once exptime for RVs is supported in PHOEBE
+            # t_exp = b.get_value('exptime', dataset=info['dataset'], context='dataset')
+            t_exp = 0
+            n_int = 1
+
+            rvs1, rvs2 = ellc.rv(info['times'],
+                                  radius_1, radius_2,
+                                  sbratio,
+                                  incl,
+                                  t_zero, period, a, q,
+                                  f_c, f_s,
+                                  ldc_1=None, ldc_2=None,
+                                  gdc_1=gdc_1, gdc_2=gdc_2,
+                                  didt=didt, domdt=domdt,
+                                  rotfac_1=rotfac_1, rotfac_2=rotfac_2,
+                                  hf_1=hf_1, hf_2=hf_2,
+                                  bfac_1=None, bfac_2=None,
+                                  heat_1=None, heat_2=None,
+                                  lambda_1=None, lambda_2=None,
+                                  vsini_1=None, vsini_2=None,
+                                  t_exp=t_exp, n_int=n_int,
+                                  grid_1=grid_1, grid_2=grid_2,
+                                  ld_1=None, ld_2=None,
+                                  shape_1=shape_1, shape_2=shape_2,
+                                  spots_1=None, spots_2=None,
+                                  flux_weighted=flux_weighted,
+                                  verbose=1)
+
+
+            # fill packets
+            packetlist = []
+
+            packetlist.append(_make_packet('times',
+                                           info['times']*u.d,
+                                           None,
+                                           info))
+
+            rvs = rvs1 if b.hierarchy.get_primary_or_secondary(info['component'])=='primary' else rvs2
+            packetlist.append(_make_packet('rvs',
+                                           rvs*u.km/u.s,
+                                           None,
+                                           info))
+        else:
+            raise TypeError("ellc only supports 'lc' and 'rv' datasets")
 
         return packetlist

@@ -1861,6 +1861,7 @@ class Bundle(ParameterSet):
         * Atmosphere table citations, when available/applicable.
         * Passband table citations, when available/applicable.
         * Dependency (astropy, numpy, etc) citations, when available/applicable.
+        * Alternate backends, when applicable.
 
         Arguments
         ------------
@@ -1908,8 +1909,8 @@ class Bundle(ParameterSet):
                          'astropy': 'https://www.astropy.org/acknowledging.html',
                          'jktebop': 'http://www.astro.keele.ac.uk/jkt/codes/jktebop.html',
                          'Carter et al. (2011)': 'https://ui.adsabs.harvard.edu/abs/2011Sci...331..562C',
-                         'Andras (2012)': 'https://ui.adsabs.harvard.edu/abs/2012MNRAS.420.1630P'
-
+                         'Andras (2012)': 'https://ui.adsabs.harvard.edu/abs/2012MNRAS.420.1630P',
+                         'Maxted (2016)': 'https://ui.adsabs.harvard.edu/abs/2016A%26A...591A.111M',
                         }
 
         # ref: [reasons] pairs
@@ -1935,6 +1936,8 @@ class Bundle(ParameterSet):
             elif self.get_compute(compute).kind == 'photodynam':
                 recs = _add_reason(recs, 'Carter et al. (2011)', 'photodynam backend')
                 recs = _add_reason(recs, 'Andras (2012)', 'photodynam backend')
+            elif self.get_compute(compute).kind == 'ellc':
+                recs = _add_response(recs, 'Maxted (2016)', 'ellc backend')
 
 
         # check for presence of datasets that require PHOEBE releases

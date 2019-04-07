@@ -33,6 +33,16 @@ def phoebe(**kwargs):
     see <phoebe.parameters.ParameterSet.set_value> to set/change the values
     after creating the Parameters.
 
+    For example:
+
+    ```py
+    b.add_compute('phoebe')
+    b.run_compute(kind='phoebe')
+    ```
+
+    Note that default bundles (<phoebe.frontend.bundle.Bundle.default_binary>, for example)
+    include a set of compute options for the phoebe backend.
+
     Arguments
     ----------
     * `enabled` (bool, optional): whether to create synthetics in compute/fitting
@@ -127,7 +137,7 @@ def phoebe(**kwargs):
     # rv_dep kind
     params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], description='Method to use for computing LC fluxes')]
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
-    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
+    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
     params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin effects)')]
     params += [BoolParameter(visible_if='rv_method:flux-weighted', qualifier='rv_grav', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_grav', False), description='Whether gravitational redshift effects are enabled for RVs')]
 
@@ -144,13 +154,17 @@ def phoebe(**kwargs):
 def legacy(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for the
-    PHOEBE Legacy backend.
+    [PHOEBE 1.0 (legacy)](http://phoebe-project.org/1.0) backend.
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.export_legacy>
+    * <phoebe.frontend.bundle.Bundle.from_legacy>
 
     Use PHOEBE 1.0 (legacy) which is based on the Wilson-Devinney code
     to compute radial velocities and light curves for binary systems
     (>2 stars not supported).  The code is available here:
 
-    [http://phoebe-project.org/1.0](http://phoebe-project.org/1.0)
+    http://phoebe-project.org/1.0
 
     PHOEBE 1.0 and the 'phoebeBackend' python interface must be installed
     and available on the system in order to use this plugin.
@@ -168,6 +182,13 @@ def legacy(**kwargs):
     see <phoebe.parameters.ParameterSet.set_value> to set/change the values
     after creating the Parameters.
 
+    For example:
+
+    ```py
+    b.add_compute('legacy')
+    b.run_compute(kind='legacy')
+    ```
+
     Arguments
     ----------
     * `enabled` (bool, optional): whether to create synthetics in compute/fitting
@@ -176,7 +197,7 @@ def legacy(**kwargs):
     * `gridsize` (float, optional): number of meshpoints for WD.
     * `irrad_method` (string, optional): which method to use to handle irradiation.
     * `ie` (bool, optional): whether data should be de-reddened.
-    * `rv_method` (string, optional): which method to use for compute radial
+    * `rv_method` (string, optional): which method to use for computing radial
         velocities.
 
     Returns
@@ -208,8 +229,6 @@ def legacy(**kwargs):
     # TODO: can we come up with a better qualifier for reddening (and be consistent when we enable in phoebe2)
     params += [BoolParameter(qualifier='ie', value=kwargs.get('ie', False), description='Should data be de-reddened')]
 
-    # TODO: can we change this to rv_method = ['flux_weighted', 'dynamical'] to be consistent with phoebe2?
-    # TODO: can proximity_rv (rv_method) be copied for each dataset (see how this is done for phoebe2)?  This would probably mean that the wrapper would need to loop and make separate calls since PHOEBE1 can't handle different settings per-RV dataset
     params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default',
                                value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
 
@@ -222,13 +241,13 @@ def photodynam(**kwargs):
     **DO NOT USE FOR SCIENCE**
 
     Create a <phoebe.parameters.ParameterSet> for compute options for Josh
-    Carter's `photodynam` code.
+    Carter's [photodynam](http://github.com/phoebe-project/photodynam) code.
 
-    Use `photodynam` to compute radial velocities and light curves.
-    `photodynam` must be installed and available on the system in order to use
+    Use photodynam to compute radial velocities and light curves.
+    photodynam must be installed and available on the system in order to use
     this plugin.  The code is available here:
 
-    [http://github.com/phoebe-project/photodynam](http://github.com/phoebe-project/photodynam)
+    http://github.com/phoebe-project/photodynam
 
     When using this backend, please cite
     * Science 4 February 2011: Vol. 331 no. 6017 pp. 562-565 DOI:10.1126/science.1201274
@@ -288,6 +307,13 @@ def photodynam(**kwargs):
     see <phoebe.parameters.ParameterSet.set_value> to set/change the values
     after creating the Parameters.
 
+    For example:
+
+    ```py
+    b.add_compute('photodynam')
+    b.run_compute(kind='photodynam')
+    ```
+
     Arguments
     ----------
     * `enabled` (bool, optional): whether to create synthetics in compute/fitting
@@ -324,13 +350,13 @@ def jktebop(**kwargs):
     **DO NOT USE FOR SCIENCE**
 
     Create a <phoebe.parameters.ParameterSet> for compute options for John
-    Southworth's `jktebop` code.
+    Southworth's [jktebop](http://www.astro.keele.ac.uk/jkt/codes/jktebop.html) code.
 
-    Use `jktebop` to compute radial velocities and light curves for binary systems.
-    `jktebop` must be installed and available on the system in order to use
+    Use jktebop to compute radial velocities and light curves for binary systems.
+    jktebop must be installed and available on the system in order to use
     this plugin.  The code is available here (currently tested with v34):
 
-    [http://www.astro.keele.ac.uk/jkt/codes/jktebop.html](http://www.astro.keele.ac.uk/jkt/codes/jktebop.html)
+    http://www.astro.keele.ac.uk/jkt/codes/jktebop.html
 
     Please see the link above for a list of publications to cite when using this
     code.
@@ -338,14 +364,12 @@ def jktebop(**kwargs):
     See also:
     * <phoebe.frontend.bundle.Bundle.references>
 
-    According to jktebop's website:
-
-        JKTEBOP models the two components as biaxial spheroids for the
-        calculation of the reflection and ellipsoidal effects,
-        and as spheres for the eclipse shapes.
+    According to jktebop's website: "jktebop models the two components as
+    biaxial spheroids for the calculation of the reflection and ellipsoidal
+    effects, and as spheres for the eclipse shapes."
 
     Note that the wrapper around jktebop only uses its forward model.
-    `jktebop` also includes its own fitting methods, including bootstrapping.
+    jktebop also includes its own fitting methods, including bootstrapping.
     Those capabilities cannot be accessed from PHOEBE.
 
     The following parameters are "exported/translated" when using the jktebop
@@ -386,6 +410,13 @@ def jktebop(**kwargs):
     see <phoebe.parameters.ParameterSet.set_value> to set/change the values
     after creating the Parameters.
 
+    For example:
+
+    ```py
+    b.add_compute('jktebop')
+    b.run_compute(kind='jktebop')
+    ```
+
     Arguments
     ----------
     * `enabled` (bool, optional): whether to create synthetics in compute/fitting
@@ -405,5 +436,143 @@ def jktebop(**kwargs):
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
     params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integ Ring Size')]
+
+    return ParameterSet(params)
+
+def ellc(**kwargs):
+    """
+    **This backend is EXPERIMENTAL and requires developer mode to be enabled**
+
+    **DO NOT USE FOR SCIENCE**
+
+    Create a <phoebe.parameters.ParameterSet> for compute options for Pierre
+    Maxted's [ellc](https://github.com/pmaxted/ellc) code.
+
+    Use ellc to compute radial velocities and light curves for binary systems.
+    ellc must be installed and available on the system in order to use
+    this plugin (tested with v 1.8.1).  The code is available here:
+
+    https://github.com/pmaxted/ellc
+
+    and can be installed via pip:
+
+    ```py
+    pip install ellc
+    ```
+
+    Please cite the following when using this backend:
+
+    https://ui.adsabs.harvard.edu/abs/2016A%26A...591A.111M/abstract
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
+
+    Note that the wrapper around ellc only uses its forward model.
+    ellc also includes its own fitting methods, including emccee.
+    Those capabilities cannot be accessed from PHOEBE.
+
+    The following parameters are "exported/translated" when using the ellc
+    backend:
+
+    Star:
+    * requiv
+    * syncpar
+    * gravb_bol
+
+    Orbit:
+    * sma
+    * period
+    * q
+    * incl
+    * ecc
+    * per0
+    * dperdt
+    * t0_supconj
+
+    Dataset (LC/RV only):
+    * l3
+    * ld_func (must not be 'interp')
+    * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
+    * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums> if necessary)
+
+    Note: ellc returns fluxes in arbitrary units.  These are then rescaled according
+    to the values of pblum, but converted to a flux-scale by assuming spherical stars.
+    For the non-spherical case, the fluxes may be off by a (small) factor.
+
+
+    The following parameters are populated in the resulting model when using the
+    ellc backend:
+
+    LCs:
+    * times
+    * fluxes
+
+    RVs:
+    * times
+    * rvs
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_compute>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_compute>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    For example:
+
+    ```py
+    b.add_compute('ellc')
+    b.run_compute(kind='ellc')
+    ```
+
+    Arguments
+    ----------
+    * `enabled` (bool, optional): whether to create synthetics in compute/fitting
+        run.
+    * `distortion_method` (string, optional, default='roche'): method to use
+        for distorting stars.
+    * `hf` (float, optional, default=1.5): fluid second love number (only applicable
+        if/when `distortion_method`='love')
+    * `grid` (string, optional, default='default'): grid size used to calculate the flux.
+    * `exact_grav` (bool, optional, default=False): whether to use point-by-point
+        calculation of local surface gravity for calculation of gravity darkening
+        or a (much faster) approximation based on functional form fit to local
+        gravity at 4 points on the star.
+    * `rv_method` (string, optional, default='flux-weighted'): which method to
+        use for computing radial velocities.
+    * `fti_method` (string, optional, default='none'): method to use when accounting
+        for finite exposure times.
+    * `fti_oversample` (int, optional, default=1): number of integration points
+        used to account for finite exposure time.  Only used if `fti_method`='oversample'.
+
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+    if not conf.devel:
+        raise NotImplementedError("'ellc' backend not officially supported for this release.  Enable developer mode to test.")
+
+    params = []
+
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+
+    params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=["roche", "roche_v", "sphere", "poly1p5", "poly3p0", "love"], description='Method to use for distorting stars')]
+    params += [FloatParameter(visible_if='distortion_method:love', copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='hf', value=kwargs.get('hf', 1.5), limits=(0,None), default_unit=u.dimensionless_unscaled, description='fluid second love number for radial displacement')]
+
+
+    params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='grid', value=kwargs.get('grid', 'default'), choices=['very_sparse', 'sparse', 'default', 'fine', 'very_fine'], description='Grid size used to calculate the flux.')]
+
+    params += [BoolParameter(qualifier='exact_grav', value=kwargs.get('exact_grav', False), description='Whether to use point-by-point calculation of local surface gravity for calculation of gravity darkening or a (much faster) approximation based on functional form fit to local gravity at 4 points on the star.')]
+
+    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default',
+                               value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
+
+
+    # copy for RV datasets once exptime support for RVs in phoebe
+    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
+    params += [IntParameter(visible_if='fit_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1, None), default_unit=u.dimensionless_unscaled, description='number of integration points used to account for finite exposure time.')]
+
 
     return ParameterSet(params)
