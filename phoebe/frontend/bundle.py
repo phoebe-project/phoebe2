@@ -198,7 +198,8 @@ class Bundle(ParameterSet):
     def open(cls, filename):
         """
         For convenience, this function is available at the top-level as
-        <phoebe.open> or <phoebe.load>.
+        <phoebe.open> or <phoebe.load> as well as
+        <phoebe.frontend.bundle.Bundle.open>.
 
         Open a new bundle.
 
@@ -420,7 +421,7 @@ class Bundle(ParameterSet):
     def from_legacy(cls, filename, add_compute_legacy=True, add_compute_phoebe=True):
         """
         For convenience, this function is available at the top-level as
-        <phoebe.from_legacy>.
+        <phoebe.from_legacy> as well as <phoebe.frontend.bundle.Bundle.from_legacy>.
 
         Load a bundle from a PHOEBE 1.0 Legacy file.
 
@@ -457,7 +458,7 @@ class Bundle(ParameterSet):
     def default_star(cls, starA='starA'):
         """
         For convenience, this function is available at the top-level as
-        <phoebe.default_star>.
+        <phoebe.default_star> as well as <phoebe.frontend.bundle.Bundle.default_star>.
 
         Load a bundle with a default single star as the system.
 
@@ -489,7 +490,8 @@ class Bundle(ParameterSet):
                        contact_binary=False):
         """
         For convenience, this function is available at the top-level as
-        <phoebe.default_binary>.
+        <phoebe.default_binary> as well as
+        <phoebe.frontend.bundle.Bundle.default_binary>.
 
         Load a bundle with a default binary as the system.
 
@@ -552,7 +554,8 @@ class Bundle(ParameterSet):
                        contact_envelope='contact_envelope'):
         """
         For convenience, this function is available at the top-level as
-        <phoebe.from_legacy>.
+        <phoebe.default_triple> as well as
+        <phoebe.frontend.bundle.Bundle.default_triple>.
 
         Load a bundle with a default triple system.
 
