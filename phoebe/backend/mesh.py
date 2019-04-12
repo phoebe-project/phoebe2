@@ -1429,7 +1429,7 @@ class Meshes(object):
 
         :parameter list items:
         """
-        if isinstance(items.values()[0], ProtoMesh):
+        if isinstance(list(items.values())[0], ProtoMesh):
             self._dict = items
         else:
             self._dict = {component: body.mesh for component, body in items.items()}
