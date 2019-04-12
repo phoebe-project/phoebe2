@@ -885,13 +885,17 @@ class Body(object):
         """
         TODO: add documentation
         """
-        self._mesh = None
-        self.time = time
-        self.inst_vals = {}
         self.true_anom = true_anom
         self.elongan = elongan
         self.eincl = eincl
+        self.time = time
         self.populated_at_time = []
+
+        if self.needs_remesh:
+            self._mesh = None
+
+        if self.needs_recompute_instantaneous or self.needs_remesh:
+            self.inst_vals = {}
 
         return
 
@@ -1314,7 +1318,7 @@ class Star(Body):
 
         this should be overridden by any subclass of Star, if necessary
         """
-        return len(self.features) > 0
+        return True
 
     @property
     def needs_remesh(self):
@@ -1894,11 +1898,17 @@ class Star_roche(Star):
         return True
 
     @property
+    def needs_recompute_instantaneous(self):
+        return len(self.features) > 0
+
+    @property
     def needs_remesh(self):
         """
         whether the star needs to be re-meshed (for any reason)
         """
-        return self.is_misaligned or self.ecc != 0 or self.dynamics_method != 'keplerian'
+        # TODO: may be able to get away with removing the features check and just doing for pulsations, etc?
+        # TODO: what about dpdt, deccdt, dincldt, etc?
+        return len(self.features) > 0 or self.is_misaligned or self.ecc != 0 or self.dynamics_method != 'keplerian'
 
     @property
     def _rpole_func(self):
