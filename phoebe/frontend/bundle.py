@@ -1515,6 +1515,9 @@ class Bundle(ParameterSet):
             # then check against the entire bundle
             ps = self
 
+        if not len(kwargs.items()):
+            return
+
         allowed_keys = self.qualifiers +\
                         parameters._meta_fields_filter +\
                         ['skip_checks', 'check_default', 'check_visible'] +\
@@ -3278,7 +3281,7 @@ class Bundle(ParameterSet):
 
         # we should run it now to make sure everything is in-sync
         if conf.interactive_constraints:
-            self.run_constraint(uniqueid=constraint_param.uniqueid)
+            self.run_constraint(uniqueid=constraint_param.uniqueid, skip_kwargs_checks=True)
         else:
             self._delayed_constraints.append(constraint_param.uniqueid)
 
@@ -3411,7 +3414,7 @@ class Bundle(ParameterSet):
         logger.info("flipping constraint '{}' to solve for '{}'".format(param.uniquetwig, solve_for))
         param.flip_for(solve_for)
 
-        result = self.run_constraint(uniqueid=param.uniqueid)
+        result = self.run_constraint(uniqueid=param.uniqueid, skip_kwargs_checks=True)
 
         self._add_history(redo_func='flip_constraint',
                           redo_kwargs=redo_kwargs,
@@ -3452,7 +3455,8 @@ class Bundle(ParameterSet):
             value of the constraint.  Or if `return_parameter=True`: then the
             <phoebe.parameters.Parameter> object itself.
         """
-        self._kwargs_checks(kwargs)
+        if not kwargs.get('skip_kwargs_checks', False):
+            self._kwargs_checks(kwargs)
 
         kwargs['twig'] = twig
         kwargs['context'] = 'constraint'
@@ -3518,7 +3522,7 @@ class Bundle(ParameterSet):
         """
         changes = []
         for constraint_id in self._delayed_constraints:
-            param = self.run_constraint(uniqueid=constraint_id, return_parameter=True)
+            param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True)
             if param not in changes:
                 changes.append(param)
         self._delayed_constraints = []

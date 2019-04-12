@@ -6218,7 +6218,7 @@ class FloatParameter(Parameter):
         if run_constraints:
             for constraint_id in self._in_constraints:
                 #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
-                self._bundle.run_constraint(uniqueid=constraint_id)
+                self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True)
         else:
             # then we want to delay running constraints... so we need to track
             # which ones need to be run once requested
