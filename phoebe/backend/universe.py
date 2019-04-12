@@ -444,7 +444,7 @@ class System(object):
 
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
-    def handle_eclipses(self, expose_horizon=True, **kwargs):
+    def handle_eclipses(self, expose_horizon=False, **kwargs):
         """
         Detect the triangles at the horizon and the eclipsed triangles, handling
         any necessary subdivision.
@@ -473,13 +473,15 @@ class System(object):
             else:
                 possible_eclipse = False
         else:
+            logger.debug("system.handle_eclipses: determining if eclipses are possible from instantaneous_maxr")
             max_rs = [body.instantaneous_maxr for body in self.bodies]
-            for i in range(0, len(self.xs)-1):
-                for j in range(i+1, len(self.xs)):
+            # logger.debug("system.handle_eclipses: max_rs={}".format(max_rs))
+            for i in range(0, len(max_rs)-1):
+                for j in range(i+1, len(max_rs)):
                     proj_sep_sq = sum([(c[i]-c[j])**2 for c in (self.xs,self.ys)])
                     max_sep_ecl = max_rs[i] + max_rs[j]
 
-                    if proj_sep_sq < max_sep_ecl**2:
+                    if proj_sep_sq < (1.05*max_sep_ecl)**2:
                         # then this pair has the potential for eclipsing triangles
                         possible_eclipse = True
                         break
@@ -501,6 +503,8 @@ class System(object):
             ecl_kwargs = {'horizon_method': horizon_method}
         else:
             ecl_kwargs = {}
+
+        logger.debug("system.handle_eclipses: possible_eclipse={}, expose_horizon={}, calling {} with kwargs {}".format(possible_eclipse, expose_horizon, eclipse_method, ecl_kwargs))
 
         visibilities, weights, horizon = ecl_func(meshes,
                                                   self.xs, self.ys, self.zs,
@@ -757,7 +761,7 @@ class Body(object):
     def instantaneous_maxr(self):
         """
         Recall the maximum r (triangle furthest from the center of the star) of
-        this star at periastron (when it is most deformed)
+        this star at the given time
 
         :return: maximum r
         :rtype: float
@@ -767,7 +771,7 @@ class Body(object):
         if 'maxr' not in self.inst_vals.keys():
             logger.debug("{}.instantaneous_maxr COMPUTING".format(self.component))
 
-            self.inst_vals['maxr'] = np.sqrt(max([x**2+y**2+z**2 for x,y,z in self.mesh.centers]))
+            self.inst_vals['maxr'] = max(self.mesh.rs.centers*self._scale)
 
         return self.inst_vals['maxr']
 
