@@ -114,6 +114,9 @@ class System(object):
         self.horizon_method = horizon_method
         self.dynamics_method = dynamics_method
         self.irrad_method = irrad_method
+
+        self.is_first_refl_iteration = True
+
         for body in self._bodies.values():
             body.system = self
             body.dynamics_method = dynamics_method
@@ -246,6 +249,10 @@ class System(object):
             return self._bodies[parent_component].get_half(component)
 
     @property
+    def needs_recompute_instantaneous(self):
+        return np.any([b.needs_recompute_instantaneous for b in self.bodies])
+
+    @property
     def mesh_bodies(self):
         """
         """
@@ -276,6 +283,11 @@ class System(object):
         # rather than calling self.meshes repeatedly
 
         return mesh.Meshes(self._bodies, self._parent_envelope_of)
+
+    def reset(self, force_remesh=False, force_recompute_instantaneous=False):
+        self.is_first_refl_iteration = True
+        for body in self.bodies:
+            body.reset(force_remesh=force_remesh, force_recompute_instantaneous=force_recompute_instantaneous)
 
 
     def update_positions(self, time, xs, ys, zs, vxs, vys, vzs,
@@ -357,11 +369,18 @@ class System(object):
                 pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
                 self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
+        self.reset(force_recompute_instantaneous=True)
 
     def handle_reflection(self,  **kwargs):
         """
         """
         if self.irrad_method == 'none':
+            return
+
+        # if 'teffs_post_reflection' in self.inst_vals.keys():
+        if not self.needs_recompute_instantaneous and not self.is_first_refl_iteration: # and 'teffs_post_reflection' in self.inst_vals.keys():
+            logger.debug("reflection: using teffs from previous iteration")
+            # meshes.set_column_flat('teffs', self.inst_vals['teffs_post_reflection'])
             return
 
         if 'wd' in [body.mesh_method for body in self.bodies]:
@@ -391,7 +410,7 @@ class System(object):
             triangles_per_body = list(meshes.get_column('triangles').values())
             normals_per_body = list(meshes.get_column('vnormals').values())
             areas_per_body = list(meshes.get_column('areas').values())
-            irrad_frac_refls_per_body = list(meshes.get_column('irrad_frac_refl', computed_type='for_computations').values())
+            irrad_frac_refl_per_body = list(meshes.get_column('irrad_frac_refl', computed_type='for_computations').values())
             teffs_intrins_per_body = list(meshes.get_column('teffs', computed_type='for_computations').values())
 
             ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
@@ -400,7 +419,7 @@ class System(object):
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
                                                                                        areas_per_body,
-                                                                                       irrad_frac_refls_per_body,
+                                                                                       irrad_frac_refl_per_body,
                                                                                        fluxes_intrins_per_body,
                                                                                        ld_func_and_coeffs,
                                                                                        _bytes(self.irrad_method.title()),
@@ -416,7 +435,7 @@ class System(object):
             triangles_flat = meshes.get_column_flat('triangles') # np.ndarray
             normals_flat = meshes.get_column_flat('vnormals') # np.ndarray
             areas_flat = meshes.get_column_flat('areas') # np.ndarray
-            irrad_frac_refls_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations') # np.ndarray
+            irrad_frac_refl_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations') # np.ndarray
 
             ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.mesh_bodies] # list
             ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)}) # np.ndarray
@@ -425,7 +444,7 @@ class System(object):
                                                                             triangles_flat,
                                                                             normals_flat,
                                                                             areas_flat,
-                                                                            irrad_frac_refls_flat,
+                                                                            irrad_frac_refl_flat,
                                                                             fluxes_intrins_flat,
                                                                             ld_func_and_coeffs,
                                                                             ld_inds_flat,
@@ -443,6 +462,14 @@ class System(object):
         teffs_intrins_and_refl_flat = teffs_intrins_flat * (fluxes_intrins_and_refl_flat / fluxes_intrins_flat) ** (1./4)
 
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
+
+        if not self.needs_recompute_instantaneous:
+            logger.debug("reflection: copying updated teffs to standard mesh")
+            theta = 0.0
+            standard_meshes = mesh.Meshes({body.component: body._standard_meshes[theta] for body in self.mesh_bodies})
+            standard_meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
+
+            self.is_first_refl_iteration = False
 
     def handle_eclipses(self, expose_horizon=False, **kwargs):
         """
@@ -881,6 +908,18 @@ class Body(object):
 
         # return mesh
 
+    def reset(self, force_remesh=False, force_recompute_instantaneous=False):
+        if force_remesh:
+            logger.debug("{}.reset: forcing remesh for next iteration".format(self.component))
+        elif force_recompute_instantaneous:
+            logger.debug("{}.reset: forcing recompute_instantaneous for next iteration".format(self.component))
+
+        if self.needs_remesh or force_remesh:
+            self._mesh = None
+
+        if self.needs_recompute_instantaneous or self.needs_remesh or force_remesh or force_recompute_instantaneous:
+            self.inst_vals = {}
+
     def reset_time(self, time, true_anom, elongan, eincl):
         """
         TODO: add documentation
@@ -891,11 +930,7 @@ class Body(object):
         self.time = time
         self.populated_at_time = []
 
-        if self.needs_remesh:
-            self._mesh = None
-
-        if self.needs_recompute_instantaneous or self.needs_remesh:
-            self.inst_vals = {}
+        self.reset()
 
         return
 
@@ -1049,7 +1084,7 @@ class Body(object):
         # needed for this time-step.
         # TODO [DONE?]: make sure features smartly trigger needs_recompute_instantaneous
         # TODO: get rid of the or True here... the problem is that we're saving the standard mesh before filling local quantities
-        if self.needs_recompute_instantaneous or did_remesh or True:
+        if self.needs_recompute_instantaneous or did_remesh:
             logger.debug("{}.update_position: calling compute_local_quantities at t={}".format(self.component, self.time))
             self.compute_local_quantities(xs, ys, zs, ignore_effects)
 
@@ -1508,6 +1543,11 @@ class Star(Body):
 
         mesh.update_columns(loggs=loggs)
 
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_loggs: copying loggs to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(loggs=loggs)
+
     def _fill_gravs(self, mesh=None, **kwargs):
         """
         TODO: add documentation
@@ -1524,6 +1564,11 @@ class Star(Body):
         gravs = ((mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self], self.sma))/self.instantaneous_gpole)**self.gravb_bol
 
         mesh.update_columns(gravs=gravs)
+
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_gravs: copying gravs to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(gravs=gravs)
 
 
     def _fill_teffs(self, mesh=None, ignore_effects=False, **kwargs):
@@ -1551,6 +1596,11 @@ class Star(Body):
 
         mesh.update_columns(teffs=teffs)
 
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_teffs: copying teffs to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(teffs=teffs)
+
     def _fill_abuns(self, mesh=None, abun=0.0):
         """
         TODO: add documentation
@@ -1564,6 +1614,11 @@ class Star(Body):
 
         mesh.update_columns(abuns=abun)
 
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_abuns: copying abuns to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(abuns=abun)
+
     def _fill_albedos(self, mesh=None, irrad_frac_refl=0.0):
         """
         TODO: add documentation
@@ -1574,6 +1629,11 @@ class Star(Body):
             mesh = self.mesh
 
         mesh.update_columns(irrad_frac_refl=irrad_frac_refl)
+
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_albedos: copying albedos to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(irrad_frac_refl=irrad_frac_refl)
 
     def compute_luminosity(self, dataset, scaled=True, **kwargs):
         """
