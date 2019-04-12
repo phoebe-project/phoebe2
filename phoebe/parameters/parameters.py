@@ -39,12 +39,16 @@ else:
 
 import webbrowser
 from datetime import datetime
-try:
-    import requests
-except ImportError:
-    _can_requests = False
+
+if os.getenv('PHOEBE_ENABLE_EXTERNAL_JOBS', 'FALSE').upper() == 'TRUE':
+    try:
+        import requests
+    except ImportError:
+        _can_requests = False
+    else:
+        _can_requests = True
 else:
-    _can_requests = True
+    _can_requests = False
 
 if sys.version_info[0] == 3:
   unicode = str
