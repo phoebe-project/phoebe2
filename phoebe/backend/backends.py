@@ -33,7 +33,6 @@ else:
 try:
     import ellc
 except ImportError:
-    raise ImportError("ellc not installed.")
     _use_ellc = False
 else:
     _use_ellc = True
