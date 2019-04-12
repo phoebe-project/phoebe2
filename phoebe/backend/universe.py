@@ -2599,12 +2599,12 @@ class Star_sphere(Star):
 
 
 class Envelope(Body):
-    def __init__(self, halves, pot, q,
+    def __init__(self, component, halves, pot, q,
                  mesh_method,
                  **kwargs):
         """
         """
-
+        self.component = component
         self._halves = halves
         self._pot = pot
         self._q = q
@@ -2632,7 +2632,7 @@ class Envelope(Body):
         # though technically only the primary will ever actually build a mesh)
         halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, mesh_init_phi=mesh_init_phi, datasets=datasets, pot=pot, **kwargs) for star in stars]
 
-        return cls(halves, pot, q, mesh_method)
+        return cls(component, halves, pot, q, mesh_method)
 
     @property
     def system(self):
