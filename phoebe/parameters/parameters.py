@@ -8526,13 +8526,13 @@ class JobParameter(Parameter):
         """
         [NOT IMPLEMENTED]
         """
-        if not _can_requests:
-            raise ImportError("requests module required for external jobs")
-
         if self._value == 'loaded':
             status = 'loaded'
 
         elif not _is_server and self._bundle is not None and self._server_status is not None:
+            if not _can_requests:
+                raise ImportError("requests module required for external jobs")
+
             if self._value in ['complete']:
                 # then we have no need to bother checking again
                 status = self._value
@@ -8583,10 +8583,6 @@ class JobParameter(Parameter):
         :raises ValueError: if not attached to a bundle
         :raises NotImplementedError: because it isn't
         """
-        if not _can_requests:
-            raise ImportError("requests module required for external jobs")
-
-
         if not self._bundle:
             raise ValueError("can only attach a job if attached to a bundle")
 
@@ -8600,6 +8596,8 @@ class JobParameter(Parameter):
             time.sleep(sleep)
 
         if self._server_status is not None and not _is_server:
+            if not _can_requests:
+                raise ImportError("requests module required for external jobs")
             # then we are no longer attached as a client to this bundle on
             # the server, so we need to just pull the results manually
             url = self._server_status
