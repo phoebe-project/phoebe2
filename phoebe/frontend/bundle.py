@@ -372,16 +372,22 @@ class Bundle(ParameterSet):
 
         # TODO: run test message on server, if localhost and fails, attempt to
         # launch?
-        url = "{}/{}/json".format(server, bundleid)
+        if server[:4] != "http":
+            server = "http://"+server
+        url = "{}/json_bundle/{}".format(server, bundleid)
         logger.info("downloading bundle from {}".format(url))
         r = requests.get(url, timeout=5)
         rjson = r.json()
 
-        b = cls(rjson['data'])
+        if not rjson['data']['success']:
+            raise Error(rjson['data'].get('error', 'unknown error'))
+
+        b = cls(rjson['data']['bundle'])
 
         if as_client:
             b.as_client(as_client, server=server,
-                        bundleid=rjson['meta']['bundleid'])
+                        bundleid=rjson['meta']['bundleid'],
+                        start_if_fail=False)
 
             logger.warning("This bundle is in client mode, meaning all\
             computations will be handled by the server at {}.  To disable\
@@ -652,7 +658,7 @@ class Bundle(ParameterSet):
         [NOT IMPLEMENTED]
         """
         try:
-            resp = urllib2.urlopen("{}/test".format(server))
+            resp = urllib2.urlopen("{}/info".format(server))
         except urllib2.URLError:
             test_passed = False
         else:
@@ -739,7 +745,7 @@ class Bundle(ParameterSet):
             self._attach_params([param], **metawargs)
 
     def as_client(self, as_client=True, server='http://localhost:5555',
-                  bundleid=None):
+                  bundleid=None, start_if_fail=True):
         """
         [NOT IMPLEMENTED]
         """
@@ -748,7 +754,7 @@ class Bundle(ParameterSet):
                 raise ImportError("dependencies to support client mode not met - see docs")
 
             server_running = self._test_server(server=server,
-                                               start_if_fail=True)
+                                               start_if_fail=start_if_fail)
             if not server_running:
                 raise ValueError("server {} is not running".format(server))
 

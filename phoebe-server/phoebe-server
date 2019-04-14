@@ -174,6 +174,18 @@ def crossdomain(origin=None, methods=None, headers=None,
 
 ############################ BUNDLE MANIPULATION ###############################
 
+
+def _get_bundle_json(bundleid, do_jsonify=True):
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    data = b.to_json(incl_uniqueid=True)
+
+    if do_jsonify:
+        return jsonify(data)
+    else:
+        return data
+
 def _value_string(param):
     param_type = param.__class__.__name__
 
@@ -313,12 +325,10 @@ def _param_json_detailed(param):
 
 
 ############################ HTTP ROUTES ######################################
-def _get_response(data, status_code=200, included=None, api=False, **metawargs):
+def _get_response(data, status_code=200, api=False, **metawargs):
     d = {}
     d['data'] = data
     d['meta'] = metawargs
-    if included is not None:
-        d['included'] = included
     if api:
         resp = jsonify(d)
         resp.status_code = status_code
@@ -418,6 +428,21 @@ def open_bundle():
 
     return _get_response({'success': True, 'bundleid': bundleid}, api=True)
 
+@app.route('/json_bundle/<string:bundleid>', methods=['GET'])
+@crossdomain(origin='*')
+def json_bundle(bundleid):
+    """
+    """
+    if app._verbose:
+        print("json_bundle(bundleid={})".format(bundleid))
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'}, api=True)
+
+    bjson = _get_bundle_json(bundleid, do_jsonify=False)
+
+    return _get_response({'success': True, 'bundle': bjson, 'bundleid': bundleid}, bundleid=bundleid, api=True)
+
 @app.route('/save_bundle/<string:bundleid>', methods=['GET'])
 @crossdomain(origin='*')
 def save_bundle(bundleid):
@@ -428,18 +453,10 @@ def save_bundle(bundleid):
 
 
     if bundleid not in app._bundles.keys():
-        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'}, api=True)
 
-    b = app._bundles.get(bundleid)
-    app._last_access_per_bundle[bundleid] = datetime.now()
+    resp = _get_bundle_json(bundleid, do_jsonify=True)
 
-    data = b.to_json(incl_uniqueid=True)
-
-    resp = jsonify(data)
-    # resp.default_mimetype = "application/json"
-    # resp.content_type = "attachment"
-    # resp.content_type = "application/octet-stream"
-    # print resp.headers
     resp.headers.set('Content-Type', 'text/json')
     resp.headers.set('Content-Disposition', 'attachment', filename='{}.bundle'.format(bundleid))
 
