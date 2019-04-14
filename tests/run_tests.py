@@ -82,7 +82,7 @@ if 'benchmark' in do or 'benchmarks' in do:
         lines = f_result.readlines()
         f_result.close()
 
-        branches_plot = ['master', 'development', 'misaligned_roche', 'triple_support', 'redistribution']
+        branches_plot = ['master', 'development']
         branches = {branch: [] for branch in branches_plot}
 
         for line in lines:
