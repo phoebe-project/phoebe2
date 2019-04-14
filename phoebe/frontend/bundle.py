@@ -28,7 +28,7 @@ from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, _timestamp_to_dt
-from phoebe.utils import _bytes
+from phoebe.utils import _bytes, parse_json
 import libphoebe
 
 from phoebe import u
@@ -42,6 +42,7 @@ logger.addHandler(logging.NullHandler())
 if sys.version_info[0] == 3:
   unicode = str
 
+_bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
 # Attempt imports for client requirements
 try:
@@ -225,7 +226,7 @@ class Bundle(ParameterSet):
         filename = os.path.expanduser(filename)
         logger.debug("importing from {}".format(filename))
         f = open(filename, 'r')
-        data = json.load(f)
+        data = json.load(f, object_pairs_hook=parse_json)
         f.close()
         b = cls(data)
 
@@ -455,7 +456,7 @@ class Bundle(ParameterSet):
         return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
     @classmethod
-    def default_star(cls, starA='starA'):
+    def default_star(cls, starA='starA', force_build=False):
         """
         For convenience, this function is available at the top-level as
         <phoebe.default_star> as well as <phoebe.frontend.bundle.Bundle.default_star>.
@@ -474,12 +475,26 @@ class Bundle(ParameterSet):
         -----------
         * `starA` (string, optional, default='starA'): the label to be set for
             starA.
+        * `force_build` (bool, optional, default=False): whether to force building
+            the bundle from scratch.  If False, pre-cached files will be loaded
+            whenever possible to save time.
 
         Returns
         -----------
         * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
+        if not force_build and not conf.devel:
+            b = cls.open(os.path.join(_bundle_cache_dir, 'default_star.bundle'))
+
+            if starA != 'starA':
+                b.rename_component('starA', starA)
+
+            return b
+
         b = cls()
+        # IMPORTANT NOTE: if changing any of the defaults for a new release,
+        # make sure to update the cached files (see frontend/default_bundles
+        # directory for script to update all cached bundles)
         b.add_star(component=starA)
         b.set_hierarchy(_hierarchy.component(b[starA]))
         b.add_compute(distortion_method='rotstar', irrad_method='none')
@@ -487,7 +502,7 @@ class Bundle(ParameterSet):
 
     @classmethod
     def default_binary(cls, starA='primary', starB='secondary', orbit='binary',
-                       contact_binary=False):
+                       contact_binary=False, force_build=False):
         """
         For convenience, this function is available at the top-level as
         <phoebe.default_binary> as well as
@@ -514,12 +529,37 @@ class Bundle(ParameterSet):
         * `contact_binary` (bool, optional, default=False): whether to also
             add an envelope (with component='contact_envelope') and set the
             hierarchy to a contact binary system.
+        * `force_build` (bool, optional, default=False): whether to force building
+            the bundle from scratch.  If False, pre-cached files will be loaded
+            whenever possible to save time.
 
         Returns
         -----------
         * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
+        if not force_build and not conf.devel:
+            if contact_binary:
+                b = cls.open(os.path.join(_bundle_cache_dir, 'default_contact_binary.bundle'))
+            else:
+                b = cls.open(os.path.join(_bundle_cache_dir, 'default_binary.bundle'))
+
+            secondary = 'secondary'
+            if starA != 'primary':
+                if starA == 'secondary':
+                    secondary = 'temp_secondary'
+                    b.rename_component('secondary', secondary)
+                b.rename_component('primary', starA)
+            if starB != 'secondary':
+                b.rename_component(secondary, starB)
+            if orbit != 'binary':
+                b.rename_component('binary', 'orbit')
+
+            return b
+
         b = cls()
+        # IMPORTANT NOTE: if changing any of the defaults for a new release,
+        # make sure to update the cached files (see frontend/default_bundles
+        # directory for script to update all cached bundles)
         if contact_binary:
             orbit_defaults = {'sma': 3.35, 'period': 0.5}
             star_defaults = {'requiv': 1.5}
