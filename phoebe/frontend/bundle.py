@@ -19,6 +19,7 @@ from phoebe.parameters import feature as _feature
 from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
+from phoebe.atmospheres.passbands import _pbtable
 from phoebe.utils import parse_json
 import libphoebe
 
