@@ -68,6 +68,9 @@ if 'benchmark' in do or 'benchmarks' in do:
         print("running {} to create {}".format(f_py, f_profile))
 
         out  = commands.getoutput('time python -m cProfile -o {} {}'.format(f_profile, f_py))
+        if out[:9] == "Traceback":
+            print("{} failed".format(fname))
+            continue
         times[f_py] = float(out.split()[-9].split('user')[0])
 
 
