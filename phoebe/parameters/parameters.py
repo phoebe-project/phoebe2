@@ -39,12 +39,16 @@ else:
 
 import webbrowser
 from datetime import datetime
-try:
-    import requests
-except ImportError:
-    _can_requests = False
+
+if os.getenv('PHOEBE_ENABLE_EXTERNAL_JOBS', 'FALSE').upper() == 'TRUE':
+    try:
+        import requests
+    except ImportError:
+        _can_requests = False
+    else:
+        _can_requests = True
 else:
-    _can_requests = True
+    _can_requests = False
 
 if sys.version_info[0] == 3:
   unicode = str
@@ -6218,7 +6222,7 @@ class FloatParameter(Parameter):
         if run_constraints:
             for constraint_id in self._in_constraints:
                 #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
-                self._bundle.run_constraint(uniqueid=constraint_id)
+                self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True)
         else:
             # then we want to delay running constraints... so we need to track
             # which ones need to be run once requested
@@ -8522,13 +8526,13 @@ class JobParameter(Parameter):
         """
         [NOT IMPLEMENTED]
         """
-        if not _can_requests:
-            raise ImportError("requests module required for external jobs")
-
         if self._value == 'loaded':
             status = 'loaded'
 
         elif not _is_server and self._bundle is not None and self._server_status is not None:
+            if not _can_requests:
+                raise ImportError("requests module required for external jobs")
+
             if self._value in ['complete']:
                 # then we have no need to bother checking again
                 status = self._value
@@ -8579,10 +8583,6 @@ class JobParameter(Parameter):
         :raises ValueError: if not attached to a bundle
         :raises NotImplementedError: because it isn't
         """
-        if not _can_requests:
-            raise ImportError("requests module required for external jobs")
-
-
         if not self._bundle:
             raise ValueError("can only attach a job if attached to a bundle")
 
@@ -8596,6 +8596,8 @@ class JobParameter(Parameter):
             time.sleep(sleep)
 
         if self._server_status is not None and not _is_server:
+            if not _can_requests:
+                raise ImportError("requests module required for external jobs")
             # then we are no longer attached as a client to this bundle on
             # the server, so we need to just pull the results manually
             url = self._server_status
