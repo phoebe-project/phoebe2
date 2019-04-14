@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from scipy import integrate
 
 import phoebe
-# phoebe.devel_on()
 from phoebe import u, c
 import libphoebe
 

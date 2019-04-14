@@ -6,8 +6,6 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
-
 def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     """
     """
@@ -114,11 +112,15 @@ def test_binary(plot=False):
     """
     """
 
+    phoebe.devel_on() # required for wd meshing
+
     # TODO: try an eccentric orbit over multiple phases (will need to wait for non-protomesh support from the legacy wrapper)
     # TODO: once ps.copy is implemented, just send b.copy() to each of these
 
     b = phoebe.Bundle.default_binary()
     _phoebe_v_legacy_lc_protomesh(b, plot=plot)
+
+    phoebe.devel_off() # reset for future tests
 
 if __name__ == '__main__':
     logger = phoebe.logger('debug')
