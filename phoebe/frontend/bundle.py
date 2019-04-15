@@ -762,7 +762,7 @@ class Bundle(ParameterSet):
         # TODO: handle removed (isDeleted) parameters
 
         # print "*** resp['data']['changes']", resp['data']['changes']
-        for qualifier, infos in resp['data']['changes'].items():
+        for qualifier, infos in resp['parameters'].items():
             for uniqueid, info in infos.items():
                 if uniqueid in self.uniqueids:
                     # then we're updating something in the parameter (or deleting)
@@ -843,8 +843,9 @@ class Bundle(ParameterSet):
             self._socketio.on('connect', self._on_socket_connect)
             self._socketio.on('disconnect', self._on_socket_disconnect)
 
-            self._socketio.on('set_value', self._on_socket_push_updates)
-            self._socketio.on('push updates', self._on_socket_push_updates)
+            # self._socketio.on('set_value', self._on_socket_push_updates)
+            # self._socketio.on('push updates', self._on_socket_push_updates)
+            self._socketio.on('changes', self._on_socket_push_updates)
 
             if not bundleid:
                 upload_url = "{}/upload".format(server)
@@ -888,7 +889,7 @@ class Bundle(ParameterSet):
         logger.info("updating client...")
         # wait briefly to pickup any missed messages, which should then fire
         # the corresponding callbacks and update the bundle
-        self._socketio.wait(seconds=1)
+        self._socketio.wait(seconds=0.1)
         self._last_client_update = datetime.now()
 
     def __repr__(self):
