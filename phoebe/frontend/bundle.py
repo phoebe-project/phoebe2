@@ -10,6 +10,7 @@ except ImportError:
 
 import re
 import json
+import atexit
 from datetime import datetime
 from distutils.version import StrictVersion
 
@@ -26,6 +27,7 @@ from phoebe.parameters import compute as _compute
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
+from phoebe.parameters.parameters import _uniqueid
 from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
@@ -45,6 +47,8 @@ if sys.version_info[0] == 3:
   unicode = str
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
+
+_clientid = 'python-'+_uniqueid(5)
 
 # Attempt imports for client requirements
 try:
@@ -395,10 +399,7 @@ class Bundle(ParameterSet):
                         bundleid=rjson['meta']['bundleid'],
                         start_if_fail=False)
 
-            logger.warning("This bundle is in client mode, meaning all\
-            computations will be handled by the server at {}.  To disable\
-            client mode, call as_client(False) or in the future pass\
-            as_client=False to from_server".format(server))
+            logger.warning("This bundle is in client mode, meaning all computations will be handled by the server at {}.  To disable client mode, call as_client(False) or in the future pass as_client=False to from_server".format(server))
 
         return b
 
@@ -810,6 +811,17 @@ class Bundle(ParameterSet):
             metawargs = {}
             self._attach_params([param], **metawargs)
 
+    def _deregister_client(self, bundleid=None):
+        if self._socketio is None:
+            return
+
+        logger.info("deregistering {} client from {}".format(_clientid, self.is_client))
+        self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': None})
+        if bundleid is not None:
+            self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': bundleid})
+        self._socketio.disconnect()
+        self._socketio = None
+
     def as_client(self, as_client=True, server='http://localhost:5555',
                   bundleid=None, start_if_fail=True):
         """
@@ -841,24 +853,23 @@ class Bundle(ParameterSet):
                 r = requests.post(upload_url, data=data, timeout=5)
                 bundleid = r.json()['meta']['bundleid']
 
-            self._socketio.emit('subscribe bundle', {'bundleid': bundleid})
+            # self._socketio.emit('subscribe bundle', {'bundleid': bundleid})
+            self._socketio.emit('register client', {'clientid': _clientid, 'bundleid': bundleid})
 
             self._bundleid = bundleid
 
             self._is_client = server
-            logger.info("connected as client to server at {}:{}".
-                        format(host, port))
+
+            atexit.register(self._deregister_client)
+
+            logger.info("connected as client {} to server at {}:{}".
+                        format(_clientid, host, port))
 
         else:
-            logger.warning("This bundle is now permanently detached from the instance\
-                on the server and will not receive future updates.  To start a client\
-                in sync with the version on the server or other clients currently \
-                subscribed, you must instantiate a new bundle with Bundle.from_server.")
+            logger.warning("This bundle is now permanently detached from the instance on the server and will not receive future updates.  To start a client in sync with the version on the server or other clients currently subscribed, you must instantiate a new bundle with Bundle.from_server.")
 
-            if hasattr(self, '_socketIO') and self._socketIO is not None:
-                self._socketio.emit('unsubscribe bundle', {'bundleid': bundleid})
-                self._socketIO.disconnect()
-                self._socketIO = None
+            if hasattr(self, '_socketio') and self._socketio is not None:
+                self._deregister_client(bundleid=self._bundleid)
 
             self._bundleid = None
             self._is_client = False
