@@ -3669,6 +3669,102 @@ class Bundle(ParameterSet):
 
         return ld_coeffs_ret
 
+    def _compute_system(self, compute=None, **kwargs):
+        if compute is None:
+            if len(self.computes)==1:
+                compute = self.computes[0]
+            else:
+                raise ValueError("must provide compute")
+        if not isinstance(compute, str):
+            raise TypeError("compute must be a single value (string)")
+
+        compute_kind = self.get_compute(compute).kind
+
+        if compute_kind in ['legacy']:
+            kwargs.setdefault('distortion_method', 'roche')
+        elif compute_kind in ['jktebop']:
+            kwargs.setdefault('distortion_method', 'sphere')
+
+        system_compute = compute if compute_kind=='phoebe' else None
+        logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
+        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, **kwargs)
+
+    def compute_l3s(self, compute=None, set_value=False, **kwargs):
+        """
+        Compute third lights (`l3`) that will be applied to the system from
+        fractional third light (`l3_frac`) and vice-versa by assuming that the
+        total system flux is equivalent to the sum of the passband luminosities
+        at t0 divided by 4*pi.  To see how passband luminosities are computed,
+        see <phoebe.frontend.bundle.Bundle.compute_pblums>.
+
+        Note: this can only be computed for datasets in which `l3_units` is set
+        to 'fraction of total light' instead of 'flux'.  When this is the case,
+        the `l3_frac` parameter takes place of the `l3` parameter.  This method
+        simply provides a convenience function for exposing the third light
+        that will be adopted in units of flux.
+
+        This method is only for convenience and will be recomputed internally
+        within <phoebe.frontend.bundle.Bundle.run_compute>.
+
+        Arguments
+        ------------
+        * `compute` (string, optional, default=None): label of the compute
+            options (not required if only one is attached to the bundle).
+        * `dataset` (string or list of strings, optional): label of the
+            dataset(s) requested.  If not provided, will be provided for all
+            datasets in which `l3` is used.
+        * `set_value` (bool, optional, default=False): apply the computed
+            values to the respective `l3` or `l3_frac` parameters (even if not
+            currently visible).
+        * `**kwargs`: any additional kwargs are sent to override compute options.
+
+        Returns
+        ----------
+        * (dict) computed l3s in a dictionary with keys formatted as
+            l3@dataset or l3_frac@dataset and the l3 (as quantity objects
+            with units of W/m**2) or l3_frac (as unitless floats).
+        """
+        datasets = kwargs.pop('dataset', self.filter('l3_units', check_visible=True).datasets)
+
+        # don't allow things like model='mymodel', etc
+        forbidden_keys = parameters._meta_fields_filter
+        self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
+
+        system = self._compute_system(compute=compute, **kwargs)
+
+        l3s = {}
+        for dataset in datasets:
+            # compute total system flux
+            flux_tot = np.sum([star.compute_luminosity(dataset)/(4*np.pi) for star in system.values()])
+
+            # convert between l3 and l3_frac from the following definitions:
+            # flux_tot = flux_sys + l3
+            # l3_frac = l3 / flux_tot
+
+            l3_units = self.get_value('l3_units', dataset=dataset)
+            if l3_units == 'flux':
+                l3 = self.get_value('l3', dataset=dataset, unit=u.W/u.m**2)
+
+                l3_frac = l3 / flux_tot
+                l3s['l3_frac@{}'.format(dataset)] = l3_frac
+
+                if set_value:
+                    self.set_value('l3_frac', dataset=dataset, check_visible=False)
+
+            elif l3_units == 'fraction of total light':
+                l3_frac = self.get_value('l3_frac', dataset=dataset)
+
+                l3 = (l3_frac * flux_tot) / (1  - l3_frac) * u.W / u.m**2
+                l3s['l3@{}'.format(dataset)] = l3
+
+                if set_value:
+                    self.set_value('l3', dataset=dataset, check_visible=False, value=l3)
+
+            else:
+                raise NotImplementedError("l3_units='{}' not supported.".format(l3_units))
+
+        return l3s
+
     def compute_pblums(self, compute=None, **kwargs):
         """
         Compute the passband luminosities that will be applied to the system,
@@ -3713,24 +3809,7 @@ class Bundle(ParameterSet):
         forbidden_keys = parameters._meta_fields_filter
         self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
 
-        if compute is None:
-            if len(self.computes)==1:
-                compute = self.computes[0]
-            else:
-                raise ValueError("must provide compute")
-        if not isinstance(compute, str):
-            raise TypeError("compute must be a single value (string)")
-
-        compute_kind = self.get_compute(compute).kind
-
-        if compute_kind in ['legacy']:
-            kwargs.setdefault('distortion_method', 'roche')
-        elif compute_kind in ['jktebop']:
-            kwargs.setdefault('distortion_method', 'sphere')
-
-        system_compute = compute if compute_kind=='phoebe' else None
-        logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
-        system = backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, **kwargs)
+        system = self._compute_system(compute=compute, **kwargs)
 
         pblums = {}
         for component, star in system.items():
