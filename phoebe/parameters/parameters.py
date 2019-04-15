@@ -39,12 +39,16 @@ else:
 
 import webbrowser
 from datetime import datetime
-try:
-    import requests
-except ImportError:
-    _can_requests = False
+
+if os.getenv('PHOEBE_ENABLE_EXTERNAL_JOBS', 'FALSE').upper() == 'TRUE':
+    try:
+        import requests
+    except ImportError:
+        _can_requests = False
+    else:
+        _can_requests = True
 else:
-    _can_requests = True
+    _can_requests = False
 
 if sys.version_info[0] == 3:
   unicode = str
@@ -1351,6 +1355,8 @@ class ParameterSet(object):
         filename = os.path.expanduser(filename)
         f = open(filename, 'r')
         if _can_ujson:
+            # NOTE: this will not parse the unicode.  Bundle.open always calls
+            # json instead of ujson for this reason.
             data = ujson.load(f)
         else:
             data = json.load(f, object_pairs_hook=parse_json)
@@ -3279,7 +3285,7 @@ class ParameterSet(object):
         # try to find 'times' in the cartesian dimensions:
         iqualifier = kwargs.pop('i', 'times')
         for af_direction in ['x', 'y', 'z']:
-            if kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]:
+            if kwargs['autofig_method'] != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
                 kwargs['i'] = af_direction
                 kwargs['iqualifier'] = None
                 break
@@ -3292,6 +3298,9 @@ class ParameterSet(object):
                 if iqualifier=='times':
                     kwargs['i'] = float(ps.time)
                     kwargs['iqualifier'] = 'ps.times'
+                elif isinstance(iqualifier, float):
+                    kwargs['i'] = iqualifier
+                    kwargs['iqualifier'] = iqualifier
                 elif iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     component = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
@@ -3539,9 +3548,9 @@ class ParameterSet(object):
             figure (or False to not save).
         * `show` (bool, optional, default=False): whether to show the plot
         * `animate` (bool, optional, default=False): whether to animate the figure.
-        * `draw_sidebars` (bool, optional, default=True): whether to include
+        * `draw_sidebars` (bool, optional, default=False): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
-        * `draw_title` (bool, optional, default=True): whether to draw axes
+        * `draw_title` (bool, optional, default=False): whether to draw axes
             titles.
         * `subplot_grid` (tuple, optional, default=None): override the subplot
             grid used (see [autofig tutorial on subplots](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/subplot_positioning.ipynb)
@@ -3608,7 +3617,7 @@ class ParameterSet(object):
                                           **kwargs)
             except Exception as err:
                 self.clf()
-                raise err
+                raise
         else:
             afig = self.gcf()
             fig = None
@@ -4908,6 +4917,11 @@ class Parameter(object):
         """
         """
         return self.__math__(other, '**', '__pow__')
+
+    def __rpow__(self, other):
+        """
+        """
+        return self.__rmath__(other, '**', '__rpow__')
 
     def set_uniqueid(self, uniqueid):
         """
@@ -6352,7 +6366,7 @@ class FloatParameter(Parameter):
         if run_constraints:
             for constraint_id in self._in_constraints:
                 #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
-                self._bundle.run_constraint(uniqueid=constraint_id)
+                self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True)
         else:
             # then we want to delay running constraints... so we need to track
             # which ones need to be run once requested
@@ -8204,7 +8218,7 @@ class ConstraintParameter(Parameter):
         # trying to resolve the infinite loop.
         from phoebe.constraints import builtin
         _constraint_builtin_funcs = [f for f in dir(builtin) if isinstance(getattr(builtin, f), types.FunctionType)]
-        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'sqrt']
+        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'sqrt', 'log10']
 
         def eq_needs_builtin(eq):
             for func in _constraint_builtin_funcs:
@@ -8663,13 +8677,13 @@ class JobParameter(Parameter):
         """
         [NOT IMPLEMENTED]
         """
-        if not _can_requests:
-            raise ImportError("requests module required for external jobs")
-
         if self._value == 'loaded':
             status = 'loaded'
 
         elif not _is_server and self._bundle is not None and self._server_status is not None:
+            if not _can_requests:
+                raise ImportError("requests module required for external jobs")
+
             if self._value in ['complete']:
                 # then we have no need to bother checking again
                 status = self._value
@@ -8720,10 +8734,6 @@ class JobParameter(Parameter):
         :raises ValueError: if not attached to a bundle
         :raises NotImplementedError: because it isn't
         """
-        if not _can_requests:
-            raise ImportError("requests module required for external jobs")
-
-
         if not self._bundle:
             raise ValueError("can only attach a job if attached to a bundle")
 
@@ -8744,6 +8754,8 @@ class JobParameter(Parameter):
             time.sleep(sleep)
 
         if self._server_status is not None and not _is_server:
+            if not _can_requests:
+                raise ImportError("requests module required for external jobs")
             # then we are no longer attached as a client to this bundle on
             # the server, so we need to just pull the results manually
             url = self._server_status

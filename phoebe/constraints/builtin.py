@@ -9,7 +9,7 @@ logger = logging.getLogger("BUILTIN")
 logger.addHandler(logging.NullHandler())
 
 # expose these at top-level so they're available to constraints
-from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
+from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt, log10
 
 def requiv_L1(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno, **kwargs):
     """

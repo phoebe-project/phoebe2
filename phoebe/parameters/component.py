@@ -122,6 +122,7 @@ def star(component, **kwargs):
     <phoebe.frontend.bundle.Bundle.add_component>:
     * <phoebe.parameters.constraint.freq>
     * <phoebe.parameters.constraint.irrad_frac>
+    * <phoebe.parameters.constraint.logg>
 
     Arguments
     ----------
@@ -169,6 +170,8 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
     params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Abundance/Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
+    params += [FloatParameter(qualifier='logg', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')]
+
     params += [FloatParameter(qualifier='syncpar', visible_if='hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
     params += [FloatParameter(qualifier='period', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
     params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
@@ -208,6 +211,7 @@ def star(component, **kwargs):
     # - yaw
 
     constraints += [(constraint.freq, component)]
+    constraints += [(constraint.logg, component)]
     constraints += [(constraint.irrad_frac, component)]
 
     return ParameterSet(params), constraints

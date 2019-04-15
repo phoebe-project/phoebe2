@@ -6,8 +6,6 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
-# phoebe.interactive_on()
 
 def _beta_vs_legacy(b, plot=False):
 
@@ -19,7 +17,6 @@ def _beta_vs_legacy(b, plot=False):
     #turn off albedos (legacy requirement)
     b.set_value_all('irrad_frac_refl_bol',  0.0)
 
-    # b.add_dataset('lc', times=times, dataset='lc01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
     b.add_dataset('rv', times=times, dataset='rv01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
 
     b.add_compute('phoebe', compute='phnum', ltte=False, atm='extern_planckint', rv_method='flux-weighted', irrad_method='none')
