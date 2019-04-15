@@ -840,7 +840,7 @@ class PhoebeBackend(BaseBackendByTime):
                                               time, info))
 
             elif kind=='lc':
-                l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
+                l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset', check_visible=False, unit=u.W/u.m**2)
 
                 obs = system.observe(info['dataset'],
                                      kind=kind,
