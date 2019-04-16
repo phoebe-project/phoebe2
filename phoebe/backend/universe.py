@@ -392,6 +392,10 @@ class System(object):
         def _compute_flux_tot(dataset):
             return np.sum([star.compute_luminosity(dataset)/(4*np.pi) for star in self.values()])
 
+        # convert between l3(_flux) and l3_frac from the following definitions:
+        # flux_tot = flux_sys + l3_flux
+        # l3_frac = l3_flux / tot_flux
+
         # NOTE must have already called compute_pblum_scalings
         for dataset, l3 in self.l3s.items():
             if datasets is not None and dataset not in datasets:
