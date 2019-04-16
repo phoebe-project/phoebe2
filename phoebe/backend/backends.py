@@ -557,6 +557,9 @@ class PhoebeBackend(BaseBackendByTime):
                                           dynamics_method=None,
                                           hier=None,
                                           meshablerefs=None,
+                                          datasets=None,
+                                          compute_l3=True,
+                                          compute_l3_frac=False,
                                           **kwargs):
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: calling universe.System.from_bundle".format(mpi.myrank, mpi.nprocs))
@@ -607,11 +610,15 @@ class PhoebeBackend(BaseBackendByTime):
         # Now we need to compute intensities at t0 in order to scale pblums for all future times
         # but only if any of the enabled datasets require intensities
         enabled_ps = b.filter(qualifier='enabled', compute=compute, value=True)
-        datasets = enabled_ps.datasets
+        if datasets is None:
+            datasets = enabled_ps.datasets
         # kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
-        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True, reset=False)
+        if compute_l3:
+            system.compute_l3s(datasets=datasets, compute_l3_frac=compute_l3_frac)
+        system.reset(force_recompute_instantaneous=True)
 
         return system
 
@@ -840,13 +847,10 @@ class PhoebeBackend(BaseBackendByTime):
                                               time, info))
 
             elif kind=='lc':
-                l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset', check_visible=False, unit=u.W/u.m**2)
-
                 obs = system.observe(info['dataset'],
                                      kind=kind,
                                      components=info['component'],
-                                     distance=distance,
-                                     l3=l3)
+                                     distance=distance)
 
                 packetlist.append(_make_packet('fluxes',
                                               obs['flux']*u.W/u.m**2,

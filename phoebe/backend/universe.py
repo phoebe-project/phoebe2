@@ -104,6 +104,7 @@ class System(object):
                  dynamics_method='keplerian',
                  irrad_method='none',
                  boosting_method='none',
+                 l3s={},
                  parent_envelope_of={}):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
@@ -114,6 +115,8 @@ class System(object):
         self.horizon_method = horizon_method
         self.dynamics_method = dynamics_method
         self.irrad_method = irrad_method
+
+        self.l3s = l3s
 
         self.is_first_refl_iteration = True
 
@@ -198,6 +201,16 @@ class System(object):
 
         bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
 
+        l3s = {}
+        for ds in b.filter('l3_units').datasets:
+            l3_units = b.get_value('l3_units', dataset=ds, context='dataset')
+            if l3_units == 'flux':
+                l3s[ds] = {'flux': b.get_value('l3', dataset=ds, context='dataset', unit=u.W/u.m**2)}
+            elif l3_units == 'fraction of total light':
+                l3s[ds] = {'frac': b.get_value('l3_frac', dataset=ds, context='dataset')}
+            else:
+                raise NotImplementedError("l3_units='{}' not supported".format(l3_units))
+
         # envelopes need to know their relationships with the underlying stars
         parent_envelope_of = {}
         for meshable in meshables:
@@ -210,6 +223,7 @@ class System(object):
                    dynamics_method=dynamics_method,
                    irrad_method=irrad_method,
                    boosting_method=boosting_method,
+                   l3s=l3s,
                    parent_envelope_of=parent_envelope_of)
 
     def items(self):
@@ -328,7 +342,8 @@ class System(object):
     def compute_pblum_scalings(self, b, datasets, t0,
                                x0, y0, z0, vx0, vy0, vz0,
                                etheta0, elongan0, eincl0,
-                               ignore_effects=True):
+                               ignore_effects=True,
+                               reset=True):
 
         self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
@@ -369,7 +384,37 @@ class System(object):
                 pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
                 self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
-        self.reset(force_recompute_instantaneous=True)
+        if reset:
+            self.reset(force_recompute_instantaneous=True)
+
+    def compute_l3s(self, datasets=None, compute_l3_frac=False):
+        logger.debug("system.compute_l3s")
+        def _compute_flux_tot(dataset):
+            return np.sum([star.compute_luminosity(dataset)/(4*np.pi) for star in self.values()])
+
+        # NOTE must have already called compute_pblum_scalings
+        for dataset, l3 in self.l3s.items():
+            if datasets is not None and dataset not in datasets:
+                continue
+            # l3 is a dictionary with key 'flux' or 'frac' and value the l3 in that "units"
+            flux_tot = None
+            if 'flux' not in l3.keys():
+                logger.debug('system.compute_l3s: computing l3 in flux for datset={}'.format(dataset))
+                if flux_tot is None:
+                    flux_tot = _compute_flux_tot(dataset)
+                l3_frac = l3.get('frac')
+                l3_flux = (l3_frac * flux_tot) / (1  - l3_frac) # u.W / u.m**2
+                self.l3s[dataset]['flux'] = l3_flux
+
+
+            if compute_l3_frac and 'frac' not in l3.keys():
+                logger.debug('system.compute_l3s: computing l3 in fraction of total light for dataset={}'.format(dataset))
+                if flux_tot is None:
+                    flux_tot = _compute_flux_tot(dataset)
+                l3_flux = l3.get('flux')
+                l3_frac = l3_flux / flux_tot
+                self.l3s[dataset]['frac'] = l3_frac
+
 
     def handle_reflection(self,  **kwargs):
         """
@@ -554,7 +599,7 @@ class System(object):
         return horizon
 
 
-    def observe(self, dataset, kind, components=None, distance=1.0, l3=0.0, **kwargs):
+    def observe(self, dataset, kind, components=None, distance=1.0, **kwargs):
         """
         TODO: add documentation
 
@@ -665,6 +710,7 @@ class System(object):
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
 
+            l3 = self.l3s.get(dataset).get('flux')
             return {'flux': np.sum(intensities*areas*mus*visibilities)*ptfarea/(distance**2)+l3}
 
         else:

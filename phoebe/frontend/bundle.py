@@ -3669,7 +3669,7 @@ class Bundle(ParameterSet):
 
         return ld_coeffs_ret
 
-    def _compute_system(self, compute=None, **kwargs):
+    def _compute_system(self, compute=None, datasets=None, compute_l3=False, compute_l3_frac=False, **kwargs):
         if compute is None:
             if len(self.computes)==1:
                 compute = self.computes[0]
@@ -3687,7 +3687,7 @@ class Bundle(ParameterSet):
 
         system_compute = compute if compute_kind=='phoebe' else None
         logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
-        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, **kwargs)
+        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, **kwargs)
 
     def compute_l3s(self, compute=None, set_value=False, **kwargs):
         """
@@ -3712,7 +3712,7 @@ class Bundle(ParameterSet):
             options (not required if only one is attached to the bundle).
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
-            datasets in which `l3` is used.
+            datasets in which an `l3_units` Parameter exists.
         * `set_value` (bool, optional, default=False): apply the computed
             values to the respective `l3` or `l3_frac` parameters (even if not
             currently visible).
@@ -3724,41 +3724,36 @@ class Bundle(ParameterSet):
             l3@dataset or l3_frac@dataset and the l3 (as quantity objects
             with units of W/m**2) or l3_frac (as unitless floats).
         """
+        # TODO: duplicate this basic logic in the backend (for l3_frac -> l3) WITHOUT calling this
+        # TODO: allow other backends to call compute_l3s and compute_pblums without re-building the system (probably by calling _compute_system and passing system here)
+        # TODO: consider a b.compute_total/system_fluxes or a b.compute_total_fluxes_to_pblums
+        logger.debug("b.compute_l3s")
+
         datasets = kwargs.pop('dataset', self.filter('l3_units', check_visible=True).datasets)
+        if isinstance(datasets, str):
+            datasets = [datasets]
 
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
+        self._kwargs_checks(kwargs, additional_allowed_keys=['system'], additional_forbidden_keys=forbidden_keys)
 
-        system = self._compute_system(compute=compute, **kwargs)
+        system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=True, compute_l3_frac=True, **kwargs))
 
         l3s = {}
         for dataset in datasets:
-            # compute total system flux
-            flux_tot = np.sum([star.compute_luminosity(dataset)/(4*np.pi) for star in system.values()])
-
-            # convert between l3 and l3_frac from the following definitions:
-            # flux_tot = flux_sys + l3
-            # l3_frac = l3 / flux_tot
-
             l3_units = self.get_value('l3_units', dataset=dataset)
             if l3_units == 'flux':
-                l3 = self.get_value('l3', dataset=dataset, unit=u.W/u.m**2)
-
-                l3_frac = l3 / flux_tot
+                l3_frac = system.l3s[dataset]['frac']
                 l3s['l3_frac@{}'.format(dataset)] = l3_frac
-
                 if set_value:
-                    self.set_value('l3_frac', dataset=dataset, check_visible=False)
+                    self.set_value('l3_frac', dataset=dataset, check_visible=False, value=l3_frac)
 
             elif l3_units == 'fraction of total light':
-                l3_frac = self.get_value('l3_frac', dataset=dataset)
-
-                l3 = (l3_frac * flux_tot) / (1  - l3_frac) * u.W / u.m**2
-                l3s['l3@{}'.format(dataset)] = l3
+                l3_flux = system.l3s[dataset]['flux'] * u.W / u.m**2
+                l3s['l3@{}'.format(dataset)] = l3_flux
 
                 if set_value:
-                    self.set_value('l3', dataset=dataset, check_visible=False, value=l3)
+                    self.set_value('l3', dataset=dataset, check_visible=False, value=l3_flux)
 
             else:
                 raise NotImplementedError("l3_units='{}' not supported.".format(l3_units))
@@ -3802,14 +3797,20 @@ class Bundle(ParameterSet):
             component@dataset and the pblums as values (as quantity objects with
             default units of W).
         """
+        logger.debug("b.compute_pblums")
+
         datasets = kwargs.pop('dataset', self.datasets)
+        if isinstance(datasets, str):
+            datasets = [datasets]
         components = kwargs.pop('component', self.components)
+        if isinstance(components, str):
+            components = [components]
 
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
+        self._kwargs_checks(kwargs, additional_allowed_keys=['system'], additional_forbidden_keys=forbidden_keys)
 
-        system = self._compute_system(compute=compute, **kwargs)
+        system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=False, **kwargs))
 
         pblums = {}
         for component, star in system.items():
