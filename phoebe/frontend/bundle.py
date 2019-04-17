@@ -20,6 +20,7 @@ from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import _pbtable
+from phoebe.utils import parse_json
 import libphoebe
 
 from phoebe import u
@@ -30,6 +31,8 @@ import logging
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
+
+_bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
 # Attempt imports for client requirements
 try:
@@ -193,7 +196,7 @@ class Bundle(ParameterSet):
         filename = os.path.expanduser(filename)
         logger.debug("importing from {}".format(filename))
         f = open(filename, 'r')
-        data = json.load(f)
+        data = json.load(f, object_pairs_hook=parse_json)
         f.close()
         b = cls(data)
 
@@ -391,8 +394,10 @@ class Bundle(ParameterSet):
         return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
     @classmethod
-    def default_star(cls, starA='starA'):
-        """Load a bundle with a default single star as the system.
+    def default_star(cls, starA='starA', force_build=False):
+        """
+        For convenience, this function is available at the top-level as
+        <phoebe.default_star> as well as <phoebe.frontend.bundle.Bundle.default_star>.
 
         sun
 
@@ -400,9 +405,30 @@ class Bundle(ParameterSet):
 
         >>> b = Bundle.default_binary()
 
-        :return: instatiated :class`Bundle` object
+        Arguments
+        -----------
+        * `starA` (string, optional, default='starA'): the label to be set for
+            starA.
+        * `force_build` (bool, optional, default=False): whether to force building
+            the bundle from scratch.  If False, pre-cached files will be loaded
+            whenever possible to save time.
+
+        Returns
+        -----------
+        * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
+        if not force_build and not conf.devel:
+            b = cls.open(os.path.join(_bundle_cache_dir, 'default_star.bundle'))
+
+            if starA != 'starA':
+                b.rename_component('starA', starA)
+
+            return b
+
         b = cls()
+        # IMPORTANT NOTE: if changing any of the defaults for a new release,
+        # make sure to update the cached files (see frontend/default_bundles
+        # directory for script to update all cached bundles)
         b.add_star(component=starA)
         b.set_hierarchy(_hierarchy.component(b[starA]))
         b.add_compute(distortion_method='rotstar', irrad_method='none')
@@ -410,8 +436,11 @@ class Bundle(ParameterSet):
 
     @classmethod
     def default_binary(cls, starA='primary', starB='secondary', orbit='binary',
-                       contact_binary=False):
-        """Load a bundle with a default binary as the system.
+                       contact_binary=False, force_build=False):
+        """
+        For convenience, this function is available at the top-level as
+        <phoebe.default_binary> as well as
+        <phoebe.frontend.bundle.Bundle.default_binary>.
 
         primary - secondary
 
@@ -419,9 +448,48 @@ class Bundle(ParameterSet):
 
         >>> b = Bundle.default_binary()
 
-        :return: instantiated :class:`Bundle` object
+        Arguments
+        -----------
+        * `starA` (string, optional, default='primary'): the label to be set for
+            the primary component.
+        * `starB` (string, optional, default='secondary'): the label to be set for
+            the secondary component.
+        * `orbit` (string, optional, default='binary'): the label to be set for
+            the binary component.
+        * `contact_binary` (bool, optional, default=False): whether to also
+            add an envelope (with component='contact_envelope') and set the
+            hierarchy to a contact binary system.
+        * `force_build` (bool, optional, default=False): whether to force building
+            the bundle from scratch.  If False, pre-cached files will be loaded
+            whenever possible to save time.
+
+        Returns
+        -----------
+        * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
+        if not force_build and not conf.devel:
+            if contact_binary:
+                b = cls.open(os.path.join(_bundle_cache_dir, 'default_contact_binary.bundle'))
+            else:
+                b = cls.open(os.path.join(_bundle_cache_dir, 'default_binary.bundle'))
+
+            secondary = 'secondary'
+            if starA != 'primary':
+                if starA == 'secondary':
+                    secondary = 'temp_secondary'
+                    b.rename_component('secondary', secondary)
+                b.rename_component('primary', starA)
+            if starB != 'secondary':
+                b.rename_component(secondary, starB)
+            if orbit != 'binary':
+                b.rename_component('binary', 'orbit')
+
+            return b
+
         b = cls()
+        # IMPORTANT NOTE: if changing any of the defaults for a new release,
+        # make sure to update the cached files (see frontend/default_bundles
+        # directory for script to update all cached bundles)
         if contact_binary:
             orbit_defaults = {'sma': 3.35, 'period': 0.5}
             star_defaults = {'requiv': 1.5}
@@ -1314,6 +1382,9 @@ class Bundle(ParameterSet):
                        warning_only=False):
         """
         """
+        if not len(kwargs.items()):
+            return
+
         allowed_keys = self.qualifiers +\
                         parameters._meta_fields_filter +\
                         ['skip_checks', 'check_default', 'check_visible'] +\
@@ -2617,7 +2688,7 @@ class Bundle(ParameterSet):
 
         # we should run it now to make sure everything is in-sync
         if conf.interactive_constraints:
-            self.run_constraint(uniqueid=constraint_param.uniqueid)
+            self.run_constraint(uniqueid=constraint_param.uniqueid, skip_kwargs_checks=True)
         else:
             self._delayed_constraints.append(constraint_param.uniqueid)
 
@@ -2716,7 +2787,7 @@ class Bundle(ParameterSet):
         logger.info("flipping constraint '{}' to solve for '{}'".format(param.uniquetwig, solve_for))
         param.flip_for(solve_for)
 
-        result = self.run_constraint(uniqueid=param.uniqueid)
+        result = self.run_constraint(uniqueid=param.uniqueid, skip_kwargs_checks=True)
 
         self._add_history(redo_func='flip_constraint',
                           redo_kwargs=redo_kwargs,
@@ -2738,7 +2809,8 @@ class Bundle(ParameterSet):
         :return: the resulting value of the constraint
         :rtype: float or units.Quantity
         """
-        self._kwargs_checks(kwargs)
+        if not kwargs.get('skip_kwargs_checks', False):
+            self._kwargs_checks(kwargs)
 
         kwargs['twig'] = twig
         kwargs['context'] = 'constraint'
@@ -2783,8 +2855,9 @@ class Bundle(ParameterSet):
         """
         changes = []
         for constraint_id in self._delayed_constraints:
-            param = self.run_constraint(uniqueid=constraint_id, return_parameter=True)
-            changes.append(param)
+            param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True)
+            if param not in changes:
+                changes.append(param)
         self._delayed_constraints = []
         return list(set(changes))
 
