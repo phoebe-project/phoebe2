@@ -438,8 +438,7 @@ class System(object):
                 self.l3s[dataset]['frac'] = l3_frac
 
         if reset:
-            # TODO: we can probably get away with force_recompute_instantaneous for cases where there aren't pulsations, etc
-            self.reset(force_remesh=True)
+            self.reset(force_recompute_instantaneous=True)
 
 
     def handle_reflection(self,  **kwargs):
@@ -992,6 +991,7 @@ class Body(object):
 
         if self.needs_recompute_instantaneous or self.needs_remesh or force_remesh or force_recompute_instantaneous:
             self.inst_vals = {}
+            self._force_recompute_instantaneous_next_update_position = True
 
     def reset_time(self, time, true_anom, elongan, eincl):
         """
@@ -1157,9 +1157,10 @@ class Body(object):
         # needed for this time-step.
         # TODO [DONE?]: make sure features smartly trigger needs_recompute_instantaneous
         # TODO: get rid of the or True here... the problem is that we're saving the standard mesh before filling local quantities
-        if self.needs_recompute_instantaneous or did_remesh:
+        if self.needs_recompute_instantaneous or did_remesh or self._force_recompute_instantaneous_next_update_position:
             logger.debug("{}.update_position: calling compute_local_quantities at t={}".format(self.component, self.time))
             self.compute_local_quantities(xs, ys, zs, ignore_effects)
+            self._force_recompute_instantaneous_next_update_position = False
 
         return
 
