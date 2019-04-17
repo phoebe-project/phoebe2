@@ -1099,15 +1099,15 @@ class PhoebeBackend(BaseBackendByTime):
 
                 # Dataset-dependent quantities
                 for mesh_dataset in info['mesh_datasets']:
-                    if 'pblum@{}'.format(mesh_dataset) in info['mesh_columns']:
-                        packetlist.append(_make_packet('pblum',
+                    if 'pblum_ext@{}'.format(mesh_dataset) in info['mesh_columns']:
+                        packetlist.append(_make_packet('pblum_ext',
                                                       body.compute_luminosity(mesh_dataset),
                                                       time, info,
                                                       dataset=mesh_dataset,
                                                       component=info['component']))
 
-                    if 'abs_pblum@{}'.format(mesh_dataset) in info['mesh_columns']:
-                        packetlist.append(_make_packet('abs_pblum',
+                    if 'abs_pblum_ext@{}'.format(mesh_dataset) in info['mesh_columns']:
+                        packetlist.append(_make_packet('abs_pblum_ext',
                                                       body.compute_luminosity(mesh_dataset, scaled=False),
                                                       time, info,
                                                       dataset=mesh_dataset,

@@ -3572,7 +3572,7 @@ class Bundle(ParameterSet):
         """
         Compute the interpolated limb darkening coefficients.
 
-        This method is only for convenicence and will be recomputed internally
+        This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute> for all backends
         that require per-star limb-darkening coefficients.  Note that the default
         <phoebe.parameters.compute.phoebe> backend will instead interpolate
@@ -3605,8 +3605,8 @@ class Bundle(ParameterSet):
         Returns
         ----------
         * (dict) computed ld_coeffs in a dictionary with keys formatted as
-            component@dataset and the ld_coeffs as values (arrays with appropriate
-            length given the respective value of `ld_func`.
+            ld_coeffs@component@dataset and the ld_coeffs as values (arrays with
+            appropriate length given the respective value of `ld_func`).
         """
 
         datasets = kwargs.pop('dataset', self.datasets)
@@ -3628,7 +3628,7 @@ class Bundle(ParameterSet):
         for ldcs_param in self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components).to_list():
             ldcs = ldcs_param.get_value()
             if ldcs == 'none':
-                ld_coeffs_ret["{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+                ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
 
                 continue
 
@@ -3663,7 +3663,7 @@ class Bundle(ParameterSet):
 
             logger.info("interpolated {} ld_coeffs={}".format(ld_func, ld_coeffs))
 
-            ld_coeffs_ret["{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = ld_coeffs
+            ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = ld_coeffs
             if set_value:
                 self.set_value(qualifier='ld_coeffs', component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
 
@@ -3759,12 +3759,16 @@ class Bundle(ParameterSet):
 
         return l3s
 
-    def compute_pblums(self, compute=None, extrinsic=False, **kwargs):
+    def compute_pblums(self, compute=None, intrinsic=True, extrinsic=True, **kwargs):
         """
         Compute the passband luminosities that will be applied to the system,
         following all coupling, etc, as well as all relevant compute options
         (ntriangles, distortion_method, etc).  The exposed passband luminosities
         (and any coupling) are computed at t0@system.
+
+        This method allows for computing both intrinsic and extrinsic luminosities.
+        Note that pblum scaling is computed (and applied to flux scaling) based
+        on intrinsic luminosities.
 
         This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute>.  Alternatively, you
@@ -3782,10 +3786,12 @@ class Bundle(ParameterSet):
         ------------
         * `compute` (string, optional, default=None): label of the compute
             options (not required if only one is attached to the bundle).
+        * `intrinsic` (bool, optional, default=True): whether to include
+            intrinsic (excluding irradiation & features) pblums.  These
+            will be exposed in the returned dictionary as pblum@...
         * `extrinsic` (bool, optional, default=False): whether to include
-            extrinsic (irradiation & features) when computing luminosities.
-            Note that pblum scaling is computed (and applied to flux scaling)
-            based on intrinsic luminosities.
+            extrinsic (irradiation & features) pblums.  These will be exposed
+            as pblum_ext@...
         * `component` (string or list of strings, optional): label of the
             component(s) requested. If not provided, will be provided for all
             components in the hierarchy.
@@ -3797,8 +3803,9 @@ class Bundle(ParameterSet):
         Returns
         ----------
         * (dict) computed pblums in a dictionary with keys formatted as
-            component@dataset and the pblums as values (as quantity objects with
-            default units of W).
+            pblum@component@dataset (for intrinsic pblums) or
+            pblum_ext@component@dataset (for extrinsic pblums) and the pblums
+            as values (as quantity objects with default units of W).
         """
         logger.debug("b.compute_pblums")
 
@@ -3813,22 +3820,29 @@ class Bundle(ParameterSet):
         forbidden_keys = parameters._meta_fields_filter
         self._kwargs_checks(kwargs, additional_allowed_keys=['system'], additional_forbidden_keys=forbidden_keys)
 
-        system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=False, compute_extrinsic=extrinsic, **kwargs))
-
-        t0 = self.get_value('t0', context='system', unit=u.d)
         pblums = {}
-        for component, star in system.items():
-            if component not in components:
+        for compute_extrinsic in [False, True]:
+            if compute_extrinsic and not extrinsic:
                 continue
-            for dataset in star._pblum_scale.keys():
-                if dataset not in datasets:
-                    continue
-                if extrinsic:
-                    logger.debug("computing (extrinsic) observables for {}".format(dataset))
-                    system.populate_observables(t0, ['lc'], [dataset],
-                                                ignore_effects=False)
+            if not compute_extrinsic and not intrinsic:
+                continue
 
-                pblums["{}@{}".format(component, dataset)] = float(star.compute_luminosity(dataset)) * u.W
+            # TODO: can we prevent rebuilding the entire system the second time if both intrinsic and extrinsic are True?
+            system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=False, compute_extrinsic=compute_extrinsic, **kwargs))
+
+            t0 = self.get_value('t0', context='system', unit=u.d)
+            for component, star in system.items():
+                if component not in components:
+                    continue
+                for dataset in star._pblum_scale.keys():
+                    if dataset not in datasets:
+                        continue
+                    if compute_extrinsic:
+                        logger.debug("computing (extrinsic) observables for {}".format(dataset))
+                        system.populate_observables(t0, ['lc'], [dataset],
+                                                    ignore_effects=False)
+
+                    pblums["{}@{}@{}".format('pblum_ext' if compute_extrinsic else 'pblum', component, dataset)] = float(star.compute_luminosity(dataset)) * u.W
 
         return pblums
 

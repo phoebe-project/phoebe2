@@ -38,7 +38,7 @@ _mesh_columns += ['rs'] #, 'cosbetas']
 lc_columns = []
 lc_columns += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_normal_intensities']
 lc_columns += ['boost_factors', 'ldint']
-lc_columns += ['pblum', 'abs_pblum', 'ptfarea']
+lc_columns += ['pblum_ext', 'abs_pblum_ext', 'ptfarea']
 
 rv_columns = lc_columns[:]
 rv_columns += ['rvs']
