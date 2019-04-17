@@ -405,16 +405,19 @@ class System(object):
 
         # NOTE must have already called compute_pblum_scalings
         for dataset, l3 in self.l3s.items():
+            populated = False
             if datasets is not None and dataset not in datasets:
                 continue
-
-            self.populate_observables(t0, ['lc'], [dataset],
-                                        ignore_effects=False)
 
             # l3 is a dictionary with key 'flux' or 'frac' and value the l3 in that "units"
             flux_tot = None
             if 'flux' not in l3.keys():
                 logger.debug('system.compute_l3s: computing l3 in flux for datset={}'.format(dataset))
+                if not populated:
+                    self.populate_observables(t0, ['lc'], [dataset],
+                                                ignore_effects=False)
+                    populated = True
+
                 if flux_tot is None:
                     flux_tot = _compute_flux_tot(dataset)
                 l3_frac = l3.get('frac')
@@ -424,6 +427,10 @@ class System(object):
 
             if compute_l3_frac and 'frac' not in l3.keys():
                 logger.debug('system.compute_l3s: computing l3 in fraction of total light for dataset={}'.format(dataset))
+                if not populated:
+                    self.populate_observables(t0, ['lc'], [dataset],
+                                                ignore_effects=False)
+                    populated = True
                 if flux_tot is None:
                     flux_tot = _compute_flux_tot(dataset)
                 l3_flux = l3.get('flux')
@@ -431,7 +438,8 @@ class System(object):
                 self.l3s[dataset]['frac'] = l3_frac
 
         if reset:
-            self.reset(force_recompute_instantaneous=True)
+            # TODO: we can probably get away with force_recompute_instantaneous for cases where there aren't pulsations, etc
+            self.reset(force_remesh=True)
 
 
     def handle_reflection(self,  **kwargs):
@@ -974,12 +982,13 @@ class Body(object):
 
     def reset(self, force_remesh=False, force_recompute_instantaneous=False):
         if force_remesh:
-            logger.debug("{}.reset: forcing remesh for next iteration".format(self.component))
+            logger.debug("{}.reset: forcing remesh and recompute_instantaneous for next iteration".format(self.component))
         elif force_recompute_instantaneous:
             logger.debug("{}.reset: forcing recompute_instantaneous for next iteration".format(self.component))
 
         if self.needs_remesh or force_remesh:
             self._mesh = None
+            self._standard_meshes = {}
 
         if self.needs_recompute_instantaneous or self.needs_remesh or force_remesh or force_recompute_instantaneous:
             self.inst_vals = {}
