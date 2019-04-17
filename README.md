@@ -62,6 +62,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.6 - optimization hotfix
+
+* Fixes a bug where automatic detection of eclipses was failing to properly fallback on only detecting the horizon.
+* Introduces several other significant optimizations, particularly in run_compute.
+
 ### 2.1.5 - single star get_orbits and line-profile hotfix
 
 * Fixes a bug in hierarchy.get_orbits() for a single star hierarchy which resulted in an error being raised while computing line-profiles.
