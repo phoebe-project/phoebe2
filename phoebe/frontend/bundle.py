@@ -3669,7 +3669,7 @@ class Bundle(ParameterSet):
 
         return ld_coeffs_ret
 
-    def _compute_system(self, compute=None, datasets=None, compute_l3=False, compute_l3_frac=False, **kwargs):
+    def _compute_system(self, compute=None, datasets=None, compute_l3=False, compute_l3_frac=False, compute_extrinsic=False, **kwargs):
         if compute is None:
             if len(self.computes)==1:
                 compute = self.computes[0]
@@ -3687,13 +3687,14 @@ class Bundle(ParameterSet):
 
         system_compute = compute if compute_kind=='phoebe' else None
         logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
-        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, **kwargs)
+        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, compute_extrinsic=compute_extrinsic, reset=False, **kwargs)
 
     def compute_l3s(self, compute=None, set_value=False, **kwargs):
         """
         Compute third lights (`l3`) that will be applied to the system from
         fractional third light (`l3_frac`) and vice-versa by assuming that the
-        total system flux is equivalent to the sum of the passband luminosities
+        total system flux is equivalent to the sum of the extrinsic (including
+        any enabled irradiation and features) passband luminosities
         at t0 divided by 4*pi.  To see how passband luminosities are computed,
         see <phoebe.frontend.bundle.Bundle.compute_pblums>.
 
@@ -3724,8 +3725,6 @@ class Bundle(ParameterSet):
             l3@dataset or l3_frac@dataset and the l3 (as quantity objects
             with units of W/m**2) or l3_frac (as unitless floats).
         """
-        # TODO: duplicate this basic logic in the backend (for l3_frac -> l3) WITHOUT calling this
-        # TODO: allow other backends to call compute_l3s and compute_pblums without re-building the system (probably by calling _compute_system and passing system here)
         # TODO: consider a b.compute_total/system_fluxes or a b.compute_total_fluxes_to_pblums
         logger.debug("b.compute_l3s")
 
@@ -3760,7 +3759,7 @@ class Bundle(ParameterSet):
 
         return l3s
 
-    def compute_pblums(self, compute=None, **kwargs):
+    def compute_pblums(self, compute=None, extrinsic=False, **kwargs):
         """
         Compute the passband luminosities that will be applied to the system,
         following all coupling, etc, as well as all relevant compute options
@@ -3783,6 +3782,10 @@ class Bundle(ParameterSet):
         ------------
         * `compute` (string, optional, default=None): label of the compute
             options (not required if only one is attached to the bundle).
+        * `extrinsic` (bool, optional, default=False): whether to include
+            extrinsic (irradiation & features) when computing luminosities.
+            Note that pblum scaling is computed (and applied to flux scaling)
+            based on intrinsic luminosities.
         * `component` (string or list of strings, optional): label of the
             component(s) requested. If not provided, will be provided for all
             components in the hierarchy.
@@ -3810,8 +3813,9 @@ class Bundle(ParameterSet):
         forbidden_keys = parameters._meta_fields_filter
         self._kwargs_checks(kwargs, additional_allowed_keys=['system'], additional_forbidden_keys=forbidden_keys)
 
-        system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=False, **kwargs))
+        system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=False, compute_extrinsic=extrinsic, **kwargs))
 
+        t0 = self.get_value('t0', context='system', unit=u.d)
         pblums = {}
         for component, star in system.items():
             if component not in components:
@@ -3819,6 +3823,11 @@ class Bundle(ParameterSet):
             for dataset in star._pblum_scale.keys():
                 if dataset not in datasets:
                     continue
+                if extrinsic:
+                    logger.debug("computing (extrinsic) observables for {}".format(dataset))
+                    system.populate_observables(t0, ['lc'], [dataset],
+                                                ignore_effects=False)
+
                 pblums["{}@{}".format(component, dataset)] = float(star.compute_luminosity(dataset)) * u.W
 
         return pblums

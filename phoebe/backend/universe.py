@@ -312,6 +312,7 @@ class System(object):
 
         all arrays should be for the current time, but iterable over all bodies
         """
+        logger.debug('system.update_positions ignore_effects={}'.format(ignore_effects))
         self.xs = np.array(_value(xs))
         self.ys = np.array(_value(ys))
         self.zs = np.array(_value(zs))
@@ -342,7 +343,6 @@ class System(object):
     def compute_pblum_scalings(self, b, datasets, t0,
                                x0, y0, z0, vx0, vy0, vz0,
                                etheta0, elongan0, eincl0,
-                               ignore_effects=True,
                                reset=True):
 
         self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
@@ -387,19 +387,30 @@ class System(object):
         if reset:
             self.reset(force_recompute_instantaneous=True)
 
-    def compute_l3s(self, datasets=None, compute_l3_frac=False):
+    def compute_l3s(self, datasets, t0,
+                    x0, y0, z0, vx0, vy0, vz0,
+                    etheta0, elongan0, eincl0,
+                    compute_l3_frac=False, reset=True):
+
         logger.debug("system.compute_l3s")
         def _compute_flux_tot(dataset):
-            return np.sum([star.compute_luminosity(dataset)/(4*np.pi) for star in self.values()])
+            return np.sum([star.compute_luminosity(dataset, include_effects=True)/(4*np.pi) for star in self.values()])
 
         # convert between l3(_flux) and l3_frac from the following definitions:
+        # flux_sys = sum(L_star/4pi for star in stars)
         # flux_tot = flux_sys + l3_flux
         # l3_frac = l3_flux / tot_flux
+
+        self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=False)
 
         # NOTE must have already called compute_pblum_scalings
         for dataset, l3 in self.l3s.items():
             if datasets is not None and dataset not in datasets:
                 continue
+
+            self.populate_observables(t0, ['lc'], [dataset],
+                                        ignore_effects=False)
+
             # l3 is a dictionary with key 'flux' or 'frac' and value the l3 in that "units"
             flux_tot = None
             if 'flux' not in l3.keys():
@@ -418,6 +429,9 @@ class System(object):
                 l3_flux = l3.get('flux')
                 l3_frac = l3_flux / flux_tot
                 self.l3s[dataset]['frac'] = l3_frac
+
+        if reset:
+            self.reset(force_recompute_instantaneous=True)
 
 
     def handle_reflection(self,  **kwargs):
@@ -1688,6 +1702,7 @@ class Star(Body):
     def compute_luminosity(self, dataset, scaled=True, **kwargs):
         """
         """
+        # assumes dataset-columns have already been populated
         logger.debug("{}.compute_luminosity(dataset={})".format(self.component, dataset))
 
         # areas are the NON-projected areas of each surface element.  We'll be

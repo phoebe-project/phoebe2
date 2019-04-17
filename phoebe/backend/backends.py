@@ -560,6 +560,8 @@ class PhoebeBackend(BaseBackendByTime):
                                           datasets=None,
                                           compute_l3=True,
                                           compute_l3_frac=False,
+                                          compute_extrinsic=False,
+                                          reset=True,
                                           **kwargs):
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: calling universe.System.from_bundle".format(mpi.myrank, mpi.nprocs))
@@ -615,10 +617,21 @@ class PhoebeBackend(BaseBackendByTime):
         # kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
-        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True, reset=False)
+        # NOTE: system.compute_pblum_scalings populates at t0 with ignore_effect=True (so intrinsic pblum)
+        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, reset=False)
+        if compute_l3 or compute_extrinsic:
+            if len(b.features):
+                # then the features may affect intrinsic vs extrinsic pblums,
+                # so we need to reset and force re-meshing
+                system.reset(force_remesh=True)
+
         if compute_l3:
-            system.compute_l3s(datasets=datasets, compute_l3_frac=compute_l3_frac)
-        system.reset(force_recompute_instantaneous=True)
+            system.compute_l3s(datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, compute_l3_frac=compute_l3_frac, reset=False)
+        elif compute_extrinsic:
+            system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+
+        if reset:
+            system.reset(force_recompute_instantaneous=True)
 
         return system
 
