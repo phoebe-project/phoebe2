@@ -7081,7 +7081,7 @@ class HierarchyParameter(StringParameter):
         orbits = []
         for star in self.get_stars():
             parent = self.get_parent_of(star)
-            if parent not in orbits and parent!='component':
+            if parent not in orbits and parent!='component' and parent is not None:
                 orbits.append(parent)
         return orbits
 
