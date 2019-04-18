@@ -3625,6 +3625,10 @@ class Bundle(ParameterSet):
         * `set_value` (bool, optional, default=False): apply the interpolated
             values to the respective `ld_coeffs` parameters (even if not
             currently visible).
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
         * `**kwargs`: any additional kwargs are sent to override compute options.
 
         Returns
@@ -3639,7 +3643,7 @@ class Bundle(ParameterSet):
 
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
+        self._kwargs_checks(kwargs, additional_allowed_keys=['skip_checks'], additional_forbidden_keys=forbidden_keys)
 
         if compute is None:
             if len(self.computes)==1:
@@ -3648,6 +3652,15 @@ class Bundle(ParameterSet):
                 raise ValueError("must provide compute")
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
+
+        if not kwargs.get('skip_checks', False):
+            passed, msg = self.run_checks(compute=compute, **kwargs)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
 
         ld_coeffs_ret = {}
         for ldcs_param in self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components).to_list():
@@ -3742,6 +3755,10 @@ class Bundle(ParameterSet):
         * `set_value` (bool, optional, default=False): apply the computed
             values to the respective `l3` or `l3_frac` parameters (even if not
             currently visible).
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
         * `**kwargs`: any additional kwargs are sent to override compute options.
 
         Returns
@@ -3759,7 +3776,24 @@ class Bundle(ParameterSet):
 
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_allowed_keys=['system'], additional_forbidden_keys=forbidden_keys)
+        self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks'], additional_forbidden_keys=forbidden_keys)
+
+        if compute is None:
+            if len(self.computes)==1:
+                compute = self.computes[0]
+            else:
+                raise ValueError("must provide compute")
+        if not isinstance(compute, str):
+            raise TypeError("compute must be a single value (string)")
+
+        if not kwargs.get('skip_checks', False):
+            passed, msg = self.run_checks(compute=compute, **kwargs)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
 
         system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=True, compute_l3_frac=True, **kwargs))
 
@@ -3827,6 +3861,10 @@ class Bundle(ParameterSet):
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets attached to the bundle.
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
         * `**kwargs`: any additional kwargs are sent to override compute options.
 
         Returns
@@ -3847,7 +3885,24 @@ class Bundle(ParameterSet):
 
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_allowed_keys=['system'], additional_forbidden_keys=forbidden_keys)
+        self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks'], additional_forbidden_keys=forbidden_keys)
+
+        if compute is None:
+            if len(self.computes)==1:
+                compute = self.computes[0]
+            else:
+                raise ValueError("must provide compute")
+        if not isinstance(compute, str):
+            raise TypeError("compute must be a single value (string)")
+
+        if not kwargs.get('skip_checks', False):
+            passed, msg = self.run_checks(compute=compute, **kwargs)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
 
         pblums = {}
         for compute_extrinsic in [False, True]:
