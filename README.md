@@ -62,6 +62,15 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.6 - optimization hotfix
+
+* Fixes a bug where automatic detection of eclipses was failing to properly fallback on only detecting the horizon.
+* Introduces several other significant optimizations, particularly in run_compute.
+
+### 2.1.5 - single star get_orbits and line-profile hotfix
+
+* Fixes a bug in hierarchy.get_orbits() for a single star hierarchy which resulted in an error being raised while computing line-profiles.
+
 ### 2.1.4 - freq constraint hotfix
 
 * This fixes the inversion of the frequency constraint when flipping to solve for period.
@@ -70,7 +79,7 @@ CHANGELOG
 
 * Semi-detached systems could raise an error in the backend caused by the volume being slightly over the critical value when translating between requiv in solar units to volume in unitless/roche units.  When this numerical discrepancy is detected, the critical value is now adopted and a warning is sent via the logger.
 
-### 2.1.2 - Constraints in solar units hotfix
+### 2.1.2 - constraints in solar units hotfix
 
 * All constraints are now executed (by default) in solar units instead of SI.  The Kepler's third law constraint (constraining mass by default) failed to have sufficient precision in SI, resulting in inaccurate masses.  Furthermore, if the constraint was flipped, inaccurate values of sma could be passed to the backend, resulting in overflow in the semi-detached case.
 * Bundles created before 2.1.2 and imported into 2.1.2+ will continue to use SI units for constraints and should function fine, but will not benefit from this update and will be incapable of changing the system hierarchy.
