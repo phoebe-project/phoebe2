@@ -347,6 +347,7 @@ class System(object):
 
         self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
+        pblum_scale_copy_ds = {}
         for dataset in datasets:
             ds = b.get_dataset(dataset=dataset)
             kind = ds.exclude(kind='*_dep').kind
@@ -357,32 +358,87 @@ class System(object):
             self.populate_observables(t0, [kind], [dataset],
                                         ignore_effects=True)
 
-            # now for each component we need to store the scaling factor between
-            # absolute and relative intensities
-            pblum_copy = {}
-            for component in ds.filter(qualifier='pblum_ref').components:
-                # print "**** pblum scaling component:", component
-                if component=='_default':
-                    continue
-                pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
-                if pblum_ref=='self':
-                    pblum = ds.get_value(qualifier='pblum', component=component)
-                    ld_func = ds.get_value(qualifier='ld_func', component=component)
-                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
+            pblum_mode = ds.get_value(qualifier='pblum_mode')
+            ds_components = b.hierarchy.get_stars()
+            #ds_components = ds.filter(qualifier='pblum_ref', check_visible=False).components
 
-                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
-                    self.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
+            if pblum_mode == 'provided':
+
+                # now for each component we need to store the scaling factor between
+                # absolute and relative intensities
+                pblum_scale_copy_comp = {}
+                for component in ds_components:
+                    # print "**** pblum scaling component:", component
+                    if component=='_default':
+                        continue
+                    pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
+                    if pblum_ref=='self':
+                        pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component)
+                        ld_func = ds.get_value(qualifier='ld_func', component=component)
+                        ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
+
+                        # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
+                        self.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
+                    else:
+                        # then this component wants to copy the scale from another component
+                        # in the system.  We'll just store this now so that we make sure the
+                        # component we're copying from has a chance to compute its scale
+                        # first.
+                        pblum_scale_copy_comp[component] = pblum_ref
+
+                # now let's copy all the scales for those that are just referencing another component
+                for comp, comp_copy in pblum_scale_copy_comp.items():
+                    pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
+                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+
+            elif pblum_mode == 'color coupled':
+                pblum_ref = ds.get_value(qualifier='pblum_ref')
+                pblum_scale_copy_ds[dataset] = pblum_ref
+
+            elif pblum_mode in ['system flux', 'total flux']:
+                pbflux = ds.get_value(qualifier='pbflux', unit=u.W/u.m**2)
+
+                # not needed as will fallback on 1.0
+                # for comp in ds_components:
+                #     self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=1.0)
+
+                # TODO: add ld_func and ld_coeffs
+                # TODO: should this include intrinsic??? We did say pblum scaling was based on intrinsic only... but then total flux might not make sense
+                system_flux = np.sum([self.get_body(comp).compute_luminosity(dataset)/(4*np.pi) for comp in ds_components])
+
+                if pblum_mode == 'system flux':
+                    pblum_scale = pbflux / system_flux
                 else:
-                    # then this component wants to copy the scale from another component
-                    # in the system.  We'll just store this now so that we make sure the
-                    # component we're copying from has a chance to compute its scale
-                    # first.
-                    pblum_copy[component] = pblum_ref
+                    ### TODO: account for l3
+                    raise NotImplementedError("still need to implement total flux logic")
+                    pblum_scale = pbflux / (system_flux + l3_flux)
 
-            # now let's copy all the scales for those that are just referencing another component
-            for comp, comp_copy in pblum_copy.items():
-                pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
-                self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+                for comp in ds_components:
+                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+
+
+
+            elif pblum_mode == 'scale to data':
+                # for now we'll allow the scaling to fallback on 1.0, but not
+                # set the actual value so that these are EXCLUDED from b.compute_pblums
+                continue
+
+            elif pblum_mode == 'absolute':
+                # even those these will default to 1.0, we'll set them in the dictionary
+                # so the resulting pblums are available to b.compute_pblums()
+                for comp in ds_components:
+                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=1.0)
+
+            else:
+                raise NotImplementedError("pblum_mode='{}' not supported".format(pblum_scale))
+
+
+            # now let's copy all the scales for those that are just referencing another dataset
+            for ds, ds_copy in pblum_scale_copy_ds.items():
+                for comp in ds_components:
+                    pblum_scale = self.get_body(comp).get_pblum_scale(ds_copy, component=comp)
+                    self.get_body(comp).set_pblum_scale(ds, component=comp, pblum_scale=pblum_scale)
+
 
         if reset:
             self.reset(force_recompute_instantaneous=True)

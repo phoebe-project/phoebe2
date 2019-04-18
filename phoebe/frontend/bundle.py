@@ -1868,6 +1868,22 @@ class Bundle(ParameterSet):
                 if len(set(mesh_methods)) > 1:
                     return False, "all (or none) components must use mesh_method='wd'."
 
+
+
+        # forbid color-coupling with a dataset which is scaled to data or to another that is in-turn color-coupled
+        for param in self.filter(qualifier='pblum_mode', value='color coupled').to_list():
+            coupled_to = self.get_value(qualifier='pblum_ref', dataset=param.dataset)
+            pblum_mode = self.get_value(qualifier='pblum_mode', dataset=coupled_to)
+            if pblum_mode in ['scale to data', 'color coupled']:
+                return False, "cannot set pblum_ref@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode)
+
+        # require any pblum_mode == 'scale to data' to have accompanying data
+        for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
+            if not len(self.get_value(qualifier='fluxes', dataset=param.dataset, context='dataset')):
+                return False, "fluxes@{} cannot be empty if pblum_mode@{}='scale to data'".format(param.dataset, param.dataset)
+
+        ### TODO: add tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
+
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol and irrad_frac_refl_bol
         for component in self.hierarchy.get_stars():
@@ -3778,6 +3794,10 @@ class Bundle(ParameterSet):
         This method allows for computing both intrinsic and extrinsic luminosities.
         Note that pblum scaling is computed (and applied to flux scaling) based
         on intrinsic luminosities.
+
+        Note that luminosities cannot be exposed for any dataset in which
+        `pblum_mode` is 'scale to data' as the entire light curve must be
+        computed prior to scaling.
 
         This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute>.  Alternatively, you
