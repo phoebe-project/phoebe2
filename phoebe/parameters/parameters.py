@@ -5297,7 +5297,10 @@ class ConstraintParameter(Parameter):
         else:
             default_unit = kwargs.get('default_unit', u.dimensionless_unscaled)
 
-        self._addl_vars = [ConstraintVar(bundle, v.twig) for v in kwargs.get('addl_vars', [])]
+        if 'constraint_addl_vars' in kwargs.keys():
+            self._addl_vars = [ConstraintVar(bundle, twig) for twig in kwargs.get('constraint_addl_vars', [])]
+        else:
+            self._addl_vars = [ConstraintVar(bundle, v.twig) for v in kwargs.get('addl_vars', [])]
         self._vars = self._addl_vars
         self._var_params = None
         self._addl_var_params = None
@@ -5306,7 +5309,7 @@ class ConstraintParameter(Parameter):
         self._in_solar_units = kwargs.get('in_solar_units', False)
         self.set_value(value)
         self.set_default_unit(default_unit)
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'in_solar_units']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'constraint_addl_vars', 'in_solar_units']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -5324,6 +5327,10 @@ class ConstraintParameter(Parameter):
         """
         """
         return self._constraint_kwargs
+
+    @property
+    def constraint_addl_vars(self):
+        return [v.twig for v in self.addl_vars.to_list()]
 
     @property
     def in_solar_units(self):
