@@ -4368,6 +4368,16 @@ class Bundle(ParameterSet):
 
             self._attach_params(params, **metawargs)
 
+        # scale fluxes whenever pblum_mode = 'scale to data'
+        for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
+            # TODO: will need to merge with compute_times/compute_phases
+            ds_fluxes = self.get_dataset(param.dataset).get_value('fluxes')
+            model_fluxes = self.get_model(model).get_value('fluxes')
+            scale_factor = np.median(ds_fluxes / model_fluxes)
+            self.get_model(model).set_value('fluxes', model_fluxes*scale_factor)
+
+            # TODO: scale relevant mesh columns for same dataset???
+
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
         redo_kwargs['model'] = model
