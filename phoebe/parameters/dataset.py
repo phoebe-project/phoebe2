@@ -75,6 +75,10 @@ def lc(**kwargs):
     * `times` (array/quantity, optional): observed times.
     * `fluxes` (array/quantity, optional): observed flux.
     * `sigmas` (array/quantity, optional): errors on flux measurements.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.
     * `ld_func` (string, optional): limb-darkening model.
     * `ld_coeffs` (list, optional): limb-darkening coefficients.
     * `passband` (string, optional): passband.
@@ -171,6 +175,10 @@ def rv(**kwargs):
     * `times` (array/quantity, optional): observed times.
     * `rvs` (array/quantity, optional): observed radial velocities.
     * `sigmas` (array/quantity, optional): errors on radial velocity measurements.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.
     * `ld_func` (string, optional): limb-darkening model.
     * `ld_coeffs` (list, optional): limb-darkening coefficients.
     * `passband` (string, optional): passband.
@@ -382,6 +390,10 @@ def orb(**kwargs):
     Arguments
     ----------
     * `times` (array/quantity, optional): observed times.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.
 
     Returns
     --------
