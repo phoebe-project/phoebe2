@@ -135,8 +135,15 @@ def lc_dep(is_lc=True, **kwargs):
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
     dep_params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy of photons')]
     if is_lc:
-        dep_params += [ChoiceParameter(qualifier='pblum_ref', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
-        dep_params += [FloatParameter(qualifier='pblum', visible_if='pblum_ref:self', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
+        dep_params += [ChoiceParameter(qualifier='pblum_mode', value=kwargs.get('pblum_mode', 'provided'), choices=['provided', 'color coupled', 'system flux', 'total flux', 'scale to data', 'absolute'], description='Mode for scaling passband luminosities')]
+
+        dep_params += [ChoiceParameter(visible_if='[component]pblum_mode:provided', qualifier='pblum_ref', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
+        dep_params += [FloatParameter(qualifier='pblum', visible_if='[component]pblum_mode:provided,pblum_ref:self', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
+
+        dep_params += [ChoiceParameter(visible_if='pblum_mode:color coupled', qualifier='pblum_ref', value=kwargs.get('pblum_ref', ''), choices=['']+kwargs.get('lcrefs', []), description='Dataset with which to couple luminosities based on color')]
+
+        dep_params += [FloatParameter(visible_if='pblum_mode:system flux|total flux', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total passband flux (at t0, including l3 if pblum_mode=\'total flux\')')]
+
         dep_params += [ChoiceParameter(qualifier='l3_units', value=kwargs.get('l3_units', 'flux'), choices=['flux', 'fraction of total light'], description='Whether third light is given in units of flux or as a fraction of total light')]
         dep_params += [FloatParameter(visible_if='l3_units:flux', qualifier='l3', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
         dep_params += [FloatParameter(visible_if='l3_units:fraction of total light', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total light')]

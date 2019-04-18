@@ -1112,19 +1112,28 @@ class Bundle(ParameterSet):
         # Handle choice parameters that need components as choices
         # meshablerefs = hier.get_meshables()  # TODO: consider for overcontacts
         starrefs = hier.get_stars()  # TODO: consider for overcontacts
+        datasetrefs = self.filter(qualifier='pblum_mode', check_visible=False).datasets
+
         for param in self.filter(qualifier='pblum_ref',
                                  context='dataset',
                                  check_visible=False,
                                  check_default=False).to_list():
-            param._choices = ['self'] + starrefs
-            if param.value == '':
-                # then this was the default from the parameter itself, so we
-                # want to set it to be pblum if its the "primary" star, and
-                # otherwise point to the primary star
-                if param.component == starrefs[0]:
-                    param.set_value('self')
-                else:
-                    param.set_value(starrefs[0])
+
+            if param.component is None:
+                param._choices = [ds for ds in datasetrefs if ds!=param.dataset]
+
+                if param.value == '' and len(param._choices):
+                    param.set_value(param._choices[0])
+            else:
+                param._choices = ['self'] + [s for s in starrefs if s!=param.component]
+
+                if param.value == '':
+                    # then this was the default from the parameter itself, so we
+                    # want to set it to be pblum of its the "primary" star
+                    if param.component == starrefs[0]:
+                        param.set_value('self')
+                    else:
+                        param.set_value(starrefs[0])
 
     def _handle_dataset_selectparams(self):
         """

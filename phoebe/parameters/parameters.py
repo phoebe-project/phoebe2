@@ -4561,6 +4561,8 @@ class Parameter(object):
 
                 if isinstance(value, str) and value[0] in ['!', '~']:
                     return param.get_value() != value[1:]
+                elif isinstance(value, str) and "|" in value:
+                    return param.get_value() in value.split("|")
                 elif value=='<notempty>':
                     return len(param.get_value()) > 0
                 else:
