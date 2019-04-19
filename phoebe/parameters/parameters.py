@@ -2746,6 +2746,94 @@ class ParameterSet(object):
         raise NotImplementedError
 
 
+    def compute_residuals(self, model=None, dataset=None, component=None, as_quantity=True):
+        """
+        Compute residuals between the observed values in a dataset and the
+        corresponding model.
+
+        Currently supports the following datasets:
+        * <phoebe.parameters.dataset.lc>
+        * <phoebe.parameters.dataset.rv>
+
+        If necessary (due to the `compute_times`/`compute_phases` parameters
+        or a change in the dataset `times` since the model was computed),
+        interpolation will be handled, in time-space if possible, and in
+        phase-space otherwise. See
+        <phoebe.parameters.FloatArrayParameter.interp_value>.
+
+        Arguments
+        -----------
+        * `model` (string, optional, default=None): model to compare against
+            observations.  Required if more than one model exist.
+        * `dataset` (string, optional, default=None): dataset for comparison.
+            Required if more than one dataset exist.
+        * `component` (string, optional, default=None): component for comparison.
+            Required only if more than one component exist in the dataset (for
+            RVs, for example)
+        * `as_quantity` (bool, default=True): whether to return a quantity object.
+
+        Returns
+        -----------
+        * (array) array of residuals with same length as the times array of the
+            corresponding dataset.
+
+        Raises
+        ----------
+        * ValueError: if the provided filter options (`model`, `dataset`,
+            `component`) do not result in a single parameter for comparison.
+        * NotImplementedError: if the dataset kind is not supported for residuals.
+        """
+        if not len(self.filter(context='dataset').datasets):
+            dataset_ps = self._bundle.get_dataset(dataset=dataset)
+        else:
+            dataset_ps = self.filter(dataset=dataset, context='dataset')
+
+        dataset_kind = dataset_ps.filter(kind='*dep').kind
+
+        if not len(self.filter(context='model').models):
+            model_ps = self._bundle.get_model(model=model).filter(dataset=dataset, component=component)
+        else:
+            model_ps = self.filter(model=model, context='model').filter(dataset=dataset, component=component)
+
+        if dataset_kind == 'lc_dep':
+            qualifier = 'fluxes'
+        elif dataset_kind == 'rv_dep':
+            qualifier = 'rvs'
+        else:
+            # TODO: lp compared for a given time interpolating in wavelength?
+            # NOTE: add to documentation if adding support for other datasets
+            raise NotImplementedError("compute_residuals not implemented for dataset with kind='{}' (model={}, dataset={}, component={})".format(dataset_kind, model, dataset, component))
+
+        dataset_param = dataset_ps.get_parameter(qualifier, component=component)
+        model_param = model_ps.get_parameter(qualifier)
+
+        # TODO: do we need to worry about conflicting units?
+        # NOTE: this should automatically handle interpolating in phases, if necessary
+        times = dataset_ps.get_value('times', component=component)
+        if not len(times):
+            raise ValueError("no times in the dataset: {}@{}".format(dataset, component))
+        if not len(dataset_param.get_value()) == len(times):
+            if len(dataset_param.get_value())==0:
+                # then the dataset was empty, so let's just return an empty array
+                if as_quantity:
+                    return np.asarray([]) * dataset_param.default_unit
+                else:
+                    return np.asarray([])
+            else:
+                raise ValueError("{}@{}@{} and {}@{}@{} do not have the same length, cannot compute residuals".format(qualifier, component, dataset, 'times', component, dataset))
+
+        if dataset_param.default_unit != model_param.default_unit:
+            raise ValueError("model and dataset do not have the same default_unit, cannot interpolate")
+
+        residuals = np.asarray(dataset_param.interp_value(times=times) - model_param.interp_value(times=times))
+
+        if as_quantity:
+            return residuals * dataset_param.default_unit
+        else:
+            return residuals
+
+
+
     def _unpack_plotting_kwargs(self, **kwargs):
 
 
@@ -2763,7 +2851,7 @@ class ParameterSet(object):
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
-        ps = self.filter(**filter_kwargs)
+        ps = self.filter(check_visible=False, **filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases'])
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn', 'lp', 'lp_syn']:
             ps = ps.filter(time=kwargs.get('time'))
@@ -2780,13 +2868,13 @@ class ParameterSet(object):
 
         if len(ps.contexts) > 1:
             for context in ps.contexts:
-                this_return = ps.filter(context=context)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             for dataset in ps.datasets:
-                this_return = ps.filter(dataset=dataset)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -2802,33 +2890,33 @@ class ParameterSet(object):
 
         if len(kinds) == 1 and len(pskinds) > 1:
             # then we need to filter to exclude the dep
-            ps = ps.filter(kind=kinds[0])
+            ps = ps.filter(check_visible=False, kind=kinds[0])
             pskinds = [kinds[0]]
 
         if len(ps.kinds) > 1:
             for kind in [m for m in pskinds if m[-3:]!='dep']:
-                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, kind=kind)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.models) > 1:
             for model in ps.models:
                 # TODO: change linestyle for models instead of color?
-                this_return = ps.filter(model=model)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
             # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
-                this_return = ps.filter(time=time)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, time=time)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.components) > 1:
             return_ = []
             for component in ps.components:
-                this_return = ps.filter(component=component)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -2926,13 +3014,16 @@ class ParameterSet(object):
                         # then we actually need to unpack from the uvw_elements
                         verts = ps.get_quantity(qualifier='uvw_elements')
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
+                    elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
+                        # then we actually need to pull the times from the dataset instead of the model since the length may not match
+                        array_value = ps._bundle.get_value('times', dataset=ps.dataset, component=ps.component, context='dataset')
                     else:
-                        if len(ps.filter(current_value))==1:
-                            array_value = ps.get_quantity(current_value)
-                        elif len(ps.filter(current_value).times) > 1 and ps.get_value(current_value, time=ps.filter(current_value).times[0]):
+                        if len(ps.filter(current_value, check_visible=False))==1:
+                            array_value = ps.get_quantity(current_value, check_visible=False)
+                        elif len(ps.filter(current_value, check_visible=False).times) > 1 and ps.get_value(current_value, time=ps.filter(current_value, check_visible=False).times[0]):
                             # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
                             unit = ps.get_quantity(current_value, time=ps.filter(current_value).times[0]).unit
-                            array_value = np.array([ps.get_quantity(current_value, time=time).to(unit).value for time in ps.filter(current_value).times])*unit
+                            array_value = np.array([ps.get_quantity(current_value, time=time, check_visible=False).to(unit).value for time in ps.filter(current_value, check_visible=False).times])*unit
                         else:
                             raise ValueError("could not find Parameter for {} in {}".format(current_value, ps.meta))
 
@@ -2948,7 +3039,7 @@ class ParameterSet(object):
                             errors = ps.get_quantity(kwargs.get(errorkey))
                             kwargs[errorkey] = errors
                         else:
-                            sigmas = ps.get_quantity('sigmas')
+                            sigmas = ps.get_quantity('sigmas', check_visible=False)
                             if len(sigmas):
                                 kwargs.setdefault(errorkey, sigmas)
 
@@ -2987,7 +3078,11 @@ class ParameterSet(object):
                                         if len(current_value.split(':')) > 1 \
                                         else None
 
-                    if ps.kind in ['etvs']:
+
+                    if 'residuals' in kwargs.values():
+                        # then we actually need to pull the times from the dataset instead of the model since the length may not match
+                        times = ps._bundle.get_value('times', dataset=ps.dataset, component=ps.component, context='dataset')
+                    elif ps.kind in ['etvs']:
                         times = ps.get_value('time_ecls', unit=u.d)
                     else:
                         times = ps.get_value('times', unit=u.d)
@@ -3000,6 +3095,20 @@ class ParameterSet(object):
 
                     # and we'll set the linebreak so that decreasing phase breaks any lines (allowing for phase wrapping)
                     kwargs.setdefault('linebreak', '{}-'.format(direction))
+
+                    return kwargs
+
+                elif current_value in ['residuals']:
+                    if ps.model is None:
+                        logger.info("skipping residuals for dataset")
+                        return {}
+
+                    # we're currently within the MODEL context
+                    kwargs[direction] = ps.compute_residuals(model=ps.model, dataset=ps.dataset, component=ps.component, as_quantity=True)
+                    kwargs.setdefault('{}label'.format(direction), '{} residuals'.format({'lc': 'flux', 'rv': 'rv'}.get(ps.kind, '')))
+                    kwargs['{}qualifier'.format(direction)] = current_value
+                    kwargs.setdefault('linestyle', 'none')
+                    kwargs.setdefault('marker', '+')
 
                     return kwargs
 
@@ -3203,10 +3312,13 @@ class ParameterSet(object):
         #### GET DATA ARRAY FOR EACH AUTOFIG "DIRECTION"
         for af_direction in ['x', 'y', 'z', 'c', 's', 'fc', 'ec']:
             # set the array and dimension label
+            # logger.debug("af_direction={}, kwargs={}, defaults={}".format(af_direction, kwargs, defaults))
             if af_direction not in kwargs.keys() and af_direction in defaults.keys():
                 # don't want to use setdefault here because we don't want an
                 # entry if the af_direction is not in either dict
                 kwargs[af_direction] = defaults[af_direction]
+
+            # logger.debug("_kwargs_fill_dimension {} {} {}".format(kwargs, af_direction, ps.twigs))
             kwargs = _kwargs_fill_dimension(kwargs, af_direction, ps)
 
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
@@ -3295,7 +3407,7 @@ class ParameterSet(object):
 
         #### LABEL FOR LEGENDS
         attrs = ['component', 'dataset']
-        if len(ps._bundle.models) > 1:
+        if ps._bundle is not None and len(ps._bundle.models) > 1:
             attrs += ['model']
         default_label = '@'.join([getattr(ps, attr) for attr in attrs if getattr(ps, attr) is not None])
         kwargs.setdefault('label', default_label)
@@ -3368,10 +3480,13 @@ class ParameterSet(object):
             With the exception of phase, `b.get_value(x)` needs to provide a
             valid float or array.  To plot phase along the x-axis, pass
             `x='phases'` or `x=phases:[component]`.  This will use the ephemeris
-            from <phoebe.frontend.bundle.Bundle.get_ephemeris(component) if
+            from <phoebe.frontend.bundle.Bundle.get_ephemeris>(component) if
             possible to phase the applicable times array.
         * `y` (string/float/array, optional): qualifier/twig of the array to plot on the
-            y-axis (will default based on the dataset-kind if not provided).
+            y-axis (will default based on the dataset-kind if not provided).  To
+            plot residuals along the y-axis, pass `y='residuals'`.  This will
+            call <phoebe.frontend.bundle.Bundle.compute_residuals> for the given
+            dataset/model.
         * `z` (string/float/array, optional): qualifier/twig of the array to plot on the
             z-axis.  By default, this will just order the points on a 2D plot.
             To plot in 3D, also pass `projection='3d'`.
@@ -4828,6 +4943,16 @@ class Parameter(object):
         """
         """
         return self.__rmath__(other, '**', '__rpow__')
+
+    def __mod__(self, other):
+        """
+        """
+        return self.__math__(other, '%', '__mod__')
+
+    def __rmod__(self, other):
+        """
+        """
+        return self.__rmath__(other, '%', '__rmod__')
 
     def set_uniqueid(self, uniqueid):
         """
@@ -6478,12 +6603,23 @@ class FloatArrayParameter(FloatParameter):
         Example:
 
         ```py
-        b['flux@lc01@model'].interp_value(times=10.2)
+        b['fluxes@lc01@model'].interp_value(times=10.2)
         ```
 
-        NOTE: Interpolation by phase is not currently supported - but you can use
-        <phoebe.frontend.bundle.Bundle.to_time> to convert to a valid
-        time first (just make sure its in the bounds of the time array).
+        The only exception is when interpolating in phase-space, in which
+        case the 'times' qualifier must be found in the ParentPS.  Interpolating
+        in phase-space is only allowed if there are no time derivatives present
+        in the system.  This can be checked with
+        <phoebe.parameters.HierarchyParameter.is_time_dependent>.  To interpolate
+        in phases:
+
+        ```
+        b['fluxes@lc01@model'].interp_value(phases=0.5)
+        ```
+
+        Additionally, when interpolating in time but the time is outside the
+        available range, phase-interpolation will automatically be attempted,
+        with a warning raised via the <phoebe.logger>.
 
         NOTE: this method does not currently support units.  You must provide
         the interpolating value in its default units and are returned the
@@ -6491,6 +6627,10 @@ class FloatArrayParameter(FloatParameter):
 
         Arguments
         ----------
+        * `component` (string, optional): if interpolating in phases, `component`
+            will be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `t0` (string/float, optional): if interpolating in phases, `t0` will
+            be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `**kwargs`: see examples above, must provide a single
             qualifier-value pair to use for interpolation.  In most cases
             this will probably be time=value or wavelength=value.
@@ -6523,17 +6663,39 @@ class FloatArrayParameter(FloatParameter):
 
         parent_ps = self.get_parent_ps()
 
-        if qualifier not in parent_ps.qualifiers:
+        if qualifier not in parent_ps.qualifiers and not (qualifier=='phases' and 'times' in parent_ps.qualifiers):
             # TODO: handle plural to singular (having to say
             # interp_value(times=5) is awkward)
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
 
-        qualifier_parameter = parent_ps.get(qualifier=qualifier)
+        if qualifier=='times':
+            times = parent_ps.get_value(qualifier='times')
+            if np.any(qualifier_interp_value < times.min()) or np.any(qualifier_interp_value > times.max()):
+                qualifier_interp_value_time = qualifier_interp_value
+                qualifier = 'phases'
+                qualifier_interp_value = self._bundle.to_phase(qualifier_interp_value_time, **{k:v for k,v in kwargs.items() if k in ['component', 't0']})
+                logger.warning("times={} outside of interpolation limits ({} -> {})... attempting to interpolate at phases={}".format(qualifier_interp_value_time, times.min(), times.max(), qualifier_interp_value))
 
-        if not isinstance(qualifier_parameter, FloatArrayParameter):
-            raise KeyError("'{}' does not point to a FloatArrayParameter".format(qualifier))
 
-        return np.interp(qualifier_interp_value, qualifier_parameter.get_value(), self.get_value())
+        if qualifier=='phases':
+            if self._bundle.hierarchy.is_time_dependent():
+                raise ValueError("cannot interpolate in phase for time-dependent systems")
+
+            times = parent_ps.get_value(qualifier='times')
+            phases = self._bundle.to_phase(times, **{k:v for k,v in kwargs.items() if k in ['component', 't0']})
+
+            sort = phases.argsort()
+
+            return np.interp(qualifier_interp_value, phases[sort], self.get_value()[sort])
+
+        else:
+
+            qualifier_parameter = parent_ps.get(qualifier=qualifier)
+
+            if not isinstance(qualifier_parameter, FloatArrayParameter):
+                raise KeyError("'{}' does not point to a FloatArrayParameter".format(qualifier))
+
+            return np.interp(qualifier_interp_value, qualifier_parameter.get_value(), self.get_value())
 
 
     def append(self, value):
@@ -7573,6 +7735,41 @@ class HierarchyParameter(StringParameter):
 
         return self._is_binary.get(component)
 
+    def is_misaligned(self):
+        """
+        Return whether the system is misaligned.
+
+        Returns
+        ---------
+        * (bool): whether the system is misaligned.
+        """
+        for component in self.get_stars():
+            if self._bundle.get_value('pitch', component=component, context='component') != 0:
+                return True
+            if self._bundle.get_value('yaw', component=component, context='component') != 0:
+                return True
+
+        return False
+
+    def is_time_dependent(self):
+        """
+        Return whether the system has any time-dependent parameters (other than
+        phase-dependent).
+
+        Returns
+        ---------
+        * (bool): whether the system is time-dependent
+        """
+        for orbit in self.get_orbits():
+            if self._bundle.get_value('dpdt', component=orbit, context='component') != 0:
+                return True
+            if self._bundle.get_value('dperdt', component=orbit, context='component') != 0:
+                return True
+            if conf.devel and self._bundle.get_value('deccdt', component=orbit, context='component') != 0:
+                return True
+
+        return False
+
 
 class ConstraintParameter(Parameter):
     """
@@ -8091,8 +8288,9 @@ class ConstraintParameter(Parameter):
 
         eq = self.get_value()
 
+        values = get_values(self._vars, safe_label=_use_sympy or not eq_needs_builtin(eq))
+
         if _use_sympy and not eq_needs_builtin(eq):
-            values = get_values(self._vars, safe_label=True)
             values['I'] = 1 # CHEATING MAGIC
             # just to be safe, let's reinitialize the sympy vars
             for v in self._vars:
@@ -8113,8 +8311,6 @@ class ConstraintParameter(Parameter):
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
 
-                values = get_values(self._vars, safe_label=False)
-
                 # cannot do from builtin import *
                 for func in _constraint_builtin_funcs:
                     # I should be shot for doing this...
@@ -8133,7 +8329,6 @@ class ConstraintParameter(Parameter):
 
             else:
                 # the following works for np arrays
-                values = get_values(self._vars, safe_label=True)
 
                 # if any of the arrays are empty (except the one we're filling)
                 # then we want to return an empty array as well (the math would fail)
