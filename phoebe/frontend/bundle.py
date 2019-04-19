@@ -1873,6 +1873,8 @@ class Bundle(ParameterSet):
         # forbid color-coupling with a dataset which is scaled to data or to another that is in-turn color-coupled
         for param in self.filter(qualifier='pblum_mode', value='color coupled').to_list():
             coupled_to = self.get_value(qualifier='pblum_ref', dataset=param.dataset)
+            if coupled_to == '':
+                continue
             pblum_mode = self.get_value(qualifier='pblum_mode', dataset=coupled_to)
             if pblum_mode in ['scale to data', 'color coupled']:
                 return False, "cannot set pblum_ref@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode)
