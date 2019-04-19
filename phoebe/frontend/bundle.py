@@ -390,7 +390,7 @@ class Bundle(ParameterSet):
         rjson = r.json()
 
         if not rjson['data']['success']:
-            raise Error(rjson['data'].get('error', 'unknown error'))
+            raise ValueError("server error: {}".format(rjson['data'].get('error', 'unknown error')))
 
         b = cls(rjson['data']['bundle'])
 
@@ -847,12 +847,24 @@ class Bundle(ParameterSet):
             # self._socketio.on('push updates', self._on_socket_push_updates)
             self._socketio.on('changes', self._on_socket_push_updates)
 
-            if not bundleid:
-                upload_url = "{}/upload".format(server)
+            if bundleid is not None:
+                rj = requests.get("{}/info".format(server)).json()
+                if bundleid in rj['data']['clients_per_bundle'].keys():
+                    upload = False
+                else:
+                    upload = True
+            else:
+                upload = True
+
+            if upload:
+                upload_url = "{}/open_bundle".format(server)
                 logger.info("uploading bundle to server {}".format(upload_url))
-                data = json.dumps(self.to_json(incl_uniqueid=True))
-                r = requests.post(upload_url, data=data, timeout=5)
-                bundleid = r.json()['meta']['bundleid']
+                data = json.dumps({'json': self.to_json(incl_uniqueid=True), 'bundleid': bundleid})
+                rj = requests.post(upload_url, data=data, timeout=5).json()
+                if rj['data']['success']:
+                    bundleid = rj['data']['bundleid']
+                else:
+                    raise ValueError("server error: {}".format(rj['data'].get('error', 'unknown error')))
 
             # self._socketio.emit('subscribe bundle', {'bundleid': bundleid})
             self._socketio.emit('register client', {'clientid': _clientid, 'bundleid': bundleid})

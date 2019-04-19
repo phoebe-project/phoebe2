@@ -6,9 +6,6 @@ pip install flask-sqlalchemy
 pip install flask-socketio
 pip install gevent-websocket
 
-mpltracker https://github.com/kecnry/mpltracker
-
-
 to launch with MPI enabled:
 PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server
 """
@@ -90,7 +87,6 @@ def _new_bundleid(uniqueid=None, N=6):
 
 ################################## ADDITIONAL IMPORTS ##########################
 
-# import mpltracker  # https://www.github.com/kecnry/mpltracker
 import phoebe
 import numpy as np
 import matplotlib.pyplot as plt
@@ -411,7 +407,10 @@ def open_bundle():
         bundle_data = json.load(file)
     else:
         if app._verbose: print("opening bundle from json data")
-        bundle_data = json.loads(data['json'])
+        try:
+            bundle_data = data['json']
+        except:
+            return _get_response({'success': False, 'error': "could not read json data"}, api=True)
 
 
     try:
@@ -437,7 +436,8 @@ def json_bundle(bundleid):
         print("json_bundle(bundleid={})".format(bundleid))
 
     if bundleid not in app._bundles.keys():
-        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'}, api=True)
+        print("json_bundle error: bundleid={}, app._bundles.keys()={}".format(bundleid, app._bundles.keys()))
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid=\'{}\''.format(bundleid)}, api=True)
 
     bjson = _get_bundle_json(bundleid, do_jsonify=False)
 
@@ -554,6 +554,13 @@ def disconnect():
 def register_client(msg):
     clientid = msg.get('clientid', None)
     bundleid = msg.get('bundleid', None)
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("set_value {} error: {}".format(msg, err))
+        emit('set_value', {'success': False, 'id': packetid, 'error': err}, broadcast=False)
+        return
+
     if app._verbose:
         print("register_client(clientid={}, bundleid={})".format(clientid, bundleid))
 
@@ -596,14 +603,19 @@ def set_value(msg):
     bundleid = msg.pop('bundleid')
 
     if bundleid not in app._bundles.keys():
-        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("set_value {} error: {}".format(msg, err))
+        emit('set_value', {'success': False, 'id': packetid, 'error': err}, broadcast=False)
+        return
+
 
     b = app._bundles[bundleid]
     app._last_access_per_bundle[bundleid] = datetime.now()
 
-    msg.set_default('check_visible', False)
-    msg.set_default('check_default', False)
-    msg.set_default('check_advanced', False)
+    msg.setdefault('check_visible', False)
+    msg.setdefault('check_default', False)
+    msg.setdefault('check_advanced', False)
 
     try:
         b.set_value_all(**msg)
@@ -650,4 +662,8 @@ if __name__ == "__main__":
         host = '127.0.0.1'
 
     app._parent = parent
+
+    if app._verbose:
+        print("*** SERVER READY ***")
+
     socketio.run(app, host=host, port=port)
