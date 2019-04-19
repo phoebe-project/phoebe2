@@ -4400,10 +4400,12 @@ class Bundle(ParameterSet):
 
         # scale fluxes whenever pblum_mode = 'scale to data'
         for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
-            # TODO: will need to merge with compute_times/compute_phases
+            logger.debug("rescaling fluxes to data for dataset='{}'".format(param.dataset))
+            ds_times = self.get_dataset(param.dataset).get_value('times')
             ds_fluxes = self.get_dataset(param.dataset).get_value('fluxes')
             model_fluxes = self.get_model(model).get_value('fluxes')
-            scale_factor = np.median(ds_fluxes / model_fluxes)
+            model_fluxes_interp = self.get_model(model).get_parameter('fluxes').interp_value(times=ds_times)
+            scale_factor = np.median(ds_fluxes / model_fluxes_interp)
             self.get_model(model).set_value('fluxes', model_fluxes*scale_factor)
 
             # TODO: scale relevant mesh columns for same dataset???
