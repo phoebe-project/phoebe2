@@ -3011,7 +3011,7 @@ class Bundle(ParameterSet):
         else:
             obs_kwargs = {}
 
-        obs_params, constraints = func(**obs_kwargs)
+        obs_params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **obs_kwargs)
 
         if kwargs.get('overwrite', False):
             self.remove_dataset(dataset=kwargs['dataset'])
@@ -3061,6 +3061,16 @@ class Bundle(ParameterSet):
         self._handle_pblum_defaults()
         self._handle_dataset_selectparams()
 
+        if 'compute_phases' in kwargs.keys():
+            if 'compute_times' in kwargs.keys():
+                self.remove_dataset(dataset=kwargs['dataset'])
+                raise ValueError("cannot provide both 'compute_phases' and 'compute_times'. Dataset has not been added.")
+            else:
+                # then we must flip the constraint
+                # TODO: this will probably break with triple support - we'll need to handle the multiple orbit components by accepting the dictionary.
+                # For now we'll assume the component is top-level binary
+                self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times')
+
         for k, v in kwargs.items():
             if isinstance(v, dict):
                 for component, value in v.items():
@@ -3088,6 +3098,8 @@ class Bundle(ParameterSet):
                     # passband-dependent (ie lc_dep) parameters do not have
                     # assigned components
                     components_ = None
+                elif k in ['compute_times', 'compute_phases']:
+                    components_ = self.hierarchy.get_top()
                 elif components == [None]:
                     components_ = None
                 elif user_provided_components:
@@ -3108,7 +3120,15 @@ class Bundle(ParameterSet):
                     raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added.".format(k, v, err.message))
 
 
-        redo_kwargs = deepcopy({k:v if not isinstance(v, nparray.ndarray) else v.to_json() for k,v in kwargs.items()})
+        def _to_safe_value(v):
+            if isinstance(v, nparray.ndarray):
+                return v.to_json()
+            elif isinstance(v, dict):
+                return {k: _to_safe_value(v) for k,v in v.items()}
+            else:
+                return v
+
+        redo_kwargs = deepcopy({k:_to_safe_value(v) for k,v in kwargs.items()})
         redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_dataset',
                           redo_kwargs=redo_kwargs,
@@ -3628,6 +3648,8 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, additional_allowed_keys=['check_nan'])
 
         kwargs['twig'] = twig
+        # kwargs['check_default'] = False
+        # kwargs['check_visible'] = False
         redo_kwargs = deepcopy(kwargs)
         undo_kwargs = deepcopy(kwargs)
 
@@ -3635,7 +3657,13 @@ class Bundle(ParameterSet):
 
         param = self.get_constraint(**kwargs)
 
-        if kwargs.pop('check_nan', True) and np.any(np.isnan([p.get_value() for p in param.vars.to_list()])):
+        def _check_nan(value):
+            if isinstance(value, np.ndarray):
+                return np.any(np.isnan(value))
+            else:
+                return np.isnan(value)
+
+        if kwargs.pop('check_nan', True) and np.any([_check_nan(p.get_value()) for p in param.vars.to_list()]):
             raise ValueError("cannot flip constraint while the value of {} is nan".format([p.twig for p in param.vars.to_list() if np.isnan(p.get_value())]))
 
         if solve_for is None:
@@ -4362,7 +4390,9 @@ class Bundle(ParameterSet):
                         exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
                         if exptime > 0:
                             if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
-                                times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
+                                times_ds = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset')
+                                if not len(times_ds):
+                                    times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
                                 # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
                                 fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
                                 # NOTE: this is hardcoded for LCs which is the
@@ -4515,7 +4545,6 @@ class Bundle(ParameterSet):
 
         self._check_label(new_model)
         self._rename_label('model', old_model, new_model)
-
 
     # TODO: ability to copy a posterior to a prior or have a prior reference an attached posterior (for drawing in fitting)
     def add_prior(self, twig=None, **kwargs):
