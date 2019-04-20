@@ -853,10 +853,6 @@ class Bundle(ParameterSet):
             self._socketio.on('connect', self._on_socket_connect)
             self._socketio.on('disconnect', self._on_socket_disconnect)
 
-            # self._socketio.on('set_value', self._on_socket_push_updates)
-            # self._socketio.on('push updates', self._on_socket_push_updates)
-            self._socketio.on('changes:python', self._on_socket_push_updates)
-
             if bundleid is not None:
                 rj = requests.get("{}/info".format(server)).json()
                 if bundleid in rj['data']['clients_per_bundle'].keys():
@@ -876,8 +872,9 @@ class Bundle(ParameterSet):
                 else:
                     raise ValueError("server error: {}".format(rj['data'].get('error', 'unknown error')))
 
-            # self._socketio.emit('subscribe bundle', {'bundleid': bundleid})
             self._socketio.emit('register client', {'clientid': _clientid, 'bundleid': bundleid})
+
+            self._socketio.on('{}:changes:python'.format(bundleid), self._on_socket_push_updates)
 
             self._bundleid = bundleid
 
