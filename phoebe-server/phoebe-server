@@ -623,7 +623,12 @@ def set_value(msg):
     msg.setdefault('check_default', False)
     msg.setdefault('check_advanced', False)
 
+    client_types = _client_types_for_bundle(bundleid)
+    if 'web' in client_types or 'desktop' in client_types:
+        is_visible_before = {p.uniqueid: p.is_visible for p in b.to_list()}
+
     try:
+        # TODO: handle getting nparray objects (probably as json strings/unicodes)
         b.set_value_all(**msg)
         ps_constraints = b.run_delayed_constraints()
     except Exception as err:
@@ -640,11 +645,14 @@ def set_value(msg):
         emit('set_value', {'success': False, 'error': err.message}, broadcast=False)
         return
     else:
-
-        client_types = _client_types_for_bundle(bundleid)
         if 'web' in client_types or 'desktop' in client_types:
 
-            # TODO: need to find Parameters in which is_visible has changed?  Or can we leave that up to the client?
+            # we need to also include parameters in which the visibility has changed
+            is_visible_changed = {p.uniqueid: p.is_visible for p in b.to_list() if p.is_visible!=is_visible_before.get(p.uniqueid, None)}
+            # TODO: need to figure out what should be shown in the client if a new items has become visible but not within the filter
+            # TODO: tag visibility in the client needs to change based on the change in parameter visibilities
+
+            ps_list += b.filter(uniqueid=is_visible_changed.keys(), check_visible=False, check_advanced=False, check_default=False).to_list()
 
             param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
             param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
