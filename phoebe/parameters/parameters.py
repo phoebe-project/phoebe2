@@ -1401,29 +1401,58 @@ class ParameterSet(object):
 
         return filename
 
-    def ui(self, client='http://localhost:4200', **kwargs):
+    def ui(self, client='http://localhost:3000', full_ui=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
+        Open an interactive user-interface for the ParameterSet.
 
         The bundle must be in client mode in order to open the web-interface.
         See <phoebe.frontend.bundle.Bundle.as_client> to switch to client mode.
 
-        :parameter str client: URL of the running client which must be connected
-            to the same server as the bundle
-        :return: URL of the parameterset of this bundle in the client (will also
-            attempt to open webbrowser)
-        :rtype: str
+        See also:
+        * <phoebe.frontend.bundle.Bundle.from_server>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+        * <phoebe.frontend.bundle.Bundle.client_update>
+
+        Arguments
+        -----------
+        * `client` (str, optional, default='http://localhost:3000'): URL to find
+            and launch the web-client.
+        * `full_ui` (bool or None, optional, default=None): whether to launch
+            the full navigatable UI (as opposed to just the ParameterSet view).
+            If None, will default to True for a Bundle or False for a ParameterSet.
+        * `**kwargs`: additional kwargs will be sent to
+            <phoebe.parameters.ParameterSet.filter>.
+
+        Returns
+        ----------
+        * `url` (string): the opened URL (will attempt to launch in the system
+            webbrowser)
         """
         if self._bundle is None or not self._bundle.is_client:
-            raise ValueError("bundle must be in client mode")
+            raise ValueError("bundle must be in client mode.  Call bundle.as_client()")
 
         if len(kwargs):
             return self.filter(**kwargs).ui(client=client)
 
-        querystr = "&".join(["{}={}".format(k, v)
+        def filteritem(v):
+            if isinstance(v, list):
+                return v
+            else:
+                return [v]
+
+        querystr = "&".join(["{}={}".format(k, filteritem(v))
                              for k, v in self._filter.items()])
         # print self._filter
-        url = "{}/{}?{}".format(client, self._bundle._bundleid, querystr)
+        if full_ui is None:
+            full_ui = len(self._filter.keys()) == 0
+
+
+        ### TODO: can we support launching the electron instance if installed?
+        if full_ui:
+            url = "{}/{}/{}?{}".format(client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
+        else:
+            url = "{}/{}/{}/ps?{}".format(client, self._bundle.is_client.strip("http://"), self._bundle._bundleid, querystr)
 
         logger.info("opening {} in browser".format(url))
         webbrowser.open(url)
