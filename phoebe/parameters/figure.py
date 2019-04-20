@@ -11,7 +11,7 @@ except (ImportError, TypeError):
 else:
     _use_mpl = True
     _mplcolors = ['k', 'b', 'r', 'g', 'p']
-    _mplcolors = _mplcolors + [c for c in list(colors.ColorConverter.colors.keys()) + list(colors.cnames.keys()) if c not in _mplcolors]
+    _mplcolors = _mplcolors + [c for c in list(colors.ColorConverter.colors.keys()) + list(colors.cnames.keys()) if c not in _mplcolors and 'xkcd' not in c]
     _mplmarkers = ['.', 'o', '+', 's', '*', 'v', '^', '<', '>', 'p', 'h', 'o', 'D']
     # could do matplotlib.markers.MarkerStyle.markers.keys()
     _mpllinestyles = ['solid', 'dashed', 'dotted', 'dashdot', 'None']
