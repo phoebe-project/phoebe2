@@ -1926,7 +1926,7 @@ class ParameterSet(object):
             check_default = False
 
         if not (twig is None or isinstance(twig, str)):
-            raise TypeError("first argument (twig) must be of type str or None")
+            raise TypeError("first argument (twig) must be of type str or None, got {}".format(type(twig)))
 
         if kwargs.get('component', None) == '_default' or\
                 kwargs.get('dataset', None) == '_default' or\

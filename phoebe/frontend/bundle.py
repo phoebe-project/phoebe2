@@ -761,27 +761,35 @@ class Bundle(ParameterSet):
         # TODO: handle added parameters
         # TODO: handle removed (isDeleted) parameters
 
-        # print "*** resp['data']['changes']", resp['data']['changes']
-        for qualifier, infos in resp['parameters'].items():
-            for uniqueid, info in infos.items():
-                if uniqueid in self.uniqueids:
-                    # then we're updating something in the parameter (or deleting)
-                    param = self.get_parameter(uniqueid=uniqueid)
-                    for attr, value in info.get('attributes', {}).items():
-                        if hasattr(param, "_{}".format(attr)):
-                            logger.info("updates from server: setting {}@{}={}".
-                                        format(attr, param.twig, value))
+        # resp['data'] = {'success': True/False, 'parameters': {uniqueid: {context: 'blah', value: 'blah', ...}}}
+        # print("*** _on_socket_push_updates resp={}".format(resp))
+        for uniqueid, paramdict in resp['parameters'].items():
+            # print("*** _on_socket_push_updates uniquide in uniqueids={}, paramdict={}".format(uniqueid in self.uniqueids, paramdict))
+            if uniqueid in self.uniqueids:
+                param = self.get_parameter(uniqueid=uniqueid, check_visible=False, check_default=False, check_advanced=False)
+                for attr, value in paramdict.items():
+                    if hasattr(param, "_{}".format(attr)):
+                        logger.info("updates from server: setting {}@{}={}".
+                                    format(attr, param.twig, value))
 
-                            # we cannot call param.set_value because that will
-                            # emit another signal to the server.  So we do need
-                            # to hardcode some special cases here
-                            if isinstance(value, dict):
-                                if 'nparray' in value.keys():
-                                    value = nparray.from_json(value)
+                        # we cannot call param.set_value because that will
+                        # emit another signal to the server.  So we do need
+                        # to hardcode some special cases here
+                        if isinstance(value, dict):
+                            if 'nparray' in value.keys():
+                                value = nparray.from_json(value)
 
-                            setattr(param, "_{}".format(attr), value)
-                else:
-                    self._attach_param_from_server(info)
+                        if attr == 'value' and hasattr(param, 'default_unit'):
+                            if 'default_unit' in paramdict.keys():
+                                unit = u.Unit(paramdict.get('default_unit'))
+                            else:
+                                unit = param.default_unit
+                            value = value * unit
+
+                        setattr(param, "_{}".format(attr), value)
+            else:
+                self._attach_param_from_server(paramdict)
+
 
     def _attach_param_from_server(self, item):
         """
@@ -793,6 +801,8 @@ class Bundle(ParameterSet):
         else:
             # then we need to add a new parameter
             d = item
+
+            print("*** _attach_param_from_server d={}".format(d))
 
             d['Class'] = d.pop('type')
             for attr, value in d.pop('attributes', {}).items():
@@ -845,7 +855,7 @@ class Bundle(ParameterSet):
 
             # self._socketio.on('set_value', self._on_socket_push_updates)
             # self._socketio.on('push updates', self._on_socket_push_updates)
-            self._socketio.on('changes', self._on_socket_push_updates)
+            self._socketio.on('changes:python', self._on_socket_push_updates)
 
             if bundleid is not None:
                 rj = requests.get("{}/info".format(server)).json()

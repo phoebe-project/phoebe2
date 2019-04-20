@@ -168,6 +168,12 @@ def crossdomain(origin=None, methods=None, headers=None,
         return update_wrapper(wrapped_function, f)
     return decorator
 
+############################# CLIENT MANAGEMENT ################################
+
+def _client_types_for_bundle(bundleid):
+    return [c.split('-')[0] for c in app._clients_per_bundle.get(bundleid, [])]
+
+
 ############################ BUNDLE MANIPULATION ###############################
 
 
@@ -584,7 +590,8 @@ def deregister_client(msg):
 
     if bundleid is not None:
         app._clients_per_bundle[bundleid] = [c for c in app._clients_per_bundle.get(bundleid, []) if c!=clientid]
-    elif clientid is not None:
+
+    elif clientid is not None and clientid in app._clients:
         # note: we'll leave the clientid in app._clients_per_bundle.  Those bundles
         # will become stale and eventually deleted by timeout in bundle_memory_cleanup.
         app._clients.remove(clientid)
@@ -619,27 +626,42 @@ def set_value(msg):
 
     try:
         b.set_value_all(**msg)
+        ps_constraints = b.run_delayed_constraints()
     except Exception as err:
         if app._verbose:
             print("set_value {} error: {}".format(msg, err.message))
         emit('set_value', {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
+        return
+
+    try:
+        ps_list = ps_constraints + b.filter(**{k:v for k,v in msg.items() if k not in ['value']}).to_list()
+
+        param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
+        param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+    except Exception as err:
+        if app._verbose:
+            print("set_value {} error on filter: {}".format(msg, err.message))
+        emit('set_value', {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
+        return
     else:
 
-        ps = b.filter(**msg)
-        param_list = sorted([_param_json_overview(param) for param in ps.to_list()], key=lambda p: p['qualifier'])
-        param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+        client_types = _client_types_for_bundle(bundleid)
+        if 'web' in client_types or 'desktop' in client_types:
 
-        emit('changes', {'success': True, 'id': packetid, 'parameters': param_dict}, broadcast=True)
+            # TODO: need to find Parameters in which is_visible has changed?  Or can we leave that up to the client?
 
-        #
-        #
-        # # now let's send a broadcast message to all subscribed clients with a list of ALL changes (note the redundancy for the original client)
-        # changes = _params(b, **msg)
-        #
-        # filteredps = b.filter(**msg)
-        # figureschanged = b.figures if filteredps.context=='figure' and not len(filteredps.figures) else b.filter(**msg).figures
-        #
-        # emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'figureschanged': figureschanged}}, broadcast=True)
+            if app._verbose:
+                print("set_value success, broadcasting changes:react: {}".format(param_dict))
+
+            emit('changes:react', {'success': True, 'id': packetid, 'parameters': param_dict}, broadcast=True)
+
+        if 'python' in client_types:
+            ps_dict = {p.uniqueid: {'value': p.get_value()} for p in ps_list}
+
+            if app._verbose:
+                print("set_value success, broadcasting changes:python: {}".format(ps_dict))
+
+            emit('changes:python', {'success': True, 'id': packetid, 'parameters': ps_dict}, broadcast=True)
 
 
 
