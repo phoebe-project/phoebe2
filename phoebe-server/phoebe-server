@@ -564,7 +564,8 @@ def register_client(msg):
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("set_value {} error: {}".format(msg, err))
-        emit('set_value', {'success': False, 'id': packetid, 'error': err}, broadcast=False)
+
+        emit('set_value', {'success': False, 'error': err}, broadcast=False)
         return
 
     if app._verbose:
@@ -605,15 +606,13 @@ def set_value(msg):
     if app._verbose:
         print("set_value: ", msg)
 
-    packetid = msg.pop('id', None)
-
     bundleid = msg.pop('bundleid')
 
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("set_value {} error: {}".format(msg, err))
-        emit('set_value', {'success': False, 'id': packetid, 'error': err}, broadcast=False)
+        emit('set_value', {'success': False, 'error': err}, broadcast=False)
         return
 
 
@@ -630,7 +629,7 @@ def set_value(msg):
     except Exception as err:
         if app._verbose:
             print("set_value {} error: {}".format(msg, err.message))
-        emit('set_value', {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
+        emit('set_value', {'success': False, 'error': err.message}, broadcast=False)
         return
 
     try:
@@ -638,7 +637,7 @@ def set_value(msg):
     except Exception as err:
         if app._verbose:
             print("set_value {} error on filter: {}".format(msg, err.message))
-        emit('set_value', {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
+        emit('set_value', {'success': False, 'error': err.message}, broadcast=False)
         return
     else:
 
@@ -653,7 +652,7 @@ def set_value(msg):
             if app._verbose:
                 print("set_value success, broadcasting changes:react: {}".format(param_dict))
 
-            emit('{}:changes:react'.format(bundleid), {'success': True, 'id': packetid, 'parameters': param_dict}, broadcast=True)
+            emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
 
         if 'python' in client_types:
             ps_dict = {p.uniqueid: {'value': p.get_value()} for p in ps_list}
@@ -661,7 +660,7 @@ def set_value(msg):
             if app._verbose:
                 print("set_value success, broadcasting changes:python: {}".format(ps_dict))
 
-            emit('{}:changes:python'.format(bundleid), {'success': True, 'id': packetid, 'parameters': ps_dict}, broadcast=True)
+            emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
 
 
 
