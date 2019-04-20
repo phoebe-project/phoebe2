@@ -360,10 +360,7 @@ class Bundle(ParameterSet):
     @classmethod
     def from_server(cls, bundleid, server='http://localhost:5555',
                     as_client=True):
-        """Load a new bundle from a server.
-
-        [NOT SUPPORTED]
-
+        """
         Load a bundle from a phoebe server.  This is a constructor so should be
         called as:
 
@@ -371,17 +368,23 @@ class Bundle(ParameterSet):
         b = Bundle.from_server('asdf', as_client=False)
         ```
 
+        See also:
+        * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+        * <phoebe.frontend.bundle.Bundle.client_update>
+
         Arguments
         ----------
         * `bundleid` (string): the identifier given to the bundle by the
-            server
-        * `server` (string): the host (and port) of the server
+            server.
+        * `server` (string, optional, default='http://localhost:5555'): the
+            host (and port) of the server.
         * `as_client` (bool, optional, default=True):  whether to attach in
-            client mode
+            client mode.  See <phoebe.frontend.bundle.Bundle.as_client>.
         """
+        # TODO: support default cases from server?
 
-        # TODO: run test message on server, if localhost and fails, attempt to
-        # launch?
         if server[:4] != "http":
             server = "http://"+server
         url = "{}/json_bundle/{}".format(server, bundleid)
@@ -835,7 +838,33 @@ class Bundle(ParameterSet):
     def as_client(self, as_client=True, server='http://localhost:5555',
                   bundleid=None, start_if_fail=True):
         """
-        [NOT IMPLEMENTED]
+        Enter (or exit) client mode.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.from_server>
+        * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+        * <phoebe.frontend.bundle.Bundle.client_update>
+
+        Arguments
+        -----------
+        * `as_client` (bool, optional, default=True): whether to enter (True)
+            or exit (False) client mode.
+        * `server` (string, optional, default='http://localhost:5555'): the URL
+            location (including port, if necessary) to find the phoebe-server.
+        * `bundleid` (string, optional, default=None): if provided and the
+            bundleid is available from the given server, that bundle will be
+            downloaded and attached.  If provided but bundleid is not available
+            from the server, the current bundle will be uploaded and assigned
+            the given bundleid.  If not provided, the current bundle will be
+            uploaded and assigned a random bundleid.
+        * `start_if_fail` (bool, optional, default=True): NOT CURRENTLY IMPLEMENTED
+
+        Raises
+        ---------
+        * ImportError: if required dependencies for client mode are not met.
+        * ValueError: if the server at `server` is not running or reachable.
+        * ValueError: if the server returns an error.
         """
         if as_client:
             if not _can_client:
@@ -896,11 +925,30 @@ class Bundle(ParameterSet):
 
     @property
     def is_client(self):
+        """
+        See also:
+        * <phoebe.frontend.bundle.Bundle.from_server>
+        * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.client_update>
+
+        Returns
+        ---------
+        * False if the bundle is not in client mode, otherwise the URL of the server.
+        """
         return self._is_client
 
     def client_update(self):
         """
-        [NOT IMPLEMENTED]
+        Check for updates from the server and update the client.  In general,
+        it should not be necessary to call this manually.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.from_server>
+        * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+
         """
         if not self.is_client:
             raise ValueError("Bundle is not in client mode, cannot update")
