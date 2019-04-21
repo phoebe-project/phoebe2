@@ -1161,14 +1161,40 @@ class ParameterSet(object):
                 # has a kind in [star, disk, custombody]
                 #
                 # copy_for = {'kind': ['rv_dep'], 'component': '*', 'dataset': '*'}
+                # or
+                # copy_for = {'component': {}, 'dataset': {'kind': 'rv_dep'}}
                 # means that this should exist for each component/dataset pair with the
                 # rv_dep kind
+                #
+                # copy_for = {'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}
+                # means that this should exist for each component/dataset pair
+                # in which the component has kind='star' and dataset has kind='rv'
 
-                attrs = [k for k,v in param.copy_for.items() if '*' in v]
+
+                attrs = [k for k,v in param.copy_for.items() if '*' in v or isinstance(v, dict)]
                 # attrs is a list of the attributes for which we need a copy of
                 # this parameter for any pair
 
-                ps = self._bundle.filter(check_visible=False, check_default=False, force_ps=True, **param.copy_for)
+                def force_list(v):
+                    if isinstance(v, list):
+                        return v
+                    else:
+                        return [v]
+
+                filter_ = {}
+                for k,v in param.copy_for.items():
+                    if isinstance(v,dict):
+                        for dk,dv in v.items():
+                            if dk in filter_.keys():
+                                filter_[dk] += force_list(dv)
+                            else:
+                                filter_[dk] = force_list(dv)
+                    else:
+                        filter_[k] = force_list(v)
+
+                ps = self._bundle.filter(check_visible=False,
+                                         check_default=False,
+                                         force_ps=True, **filter_)
                 metawargs = {k:v for k,v in ps.meta.items() if v is not None and k in attrs}
                 for k,v in param.meta.items():
                     if k not in ['twig', 'uniquetwig'] and k not in attrs:
@@ -1184,15 +1210,24 @@ class ParameterSet(object):
                     # we need to look for this parameter, and if it does not exist
                     # then create it by copying param
 
+                    valid = True
 
                     for attr, attrvalue in zip(attrs, attrvalues):
                         #if attrvalue=='_default' and not getattr(param, attr):
                         #    print "SKIPPING", attr, attrvalue
                         #    continue
+
+                        # make sure valid from the copy_for dictionary
+                        if isinstance(param.copy_for[attr], dict):
+                            filter_ = {k:v for k,v in param.copy_for[attr].items()}
+                            filter_[attr] = attrvalue
+                            if not len(ps.filter(check_visible=False, check_default=False, check_advanced=False, check_single=False, force_ps=True, **filter_)):
+                                valid = False
+
                         metawargs[attr] = attrvalue
 
                     # logger.debug("_check_copy_for {}: metawargs={}".format(param.twig, metawargs))
-                    if not len(self._bundle.filter(check_visible=False, **metawargs)):
+                    if valid and not len(self._bundle.filter(check_visible=False, **metawargs)):
                         # then we need to make a new copy
                         logger.debug("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
 
@@ -1212,7 +1247,7 @@ class ParameterSet(object):
                     # Now we need to handle copying constraints.  This can't be
                     # in the previous if statement because the parameters can be
                     # copied before constraints are ever attached.
-                    if hasattr(param, 'is_constraint') and param.is_constraint:
+                    if valid and hasattr(param, 'is_constraint') and param.is_constraint:
 
                         param_constraint = param.is_constraint
 

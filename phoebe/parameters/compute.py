@@ -138,8 +138,11 @@ def phoebe(**kwargs):
     params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], description='Method to use for computing LC fluxes')]
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
-    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin effects)')]
-    params += [BoolParameter(visible_if='rv_method:flux-weighted', qualifier='rv_grav', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_grav', False), description='Whether gravitational redshift effects are enabled for RVs')]
+
+    # TODO: the rv_method/rv_grav are being copied for orbits and stars... but we need kind to apply to rv? (see also for legacy backend)
+    # params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': 'rv', 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin effects)')]
+    params += [ChoiceParameter(qualifier='rv_method', copy_for={'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin effects)')]
+    params += [BoolParameter(visible_if='rv_method:flux-weighted', qualifier='rv_grav', copy_for={'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default', value=kwargs.get('rv_grav', False), description='Whether gravitational redshift effects are enabled for RVs')]
 
     if conf.devel:
         params += [ChoiceParameter(qualifier='etv_method', copy_for = {'kind': ['etv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('etv_method', 'crossing'), choices=['crossing'], description='Method to use for computing ETVs')]
@@ -229,7 +232,7 @@ def legacy(**kwargs):
     # TODO: can we come up with a better qualifier for reddening (and be consistent when we enable in phoebe2)
     params += [BoolParameter(qualifier='ie', value=kwargs.get('ie', False), description='Should data be de-reddened')]
 
-    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default',
+    params += [ChoiceParameter(qualifier='rv_method', copy_for={'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default',
                                value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
 
     return ParameterSet(params)
