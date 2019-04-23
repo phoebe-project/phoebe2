@@ -157,9 +157,9 @@ def lc_dep(is_lc=True, **kwargs):
 
         dep_params += [FloatParameter(visible_if='pblum_mode:system flux|total flux', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total passband flux (at t0, including l3 if pblum_mode=\'total flux\')')]
 
-        dep_params += [ChoiceParameter(qualifier='l3_units', value=kwargs.get('l3_units', 'flux'), choices=['flux', 'fraction of total light'], description='Whether third light is given in units of flux or as a fraction of total light')]
-        dep_params += [FloatParameter(visible_if='l3_units:flux', qualifier='l3', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
-        dep_params += [FloatParameter(visible_if='l3_units:fraction of total light', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total light')]
+        dep_params += [ChoiceParameter(qualifier='l3_mode', value=kwargs.get('l3_mode', 'flux'), choices=['flux', 'fraction of total light'], description='Whether third light is given in units of flux or as a fraction of total light')]
+        dep_params += [FloatParameter(visible_if='l3_mode:flux', qualifier='l3', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
+        dep_params += [FloatParameter(visible_if='l3_mode:fraction of total light', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total light')]
 
     # dep_params += [FloatParameter(qualifier='alb', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('alb', 0.), default_unit=u.dimensionless_unscaled, description='Passband Bond\'s albedo, alb=0 is no reflection')]
 

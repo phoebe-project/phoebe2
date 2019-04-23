@@ -202,14 +202,14 @@ class System(object):
         bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
 
         l3s = {}
-        for ds in b.filter('l3_units').datasets:
-            l3_units = b.get_value('l3_units', dataset=ds, context='dataset')
-            if l3_units == 'flux':
+        for ds in b.filter('l3_mode').datasets:
+            l3_mode = b.get_value('l3_mode', dataset=ds, context='dataset')
+            if l3_mode == 'flux':
                 l3s[ds] = {'flux': b.get_value('l3', dataset=ds, context='dataset', unit=u.W/u.m**2)}
-            elif l3_units == 'fraction of total light':
+            elif l3_mode == 'fraction of total light':
                 l3s[ds] = {'frac': b.get_value('l3_frac', dataset=ds, context='dataset')}
             else:
-                raise NotImplementedError("l3_units='{}' not supported".format(l3_units))
+                raise NotImplementedError("l3_mode='{}' not supported".format(l3_mode))
 
         # envelopes need to know their relationships with the underlying stars
         parent_envelope_of = {}

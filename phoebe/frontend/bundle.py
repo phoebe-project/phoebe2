@@ -3770,7 +3770,7 @@ class Bundle(ParameterSet):
         at t0 divided by 4*pi.  To see how passband luminosities are computed,
         see <phoebe.frontend.bundle.Bundle.compute_pblums>.
 
-        Note: this can only be computed for datasets in which `l3_units` is set
+        Note: this can only be computed for datasets in which `l3_mode` is set
         to 'fraction of total light' instead of 'flux'.  When this is the case,
         the `l3_frac` parameter takes place of the `l3` parameter.  This method
         simply provides a convenience function for exposing the third light
@@ -3785,7 +3785,7 @@ class Bundle(ParameterSet):
             options (not required if only one is attached to the bundle).
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
-            datasets in which an `l3_units` Parameter exists.
+            datasets in which an `l3_mode` Parameter exists.
         * `set_value` (bool, optional, default=False): apply the computed
             values to the respective `l3` or `l3_frac` parameters (even if not
             currently visible).
@@ -3804,7 +3804,7 @@ class Bundle(ParameterSet):
         # TODO: consider a b.compute_total/system_fluxes or a b.compute_total_fluxes_to_pblums
         logger.debug("b.compute_l3s")
 
-        datasets = kwargs.pop('dataset', self.filter('l3_units', check_visible=True).datasets)
+        datasets = kwargs.pop('dataset', self.filter('l3_mode', check_visible=True).datasets)
         if isinstance(datasets, str):
             datasets = [datasets]
 
@@ -3833,14 +3833,14 @@ class Bundle(ParameterSet):
 
         l3s = {}
         for dataset in datasets:
-            l3_units = self.get_value('l3_units', dataset=dataset)
-            if l3_units == 'flux':
+            l3_mode = self.get_value('l3_mode', dataset=dataset)
+            if l3_mode == 'flux':
                 l3_frac = system.l3s[dataset]['frac']
                 l3s['l3_frac@{}'.format(dataset)] = l3_frac
                 if set_value:
                     self.set_value('l3_frac', dataset=dataset, check_visible=False, value=l3_frac)
 
-            elif l3_units == 'fraction of total light':
+            elif l3_mode == 'fraction of total light':
                 l3_flux = system.l3s[dataset]['flux'] * u.W / u.m**2
                 l3s['l3@{}'.format(dataset)] = l3_flux
 
@@ -3848,7 +3848,7 @@ class Bundle(ParameterSet):
                     self.set_value('l3', dataset=dataset, check_visible=False, value=l3_flux)
 
             else:
-                raise NotImplementedError("l3_units='{}' not supported.".format(l3_units))
+                raise NotImplementedError("l3_mode='{}' not supported.".format(l3_mode))
 
         return l3s
 
