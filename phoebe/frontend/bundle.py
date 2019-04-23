@@ -1124,6 +1124,10 @@ class Bundle(ParameterSet):
 
                 if param.value == '' and len(param._choices):
                     param.set_value(param._choices[0])
+
+                if not len(param._choices):
+                    param._choices = ['']
+
             else:
                 param._choices = ['self'] + [s for s in starrefs if s!=param.component]
 
