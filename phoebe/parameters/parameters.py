@@ -1205,6 +1205,8 @@ class ParameterSet(object):
                 def force_list(v):
                     if isinstance(v, list):
                         return v
+                    elif v=='*':
+                        return v
                     else:
                         return [v]
 
