@@ -13,6 +13,8 @@ import json
 from datetime import datetime
 from distutils.version import StrictVersion
 
+from scipy.optimize import curve_fit as cfit
+
 
 # PHOEBE
 # ParameterSet, Parameter, FloatParameter, send_if_client, etc
@@ -4404,17 +4406,32 @@ class Bundle(ParameterSet):
 
             self._attach_params(params, **metawargs)
 
+        def _scale_fluxes(model_fluxes, scale_factor):
+            return model_fluxes * scale_factor
+
         # scale fluxes whenever pblum_mode = 'scale to data'
         for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
             logger.debug("rescaling fluxes to data for dataset='{}'".format(param.dataset))
             ds_times = self.get_dataset(param.dataset).get_value('times')
             ds_fluxes = self.get_dataset(param.dataset).get_value('fluxes')
+            ds_sigmas = self.get_dataset(param.dataset).get_value('sigmas')
+
             model_fluxes = self.get_model(model).get_value('fluxes')
             model_fluxes_interp = self.get_model(model).get_parameter('fluxes').interp_value(times=ds_times)
-            scale_factor = np.median(ds_fluxes / model_fluxes_interp)
-            self.get_model(model).set_value('fluxes', model_fluxes*scale_factor)
+            scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
 
-            # TODO: scale relevant mesh columns for same dataset???
+            # TODO: can we skip this if sigmas don't exist?
+            logger.debug("calling curve_fit with estimated scale_factor={}".format(scale_factor_approx))
+            popt, pcov = cfit(_scale_fluxes, model_fluxes_interp, ds_fluxes, p0=(scale_factor_approx), sigma=ds_sigmas if len(ds_sigmas) else None)
+            scale_factor = popt[0]
+
+            logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, param.dataset))
+            self.get_model(model).set_value('fluxes', dataset=param.dataset, value=model_fluxes*scale_factor)
+
+            for param in self.get_model(model, dataset=param.dataset, kind='mesh').to_list():
+                if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
+                    logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
+                    param.set_value(param.get_value() * scale_factor)
 
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
