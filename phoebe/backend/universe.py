@@ -345,6 +345,8 @@ class System(object):
                                etheta0, elongan0, eincl0,
                                reset=True):
 
+        logger.debug("system.compute_pblum_scalings")
+
         self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
         pblum_scale_copy_ds = {}
@@ -355,10 +357,13 @@ class System(object):
                 # only LCs need pblum scaling
                 continue
 
-            self.populate_observables(t0, [kind], [dataset],
-                                        ignore_effects=True)
-
             pblum_mode = ds.get_value(qualifier='pblum_mode')
+
+            ignore_effects = pblum_mode not in ['total flux']
+            logger.debug("system.compute_pblum_scalings: populating observables for dataset={} with ignore_effects={} for pblum_mode={}".format(dataset, ignore_effects, pblum_mode))
+            self.populate_observables(t0, [kind], [dataset],
+                                        ignore_effects=ignore_effects)
+
             ds_components = b.hierarchy.get_stars()
             #ds_components = ds.filter(qualifier='pblum_ref', check_visible=False).components
 
@@ -398,20 +403,30 @@ class System(object):
             elif pblum_mode in ['system flux', 'total flux']:
                 pbflux = ds.get_value(qualifier='pbflux', unit=u.W/u.m**2)
 
-                # not needed as will fallback on 1.0
-                # for comp in ds_components:
-                #     self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=1.0)
-
-                # TODO: add ld_func and ld_coeffs
-                # TODO: should this include intrinsic??? We did say pblum scaling was based on intrinsic only... but then total flux might not make sense
+                # TODO: add ld_func and ld_coeffs?
                 system_flux = np.sum([self.get_body(comp).compute_luminosity(dataset)/(4*np.pi) for comp in ds_components])
 
                 if pblum_mode == 'system flux':
+                    # then we'll apply the scale based on the INTRINSIC system luminosities divided by 4*pi
                     pblum_scale = pbflux / system_flux
-                else:
-                    ### TODO: account for l3
-                    raise NotImplementedError("still need to implement total flux logic")
-                    pblum_scale = pbflux / (system_flux + l3_flux)
+                else: # pblum_mode == 'total flux'
+                    l3_mode = ds.get_value(qualifier='l3_mode')
+                    # note that pbflux here is the TOTAL FLUX requested in RELATIVE UNITS
+
+                    # flux_sys = sum(L_star/4pi for star in stars)
+                    # flux_tot = flux_sys + l3_flux
+                    # l3_frac = l3_flux / tot_flux
+                    # pblum_scale = pbflux / flux_tot
+
+                    if l3_mode == 'flux':
+                        l3_flux = ds.get_value(qualifier='l3', unit=u.W/u.m**2)
+                        pblum_scale = (pbflux - l3_flux) / system_flux
+                    elif l3_mode == 'fraction of total light':
+                        l3_frac = ds.get_value(qualifier='l3_frac')
+                        l3_flux = l3_frac * pbflux
+                        pblum_scale = (pbflux - l3_flux) / system_flux
+                    else:
+                        raise NotImplementedError("l3_mode={} not implemented for pblum scaling".format(l3_mode))
 
                 for comp in ds_components:
                     self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
