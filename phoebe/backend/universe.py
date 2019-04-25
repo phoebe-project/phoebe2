@@ -114,6 +114,9 @@ class System(object):
         self.horizon_method = horizon_method
         self.dynamics_method = dynamics_method
         self.irrad_method = irrad_method
+
+        self.is_first_refl_iteration = True
+
         for body in self._bodies.values():
             body.system = self
             body.dynamics_method = dynamics_method
@@ -154,6 +157,7 @@ class System(object):
             else:
                 # then hopefully compute is the parameterset
                 compute_ps = compute
+
             eclipse_method = compute_ps.get_value(qualifier='eclipse_method', **kwargs)
             horizon_method = compute_ps.get_value(qualifier='horizon_method', check_visible=False, **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
@@ -170,6 +174,7 @@ class System(object):
             irrad_method = 'none'
             boosting_method = 'none'
             mesh_init_phi = 0.0
+            compute_ps = None
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
         # the current module - now this doesn't really make sense since we only
@@ -181,6 +186,9 @@ class System(object):
         meshables = hier.get_meshables()
         def get_distortion_method(hier, compute_ps, component, **kwargs):
             if hier.get_kind_of(component) in ['envelope']:
+                return 'roche'
+
+            if compute_ps is None:
                 return 'roche'
 
             if compute_ps.get_value('mesh_method', component=component, **kwargs)=='wd':
@@ -241,6 +249,10 @@ class System(object):
             return self._bodies[parent_component].get_half(component)
 
     @property
+    def needs_recompute_instantaneous(self):
+        return np.any([b.needs_recompute_instantaneous for b in self.bodies])
+
+    @property
     def mesh_bodies(self):
         """
         """
@@ -271,6 +283,11 @@ class System(object):
         # rather than calling self.meshes repeatedly
 
         return mesh.Meshes(self._bodies, self._parent_envelope_of)
+
+    def reset(self, force_remesh=False, force_recompute_instantaneous=False):
+        self.is_first_refl_iteration = True
+        for body in self.bodies:
+            body.reset(force_remesh=force_remesh, force_recompute_instantaneous=force_recompute_instantaneous)
 
 
     def update_positions(self, time, xs, ys, zs, vxs, vys, vzs,
@@ -352,11 +369,18 @@ class System(object):
                 pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
                 self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
+        self.reset(force_recompute_instantaneous=True)
 
     def handle_reflection(self,  **kwargs):
         """
         """
         if self.irrad_method == 'none':
+            return
+
+        # if 'teffs_post_reflection' in self.inst_vals.keys():
+        if not self.needs_recompute_instantaneous and not self.is_first_refl_iteration: # and 'teffs_post_reflection' in self.inst_vals.keys():
+            logger.debug("reflection: using teffs from previous iteration")
+            # meshes.set_column_flat('teffs', self.inst_vals['teffs_post_reflection'])
             return
 
         if 'wd' in [body.mesh_method for body in self.bodies]:
@@ -380,13 +404,13 @@ class System(object):
         fluxes_intrins_flat = meshes.pack_column_flat(fluxes_intrins_per_body)
 
         if np.all([body.is_convex for body in self.bodies]):
-            logger.info("handling reflection (convex case), method='{}'".format(self.irrad_method))
+            logger.debug("handling reflection (convex case), method='{}'".format(self.irrad_method))
 
             vertices_per_body = list(meshes.get_column('vertices').values())
             triangles_per_body = list(meshes.get_column('triangles').values())
             normals_per_body = list(meshes.get_column('vnormals').values())
             areas_per_body = list(meshes.get_column('areas').values())
-            irrad_frac_refls_per_body = list(meshes.get_column('irrad_frac_refl', computed_type='for_computations').values())
+            irrad_frac_refl_per_body = list(meshes.get_column('irrad_frac_refl', computed_type='for_computations').values())
             teffs_intrins_per_body = list(meshes.get_column('teffs', computed_type='for_computations').values())
 
             ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
@@ -395,7 +419,7 @@ class System(object):
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
                                                                                        areas_per_body,
-                                                                                       irrad_frac_refls_per_body,
+                                                                                       irrad_frac_refl_per_body,
                                                                                        fluxes_intrins_per_body,
                                                                                        ld_func_and_coeffs,
                                                                                        _bytes(self.irrad_method.title()),
@@ -405,13 +429,13 @@ class System(object):
             fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
 
         else:
-            logger.info("handling reflection (general case), method='{}'".format(self.irrad_method))
+            logger.debug("handling reflection (general case), method='{}'".format(self.irrad_method))
 
             vertices_flat = meshes.get_column_flat('vertices') # np.ndarray
             triangles_flat = meshes.get_column_flat('triangles') # np.ndarray
             normals_flat = meshes.get_column_flat('vnormals') # np.ndarray
             areas_flat = meshes.get_column_flat('areas') # np.ndarray
-            irrad_frac_refls_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations') # np.ndarray
+            irrad_frac_refl_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations') # np.ndarray
 
             ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.mesh_bodies] # list
             ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)}) # np.ndarray
@@ -420,7 +444,7 @@ class System(object):
                                                                             triangles_flat,
                                                                             normals_flat,
                                                                             areas_flat,
-                                                                            irrad_frac_refls_flat,
+                                                                            irrad_frac_refl_flat,
                                                                             fluxes_intrins_flat,
                                                                             ld_func_and_coeffs,
                                                                             ld_inds_flat,
@@ -439,7 +463,15 @@ class System(object):
 
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
-    def handle_eclipses(self, expose_horizon=True, **kwargs):
+        if not self.needs_recompute_instantaneous:
+            logger.debug("reflection: copying updated teffs to standard mesh")
+            theta = 0.0
+            standard_meshes = mesh.Meshes({body.component: body._standard_meshes[theta] for body in self.mesh_bodies})
+            standard_meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
+
+            self.is_first_refl_iteration = False
+
+    def handle_eclipses(self, expose_horizon=False, **kwargs):
         """
         Detect the triangles at the horizon and the eclipsed triangles, handling
         any necessary subdivision.
@@ -468,13 +500,15 @@ class System(object):
             else:
                 possible_eclipse = False
         else:
+            logger.debug("system.handle_eclipses: determining if eclipses are possible from instantaneous_maxr")
             max_rs = [body.instantaneous_maxr for body in self.bodies]
-            for i in range(0, len(self.xs)-1):
-                for j in range(i+1, len(self.xs)):
+            # logger.debug("system.handle_eclipses: max_rs={}".format(max_rs))
+            for i in range(0, len(max_rs)-1):
+                for j in range(i+1, len(max_rs)):
                     proj_sep_sq = sum([(c[i]-c[j])**2 for c in (self.xs,self.ys)])
                     max_sep_ecl = max_rs[i] + max_rs[j]
 
-                    if proj_sep_sq < max_sep_ecl**2:
+                    if proj_sep_sq < (1.05*max_sep_ecl)**2:
                         # then this pair has the potential for eclipsing triangles
                         possible_eclipse = True
                         break
@@ -496,6 +530,8 @@ class System(object):
             ecl_kwargs = {'horizon_method': horizon_method}
         else:
             ecl_kwargs = {}
+
+        logger.debug("system.handle_eclipses: possible_eclipse={}, expose_horizon={}, calling {} with kwargs {}".format(possible_eclipse, expose_horizon, eclipse_method, ecl_kwargs))
 
         visibilities, weights, horizon = ecl_func(meshes,
                                                   self.xs, self.ys, self.zs,
@@ -752,7 +788,7 @@ class Body(object):
     def instantaneous_maxr(self):
         """
         Recall the maximum r (triangle furthest from the center of the star) of
-        this star at periastron (when it is most deformed)
+        this star at the given time
 
         :return: maximum r
         :rtype: float
@@ -762,7 +798,7 @@ class Body(object):
         if 'maxr' not in self.inst_vals.keys():
             logger.debug("{}.instantaneous_maxr COMPUTING".format(self.component))
 
-            self.inst_vals['maxr'] = np.sqrt(max([x**2+y**2+z**2 for x,y,z in self.mesh.centers]))
+            self.inst_vals['maxr'] = max(self.mesh.rs.centers*self._scale)
 
         return self.inst_vals['maxr']
 
@@ -872,17 +908,29 @@ class Body(object):
 
         # return mesh
 
+    def reset(self, force_remesh=False, force_recompute_instantaneous=False):
+        if force_remesh:
+            logger.debug("{}.reset: forcing remesh for next iteration".format(self.component))
+        elif force_recompute_instantaneous:
+            logger.debug("{}.reset: forcing recompute_instantaneous for next iteration".format(self.component))
+
+        if self.needs_remesh or force_remesh:
+            self._mesh = None
+
+        if self.needs_recompute_instantaneous or self.needs_remesh or force_remesh or force_recompute_instantaneous:
+            self.inst_vals = {}
+
     def reset_time(self, time, true_anom, elongan, eincl):
         """
         TODO: add documentation
         """
-        self._mesh = None
-        self.time = time
-        self.inst_vals = {}
         self.true_anom = true_anom
         self.elongan = elongan
         self.eincl = eincl
+        self.time = time
         self.populated_at_time = []
+
+        self.reset()
 
         return
 
@@ -1036,7 +1084,7 @@ class Body(object):
         # needed for this time-step.
         # TODO [DONE?]: make sure features smartly trigger needs_recompute_instantaneous
         # TODO: get rid of the or True here... the problem is that we're saving the standard mesh before filling local quantities
-        if self.needs_recompute_instantaneous or did_remesh or True:
+        if self.needs_recompute_instantaneous or did_remesh:
             logger.debug("{}.update_position: calling compute_local_quantities at t={}".format(self.component, self.time))
             self.compute_local_quantities(xs, ys, zs, ignore_effects)
 
@@ -1218,7 +1266,7 @@ class Star(Body):
             ntriangles_override = kwargs.pop('ntriangle', None)
             kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, ntriangles=ntriangles_override) if compute is not None else 1000
             distortion_method_override = kwargs.pop('distortion_method', None)
-            kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, distortion_method=distortion_method_override) if compute is not None else 'roche'
+            kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, distortion_method=distortion_method_override) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
         elif mesh_method == 'wd':
             gridsize_override = kwargs.pop('gridsize', None)
             kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, gridsize=gridsize_override) if compute is not None else 30
@@ -1240,7 +1288,7 @@ class Star(Body):
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
         atm_override = kwargs.pop('atm', None)
-        atm = b.get_value('atm', compute=compute, component=component, atm=atm_override) if compute is not None else 'blackbody'
+        atm = b.get_value('atm', compute=compute, component=component, atm=atm_override) if compute is not None else 'ck2004'
         passband_override = kwargs.pop('passband', None)
         passband = {ds: b.get_value('passband', dataset=ds, passband=passband_override) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)
@@ -1314,7 +1362,7 @@ class Star(Body):
 
         this should be overridden by any subclass of Star, if necessary
         """
-        return len(self.features) > 0
+        return True
 
     @property
     def needs_remesh(self):
@@ -1504,6 +1552,11 @@ class Star(Body):
 
         mesh.update_columns(loggs=loggs)
 
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_loggs: copying loggs to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(loggs=loggs)
+
     def _fill_gravs(self, mesh=None, **kwargs):
         """
         TODO: add documentation
@@ -1520,6 +1573,11 @@ class Star(Body):
         gravs = ((mesh.normgrads.for_computations * g_rel_to_abs(self.masses[self.ind_self], self.sma))/self.instantaneous_gpole)**self.gravb_bol
 
         mesh.update_columns(gravs=gravs)
+
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_gravs: copying gravs to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(gravs=gravs)
 
 
     def _fill_teffs(self, mesh=None, ignore_effects=False, **kwargs):
@@ -1547,6 +1605,11 @@ class Star(Body):
 
         mesh.update_columns(teffs=teffs)
 
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_teffs: copying teffs to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(teffs=teffs)
+
     def _fill_abuns(self, mesh=None, abun=0.0):
         """
         TODO: add documentation
@@ -1560,6 +1623,11 @@ class Star(Body):
 
         mesh.update_columns(abuns=abun)
 
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_abuns: copying abuns to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(abuns=abun)
+
     def _fill_albedos(self, mesh=None, irrad_frac_refl=0.0):
         """
         TODO: add documentation
@@ -1570,6 +1638,11 @@ class Star(Body):
             mesh = self.mesh
 
         mesh.update_columns(irrad_frac_refl=irrad_frac_refl)
+
+        if not self.needs_recompute_instantaneous:
+            logger.debug("{}._fill_albedos: copying albedos to standard mesh".format(self.component))
+            theta = 0.0
+            self._standard_meshes[theta].update_columns(irrad_frac_refl=irrad_frac_refl)
 
     def compute_luminosity(self, dataset, scaled=True, **kwargs):
         """
@@ -1718,7 +1791,17 @@ class Star(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
-        ldatm = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, None))
+        ldatm = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none'))
+        if ldatm == 'auto':
+            if atm == 'blackbody':
+                ldatm = 'ck2004'
+            elif atm == 'extern_atmx':
+                ldatm = 'ck2004'
+            elif atm == 'extern_planckint':
+                ldatm = 'ck2004'
+            else:
+                ldatm = atm
+
         if ldatm != 'none':
             # then ld_coeffs was a hidden parameter anyways, but the backend
             # needs None passed to use ldatm
@@ -1737,6 +1820,9 @@ class Star(Body):
         if lc_method=='numerical':
 
             pb = passbands.get_passband(passband)
+
+            if ldatm != 'none' and '{}_ld'.format(ldatm) not in pb.content:
+                raise ValueError("{} not supported for limb-darkening.  Try changing the value of the ld_coeffs_source parameter".format(ldatm))
 
             if intens_weighting=='photon':
                 ptfarea = pb.ptf_photon_area/pb.h/pb.c
@@ -1901,11 +1987,17 @@ class Star_roche(Star):
         return True
 
     @property
+    def needs_recompute_instantaneous(self):
+        return len(self.features) > 0
+
+    @property
     def needs_remesh(self):
         """
         whether the star needs to be re-meshed (for any reason)
         """
-        return self.is_misaligned or self.ecc != 0 or self.dynamics_method != 'keplerian'
+        # TODO: may be able to get away with removing the features check and just doing for pulsations, etc?
+        # TODO: what about dpdt, deccdt, dincldt, etc?
+        return len(self.features) > 0 or self.is_misaligned or self.ecc != 0 or self.dynamics_method != 'keplerian'
 
     @property
     def _rpole_func(self):
@@ -2542,12 +2634,12 @@ class Star_sphere(Star):
 
 
 class Envelope(Body):
-    def __init__(self, halves, pot, q,
+    def __init__(self, component, halves, pot, q,
                  mesh_method,
                  **kwargs):
         """
         """
-
+        self.component = component
         self._halves = halves
         self._pot = pot
         self._q = q
@@ -2575,7 +2667,7 @@ class Envelope(Body):
         # though technically only the primary will ever actually build a mesh)
         halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, mesh_init_phi=mesh_init_phi, datasets=datasets, pot=pot, **kwargs) for star in stars]
 
-        return cls(halves, pot, q, mesh_method)
+        return cls(component, halves, pot, q, mesh_method)
 
     @property
     def system(self):

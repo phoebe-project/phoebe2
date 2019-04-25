@@ -6,7 +6,6 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
 
 def _keplerian_v_nbody(b, ltte, period, plot=False):
     """
@@ -131,6 +130,8 @@ def _frontend_v_backend(b, ltte, period, plot=False):
 def test_binary(plot=False):
     """
     """
+    phoebe.devel_on() # required for nbody dynamics
+
     # TODO: once ps.copy is implemented, just send b.copy() to each of these
 
     # system = [sma (AU), period (d)]
@@ -152,6 +153,8 @@ def test_binary(plot=False):
 
                 _keplerian_v_nbody(b, ltte, system[1], plot=plot)
                 _frontend_v_backend(b, ltte, system[1], plot=plot)
+
+    phoebe.devel_off()  # reset for future tests
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')

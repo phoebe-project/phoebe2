@@ -152,8 +152,9 @@ def parse_json(pairs):
     """
     def _string(item):
         if isinstance(item, bytes):
-            return item.decode('utf-8')
-        elif isinstance(item, unicode) and sys.version_info[0] == 2:
+            # return item.decode('utf-8')
+            return _bytes(item)
+        elif sys.version_info[0] == 2 and isinstance(item, unicode):
             return item.encode('utf-8')
         else:
             return item

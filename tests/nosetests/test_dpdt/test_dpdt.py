@@ -6,8 +6,6 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
-
 
 def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
@@ -25,6 +23,7 @@ def test_binary(plot=False):
     b.set_value_all('ld_coeffs_bol', [0.0])
 
     b.set_value_all('ld_func', 'linear')
+    b.set_value_all('ld_coeffs_source', 'none')
     b.set_value_all('ld_coeffs', [0.0])
     # b.set_value_all('ecc', 0.2)
 

@@ -11,7 +11,7 @@ _ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root
 
 
 passbands._init_passbands()  # TODO: move to module import
-_ld_coeffs_source_choices = ['none'] + list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms_ld']]))
+_ld_coeffs_source_choices = ['none', 'auto'] + list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms_ld']]))
 
 global _mesh_columns
 global _pbdep_columns
@@ -75,6 +75,10 @@ def lc(**kwargs):
     * `times` (array/quantity, optional): observed times.
     * `fluxes` (array/quantity, optional): observed flux.
     * `sigmas` (array/quantity, optional): errors on flux measurements.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.
     * `ld_func` (string, optional): limb-darkening model.
     * `ld_coeffs` (list, optional): limb-darkening coefficients.
     * `passband` (string, optional): passband.
@@ -117,10 +121,19 @@ def lc_syn(syn=True, **kwargs):
     if not syn:
         syn_params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
 
+        # syn_params += [FloatArrayParameter(qualifier='phases', value=_empty_array(kwargs, 'phases'), default_unit=u.cycle, description='Observed phases')]
+        # syn_params += [ChoiceParameter(qualifier='phase_component', value='', choices=[''], description='Component to use for phases<->times')]
+        # syn_params += [ChoiceParameter(qualifier='phase_t0', value='t0_perpass', choices=['t0', 't0_perpass', 't0_supconj', 't0_ref'], description='t0 to use for phases<->times')]
+
+        syn_params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        syn_params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+
 
     #~ syn_params += [FloatArrayParameter(qualifier='exptime', value=kwargs.get('exptime', []), default_unit=u.s, description='Signal exposure time')]
 
     constraints = []
+    if not syn:
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 
@@ -129,7 +142,7 @@ def lc_dep(is_lc=True, **kwargs):
 
     # NOTE: these need to be added to the exception in bundle.add_dataset so that the kwargs get applied correctly
     dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
-    dep_params += [ChoiceParameter(qualifier='ld_coeffs_source', visible_if='ld_func:!interp', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs_source', 'none'), choices=_ld_coeffs_source_choices, description='Source for limb darkening coefficients (or \'none\' to provide manually)')]
+    dep_params += [ChoiceParameter(qualifier='ld_coeffs_source', visible_if='ld_func:!interp', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs_source', 'auto'), choices=_ld_coeffs_source_choices, description='Source for limb darkening coefficients (\'none\' to provide manually, \'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
     dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp,ld_coeffs_source:none', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
     passbands._init_passbands()  # NOTE: this only actually does something on the first call
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
@@ -165,6 +178,10 @@ def rv(**kwargs):
     * `times` (array/quantity, optional): observed times.
     * `rvs` (array/quantity, optional): observed radial velocities.
     * `sigmas` (array/quantity, optional): errors on radial velocity measurements.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.
     * `ld_func` (string, optional): limb-darkening model.
     * `ld_coeffs` (list, optional): limb-darkening coefficients.
     * `passband` (string, optional): passband.
@@ -198,8 +215,13 @@ def rv_syn(syn=True, **kwargs):
     if not syn:
         syn_params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
 
+        syn_params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        syn_params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+
 
     constraints = []
+    if not syn:
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 
@@ -273,8 +295,12 @@ def lp_syn(syn=True, **kwargs):
     for time in times:
         # but do allow per-component flux_densities and sigmas
         syn_params += [FloatArrayParameter(qualifier='flux_densities', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'flux_densities'), default_unit=u.W/(u.m**2*u.nm), description='Flux density per wavelength (must be same length as wavelengths or empty)')]
+
         if not syn:
             syn_params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
+
+            # syn_params += [FloatArrayParameter(qualifier='compute_wavelengths', value=kwargs.get('compute_wavelengths', []), default_unit=u.nm, description='Wwavelengths to use during run_compute.  If empty, will use times parameter')]
+
 
     constraints = []
 
@@ -367,6 +393,10 @@ def orb(**kwargs):
     Arguments
     ----------
     * `times` (array/quantity, optional): observed times.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.
 
     Returns
     --------
@@ -405,7 +435,14 @@ def orb_syn(syn=True, **kwargs):
         syn_params += [FloatArrayParameter(qualifier='vvs', value=_empty_array(kwargs, 'vvs'), default_unit=u.km/u.s, description='V velocity')]
         syn_params += [FloatArrayParameter(qualifier='vws', value=_empty_array(kwargs, 'vws'), default_unit=u.km/u.s, description='W velocity')]
 
+    else:
+        syn_params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        syn_params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+
+
     constraints = []
+    if not syn:
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(syn_params), constraints
 

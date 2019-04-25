@@ -6,7 +6,6 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
 
 def _keplerian_v_nbody(b, plot=False):
     """
@@ -143,6 +142,7 @@ def _frontend_v_backend(b, plot=False):
 def test_binary(plot=False):
     """
     """
+    phoebe.devel_on() # required for nbody dynamics
 
     # TODO: grid over orbital parameters
     # TODO: once ps.copy is implemented, just send b.copy() to each of these
@@ -155,6 +155,8 @@ def test_binary(plot=False):
 
     b = phoebe.default_binary()
     _frontend_v_backend(b, plot=plot)
+
+    phoebe.devel_off() # reset for future tests
 
 
 if __name__ == '__main__':

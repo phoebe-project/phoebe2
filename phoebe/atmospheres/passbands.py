@@ -1338,7 +1338,7 @@ class Passband:
             if verbose:
                 sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
                 sys.stdout.flush()
-            
+
         if verbose:
             print('')
 
@@ -2299,7 +2299,7 @@ class Passband:
             or 'blackbody').
         """
         # TODO: implement phoenix boosting.
-        
+
         if atm == 'ck2004':
             retval = self._bindex_ck2004(Teff, logg, abun, mu, atm, photon_weighted)
         elif atm == 'blackbody':
@@ -2365,7 +2365,8 @@ def _init_passbands(refresh=False):
 def install_passband(fname, local=True):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.install_passband>.
+    <phoebe.install_passband> as well as
+    <phoebe.atmospheres.passbands.install_passband>.
 
     Install a passband from a local file.  This simply copies the file into the
     install path - but beware that clearing the installation will clear the
@@ -2395,7 +2396,8 @@ def install_passband(fname, local=True):
 def uninstall_all_passbands(local=True):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.uninstall_all_passbands> (only after 2.1.1).
+    <phoebe.uninstall_all_passbands> as well as
+    <phoebe.atmospheres.passband.uninstall_all_passbands>.
 
     Uninstall all passbands, either globally or locally (need to call twice to
     delete ALL passbands).
@@ -2425,7 +2427,8 @@ def uninstall_all_passbands(local=True):
 def download_passband(passband, local=True):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.download_passband>.
+    <phoebe.download_passband> as well as
+    <phoebe.atmospheres.passbands.download_passband>.
 
     Download and install a given passband from the
     [phoebe2-tables](https://github.com/phoebe-project/phoebe2-tables) repository.
@@ -2471,7 +2474,8 @@ def download_passband(passband, local=True):
 def update_passband_available(passband):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.update_passband_available>.
+    <phoebe.update_passband_available> as well as
+    <phoebe.atmospheres.passbands.update_passband_available>.
 
     Check if a newer version of a given passband is available from the online repository.
 
@@ -2510,8 +2514,9 @@ def update_passband_available(passband):
 
 def list_all_update_passbands_available():
     """
-    For convenicence, this function is available at the top-lelve as
-    <phoebe.list_all_update_passbands_available>.
+    For convenience, this function is available at the top-level as
+    <phoebe.list_all_update_passbands_available> as well as
+    <phoebe.atmospheres.passbands.list_all_update_passbands_available>.
 
     See also:
     * <phoebe.atmospheres.passbands.update_passband_available>
@@ -2528,7 +2533,8 @@ def list_all_update_passbands_available():
 def update_all_passbands(local=True):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.update_all_passbands>.
+    <phoebe.update_all_passbands> as well as
+    <phoebe.atmospheres.passbands.update_all_passbands>.
 
     Download and install updates for all passbands from the
     [phoebe2-tables](https://github.com/phoebe-project/phoebe2-tables) repository.
@@ -2564,7 +2570,8 @@ def update_all_passbands(local=True):
 def list_passband_directories():
     """
     For convenience, this function is available at the top-level as
-    <phoebe.list_passband_directories>.
+    <phoebe.list_passband_directories> as well as
+    <phoebe.atmospheres.passbands.list_passband_directories>.
 
     List the global and local passband installation directories (in that order).
 
@@ -2583,7 +2590,8 @@ def list_passband_directories():
 def list_passbands(refresh=False, full_dict=False):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.list_passbands>.
+    <phoebe.list_passbands> as well as
+    <phoebe.atmospheres.passbands.list_passbands>.
 
     List all available passbands, both installed and available online.
 
@@ -2620,7 +2628,8 @@ def list_passbands(refresh=False, full_dict=False):
 def list_installed_passbands(refresh=False, full_dict=False):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.list_installed_passbands>.
+    <phoebe.list_installed_passbands> as well as
+    <phoebe.atmospheres.passbands.list_installed_passbands>.
 
     List all installed passbands, both in the local and global directories.
 
@@ -2652,7 +2661,8 @@ def list_installed_passbands(refresh=False, full_dict=False):
 def list_online_passbands(refresh=False, full_dict=False):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.list_online_passbands>.
+    <phoebe.list_online_passbands> as well as
+    <phoebe.atmospheres.passbands.list_online_passbands>.
 
     List all passbands available for download from the
     [phoebe2-tables](https://github.com/phoebe-project/phoebe2-tables) repository.
@@ -2705,7 +2715,8 @@ def list_online_passbands(refresh=False, full_dict=False):
 def get_passband(passband):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.get_passbands>.
+    <phoebe.get_passbands> as well as
+    <phoebe.atmospheres.passbands.get_passband>.
 
     Access a passband object by name.  If the passband isn't installed, it`
     will be downloaded and installed locally.
