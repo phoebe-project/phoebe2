@@ -628,10 +628,10 @@ def mesh_syn(syn=True, **kwargs):
 
                 if 'ptfarea@{}'.format(dataset) in columns:
                     syn_params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), default_unit=u.m, description='Area of the passband transmission function')]
-                if 'pblum@{}'.format(dataset) in columns:
-                    syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (after pblum scaling)')]
-                if 'abs_pblum@{}'.format(dataset) in columns:
-                    syn_params += [FloatParameter(qualifier='abs_pblum', dataset=dataset, time=t, value=kwargs.get('abs_pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (before pblum scaling)')]
+                if 'pblum_ext@{}'.format(dataset) in columns:
+                    syn_params += [FloatParameter(qualifier='pblum_ext', dataset=dataset, time=t, value=kwargs.get('pblum_ext', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (after pblum scaling)')]
+                if 'abs_pblum_ext@{}'.format(dataset) in columns:
+                    syn_params += [FloatParameter(qualifier='abs_pblum_ext', dataset=dataset, time=t, value=kwargs.get('abs_pblum_ext', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (before pblum scaling)')]
 
     constraints = []
 
