@@ -1990,7 +1990,7 @@ class ParameterSet(object):
                 # TODO: need to fix repeating twigs (ie
                 # period@period@period@period still matches and causes problems
                 # with the tabcomplete)
-                params = [pi for pi in params if ti in pi.twig.split('@')]
+                params = [pi for pi in params if ti in pi.twig.split('@') or fnmatch(pi.twig, ti)]
 
             if autocomplete:
                 # we want to provide options for what twigautomplete
