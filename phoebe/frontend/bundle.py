@@ -1840,6 +1840,7 @@ class Bundle(ParameterSet):
 
                 if ld_func=='interp':
                     for compute in computes:
+                        # TODO: should we ignore if the dataset is disabled?
                         try:
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         except ValueError:
@@ -1852,12 +1853,21 @@ class Bundle(ParameterSet):
                                 else:
                                     return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
-        # mesh-consistency checks
         for compute in computes:
+            compute_kind = self.get_compute(compute=compute).kind
+
+            # mesh-consistency checks
             mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
                     return False, "all (or none) components must use mesh_method='wd'."
+
+            # l3_units checks
+            if compute_kind in ['legacy']:
+                enabled_datasets = self.filter(qualifier='enabled', value=True, compute=compute, force_ps=True).datasets
+                l3_units = [p.get_value() for p in self.filter('l3_units', dataset=enabled_datasets, force_ps=True).to_list()]
+                if len(set(l3_units)) > 1:
+                    return False, "{} backend (compute='{}') requires all values of 'l3_units' (for enabled datasets) to be the same.".format(compute_kind, compute)
 
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol and irrad_frac_refl_bol
