@@ -705,7 +705,7 @@ class Bundle(ParameterSet):
         * `compute` (string, optional, default=None): label of the compute options
             to use while exporting.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
-            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            <phoebe.frontend.bundle.Bundle.run_checks> before exporting.
             NOTE: some unexpected errors could occur for systems which do not
             pass checks.
 
@@ -714,10 +714,10 @@ class Bundle(ParameterSet):
         * the filename (string)
         """
         logger.warning("exporting to legacy is experimental until official 1.0 release")
-        b.run_delayed_constraint()
+        self.run_delayed_constraints()
 
         if not skip_checks:
-            passed, msg = self.run_checks(compute=computes, **kwargs)
+            passed, msg = self.run_checks(compute=compute)
             if passed is None:
                 # then just raise a warning
                 logger.warning(msg)
@@ -1670,6 +1670,8 @@ class Bundle(ParameterSet):
         changed_params = self.run_delayed_constraints()
 
         computes = kwargs.pop('compute', self.computes)
+        if computes is None:
+            computes = self.computes
         if isinstance(computes, str):
             computes = [computes]
 
