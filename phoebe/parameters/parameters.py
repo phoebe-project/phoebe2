@@ -5917,8 +5917,8 @@ class FloatParameter(Parameter):
         """
         super(FloatParameter, self).__init__(*args, **kwargs)
 
-        self._in_constraints = []                        # labels of constraints that have this parameter in the expression (not implemented yet)
-        self._is_constraint = None                          # label of the constraint that defines the value of this parameter (not implemented yet)
+        self._in_constraints = []   # labels of constraints that have this parameter in the expression
+        self._is_constraint = None  # label of the constraint that defines the value of this parameter
 
         default_unit = kwargs.get('default_unit', None)
         self.set_default_unit(default_unit)
@@ -6385,12 +6385,15 @@ class FloatParameter(Parameter):
         if run_constraints is None:
             run_constraints = conf.interactive_constraints
         if run_constraints:
+            if len(self._in_constraints):
+                logger.debug("changing value of {} triggers {} constraints".format(self.twig, self.in_constraints))
             for constraint_id in self._in_constraints:
-                #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
                 self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True)
         else:
             # then we want to delay running constraints... so we need to track
             # which ones need to be run once requested
+            if len(self._in_constraints):
+                logger.debug("changing value of {} triggers delayed constraint {}".format(self.twig, self.in_constraints))
             for constraint_id in self._in_constraints:
                 if constraint_id not in self._bundle._delayed_constraints:
                     self._bundle._delayed_constraints.append(constraint_id)
@@ -6457,10 +6460,12 @@ class FloatParameter(Parameter):
         if self._is_constraint is None:
             return []
         params = []
+        uniqueids = []
         for var in self.is_constraint._vars:
             param = var.get_parameter()
-            if param.uniqueid != self.uniqueid:
+            if param.uniqueid != self.uniqueid and param.uniqueid not in uniqueids:
                 params.append(param)
+                uniqueids.append(param.uniqueid)
         return params
 
     #~ @property
@@ -7833,14 +7838,19 @@ class ConstraintParameter(Parameter):
         else:
             default_unit = kwargs.get('default_unit', u.dimensionless_unscaled)
 
-        self._vars = []
+        if 'constraint_addl_vars' in kwargs.keys():
+            self._addl_vars = [ConstraintVar(bundle, twig) for twig in kwargs.get('constraint_addl_vars', [])]
+        else:
+            self._addl_vars = [ConstraintVar(bundle, v.twig) for v in kwargs.get('addl_vars', [])]
+        self._vars = self._addl_vars
         self._var_params = None
+        self._addl_var_params = None
         self._constraint_func = kwargs.get('constraint_func', None)
         self._constraint_kwargs = kwargs.get('constraint_kwargs', {})
         self._in_solar_units = kwargs.get('in_solar_units', False)
         self.set_value(value)
         self.set_default_unit(default_unit)
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'in_solar_units']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'constraint_addl_vars', 'in_solar_units']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -7884,6 +7894,10 @@ class ConstraintParameter(Parameter):
         return self._constraint_kwargs
 
     @property
+    def constraint_addl_vars(self):
+        return [v.twig for v in self.addl_vars.to_list()]
+
+    @property
     def in_solar_units(self):
         """
         """
@@ -7905,6 +7919,16 @@ class ConstraintParameter(Parameter):
             self._var_params = ParameterSet([var.get_parameter() for var in self._vars])
         return self._var_params
 
+    @property
+    def addl_vars(self):
+        """
+        return all the additional (those that may be needed if flipped) variables in a PS
+        """
+        # cache _var_params
+        if self._addl_var_params is None:
+            self._addl_var_params = ParameterSet([var.get_parameter() for var in self._addl_vars])
+        return self._addl_var_params
+
     def _get_var(self, param=None, **kwargs):
         if not isinstance(param, Parameter):
             if isinstance(param, str) and 'twig' not in kwargs.keys():
@@ -7914,7 +7938,10 @@ class ConstraintParameter(Parameter):
 
         varids = [var.unique_label for var in self._vars]
         if param.uniqueid not in varids:
-            raise KeyError("{} was not found in expression".format(param.uniquetwig))
+            varids = [var.unique_label for var in self._addl_vars]
+            if param.uniqueid not in varids:
+                raise KeyError("{} was not found in expression".format(param.uniquetwig))
+            return self._addl_vars[varids.index(param.uniqueid)]
         return self._vars[varids.index(param.uniqueid)]
 
 
@@ -7949,7 +7976,6 @@ class ConstraintParameter(Parameter):
 
 
             var = ConstraintVar(self._bundle, constrained_parameter.twig)
-
             vars_.append(var)
 
         return expr, vars_
@@ -8021,7 +8047,8 @@ class ConstraintParameter(Parameter):
         kwargs['twig'] = twig
         kwargs['check_default'] = False
         kwargs['check_visible'] = False
-        ps = self.vars.filter(**kwargs)
+        vars = self.vars + self.addl_vars
+        ps = vars.filter(**kwargs)
         if len(ps)==1:
             return ps.get(check_visible=False, check_default=False)
         elif len(ps) > 1:
@@ -8119,30 +8146,43 @@ class ConstraintParameter(Parameter):
         self._value, self._vars = self._parse_expr(value)
         # reset the cached version of the PS - will be recomputed on next request
         self._var_params = None
+        self._addl_var_params = None
         #~ print "***", self.uniquetwig, self.uniqueid
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+
+        if not kwargs.get('skip_history', False):
+            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
     def _update_bookkeeping(self):
         # do bookkeeping on parameters
         self._remove_bookkeeping()
-        for var in self._vars:
-            param = var.get_parameter()
+        # logger.debug("ConstraintParameter {} _update_bookkeeping".format(self.twig))
+        for param in self.vars.to_list():
             if param.qualifier == self.qualifier and param.component == self.component:
                 # then this is the currently constrained parameter
                 param._is_constraint = self.uniqueid
-                if param.uniqueid in param._in_constraints:
+                if self.uniqueid in param._in_constraints:
                     param._in_constraints.remove(self.uniqueid)
             else:
                 # then this is a constraining parameter
                 if self.uniqueid not in param._in_constraints:
                     param._in_constraints.append(self.uniqueid)
 
+        for param in self.addl_vars.to_list():
+            if param.qualifier == self.qualifier and param.component == self.component:
+                # then this is the currently constrained parameter
+                param._is_constraint = self.uniqueid
+
+                if self.uniqueid in param._in_constraints:
+                    param._in_constraints.remove(self.uniqueid)
+
     def _remove_bookkeeping(self):
-        for var in self._vars:
-            param = var.get_parameter()
+        # logger.debug("ConstraintParameter {} _remove_bookkepping".format(self.twig))
+        vars = self.vars + self.addl_vars
+        for param in vars.to_list():
             if param._is_constraint == self.uniqueid:
                 param._is_constraint = None
             if self.uniqueid in param._in_constraints:
+                logger.debug("removing {} from {}.in_constraints".format(self.twig, param.twig))
                 param._in_constraints.remove(self.uniqueid)
 
     @property
@@ -8170,11 +8210,13 @@ class ConstraintParameter(Parameter):
         """
         # for access to the sympy-safe expr, just use self._expr
         expr = self._value
-        for var in self._vars:
-            # update to current unique twig
-            var.update_user_label()  # update curly label
-            #~ print "***", expr, var.safe_label, var.curly_label
-            expr = expr.replace(str(var.safe_label), str(var.curly_label))
+        if expr is not None:
+            vars = self._vars + self._addl_vars
+            for var in vars:
+                # update to current unique twig
+                var.update_user_label()  # update curly label
+                #~ print "***", expr, var.safe_label, var.curly_label
+                expr = expr.replace(str(var.safe_label), str(var.curly_label))
 
         return expr
 
@@ -8304,7 +8346,7 @@ class ConstraintParameter(Parameter):
         # trying to resolve the infinite loop.
         from phoebe.constraints import builtin
         _constraint_builtin_funcs = [f for f in dir(builtin) if isinstance(getattr(builtin, f), types.FunctionType)]
-        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'sqrt', 'log10']
+        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'sqrt', 'log10']
 
         def eq_needs_builtin(eq):
             for func in _constraint_builtin_funcs:
@@ -8326,9 +8368,8 @@ class ConstraintParameter(Parameter):
 
         eq = self.get_value()
 
-        values = get_values(self._vars, safe_label=_use_sympy or not eq_needs_builtin(eq))
-
         if _use_sympy and not eq_needs_builtin(eq):
+            values = get_values(self._vars+self._addl_vars, safe_label=True)
             values['I'] = 1 # CHEATING MAGIC
             # just to be safe, let's reinitialize the sympy vars
             for v in self._vars:
@@ -8349,6 +8390,8 @@ class ConstraintParameter(Parameter):
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
 
+                values = get_values(self._vars+self._addl_vars, safe_label=False)
+
                 # cannot do from builtin import *
                 for func in _constraint_builtin_funcs:
                     # I should be shot for doing this...
@@ -8367,6 +8410,13 @@ class ConstraintParameter(Parameter):
 
             else:
                 # the following works for np arrays
+
+                # TODO: cannot leave this as it stupidly expensive... so constraints need to return addl_vars or similar
+                # vars = [ConstraintVar(self._bundle, twig) for twig in self._bundle.filter(context=['component', 'system', 'dataset']).twigs]
+                # values = get_values(vars, safe_label=True)
+
+                values = get_values(self._vars+self._addl_vars, safe_label=True)
+
 
                 # if any of the arrays are empty (except the one we're filling)
                 # then we want to return an empty array as well (the math would fail)
@@ -8435,11 +8485,13 @@ class ConstraintParameter(Parameter):
 
         check_kwargs = {k:v for k,v in newly_constrained_param.meta.items() if k not in ['context', 'twig', 'uniquetwig']}
         check_kwargs['context'] = 'constraint'
-        if len(self._bundle.filter(**check_kwargs)):
+        if len(self._bundle.filter(**check_kwargs)) and not kwargs.get('force', False):
             raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))
 
         currently_constrained_var = self._get_var(qualifier=self.qualifier, component=self.component)
         currently_constrained_param = currently_constrained_var.get_parameter() # or self.constrained_parameter
+
+        addl_vars = []
 
         # cannot be at the top, or will cause circular import
         from . import constraint
@@ -8450,7 +8502,7 @@ class ConstraintParameter(Parameter):
                 # TODO: this is not nearly general enough, each method takes different arguments
                 # and getting solve_for as newly_constrained_param.qualifier
 
-                lhs, rhs, constraint_kwargs = getattr(constraint, self.constraint_func)(self._bundle, solve_for=newly_constrained_param, **self.constraint_kwargs)
+                lhs, rhs, addl_vars, constraint_kwargs = getattr(constraint, self.constraint_func)(self._bundle, solve_for=newly_constrained_param, **self.constraint_kwargs)
             # except NotImplementedError:
             #     pass
             # else:
@@ -8484,7 +8536,28 @@ class ConstraintParameter(Parameter):
         self._component = newly_constrained_param.component
         self._kind = newly_constrained_param.kind
 
+        # self._value, self._vars = self._parse_expr(rhs)
+        # self.set_value(rhs, skip_history=True)
+
+        if len(addl_vars):
+            # then the vars may have changed (esinw,ecosw, for example)
+            vars_ = []
+            # technically addl_vars probably hasn't changed... but let's recompute to be safe
+            # self._addl_vars = [ConstraintVar(self._bundle, v.twig) for v in addl_vars]
+
+            for var in self._vars + self._addl_vars:
+                if var.safe_label in expression and var not in vars_:
+                    vars_.append(var)
+            self._vars = vars_
+
+            # and we'll reset the cached version of the parameters
+            self._var_params = None
+            self._addl_var_params = None
+
         self._value = str(expression)
+
+
+        #self.set_value(str(expression), skip_history=True)
         # reset the default_unit so that set_default_unit doesn't complain
         # about incompatible units
         self._default_unit = None
