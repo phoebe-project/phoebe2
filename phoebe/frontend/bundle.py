@@ -660,7 +660,8 @@ class Bundle(ParameterSet):
 
     def save(self, filename, clear_history=True, incl_uniqueid=False,
              compact=False):
-        """Save the bundle to a JSON-formatted ASCII file.
+        """
+        Save the bundle to a JSON-formatted ASCII file.
 
         See also:
         * <phoebe.parameters.ParameterSet.save>
@@ -691,21 +692,41 @@ class Bundle(ParameterSet):
         return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
                                         compact=compact)
 
-    def export_legacy(self, filename):
+    def export_legacy(self, filename, compute=None, skip_checks=False):
         """
-        Export the Bundle to a file readable by PHOEBE legacy
+        Export the Bundle to a file readable by PHOEBE legacy.
+
+        See also:
+        * <phoebe.parameters.compute.legacy>
 
         Arguments
         -----------
         * `filename` (string): relative or full path to the file
+        * `compute` (string, optional, default=None): label of the compute options
+            to use while exporting.
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
 
         Returns
         ------------
         * the filename (string)
         """
         logger.warning("exporting to legacy is experimental until official 1.0 release")
+        b.run_delayed_constraint()
+
+        if not skip_checks:
+            passed, msg = self.run_checks(compute=computes, **kwargs)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
+
         filename = os.path.expanduser(filename)
-        return io.pass_to_legacy(self, filename)
+        return io.pass_to_legacy(self, filename, compute=compute)
 
 
     def _test_server(self, server='http://localhost:5555', start_if_fail=True):
