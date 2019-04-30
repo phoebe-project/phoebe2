@@ -5497,7 +5497,7 @@ class ConstraintParameter(Parameter):
             if param.qualifier == self.qualifier and param.component == self.component:
                 # then this is the currently constrained parameter
                 param._is_constraint = self.uniqueid
-                if param.uniqueid in param._in_constraints:
+                if self.uniqueid in param._in_constraints:
                     param._in_constraints.remove(self.uniqueid)
             else:
                 # then this is a constraining parameter
@@ -5508,7 +5508,7 @@ class ConstraintParameter(Parameter):
             if param.qualifier == self.qualifier and param.component == self.component:
                 # then this is the currently constrained parameter
                 param._is_constraint = self.uniqueid
-                if param.uniqueid in param._in_constraints:
+                if self.uniqueid in param._in_constraints:
                     param._in_constraints.remove(self.uniqueid)
 
     def _remove_bookkeeping(self):
