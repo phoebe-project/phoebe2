@@ -37,6 +37,8 @@ _1to2par = {'ld_model':'ld_func',
             'hla': 'pblum',
             'cla': 'pblum',
             'el3': 'l3',
+            'el3frac':'l3_frac',
+            'el3_units':'l3_units',
             'reflections':'refl_num',
             'finesize': 'gridsize',
             'vga': 'vgamma',
@@ -149,6 +151,9 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
     pieces = pname.split('_')
     pnew = pieces[-1]
     d = {}
+    #on the very rare occasion phoebe 1 has a separate unit parameters
+    if pnew == 'units':
+        pnew = pieces[-2]+'_'+pieces[-1]
 
     if pnew == 'switch':
        pnew = pieces[1]
@@ -541,6 +546,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 
 # First LC
+    # grab third light unit which is not lightcurve dependent in phoebe legacy and remove from params
+    l3_units = params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"')
+    params = np.delete(params, [list(params[:,0]).index('phoebe_el3_units')], axis=0)
+
     for x in range(1,lcno+1):
 
         #list of parameters related to current dataset
@@ -614,12 +623,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         l3 = np.float(params[:,1][list(params[:,0]).index('phoebe_el3['+str(x)+'].VAL')])
 
 
-        if params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"') == 'Total light':
-            logger.warning('l3 as a percentage of total light is currently not supported in phoebe 2')
-            l3=0
+#        if params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"') == 'Total light':
+#            logger.warning('l3 as a percentage of total light is currently not supported in phoebe 2')
+#            l3=0
 #            l3 = l3/(4.0*np.pi)*(hla+cla)/(1.0-l3)
-
-        lc_dict['phoebe_lc_el3'] = l3
+        lc_dict['phoebe_lc_el3_units'] = l3_units
+        #since l3 has two possible parameters in phoebe2 adjust phoebe legacy accordingly
+        if l3_units == 'Total light':
+            lc_dict['phoebe_lc_el3frac'] = l3
+        else:
+            lc_dict['phoebe_lc_el3'] = l3
 
     # Determine the correct dataset to open
     # create rv data dictionary
@@ -699,7 +712,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     # cycle through all parameters. separate out data parameters and model parameters. add model parameters
 
         for k in lc_dict:
+
             pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
+
 #            print d
         # as long as the parameter exists add it
             if len(d) > 0:
@@ -707,11 +722,15 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
 
-#                if d['qualifier'] == 'pblum' and contact_binary:
-
+                if d['qualifier'] == 'l3_units':
+                    choice_dict = {'Flux':'flux', 'Total light':'fraction of total light'}
+                    val = choice_dict[d['value']]
+                    d['value'] = val
+            
 #                    d['component'] = 'contact_envelope'
 
                 try:
+
                     eb.set_value_all(check_visible=False, **d)
                 except ValueError as exc:
                     raise ValueError(exc.args[0] + " ({})".format(d))
@@ -1210,6 +1229,14 @@ Create a .phoebe file from phoebe 1 from a phoebe 2 bundle.
 
 def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
+    #run checks which must pass before allowing use of function
+    #l3_units must all be the same
+    l3_units = eb.filter(qualifier='l3_units')
+    l3_units_values = [l3_units[x].value for x in range(len(l3_units))]
+    if not all(x == l3_units_values[0] for x in l3_units_values):
+        raise ValueError("PHOEBE 1 does not support dataset dependent l3_units. Please set all l3_units parameters to the same value")
+
+
     eb.run_delayed_constraints()
 
 
@@ -1266,9 +1293,11 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     parnames.append('phoebe_indep')
     parvals.append('"Time (HJD)"')
     types.append('choice')
-    # Force el3 unit to be flux
+    # add l3_units
+    choice_dict = {'flux':'Flux', 'fraction of total light':'Total light'}
+    l3_units = eb.filter('l3_units')[0].value
     parnames.append('phoebe_el3_units')
-    parvals.append('"Flux"')
+    parvals.append('"'+choice_dict[l3_units]+'"')
     types.append('choice')
 
 # add limb darkening law first because it exists many places in phoebe2
@@ -1452,6 +1481,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
     for x in range(len(lcs)):
         quals = eb.filter(dataset=lcs[x], context=['dataset', 'compute'], check_visible=False)
+        #pull out l3_units
+        quals = quals.exclude('l3_units')
         #phoebe 2 is ALWAYS times so pass time as the ind variable
         parnames.append('phoebe_lc_indep['+str(x+1)+']')
         parvals.append('Time (HJD)')
@@ -1462,6 +1493,15 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         parnames.append('phoebe_lc_id['+str(x+1)+']')
         parvals.append(lcs[x])
         types.append('choice')
+
+
+
+        # choice_dict = {'flux':'Flux', 'fraction of total light':'Total light'}
+        # parnames.append('l3_units')
+        # parvals.append('"'+choice_dict[l3_units]+'""')
+        # types.append('choice')
+
+
 
         for param in quals.to_list():
 #            if len(eb.filter(qualifier=quals[y], dataset=lcs[x])) == 1:
@@ -1503,14 +1543,14 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                     pname = ['phoebe_cadence_switch']
                     val = ['0']
                     ptype='boolean'
-#                    if pname[0] not in parnames:
-#                        parnames.extend(pname)
-#                        parvals.extend(val)
-#                        types.append('boolean')
-#                elif param.qualifier == 'l3':
-#                    pname = ['phoebe_el3']
-#                    val = val*4*np.pi
-#                    ptype = 'float'
+
+                elif param.qualifier == 'l3' and param.is_visible:
+                    pname = ret_parname(param.qualifier, comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
+
+                elif param.qualifier == 'l3_frac' and param.is_visible:
+                    pname = ret_parname('l3', comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
+
+
                 else:
 
                     pname = ret_parname(param.qualifier, comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
