@@ -1228,7 +1228,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         # contacts are always aligned, for detached systems we need to check
         # to make sure they are aligned.
         for star in stars:
-            if eb.get_value('pitch', component=star) != 0 or eb.get_value('yaw', component=star) != 0:
+            if eb['hierarchy'].is_misaligned():
                 raise ValueError("PHOEBE 1 only supports aligned systems.  Edit pitch and yaw to be aligned or use another backend")
 
 
