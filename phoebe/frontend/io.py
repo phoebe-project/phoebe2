@@ -1334,6 +1334,9 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
             decouple_luminosity = '1'
 
+            if contact_binary:
+                raise ValueError("contact binaries in legacy do not support decoupled pblums")
+
         else:
 
             decouple_luminosity = '0'
