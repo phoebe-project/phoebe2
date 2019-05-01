@@ -1258,6 +1258,24 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
             if eb.get_value('pitch', component=star) != 0 or eb.get_value('yaw', component=star) != 0:
                 raise ValueError("PHOEBE 1 only supports aligned systems.  Edit pitch and yaw to be aligned or use another backend")
 
+    # Did you pass a compute parameter set?
+    if compute is not None:
+        # print("compute", compute)
+        computeps = eb.get_compute(compute=compute)
+#        computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
+
+    #Find Compute Parameter Set
+    else:
+        ncompute = len(eb.filter(context='compute', kind='legacy').computes)
+        if ncompute == 1:
+            computeps = eb.get_compute(kind='legacy', check_visible=False)
+
+        elif ncompute == 0:
+            raise ValueError('Your bundle must contain a "legacy" compute parameter set in order to export to a legacy file.')
+
+        else:
+            raise ValueError('Your bundle contains '+str(ncompute)+' parameter sets. You must specify one to use.')
+
 
 # check for semi_detached
     semi_detached = None #keep track of which component is in semidetached
@@ -1811,25 +1829,6 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 types.append(ptype)
 
 #loop through LEGACY compute parameter set
-
-
-    # Did you pass a compute parameter set?
-    if compute is not None:
-        # print("compute", compute)
-        computeps = eb.get_compute(compute=compute)
-#        computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
-
-    #Find Compute Parameter Set
-    else:
-        ncompute = len(eb.filter(context='compute', kind='legacy').computes)
-        if ncompute == 1:
-            computeps = eb.get_compute(kind='legacy', check_visible=False)
-
-        elif ncompute == 0:
-            raise ValueError('Your bundle must contain a "Legacy" compute parameter set.')
-
-        else:
-            raise ValueError('Your bundle contains '+str(ncompute)+' parameter sets. You must specify one to use.')
 
     for param in computeps.to_list():
         if param.component == primary:
