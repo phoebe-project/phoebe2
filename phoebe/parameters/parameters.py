@@ -376,6 +376,25 @@ class ParameterSet(object):
 
         return "ParameterSet: {} parameters\n".format(len(self._params))+param_info
 
+    def __lt__(self, other):
+        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+
+    def __le__(self, other):
+        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+
+    def __gt__(self, other):
+        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+
+    def __ge__(self, other):
+        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+
+    def __eq__(self, other):
+        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+
+    def __ne__(self, other):
+        raise NotImplementedError("comparison operators with ParameterSets are not supported")
+
+
     @property
     def meta(self):
         """Dictionary of all meta-tags.
@@ -2214,7 +2233,7 @@ class ParameterSet(object):
         """
         # TODO: check to see if protected (required by a current constraint or
         # by a backend)
-        self._params = [p for p in self._params if p != param]
+        self._params = [p for p in self._params if p.uniqueid != param.uniqueid]
 
     def remove_parameter(self, twig=None, **kwargs):
         """
@@ -4024,13 +4043,44 @@ class Parameter(object):
         """
         return 1
 
+    def __comp__(self, other, comp):
+        if isinstance(other, float) or isinstance(other, int):
+            return getattr(self.get_value(), comp)(other)
+        elif isinstance(other, u.Quantity):
+            return getattr(self.get_quantity(), comp)(other)
+        elif isinstance(other, str) and isinstance(self.get_value(), str) and comp in ['__eq__', '__ne__']:
+            return getattr(self.get_value(), comp)(other)
+        elif isinstance(other, tuple) and len(other)==2 and (isinstance(other[0], float) or isinstance(other[0], int)) and isinstance(other[1], str):
+            return self.__comp__(other[0]*u.Unit(other[1]), comp)
+        else:
+            raise NotImplementedError("cannot compare between {} and {}".format(self.__class__.__name__, type(other)))
+
+
+    def __lt__(self, other):
+        return self.__comp__(other, '__lt__')
+
+    def __le__(self, other):
+        return self.__comp__(other, '__le__')
+
+    def __gt__(self, other):
+        return self.__comp__(other, '__gt__')
+
+    def __ge__(self, other):
+        return self.__comp__(other, '__ge__')
+
     def __eq__(self, other):
         """
         """
-        # TODO: check value as well
-        if not isinstance(other, Parameter):
+        if other is None:
             return False
+
+        if not isinstance(other, Parameter):
+            return self.__comp__(other, '__eq__')
+
         return self.uniqueid == other.uniqueid
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def copy(self):
         """
