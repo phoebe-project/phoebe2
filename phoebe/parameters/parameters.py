@@ -4750,7 +4750,7 @@ class Parameter(object):
                     # let's not let this hold us up - sometimes this can happen when copying
                     # parameters (from copy_for) in order that the visible_if parameter
                     # happens later
-                    logger.debug("parameter not found when trying to determine if visible, {}".format(metawargs))
+                    logger.debug("parameter not found when trying to determine is_visible for {}: {}".format(self.twig, metawargs))
                     return True
 
                 #~ print "***", qualifier, param.qualifier, param.get_value(), value

@@ -163,17 +163,12 @@ class System(object):
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             irrad_method = compute_ps.get_value(qualifier='irrad_method', **kwargs)
             boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
-            if conf.devel:
-                mesh_init_phi = compute_ps.get_value(qualifier='mesh_init_phi', unit=u.rad, **kwargs)
-            else:
-                mesh_init_phi = 0.0
         else:
             eclipse_method = 'native'
             horizon_method = 'boolean'
             dynamics_method = 'keplerian'
             irrad_method = 'none'
             boosting_method = 'none'
-            mesh_init_phi = 0.0
             compute_ps = None
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
@@ -196,7 +191,7 @@ class System(object):
 
             return compute_ps.get_value('distortion_method', component=component, **kwargs)
 
-        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
+        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
 
         # envelopes need to know their relationships with the underlying stars
         parent_envelope_of = {}
@@ -1181,7 +1176,7 @@ class Star(Body):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
         """
         Build a star from the :class:`phoebe.frontend.bundle.Bundle` and its
         hierarchy.
@@ -1281,6 +1276,11 @@ class Star(Body):
             do_mesh_offset = b.get_value('mesh_offset', compute=compute, mesh_offset=mesh_offset_override)
         else:
             do_mesh_offset = True
+
+        if conf.devel:
+            mesh_init_phi = b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs)
+        else:
+            mesh_init_phi = 0.0
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
@@ -1943,13 +1943,13 @@ class Star_roche(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
         self_ps = b.filter(component=component, context='component', check_visible=False)
         F = self_ps.get_value('syncpar', check_visible=False)
 
         return super(Star_roche, cls).from_bundle(b, component, compute,
-                                                  mesh_init_phi, datasets,
+                                                  datasets,
                                                   F=F, **kwargs)
 
 
@@ -2156,14 +2156,14 @@ class Star_roche_envelope_half(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], pot=None, **kwargs):
+                    datasets=[], pot=None, **kwargs):
 
         if pot is None:
             envelope = b.hierarchy.get_envelope_of(component)
             pot = b.get_value('pot', component=envelope, context='component')
 
         return super(Star_roche_envelope_half, cls).from_bundle(b, component, compute,
-                                                  mesh_init_phi, datasets,
+                                                  datasets,
                                                   pot=pot,
                                                   **kwargs)
 
@@ -2329,11 +2329,11 @@ class Star_rotstar(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
 
         return super(Star_rotstar, cls).from_bundle(b, component, compute,
-                                                    mesh_init_phi, datasets,
+                                                    datasets,
                                                     **kwargs)
 
 
@@ -2491,12 +2491,12 @@ class Star_sphere(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
         self_ps = b.filter(component=component, context='component', check_visible=False)
 
         return super(Star_sphere, cls).from_bundle(b, component, compute,
-                                                   mesh_init_phi, datasets,
+                                                   datasets,
                                                    **kwargs)
 
 
@@ -2612,7 +2612,7 @@ class Envelope(Body):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
         # self_ps = b.filter(component=component, context='component', check_visible=False)
 
@@ -2627,6 +2627,11 @@ class Envelope(Body):
 
         mesh_method_override = kwargs.pop('mesh_method', None)
         mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
+
+        if conf.devel:
+            mesh_init_phi = b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs)
+        else:
+            mesh_init_phi = 0.0
 
         # we'll pass on the potential from the envelope to both halves (even
         # though technically only the primary will ever actually build a mesh)
