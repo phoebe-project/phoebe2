@@ -1254,7 +1254,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         # contacts are always aligned, for detached systems we need to check
         # to make sure they are aligned.
         for star in stars:
-            if eb.get_value('pitch', component=star) != 0 or eb.get_value('yaw', component=star) != 0:
+            if eb['hierarchy'].is_misaligned():
                 raise ValueError("PHOEBE 1 only supports aligned systems.  Edit pitch and yaw to be aligned or use another backend")
 
     # Did you pass a compute parameter set?
@@ -1368,15 +1368,24 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #    if len(ldlaws) == 0:
 #        pass
 
+    # TODO: technically we only want enabled datasets to be passed when using as the wrapper
+    if len(list(set(eb.get_value(qualifier='pblum_ref', component=primary, dataset=dataset) for dataset in lcs))) > 1:
+        raise ValueError("legacy requires all pblums to either be coupled or decoupled")
 
 
     if len(lcs) != 0:
-
         pblum_ref = eb.get_value(dataset = lcs[0], qualifier = 'pblum_ref', component=secondary)
-        # print "pblum_ref", pblum_ref
+
         if pblum_ref == 'self':
+            if eb.get_value(dataset=lcs[0], qualifier='pblum_ref', component=primary) != 'self':
+                # TODO: Can we add support for this?  Can we just flip the roles?
+                raise ValueError("legacy only supports decoupled pblums or pblum_ref@{}='self' and pblum_ref@{}={}".format(primary, secondary, primary))
+
 
             decouple_luminosity = '1'
+
+            if contact_binary:
+                raise ValueError("contact binaries in legacy do not support decoupled pblums")
 
         else:
 
@@ -1558,9 +1567,13 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
                 if param.qualifier == 'pblum':
                     if contact_binary:
-                        pname = ret_parname(param.qualifier, comp_int= 1, dnum = x+1, ptype=ptype)
+                        if comp_int == 2:
+                            # TODO: this is again assuming the the secondary is coupled to the primary
+                            continue
+
+                        pname = ret_parname(param.qualifier, comp_int=comp_int, dnum=x+1, ptype=ptype)
                     else:
-                        pname = ret_parname(param.qualifier, comp_int= comp_int, dnum = x+1, ptype=ptype)
+                        pname = ret_parname(param.qualifier, comp_int=comp_int, dnum=x+1, ptype=ptype)
 
                 elif param.qualifier == 'exptime':
 

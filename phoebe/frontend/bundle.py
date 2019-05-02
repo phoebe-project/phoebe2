@@ -3366,7 +3366,7 @@ class Bundle(ParameterSet):
             # solve_for is a twig, we need to pass the parameter
             kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model'])
 
-        lhs, rhs, constraint_kwargs = func(self, *func_args, **kwargs)
+        lhs, rhs, addl_vars, constraint_kwargs = func(self, *func_args, **kwargs)
         # NOTE that any component parameters required have already been
         # created by this point
 
@@ -3379,6 +3379,7 @@ class Bundle(ParameterSet):
                                                model=lhs.model,
                                                constraint_func=func.__name__,
                                                constraint_kwargs=constraint_kwargs,
+                                               addl_vars=addl_vars,
                                                in_solar_units=func.__name__ not in constraint.list_of_constraints_requiring_si,
                                                value=rhs,
                                                default_unit=lhs.default_unit,
@@ -3599,6 +3600,8 @@ class Bundle(ParameterSet):
         kwargs['check_default'] = False
         # print "***", kwargs
         expression_param = self.get_parameter(**kwargs)
+        logger.debug("bundle.run_constraint {}".format(expression_param.twig))
+
 
         kwargs = {}
         kwargs['twig'] = None
@@ -3621,9 +3624,9 @@ class Bundle(ParameterSet):
 
         result = expression_param.result
 
-        constrained_param.set_value(result, force=True, run_constraints=True)
-
-        logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
+        if result != constrained_param.get_value():
+            logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
+            constrained_param.set_value(result, force=True, run_constraints=True)
 
         if return_parameter:
             return constrained_param
@@ -4337,7 +4340,7 @@ class Bundle(ParameterSet):
             f.write("import phoebe; import json\n")
             # TODO: can we skip the history context?  And maybe even other models
             # or datasets (except times and only for run_compute but not run_fitting)
-            f.write("bdict = json.loads(\"\"\"{}\"\"\")\n".format(json.dumps(self.to_json())))
+            f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.to_json())))
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
             compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', model)]
