@@ -1313,11 +1313,15 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     types.append('choice')
     # add l3_units
     choice_dict = {'flux':'Flux', 'fraction of total light':'Total light'}
-    l3_units = eb.filter('l3_units')[0].value
-    parnames.append('phoebe_el3_units')
-    parvals.append('"'+choice_dict[l3_units]+'"')
-    types.append('choice')
-
+    if len(lcs) > 0:
+        l3_units = eb.filter('l3_units')[0].value
+        parnames.append('phoebe_el3_units')
+        parvals.append('"'+choice_dict[l3_units]+'"')
+        types.append('choice')
+    else:
+        parnames.append('phoebe_el3_units')
+        parvals.append('"'+choice_dict['flux']+'"')
+        types.append('choice')
 # add limb darkening law first because it exists many places in phoebe2
 
 
