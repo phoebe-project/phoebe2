@@ -564,6 +564,11 @@ class PhoebeBackend(BaseBackendByTime):
                                           dynamics_method=None,
                                           hier=None,
                                           meshablerefs=None,
+                                          datasets=None,
+                                          compute_l3=True,
+                                          compute_l3_frac=False,
+                                          compute_extrinsic=False,
+                                          reset=True,
                                           **kwargs):
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: calling universe.System.from_bundle".format(mpi.myrank, mpi.nprocs))
@@ -614,11 +619,29 @@ class PhoebeBackend(BaseBackendByTime):
         # Now we need to compute intensities at t0 in order to scale pblums for all future times
         # but only if any of the enabled datasets require intensities
         enabled_ps = b.filter(qualifier='enabled', compute=compute, value=True)
-        datasets = enabled_ps.datasets
+        if datasets is None:
+            datasets = enabled_ps.datasets
         # kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
-        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+        # NOTE: system.compute_pblum_scalings populates at t0 with ignore_effect=True (so intrinsic pblum)
+        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, reset=False)
+        if compute_l3 or compute_extrinsic:
+            if len(b.features):
+                # then the features may affect intrinsic vs extrinsic pblums,
+                # so we need to reset and force re-meshing
+                system.reset(force_remesh=True)
+
+        if compute_l3 and (compute_l3_frac or "frac" in [list(l3.keys())[0] for l3 in system.l3s.values()]):
+            logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: computing l3s".format(mpi.myrank, mpi.nprocs))
+            system.compute_l3s(datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, compute_l3_frac=compute_l3_frac, reset=False)
+        elif compute_extrinsic:
+            logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: recomputing with extrinsic effects enabled".format(mpi.myrank, mpi.nprocs))
+            system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+
+        if reset:
+            logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: resetting system".format(mpi.myrank, mpi.nprocs))
+            system.reset(force_recompute_instantaneous=True)
 
         return system
 
@@ -640,6 +663,8 @@ class PhoebeBackend(BaseBackendByTime):
                                                         dynamics_method=dynamics_method,
                                                         hier=hier,
                                                         meshablerefs=meshablerefs,
+                                                        compute_l3=True,
+                                                        compute_extrinsic=False,
                                                         **kwargs)
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
@@ -847,13 +872,10 @@ class PhoebeBackend(BaseBackendByTime):
                                               time, info))
 
             elif kind=='lc':
-                l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
-
                 obs = system.observe(info['dataset'],
                                      kind=kind,
                                      components=info['component'],
-                                     distance=distance,
-                                     l3=l3)
+                                     distance=distance)
 
                 packetlist.append(_make_packet('fluxes',
                                               obs['flux']*u.W/u.m**2,
@@ -1089,15 +1111,15 @@ class PhoebeBackend(BaseBackendByTime):
 
                 # Dataset-dependent quantities
                 for mesh_dataset in info['mesh_datasets']:
-                    if 'pblum@{}'.format(mesh_dataset) in info['mesh_columns']:
-                        packetlist.append(_make_packet('pblum',
+                    if 'pblum_ext@{}'.format(mesh_dataset) in info['mesh_columns']:
+                        packetlist.append(_make_packet('pblum_ext',
                                                       body.compute_luminosity(mesh_dataset),
                                                       time, info,
                                                       dataset=mesh_dataset,
                                                       component=info['component']))
 
-                    if 'abs_pblum@{}'.format(mesh_dataset) in info['mesh_columns']:
-                        packetlist.append(_make_packet('abs_pblum',
+                    if 'abs_pblum_ext@{}'.format(mesh_dataset) in info['mesh_columns']:
+                        packetlist.append(_make_packet('abs_pblum_ext',
                                                       body.compute_luminosity(mesh_dataset, scaled=False),
                                                       time, info,
                                                       dataset=mesh_dataset,

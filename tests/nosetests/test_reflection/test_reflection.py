@@ -35,7 +35,7 @@ def test_binary(plot=False):
     b.set_value_all('ld_coeffs_source', 'none')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
-    for alb in [0, 0.5, 1.0]:
+    for alb in [1.0, 0.5, 0.0]:
         if plot: print("alb = {}".format(alb))
         b.set_value_all('irrad_frac_refl_bol', alb)
 
@@ -52,7 +52,7 @@ def test_binary(plot=False):
             # phoebe2_maxintensrel = b.get_value('intens_norm_rel', component='primary').max()
             # print("alb={} phoebe1.max={} phoebe2.max={}, phoebe2.maxintensabs={} phoebe2.maxintensrel={}".format(alb, phoebe1_val.max(), phoebe2_val.max(), phoebe2_maxintensabs, phoebe2_maxintensrel))
 
-            b.plot(dataset='lc01', ylim=(1.96, 2.02), show=True)
+            b.plot(dataset='lc01', ylim=(1.96, 2.02), legend=True, show=True)
 
         assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
 

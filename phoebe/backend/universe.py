@@ -104,6 +104,7 @@ class System(object):
                  dynamics_method='keplerian',
                  irrad_method='none',
                  boosting_method='none',
+                 l3s={},
                  parent_envelope_of={}):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
@@ -114,6 +115,8 @@ class System(object):
         self.horizon_method = horizon_method
         self.dynamics_method = dynamics_method
         self.irrad_method = irrad_method
+
+        self.l3s = l3s
 
         self.is_first_refl_iteration = True
 
@@ -163,17 +166,12 @@ class System(object):
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             irrad_method = compute_ps.get_value(qualifier='irrad_method', **kwargs)
             boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
-            if conf.devel:
-                mesh_init_phi = compute_ps.get_value(qualifier='mesh_init_phi', unit=u.rad, **kwargs)
-            else:
-                mesh_init_phi = 0.0
         else:
             eclipse_method = 'native'
             horizon_method = 'boolean'
             dynamics_method = 'keplerian'
             irrad_method = 'none'
             boosting_method = 'none'
-            mesh_init_phi = 0.0
             compute_ps = None
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
@@ -196,7 +194,17 @@ class System(object):
 
             return compute_ps.get_value('distortion_method', component=component, **kwargs)
 
-        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
+        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
+
+        l3s = {}
+        for ds in b.filter('l3_mode').datasets:
+            l3_mode = b.get_value('l3_mode', dataset=ds, context='dataset')
+            if l3_mode == 'flux':
+                l3s[ds] = {'flux': b.get_value('l3', dataset=ds, context='dataset', unit=u.W/u.m**2)}
+            elif l3_mode == 'fraction of total light':
+                l3s[ds] = {'frac': b.get_value('l3_frac', dataset=ds, context='dataset')}
+            else:
+                raise NotImplementedError("l3_mode='{}' not supported".format(l3_mode))
 
         # envelopes need to know their relationships with the underlying stars
         parent_envelope_of = {}
@@ -210,6 +218,7 @@ class System(object):
                    dynamics_method=dynamics_method,
                    irrad_method=irrad_method,
                    boosting_method=boosting_method,
+                   l3s=l3s,
                    parent_envelope_of=parent_envelope_of)
 
     def items(self):
@@ -298,6 +307,7 @@ class System(object):
 
         all arrays should be for the current time, but iterable over all bodies
         """
+        logger.debug('system.update_positions ignore_effects={}'.format(ignore_effects))
         self.xs = np.array(_value(xs))
         self.ys = np.array(_value(ys))
         self.zs = np.array(_value(zs))
@@ -328,10 +338,13 @@ class System(object):
     def compute_pblum_scalings(self, b, datasets, t0,
                                x0, y0, z0, vx0, vy0, vz0,
                                etheta0, elongan0, eincl0,
-                               ignore_effects=True):
+                               reset=True):
+
+        logger.debug("system.compute_pblum_scalings")
 
         self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
+        pblum_scale_copy_ds = {}
         for dataset in datasets:
             ds = b.get_dataset(dataset=dataset)
             kind = ds.exclude(kind='*_dep').kind
@@ -339,37 +352,160 @@ class System(object):
                 # only LCs need pblum scaling
                 continue
 
+            pblum_mode = ds.get_value(qualifier='pblum_mode')
+
+            ignore_effects = pblum_mode not in ['total flux']
+            logger.debug("system.compute_pblum_scalings: populating observables for dataset={} with ignore_effects={} for pblum_mode={}".format(dataset, ignore_effects, pblum_mode))
             self.populate_observables(t0, [kind], [dataset],
-                                        ignore_effects=True)
+                                        ignore_effects=ignore_effects)
 
-            # now for each component we need to store the scaling factor between
-            # absolute and relative intensities
-            pblum_copy = {}
-            for component in ds.filter(qualifier='pblum_ref').components:
-                # print "**** pblum scaling component:", component
-                if component=='_default':
-                    continue
-                pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
-                if pblum_ref=='self':
-                    pblum = ds.get_value(qualifier='pblum', component=component)
-                    ld_func = ds.get_value(qualifier='ld_func', component=component)
-                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
+            ds_components = b.hierarchy.get_stars()
+            #ds_components = ds.filter(qualifier='pblum_ref', check_visible=False).components
 
-                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
-                    self.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
-                else:
-                    # then this component wants to copy the scale from another component
-                    # in the system.  We'll just store this now so that we make sure the
-                    # component we're copying from has a chance to compute its scale
-                    # first.
-                    pblum_copy[component] = pblum_ref
+            if pblum_mode == 'provided':
 
-            # now let's copy all the scales for those that are just referencing another component
-            for comp, comp_copy in pblum_copy.items():
-                pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
-                self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+                # now for each component we need to store the scaling factor between
+                # absolute and relative intensities
+                pblum_scale_copy_comp = {}
+                for component in ds_components:
+                    # print "**** pblum scaling component:", component
+                    if component=='_default':
+                        continue
+                    pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
+                    if pblum_ref=='self':
+                        pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component)
+                        ld_func = ds.get_value(qualifier='ld_func', component=component)
+                        ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
-        self.reset(force_recompute_instantaneous=True)
+                        # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
+                        self.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
+                    else:
+                        # then this component wants to copy the scale from another component
+                        # in the system.  We'll just store this now so that we make sure the
+                        # component we're copying from has a chance to compute its scale
+                        # first.
+                        pblum_scale_copy_comp[component] = pblum_ref
+
+                # now let's copy all the scales for those that are just referencing another component
+                for comp, comp_copy in pblum_scale_copy_comp.items():
+                    pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
+                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+
+            elif pblum_mode == 'color coupled':
+                pblum_ref = ds.get_value(qualifier='pblum_ref')
+                pblum_scale_copy_ds[dataset] = pblum_ref
+
+            elif pblum_mode in ['system flux', 'total flux']:
+                pbflux = ds.get_value(qualifier='pbflux', unit=u.W/u.m**2)
+
+                # TODO: add ld_func and ld_coeffs?
+                system_flux = np.sum([self.get_body(comp).compute_luminosity(dataset)/(4*np.pi) for comp in ds_components])
+
+                if pblum_mode == 'system flux':
+                    # then we'll apply the scale based on the INTRINSIC system luminosities divided by 4*pi
+                    pblum_scale = pbflux / system_flux
+                else: # pblum_mode == 'total flux'
+                    l3_mode = ds.get_value(qualifier='l3_mode')
+                    # note that pbflux here is the TOTAL FLUX requested in RELATIVE UNITS
+
+                    # flux_sys = sum(L_star/4pi for star in stars)
+                    # flux_tot = flux_sys + l3_flux
+                    # l3_frac = l3_flux / tot_flux
+                    # pblum_scale = pbflux / flux_tot
+
+                    if l3_mode == 'flux':
+                        l3_flux = ds.get_value(qualifier='l3', unit=u.W/u.m**2)
+                        pblum_scale = (pbflux - l3_flux) / system_flux
+                    elif l3_mode == 'fraction of total light':
+                        l3_frac = ds.get_value(qualifier='l3_frac')
+                        l3_flux = l3_frac * pbflux
+                        pblum_scale = (pbflux - l3_flux) / system_flux
+                    else:
+                        raise NotImplementedError("l3_mode={} not implemented for pblum scaling".format(l3_mode))
+
+                for comp in ds_components:
+                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+
+
+
+            elif pblum_mode == 'scale to data':
+                # for now we'll allow the scaling to fallback on 1.0, but not
+                # set the actual value so that these are EXCLUDED from b.compute_pblums
+                continue
+
+            elif pblum_mode == 'absolute':
+                # even those these will default to 1.0, we'll set them in the dictionary
+                # so the resulting pblums are available to b.compute_pblums()
+                for comp in ds_components:
+                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=1.0)
+
+            else:
+                raise NotImplementedError("pblum_mode='{}' not supported".format(pblum_scale))
+
+
+            # now let's copy all the scales for those that are just referencing another dataset
+            for ds, ds_copy in pblum_scale_copy_ds.items():
+                for comp in ds_components:
+                    pblum_scale = self.get_body(comp).get_pblum_scale(ds_copy, component=comp)
+                    self.get_body(comp).set_pblum_scale(ds, component=comp, pblum_scale=pblum_scale)
+
+
+        if reset:
+            self.reset(force_recompute_instantaneous=True)
+
+    def compute_l3s(self, datasets, t0,
+                    x0, y0, z0, vx0, vy0, vz0,
+                    etheta0, elongan0, eincl0,
+                    compute_l3_frac=False, reset=True):
+
+        logger.debug("system.compute_l3s")
+        def _compute_flux_tot(dataset):
+            return np.sum([star.compute_luminosity(dataset, include_effects=True)/(4*np.pi) for star in self.values()])
+
+        # convert between l3(_flux) and l3_frac from the following definitions:
+        # flux_sys = sum(L_star/4pi for star in stars)
+        # flux_tot = flux_sys + l3_flux
+        # l3_frac = l3_flux / tot_flux
+
+        self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=False)
+
+        # NOTE must have already called compute_pblum_scalings
+        for dataset, l3 in self.l3s.items():
+            populated = False
+            if datasets is not None and dataset not in datasets:
+                continue
+
+            # l3 is a dictionary with key 'flux' or 'frac' and value the l3 in that "units"
+            flux_tot = None
+            if 'flux' not in l3.keys():
+                logger.debug('system.compute_l3s: computing l3 in flux for datset={}'.format(dataset))
+                if not populated:
+                    self.populate_observables(t0, ['lc'], [dataset],
+                                                ignore_effects=False)
+                    populated = True
+
+                if flux_tot is None:
+                    flux_tot = _compute_flux_tot(dataset)
+                l3_frac = l3.get('frac')
+                l3_flux = (l3_frac * flux_tot) / (1  - l3_frac) # u.W / u.m**2
+                self.l3s[dataset]['flux'] = l3_flux
+
+
+            if compute_l3_frac and 'frac' not in l3.keys():
+                logger.debug('system.compute_l3s: computing l3 in fraction of total light for dataset={}'.format(dataset))
+                if not populated:
+                    self.populate_observables(t0, ['lc'], [dataset],
+                                                ignore_effects=False)
+                    populated = True
+                if flux_tot is None:
+                    flux_tot = _compute_flux_tot(dataset)
+                l3_flux = l3.get('flux')
+                l3_frac = l3_flux / flux_tot
+                self.l3s[dataset]['frac'] = l3_frac
+
+        if reset:
+            self.reset(force_recompute_instantaneous=True)
+
 
     def handle_reflection(self,  **kwargs):
         """
@@ -554,7 +690,7 @@ class System(object):
         return horizon
 
 
-    def observe(self, dataset, kind, components=None, distance=1.0, l3=0.0, **kwargs):
+    def observe(self, dataset, kind, components=None, distance=1.0, **kwargs):
         """
         TODO: add documentation
 
@@ -665,6 +801,7 @@ class System(object):
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
 
+            l3 = self.l3s.get(dataset).get('flux')
             return {'flux': np.sum(intensities*areas*mus*visibilities)*ptfarea/(distance**2)+l3}
 
         else:
@@ -910,15 +1047,17 @@ class Body(object):
 
     def reset(self, force_remesh=False, force_recompute_instantaneous=False):
         if force_remesh:
-            logger.debug("{}.reset: forcing remesh for next iteration".format(self.component))
+            logger.debug("{}.reset: forcing remesh and recompute_instantaneous for next iteration".format(self.component))
         elif force_recompute_instantaneous:
             logger.debug("{}.reset: forcing recompute_instantaneous for next iteration".format(self.component))
 
         if self.needs_remesh or force_remesh:
             self._mesh = None
+            self._standard_meshes = {}
 
         if self.needs_recompute_instantaneous or self.needs_remesh or force_remesh or force_recompute_instantaneous:
             self.inst_vals = {}
+            self._force_recompute_instantaneous_next_update_position = True
 
     def reset_time(self, time, true_anom, elongan, eincl):
         """
@@ -1084,9 +1223,10 @@ class Body(object):
         # needed for this time-step.
         # TODO [DONE?]: make sure features smartly trigger needs_recompute_instantaneous
         # TODO: get rid of the or True here... the problem is that we're saving the standard mesh before filling local quantities
-        if self.needs_recompute_instantaneous or did_remesh:
+        if self.needs_recompute_instantaneous or did_remesh or self._force_recompute_instantaneous_next_update_position:
             logger.debug("{}.update_position: calling compute_local_quantities at t={}".format(self.component, self.time))
             self.compute_local_quantities(xs, ys, zs, ignore_effects)
+            self._force_recompute_instantaneous_next_update_position = False
 
         return
 
@@ -1181,7 +1321,7 @@ class Star(Body):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
         """
         Build a star from the :class:`phoebe.frontend.bundle.Bundle` and its
         hierarchy.
@@ -1282,6 +1422,9 @@ class Star(Body):
         else:
             do_mesh_offset = True
 
+        if conf.devel and mesh_method=='marching':
+            kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs))
+
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
         atm_override = kwargs.pop('atm', None)
@@ -1311,7 +1454,7 @@ class Star(Body):
                    masses, ecc,
                    incl, long_an, t0,
                    do_mesh_offset,
-                   mesh_init_phi,
+                   kwargs.pop('mesh_init_phi', 0.0),
 
                    atm,
                    datasets,
@@ -1638,6 +1781,7 @@ class Star(Body):
     def compute_luminosity(self, dataset, scaled=True, **kwargs):
         """
         """
+        # assumes dataset-columns have already been populated
         logger.debug("{}.compute_luminosity(dataset={})".format(self.component, dataset))
 
         # areas are the NON-projected areas of each surface element.  We'll be
@@ -1943,13 +2087,13 @@ class Star_roche(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
         self_ps = b.filter(component=component, context='component', check_visible=False)
         F = self_ps.get_value('syncpar', check_visible=False)
 
         return super(Star_roche, cls).from_bundle(b, component, compute,
-                                                  mesh_init_phi, datasets,
+                                                  datasets,
                                                   F=F, **kwargs)
 
 
@@ -2156,14 +2300,14 @@ class Star_roche_envelope_half(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], pot=None, **kwargs):
+                    datasets=[], pot=None, **kwargs):
 
         if pot is None:
             envelope = b.hierarchy.get_envelope_of(component)
             pot = b.get_value('pot', component=envelope, context='component')
 
         return super(Star_roche_envelope_half, cls).from_bundle(b, component, compute,
-                                                  mesh_init_phi, datasets,
+                                                  datasets,
                                                   pot=pot,
                                                   **kwargs)
 
@@ -2329,11 +2473,11 @@ class Star_rotstar(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
 
         return super(Star_rotstar, cls).from_bundle(b, component, compute,
-                                                    mesh_init_phi, datasets,
+                                                    datasets,
                                                     **kwargs)
 
 
@@ -2491,12 +2635,12 @@ class Star_sphere(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
         self_ps = b.filter(component=component, context='component', check_visible=False)
 
         return super(Star_sphere, cls).from_bundle(b, component, compute,
-                                                   mesh_init_phi, datasets,
+                                                   datasets,
                                                    **kwargs)
 
 
@@ -2612,7 +2756,7 @@ class Envelope(Body):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
         # self_ps = b.filter(component=component, context='component', check_visible=False)
 
@@ -2628,9 +2772,14 @@ class Envelope(Body):
         mesh_method_override = kwargs.pop('mesh_method', None)
         mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
 
+        if conf.devel:
+            kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs))
+        else:
+            kwargs.setdefault('mesh_init_phi', 0.0)
+
         # we'll pass on the potential from the envelope to both halves (even
         # though technically only the primary will ever actually build a mesh)
-        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, mesh_init_phi=mesh_init_phi, datasets=datasets, pot=pot, **kwargs) for star in stars]
+        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, datasets=datasets, pot=pot, **kwargs) for star in stars]
 
         return cls(component, halves, pot, q, mesh_method)
 
