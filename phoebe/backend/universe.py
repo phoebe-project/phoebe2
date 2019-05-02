@@ -1422,7 +1422,7 @@ class Star(Body):
         else:
             do_mesh_offset = True
 
-        if conf.devel:
+        if conf.devel and mesh_method=='marching':
             kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs))
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
