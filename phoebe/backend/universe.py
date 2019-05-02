@@ -1278,9 +1278,7 @@ class Star(Body):
             do_mesh_offset = True
 
         if conf.devel:
-            mesh_init_phi = b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs)
-        else:
-            mesh_init_phi = 0.0
+            kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs))
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
@@ -1311,7 +1309,7 @@ class Star(Body):
                    masses, ecc,
                    incl, long_an, t0,
                    do_mesh_offset,
-                   mesh_init_phi,
+                   kwargs.pop('mesh_init_phi', 0.0),
 
                    atm,
                    datasets,
@@ -2629,13 +2627,13 @@ class Envelope(Body):
         mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
 
         if conf.devel:
-            mesh_init_phi = b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs)
+            kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs))
         else:
-            mesh_init_phi = 0.0
+            kwargs.setdefault('mesh_init_phi', 0.0)
 
         # we'll pass on the potential from the envelope to both halves (even
         # though technically only the primary will ever actually build a mesh)
-        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, mesh_init_phi=mesh_init_phi, datasets=datasets, pot=pot, **kwargs) for star in stars]
+        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, datasets=datasets, pot=pot, **kwargs) for star in stars]
 
         return cls(component, halves, pot, q, mesh_method)
 
