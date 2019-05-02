@@ -632,7 +632,7 @@ class PhoebeBackend(BaseBackendByTime):
                 # so we need to reset and force re-meshing
                 system.reset(force_remesh=True)
 
-        if compute_l3 and (compute_l3_frac or "frac" in [l3.keys()[0] for l3 in system.l3s.values()]):
+        if compute_l3 and (compute_l3_frac or "frac" in [list(l3.keys())[0] for l3 in system.l3s.values()]):
             logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: computing l3s".format(mpi.myrank, mpi.nprocs))
             system.compute_l3s(datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, compute_l3_frac=compute_l3_frac, reset=False)
         elif compute_extrinsic:
