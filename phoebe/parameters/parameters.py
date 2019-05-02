@@ -1851,7 +1851,7 @@ class ParameterSet(object):
         ps = self.filter(twig=twig, **kwargs)
         if not len(ps):
             # TODO: custom exception?
-            raise ValueError("0 results found")
+            raise ValueError("0 results found for twig: '{}', {}".format(twig, kwargs))
         elif len(ps) != 1:
             # TODO: custom exception?
             raise ValueError("{} results found: {}".format(len(ps), ps.twigs))
