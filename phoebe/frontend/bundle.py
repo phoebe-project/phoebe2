@@ -13,6 +13,8 @@ import json
 from datetime import datetime
 from distutils.version import StrictVersion
 
+from scipy.optimize import curve_fit as cfit
+
 
 # PHOEBE
 # ParameterSet, Parameter, FloatParameter, send_if_client, etc
@@ -660,7 +662,8 @@ class Bundle(ParameterSet):
 
     def save(self, filename, clear_history=True, incl_uniqueid=False,
              compact=False):
-        """Save the bundle to a JSON-formatted ASCII file.
+        """
+        Save the bundle to a JSON-formatted ASCII file.
 
         See also:
         * <phoebe.parameters.ParameterSet.save>
@@ -691,21 +694,41 @@ class Bundle(ParameterSet):
         return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
                                         compact=compact)
 
-    def export_legacy(self, filename):
+    def export_legacy(self, filename, compute=None, skip_checks=False):
         """
-        Export the Bundle to a file readable by PHOEBE legacy
+        Export the Bundle to a file readable by PHOEBE legacy.
+
+        See also:
+        * <phoebe.parameters.compute.legacy>
 
         Arguments
         -----------
         * `filename` (string): relative or full path to the file
+        * `compute` (string, optional, default=None): label of the compute options
+            to use while exporting.
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before exporting.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
 
         Returns
         ------------
         * the filename (string)
         """
         logger.warning("exporting to legacy is experimental until official 1.0 release")
+        self.run_delayed_constraints()
+
+        if not skip_checks:
+            passed, msg = self.run_checks(compute=compute)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
+
         filename = os.path.expanduser(filename)
-        return io.pass_to_legacy(self, filename)
+        return io.pass_to_legacy(self, filename, compute=compute)
 
 
     def _test_server(self, server='http://localhost:5555', start_if_fail=True):
@@ -1112,19 +1135,32 @@ class Bundle(ParameterSet):
         # Handle choice parameters that need components as choices
         # meshablerefs = hier.get_meshables()  # TODO: consider for overcontacts
         starrefs = hier.get_stars()  # TODO: consider for overcontacts
+        datasetrefs = self.filter(qualifier='pblum_mode', check_visible=False).datasets
+
         for param in self.filter(qualifier='pblum_ref',
                                  context='dataset',
                                  check_visible=False,
                                  check_default=False).to_list():
-            param._choices = ['self'] + starrefs
-            if param.value == '':
-                # then this was the default from the parameter itself, so we
-                # want to set it to be pblum if its the "primary" star, and
-                # otherwise point to the primary star
-                if param.component == starrefs[0]:
-                    param.set_value('self')
-                else:
-                    param.set_value(starrefs[0])
+
+            if param.component is None:
+                param._choices = [ds for ds in datasetrefs if ds!=param.dataset]
+
+                if param.value == '' and len(param._choices):
+                    param.set_value(param._choices[0])
+
+                if not len(param._choices):
+                    param._choices = ['']
+
+            else:
+                param._choices = ['self'] + [s for s in starrefs if s!=param.component]
+
+                if param.value == '':
+                    # then this was the default from the parameter itself, so we
+                    # want to set it to be pblum of its the "primary" star
+                    if param.component == starrefs[0]:
+                        param.set_value('self')
+                    else:
+                        param.set_value(starrefs[0])
 
     def _handle_dataset_selectparams(self):
         """
@@ -1649,6 +1685,8 @@ class Bundle(ParameterSet):
         changed_params = self.run_delayed_constraints()
 
         computes = kwargs.pop('compute', self.computes)
+        if computes is None:
+            computes = self.computes
         if isinstance(computes, str):
             computes = [computes]
 
@@ -1840,6 +1878,7 @@ class Bundle(ParameterSet):
 
                 if ld_func=='interp':
                     for compute in computes:
+                        # TODO: should we ignore if the dataset is disabled?
                         try:
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         except ValueError:
@@ -1852,12 +1891,39 @@ class Bundle(ParameterSet):
                                 else:
                                     return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
-        # mesh-consistency checks
         for compute in computes:
+            compute_kind = self.get_compute(compute=compute).kind
+
+            # mesh-consistency checks
             mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
                     return False, "all (or none) components must use mesh_method='wd'."
+
+            # l3_mode checks
+            if compute_kind in ['legacy']:
+                enabled_datasets = self.filter(qualifier='enabled', value=True, compute=compute, force_ps=True).datasets
+                l3_modes = [p.get_value() for p in self.filter('l3_mode', dataset=enabled_datasets, force_ps=True).to_list()]
+                if len(set(l3_modes)) > 1:
+                    return False, "{} backend (compute='{}') requires all values of 'l3_mode' (for enabled datasets) to be the same.".format(compute_kind, compute)
+
+
+
+        # forbid color-coupling with a dataset which is scaled to data or to another that is in-turn color-coupled
+        for param in self.filter(qualifier='pblum_mode', value='color coupled').to_list():
+            coupled_to = self.get_value(qualifier='pblum_ref', dataset=param.dataset)
+            if coupled_to == '':
+                continue
+            pblum_mode = self.get_value(qualifier='pblum_mode', dataset=coupled_to)
+            if pblum_mode in ['scale to data', 'color coupled']:
+                return False, "cannot set pblum_ref@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode)
+
+        # require any pblum_mode == 'scale to data' to have accompanying data
+        for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
+            if not len(self.get_value(qualifier='fluxes', dataset=param.dataset, context='dataset')):
+                return False, "fluxes@{} cannot be empty if pblum_mode@{}='scale to data'".format(param.dataset, param.dataset)
+
+        ### TODO: add tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
 
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol and irrad_frac_refl_bol
@@ -3300,7 +3366,7 @@ class Bundle(ParameterSet):
             # solve_for is a twig, we need to pass the parameter
             kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model'])
 
-        lhs, rhs, constraint_kwargs = func(self, *func_args, **kwargs)
+        lhs, rhs, addl_vars, constraint_kwargs = func(self, *func_args, **kwargs)
         # NOTE that any component parameters required have already been
         # created by this point
 
@@ -3313,6 +3379,7 @@ class Bundle(ParameterSet):
                                                model=lhs.model,
                                                constraint_func=func.__name__,
                                                constraint_kwargs=constraint_kwargs,
+                                               addl_vars=addl_vars,
                                                in_solar_units=func.__name__ not in constraint.list_of_constraints_requiring_si,
                                                value=rhs,
                                                default_unit=lhs.default_unit,
@@ -3533,6 +3600,8 @@ class Bundle(ParameterSet):
         kwargs['check_default'] = False
         # print "***", kwargs
         expression_param = self.get_parameter(**kwargs)
+        logger.debug("bundle.run_constraint {}".format(expression_param.twig))
+
 
         kwargs = {}
         kwargs['twig'] = None
@@ -3555,9 +3624,9 @@ class Bundle(ParameterSet):
 
         result = expression_param.result
 
-        constrained_param.set_value(result, force=True, run_constraints=True)
-
-        logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
+        if result != constrained_param.get_value():
+            logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
+            constrained_param.set_value(result, force=True, run_constraints=True)
 
         if return_parameter:
             return constrained_param
@@ -3600,7 +3669,7 @@ class Bundle(ParameterSet):
         """
         Compute the interpolated limb darkening coefficients.
 
-        This method is only for convenicence and will be recomputed internally
+        This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute> for all backends
         that require per-star limb-darkening coefficients.  Note that the default
         <phoebe.parameters.compute.phoebe> backend will instead interpolate
@@ -3628,13 +3697,17 @@ class Bundle(ParameterSet):
         * `set_value` (bool, optional, default=False): apply the interpolated
             values to the respective `ld_coeffs` parameters (even if not
             currently visible).
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
         * `**kwargs`: any additional kwargs are sent to override compute options.
 
         Returns
         ----------
         * (dict) computed ld_coeffs in a dictionary with keys formatted as
-            component@dataset and the ld_coeffs as values (arrays with appropriate
-            length given the respective value of `ld_func`.
+            ld_coeffs@component@dataset and the ld_coeffs as values (arrays with
+            appropriate length given the respective value of `ld_func`).
         """
 
         datasets = kwargs.pop('dataset', self.datasets)
@@ -3642,7 +3715,7 @@ class Bundle(ParameterSet):
 
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
+        self._kwargs_checks(kwargs, additional_allowed_keys=['skip_checks'], additional_forbidden_keys=forbidden_keys)
 
         if compute is None:
             if len(self.computes)==1:
@@ -3652,11 +3725,20 @@ class Bundle(ParameterSet):
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
 
+        if not kwargs.get('skip_checks', False):
+            passed, msg = self.run_checks(compute=compute, **kwargs)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
+
         ld_coeffs_ret = {}
         for ldcs_param in self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components).to_list():
             ldcs = ldcs_param.get_value()
             if ldcs == 'none':
-                ld_coeffs_ret["{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+                ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
 
                 continue
 
@@ -3691,56 +3773,13 @@ class Bundle(ParameterSet):
 
             logger.info("interpolated {} ld_coeffs={}".format(ld_func, ld_coeffs))
 
-            ld_coeffs_ret["{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = ld_coeffs
+            ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = ld_coeffs
             if set_value:
                 self.set_value(qualifier='ld_coeffs', component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
 
         return ld_coeffs_ret
 
-    def compute_pblums(self, compute=None, **kwargs):
-        """
-        Compute the passband luminosities that will be applied to the system,
-        following all coupling, etc, as well as all relevant compute options
-        (ntriangles, distortion_method, etc).  The exposed passband luminosities
-        (and any coupling) are computed at t0@system.
-
-        This method is only for convenience and will be recomputed internally
-        within <phoebe.frontend.bundle.Bundle.run_compute>.  Alternatively, you
-        can create a mesh dataset (see <phoebe.frontend.bundle.Bundle.add_dataset>
-        and <phoebe.parameters.dataset.mesh>) and request any specific pblum to
-        be exposed (per-time).
-
-        Note:
-        * for backends without `atm` compute options, 'ck2004' will be used.
-        * for backends without `mesh_method` compute options, the most appropriate
-            method will be chosen.  'roche' will be used whenever applicable,
-            otherwise 'sphere' will be used.
-
-        Arguments
-        ------------
-        * `compute` (string, optional, default=None): label of the compute
-            options (not required if only one is attached to the bundle).
-        * `component` (string or list of strings, optional): label of the
-            component(s) requested. If not provided, will be provided for all
-            components in the hierarchy.
-        * `dataset` (string or list of strings, optional): label of the
-            dataset(s) requested.  If not provided, will be provided for all
-            datasets attached to the bundle.
-        * `**kwargs`: any additional kwargs are sent to override compute options.
-
-        Returns
-        ----------
-        * (dict) computed pblums in a dictionary with keys formatted as
-            component@dataset and the pblums as values (as quantity objects with
-            default units of W).
-        """
-        datasets = kwargs.pop('dataset', self.datasets)
-        components = kwargs.pop('component', self.components)
-
-        # don't allow things like model='mymodel', etc
-        forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
-
+    def _compute_system(self, compute=None, datasets=None, compute_l3=False, compute_l3_frac=False, compute_extrinsic=False, **kwargs):
         if compute is None:
             if len(self.computes)==1:
                 compute = self.computes[0]
@@ -3758,16 +3797,208 @@ class Bundle(ParameterSet):
 
         system_compute = compute if compute_kind=='phoebe' else None
         logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
-        system = backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, **kwargs)
+        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, compute_extrinsic=compute_extrinsic, reset=False, **kwargs)
+
+    def compute_l3s(self, compute=None, set_value=False, **kwargs):
+        """
+        Compute third lights (`l3`) that will be applied to the system from
+        fractional third light (`l3_frac`) and vice-versa by assuming that the
+        total system flux is equivalent to the sum of the extrinsic (including
+        any enabled irradiation and features) passband luminosities
+        at t0 divided by 4*pi.  To see how passband luminosities are computed,
+        see <phoebe.frontend.bundle.Bundle.compute_pblums>.
+
+        Note: this can only be computed for datasets in which `l3_mode` is set
+        to 'fraction of total light' instead of 'flux'.  When this is the case,
+        the `l3_frac` parameter takes place of the `l3` parameter.  This method
+        simply provides a convenience function for exposing the third light
+        that will be adopted in units of flux.
+
+        This method is only for convenience and will be recomputed internally
+        within <phoebe.frontend.bundle.Bundle.run_compute>.
+
+        Arguments
+        ------------
+        * `compute` (string, optional, default=None): label of the compute
+            options (not required if only one is attached to the bundle).
+        * `dataset` (string or list of strings, optional): label of the
+            dataset(s) requested.  If not provided, will be provided for all
+            datasets in which an `l3_mode` Parameter exists.
+        * `set_value` (bool, optional, default=False): apply the computed
+            values to the respective `l3` or `l3_frac` parameters (even if not
+            currently visible).
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
+        * `**kwargs`: any additional kwargs are sent to override compute options.
+
+        Returns
+        ----------
+        * (dict) computed l3s in a dictionary with keys formatted as
+            l3@dataset or l3_frac@dataset and the l3 (as quantity objects
+            with units of W/m**2) or l3_frac (as unitless floats).
+        """
+        # TODO: consider a b.compute_total/system_fluxes or a b.compute_total_fluxes_to_pblums
+        logger.debug("b.compute_l3s")
+
+        datasets = kwargs.pop('dataset', self.filter('l3_mode', check_visible=True).datasets)
+        if isinstance(datasets, str):
+            datasets = [datasets]
+
+        # don't allow things like model='mymodel', etc
+        forbidden_keys = parameters._meta_fields_filter
+        self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks'], additional_forbidden_keys=forbidden_keys)
+
+        if compute is None:
+            if len(self.computes)==1:
+                compute = self.computes[0]
+            else:
+                raise ValueError("must provide compute")
+        if not isinstance(compute, str):
+            raise TypeError("compute must be a single value (string)")
+
+        if not kwargs.get('skip_checks', False):
+            passed, msg = self.run_checks(compute=compute, **kwargs)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
+
+        system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=True, compute_l3_frac=True, **kwargs))
+
+        l3s = {}
+        for dataset in datasets:
+            l3_mode = self.get_value('l3_mode', dataset=dataset)
+            if l3_mode == 'flux':
+                l3_frac = system.l3s[dataset]['frac']
+                l3s['l3_frac@{}'.format(dataset)] = l3_frac
+                if set_value:
+                    self.set_value('l3_frac', dataset=dataset, check_visible=False, value=l3_frac)
+
+            elif l3_mode == 'fraction of total light':
+                l3_flux = system.l3s[dataset]['flux'] * u.W / u.m**2
+                l3s['l3@{}'.format(dataset)] = l3_flux
+
+                if set_value:
+                    self.set_value('l3', dataset=dataset, check_visible=False, value=l3_flux)
+
+            else:
+                raise NotImplementedError("l3_mode='{}' not supported.".format(l3_mode))
+
+        return l3s
+
+    def compute_pblums(self, compute=None, intrinsic=True, extrinsic=True, **kwargs):
+        """
+        Compute the passband luminosities that will be applied to the system,
+        following all coupling, etc, as well as all relevant compute options
+        (ntriangles, distortion_method, etc).  The exposed passband luminosities
+        (and any coupling) are computed at t0@system.
+
+        This method allows for computing both intrinsic and extrinsic luminosities.
+        Note that pblum scaling is computed (and applied to flux scaling) based
+        on intrinsic luminosities.
+
+        Note that luminosities cannot be exposed for any dataset in which
+        `pblum_mode` is 'scale to data' as the entire light curve must be
+        computed prior to scaling.
+
+        This method is only for convenience and will be recomputed internally
+        within <phoebe.frontend.bundle.Bundle.run_compute>.  Alternatively, you
+        can create a mesh dataset (see <phoebe.frontend.bundle.Bundle.add_dataset>
+        and <phoebe.parameters.dataset.mesh>) and request any specific pblum to
+        be exposed (per-time).
+
+        Note:
+        * for backends without `atm` compute options, 'ck2004' will be used.
+        * for backends without `mesh_method` compute options, the most appropriate
+            method will be chosen.  'roche' will be used whenever applicable,
+            otherwise 'sphere' will be used.
+
+        Arguments
+        ------------
+        * `compute` (string, optional, default=None): label of the compute
+            options (not required if only one is attached to the bundle).
+        * `intrinsic` (bool, optional, default=True): whether to include
+            intrinsic (excluding irradiation & features) pblums.  These
+            will be exposed in the returned dictionary as pblum@...
+        * `extrinsic` (bool, optional, default=False): whether to include
+            extrinsic (irradiation & features) pblums.  These will be exposed
+            as pblum_ext@...
+        * `component` (string or list of strings, optional): label of the
+            component(s) requested. If not provided, will be provided for all
+            components in the hierarchy.
+        * `dataset` (string or list of strings, optional): label of the
+            dataset(s) requested.  If not provided, will be provided for all
+            datasets attached to the bundle.
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
+        * `**kwargs`: any additional kwargs are sent to override compute options.
+
+        Returns
+        ----------
+        * (dict) computed pblums in a dictionary with keys formatted as
+            pblum@component@dataset (for intrinsic pblums) or
+            pblum_ext@component@dataset (for extrinsic pblums) and the pblums
+            as values (as quantity objects with default units of W).
+        """
+        logger.debug("b.compute_pblums")
+
+        datasets = kwargs.pop('dataset', self.datasets)
+        if isinstance(datasets, str):
+            datasets = [datasets]
+        components = kwargs.pop('component', self.components)
+        if isinstance(components, str):
+            components = [components]
+
+        # don't allow things like model='mymodel', etc
+        forbidden_keys = parameters._meta_fields_filter
+        self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks'], additional_forbidden_keys=forbidden_keys)
+
+        if compute is None:
+            if len(self.computes)==1:
+                compute = self.computes[0]
+            else:
+                raise ValueError("must provide compute")
+        if not isinstance(compute, str):
+            raise TypeError("compute must be a single value (string)")
+
+        if not kwargs.get('skip_checks', False):
+            passed, msg = self.run_checks(compute=compute, **kwargs)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
 
         pblums = {}
-        for component, star in system.items():
-            if component not in components:
+        for compute_extrinsic in [False, True]:
+            if compute_extrinsic and not extrinsic:
                 continue
-            for dataset in star._pblum_scale.keys():
-                if dataset not in datasets:
+            if not compute_extrinsic and not intrinsic:
+                continue
+
+            # TODO: can we prevent rebuilding the entire system the second time if both intrinsic and extrinsic are True?
+            system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=False, compute_extrinsic=compute_extrinsic, **kwargs))
+
+            t0 = self.get_value('t0', context='system', unit=u.d)
+            for component, star in system.items():
+                if component not in components:
                     continue
-                pblums["{}@{}".format(component, dataset)] = float(star.compute_luminosity(dataset)) * u.W
+                for dataset in star._pblum_scale.keys():
+                    if dataset not in datasets:
+                        continue
+                    if compute_extrinsic:
+                        logger.debug("computing (extrinsic) observables for {}".format(dataset))
+                        system.populate_observables(t0, ['lc'], [dataset],
+                                                    ignore_effects=False)
+
+                    pblums["{}@{}@{}".format('pblum_ext' if compute_extrinsic else 'pblum', component, dataset)] = float(star.compute_luminosity(dataset)) * u.W
 
         return pblums
 
@@ -4109,7 +4340,7 @@ class Bundle(ParameterSet):
             f.write("import phoebe; import json\n")
             # TODO: can we skip the history context?  And maybe even other models
             # or datasets (except times and only for run_compute but not run_fitting)
-            f.write("bdict = json.loads(\"\"\"{}\"\"\")\n".format(json.dumps(self.to_json())))
+            f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.to_json())))
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
             compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', model)]
@@ -4210,6 +4441,33 @@ class Bundle(ParameterSet):
 
 
             self._attach_params(params, **metawargs)
+
+        def _scale_fluxes(model_fluxes, scale_factor):
+            return model_fluxes * scale_factor
+
+        # scale fluxes whenever pblum_mode = 'scale to data'
+        for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
+            logger.debug("rescaling fluxes to data for dataset='{}'".format(param.dataset))
+            ds_times = self.get_dataset(param.dataset).get_value('times')
+            ds_fluxes = self.get_dataset(param.dataset).get_value('fluxes')
+            ds_sigmas = self.get_dataset(param.dataset).get_value('sigmas')
+
+            model_fluxes = self.get_model(model).get_value('fluxes')
+            model_fluxes_interp = self.get_model(model).get_parameter('fluxes').interp_value(times=ds_times)
+            scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
+
+            # TODO: can we skip this if sigmas don't exist?
+            logger.debug("calling curve_fit with estimated scale_factor={}".format(scale_factor_approx))
+            popt, pcov = cfit(_scale_fluxes, model_fluxes_interp, ds_fluxes, p0=(scale_factor_approx), sigma=ds_sigmas if len(ds_sigmas) else None)
+            scale_factor = popt[0]
+
+            logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, param.dataset))
+            self.get_model(model).set_value('fluxes', dataset=param.dataset, value=model_fluxes*scale_factor)
+
+            for param in self.get_model(model, dataset=param.dataset, kind='mesh').to_list():
+                if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
+                    logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
+                    param.set_value(param.get_value() * scale_factor)
 
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
