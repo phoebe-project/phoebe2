@@ -4764,6 +4764,8 @@ class Parameter(object):
 
                 if isinstance(value, str) and value[0] in ['!', '~']:
                     return param.get_value() != value[1:]
+                elif isinstance(value, str) and "|" in value:
+                    return param.get_value() in value.split("|")
                 elif value=='<notempty>':
                     return len(param.get_value()) > 0
                 else:
@@ -5297,7 +5299,7 @@ class ChoiceParameter(Parameter):
         """
         super(ChoiceParameter, self).__init__(*args, **kwargs)
 
-        self._choices = kwargs.get('choices', [])
+        self._choices = kwargs.get('choices', [''])
 
         self.set_value(kwargs.get('value', ''))
 
@@ -5386,7 +5388,7 @@ class ChoiceParameter(Parameter):
                 self._choices = list_passbands(refresh=True)
 
         if value not in self.choices:
-            raise ValueError("value must be one of {}".format(self.choices))
+            raise ValueError("value for {} must be one of {}, not '{}'".format(self.uniquetwig, self.choices, value))
 
         if self.qualifier=='passband' and value not in list_installed_passbands():
             # then we need to download and install before setting

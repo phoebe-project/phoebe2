@@ -40,6 +40,6 @@ if __name__ == '__main__':
     import os
     os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE'
 
-    logger = phoebe.logger(clevel='WARNING')
+    logger = phoebe.logger(clevel='INFO')
 
-    b = test_mpi(plot=False, npoints=1001)
+    b = test_mpi(plot=False, npoints=101)
