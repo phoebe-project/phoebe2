@@ -726,7 +726,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                     choice_dict = {'Flux':'flux', 'Total light':'fraction of total light'}
                     val = choice_dict[d['value']]
                     d['value'] = val
-            
+
 #                    d['component'] = 'contact_envelope'
 
                 try:
@@ -1501,6 +1501,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         quals = eb.filter(dataset=lcs[x], context=['dataset', 'compute'], check_visible=False)
         #pull out l3_units
         quals = quals.exclude('l3_units')
+
         #phoebe 2 is ALWAYS times so pass time as the ind variable
         parnames.append('phoebe_lc_indep['+str(x+1)+']')
         parvals.append('Time (HJD)')
@@ -1532,6 +1533,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 comp_int = 1
             elif param.component == secondary:
                 comp_int = 2
+
             else:
                 comp_int = None
 
@@ -1539,6 +1541,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 pnew = _2to1par[param.qualifier]
                 if param.qualifier in [ 'alb', 'fluxes', 'sigmas', 'times'] or param.component == '_default':
 
+                    param = None
+                elif param.qualifier == 'l3' and param.is_visible==False:
                     param = None
             except:
 
@@ -1562,10 +1566,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                     val = ['0']
                     ptype='boolean'
 
-                elif param.qualifier == 'l3' and param.is_visible:
-                    pname = ret_parname(param.qualifier, comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
-
                 elif param.qualifier == 'l3_frac' and param.is_visible:
+
                     pname = ret_parname('l3', comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
 
 
@@ -1573,6 +1575,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
                     pname = ret_parname(param.qualifier, comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
                 if pname[0] not in parnames:
+
                     parnames.extend(pname)
                     parvals.extend(val)
                     if ptype == 'array':
