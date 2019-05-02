@@ -282,8 +282,9 @@ def asini(b, orbit, solve_for=None):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -353,8 +354,9 @@ def esinw(b, orbit, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -446,8 +448,9 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -539,8 +542,9 @@ def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -607,8 +611,9 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -665,8 +670,9 @@ def mean_anom(b, orbit, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -837,8 +843,9 @@ def freq(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -936,8 +943,9 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -981,8 +989,9 @@ def semidetached(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -1026,8 +1035,9 @@ def logg(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -1189,7 +1199,10 @@ def teffratio(b, orbit=None, solve_for=None, **kwargs):
 
     Returns
     ----------
-    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list): lhs (Parameter), rhs (ConstraintParameter), args (list of arguments that were passed to this function)
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     -------------
@@ -1256,7 +1269,10 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
 
     Returns
     ----------
-    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list): lhs (Parameter), rhs (ConstraintParameter), args (list of arguments that were passed to this function)
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     -------------
@@ -1352,7 +1368,10 @@ def requivsum(b, orbit=None, solve_for=None, **kwargs):
 
     Returns
     ----------
-    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list): lhs (Parameter), rhs (ConstraintParameter), args (list of arguments that were passed to this function)
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     -------------
@@ -1458,8 +1477,9 @@ def mass(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -1554,8 +1574,9 @@ def comp_sma(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -1632,8 +1653,9 @@ def requiv_detached_max(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -1705,8 +1727,9 @@ def potential_contact_min(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -1762,8 +1785,9 @@ def potential_contact_max(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -1819,8 +1843,9 @@ def requiv_contact_min(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -1877,8 +1902,9 @@ def requiv_contact_max(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -1933,8 +1959,9 @@ def fillout_factor(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -1994,8 +2021,9 @@ def rotation_period(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -2063,8 +2091,9 @@ def pitch(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -2127,8 +2156,9 @@ def yaw(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -2210,8 +2240,9 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
@@ -2336,8 +2367,9 @@ def requiv_to_pot(b, component, solve_for=None, **kwargs):
     Returns
     ----------
     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-        lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
-        that were passed to this function)
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
 
     Raises
     --------
