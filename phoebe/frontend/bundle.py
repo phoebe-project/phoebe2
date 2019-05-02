@@ -662,7 +662,8 @@ class Bundle(ParameterSet):
 
     def save(self, filename, clear_history=True, incl_uniqueid=False,
              compact=False):
-        """Save the bundle to a JSON-formatted ASCII file.
+        """
+        Save the bundle to a JSON-formatted ASCII file.
 
         See also:
         * <phoebe.parameters.ParameterSet.save>
@@ -693,21 +694,41 @@ class Bundle(ParameterSet):
         return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
                                         compact=compact)
 
-    def export_legacy(self, filename):
+    def export_legacy(self, filename, compute=None, skip_checks=False):
         """
-        Export the Bundle to a file readable by PHOEBE legacy
+        Export the Bundle to a file readable by PHOEBE legacy.
+
+        See also:
+        * <phoebe.parameters.compute.legacy>
 
         Arguments
         -----------
         * `filename` (string): relative or full path to the file
+        * `compute` (string, optional, default=None): label of the compute options
+            to use while exporting.
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before exporting.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
 
         Returns
         ------------
         * the filename (string)
         """
         logger.warning("exporting to legacy is experimental until official 1.0 release")
+        self.run_delayed_constraints()
+
+        if not skip_checks:
+            passed, msg = self.run_checks(compute=compute)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
+
         filename = os.path.expanduser(filename)
-        return io.pass_to_legacy(self, filename)
+        return io.pass_to_legacy(self, filename, compute=compute)
 
 
     def _test_server(self, server='http://localhost:5555', start_if_fail=True):
@@ -1664,6 +1685,8 @@ class Bundle(ParameterSet):
         changed_params = self.run_delayed_constraints()
 
         computes = kwargs.pop('compute', self.computes)
+        if computes is None:
+            computes = self.computes
         if isinstance(computes, str):
             computes = [computes]
 
@@ -1855,6 +1878,7 @@ class Bundle(ParameterSet):
 
                 if ld_func=='interp':
                     for compute in computes:
+                        # TODO: should we ignore if the dataset is disabled?
                         try:
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         except ValueError:
@@ -1867,12 +1891,21 @@ class Bundle(ParameterSet):
                                 else:
                                     return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
-        # mesh-consistency checks
         for compute in computes:
+            compute_kind = self.get_compute(compute=compute).kind
+
+            # mesh-consistency checks
             mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
                     return False, "all (or none) components must use mesh_method='wd'."
+
+            # l3_mode checks
+            if compute_kind in ['legacy']:
+                enabled_datasets = self.filter(qualifier='enabled', value=True, compute=compute, force_ps=True).datasets
+                l3_modes = [p.get_value() for p in self.filter('l3_mode', dataset=enabled_datasets, force_ps=True).to_list()]
+                if len(set(l3_modes)) > 1:
+                    return False, "{} backend (compute='{}') requires all values of 'l3_mode' (for enabled datasets) to be the same.".format(compute_kind, compute)
 
 
 
