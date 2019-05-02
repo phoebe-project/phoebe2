@@ -32,9 +32,9 @@ def test_binary(plot=False):
     b.set_value('l3', 0.5)
     b.set_value('l3_frac', 0.2, check_visible=False)
 
-    for l3_units in ['flux', 'fraction of total light']:
-        if plot: print("l3_units={}".format(l3_units))
-        b.set_value('l3_units', l3_units)
+    for l3_mode in ['flux', 'fraction of total light']:
+        if plot: print("l3_mode={}".format(l3_mode))
+        b.set_value('l3_mode', l3_mode)
 
         if plot: print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
