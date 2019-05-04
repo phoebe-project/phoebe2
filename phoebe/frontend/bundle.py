@@ -3808,12 +3808,6 @@ class Bundle(ParameterSet):
         at t0 divided by 4*pi.  To see how passband luminosities are computed,
         see <phoebe.frontend.bundle.Bundle.compute_pblums>.
 
-        Note: this can only be computed for datasets in which `l3_mode` is set
-        to 'fraction of total light' instead of 'flux'.  When this is the case,
-        the `l3_frac` parameter takes place of the `l3` parameter.  This method
-        simply provides a convenience function for exposing the third light
-        that will be adopted in units of flux.
-
         This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute>.
 
