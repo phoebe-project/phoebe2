@@ -158,7 +158,12 @@ class System(object):
             irrad_method = compute_ps.get_value(qualifier='irrad_method', **kwargs)
             boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
             if conf.devel:
-                mesh_init_phi = compute_ps.get_value(qualifier='mesh_init_phi', unit=u.rad, **kwargs)
+                mesh_init_phi_override = kwargs.pop('mesh_init_phi', 0.0)
+                try:
+                    mesh_init_phi = compute_ps.get_value(qualifier='mesh_init_phi', unit=u.rad, mesh_init_phi=mesh_init_phi_override)
+                except ValueError:
+                    # allow setting mesh_init_phi in devel mode even if parameter doesn't exist
+                    mesh_init_phi = mesh_init_phi_override
             else:
                 mesh_init_phi = 0.0
         else:
@@ -1267,7 +1272,10 @@ class Star(Body):
 
         if conf.devel:
             mesh_offset_override = kwargs.pop('mesh_offset', None)
-            do_mesh_offset = b.get_value('mesh_offset', compute=compute, mesh_offset=mesh_offset_override)
+            try:
+                do_mesh_offset = b.get_value('mesh_offset', compute=compute, mesh_offset=mesh_offset_override)
+            except ValueError:
+                do_mesh_offset = mesh_offset_override
         else:
             do_mesh_offset = True
 
