@@ -62,6 +62,13 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.7 - comparison operators hotfix
+
+* Fixes a bug where comparisons between Parameters/ParameterSets and values were returning nonsensical values.
+* Comparing ParameterSets with any object will now return a NotImplementedError
+* Comparing Parameters will compare against the value or quantity, with default units when applicable.
+* Comparing equivalence between two Parameter objects will compare the uniqueids of the Parameters, NOT the values.
+
 ### 2.1.6 - optimization hotfix
 
 * Fixes a bug where automatic detection of eclipses was failing to properly fallback on only detecting the horizon.
