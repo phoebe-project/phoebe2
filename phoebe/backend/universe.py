@@ -158,7 +158,12 @@ class System(object):
             irrad_method = compute_ps.get_value(qualifier='irrad_method', **kwargs)
             boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
             if conf.devel:
-                mesh_init_phi = compute_ps.get_value(qualifier='mesh_init_phi', unit=u.rad, **kwargs)
+                mesh_init_phi_override = kwargs.pop('mesh_init_phi', 0.0)
+                try:
+                    mesh_init_phi = compute_ps.get_value(qualifier='mesh_init_phi', unit=u.rad, mesh_init_phi=mesh_init_phi_override)
+                except ValueError:
+                    # allow setting mesh_init_phi in devel mode even if parameter doesn't exist
+                    mesh_init_phi = mesh_init_phi_override
             else:
                 mesh_init_phi = 0.0
         else:
@@ -1267,7 +1272,10 @@ class Star(Body):
 
         if conf.devel:
             mesh_offset_override = kwargs.pop('mesh_offset', None)
-            do_mesh_offset = b.get_value('mesh_offset', compute=compute, mesh_offset=mesh_offset_override)
+            try:
+                do_mesh_offset = b.get_value('mesh_offset', compute=compute, mesh_offset=mesh_offset_override)
+            except ValueError:
+                do_mesh_offset = mesh_offset_override
         else:
             do_mesh_offset = True
 
@@ -2016,22 +2024,34 @@ class Star_roche(Star):
             delta = _estimate_delta(ntriangles, av['larea'])
 
             logger.debug("libphoebe.roche_misaligned_marching_mesh{}".format(mesh_args))
-            new_mesh = libphoebe.roche_misaligned_marching_mesh(*mesh_args,
-                                                                delta=delta,
-                                                                choice=0,
-                                                                full=True,
-                                                                max_triangles=ntriangles*2,
-                                                                vertices=True,
-                                                                triangles=True,
-                                                                centers=True,
-                                                                vnormals=True,
-                                                                tnormals=True,
-                                                                cnormals=False,
-                                                                vnormgrads=True,
-                                                                cnormgrads=False,
-                                                                areas=True,
-                                                                volume=False,
-                                                                init_phi=self.mesh_init_phi)
+            try:
+                new_mesh = libphoebe.roche_misaligned_marching_mesh(*mesh_args,
+                                                                    delta=delta,
+                                                                    choice=0,
+                                                                    full=True,
+                                                                    max_triangles=ntriangles*2,
+                                                                    vertices=True,
+                                                                    triangles=True,
+                                                                    centers=True,
+                                                                    vnormals=True,
+                                                                    tnormals=True,
+                                                                    cnormals=False,
+                                                                    vnormgrads=True,
+                                                                    cnormgrads=False,
+                                                                    areas=True,
+                                                                    volume=False,
+                                                                    init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
+            except Exception as err:
+                if err.message == 'There are too many triangles!':
+                    mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
+                    if mesh_init_phi_attempts > 5:
+                        raise err
+
+                    mesh_init_phi = np.random.random()*2*np.pi
+                    logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
+                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                else:
+                    raise err
 
 
             # In addition to the values exposed by the mesh itself, let's report
@@ -2201,23 +2221,34 @@ class Star_roche_envelope_half(Star):
             delta = _estimate_delta(ntriangles, av['larea'])
 
             logger.debug("libphoebe.roche_marching_mesh{}".format(mesh_args))
-            new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
-                                                     delta=delta,
-                                                     choice=2,
-                                                     full=True,
-                                                     max_triangles=ntriangles*2,
-                                                     vertices=True,
-                                                     triangles=True,
-                                                     centers=True,
-                                                     vnormals=True,
-                                                     tnormals=True,
-                                                     cnormals=False,
-                                                     vnormgrads=True,
-                                                     cnormgrads=False,
-                                                     areas=True,
-                                                     volume=False,
-                                                     init_phi=self.mesh_init_phi)
+            try:
+                new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
+                                                         delta=delta,
+                                                         choice=2,
+                                                         full=True,
+                                                         max_triangles=ntriangles*2,
+                                                         vertices=True,
+                                                         triangles=True,
+                                                         centers=True,
+                                                         vnormals=True,
+                                                         tnormals=True,
+                                                         cnormals=False,
+                                                         vnormgrads=True,
+                                                         cnormgrads=False,
+                                                         areas=True,
+                                                         volume=False,
+                                                         init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
+            except Exception as err:
+                if err.message == 'There are too many triangles!':
+                    mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
+                    if mesh_init_phi_attempts > 5:
+                        raise err
 
+                    mesh_init_phi = np.random.random()*2*np.pi
+                    logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
+                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                else:
+                    raise err
 
             # In addition to the values exposed by the mesh itself, let's report
             # the volume and surface area of the lobe.  The lobe area is used
@@ -2372,22 +2403,33 @@ class Star_rotstar(Star):
 
             delta = _estimate_delta(ntriangles, av['larea'])
 
-            new_mesh = libphoebe.rotstar_misaligned_marching_mesh(*mesh_args,
-                                                                  delta=delta,
-                                                                  full=True,
-                                                                  max_triangles=ntriangles*2,
-                                                                  vertices=True,
-                                                                  triangles=True,
-                                                                  centers=True,
-                                                                  vnormals=True,
-                                                                  tnormals=True,
-                                                                  cnormals=False,
-                                                                  vnormgrads=True,
-                                                                  cnormgrads=False,
-                                                                  areas=True,
-                                                                  volume=True,
-                                                                  init_phi=self.mesh_init_phi)
+            try:
+                new_mesh = libphoebe.rotstar_misaligned_marching_mesh(*mesh_args,
+                                                                      delta=delta,
+                                                                      full=True,
+                                                                      max_triangles=ntriangles*2,
+                                                                      vertices=True,
+                                                                      triangles=True,
+                                                                      centers=True,
+                                                                      vnormals=True,
+                                                                      tnormals=True,
+                                                                      cnormals=False,
+                                                                      vnormgrads=True,
+                                                                      cnormgrads=False,
+                                                                      areas=True,
+                                                                      volume=True,
+                                                                      init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
+            except Exception as err:
+                if err.message == 'There are too many triangles!':
+                    mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
+                    if mesh_init_phi_attempts > 5:
+                        raise err
 
+                    mesh_init_phi = np.random.random()*2*np.pi
+                    logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
+                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                else:
+                    raise err
 
 
             # In addition to the values exposed by the mesh itself, let's report
@@ -2524,21 +2566,33 @@ class Star_sphere(Star):
 
             delta = _estimate_delta(ntriangles, av['larea'])
 
-            new_mesh = libphoebe.sphere_marching_mesh(*mesh_args,
-                                                      delta=delta,
-                                                      full=True,
-                                                      max_triangles=ntriangles*2,
-                                                      vertices=True,
-                                                      triangles=True,
-                                                      centers=True,
-                                                      vnormals=True,
-                                                      tnormals=True,
-                                                      cnormals=False,
-                                                      vnormgrads=True,
-                                                      cnormgrads=False,
-                                                      areas=True,
-                                                      volume=True,
-                                                      init_phi=self.mesh_init_phi)
+            try:
+                new_mesh = libphoebe.sphere_marching_mesh(*mesh_args,
+                                                          delta=delta,
+                                                          full=True,
+                                                          max_triangles=ntriangles*2,
+                                                          vertices=True,
+                                                          triangles=True,
+                                                          centers=True,
+                                                          vnormals=True,
+                                                          tnormals=True,
+                                                          cnormals=False,
+                                                          vnormgrads=True,
+                                                          cnormgrads=False,
+                                                          areas=True,
+                                                          volume=True,
+                                                          init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
+            except Exception as err:
+                if err.message == 'There are too many triangles!':
+                    mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
+                    if mesh_init_phi_attempts > 5:
+                        raise err
+
+                    mesh_init_phi = np.random.random()*2*np.pi
+                    logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
+                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                else:
+                    raise err
 
             # In addition to the values exposed by the mesh itself, let's report
             # the volume and surface area of the lobe.  The lobe area is used

@@ -3139,7 +3139,10 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        self._kwargs_checks(kwargs, ['skip_checks', 'jobid'])
+        allowed_kwargs = ['skip_checks', 'jobid']
+        if conf.devel:
+            allowed_kwargs += ['mesh_init_phi']
+        self._kwargs_checks(kwargs, allowed_kwargs)
 
         if not kwargs.get('skip_checks', False):
             passed, msg = self.run_checks(computes=computes, **kwargs)
