@@ -10,8 +10,7 @@ import matplotlib.pyplot as plt
 def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
 
-    period = b.get_value('period@binary')
-    b.add_dataset('lc', times=np.linspace(0,period,21))
+    b.add_dataset('lc', times=phoebe.linspace(0,1,21))
     b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
     b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
@@ -30,20 +29,23 @@ def test_binary(plot=False):
     #turn off albedos (legacy requirement)
     b.set_value_all('irrad_frac_refl_bol',  0.0)
 
-    for dpdt in [-0.5, -0.25, 0.25, 0.5]:
-        b.set_value('dpdt', dpdt)
+    b.set_value('l3', 0.5)
+    b.set_value('l3_frac', 0.2, check_visible=False)
 
+    for l3_mode in ['flux', 'fraction of total light']:
+        if plot: print("l3_mode={}".format(l3_mode))
+        b.set_value('l3_mode', l3_mode)
 
-        print("running phoebe2 model...")
+        if plot: print("running phoebe2 model...")
         b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
-        print("running phoebe1 model...")
+        if plot: print("running phoebe1 model...")
         b.run_compute(compute='phoebe1', model='phoebe1model', overwrite=True)
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
 
         if plot:
-            b.plot(dataset='lc01', show=True)
+            b.plot(dataset='lc01', show=True, legend=True)
 
             print("max (rel):", abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 

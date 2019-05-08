@@ -515,7 +515,7 @@ class ProtoMesh(object):
         self._gravs             = ComputedColumn(mesh=self)
         self._teffs             = ComputedColumn(mesh=self)
         self._abuns             = ComputedColumn(mesh=self)
-        self._frac_refls          = ComputedColumn(mesh=self)
+        self._irrad_frac_refl  = ComputedColumn(mesh=self)
         # self._frac_heats          = ComputedColumn(mesh=self)
         # self._frac_scatts          = ComputedColumn(mesh=self)
 
@@ -536,7 +536,7 @@ class ProtoMesh(object):
                   'velocities', 'vnormals', 'tnormals',
                   'normgrads', 'volume', 'area',
                   'phis', 'thetas',
-                  'loggs', 'gravs', 'teffs', 'abuns', 'frac_refls'] # frac_heats, frac_scatts
+                  'loggs', 'gravs', 'teffs', 'abuns', 'irrad_frac_refl'] # frac_heats, frac_scatts
         self._keys = keys + kwargs.pop('keys', [])
 
         self.update_columns(**kwargs)
@@ -1060,13 +1060,13 @@ class ProtoMesh(object):
         return self._abuns
 
     @property
-    def frac_refls(self):
+    def irrad_frac_refl(self):
         """
-        Return the array of frac_refls, where each item is a scalar/float
+        Return the array of irrad_frac_refl, where each item is a scalar/float
 
         (ComputedColumn)
         """
-        return self._frac_refls
+        return self._irrad_frac_refl
 
     # @property
     # def frac_heats(self):
@@ -1429,7 +1429,10 @@ class Meshes(object):
 
         :parameter list items:
         """
-        self._dict = {component: body.mesh for component, body in items.items()}
+        if isinstance(list(items.values())[0], ProtoMesh):
+            self._dict = items
+        else:
+            self._dict = {component: body.mesh for component, body in items.items()}
         #self._component_by_no = {body.comp_no: component for component, body in items.items()}
         self._components = list(items.keys())
         self._parent_envelope_of = parent_envelope_of

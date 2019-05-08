@@ -6,7 +6,6 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
 phoebe.logger('DEBUG')
 
 def test_checks():
@@ -42,6 +41,7 @@ def test_checks():
     b.set_value('ld_coeffs_bol', component='primary', value=[0.5, 0.5])
 
     b.set_value('ld_func', component='primary', value='logarithmic')
+    b.set_value('ld_coeffs_source', component='primary', value='none')
     b.set_value('ld_coeffs', component='primary', value=[0.])
     passed, msg = b.run_checks()
     if passed:

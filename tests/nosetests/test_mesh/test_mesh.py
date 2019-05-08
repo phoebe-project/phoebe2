@@ -6,13 +6,9 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
-
 def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     """
     """
-
-    b = phoebe.Bundle.default_binary()
 
     b.add_dataset('lc', times=[0], dataset='lc01')
     b.add_dataset('mesh', include_times='lc01', dataset='mesh01', columns=['abs_normal_intensities@*', 'loggs', 'teffs', 'xs'])
@@ -26,6 +22,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
 
     # TODO: make these options and test over various values for the intensity
     b.set_value_all('ld_func', 'linear')
+    b.set_value_all('ld_coeffs_source', 'none')
     b.set_value_all('ld_coeffs', [0.])
     # TODO: also compare phoebe1:kurucz to phoebe:extern_atmx
     b.set_value_all('atm', 'extern_planckint')
@@ -113,11 +110,15 @@ def test_binary(plot=False):
     """
     """
 
+    phoebe.devel_on() # required for wd meshing
+
     # TODO: try an eccentric orbit over multiple phases (will need to wait for non-protomesh support from the legacy wrapper)
     # TODO: once ps.copy is implemented, just send b.copy() to each of these
 
     b = phoebe.Bundle.default_binary()
     _phoebe_v_legacy_lc_protomesh(b, plot=plot)
+
+    phoebe.devel_off() # reset for future tests
 
 if __name__ == '__main__':
     logger = phoebe.logger('debug')

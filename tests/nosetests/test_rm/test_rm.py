@@ -6,9 +6,6 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
-# phoebe.interactive_on()
-
 def _beta_vs_legacy(b, plot=False):
 
 
