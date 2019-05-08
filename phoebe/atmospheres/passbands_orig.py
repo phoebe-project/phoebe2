@@ -5,7 +5,7 @@ from phoebe import __version__ as phoebe_version
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
 # inside phoebe will be ignored within passbands
-from astropy.constants import h, c, k_B, sigma_sb, b_wien
+from astropy.constants import h, c, k_B, sigma_sb
 from astropy import units as u
 
 import numpy as np
@@ -2106,35 +2106,8 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-        	if ramping='none':
-            	raise ValueError('atmosphere parameters out of bounds: atm=%s, ldatm=%s, Teff=%s, logg=%s, abun=%s' % (atm, ldatm, Teff[nanmask], logg[nanmask], abun[nanmask]))
-            
-            elif ramping='vanhamme':
-#				do some ramping!
-            	
+            raise ValueError('atmosphere parameters out of bounds: atm=%s, ldatm=%s, Teff=%s, logg=%s, abun=%s' % (atm, ldatm, Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
-        
-    def ramp_Inorm(self,Teff=5772., logg=4.43, abun=0.0, atm1='ck2004',atm2='blackbody',ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
-    
-		if np.any(abun[nanmask]<-2.5) or np.any(abun[nanmask]>0.5):
-			raise ValueError('atmosphere parameters out of bounds: atm=%s, abun=%s' % (atm, abun[nanmask]))
-		else:
-			tlowtol=1500.0  
-			tlow=3500.0-tlowtol #if teff < tlow just use bb
-			thightol=50000.0
-			thigh=50000.0+thightol
-			fractol=thightol/50000.0
-			glowtol=4.00 
-			glow=0.0-glowtol #if logg < glow just use bb
-			ghightol=4.00
-			ghigh=5.0+ghightol #if logg > ghigh just use bb
-			if self.effwl < b_wien/Teff:
-#             			ramp in 1/Teff
-			if self.effwl => b_wien/Teff:
-#             			ramp in np.log10(Teff)
-    
-    def ramp_Imu(self,Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm1='ck2004', atm2='blackbody', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
-
 
     def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
         """
