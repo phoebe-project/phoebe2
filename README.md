@@ -62,6 +62,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.9 - limits hotfix
+
+* Fixes a bug where parameter limits were not being checked and out-of-limits errors not raised correctly.
+
 ### 2.1.8 - mesh convergence hotfix
 
 * Fixes a bug where certain parameters would cause the meshing algorithm to fail to converge.  With this fix, up to 4 additional attempts will be made with random initial starting locations which should converge for most cases.
