@@ -87,7 +87,7 @@ def esinw2per0(ecc, esinw):
     else:
         per0 = np.arcsin(esinw/ecc)
         if np.isnan(per0):
-            raise ValueError("esinw={} and ecc={} results in nan for per0, please REVERT value for esinw".format(esinw, ecc))
+            raise ValueError("esinw={} and ecc={} results in nan for per0".format(esinw, ecc))
         return per0
 
 def ecosw2per0(ecc, ecosw):
@@ -100,8 +100,32 @@ def ecosw2per0(ecc, ecosw):
     else:
         per0 = np.arccos(ecosw/ecc)
         if np.isnan(per0):
-            raise ValueError("ecosw={} and ecc={} results in nan for per0, please REVERT value for ecosw".format(ecosw, ecc))
+            raise ValueError("ecosw={} and ecc={} results in nan for per0".format(ecosw, ecc))
         return per0
+
+def esinw2ecc(esinw, per0):
+    """
+    """
+    # print("*** constraints.builtin.esinw2ecc", esinw, per0)
+    if np.sin(per0) == 0:
+        raise ValueError("esinw={} and per0={} results in nan for ecc".format(esinw, per0))
+    ecc = esinw/np.sin(per0)
+    if np.isnan(ecc):
+        raise ValueError("esinw={} and per0={} results in nan for ecc".format(esinw, per0))
+    return ecc
+
+def ecosw2ecc(ecosw, per0):
+    """
+    """
+    # print("*** constraints.builtin.ecosw2ecc", ecosw, per0)
+    if np.cos(per0) == 0:
+        raise ValueError("ecosw={} and per0={} results in nan for ecc".format(ecosw, per0))
+    ecc = ecosw/np.cos(per0)
+    if np.isnan(ecc):
+        raise ValueError("ecosw={} and per0={} results in nan for ecc".format(ecosw, per0))
+    return ecc
+
+
 
 def _delta_t_supconj_perpass(period, ecc, per0):
     """

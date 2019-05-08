@@ -150,6 +150,7 @@ class Bundle(ParameterSet):
 
         # handle delayed constraints when interactive mode is off
         self._delayed_constraints = []
+        self._failed_constraints = []
 
         if not len(params):
             # add position (only 1 allowed and required)
@@ -1636,6 +1637,12 @@ class Bundle(ParameterSet):
                 if len(set(mesh_methods)) > 1:
                     return False, "all (or none) components must use mesh_method='wd'."
 
+
+        try:
+            self.run_failed_constraints()
+        except:
+            return False, "constraints {} failed to run.  Address errors and try again.  Call run_failed_constraints to see the tracebacks.".format([p.twig for p in self.filter(uniqueid=self._failed_constraints).to_list()])
+
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol and irrad_frac_refl_bol
         for component in self.hierarchy.get_stars():
@@ -2788,7 +2795,18 @@ class Bundle(ParameterSet):
         logger.info("flipping constraint '{}' to solve for '{}'".format(param.uniquetwig, solve_for))
         param.flip_for(solve_for)
 
-        result = self.run_constraint(uniqueid=param.uniqueid, skip_kwargs_checks=True)
+        try:
+            result = self.run_constraint(uniqueid=param.uniqueid, skip_kwargs_checks=True)
+        except Exception as e:
+            self._failed_constraints.append(param.uniqueid)
+
+            message_prefix = "Constraint '{}' raised the following error while flipping to solve for '{}'.  Consider flipping the constraint back or changing the value of one of {} until the constraint succeeds.  Original error: ".format(param.twig, solve_for, [p.twig for p in param.vars.to_list()])
+
+            # if len(e.args) >= 1:
+                # e.args = (message_prefix + e.message,) + e.args[1:]
+            # raise
+
+            logger.error(message_prefix + e.message)
 
         self._add_history(redo_func='flip_constraint',
                           redo_kwargs=redo_kwargs,
@@ -2797,7 +2815,7 @@ class Bundle(ParameterSet):
 
         return param
 
-    def run_constraint(self, twig=None, return_parameter=False, **kwargs):
+    def run_constraint(self, twig=None, return_parameter=False, suppress_error=True, **kwargs):
         """
         Run a given 'constraint' now and set the value of the constrained
         parameter.  In general, there shouldn't be any need to manually
@@ -2840,11 +2858,24 @@ class Bundle(ParameterSet):
         kwargs['check_default'] = False
         constrained_param = self.get_parameter(**kwargs)
 
-        result = expression_param.result
+        try:
+            result = expression_param.get_result(suppress_error=False)
+        except Exception as e:
+            self._failed_constraints.append(expression_param.uniqueid)
 
-        constrained_param.set_value(result, force=True, run_constraints=True)
+            message_prefix = "Constraint '{}' raised the following error while attempting to solve for '{}'.  Consider flipping the constraint or changing the value of one of {} until the constraint succeeds.  Original error: ".format(expression_param.twig, constrained_param.twig, [p.twig for p in expression_param.vars.to_list()])
 
-        logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
+
+            if suppress_error:
+                logger.error(message_prefix + e.message)
+                result = None
+            else:
+                if len(e.args) >= 1:
+                    e.args = (message_prefix + e.message,) + e.args[1:]
+                raise
+        else:
+            constrained_param.set_value(result, force=True, run_constraints=True)
+            logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
 
         if return_parameter:
             return constrained_param
@@ -2860,6 +2891,22 @@ class Bundle(ParameterSet):
             if param not in changes:
                 changes.append(param)
         self._delayed_constraints = []
+        return list(set(changes))
+
+    def run_failed_constraints(self):
+        """
+        NEW in PHOEBE 2.1.10
+
+        Attempt to rerun all failed constraints that may be preventing
+        <phoebe.frontend.bundle.Bundle.run_checks> from succeeding.
+        """
+        changes = []
+        failed_constraints = self._failed_constraints
+        self._failed_constraints = []
+        for constraint_id in failed_constraints:
+            param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True, suppress_error=False)
+            if param not in changes:
+                changes.append(param)
         return list(set(changes))
 
     def compute_pblums(self, compute=None, **kwargs):

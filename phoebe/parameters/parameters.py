@@ -5689,7 +5689,7 @@ class ConstraintParameter(Parameter):
         """
         return self.get_result()
 
-    def get_result(self, t=None):
+    def get_result(self, t=None, suppress_error=True):
         """
         """
         # TODO: optimize this:
@@ -5764,9 +5764,19 @@ class ConstraintParameter(Parameter):
                     locals()[func] = getattr(builtin, func)
 
                 try:
+                # if True:
                     value = float(eval(eq.format(**values)))
+                except ValueError as err:
+                    if suppress_error:
+                        value = np.nan
+                        logger.error("{} constraint raised the following error: {}".format(self.twig, err.message))
+                    else:
+                        raise
                 except:
-                    value = np.nan
+                    if suppress_error:
+                        value = np.nan
+                    else:
+                        raise
 
 
             else:
