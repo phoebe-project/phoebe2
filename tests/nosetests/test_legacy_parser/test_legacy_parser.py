@@ -7,9 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-# phb2.devel_on()
-
-def legacy_test(filename='default.phoebe', verbose=False):
+def _legacy_test(filename='default.phoebe', verbose=False):
 
     # load phoebe 1 file
 
@@ -183,14 +181,17 @@ def legacy_test(filename='default.phoebe', verbose=False):
 
     return
 
+def test_default(verbose=False):
+    return _legacy_test('default.phoebe', verbose=verbose)
+
+def test_weighted(verbose=False):
+    return _legacy_test('weight.phoebe', verbose=verbose)
+
+def test_contact(verbose=False):
+    return _legacy_test('contact.phoebe', verbose=verbose)
+
 if __name__ == '__main__':
 
-#    logger= phb2.logger()
-    detached = 'default.phoebe'
-    weighted = 'weight.phoebe'
-    contact = 'contact.phoebe'
-#    print "checking detached system"
-    legacy_test(weighted, verbose=True)
-    legacy_test(detached, verbose=True)
-#    print "checking contact system"
-    legacy_test(contact, verbose=True)
+    test_default(verbose=True)
+    test_weighted(verbose=True)
+    test_contact(verbose=True)
