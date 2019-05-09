@@ -1194,9 +1194,6 @@ class LegacyBackend(BaseBackendByDataset):
         """
         logger.debug("rank:{}/{} LegacyBackend._worker_setup: creating temporary phoebe file".format(mpi.myrank, mpi.nprocs))
 
-        # handle any limb-darkening interpolation
-        b.compute_ld_coeffs(compute, set_value=True)
-
         # make phoebe 1 file
         tmp_filename = temp_name = next(tempfile._get_candidate_names())
         io.pass_to_legacy(b, filename=tmp_filename, compute=compute, **kwargs)

@@ -1268,6 +1268,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         ncompute = len(eb.filter(context='compute', kind='legacy').computes)
         if ncompute == 1:
             computeps = eb.get_compute(kind='legacy', check_visible=False)
+            compute = computeps.compute
 
         elif ncompute == 0:
             raise ValueError('Your bundle must contain a "legacy" compute parameter set in order to export to a legacy file.')
@@ -1275,6 +1276,25 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         else:
             raise ValueError('Your bundle contains '+str(ncompute)+' parameter sets. You must specify one to use.')
 
+
+    # TODO: can we somehow merge these instead of needing to re-mesh between?
+
+    # handle any limb-darkening interpolation
+    dataset_compute_ld_coeffs = eb.filter(qualifier='ld_coeffs_source').exclude(value='none').datasets
+    if len(dataset_compute_ld_coeffs):
+        logger.debug("calling compute_ld_coeffs(compute={}, dataset={}, set_value=True)".format(dataset_compute_ld_coeffs, compute))
+        eb.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True)
+    # handle any necessary pblum computations
+    dataset_compute_pblums = eb.filter(qualifier='pblum_mode').exclude(value='provided').datasets
+    if len(dataset_compute_pblums):
+        logger.debug("calling compute_pblums(compute={}, dataset={}, intrinsic=True, extrinsic=False, set_value=True)".format(compute, dataset_compute_pblums))
+        eb.compute_pblums(compute, dataset=dataset_compute_pblums, intrinsic=True, extrinsic=False, set_value=True)
+    # legacy can handle both l3_mode = 'flux' and 'fraction of total light'
+
+    # TODO: remove this check once https://github.com/phoebe-project/phoebe1/issues/4 is closed
+    for pblum_param in eb.filter(qualifier='pblum', check_visible=False).to_list():
+        if pblum_param.get_value() >= 1e4:
+            raise ValueError("PHOEBE legacy cannot handle pblum values larger than 1e4")
 
 # check for semi_detached
     semi_detached = None #keep track of which component is in semidetached
@@ -1369,27 +1389,35 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #        pass
 
     # TODO: technically we only want enabled datasets to be passed when using as the wrapper
-    if len(list(set(eb.get_value(qualifier='pblum_ref', component=primary, dataset=dataset) for dataset in lcs))) > 1:
+    datasets_lc_pblum_mode_provided = eb.filter(qualifier='pblum_mode', value='provided').datasets
+    if len(list(set(eb.get_value(qualifier='pblum_ref', component=primary, dataset=dataset) for dataset in datasets_lc_pblum_mode_provided))) > 1:
         raise ValueError("legacy requires all pblums to either be coupled or decoupled")
 
 
     if len(lcs) != 0:
-        pblum_ref = eb.get_value(dataset = lcs[0], qualifier = 'pblum_ref', component=secondary)
+        pblum_mode = eb.get_value(dataset=lcs[0], qualifier='pblum_mode')
+        if pblum_mode == 'provided':
+            pblum_ref = eb.get_value(dataset=lcs[0], qualifier='pblum_ref', component=secondary)
 
-        if pblum_ref == 'self':
-            if eb.get_value(dataset=lcs[0], qualifier='pblum_ref', component=primary) != 'self':
-                # TODO: Can we add support for this?  Can we just flip the roles?
-                raise ValueError("legacy only supports decoupled pblums or pblum_ref@{}='self' and pblum_ref@{}={}".format(primary, secondary, primary))
+            if pblum_ref == 'self':
+                if eb.get_value(dataset=lcs[0], qualifier='pblum_ref', component=primary) != 'self':
+                    # TODO: Can we add support for this?  Can we just flip the roles?
+                    raise ValueError("legacy only supports decoupled pblums or pblum_ref@{}='self' and pblum_ref@{}={}".format(primary, secondary, primary))
 
 
-            decouple_luminosity = '1'
+                decouple_luminosity = '1'
 
-            if contact_binary:
-                raise ValueError("contact binaries in legacy do not support decoupled pblums")
+                if contact_binary:
+                    raise ValueError("contact binaries in legacy do not support decoupled pblums")
 
-        else:
+            else:
 
+                decouple_luminosity = '0'
+        elif pblum_mode in ['scale to data']:
             decouple_luminosity = '0'
+        else:
+            # then we'll rely on the values from compute_pblums and pass luminosities for both objecs
+            decouple_luminosity = '1'
 
         parnames.append('phoebe_usecla_switch')
         parvals.append(decouple_luminosity)

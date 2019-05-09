@@ -3920,7 +3920,8 @@ class Bundle(ParameterSet):
 
         return l3s
 
-    def compute_pblums(self, compute=None, intrinsic=True, extrinsic=True, **kwargs):
+    def compute_pblums(self, compute=None, intrinsic=True, extrinsic=True,
+                       set_value=False, **kwargs):
         """
         Compute the passband luminosities that will be applied to the system,
         following all coupling, etc, as well as all relevant compute options
@@ -3963,6 +3964,9 @@ class Bundle(ParameterSet):
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets attached to the bundle.
+        * `set_value` (bool, optional, default=False): apply the computed
+            values to the respective `pblum` parameters (even if not
+            currently visible).
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -4030,7 +4034,13 @@ class Bundle(ParameterSet):
                         system.populate_observables(t0, ['lc'], [dataset],
                                                     ignore_effects=False)
 
-                    pblums["{}@{}@{}".format('pblum_ext' if compute_extrinsic else 'pblum', component, dataset)] = float(star.compute_luminosity(dataset)) * u.W
+
+                    pblum = float(star.compute_luminosity(dataset)) * u.W
+
+                    if not compute_extrinsic and set_value:
+                        self.set_value('pblum', component=component, dataset=dataset, context='dataset', check_visible=False, value=pblum)
+
+                    pblums["{}@{}@{}".format('pblum_ext' if compute_extrinsic else 'pblum', component, dataset)] = pblum
 
         return pblums
 
