@@ -1150,6 +1150,7 @@ class Bundle(ParameterSet):
 
                 if not len(param._choices):
                     param._choices = ['']
+                    param.set_value('')
 
             else:
                 param._choices = ['self'] + [s for s in starrefs if s!=param.component]
@@ -2962,6 +2963,31 @@ class Bundle(ParameterSet):
                 # For now we'll assume the component is top-level binary
                 self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times')
 
+        if 'pblum_mode' in kwargs.keys():
+            # we need to set this first so that pblum visibilities are set
+            # before we enter the loop
+
+            v = kwargs.pop('pblum_mode')
+            k = 'pblum_mode'
+            components_ = None
+
+            # we shouldn't need to worry about a dictionary here since there
+            # are no components, but let's just check and raise an error if it is.
+            if isinstance(v, dict):
+                raise TypeError("pblum_mode cannot be passed as a dictionary")
+
+            try:
+                self.set_value_all(qualifier=k,
+                                   dataset=kwargs['dataset'],
+                                   component=components_,
+                                   value=v,
+                                   check_visible=False,
+                                   ignore_none=True)
+            except Exception as err:
+                self.remove_dataset(dataset=kwargs['dataset'])
+                raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+
+
         for k, v in kwargs.items():
             if isinstance(v, dict):
                 for component, value in v.items():
@@ -2983,6 +3009,7 @@ class Bundle(ParameterSet):
                 # for dataset kinds that include passband dependent AND
                 # independent parameters, we need to carefully default on
                 # what component to use when passing the defaults
+                check_visible = False
                 if kind in ['rv', 'lp'] and k in ['ld_func', 'ld_coeffs',
                                                   'passband', 'intens_weighting',
                                                   'profile_rest', 'profile_func', 'profile_sv']:
@@ -2991,6 +3018,15 @@ class Bundle(ParameterSet):
                     components_ = None
                 elif k in ['compute_times', 'compute_phases']:
                     components_ = self.hierarchy.get_top()
+                elif k in ['pblum_ref']:
+                    check_visible = True
+
+                    # we've already set pblum_mode in the dataset, and popped
+                    # then entry from kwargs
+                    if self.get_value('pblum_mode', dataset=kwargs['dataset']) == 'color coupled':
+                        components_ = None
+                    else:
+                        components_ = components+['_default']
                 elif components == [None]:
                     components_ = None
                 elif user_provided_components:
@@ -3004,7 +3040,7 @@ class Bundle(ParameterSet):
                                        dataset=kwargs['dataset'],
                                        component=components_,
                                        value=v,
-                                       check_visible=False,
+                                       check_visible=check_visible,
                                        ignore_none=True)
                 except Exception as err:
                     self.remove_dataset(dataset=kwargs['dataset'])
