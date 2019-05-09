@@ -4014,7 +4014,9 @@ class Bundle(ParameterSet):
                 continue
 
             # TODO: can we prevent rebuilding the entire system the second time if both intrinsic and extrinsic are True?
-            system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=False, compute_extrinsic=compute_extrinsic, **kwargs))
+            # TODO: technically we don't need all dataset, but we do need datasets + any datasets that are referenced by pblum_ref of those datasets...
+            pblum_datasets = self.filter(qualifier='pblum_mode').datasets
+            system = kwargs.get('system', self._compute_system(compute=compute, datasets=pblum_datasets, compute_l3=False, compute_extrinsic=compute_extrinsic, **kwargs))
 
             t0 = self.get_value('t0', context='system', unit=u.d)
             for component, star in system.items():
