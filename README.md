@@ -1,7 +1,23 @@
-PHOEBE 2.1 RELEASE NOTES
+PHOEBE 2.1
 ------------------------
 
-Hello and thank you for your interest in PHOEBE 2!
+<img src="./images/logo_blue.svg" alt="PHOEBE logo" style="margin-left: auto; margin-right: auto; width: 140px; display: block"/>
+
+<div style="text-align:center; font-family:monospace; margin: 30px">
+  pip install phoebe
+</div>
+
+<div style="text-align:center; margin:30px;">
+[![badge](https://img.shields.io/badge/pip-phoebe-blue.svg)](https://pypi.org/project/phoebe/)
+[![badge](https://img.shields.io/badge/python-2.7+-blue.svg)](http://phoebe-project.org/install)
+[![badge](https://img.shields.io/badge/license-GPL3-blue.svg)](https://github.com/phoebe-project/phoebe2/blob/master/LICENSE)
+[![badge](https://travis-ci.org/phoebe-project/phoebe2.svg?branch=master)](https://travis-ci.org/phoebe-project/phoebe2)
+[![badge](https://img.shields.io/badge/docs-passing-success.svg)](htts://phoebe-project.org/docs)
+[![badge](https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg)](https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P)
+[![badge](https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg)](https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H)
+</div>
+
+<a href="http://phoebe-project.org"><img src="./images/console.gif" alt="Console Animation" style="margin-left: auto; margin-right: auto; width: 600px; display: block"/></a>
 
 
 INTRODUCTION
