@@ -1,7 +1,7 @@
 PHOEBE 2.1
 ------------------------
 
-<p align="center"><img src="./images/logo_blue.svg" alt="PHOEBE logo" width="160px" align="center"/><p>
+<p align="center"><a href="http://phoebe-project.org"><img src="./images/logo_blue.svg" alt="PHOEBE logo" width="160px" align="center"/></a></p>
 
 <pre align="center" style="text-align:center; font-family:monospace; margin: 30px">
   pip install phoebe
@@ -12,13 +12,13 @@ PHOEBE 2.1
   <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-2.7+-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
   <a href="https://travis-ci.org/phoebe-project/phoebe2"><img src="https://travis-ci.org/phoebe-project/phoebe2.svg?branch=master"/></a>
-  <a href="htts://phoebe-project.org/docs"><img src="https://img.shields.io/badge/docs-passing-success.svg"/></a>
+  <a href="http://phoebe-project.org/docs"><img src="https://img.shields.io/badge/docs-passing-success.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
   <a href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
 </p>
 
 <p align="center">
-  <img src="./images/console.gif" alt="Console Animation" width="600px" align="center"/>
+  <a href="http://phoebe-project.org"><img src="./images/console.gif" alt="Console Animation" width="600px" align="center"/></a>
 </p>
 
 
