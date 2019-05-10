@@ -1233,8 +1233,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     #l3_modes must all be the same
     l3_modes = [p.value for p in eb.filter(qualifier='l3_mode').to_list()]
     if len(list(set(l3_modes))) > 1:
-        raise ValueError("PHOEBE 1 does not support dataset dependent l3_mode. Please set all l3_mode parameters to the same value")
-
+        logger.warning("legacy does not natively support mixed values of l3_mode, so all will be converted to 'flux' before passing to PHOEBE legacy.")
+        l3_mode_force_flux = True
+    else:
+        l3_mode_force_flux = False
 
     eb.run_delayed_constraints()
 
@@ -1280,16 +1282,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     # TODO: can we somehow merge these instead of needing to re-mesh between?
 
     # handle any limb-darkening interpolation
-    dataset_compute_ld_coeffs = eb.filter(qualifier='ld_coeffs_source').exclude(value='none').datasets
-    if len(dataset_compute_ld_coeffs):
-        logger.debug("calling compute_ld_coeffs(compute={}, dataset={}, set_value=True)".format(dataset_compute_ld_coeffs, compute))
-        eb.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True)
-    # handle any necessary pblum computations
-    dataset_compute_pblums = eb.filter(qualifier='pblum_mode').exclude(value='provided').datasets
-    if len(dataset_compute_pblums):
-        logger.debug("calling compute_pblums(compute={}, dataset={}, intrinsic=True, extrinsic=False, set_value=True)".format(compute, dataset_compute_pblums))
-        eb.compute_pblums(compute, dataset=dataset_compute_pblums, intrinsic=True, extrinsic=False, set_value=True)
-    # legacy can handle both l3_mode = 'flux' and 'fraction of total light'
+    eb._compute_necessary_values(computeps)
 
     # TODO: remove this check once https://github.com/phoebe-project/phoebe1/issues/4 is closed
     for pblum_param in eb.filter(qualifier='pblum', check_visible=False).to_list():
@@ -1333,7 +1326,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     # add l3_mode
     choice_dict = {'flux':'Flux', 'fraction of total light':'Total light'}
     if len(lcs) > 0:
-        l3_mode = eb.filter('l3_mode')[0].value
+        if l3_mode_force_flux:
+            l3_mode = 'flux'
+        else:
+            l3_mode = eb.filter('l3_mode')[0].value
         parnames.append('phoebe_el3_units')
         parvals.append('"'+choice_dict[l3_mode]+'"')
         types.append('choice')

@@ -1901,14 +1901,6 @@ class Bundle(ParameterSet):
                 if len(set(mesh_methods)) > 1:
                     return False, "all (or none) components must use mesh_method='wd'."
 
-            # l3_mode checks
-            if compute_kind in ['legacy']:
-                enabled_datasets = self.filter(qualifier='enabled', value=True, compute=compute, force_ps=True).datasets
-                l3_modes = [p.get_value() for p in self.filter('l3_mode', dataset=enabled_datasets, force_ps=True).to_list()]
-                if len(set(l3_modes)) > 1:
-                    return False, "{} backend (compute='{}') requires all values of 'l3_mode' (for enabled datasets) to be the same.".format(compute_kind, compute)
-
-
 
         # forbid color-coupling with a dataset which is scaled to data or to another that is in-turn color-coupled
         for param in self.filter(qualifier='pblum_mode', value='color coupled').to_list():
@@ -4043,6 +4035,45 @@ class Bundle(ParameterSet):
                     pblums["{}@{}@{}".format('pblum_ext' if compute_extrinsic else 'pblum', component, dataset)] = pblum
 
         return pblums
+
+    def _compute_necessary_values(self, computeparams):
+        compute = computeparams.compute
+
+        enabled_datasets = computeparams.filter(qualifier='enabled', value=True).datasets
+        # handle any limb-darkening interpolation
+        dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_coeffs_source').exclude(value='none').datasets
+        if computeparams.kind == 'photodynam':
+            # then we're ignoring anything that isn't quadratic anyways
+            dataset_compute_ld_coeffs = self.filter(dataset=dataset_compute_ld_coeffs, qualifier='ld_func', value='quadratic').datasets
+
+        if len(dataset_compute_ld_coeffs):
+            logger.warning("{} does not natively support interpolating ld coefficients.  These will be interpolated by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+            logger.debug("calling compute_ld_coeffs(compute={}, dataset={}, set_value=True, skip_checks=True)".format(dataset_compute_ld_coeffs, compute))
+            self.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True, skip_checks=True)
+
+        # handle any necessary pblum computations
+        dataset_compute_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode').exclude(value='provided').datasets
+        if len(dataset_compute_pblums):
+            logger.warning("{} does not natively support pblum_mode={}.  pblum values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, [p.get_value() for p in self.filter(qualifier='pblum_mode').exclude(value='provided').to_list()], computeparams.kind))
+            logger.debug("calling compute_pblums(compute={}, dataset={}, intrinsic=True, extrinsic=False, set_value=True, skip_checks=True)".format(compute, dataset_compute_pblums))
+            self.compute_pblums(compute, dataset=dataset_compute_pblums, intrinsic=True, extrinsic=False, set_value=True, skip_checks=True)
+
+        # handle any necessary l3 computations
+        dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction of total light').datasets
+        if computeparams.kind == 'legacy':
+            # legacy support either mode, but all must be the same
+            l3_modes = [p.value for p in self.filter(qualifier='l3_mode').to_list()]
+            if len(list(set(l3_modes))) <= 1:
+                dataset_compute_l3s = []
+
+        if len(dataset_compute_l3s):
+            if computeparams.kind == 'legacy':
+                logger.warning("{} does not natively support mixed values for l3_mode.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+            else:
+                logger.warning("{} does not natively support l3_mode='fraction of total light'.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+            logger.debug("calling compute_l3s(compute={}, dataset={}, set_value=True, skip_checks=True)".format(compute, dataset_compute_l3s))
+            self.compute_l3s(compute, dataset=dataset_compute_l3s, set_value=True, skip_checks=True)
+
 
     def add_compute(self, kind='phoebe', **kwargs):
         """

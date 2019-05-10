@@ -1497,9 +1497,10 @@ class PhotodynamBackend(BaseBackendByDataset):
         """
         logger.debug("rank:{}/{} PhotodynamBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
 
-        b.compute_ld_coeffs(compute=compute, set_value=True)
-
         computeparams = b.get_compute(compute, force_ps=True)
+
+        b._compute_necessary_values(computeparams)
+
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -1545,13 +1546,13 @@ class PhotodynamBackend(BaseBackendByDataset):
                 for star in starrefs])+'\n')
 
         if info['kind'] == 'lc':
-            # TODO: this will make two meshing calls, let's create and extract from the dicionary instead
-            pblums = [b.compute_pblums(compute, dataset=info['dataset'], component=starref).values()[0].value for starref in starrefs]
+            # TODO: this will make two meshing calls, let's create and extract from the dictionary instead, or use set_value=True
+            pblums = [b.get_value('pblum', dataset=info['dataset'], component=starref, unit=u.W, check_visible=False) for starref in starrefs]
 
             u1s, u2s = [], []
             for star in starrefs:
                 if b.get_value(qualifier='ld_func', component=star, dataset=info['dataset'], context='dataset') == 'quadratic':
-                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=star, dataset=info['dataset'], context='dataset')
+                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=star, dataset=info['dataset'], context='dataset', check_visible=False)
                 else:
                     # TODO: can we still interpolate for quadratic manually using b.compute_ld_coeffs?
                     ld_coeffs = (0,0)
@@ -1727,11 +1728,11 @@ class JktebopBackend(BaseBackendByDataset):
         """
         """
         logger.debug("rank:{}/{} JktebopBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
-        # handle any limb-darkening interpolation
-        b.compute_ld_coeffs(compute, set_value=True)
-
 
         computeparams = b.get_compute(compute, force_ps=True)
+
+        b._compute_necessary_values(computeparams)
+
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -1789,11 +1790,11 @@ class JktebopBackend(BaseBackendByDataset):
         t0_supconj = kwargs.get('t0_supconj')
 
         # get dataset-dependent things that we need
-        l3 = b.get_value('l3', dataset=info['dataset'], context='dataset')
+        l3 = b.get_value('l3', dataset=info['dataset'], context='dataset', check_visible=False)
 
         logger.info("computing pblums for jktebop 'light scale factor'")
         # pblum_sum = sum([p.value/4*np.pi for p in b.compute_pblums(dataset=info['dataset'], component=starrefs, compute=compute).values()])
-        pblum_sum = b.compute_pblums(dataset=info['dataset'], component=starrefs[0], compute=compute).values()[0].value / (4*np.pi)
+        pblum_sum = b.get_value('pblum', dataset=info['dataset'], component=starrefs[0], unit=u.W, check_visible=False) / (4*np.pi)
 
         # logger.warning("pblum in jktebop is sum of pblums (per-component): {}".format(pblum_sum))
         ref_mag = 0.0
@@ -1981,11 +1982,11 @@ class EllcBackend(BaseBackendByDataset):
         """
         """
         logger.debug("rank:{}/{} EllcBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
-        # handle any limb-darkening interpolation
-        b.compute_ld_coeffs(compute, set_value=True)
-
 
         computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+
+        b._compute_necessary_values(computeparams)
+
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -2104,12 +2105,12 @@ class EllcBackend(BaseBackendByDataset):
         # albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
 
         if info['kind'] == 'lc':
-            light_3 = b.get_value('l3', dataset=info['dataset'], context='dataset')
+            light_3 = b.get_value('l3', dataset=info['dataset'], context='dataset', check_visible=False)
 
             # this is just a hack for now, we'll eventually want the true sb ratio
             logger.info("computing sbratio from pblums for dataset='{}'".format(info['dataset']))
-            pblums = b.compute_pblums(compute=compute, dataset=info['dataset'], component=starrefs)
-            sbratio = pblums['{}@{}'.format(starrefs[0], info['dataset'])].value / pblums['{}@{}'.format(starrefs[1], info['dataset'])].value
+            pblums = b.filter('pblum', dataset=info['dataset'], component=starrefs, check_visible=False, force_ps=True)
+            sbratio = pblums.get_value(component=starrefs[0], unit=u.W, check_visible=False) / pblums.get_value(component=starrefs[1], unit=u.W, check_visible=False)
 
             t_exp = b.get_value('exptime', dataset=info['dataset'], context='dataset')
 
