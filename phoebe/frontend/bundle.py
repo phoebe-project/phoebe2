@@ -4342,6 +4342,12 @@ class Bundle(ParameterSet):
                 # then raise an error
                 raise ValueError("system failed to pass checks: {}".format(msg))
 
+        # temporarily disable interactive checks
+        _interactive_checks = conf.interactive_checks
+        if _interactive_checks:
+            logger.debug("temporarily disabling interactive_checks")
+            conf._interactive_checks = False
+
         # let's first make sure that there is no duplication of enabled datasets
         datasets = []
         # compute_ so we don't write over compute which we need if detach=True
@@ -4522,6 +4528,11 @@ class Bundle(ParameterSet):
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_model',
                           undo_kwargs={'model': model})
+
+        # restore user-set interactive checks
+        if _interactive_checks:
+            logger.debug("restoring interactive_checks={}".format(_interactive_checks))
+            conf._interactive_checks = _interactive_checks
 
         return self.get_model(model)
 
