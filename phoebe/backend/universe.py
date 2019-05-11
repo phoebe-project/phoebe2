@@ -410,7 +410,7 @@ class System(object):
 
                     # flux_sys = sum(L_star/4pi for star in stars)
                     # flux_tot = flux_sys + l3_flux
-                    # l3_frac = l3_flux / tot_flux
+                    # l3_frac = l3_flux / flux_tot
                     # pblum_scale = pbflux / flux_tot
 
                     if l3_mode == 'flux':

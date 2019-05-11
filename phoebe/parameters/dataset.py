@@ -155,7 +155,7 @@ def lc_dep(is_lc=True, **kwargs):
 
         dep_params += [ChoiceParameter(visible_if='pblum_mode:color coupled', qualifier='pblum_ref', value=kwargs.get('pblum_ref', ''), choices=['']+kwargs.get('lcrefs', []), description='Dataset with which to couple luminosities based on color')]
 
-        dep_params += [FloatParameter(visible_if='pblum_mode:system flux|total flux', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total passband flux (at t0, including l3 if pblum_mode=\'total flux\')')]
+        dep_params += [FloatParameter(visible_if='pblum_mode:system flux|total flux', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total inrinsic (excluding features and irradiation) passband flux (at t0, including l3 if pblum_mode=\'total flux\')')]
 
         dep_params += [ChoiceParameter(qualifier='l3_mode', value=kwargs.get('l3_mode', 'flux'), choices=['flux', 'fraction of total light'], description='Whether third light is given in units of flux or as a fraction of total light')]
         dep_params += [FloatParameter(visible_if='l3_mode:flux', qualifier='l3', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
