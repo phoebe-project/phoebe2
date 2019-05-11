@@ -1630,7 +1630,7 @@ class PhotodynamBackend(BaseBackendByDataset):
                                            info))
 
             packetlist.append(_make_packet('fluxes',
-                                           stuff[1],
+                                           stuff[1] +b.get_value('pbflux', dataset=info['dataset'], unit=u.W/u.m**2, check_visible=False) - 1,
                                            None,
                                            info))
 
