@@ -1578,8 +1578,6 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 if param.qualifier in [ 'alb', 'fluxes', 'sigmas', 'times'] or param.component == '_default':
 
                     param = None
-                elif param.qualifier == 'l3' and param.is_visible==False:
-                    param = None
             except:
 
                 logger.warning(param.twig+' has no phoebe 1 corollary')
@@ -1606,10 +1604,17 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                     val = ['0']
                     ptype='boolean'
 
-                elif param.qualifier == 'l3_frac' and param.is_visible:
+                elif param.qualifier == 'l3_frac':
+                    if param.is_visible and not l3_mode_force_flux:
+                        pname = ret_parname('l3', comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
+                    else:
+                        continue
 
-                    pname = ret_parname('l3', comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
-
+                elif param.qualifier == 'l3':
+                    if param.is_visible or l3_mode_force_flux:
+                        pname = ret_parname('l3', comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
+                    else:
+                        continue
 
                 else:
 
