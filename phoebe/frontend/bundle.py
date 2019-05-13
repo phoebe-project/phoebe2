@@ -4102,7 +4102,10 @@ class Bundle(ParameterSet):
             self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True)
 
         # handle any necessary l3 computations
-        dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction of total light').datasets
+        if computeparams.kind == 'ellc':
+            dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='flux').datasets
+        else:
+            dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction of total light').datasets
         if computeparams.kind == 'legacy':
             # legacy support either mode, but all must be the same
             l3_modes = [p.value for p in self.filter(qualifier='l3_mode').to_list()]
@@ -4112,6 +4115,8 @@ class Bundle(ParameterSet):
         if len(dataset_compute_l3s):
             if computeparams.kind == 'legacy':
                 logger.warning("{} does not natively support mixed values for l3_mode.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+            elif computeparams.kind == 'ellc':
+                logger.warning("{} does not natively support l3_mode='flux'.  l3_frac values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
             else:
                 logger.warning("{} does not natively support l3_mode='fraction of total light'.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
             logger.debug("calling compute_l3s(compute={}, dataset={}, set_value=True, skip_checks=True)".format(compute, dataset_compute_l3s))

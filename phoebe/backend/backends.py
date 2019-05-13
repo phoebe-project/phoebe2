@@ -1792,16 +1792,6 @@ class JktebopBackend(BaseBackendByDataset):
         # get dataset-dependent things that we need
         l3 = b.get_value('l3', dataset=info['dataset'], context='dataset', check_visible=False)
 
-        logger.info("computing pblums for jktebop 'light scale factor'")
-        # pblum_sum = sum([p.value/4*np.pi for p in b.compute_pblums(dataset=info['dataset'], component=starrefs, compute=compute).values()])
-        pblum_sum = b.get_value('pblum', dataset=info['dataset'], component=starrefs[0], unit=u.W, check_visible=False) / (4*np.pi)
-
-        # logger.warning("pblum in jktebop is sum of pblums (per-component): {}".format(pblum_sum))
-        ref_mag = 0.0
-        lsf = -2.5 * np.log10(pblum_sum) + ref_mag
-        logger.debug("jktebop light scale factor: {}".format(lsf))
-
-
         ldfuncA = b.get_value('ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
         ldfuncB = b.get_value('ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
 
@@ -1813,8 +1803,11 @@ class JktebopBackend(BaseBackendByDataset):
         albA = b.get_value('irrad_frac_refl_bol', component=starrefs[0], context='component')
         albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
 
-        # this is just a hack for now... we really need surface brightness ratio
-        tratio = b.get_value('teff', component=starrefs[0], context='component', unit=u.K) / b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
+        logger.debug("estimating surface brightness ratio from pblum and requiv")
+        # note: these aren't true surface brightnesses, but the ratio should be fine
+        sb_primary = b.get_value('pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value('requiv', component=starrefs[0], context='component', unit=u.solRad)**2
+        sb_secondary = b.get_value('pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value('requiv', component=starrefs[1], context='component', unit=u.solRad)**2
+        sb_ratio =  sb_secondary / sb_primary
 
         # provide translation from phoebe's 'ld_func' to jktebop's 'LD law type'
         ldfuncs = {'linear': 'lin',
@@ -1848,7 +1841,7 @@ class JktebopBackend(BaseBackendByDataset):
 
 
         fi.write('{:5} {:11} Gravity darkening (starA)  Grav darkening (starB)\n'.format(gravbA, gravbB))
-        fi.write('{:5} {:11} Surface brightness ratio   Amount of third light\n'.format(tratio, l3))
+        fi.write('{:5} {:11} Surface brightness ratio   Amount of third light\n'.format(sb_ratio, l3))
 
 
         # According to jktebop's readme.txt:
@@ -1860,7 +1853,7 @@ class JktebopBackend(BaseBackendByDataset):
         fi.write('{:5} {:11} LD star A (nonlin coeff)   LD star B (nonlin coeff)\n'.format(ldcoeffsA[1] if len(ldcoeffsA)==2 else 0.0, ldcoeffsB[1] if len(ldcoeffsB)==2 else 0.0))
 
         fi.write('{:5} {:11} Reflection effect star A   Reflection effect star B\n'.format(albA, albB))
-        fi.write('{:5} {:11} Phase of primary eclipse   Light scale factor (mag)\n'.format(0.0, lsf))
+        fi.write('{:5} {:11} Phase of primary eclipse   Light scale factor (mag)\n'.format(0.0, 1.0))
         fi.write('{:13}      Orbital period of eclipsing binary system (days)\n'.format(period))
         fi.write('{:13}      Reference time of primary minimum (HJD)\n'.format(t0_supconj))
 
@@ -1940,7 +1933,7 @@ class JktebopBackend(BaseBackendByDataset):
         mags_interp = np.interp(info['times'], times_all, mags_all)
 
         logger.warning("converting from mags from jktebop to flux")
-        fluxes = 10**((ref_mag-mags_interp)/2.5) / (4*np.pi) # 2 seems to be necessary - probably from a difference in pblum conventions (or just normalization???)
+        fluxes = 10**((0.0-mags_interp)/2.5) * b.get_value('pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
 
         packetlist.append(_make_packet('times',
                                        info['times']*u.d,
@@ -2105,12 +2098,14 @@ class EllcBackend(BaseBackendByDataset):
         # albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
 
         if info['kind'] == 'lc':
-            light_3 = b.get_value('l3', dataset=info['dataset'], context='dataset', check_visible=False)
+            light_3 = b.get_value('l3_frac', dataset=info['dataset'], context='dataset', check_visible=False)
 
             # this is just a hack for now, we'll eventually want the true sb ratio
-            logger.info("computing sbratio from pblums for dataset='{}'".format(info['dataset']))
-            pblums = b.filter('pblum', dataset=info['dataset'], component=starrefs, check_visible=False, force_ps=True)
-            sbratio = pblums.get_value(component=starrefs[0], unit=u.W, check_visible=False) / pblums.get_value(component=starrefs[1], unit=u.W, check_visible=False)
+            logger.info("computing sb_ratio from pblums and requivs for dataset='{}'".format(info['dataset']))
+            # note: these aren't true surface brightnesses, but the ratio should be fine
+            sb_primary = b.get_value('pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value('requiv', component=starrefs[0], context='component', unit=u.solRad)**2
+            sb_secondary = b.get_value('pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value('requiv', component=starrefs[1], context='component', unit=u.solRad)**2
+            sb_ratio =  sb_secondary / sb_primary
 
             t_exp = b.get_value('exptime', dataset=info['dataset'], context='dataset')
 
@@ -2120,9 +2115,10 @@ class EllcBackend(BaseBackendByDataset):
             else:
                 n_int = 1
 
+            logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
             fluxes = ellc.lc(info['times'],
                              radius_1, radius_2,
-                             sbratio,
+                             sb_ratio,
                              incl,
                              light_3,
                              t_zero, period, a, q,
@@ -2144,12 +2140,9 @@ class EllcBackend(BaseBackendByDataset):
                              exact_grav=exact_grav,
                              verbose=1)
 
-            # TODO: we already called compute_pblums for sbratio... let's not call it twice
-
             # ellc returns "arbitrary" flux values... let's try to rescale
             # to our flux units to be compatible with other backends
-            pblum_sum = np.sum([pblum.value for pblum in b.compute_pblums(dataset=info['dataset'], component=starrefs, compute=compute).values()])
-            fluxes *= pblum_sum / (4*np.pi)
+            fluxes *= b.get_value('pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
 
             # fill packets
             packetlist = []
@@ -2171,16 +2164,17 @@ class EllcBackend(BaseBackendByDataset):
                 raise NotImplementedError("flux-weighted does not seem to work in ellc")
 
             # surface-brightness ratio shouldn't matter for rvs...
-            sbratio = 1.0
+            sb_ratio = 1.0
 
             # enable once exptime for RVs is supported in PHOEBE
             # t_exp = b.get_value('exptime', dataset=info['dataset'], context='dataset')
             t_exp = 0
             n_int = 1
 
+            logger.info("calling ellc.rv for dataset='{}'".format(info['dataset']))
             rvs1, rvs2 = ellc.rv(info['times'],
                                   radius_1, radius_2,
-                                  sbratio,
+                                  sb_ratio,
                                   incl,
                                   t_zero, period, a, q,
                                   f_c, f_s,
