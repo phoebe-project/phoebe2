@@ -6752,7 +6752,7 @@ class FloatArrayParameter(FloatParameter):
         if len(kwargs.keys()) > 1:
             raise KeyError("interp_value only takes a single qualifier-value pair")
 
-        qualifier, qualifier_interp_value = kwargs.items()[0]
+        qualifier, qualifier_interp_value = list(kwargs.items())[0]
 
         if isinstance(qualifier_interp_value, str):
             # then assume its a twig and try to resolve
