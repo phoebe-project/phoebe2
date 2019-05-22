@@ -62,6 +62,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.10 - ldint hotfix
+
+* Removes ldint from the weights in the computations of RVs and LPs.
+
 ### 2.1.9 - limits hotfix
 
 * Fixes a bug where parameter limits were not being checked and out-of-limits errors not raised correctly.
