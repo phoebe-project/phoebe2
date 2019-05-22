@@ -1800,8 +1800,15 @@ class JktebopBackend(BaseBackendByDataset):
         ldcoeffsA = b.get_value('ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
         ldcoeffsB = b.get_value('ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
 
-        albA = b.get_value('irrad_frac_refl_bol', component=starrefs[0], context='component')
-        albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
+        irrad_method = b.get_value("irrad_method", compute=compute, context='compute')
+        if irrad_method == "biaxial spheroid":
+            albA = b.get_value('irrad_frac_refl_bol', component=starrefs[0], context='component')
+            albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
+        elif irrad_method == 'none':
+            albA = 0.0
+            albB = 0.0
+        else:
+            raise NotImplementedError("irrad_method '{}' not supported".format(irrad_method))
 
         logger.debug("estimating surface brightness ratio from pblum and requiv")
         # note: these aren't true surface brightnesses, but the ratio should be fine
