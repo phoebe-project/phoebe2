@@ -729,7 +729,6 @@ class System(object):
             # be weighted by the visibility of the triangle
             mus = meshes.get_column_flat('mus', components)
             areas = meshes.get_column_flat('areas_si', components)
-            ldint = meshes.get_column_flat('ldint:{}'.format(dataset), components)
 
             rvs = (meshes.get_column_flat("rvs:{}".format(dataset), components)*u.solRad/u.d).to(u.m/u.s).value
             dls = rvs*profile_rest/c.c.si.value
@@ -739,7 +738,7 @@ class System(object):
             if not np.any(visibilities):
                 avg_line = np.full_like(wavelengths, np.nan)
             else:
-                avg_line = np.average(lines, axis=0, weights=abs_intensities*areas*mus*ldint*visibilities)
+                avg_line = np.average(lines, axis=0, weights=abs_intensities*areas*mus*visibilities)
 
             return {'flux_densities': avg_line}
 
@@ -757,13 +756,12 @@ class System(object):
             # be weighted by the visibility of the triangle
             mus = meshes.get_column_flat('mus', components)
             areas = meshes.get_column_flat('areas_si', components)
-            ldint = meshes.get_column_flat('ldint:{}'.format(dataset), components)
             # NOTE: don't need ptfarea because its a float (same for all
             # elements, regardless of component)
 
             # NOTE: the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
-            return {'rv': np.average(rvs, weights=abs_intensities*areas*mus*ldint*visibilities)}
+            return {'rv': np.average(rvs, weights=abs_intensities*areas*mus*visibilities)}
 
         elif kind=='lc':
             visibilities = meshes.get_column_flat('visibilities')
@@ -776,7 +774,6 @@ class System(object):
             intensities = meshes.get_column_flat("intensities:{}".format(dataset), components)
             mus = meshes.get_column_flat('mus', components)
             areas = meshes.get_column_flat('areas_si', components)
-            ldint = meshes.get_column_flat('ldint:{}'.format(dataset), components)
 
             # assume that all bodies are using the same passband and therefore
             # will have the same ptfarea.  If this assumption is ever a problem -
@@ -790,15 +787,15 @@ class System(object):
             else:
                 ptfarea = self.bodies[0].get_ptfarea(dataset)
 
-            # intens_proj is the intensity in the direction of the observer per unit surface area of the triangle
-            # areas is the area of each triangle
+            # intensities (Imu) is the intensity in the direction of the observer per unit surface area of the triangle, scaled according to pblum scaling
+            # areas is the area of each triangle (using areas_si from the mesh to force SI units)
             # areas*mus is the area of each triangle projected in the direction of the observer
             # visibilities is 0 for hidden, 0.5 for partial, 1.0 for visible
             # areas*mus*visibilities is the visibile projected area of each triangle (ie half the area for a partially-visible triangle)
-            # so, intens_proj*areas*mus*visibilities is the intensity in the direction of the observer per the observed projected area of that triangle
+            # so, intensities*areas*mus*visibilities is the intensity in the direction of the observer per the observed projected area of that triangle
             # and the sum of these values is the observed flux
 
-            # note that the intensities are already projected but are per unit area
+            # note that the intensities are already projected (Imu) but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
 
             l3 = self.l3s.get(dataset).get('flux')
