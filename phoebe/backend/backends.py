@@ -655,8 +655,10 @@ class PhoebeBackend(BaseBackendByTime):
 
         do_horizon = False #computeparams.get_value('horizon', **kwargs)
         dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
+        dump_ = kwargs.pop('dynamics_method', None)
         ltte = computeparams.get_value('ltte', **kwargs)
         distance = b.get_value(qualifier='distance', context='system', unit=u.m, **kwargs)
+        dump_ = kwargs.pop('distance', None)
 
         # TODO: skip initializing system if we NEVER need meshes
         system = self._create_system_and_compute_pblums(b, compute,
