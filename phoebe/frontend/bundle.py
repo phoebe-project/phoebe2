@@ -2895,7 +2895,7 @@ class Bundle(ParameterSet):
 
     def run_failed_constraints(self):
         """
-        NEW in PHOEBE 2.1.10
+        NEW in PHOEBE 2.1.11
 
         Attempt to rerun all failed constraints that may be preventing
         <phoebe.frontend.bundle.Bundle.run_checks> from succeeding.
