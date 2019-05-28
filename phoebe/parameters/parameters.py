@@ -8795,7 +8795,8 @@ class HistoryParameter(Parameter):
 
 class JobParameter(Parameter):
     """
-    Parameter that tracks a submitted job (detached run_compute or run_fitting)
+    Parameter that tracks a submitted job (detached
+    <phoebe.frontend.bundle.Bundle.run_compute>, for example)
     """
     def __init__(self, b, location, status_method, retrieve_method, server_status=None, **kwargs):
         """
@@ -8834,11 +8835,13 @@ class JobParameter(Parameter):
         representations, we'll provide the current status.
 
         Also see:
-            * :meth:`location`
-            * :meth:`status_method`
-            * :meth:`retrieve_method`
-            * :meth:`status`
-            * :meth:`attach`
+            * <phoebe.parameters.JobParameter.status>
+            * <phoebe.parameters.JobParameter.attach>
+            * <phoebe.parameters.JobParameter.location>
+            * <phoebe.parameters.JobParameter.server_status>
+            * <phoebe.parameters.JobParameter.status_method>
+            * <phoebe.parameters.JobParameter.retrieve_method>
+
         """
         return self.status
 
@@ -8857,37 +8860,78 @@ class JobParameter(Parameter):
     @property
     def server_status(self):
         """
+        Access the status of the remote server, if applicable.
+
+        Returns
+        -----------
+        * (str)
         """
         return self._server_status
 
     @property
     def location(self):
         """
+        Access the location of the remote server, if applicable.
+
+        Returns
+        ----------
+        * (str)
         """
         return self._location
 
     @property
     def status_method(self):
         """
+        Access the method for determining the status of the Job.
+
+        Returns
+        ---------
+        * (str)
         """
         return self._status_method
 
     @property
     def retrieve_method(self):
         """
+        Access the method for retrieving the results from the Job, once completed.
+
+        Returns
+        -----------
+        * (str)
         """
         return self._retrieve_method
 
     @property
     def status(self):
         """
-        :raises NotImplementedError: if status isn't implemented for the given :meth:`status_method
+        Access the status of the Job.  This is just a property shortcut to
+        <phoebe.parameters.JobParameter.get_status>.
+
+        Returns
+        ---------
+        * (str): the current status of the Job.
+
+        Raises
+        ------------
+        * NotImplementedError: if status isn't implemented for the given <phoebe.parameters.JobParameter.status_method>
         """
         return self.get_status()
 
     def get_status(self):
         """
-        [NOT IMPLEMENTED]
+        Access the status of the Job.
+
+        Returns
+        ---------
+        * (str): the current status of the Job.
+
+        Raises
+        ------------
+        * ImportError: if the requests module is not installed - this is
+            required to handle detached Jobs.
+        * ValueError: if the status of the Job cannot be determined.
+        * NotImplementedError: if status isn't implemented for the given
+            <phoebe.parameters.JobParameter.status_method>.
         """
         if self._value == 'loaded':
             status = 'loaded'
@@ -8939,12 +8983,20 @@ class JobParameter(Parameter):
 
     def attach(self, sleep=5, cleanup=True):
         """
+        Attach the results from a <phoebe.parameters.JobParameter> to the
+        <phoebe.frontend.bundle.Bundle>.  If the status is not yet reported as
+        complete, this will loop every `sleep` seconds until it is.
 
-        :parameter int sleep: number of seconds to sleep between status checks
-        :parameter bool cleanup: whether to delete this parameter and any temporary
-            files once the results are loaded (default: True)
-        :raises ValueError: if not attached to a bundle
-        :raises NotImplementedError: because it isn't
+        Arguments
+        ---------
+        * `sleep` (int, optional, default=5): number of seconds to sleep between
+            status checks.  See <phoebe.parameters.JobParameter.get_status>.
+        * `cleanup` (bool, optional, default=True): whether to delete this
+            parameter and any temporary files once the results are loaded.
+
+        Raises
+        -----------
+        * ValueError: if not attached to a <phoebe.frontend.bundle.Bundle> object.
         """
         if not self._bundle:
             raise ValueError("can only attach a job if attached to a bundle")
