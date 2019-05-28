@@ -139,6 +139,7 @@ def lc_syn(syn=True, **kwargs):
 
 def lc_dep(is_lc=True, **kwargs):
     dep_params = []
+    dep_constraints = []
 
     # NOTE: these need to be added to the exception in bundle.add_dataset so that the kwargs get applied correctly
     dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
@@ -147,7 +148,11 @@ def lc_dep(is_lc=True, **kwargs):
     passbands._init_passbands()  # NOTE: this only actually does something on the first call
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
     dep_params += [FloatParameter(qualifier='ebv', value=kwargs.get('ebv', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Passband extinction E(B-V)')]
-    dep_params += [FloatParameter(qualifier='Rv', value=kwargs.get('Rv', 3.1), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Extinction law parameter (=Av/E(B-V))')]
+    dep_params += [FloatParameter(qualifier='Av', value=kwargs.get('Av', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Passband extinction Av')]
+    dep_params += [FloatParameter(qualifier='Rv', value=kwargs.get('Rv', 3.1), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Extinction law parameter')]
+
+    dep_constraints +=[(constraint.extinction, kwargs.get('dataset', None))]
+
     dep_params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy of photons')]
 
     if is_lc:
@@ -169,7 +174,7 @@ def lc_dep(is_lc=True, **kwargs):
     if is_lc:
         dep_params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
 
-    return ParameterSet(dep_params)
+    return ParameterSet(dep_params), dep_constraints
 
 def rv(**kwargs):
     """
@@ -237,14 +242,7 @@ def rv_syn(syn=True, **kwargs):
 def rv_dep(**kwargs):
     """
     """
-
-    dep_params = []
-    # TODO: only relevent-if rv_method='flux-weighted'
-
-    dep_params += lc_dep(is_lc=False, **kwargs).to_list()
-
-
-    return ParameterSet(dep_params)
+    return lc_dep(is_lc=False, **kwargs)
 
 def lp(**kwargs):
     """
@@ -319,15 +317,14 @@ def lp_dep(**kwargs):
     """
     """
 
-    dep_params = []
-
-    dep_params += lc_dep(is_lc=False, **kwargs).to_list()
+    dep_params, dep_constraints = lc_dep(is_lc=False, **kwargs)
+    dep_params = dep_params.to_list()
 
     dep_params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
     dep_params += [FloatParameter(qualifier='profile_rest', value=kwargs.get('profile_rest', 550), default_unit=u.nm, limits=(0, None), description='Rest central wavelength of the profile')]
     dep_params += [FloatParameter(qualifier='profile_sv', value=kwargs.get('profile_sv', 1e-4), default_unit=u.dimensionless_unscaled, limits=(0, None), description='Subsidiary value of the profile')]
 
-    return ParameterSet(dep_params)
+    return ParameterSet(dep_params), dep_constraints
 
 
 def etv(**kwargs):

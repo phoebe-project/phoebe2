@@ -2929,8 +2929,11 @@ class Bundle(ParameterSet):
         dep_metawargs = {'context': 'dataset',
                          'kind': '{}_dep'.format(kind),
                          'dataset': kwargs['dataset']}
-        dep_params = dep_func()
+        dep_params, dep_constraints = dep_func()
         self._attach_params(dep_params, **dep_metawargs)
+
+        for constraint in dep_constraints:
+            self.add_constraint(*constraint)
 
         # Now we need to apply any kwargs sent by the user.  There are a few
         # scenarios (and each kwargs could fall into different ones):
@@ -3279,6 +3282,11 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.constraint.freq>
         * <phoebe.parameters.constraint.irrad_frac>
         * <phoebe.parameters.constraint.logg>
+
+        The following are automatically included for all applicable datasets,
+        during <phoebe.frontend.bundle.Bundle.add_dataset>:
+        * <phoebe.parameters.constraint.compute_times>
+        * <phoebe.parameters.constraint.extinction>
 
         Additionally, some constraints are automatically handled by the hierarchy in
         <phoebe.frontend.bundle.Bundle.set_hierarchy> or when loading a default

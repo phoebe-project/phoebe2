@@ -2264,6 +2264,60 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component, 'dataset': dataset}
 
+def extinction(b, dataset, solve_for=None, **kwargs):
+    """
+    Create a constraint for the translation between ebv, Av, and Rv.
+
+    This constraint is automatically created and attached for all applicable datasets
+    via <phoebe.frontend.bundle.Bundle.add_dataset>.
+
+    This is usually passed as an argument to
+     <phoebe.frontend.bundle.Bundle.add_constraint> as
+     `b.add_constraint('extinction', dataset='dataset')`.
+
+    Arguments
+    -----------
+    * `b` (<phoebe.frontend.bundle.Bundle>): the Bundle
+    * `dataset` (string): the label of the dataset in which to find the
+        `ebv`, `Av`, and `Rv` parameters.
+    * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
+        'ebv' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'compute_times').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
+        lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
+        parameters that may be included in the constraint), kwargs (dict of
+        keyword arguments that were passed to this function).
+
+    Raises
+    --------
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+
+    # Rv =Av/ebv
+    dataset_ps = b.filter(context='dataset', dataset=dataset)
+    ebv = dataset_ps.get_parameter('ebv')
+    Av = dataset_ps.get_parameter('Av')
+    Rv = dataset_ps.get_parameter('Rv')
+
+
+    if solve_for in [None, ebv]:
+        lhs = ebv
+        rhs = Av / Rv
+    elif solve_for in [Av]:
+        lhs = Av
+        rhs = Rv * Av
+    elif solve_for in [Rv]:
+        lhs = Rv
+        # NOTE: could result in infinity
+        rhs = Av / ebv
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, [], {'dataset': dataset}
+
 def time_ephem(b, component, dataset, solve_for=None, **kwargs):
     """
     use the ephemeris of component to predict the expected times of eclipse (used
