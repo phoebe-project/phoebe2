@@ -60,12 +60,12 @@ else:
 if not os.path.exists(_pbdir_local):
     logger.info("creating directory {}".format(_pbdir_local))
     os.makedirs(_pbdir_local)
-    
+
 if not os.getenv('PHOEBE_PBDIR','False')=='False':
     _pbdir_env = os.getenv('PHOEBE_PBDIR')
 else:
     _pbdir_env = None
-	
+
 
 _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
@@ -715,22 +715,22 @@ class Passband:
         Teffs=np.repeat(Teffs,combos/NTeffs)
         Ebv=np.tile(np.repeat(Ebv,NRv),NTeffs)
         Rv=np.tile(Rv,combos/NRv)
-        
+
         extinctE, extinctP = np.empty(combos), np.empty(combos)
-        
+
         if verbose:
             print('Computing reddening corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
-            
+
 #        a = libphoebe.CCM89_extinction(self.wl)
         a = libphoebe.gordon_extinction(self.wl)
-        
+
         for j in range(0,combos):
-       
+
             pbE = self.ptf(self.wl)*libphoebe.planck_function(self.wl, Teffs[j])
-            pbP = self.wl*pbE                
+            pbP = self.wl*pbE
 
             flux_frac = np.exp(-0.9210340371976184*np.dot(a, [Ebv[j]*Rv[j], Ebv[j]]))
-            
+
             if verbose:
                 if 100*j % combos == 0:
                     print('%d%% done.' % (100*j/(combos-1)))
@@ -761,29 +761,29 @@ class Passband:
 
         Returns: n/a
         """
-        
+
         if Ebv is None:
             Ebv = np.linspace(0.,3.,90)
-            
+
         if Rv is None:
             Rv = np.linspace(2.,6.,40)
-          
+
         models = glob.glob(path+'/*M1.000*')
         Nmodels = len(models)
-        
+
         NEbv = len(Ebv)
         NRv = len(Rv)
-        
+
         Ns = NEbv*NRv
         combos = Nmodels*Ns
-        
+
         Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
         Rv1 = np.tile(Rv, combos/NRv)
-      
+
         # auxilary matrix for storing Ebv and Rv per model
         M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]),1)
         M = np.ascontiguousarray(M)
-        
+
         # Store the length of the filename extensions for parsing:
         offset = len(models[0])-models[0].rfind('.')
 
@@ -791,41 +791,41 @@ class Passband:
 
         # extinctE , extinctP per model
         extinctE , extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
-        
+
         if verbose:
             print('Computing Castelli & Kurucz (2004) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
-                 
+
         for i, model in enumerate(models):
-          
+
             spc = np.fromfile(model, sep=' ').reshape(-1,2).T
 
             Teff[i] = float(model[-17-offset:-12-offset])
             logg[i] = float(model[-11-offset:-9-offset])/10
             sign = 1. if model[-9-offset]=='P' else -1.
             abun[i] = sign*float(model[-8-offset:-6-offset])/10
-            
+
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
-            
+
             sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
-            
+
             #wl, fl = spc[:,sel]
             wl = spc[0][sel]
             fl = spc[1][sel]
-            
+
             fl *= self.ptf(wl)
             flP = fl*wl
-            
+
 #            Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
             Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
             flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
-            
+
             extinctE[i], extinctP[i]= np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
-          
+
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(Nmodels-1)))
-               
+
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
         self._ck2004_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
@@ -833,18 +833,18 @@ class Passband:
         Teff=np.repeat(Teff, Ns)
         logg=np.repeat(logg, Ns)
         abun=np.repeat(abun, Ns)
-        
+
         self._ck2004_extinct_energy_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
         self._ck2004_extinct_photon_grid = np.copy(self._ck2004_extinct_energy_grid)
-        
+
         flatE = extinctE.flat
         flatP = extinctP.flat
-        
+
         for i in xrange(combos):
             t = (Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv1[i] == self._ck2004_extinct_axes[3], Rv1[i] == self._ck2004_extinct_axes[4], 0)
             self._ck2004_extinct_energy_grid[t] = flatE[i]
             self._ck2004_extinct_photon_grid[t] = flatP[i]
-            
+
         self.content.append('ck2004_ext')
         self.atmlist.append('ck2004_ext')
 
@@ -864,29 +864,29 @@ class Passband:
 
         # PHOENIX uses fits files to store the tables.
         from astropy.io import fits
-        
+
         if Ebv is None:
             Ebv = np.linspace(0.,3.,90)
-            
+
         if Rv is None:
             Rv = np.linspace(2.,6.,40)
-          
+
         models = glob.glob(path+'/*fits')
         Nmodels = len(models)
-        
+
         NEbv = len(Ebv)
         NRv = len(Rv)
-        
+
         Ns = NEbv*NRv
         combos = Nmodels*Ns
-        
+
         Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
         Rv1 = np.tile(Rv, combos/NRv)
-      
+
         # auxilary matrix for storing Ebv and Rv per model
         M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]),1)
         M = np.ascontiguousarray(M)
-        
+
         # Store the length of the filename extensions for parsing:
         offset = len(models[0])-models[0].rfind('.')
 
@@ -894,11 +894,11 @@ class Passband:
 
         # extinctE , extinctP per model
         extinctE , extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
-        
+
         if verbose:
             print('Computing PHOENIX (Husser et al. 2013) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
-                    
+
         wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
 
         for i, model in enumerate(models):
@@ -919,15 +919,15 @@ class Passband:
 #            Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
             Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
             flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
-            
+
             extinctE[i], extinctP[i]= np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
-          
+
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(Nmodels-1)))
 
 
-               
+
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
         self._phoenix_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
@@ -935,18 +935,18 @@ class Passband:
         Teff=np.repeat(Teff, Ns)
         logg=np.repeat(logg, Ns)
         abun=np.repeat(abun, Ns)
-        
+
         self._phoenix_extinct_energy_grid = np.nan*np.ones((len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1))
         self._phoenix_extinct_photon_grid = np.copy(self._phoenix_extinct_energy_grid)
-        
+
         flatE = extinctE.flat
         flatP = extinctP.flat
-        
+
         for i in xrange(combos):
             t = (Teff[i] == self._phoenix_extinct_axes[0], logg[i] == self._phoenix_extinct_axes[1], abun[i] == self._phoenix_extinct_axes[2], Ebv1[i] == self._phoenix_extinct_axes[3], Rv1[i] == self._phoenix_extinct_axes[4], 0)
             self._phoenix_extinct_energy_grid[t] = flatE[i]
             self._phoenix_extinct_photon_grid[t] = flatP[i]
-            
+
         self.content.append('phoenix_ext')
         self.atmlist.append('phoenix_ext')
 
@@ -2106,35 +2106,39 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-        	if ramping='none':
-            	raise ValueError('atmosphere parameters out of bounds: atm=%s, ldatm=%s, Teff=%s, logg=%s, abun=%s' % (atm, ldatm, Teff[nanmask], logg[nanmask], abun[nanmask]))
-            
-            elif ramping='vanhamme':
-#				do some ramping!
-            	
-        return retval
-        
-    def ramp_Inorm(self,Teff=5772., logg=4.43, abun=0.0, atm1='ck2004',atm2='blackbody',ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
-    
-		if np.any(abun[nanmask]<-2.5) or np.any(abun[nanmask]>0.5):
-			raise ValueError('atmosphere parameters out of bounds: atm=%s, abun=%s' % (atm, abun[nanmask]))
-		else:
-			tlowtol=1500.0  
-			tlow=3500.0-tlowtol #if teff < tlow just use bb
-			thightol=50000.0
-			thigh=50000.0+thightol
-			fractol=thightol/50000.0
-			glowtol=4.00 
-			glow=0.0-glowtol #if logg < glow just use bb
-			ghightol=4.00
-			ghigh=5.0+ghightol #if logg > ghigh just use bb
-			if self.effwl < b_wien/Teff:
-#             			ramp in 1/Teff
-			if self.effwl => b_wien/Teff:
-#             			ramp in np.log10(Teff)
-    
-    def ramp_Imu(self,Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm1='ck2004', atm2='blackbody', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+            if ramping=='none':
+                raise ValueError('atmosphere parameters out of bounds: atm=%s, ldatm=%s, Teff=%s, logg=%s, abun=%s' % (atm, ldatm, Teff[nanmask], logg[nanmask], abun[nanmask]))
 
+            elif ramping=='vanhamme':
+                pass
+
+            #do some ramping!
+
+        return retval
+
+    def ramp_Inorm(self,Teff=5772., logg=4.43, abun=0.0, atm1='ck2004',atm2='blackbody',ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+
+        if np.any(abun[nanmask]<-2.5) or np.any(abun[nanmask]>0.5):
+            raise ValueError('atmosphere parameters out of bounds: atm=%s, abun=%s' % (atm, abun[nanmask]))
+        else:
+            tlowtol=1500.0
+            tlow=3500.0-tlowtol #if teff < tlow just use bb
+            thightol=50000.0
+            thigh=50000.0+thightol
+            fractol=thightol/50000.0
+            glowtol=4.00
+            glow=0.0-glowtol #if logg < glow just use bb
+            ghightol=4.00
+            ghigh=5.0+ghightol #if logg > ghigh just use bb
+            if self.effwl < b_wien/Teff:
+                #ramp in 1/Teff
+                pass
+            if self.effwl >- b_wien/Teff:
+                #ramp in np.log10(Teff)
+                pass
+
+    def ramp_Imu(self,Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm1='ck2004', atm2='blackbody', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+        raise NotImplementedError
 
     def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
         """
