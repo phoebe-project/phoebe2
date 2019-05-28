@@ -1150,6 +1150,7 @@ class Bundle(ParameterSet):
 
                 if not len(param._choices):
                     param._choices = ['']
+                    param.set_value('')
 
             else:
                 param._choices = ['self'] + [s for s in starrefs if s!=param.component]
@@ -1899,14 +1900,6 @@ class Bundle(ParameterSet):
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
                     return False, "all (or none) components must use mesh_method='wd'."
-
-            # l3_mode checks
-            if compute_kind in ['legacy']:
-                enabled_datasets = self.filter(qualifier='enabled', value=True, compute=compute, force_ps=True).datasets
-                l3_modes = [p.get_value() for p in self.filter('l3_mode', dataset=enabled_datasets, force_ps=True).to_list()]
-                if len(set(l3_modes)) > 1:
-                    return False, "{} backend (compute='{}') requires all values of 'l3_mode' (for enabled datasets) to be the same.".format(compute_kind, compute)
-
 
 
         # forbid color-coupling with a dataset which is scaled to data or to another that is in-turn color-coupled
@@ -2965,6 +2958,31 @@ class Bundle(ParameterSet):
                 # For now we'll assume the component is top-level binary
                 self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times')
 
+        if 'pblum_mode' in kwargs.keys():
+            # we need to set this first so that pblum visibilities are set
+            # before we enter the loop
+
+            v = kwargs.pop('pblum_mode')
+            k = 'pblum_mode'
+            components_ = None
+
+            # we shouldn't need to worry about a dictionary here since there
+            # are no components, but let's just check and raise an error if it is.
+            if isinstance(v, dict):
+                raise TypeError("pblum_mode cannot be passed as a dictionary")
+
+            try:
+                self.set_value_all(qualifier=k,
+                                   dataset=kwargs['dataset'],
+                                   component=components_,
+                                   value=v,
+                                   check_visible=False,
+                                   ignore_none=True)
+            except Exception as err:
+                self.remove_dataset(dataset=kwargs['dataset'])
+                raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+
+
         for k, v in kwargs.items():
             if isinstance(v, dict):
                 for component, value in v.items():
@@ -2986,6 +3004,7 @@ class Bundle(ParameterSet):
                 # for dataset kinds that include passband dependent AND
                 # independent parameters, we need to carefully default on
                 # what component to use when passing the defaults
+                check_visible = False
                 if kind in ['rv', 'lp'] and k in ['ld_func', 'ld_coeffs',
                                                   'passband', 'intens_weighting',
                                                   'profile_rest', 'profile_func', 'profile_sv']:
@@ -2994,6 +3013,15 @@ class Bundle(ParameterSet):
                     components_ = None
                 elif k in ['compute_times', 'compute_phases']:
                     components_ = self.hierarchy.get_top()
+                elif k in ['pblum_ref']:
+                    check_visible = True
+
+                    # we've already set pblum_mode in the dataset, and popped
+                    # then entry from kwargs
+                    if self.get_value('pblum_mode', dataset=kwargs['dataset']) == 'color coupled':
+                        components_ = None
+                    else:
+                        components_ = components+['_default']
                 elif components == [None]:
                     components_ = None
                 elif user_provided_components:
@@ -3007,7 +3035,7 @@ class Bundle(ParameterSet):
                                        dataset=kwargs['dataset'],
                                        component=components_,
                                        value=v,
-                                       check_visible=False,
+                                       check_visible=check_visible,
                                        ignore_none=True)
                 except Exception as err:
                     self.remove_dataset(dataset=kwargs['dataset'])
@@ -3816,12 +3844,6 @@ class Bundle(ParameterSet):
         at t0 divided by 4*pi.  To see how passband luminosities are computed,
         see <phoebe.frontend.bundle.Bundle.compute_pblums>.
 
-        Note: this can only be computed for datasets in which `l3_mode` is set
-        to 'fraction of total light' instead of 'flux'.  When this is the case,
-        the `l3_frac` parameter takes place of the `l3` parameter.  This method
-        simply provides a convenience function for exposing the third light
-        that will be adopted in units of flux.
-
         This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute>.
 
@@ -3847,7 +3869,6 @@ class Bundle(ParameterSet):
             l3@dataset or l3_frac@dataset and the l3 (as quantity objects
             with units of W/m**2) or l3_frac (as unitless floats).
         """
-        # TODO: consider a b.compute_total/system_fluxes or a b.compute_total_fluxes_to_pblums
         logger.debug("b.compute_l3s")
 
         datasets = kwargs.pop('dataset', self.filter('l3_mode', check_visible=True).datasets)
@@ -3898,7 +3919,9 @@ class Bundle(ParameterSet):
 
         return l3s
 
-    def compute_pblums(self, compute=None, intrinsic=True, extrinsic=True, **kwargs):
+    def compute_pblums(self, compute=None, pblum=True, pblum_ext=True,
+                       pbflux=False, pbflux_ext=False,
+                       set_value=False, **kwargs):
         """
         Compute the passband luminosities that will be applied to the system,
         following all coupling, etc, as well as all relevant compute options
@@ -3907,15 +3930,23 @@ class Bundle(ParameterSet):
 
         This method allows for computing both intrinsic and extrinsic luminosities.
         Note that pblum scaling is computed (and applied to flux scaling) based
-        on intrinsic luminosities.
+        on intrinsic luminosities (`pblum`).
 
         Note that luminosities cannot be exposed for any dataset in which
         `pblum_mode` is 'scale to data' as the entire light curve must be
         computed prior to scaling.
 
+        Additionally, an estimate for the total fluxes `pbflux` and `pbflux_ext`
+        can optionally be computed.  These will also be computed at t0@system,
+        under the spherical assumption where `pbflux = sum(pblum / (4 pi)) + l3`
+        or `pbflux_ext = sum(pblum_ext / (4 pi)) + l3`.  Note that in either case,
+        the translation from `l3_frac` to `l3` (when necessary) will include
+        extrinsic effects.  See also <phoebe.frontend.bundle.Bundle.compute_l3s>.
+
         This method is only for convenience and will be recomputed internally
-        within <phoebe.frontend.bundle.Bundle.run_compute>.  Alternatively, you
-        can create a mesh dataset (see <phoebe.frontend.bundle.Bundle.add_dataset>
+        within <phoebe.frontend.bundle.Bundle.run_compute> as needed.
+        Alternatively, you can create a mesh dataset
+        (see <phoebe.frontend.bundle.Bundle.add_dataset>
         and <phoebe.parameters.dataset.mesh>) and request any specific pblum to
         be exposed (per-time).
 
@@ -3929,18 +3960,30 @@ class Bundle(ParameterSet):
         ------------
         * `compute` (string, optional, default=None): label of the compute
             options (not required if only one is attached to the bundle).
-        * `intrinsic` (bool, optional, default=True): whether to include
+        * `pblum` (bool, optional, default=True): whether to include
             intrinsic (excluding irradiation & features) pblums.  These
-            will be exposed in the returned dictionary as pblum@...
-        * `extrinsic` (bool, optional, default=False): whether to include
+            will be exposed in the returned dictionary as pblum@component@dataset.
+        * `pblum_ext` (bool, optional, default=True): whether to include
             extrinsic (irradiation & features) pblums.  These will be exposed
-            as pblum_ext@...
+            as pblum_ext@component@dataset.
+        * `pbflux` (bool, optional, default=False): whether to include
+            intrinsic per-system passband fluxes.  These include third-light
+            (from the l3 or l3_frac parameter), but are estimated based
+            on intrinsic `pblum`.  These will be exposed as pbflux@dataset.
+        * `pbflux_ext` (bool, optional, default=False): whether to include
+            extrinsic per-system passband fluxes.  These include third-light
+            (from the l3 or l3_frac parameter), and are estimated based on
+            extrinsic `pblum_ext`.  These will be exposed as pbflux_ext@dataset.
         * `component` (string or list of strings, optional): label of the
             component(s) requested. If not provided, will be provided for all
             components in the hierarchy.
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets attached to the bundle.
+        * `set_value` (bool, optional, default=False): apply the computed
+            values to the respective `pblum` or `pbflux` parameters (even if not
+            currently visible).  Note that extrinsic values (`pblum_ext` and
+            `pbflux_ext`) are not input parameters to the model, so are not set.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -3984,31 +4027,109 @@ class Bundle(ParameterSet):
                 # then raise an error
                 raise ValueError("system failed to pass checks: {}".format(msg))
 
-        pblums = {}
-        for compute_extrinsic in [False, True]:
-            if compute_extrinsic and not extrinsic:
+        # TODO: technically we don't need all dataset, but we do need datasets + any datasets that are referenced by pblum_ref of those datasets...
+        pblum_datasets = self.filter(qualifier='pblum_mode').datasets
+
+        t0 = self.get_value('t0', context='system', unit=u.d)
+
+        ret = {}
+        l3s = None
+        for compute_extrinsic in [True, False]:
+            # we need to compute the extrinsic case if we're requesting pblum_ext
+            # or pbflux_ext or if we're requesting pbflux but l3s need to be
+            # converted (as those need to be translated with extrinsic enabled)
+            if compute_extrinsic and not (pblum_ext or pbflux_ext or (pbflux and len(self.filter(qualifier='l3_mode', dataset=datasets, value='fraction of total light')))):
                 continue
-            if not compute_extrinsic and not intrinsic:
+            if not compute_extrinsic and not (pblum or pbflux):
                 continue
 
             # TODO: can we prevent rebuilding the entire system the second time if both intrinsic and extrinsic are True?
-            system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=False, compute_extrinsic=compute_extrinsic, **kwargs))
+            compute_l3 = compute_extrinsic and (pbflux_ext or pbflux)
+            logger.debug("b._compute_system(compute={}, datasets={}, compute_l3={}, compute_extrinsic={}, kwargs={})".format(compute, pblum_datasets, compute_l3, compute_extrinsic, kwargs))
+            system = kwargs.get('system', self._compute_system(compute=compute, datasets=pblum_datasets, compute_l3=compute_l3, compute_extrinsic=compute_extrinsic, **kwargs))
 
-            t0 = self.get_value('t0', context='system', unit=u.d)
-            for component, star in system.items():
-                if component not in components:
-                    continue
-                for dataset in star._pblum_scale.keys():
-                    if dataset not in datasets:
+            if compute_l3:
+                # these needed to be computed with compute_extrinsic=True even for pbflux instrinsic
+                l3s = {dataset: system.l3s[dataset]['flux'] for dataset in datasets} # in u.W/u.m**2
+
+            for dataset in datasets:
+                pbflux_this_dataset = 0
+
+                if compute_extrinsic:
+                    logger.debug("computing (extrinsic) observables for {}".format(dataset))
+                    system.populate_observables(t0, ['lc'], [dataset],
+                                                ignore_effects=False)
+
+                for component, star in system.items():
+                    if component not in components:
                         continue
-                    if compute_extrinsic:
-                        logger.debug("computing (extrinsic) observables for {}".format(dataset))
-                        system.populate_observables(t0, ['lc'], [dataset],
-                                                    ignore_effects=False)
 
-                    pblums["{}@{}@{}".format('pblum_ext' if compute_extrinsic else 'pblum', component, dataset)] = float(star.compute_luminosity(dataset)) * u.W
+                    pblum = float(star.compute_luminosity(dataset))
+                    pbflux_this_dataset += pblum / (4*np.pi)
 
-        return pblums
+                    if (compute_extrinsic and pblum_ext) or (not compute_extrinsic and pblum):
+                        if not compute_extrinsic and set_value:
+                            self.set_value('pblum', component=component, dataset=dataset, context='dataset', check_visible=False, value=pblum*u.W)
+
+                        ret["{}@{}@{}".format('pblum_ext' if compute_extrinsic else 'pblum', component, dataset)] = pblum*u.W
+
+                if (compute_extrinsic and pbflux_ext) or (not compute_extrinsic and pbflux):
+                    if l3s is None:
+                        # then we didn't need to compute l3s, so we can pull straight from the parameter
+                        pbflux_this_dataset += self.get_value('l3', dataset=dataset, context='dataset', unit=u.W/u.m**2)
+                    else:
+                        pbflux_this_dataset += l3s[dataset]
+
+                    if not compute_extrinsic and set_value:
+                        self.set_value('pbflux', dataset=dataset, context='dataset', check_visible=False, value=pbflux_this_dataset*u.W/u.m**2)
+
+                    ret["{}@{}".format('pbflux_ext' if compute_extrinsic else 'pbflux', dataset)] = pbflux_this_dataset*u.W/u.m**2
+
+        return ret
+
+    def _compute_necessary_values(self, computeparams):
+        compute = computeparams.compute
+
+        enabled_datasets = computeparams.filter(qualifier='enabled', value=True).datasets
+        # handle any limb-darkening interpolation
+        dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_coeffs_source').exclude(value='none').datasets
+        if computeparams.kind == 'photodynam':
+            # then we're ignoring anything that isn't quadratic anyways
+            dataset_compute_ld_coeffs = self.filter(dataset=dataset_compute_ld_coeffs, qualifier='ld_func', value='quadratic').datasets
+
+        if len(dataset_compute_ld_coeffs):
+            logger.warning("{} does not natively support interpolating ld coefficients.  These will be interpolated by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+            logger.debug("calling compute_ld_coeffs(compute={}, dataset={}, set_value=True, skip_checks=True)".format(dataset_compute_ld_coeffs, compute))
+            self.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True, skip_checks=True)
+
+        # handle any necessary pblum computations
+        dataset_compute_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode').exclude(value='provided').datasets
+        if len(dataset_compute_pblums):
+            logger.warning("{} does not natively support pblum_mode={}.  pblum values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, [p.get_value() for p in self.filter(qualifier='pblum_mode').exclude(value='provided').to_list()], computeparams.kind))
+            logger.debug("calling compute_pblums(compute={}, dataset={}, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True)".format(compute, dataset_compute_pblums))
+            self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True)
+
+        # handle any necessary l3 computations
+        if computeparams.kind == 'ellc':
+            dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='flux').datasets
+        else:
+            dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction of total light').datasets
+        if computeparams.kind == 'legacy':
+            # legacy support either mode, but all must be the same
+            l3_modes = [p.value for p in self.filter(qualifier='l3_mode').to_list()]
+            if len(list(set(l3_modes))) <= 1:
+                dataset_compute_l3s = []
+
+        if len(dataset_compute_l3s):
+            if computeparams.kind == 'legacy':
+                logger.warning("{} does not natively support mixed values for l3_mode.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+            elif computeparams.kind == 'ellc':
+                logger.warning("{} does not natively support l3_mode='flux'.  l3_frac values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+            else:
+                logger.warning("{} does not natively support l3_mode='fraction of total light'.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+            logger.debug("calling compute_l3s(compute={}, dataset={}, set_value=True, skip_checks=True)".format(compute, dataset_compute_l3s))
+            self.compute_l3s(compute, dataset=dataset_compute_l3s, set_value=True, skip_checks=True)
+
 
     def add_compute(self, kind='phoebe', **kwargs):
         """
@@ -4294,7 +4415,10 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        self._kwargs_checks(kwargs, ['skip_checks', 'jobid', 'overwrite'], ps=computes_ps)
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite']
+        if conf.devel:
+            allowed_kwargs += ['mesh_init_phi']
+        self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
             passed, msg = self.run_checks(compute=computes, **kwargs)
@@ -4304,6 +4428,12 @@ class Bundle(ParameterSet):
             if passed is False:
                 # then raise an error
                 raise ValueError("system failed to pass checks: {}".format(msg))
+
+        # temporarily disable interactive checks
+        _interactive_checks = conf.interactive_checks
+        if _interactive_checks:
+            logger.debug("temporarily disabling interactive_checks")
+            conf._interactive_checks = False
 
         # let's first make sure that there is no duplication of enabled datasets
         datasets = []
@@ -4485,6 +4615,11 @@ class Bundle(ParameterSet):
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_model',
                           undo_kwargs={'model': model})
+
+        # restore user-set interactive checks
+        if _interactive_checks:
+            logger.debug("restoring interactive_checks={}".format(_interactive_checks))
+            conf._interactive_checks = _interactive_checks
 
         return self.get_model(model)
 

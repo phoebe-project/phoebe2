@@ -78,7 +78,10 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
         incls.append([s.get_value('incl', u.rad, component=orbit) for orbit in ancestororbits])
         dpdts.append([s.get_value('dpdt', u.d/u.d, component=orbit) for orbit in ancestororbits])
         if conf.devel:
-            deccdts.append([s.get_value('deccdt', u.dimensionless_unscaled/u.d, component=orbit) for orbit in ancestororbits])
+            try:
+                deccdts.append([s.get_value('deccdt', u.dimensionless_unscaled/u.d, component=orbit) for orbit in ancestororbits])
+            except ValueError:
+                deccdts.append([0.0 for orbit in ancestororbits])
         else:
             deccdts.append([0.0 for orbit in ancestororbits])
         dperdts.append([s.get_value('dperdt', u.rad/u.d, component=orbit) for orbit in ancestororbits])

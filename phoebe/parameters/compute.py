@@ -198,6 +198,8 @@ def legacy(**kwargs):
         run.
     * `atm` (string, optional): atmosphere tables.
     * `gridsize` (float, optional): number of meshpoints for WD.
+    * `distortion_method` (string, optional, default='roche'): method to use
+        for distorting stars (legacy only supports roche).
     * `irrad_method` (string, optional): which method to use to handle irradiation.
     * `ie` (bool, optional): whether data should be de-reddened.
     * `rv_method` (string, optional): which method to use for computing radial
@@ -221,6 +223,8 @@ def legacy(**kwargs):
 #    params += [IntParameter(visible_if='cindex_switch:True', qualifier='cindex', value=kwargs.get('cindex', np.array([1.0])), description='Number of reflections')]
 #    params += [BoolParameter(qualifier='heating', value=kwargs.get('heating', True), description='Allow irradiators to heat other components')]
     params += [IntParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 60), limits=(10,None), description='Number of meshpoints for WD')]
+
+    params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=["roche"], description='Method to use for distorting stars (legacy only supports roche distortion)')]
 
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'wilson'), choices=['none', 'wilson'], description='Which method to use to handle irradiation/reflection effects')]
     params += [IntParameter(visible_if='irrad_method:wilson', qualifier='refl_num', value=kwargs.get('refl_num', 1), limits=(0,None), description='Number of reflections')]
@@ -325,6 +329,10 @@ def photodynam(**kwargs):
         integration.
     * `orbiterror` (float, optional, default=1e-20): error to use for dynamics
         integration.
+    * `distortion_method` (string, optional, default='sphere'): method to use
+        for distorting stars (photodynam only supports spherical stars).
+    * `irrad_method` (string, optional, default='none'): method to use for
+        irradiation (photodynam does not support irradiation).
 
     Returns
     --------
@@ -341,8 +349,9 @@ def photodynam(**kwargs):
     params += [FloatParameter(qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='Stepsize to use for dynamics integration')]
     params += [FloatParameter(qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='Error to use for dynamics integraton')]
 
-    # TODO: remove this option and instead use time0@system
-    #params += [FloatParameter(qualifier='time0', value=kwargs.get('time0', 0.0), default_unit=u.d, description='Time to start the integration')]
+    params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'sphere'), choices=["sphere"], description='Method to use for distorting stars (photodynam only supports spherical stars)')]
+
+    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'none'), choices=['none'], description='Which method to use to handle all irradiation effects (ellc does not support irradiation)')]
 
     return ParameterSet(params)
 
@@ -367,9 +376,9 @@ def jktebop(**kwargs):
     See also:
     * <phoebe.frontend.bundle.Bundle.references>
 
-    According to jktebop's website: "jktebop models the two components as
-    biaxial spheroids for the calculation of the reflection and ellipsoidal
-    effects, and as spheres for the eclipse shapes."
+    Note on `distortion_method`: according to jktebop's website, "jktebop models
+    the two components as biaxial spheroids for the calculation of the reflection
+    and ellipsoidal effects, and as spheres for the eclipse shapes."
 
     Note that the wrapper around jktebop only uses its forward model.
     jktebop also includes its own fitting methods, including bootstrapping.
@@ -425,6 +434,12 @@ def jktebop(**kwargs):
     * `enabled` (bool, optional): whether to create synthetics in compute/fitting
         run.
     * `ringsize` (float, optional, default=5): integration ring size.
+    * `distortion_method` (string, optional, default='sphere/biaxial spheroid'):
+        method to use for distorting stars.  See note above for jktebop's
+        treatment.
+    * `irrad_method` (string, optional, default='biaxial spheroid'): method
+        to use for computing irradiation.  See note above regarding jktebop's
+        treatment of `distortion_method`.
 
     Returns
     --------
@@ -438,7 +453,10 @@ def jktebop(**kwargs):
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
-    params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integ Ring Size')]
+    params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integration ring size')]
+
+    params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'sphere/biaxial spheroid'), choices=["sphere/biaxial spheroid"], description='Method to use for distorting stars (jktebop only supports spheres for eclipse shapes and biaxial spheroid for calculation of ellipsoidal effects and reflection)')]
+    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'biaxial spheroid'), choices=['none', 'biaxial spheroid'], description='Which method to use to handle all irradiation effects')]
 
     return ParameterSet(params)
 
@@ -547,6 +565,8 @@ def ellc(**kwargs):
         for finite exposure times.
     * `fti_oversample` (int, optional, default=1): number of integration points
         used to account for finite exposure time.  Only used if `fti_method`='oversample'.
+    * `irrad_method` (string, optional, default='none'): method to use for
+        irradiation (ellc does not support irradiation).
 
 
     Returns
@@ -577,5 +597,6 @@ def ellc(**kwargs):
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fit_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1, None), default_unit=u.dimensionless_unscaled, description='number of integration points used to account for finite exposure time.')]
 
+    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'none'), choices=['none'], description='Which method to use to handle all irradiation effects (ellc does not support irradiation)')]
 
     return ParameterSet(params)
