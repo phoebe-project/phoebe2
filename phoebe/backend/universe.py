@@ -1437,9 +1437,9 @@ class Star(Body):
         intens_weighting_override = kwargs.pop('intens_weighting', None)
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, intens_weighting=intens_weighting_override) for ds in datasets_intens}
         ebv_override = kwargs.pop('ebv', None)
-        extinct = {ds: b.get_value('ebv', dataset=ds, ebv=ebv_override) for ds in datasets_intens}
+        extinct = {ds: b.get_value('ebv', dataset=ds, context='dataset', ebv=ebv_override) for ds in datasets_intens}
         Rv_override = kwargs.pop('Rv', None)
-        Rv = {ds: b.get_value('Rv', dataset=ds, Rv=Rv_override) for ds in datasets_intens}        
+        Rv = {ds: b.get_value('Rv', dataset=ds, context='dataset', Rv=Rv_override) for ds in datasets_intens}
         ld_func_override = kwargs.pop('ld_func', None)
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, ld_func=ld_func_override) for ds in datasets_intens}
         ld_coeffs_override = kwargs.pop('ld_coeffs', None)
