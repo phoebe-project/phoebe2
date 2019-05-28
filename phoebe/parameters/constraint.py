@@ -2297,7 +2297,7 @@ def extinction(b, dataset, solve_for=None, **kwargs):
     """
 
     # Rv =Av/ebv
-    dataset_ps = b.filter(context='dataset', dataset=dataset)
+    dataset_ps = b.get_dataset(dataset=dataset)
     ebv = dataset_ps.get_parameter('ebv')
     Av = dataset_ps.get_parameter('Av')
     Rv = dataset_ps.get_parameter('Rv')

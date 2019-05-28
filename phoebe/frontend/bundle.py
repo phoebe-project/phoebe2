@@ -2922,7 +2922,7 @@ class Bundle(ParameterSet):
         dep_metawargs = {'context': 'dataset',
                          'kind': '{}_dep'.format(kind),
                          'dataset': kwargs['dataset']}
-        dep_params, dep_constraints = dep_func()
+        dep_params, dep_constraints = dep_func(dataset=kwargs['dataset'])
         self._attach_params(dep_params, **dep_metawargs)
 
         for constraint in dep_constraints:
