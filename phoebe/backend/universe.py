@@ -347,7 +347,7 @@ class System(object):
         pblum_scale_copy_ds = {}
         for dataset in datasets:
             ds = b.get_dataset(dataset=dataset)
-            kind = ds.exclude(kind='*_dep').kind
+            kind = ds.kind
             if kind not in ['lc']:
                 # only LCs need pblum scaling
                 continue

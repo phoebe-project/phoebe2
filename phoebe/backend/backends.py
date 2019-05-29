@@ -157,7 +157,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
     for dataset in b.filter(qualifier='enabled', compute=compute, value=True).datasets:
         dataset_ps = b.filter(context='dataset', dataset=dataset)
         dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, check_visible=False)
-        dataset_kind = dataset_ps.exclude(kind='*_dep').kind
+        dataset_kind = dataset_ps.kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
         if dataset_kind in ['lc']:
             # then the Parameters in the model only exist at the system-level
@@ -191,7 +191,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 # mesh with this dataset in datasets@mesh
                 # for mesh_datasets_parameter in mesh_datasets_parameters:
                     # if dataset in mesh_datasets_parameter.get_value():
-                        # mesh_obs_ps = b.filter(context='dataset', dataset=mesh_datasets_parameter.dataset, component=None).exclude(kind='*_dep')
+                        # mesh_obs_ps = b.filter(context='dataset', dataset=mesh_datasets_parameter.dataset, component=None)
                         # TODO: not sure about the component=None on the next line... what will this do for rvs with different times per-component?
                         # mesh_times = _expand_mesh_times(b, mesh_obs_ps, component=None)
                         # this_times = np.unique(np.append(this_times, mesh_times))
@@ -234,7 +234,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                     # other (but mesh_columns does not).
                     info['mesh_columns'] = dataset_ps.get_value('columns', expand=True)
                     info['mesh_datasets'] = list(set([c.split('@')[1] for c in info['mesh_columns'] if len(c.split('@'))>1]))
-                    info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').exclude(kind='*_dep').kind for ds in info['mesh_datasets']]
+                    info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').kind for ds in info['mesh_datasets']]
 
                 if by_time:
                     for time_ in this_times:
@@ -293,7 +293,7 @@ def _create_syns(b, needed_syns):
 
             # needed_syn['columns'] = b.get_value(qualifier='columns', dataset=needed_syn['dataset'], context='dataset')
             # datasets = b.get_value(qualifier='datasets', dataset=needed_syn['dataset'], context='dataset')
-            # needed_syn['datasets'] = {ds: b.filter(datset=ds, context='dataset').exclude(kind='*_dep').kind for ds in datasets}
+            # needed_syn['datasets'] = {ds: b.filter(datset=ds, context='dataset').kind for ds in datasets}
 
         # phoebe will compute everything sorted - even if the input times array
         # is out of order, so let's make sure the exposed times array is in
@@ -303,7 +303,7 @@ def _create_syns(b, needed_syns):
 
             needed_syn['empty_arrays_len'] = len(needed_syn['times'])
 
-        these_params, these_constraints = getattr(_dataset, "{}_syn".format(syn_kind.lower()))(**needed_syn)
+        these_params, these_constraints = getattr(_dataset, syn_kind.lower())(syn=True, **needed_syn)
         # TODO: do we need to handle constraints?
         these_params = these_params.to_list()
         for param in these_params:
@@ -621,7 +621,7 @@ class PhoebeBackend(BaseBackendByTime):
         enabled_ps = b.filter(qualifier='enabled', compute=compute, value=True)
         if datasets is None:
             datasets = enabled_ps.datasets
-        # kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
+        # kinds = [b.get_dataset(dataset=ds).kind for ds in datasets]
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
         # NOTE: system.compute_pblum_scalings populates at t0 with ignore_effect=True (so intrinsic pblum)

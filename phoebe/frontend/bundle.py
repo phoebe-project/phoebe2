@@ -1849,7 +1849,7 @@ class Bundle(ParameterSet):
                         return False, "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
 
             for dataset in self.datasets:
-                if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
+                if dataset=='_default' or self.get_dataset(dataset=dataset).kind not in ['lc', 'rv']:
                     continue
                 ld_func = str(self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs))
                 ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
@@ -2893,18 +2893,18 @@ class Bundle(ParameterSet):
                        for component in components]):
             raise ValueError("'{}' not a recognized/allowable component".format(component))
 
-        obs_metawargs = {'context': 'dataset',
+        ds_metawargs = {'context': 'dataset',
                          'kind': kind,
                          'dataset': kwargs['dataset']}
 
         if kind in ['lp']:
             # then times needs to be passed now to duplicate and tag the Parameters
             # correctly
-            obs_kwargs = {'times': kwargs.pop('times', [])}
+            ds_kwargs = {'times': kwargs.pop('times', [])}
         else:
-            obs_kwargs = {}
+            ds_kwargs = {}
 
-        obs_params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **obs_kwargs)
+        params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **ds_kwargs)
 
         if kwargs.get('overwrite', False):
             self.remove_dataset(dataset=kwargs['dataset'])
@@ -2912,18 +2912,12 @@ class Bundle(ParameterSet):
             # something other than dataset
             self._check_label(kwargs['dataset'], allow_overwrite=False)
 
-        self._attach_params(obs_params, **obs_metawargs)
+        self._attach_params(params, **ds_metawargs)
 
         for constraint in constraints:
             # TODO: tricky thing here will be copying the constraints
             self.add_constraint(*constraint)
 
-        dep_func = _get_add_func(_dataset, "{}_dep".format(kind))
-        dep_metawargs = {'context': 'dataset',
-                         'kind': '{}_dep'.format(kind),
-                         'dataset': kwargs['dataset']}
-        dep_params = dep_func()
-        self._attach_params(dep_params, **dep_metawargs)
 
         # Now we need to apply any kwargs sent by the user.  There are a few
         # scenarios (and each kwargs could fall into different ones):
@@ -3005,7 +2999,7 @@ class Bundle(ParameterSet):
                 if kind in ['rv', 'lp'] and k in ['ld_func', 'ld_coeffs',
                                                   'passband', 'intens_weighting',
                                                   'profile_rest', 'profile_func', 'profile_sv']:
-                    # passband-dependent (ie lc_dep) parameters do not have
+                    # passband-dependent parameters do not have
                     # assigned components
                     components_ = None
                 elif k in ['compute_times', 'compute_phases']:
@@ -3120,15 +3114,9 @@ class Bundle(ParameterSet):
         # let's handle deps if kind was passed
         kind = kwargs.get('kind', None)
 
-        if kind is not None:
-            if isinstance(kind, str):
-                kind = [kind]
-            kind_deps = []
-            for kind_i in kind:
-                dep = '{}_dep'.format(kind_i)
-                if dep not in kind:
-                    kind_deps.append(dep)
-            kind = kind + kind_deps
+        if isinstance(kind, str):
+            kind = [kind]
+
         kwargs['kind'] = kind
 
 
@@ -3150,11 +3138,6 @@ class Bundle(ParameterSet):
         # parameters, etc
         kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute'])
 
-        # ps = self.filter(**kwargs)
-        # logger.info('removing {} parameters (this is not undoable)'.\
-        #             format(len(ps)))
-
-        # print "*** kwargs", kwargs, len(ps)
         self.remove_parameters_all(**kwargs)
         # not really sure why we need to call this twice, but it seems to do
         # the trick
