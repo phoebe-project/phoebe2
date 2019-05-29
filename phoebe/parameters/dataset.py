@@ -378,9 +378,10 @@ def mesh(syn=False, as_ps=True, **kwargs):
     * `as_ps` (bool, optional, default=True): whether to return the parameters
         as a <phoebe.parameters.ParameterSet> instead of a list of
         <phoebe.parameters.Parameter> objects.
-    * `times` (array/quantity, optional): observed times.
+    * `times` (array/quantity, optional): observed times.  Only applicable
+        if `syn` is False.
     * `include_times` (string, optional): append to times from the following
-        datasets/time standardsself.Only applicable if `syn` is False.
+        datasets/time standards.  Only applicable if `syn` is False.
     * `columns` (list, optional): columns to expose within the mesh.
         Only applicable if `syn` is False.
     * `**kwargs`: if `syn` is True, additional kwargs will be applied to the
