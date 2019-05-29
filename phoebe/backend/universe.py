@@ -1924,8 +1924,8 @@ class Star(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
-        ldatm = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none'))
-        if ldatm == 'auto':
+        ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none'))
+        if ld_coeffs_source == 'auto':
             if atm == 'blackbody':
                 ldatm = 'ck2004'
             elif atm == 'extern_atmx':
@@ -1934,11 +1934,16 @@ class Star(Body):
                 ldatm = 'ck2004'
             else:
                 ldatm = atm
+        elif ld_coeffs_source == 'none':
+            ldatm = 'none'
+        else:
+            ldatm = ld_coeffs_source
 
         if ldatm != 'none':
             # then ld_coeffs was a hidden parameter anyways, but the backend
             # needs None passed to use ldatm
             ld_coeffs = None
+
         if ld_func == 'interp':
             # then ld_coeffs_source is a hidden parameter to the user, but the
             # backend needs to know to use the same atmosphere
@@ -1964,23 +1969,45 @@ class Star(Body):
 
             self.set_ptfarea(dataset, ptfarea)
 
-            ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
-                             logg=self.mesh.loggs.for_computations,
-                             abun=self.mesh.abuns.for_computations,
-                             ldatm=ldatm,
-                             ld_func=ld_func,
-                             ld_coeffs=ld_coeffs,
-                             photon_weighted=intens_weighting=='photon')
+            try:
+                ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
+                                 logg=self.mesh.loggs.for_computations,
+                                 abun=self.mesh.abuns.for_computations,
+                                 ldatm=ldatm,
+                                 ld_func=ld_func,
+                                 ld_coeffs=ld_coeffs,
+                                 photon_weighted=intens_weighting=='photon')
+            except ValueError as err:
+                if err.message.split(":")[0] == 'Atmosphere parameters out of bounds':
+                    # let's override with a more helpful error message
+                    logger.warning(err.message)
+                    if atm=='blackbody':
+                        raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or to 'none' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
+                    else:
+                        if ld_func=='interp':
+                            blackbody_msg = " (in which case ld_func must be set anything other than 'interp') "
+                        else:
+                            blackbody_msg = " "
+                        raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm and ld_coeffs_source to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_coeffs_source to 'none' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
+                else:
+                    raise err
 
-
-            # abs_normal_intensities are the normal emergent passband intensities:
-            abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
-                                              logg=self.mesh.loggs.for_computations,
-                                              abun=self.mesh.abuns.for_computations,
-                                              atm=atm,
-                                              ldatm=ldatm,
-                                              ldint=ldint,
-                                              photon_weighted=intens_weighting=='photon')
+            try:
+                # abs_normal_intensities are the normal emergent passband intensities:
+                abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
+                                                  logg=self.mesh.loggs.for_computations,
+                                                  abun=self.mesh.abuns.for_computations,
+                                                  atm=atm,
+                                                  ldatm=ldatm,
+                                                  ldint=ldint,
+                                                  photon_weighted=intens_weighting=='photon')
+            except ValueError as err:
+                if err.message.split(":")[0] == 'Atmosphere parameters out of bounds':
+                    # let's override with a more helpful error message
+                    logger.warning(err.message)
+                    raise ValueError("Could not compute intensities with atm='{}'.  Try changing atm to a table that covers a sufficient range of values (or to 'blackbody' in which case ld_coeffs_source will likely need to be changed to 'none' and coefficients provided via ld_coeffs).  Enable 'warning' logger to see out-of-bounds arrays.".format(atm))
+                else:
+                    raise err
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
