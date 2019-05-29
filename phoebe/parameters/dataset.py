@@ -84,6 +84,9 @@ def lc(**kwargs):
     * `passband` (string, optional): passband.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy of photons.
+    * `ebv` (float, optional, default=0): extinction E(B-V).
+    * `Av` (float, optional, default=0): extinction Av.
+    * `Rv` (float, optional, default=3.1): extinction law parameter.
     * `pblum_ref` (string, optional): whether to use this components pblum or to
         couple to that from another component in the system.
     * `pblum` (float/quantity, optional): passband luminosity (defined at t0).
@@ -201,6 +204,9 @@ def rv(**kwargs):
     * `passband` (string, optional): passband.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy of photons.
+    * `ebv` (float, optional, default=0): extinction E(B-V).
+    * `Av` (float, optional, default=0): extinction Av.
+    * `Rv` (float, optional, default=3.1): extinction law parameter.
 
     Returns
     --------
@@ -265,6 +271,9 @@ def lp(**kwargs):
     * `passband` (string, optional): passband.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy of photons.
+    * `ebv` (float, optional, default=0): extinction E(B-V).
+    * `Av` (float, optional, default=0): extinction Av.
+    * `Rv` (float, optional, default=3.1): extinction law parameter.
 
     Returns
     --------
