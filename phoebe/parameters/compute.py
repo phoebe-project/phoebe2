@@ -20,7 +20,7 @@ def phoebe(**kwargs):
     pre-requisites are required.
 
     When using this backend, please see the
-    [list of publications](https://phoebe-project/org/publications) and cite
+    [list of publications](http://phoebe-project.org/publications) and cite
     the appropriate references.
 
     See also:
