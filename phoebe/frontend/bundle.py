@@ -213,6 +213,11 @@ class Bundle(ParameterSet):
         b = Bundle.open('test.phoebe')
         ```
 
+        If opening a bundle from an older version of PHOEBE, this will attempt
+        to make any necessary migrations.  Enable a logger at 'warning' (or higher)
+        level to see messages regarding these migrations.  To enable a logger,
+        see <phoebe.logger>.
+
         See also:
         * <phoebe.parameters.ParameterSet.open>
         * <phoebe.parameters.Parameter.open>
@@ -233,8 +238,8 @@ class Bundle(ParameterSet):
         b = cls(data)
 
         version = b.get_value('phoebe_version')
-        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.1.2')
-        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.1.2')
+        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.2.0')
+        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.2.0')
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
@@ -249,9 +254,49 @@ class Bundle(ParameterSet):
             logger.warning(warning)
             return b
 
+        if phoebe_version_import < StrictVersion("2.2.0"):
+            warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            # print("WARNING: {}".format(warning))
+            logger.warning(warning)
+
+            def existing_value(param):
+                if param.qualifier == 'l3':
+                    q = param.get_quantity()
+                    try:
+                        return q.to(u.W/u.m**2)
+                    except:
+                        # older versions had the unit incorrect, so let's just assume u.W/u.m**3 meant u.W/u.m**2
+                        return q.to(u.W/u.m**3).value * u.W/u.m**2
+                else:
+                    return param.get_quantity() if hasattr(param, 'get_quantity') else param.get_value()
+
+            for ds in b.filter(context='dataset').datasets:
+                # NOTE: before 2.2.0, contexts included *_syn and *_dep, so
+                # we need to be aware of that in this block of logic.
+                ds_kind = b.get_dataset(ds).exclude(kind=["*_syn", "*_dep"]).kind
+                existing_values = {}
+                for qualifier in b.filter(context='dataset', dataset=ds, check_visible=False, check_default=False).qualifiers:
+                    ps = b.filter(qualifier=qualifier, context='dataset', dataset=ds, check_visible=False)
+                    if len(ps.to_list()) > 1:
+                        existing_values[qualifier] = {}
+                        for param in ps.to_list():
+                            existing_values[qualifier]["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = existing_value(param)
+                    else:
+                        param = b.get_parameter(qualifier=qualifier, context='dataset', dataset=ds, check_visible=False, check_default=False)
+                        existing_values[qualifier] = existing_value(param)
+
+
+                if ds_kind in ['lp']:
+                    # then we need to pass the times from the attribute instead of parameter
+                    existing_values['times'] = b.filter(context='dataset', dataset=ds, check_visible=False, check_default=False).times
+
+                logger.warning("re-creating '{}' {} dataset".format(ds_kind, ds))
+                logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
+                b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
+
         if phoebe_version_import < StrictVersion("2.1.2"):
             b._import_before_v211 = True
-            warning = "Importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
             print("WARNING: {}".format(warning))
             logger.warning(warning)
 
