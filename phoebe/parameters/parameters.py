@@ -2930,9 +2930,6 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        # For kinds, we want to ignore the deps - those won't have arrays
-        kinds = [m for m in ps.kinds if m[-3:] != 'dep']
-
         # If we are asking to plot a dataset that also shows up in columns in
         # the mesh, then remove the mesh kind.  In other words: mesh stuff
         # will only be plotted if mesh is the only kind in the filter.
@@ -2940,13 +2937,8 @@ class ParameterSet(object):
         if len(pskinds) > 1 and 'mesh' in pskinds:
             pskinds.remove('mesh')
 
-        if len(kinds) == 1 and len(pskinds) > 1:
-            # then we need to filter to exclude the dep
-            ps = ps.filter(check_visible=False, kind=kinds[0])
-            pskinds = [kinds[0]]
-
         if len(ps.kinds) > 1:
-            for kind in [m for m in pskinds if m[-3:]!='dep']:
+            for kind in pskinds:
                 this_return = ps.filter(check_visible=False, kind=kind)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
@@ -2965,7 +2957,8 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if len(ps.components) > 1:
+        if len(ps.components) > 1 and ps.kind not in ['lc']:
+            # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
             for component in ps.components:
                 this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(**kwargs)
