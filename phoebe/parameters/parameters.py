@@ -7343,6 +7343,7 @@ class HierarchyParameter(StringParameter):
          <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         See also:
+        * <phoebe.parameters.HierarchyParameter.is_meshable>
         * <phoebe.parameters.HierarchyParameter.get_components>
         * <phoebe.parameters.HierarchyParameter.get_top>
         * <phoebe.parameters.HierarchyParameter.get_stars>
@@ -7364,6 +7365,24 @@ class HierarchyParameter(StringParameter):
                 has_sibling_envelope.append(item)
 
         return [m for m in meshables if m not in has_sibling_envelope]
+
+    def is_meshable(self, component):
+        """
+        Determine if `component` is one of
+        <phoebe.parameters.HierarchyParameter.get_meshables>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_meshables>
+
+        Arguments
+        ------------
+        * `component` (string): the name of the component to check.
+
+        Returns
+        ----------
+        * (bool)
+        """
+        return component in self.get_meshables()
 
     def get_parent_of(self, component):
         """
