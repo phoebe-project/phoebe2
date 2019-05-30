@@ -270,6 +270,10 @@ class Bundle(ParameterSet):
                 else:
                     return param.get_quantity() if hasattr(param, 'get_quantity') else param.get_value()
 
+            # overwriting the datasets during migration will clear the model, so
+            # let's save a copy and re-attach it after
+            ps_model = b.filter(context='model', check_visible=False, check_default=False)
+
             for ds in b.filter(context='dataset').datasets:
                 # NOTE: before 2.2.0, contexts included *_syn and *_dep, so
                 # we need to be aware of that in this block of logic.
@@ -290,9 +294,12 @@ class Bundle(ParameterSet):
                     # then we need to pass the times from the attribute instead of parameter
                     existing_values['times'] = b.filter(context='dataset', dataset=ds, check_visible=False, check_default=False).times
 
-                logger.warning("re-creating '{}' {} dataset".format(ds_kind, ds))
+                logger.warning("migrating '{}' {} dataset.".format(ds, ds_kind))
                 logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
                 b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
+
+            logger.debug("restoring previous models")
+            b._attach_params(ps_model, context='model')
 
         if phoebe_version_import < StrictVersion("2.1.2"):
             b._import_before_v211 = True
