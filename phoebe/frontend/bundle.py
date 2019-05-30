@@ -2781,6 +2781,32 @@ class Bundle(ParameterSet):
             children components.  Optionally, you can override this by providing
             a subset (or single entry) of the stars or orbits in the hierarchy.
 
+        Additional keyword arguments (`**kwargs`) will be applied to the resulting
+        parameters, whenever possible.  See <phoebe.parameters.ParameterSet.set_value>
+        for changing the values of a <phoebe.parameters.Parameter> after it has
+        been attached.
+
+        The following formats are acceptable, when applicable:
+
+        * when passed as a single key-value pair (`times = [0,1,2,3]`), the passed
+            value will be applied to all parameters with qualifier of 'times',
+            including any with component = '_default' (in which case the value
+            will be copied to new parameters whenver a new component is added
+            to the system).
+        * when passed as a single key-value pair (`times = [0, 1, 2, 3]`), **but**
+            `component` (or `components`) is also passed (`component = ['primary']`),
+            the passed value will be applied to all parameters with qualifier
+            of 'times' and one of the passed components.  In this case, component
+            = '_default' will not be included, so the value will not be copied
+            to new parameters whenever a new component is added.
+        * when passed as a dictionary (`times = {'primary': [0,1], 'secondary': [0,1,2]}`),
+            separate values will be applied to parameters based on the component
+            provided (eg. for different times/rvs per-component for RV datasets)
+            or any general twig filter (eg. for different flux_densities per-time
+            and per-component: `flux_densities = {'0.00@primary': [...], ...}`).
+            Note that component = '_default' will only be set if it is included
+            in the dictionary.
+
         Arguments
         ----------
         * `kind` (string): function to call that returns a
@@ -2793,13 +2819,15 @@ class Bundle(ParameterSet):
             the observables.  For light curves this should be left at None to always
             compute the light curve for the entire system.  See above for the
             valid options for `component` and how it will default if not provided
-            based on the value of `kind`.
-        * `dataset` (string, optional): name of the newly-created feature.
+            based on the value of `kind` as well as how it affects the application
+            of any passed values to `**kwargs`.
+        * `dataset` (string, optional): name of the newly-created dataset.
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing dataset with the same `dataset` tag.  If False,
-            an error will be raised.
+            an error will be raised if a dataset already exists with the same name.
         * `**kwargs`: default values for any of the newly-created parameters
-            (passed directly to the matched callabled function).
+            (passed directly to the matched callabled function).  See examples
+            above for acceptable formats.
 
         Returns
         ---------
@@ -2808,6 +2836,8 @@ class Bundle(ParameterSet):
 
         Raises
         ----------
+        * ValueError: if a dataset with the provided `dataset` already exists,
+            but `overwrite` is not set to True.
         * NotImplementedError: if a required constraint is not implemented.
         """
 
@@ -2919,8 +2949,9 @@ class Bundle(ParameterSet):
             self.add_constraint(*constraint)
 
 
-        # Now we need to apply any kwargs sent by the user.  There are a few
-        # scenarios (and each kwargs could fall into different ones):
+        # Now we need to apply any kwargs sent by the user.  See the API docs
+        # above for more details and make sure to update there if the options here
+        # change.  There are a few scenarios (and each kwargs could fall into different ones):
         # times = [0,1,2]
         #    in this case, we want to apply time across all of the components that
         #    are applicable for this dataset kind AND to _default so that any
@@ -2976,18 +3007,44 @@ class Bundle(ParameterSet):
 
         for k, v in kwargs.items():
             if isinstance(v, dict):
-                for component, value in v.items():
-                    logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], component, value))
-                    try:
-                        self.set_value_all(qualifier=k,
-                                           dataset=kwargs['dataset'],
-                                           component=component,
-                                           value=value,
-                                           check_visible=False,
-                                           ignore_none=True)
-                    except Exception as err:
+                for component_or_twig, value in v.items():
+                    ps = self.filter(qualifier=k,
+                                     dataset=kwargs['dataset'],
+                                     check_visible=False,
+                                     check_default=False,
+                                     ignore_none=True)
+
+                    if component_or_twig in ps.components:
+                        component = component_or_twig
+                        logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], component, value))
+                        try:
+                            self.set_value_all(qualifier=k,
+                                               dataset=kwargs['dataset'],
+                                               component=component,
+                                               value=value,
+                                               check_visible=False,
+                                               check_default=False,
+                                               ignore_none=True)
+                        except Exception as err:
+                            self.remove_dataset(dataset=kwargs['dataset'])
+                            raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+                    elif len(ps.filter(component_or_twig, check_visible=False, check_default=False).to_list()) >= 1:
+                        twig = component_or_twig
+                        logger.debug("setting value of dataset parameter: qualifier={}, twig={}, component={}, value={}".format(k, kwargs['dataset'], twig, value))
+                        try:
+                            self.set_value_all(twig,
+                                               qualifier=k,
+                                               dataset=kwargs['dataset'],
+                                               value=value,
+                                               check_visible=False,
+                                               check_default=False,
+                                               ignore_none=True)
+                        except Exception as err:
+                            self.remove_dataset(dataset=kwargs['dataset'])
+                            raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+                    else:
                         self.remove_dataset(dataset=kwargs['dataset'])
-                        raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+                        raise ValueError("could not set value for {}={}.  {} did not match either a component or general filter.  Dataset has not been added".format(k, value, component_or_twig))
 
             elif k in ['dataset']:
                 pass
