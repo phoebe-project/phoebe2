@@ -213,6 +213,11 @@ class Bundle(ParameterSet):
         b = Bundle.open('test.phoebe')
         ```
 
+        If opening a bundle from an older version of PHOEBE, this will attempt
+        to make any necessary migrations.  Enable a logger at 'warning' (or higher)
+        level to see messages regarding these migrations.  To enable a logger,
+        see <phoebe.logger>.
+
         See also:
         * <phoebe.parameters.ParameterSet.open>
         * <phoebe.parameters.Parameter.open>
@@ -233,8 +238,8 @@ class Bundle(ParameterSet):
         b = cls(data)
 
         version = b.get_value('phoebe_version')
-        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.1.2')
-        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.1.2')
+        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.2.0')
+        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.2.0')
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
@@ -249,9 +254,56 @@ class Bundle(ParameterSet):
             logger.warning(warning)
             return b
 
+        if phoebe_version_import < StrictVersion("2.2.0"):
+            warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            # print("WARNING: {}".format(warning))
+            logger.warning(warning)
+
+            def existing_value(param):
+                if param.qualifier == 'l3':
+                    q = param.get_quantity()
+                    try:
+                        return q.to(u.W/u.m**2)
+                    except:
+                        # older versions had the unit incorrect, so let's just assume u.W/u.m**3 meant u.W/u.m**2
+                        return q.to(u.W/u.m**3).value * u.W/u.m**2
+                else:
+                    return param.get_quantity() if hasattr(param, 'get_quantity') else param.get_value()
+
+            # overwriting the datasets during migration will clear the model, so
+            # let's save a copy and re-attach it after
+            ps_model = b.filter(context='model', check_visible=False, check_default=False)
+
+            for ds in b.filter(context='dataset').datasets:
+                # NOTE: before 2.2.0, contexts included *_syn and *_dep, so
+                # we need to be aware of that in this block of logic.
+                ds_kind = b.get_dataset(ds).exclude(kind=["*_syn", "*_dep"]).kind
+                existing_values = {}
+                for qualifier in b.filter(context='dataset', dataset=ds, check_visible=False, check_default=False).qualifiers:
+                    ps = b.filter(qualifier=qualifier, context='dataset', dataset=ds, check_visible=False)
+                    if len(ps.to_list()) > 1:
+                        existing_values[qualifier] = {}
+                        for param in ps.to_list():
+                            existing_values[qualifier]["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = existing_value(param)
+                    else:
+                        param = b.get_parameter(qualifier=qualifier, context='dataset', dataset=ds, check_visible=False, check_default=False)
+                        existing_values[qualifier] = existing_value(param)
+
+
+                if ds_kind in ['lp']:
+                    # then we need to pass the times from the attribute instead of parameter
+                    existing_values['times'] = b.filter(context='dataset', dataset=ds, check_visible=False, check_default=False).times
+
+                logger.warning("migrating '{}' {} dataset.".format(ds, ds_kind))
+                logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
+                b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
+
+            logger.debug("restoring previous models")
+            b._attach_params(ps_model, context='model')
+
         if phoebe_version_import < StrictVersion("2.1.2"):
             b._import_before_v211 = True
-            warning = "Importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE which did not support constraints in solar units.  All constraints will remain in SI, but calling set_hierarchy will likely fail.".format(phoebe_version_import)
             print("WARNING: {}".format(warning))
             logger.warning(warning)
 
@@ -1849,7 +1901,7 @@ class Bundle(ParameterSet):
                         return False, "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
 
             for dataset in self.datasets:
-                if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
+                if dataset=='_default' or self.get_dataset(dataset=dataset).kind not in ['lc', 'rv']:
                     continue
                 ld_func = str(self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs))
                 ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
@@ -2781,6 +2833,32 @@ class Bundle(ParameterSet):
             children components.  Optionally, you can override this by providing
             a subset (or single entry) of the stars or orbits in the hierarchy.
 
+        Additional keyword arguments (`**kwargs`) will be applied to the resulting
+        parameters, whenever possible.  See <phoebe.parameters.ParameterSet.set_value>
+        for changing the values of a <phoebe.parameters.Parameter> after it has
+        been attached.
+
+        The following formats are acceptable, when applicable:
+
+        * when passed as a single key-value pair (`times = [0,1,2,3]`), the passed
+            value will be applied to all parameters with qualifier of 'times',
+            including any with component = '_default' (in which case the value
+            will be copied to new parameters whenver a new component is added
+            to the system).
+        * when passed as a single key-value pair (`times = [0, 1, 2, 3]`), **but**
+            `component` (or `components`) is also passed (`component = ['primary']`),
+            the passed value will be applied to all parameters with qualifier
+            of 'times' and one of the passed components.  In this case, component
+            = '_default' will not be included, so the value will not be copied
+            to new parameters whenever a new component is added.
+        * when passed as a dictionary (`times = {'primary': [0,1], 'secondary': [0,1,2]}`),
+            separate values will be applied to parameters based on the component
+            provided (eg. for different times/rvs per-component for RV datasets)
+            or any general twig filter (eg. for different flux_densities per-time
+            and per-component: `flux_densities = {'0.00@primary': [...], ...}`).
+            Note that component = '_default' will only be set if it is included
+            in the dictionary.
+
         Arguments
         ----------
         * `kind` (string): function to call that returns a
@@ -2793,13 +2871,15 @@ class Bundle(ParameterSet):
             the observables.  For light curves this should be left at None to always
             compute the light curve for the entire system.  See above for the
             valid options for `component` and how it will default if not provided
-            based on the value of `kind`.
-        * `dataset` (string, optional): name of the newly-created feature.
+            based on the value of `kind` as well as how it affects the application
+            of any passed values to `**kwargs`.
+        * `dataset` (string, optional): name of the newly-created dataset.
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing dataset with the same `dataset` tag.  If False,
-            an error will be raised.
+            an error will be raised if a dataset already exists with the same name.
         * `**kwargs`: default values for any of the newly-created parameters
-            (passed directly to the matched callabled function).
+            (passed directly to the matched callabled function).  See examples
+            above for acceptable formats.
 
         Returns
         ---------
@@ -2808,6 +2888,8 @@ class Bundle(ParameterSet):
 
         Raises
         ----------
+        * ValueError: if a dataset with the provided `dataset` already exists,
+            but `overwrite` is not set to True.
         * NotImplementedError: if a required constraint is not implemented.
         """
 
@@ -2893,18 +2975,18 @@ class Bundle(ParameterSet):
                        for component in components]):
             raise ValueError("'{}' not a recognized/allowable component".format(component))
 
-        obs_metawargs = {'context': 'dataset',
+        ds_metawargs = {'context': 'dataset',
                          'kind': kind,
                          'dataset': kwargs['dataset']}
 
         if kind in ['lp']:
             # then times needs to be passed now to duplicate and tag the Parameters
             # correctly
-            obs_kwargs = {'times': kwargs.pop('times', [])}
+            ds_kwargs = {'times': kwargs.pop('times', [])}
         else:
-            obs_kwargs = {}
+            ds_kwargs = {}
 
-        obs_params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **obs_kwargs)
+        params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **ds_kwargs)
 
         if kwargs.get('overwrite', False):
             self.remove_dataset(dataset=kwargs['dataset'])
@@ -2912,21 +2994,16 @@ class Bundle(ParameterSet):
             # something other than dataset
             self._check_label(kwargs['dataset'], allow_overwrite=False)
 
-        self._attach_params(obs_params, **obs_metawargs)
+        self._attach_params(params, **ds_metawargs)
 
         for constraint in constraints:
             # TODO: tricky thing here will be copying the constraints
             self.add_constraint(*constraint)
 
-        dep_func = _get_add_func(_dataset, "{}_dep".format(kind))
-        dep_metawargs = {'context': 'dataset',
-                         'kind': '{}_dep'.format(kind),
-                         'dataset': kwargs['dataset']}
-        dep_params = dep_func()
-        self._attach_params(dep_params, **dep_metawargs)
 
-        # Now we need to apply any kwargs sent by the user.  There are a few
-        # scenarios (and each kwargs could fall into different ones):
+        # Now we need to apply any kwargs sent by the user.  See the API docs
+        # above for more details and make sure to update there if the options here
+        # change.  There are a few scenarios (and each kwargs could fall into different ones):
         # times = [0,1,2]
         #    in this case, we want to apply time across all of the components that
         #    are applicable for this dataset kind AND to _default so that any
@@ -2982,18 +3059,44 @@ class Bundle(ParameterSet):
 
         for k, v in kwargs.items():
             if isinstance(v, dict):
-                for component, value in v.items():
-                    logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], component, value))
-                    try:
-                        self.set_value_all(qualifier=k,
-                                           dataset=kwargs['dataset'],
-                                           component=component,
-                                           value=value,
-                                           check_visible=False,
-                                           ignore_none=True)
-                    except Exception as err:
+                for component_or_twig, value in v.items():
+                    ps = self.filter(qualifier=k,
+                                     dataset=kwargs['dataset'],
+                                     check_visible=False,
+                                     check_default=False,
+                                     ignore_none=True)
+
+                    if component_or_twig in ps.components:
+                        component = component_or_twig
+                        logger.debug("setting value of dataset parameter: qualifier={}, dataset={}, component={}, value={}".format(k, kwargs['dataset'], component, value))
+                        try:
+                            self.set_value_all(qualifier=k,
+                                               dataset=kwargs['dataset'],
+                                               component=component,
+                                               value=value,
+                                               check_visible=False,
+                                               check_default=False,
+                                               ignore_none=True)
+                        except Exception as err:
+                            self.remove_dataset(dataset=kwargs['dataset'])
+                            raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+                    elif len(ps.filter(component_or_twig, check_visible=False, check_default=False).to_list()) >= 1:
+                        twig = component_or_twig
+                        logger.debug("setting value of dataset parameter: qualifier={}, twig={}, component={}, value={}".format(k, kwargs['dataset'], twig, value))
+                        try:
+                            self.set_value_all(twig,
+                                               qualifier=k,
+                                               dataset=kwargs['dataset'],
+                                               value=value,
+                                               check_visible=False,
+                                               check_default=False,
+                                               ignore_none=True)
+                        except Exception as err:
+                            self.remove_dataset(dataset=kwargs['dataset'])
+                            raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+                    else:
                         self.remove_dataset(dataset=kwargs['dataset'])
-                        raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+                        raise ValueError("could not set value for {}={}.  {} did not match either a component or general filter.  Dataset has not been added".format(k, value, component_or_twig))
 
             elif k in ['dataset']:
                 pass
@@ -3005,7 +3108,7 @@ class Bundle(ParameterSet):
                 if kind in ['rv', 'lp'] and k in ['ld_func', 'ld_coeffs',
                                                   'passband', 'intens_weighting',
                                                   'profile_rest', 'profile_func', 'profile_sv']:
-                    # passband-dependent (ie lc_dep) parameters do not have
+                    # passband-dependent parameters do not have
                     # assigned components
                     components_ = None
                 elif k in ['compute_times', 'compute_phases']:
@@ -3120,15 +3223,9 @@ class Bundle(ParameterSet):
         # let's handle deps if kind was passed
         kind = kwargs.get('kind', None)
 
-        if kind is not None:
-            if isinstance(kind, str):
-                kind = [kind]
-            kind_deps = []
-            for kind_i in kind:
-                dep = '{}_dep'.format(kind_i)
-                if dep not in kind:
-                    kind_deps.append(dep)
-            kind = kind + kind_deps
+        if isinstance(kind, str):
+            kind = [kind]
+
         kwargs['kind'] = kind
 
 
@@ -3150,11 +3247,6 @@ class Bundle(ParameterSet):
         # parameters, etc
         kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute'])
 
-        # ps = self.filter(**kwargs)
-        # logger.info('removing {} parameters (this is not undoable)'.\
-        #             format(len(ps)))
-
-        # print "*** kwargs", kwargs, len(ps)
         self.remove_parameters_all(**kwargs)
         # not really sure why we need to call this twice, but it seems to do
         # the trick
@@ -4299,9 +4391,10 @@ class Bundle(ParameterSet):
             a new set of compute options with a default label.
         * `model` (string, optional): name of the resulting model.  If not
             provided this will default to 'latest'.  NOTE: existing models
-            with the same name will be overwritten - including 'latest'.
-            See also <phoebe.frontend.bundle.Bundle.rename_model> to rename
-            a model after creation.
+            with the same name will be overwritten depending on the value
+            of `overwrite` (see below).   See also
+            <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
+            creation.
         * `detach` (bool, optional, default=False, EXPERIMENTAL):
             whether to detach from the computation run,
             or wait for computations to complete.  If detach is True, see

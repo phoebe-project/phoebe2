@@ -571,6 +571,24 @@ def mpi_off():
 # let's use magic to shutdown the workers when the user-script is complete
 atexit.register(mpi.shutdown_workers)
 
+# edit API docs for imported functions
+array, linspace, arange, logspace, geomspace
+
+def add_nparray_docstring(obj):
+
+    nparraydocsprefix = """This is an included dependency from [nparray](https://nparray.readthedocs.io).\n\n===============================================================\n\n"""
+
+    obj.__doc__ = nparraydocsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+
+add_nparray_docstring(array)
+add_nparray_docstring(linspace)
+add_nparray_docstring(arange)
+add_nparray_docstring(logspace)
+add_nparray_docstring(geomspace)
+
+
+
+
 # delete things we don't want exposed to the user at the top-level
 # NOTE: we need _sys for reset_settings
 del os
@@ -587,3 +605,5 @@ except:
 del logging
 del Settings
 del MPI
+
+del add_nparray_docstring

@@ -112,12 +112,7 @@ _forbidden_labels = deepcopy(_meta_fields_all)
 
 # forbid all "contexts"
 _forbidden_labels += _contexts
-_forbidden_labels += ['lc', 'lc_dep', 'lc_syn',
-                      'rv', 'rv_dep', 'rv_syn',
-                      'lp', 'lp_dep', 'lp_syn',
-                      'sp', 'sp_dep', 'sp_syn',
-                      'orb', 'orb_dep', 'orb_syn',
-                      'mesh', 'mesh_dep', 'mesh_syn']
+_forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh']
 
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
@@ -1179,11 +1174,11 @@ class ParameterSet(object):
                 # means that this should exist for each component (since that has a wildcard) which
                 # has a kind in [star, disk, custombody]
                 #
-                # copy_for = {'kind': ['rv_dep'], 'component': '*', 'dataset': '*'}
+                # copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}
                 # or
-                # copy_for = {'component': {}, 'dataset': {'kind': 'rv_dep'}}
+                # copy_for = {'component': {}, 'dataset': {'kind': 'rv'}}
                 # means that this should exist for each component/dataset pair with the
-                # rv_dep kind
+                # rv kind
                 #
                 # copy_for = {'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}
                 # means that this should exist for each component/dataset pair
@@ -2845,16 +2840,16 @@ class ParameterSet(object):
         else:
             dataset_ps = self.filter(dataset=dataset, context='dataset')
 
-        dataset_kind = dataset_ps.filter(kind='*dep').kind
+        dataset_kind = dataset_ps.kind
 
         if not len(self.filter(context='model').models):
             model_ps = self._bundle.get_model(model=model).filter(dataset=dataset, component=component)
         else:
             model_ps = self.filter(model=model, context='model').filter(dataset=dataset, component=component)
 
-        if dataset_kind == 'lc_dep':
+        if dataset_kind == 'lc':
             qualifier = 'fluxes'
-        elif dataset_kind == 'rv_dep':
+        elif dataset_kind == 'rv':
             qualifier = 'rvs'
         else:
             # TODO: lp compared for a given time interpolating in wavelength?
@@ -2910,7 +2905,7 @@ class ParameterSet(object):
 
         ps = self.filter(check_visible=False, **filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases'])
 
-        if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn', 'lp', 'lp_syn']:
+        if 'time' in kwargs.keys() and ps.kind in ['mesh', 'lp']:
             ps = ps.filter(time=kwargs.get('time'))
 
         # If ps returns more than one dataset/model/component, then we need to
@@ -2935,9 +2930,6 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        # For kinds, we want to ignore the deps - those won't have arrays
-        kinds = [m for m in ps.kinds if m[-3:] != 'dep']
-
         # If we are asking to plot a dataset that also shows up in columns in
         # the mesh, then remove the mesh kind.  In other words: mesh stuff
         # will only be plotted if mesh is the only kind in the filter.
@@ -2945,13 +2937,8 @@ class ParameterSet(object):
         if len(pskinds) > 1 and 'mesh' in pskinds:
             pskinds.remove('mesh')
 
-        if len(kinds) == 1 and len(pskinds) > 1:
-            # then we need to filter to exclude the dep
-            ps = ps.filter(check_visible=False, kind=kinds[0])
-            pskinds = [kinds[0]]
-
         if len(ps.kinds) > 1:
-            for kind in [m for m in pskinds if m[-3:]!='dep']:
+            for kind in pskinds:
                 this_return = ps.filter(check_visible=False, kind=kind)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
@@ -2970,7 +2957,8 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if len(ps.components) > 1:
+        if len(ps.components) > 1 and ps.kind not in ['lc']:
+            # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
             for component in ps.components:
                 this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(**kwargs)
@@ -2978,7 +2966,7 @@ class ParameterSet(object):
             return return_
 
 
-        if ps.kind in ['mesh', 'mesh_syn', 'orb', 'orb_syn'] and \
+        if ps.kind in ['mesh', 'orb'] and \
                 ps.context == 'dataset':
             # nothing to plot here... at least for now
             return []
@@ -3051,7 +3039,7 @@ class ParameterSet(object):
 
             #### RETRIEVE DATA ARRAYS
             if isinstance(current_value, str):
-                if ps.kind not in ['mesh'] and direction in ['fc', 'ec']:
+                if ps.kind != 'mesh' and direction in ['fc', 'ec']:
                     logger.warning("fc and ec are not allowable for dataset={} with kind={}, ignoring {}={}".format(ps.dataset, ps.kind, direction, current_value))
                     _dump = kwargs.pop(direction)
                     return kwargs
@@ -3139,7 +3127,7 @@ class ParameterSet(object):
                     if 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
                         times = ps._bundle.get_value('times', dataset=ps.dataset, component=ps.component, context='dataset')
-                    elif ps.kind in ['etvs']:
+                    elif ps.kind == 'etvs':
                         times = ps.get_value('time_ecls', unit=u.d)
                     else:
                         times = ps.get_value('times', unit=u.d)
@@ -3175,7 +3163,7 @@ class ParameterSet(object):
                     # the same mesh (e.g. rvs@rv01 inside kind=mesh).  Let's
                     # check for that first.
 
-                    if ps.kind in ['mesh'] and ps._bundle is not None:
+                    if ps.kind == 'mesh' and ps._bundle is not None:
                         full_mesh_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'dataset']}
                         full_mesh_ps = ps._bundle.filter(**full_mesh_meta)
                         candidate_params = full_mesh_ps.filter(current_value)
@@ -3213,7 +3201,7 @@ class ParameterSet(object):
 
         #### DIRECTION DEFAULTS
         # define defaults for directions based on ps.kind
-        if ps.kind in ['mesh', 'mesh_syn']:
+        if ps.kind == 'mesh':
             # first determine from any passed values if we're in xyz or uvw
             # (do not allow mixing between roche and POS)
             detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
@@ -3291,7 +3279,7 @@ class ParameterSet(object):
 
             sigmas_avail = []
 
-        elif ps.kind in ['orb', 'orb_syn']:
+        elif ps.kind == 'orb':
             # similar logic to meshes above, except we only have uvw
             coordinates = ['us', 'vs', 'ws']
 
@@ -3316,17 +3304,17 @@ class ParameterSet(object):
                 defaults['z'] = 0
 
             sigmas_avail = []
-        elif ps.kind in ['lc', 'lc_syn']:
+        elif ps.kind == 'lc':
             defaults = {'x': 'times',
                         'y': 'fluxes',
                         'z': 0}
             sigmas_avail = ['fluxes']
-        elif ps.kind in ['rv', 'rv_syn']:
+        elif ps.kind == 'rv':
             defaults = {'x': 'times',
                         'y': 'rvs',
                         'z': 0}
             sigmas_avail = ['rvs']
-        elif ps.kind in ['lp', 'lp_syn']:
+        elif ps.kind == 'lp':
             defaults = {'x': 'wavelengths',
                         'y': 'flux_densities',
                         'z': 0}
@@ -3343,7 +3331,7 @@ class ParameterSet(object):
             kwargs.setdefault('uncover', True)
             kwargs.setdefault('trail', 0)
 
-        elif ps.kind in ['etv', 'etv_syn']:
+        elif ps.kind == 'etv':
             defaults = {'x': 'time_ecls',
                         'y': 'etvs',
                         'z': 0}
@@ -3355,7 +3343,7 @@ class ParameterSet(object):
         #### DETERMINE AUTOFIG PLOT TYPE
         # NOTE: this must be done before calling _kwargs_fill_dimension below
         cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
-        if ps.kind in ['mesh']:
+        if ps.kind == 'mesh':
             if mesh_all_cartesian:
                 kwargs['autofig_method'] = 'mesh'
             else:
@@ -3382,7 +3370,7 @@ class ParameterSet(object):
         # try to find 'times' in the cartesian dimensions:
         iqualifier = kwargs.pop('i', 'times')
         for af_direction in ['x', 'y', 'z']:
-            if kwargs['autofig_method'] != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
+            if kwargs.get('autofig_method', 'plot') != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
                 kwargs['i'] = af_direction
                 kwargs['iqualifier'] = None
                 break
@@ -3405,7 +3393,7 @@ class ParameterSet(object):
                     kwargs['iqualifier'] = iqualifier
                 else:
                     raise NotImplementedError
-            elif ps.kind in ['etv']:
+            elif ps.kind == 'etv':
                 if iqualfier=='times':
                     kwargs['i'] = ps.get_quantity(qualifier='time_ecls')
                     kwargs['iqualifier'] = 'time_ecls'
@@ -3434,7 +3422,7 @@ class ParameterSet(object):
         if ps.context == 'dataset':
             kwargs.setdefault('linestyle', 'none')
         elif ps.context == 'model':
-            if ps.kind in ['mesh', 'mesh_syn'] and kwargs['autofig_method'] == 'plot':
+            if ps.kind == 'mesh' and kwargs['autofig_method'] == 'plot':
                 kwargs.setdefault('marker', '^')
                 kwargs.setdefault('linestyle', 'none')
             else:
@@ -8795,7 +8783,8 @@ class HistoryParameter(Parameter):
 
 class JobParameter(Parameter):
     """
-    Parameter that tracks a submitted job (detached run_compute or run_fitting)
+    Parameter that tracks a submitted job (detached
+    <phoebe.frontend.bundle.Bundle.run_compute>, for example)
     """
     def __init__(self, b, location, status_method, retrieve_method, server_status=None, **kwargs):
         """
@@ -8834,11 +8823,13 @@ class JobParameter(Parameter):
         representations, we'll provide the current status.
 
         Also see:
-            * :meth:`location`
-            * :meth:`status_method`
-            * :meth:`retrieve_method`
-            * :meth:`status`
-            * :meth:`attach`
+            * <phoebe.parameters.JobParameter.status>
+            * <phoebe.parameters.JobParameter.attach>
+            * <phoebe.parameters.JobParameter.location>
+            * <phoebe.parameters.JobParameter.server_status>
+            * <phoebe.parameters.JobParameter.status_method>
+            * <phoebe.parameters.JobParameter.retrieve_method>
+
         """
         return self.status
 
@@ -8857,37 +8848,78 @@ class JobParameter(Parameter):
     @property
     def server_status(self):
         """
+        Access the status of the remote server, if applicable.
+
+        Returns
+        -----------
+        * (str)
         """
         return self._server_status
 
     @property
     def location(self):
         """
+        Access the location of the remote server, if applicable.
+
+        Returns
+        ----------
+        * (str)
         """
         return self._location
 
     @property
     def status_method(self):
         """
+        Access the method for determining the status of the Job.
+
+        Returns
+        ---------
+        * (str)
         """
         return self._status_method
 
     @property
     def retrieve_method(self):
         """
+        Access the method for retrieving the results from the Job, once completed.
+
+        Returns
+        -----------
+        * (str)
         """
         return self._retrieve_method
 
     @property
     def status(self):
         """
-        :raises NotImplementedError: if status isn't implemented for the given :meth:`status_method
+        Access the status of the Job.  This is just a property shortcut to
+        <phoebe.parameters.JobParameter.get_status>.
+
+        Returns
+        ---------
+        * (str): the current status of the Job.
+
+        Raises
+        ------------
+        * NotImplementedError: if status isn't implemented for the given <phoebe.parameters.JobParameter.status_method>
         """
         return self.get_status()
 
     def get_status(self):
         """
-        [NOT IMPLEMENTED]
+        Access the status of the Job.
+
+        Returns
+        ---------
+        * (str): the current status of the Job.
+
+        Raises
+        ------------
+        * ImportError: if the requests module is not installed - this is
+            required to handle detached Jobs.
+        * ValueError: if the status of the Job cannot be determined.
+        * NotImplementedError: if status isn't implemented for the given
+            <phoebe.parameters.JobParameter.status_method>.
         """
         if self._value == 'loaded':
             status = 'loaded'
@@ -8939,12 +8971,20 @@ class JobParameter(Parameter):
 
     def attach(self, sleep=5, cleanup=True):
         """
+        Attach the results from a <phoebe.parameters.JobParameter> to the
+        <phoebe.frontend.bundle.Bundle>.  If the status is not yet reported as
+        complete, this will loop every `sleep` seconds until it is.
 
-        :parameter int sleep: number of seconds to sleep between status checks
-        :parameter bool cleanup: whether to delete this parameter and any temporary
-            files once the results are loaded (default: True)
-        :raises ValueError: if not attached to a bundle
-        :raises NotImplementedError: because it isn't
+        Arguments
+        ---------
+        * `sleep` (int, optional, default=5): number of seconds to sleep between
+            status checks.  See <phoebe.parameters.JobParameter.get_status>.
+        * `cleanup` (bool, optional, default=True): whether to delete this
+            parameter and any temporary files once the results are loaded.
+
+        Raises
+        -----------
+        * ValueError: if not attached to a <phoebe.frontend.bundle.Bundle> object.
         """
         if not self._bundle:
             raise ValueError("can only attach a job if attached to a bundle")
