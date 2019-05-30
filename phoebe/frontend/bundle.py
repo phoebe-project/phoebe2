@@ -4278,6 +4278,11 @@ class Bundle(ParameterSet):
         logger.info("adding {} '{}' compute to bundle".format(metawargs['kind'], metawargs['compute']))
         self._attach_params(params, **metawargs)
 
+        if kind=='phoebe' and 'ntriangles' not in kwargs.keys():
+            # the default for ntriangles in compute.py is 1500, we want 3000 for an envelope
+            for envelope in self.hierarchy.get_envelopes():
+                self.set_value('ntriangles', compute=kwargs['compute'], component=envelope, value=3000, check_visible=False)
+
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_compute',
