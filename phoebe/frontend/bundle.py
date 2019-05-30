@@ -4282,9 +4282,10 @@ class Bundle(ParameterSet):
             a new set of compute options with a default label.
         * `model` (string, optional): name of the resulting model.  If not
             provided this will default to 'latest'.  NOTE: existing models
-            with the same name will be overwritten - including 'latest'.
-            See also <phoebe.frontend.bundle.Bundle.rename_model> to rename
-            a model after creation.
+            with the same name will be overwritten depending on the value
+            of `overwrite` (see below).   See also
+            <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
+            creation.
         * `detach` (bool, optional, default=False, EXPERIMENTAL):
             whether to detach from the computation run,
             or wait for computations to complete.  If detach is True, see
