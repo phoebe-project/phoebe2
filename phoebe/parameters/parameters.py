@@ -3370,7 +3370,7 @@ class ParameterSet(object):
         # try to find 'times' in the cartesian dimensions:
         iqualifier = kwargs.pop('i', 'times')
         for af_direction in ['x', 'y', 'z']:
-            if kwargs['autofig_method'] != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
+            if kwargs.get('autofig_method', 'plot') != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
                 kwargs['i'] = af_direction
                 kwargs['iqualifier'] = None
                 break
