@@ -6428,7 +6428,7 @@ class FloatParameter(Parameter):
         if run_constraints is None:
             run_constraints = conf.interactive_constraints
 
-        if _orig_quantity is not None and isinstance(value.value, float) and abs(_orig_quantity - value).value < 1e-12:
+        if _orig_quantity is not None and self.__class__.__name__ == 'FloatParameter' and abs(_orig_quantity - value).value < 1e-12:
             logger.debug("value of {} didn't change within 1e-12, skipping triggering of constraints".format(self.twig))
         elif run_constraints:
             if len(self._in_constraints):
