@@ -1944,6 +1944,19 @@ class Bundle(ParameterSet):
                                 else:
                                     return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
+        def _get_proj_area(comp):
+            if self.hierarchy.get_kind_of(comp)=='envelope':
+                return np.sum([_get_proj_area(c) for c in self.hierarchy.get_siblings_of(comp)])
+            else:
+                return np.pi*self.get_value(qualifier='requiv', component=comp, context='component', unit='solRad')**2
+
+        def _get_surf_area(comp):
+            if self.hierarchy.get_kind_of(comp)=='envelope':
+                return np.sum([_get_surf_area(c) for c in self.hierarchy.get_siblings_of(comp)])
+            else:
+                return 4*np.pi*self.get_value(qualifier='requiv', component=comp, context='component', unit='solRad')**2
+
+
         for compute in computes:
             compute_kind = self.get_compute(compute=compute).kind
 
@@ -1955,9 +1968,8 @@ class Bundle(ParameterSet):
 
             # estimate if any body is smaller than any other body's triangles, using a spherical assumption
             if compute_kind=='phoebe' and 'wd' not in mesh_methods:
-                requivs = {comp: self.get_value(qualifier='requiv', component=comp, context='component', unit='solRad')**2 for comp in self.hierarchy.get_stars()}
-                areas = {comp: np.pi*requiv**2 for comp, requiv in requivs.items()}
-                triangle_areas = {comp: (4*np.pi*requiv**2)/self.get_value('ntriangles', component=comp, compute=compute) for comp, requiv in requivs.items()}
+                areas = {comp: _get_proj_area(comp) for comp in self.hierarchy.get_meshables()}
+                triangle_areas = {comp: _get_surf_area(comp)/self.get_value('ntriangles', component=comp, compute=compute) for comp in self.hierarchy.get_meshables()}
                 if max(triangle_areas.values()) > 5*min(areas.values()):
                     if max(triangle_areas.values()) > 2*min(areas.values()):
                         offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 2*min(areas.values())]
