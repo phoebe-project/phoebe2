@@ -6439,7 +6439,7 @@ class FloatParameter(Parameter):
             # then we want to delay running constraints... so we need to track
             # which ones need to be run once requested
             if len(self._in_constraints):
-                logger.debug("changing value of {} (by {} from {} to {}) triggers delayed constraints {}".format(self.twig, bs(_orig_quantity - value).value, _orig_quantity, value, [c.twig for c in self.in_constraints]))
+                logger.debug("changing value of {} (by {} from {} to {}) triggers delayed constraints {}".format(self.twig, abs(_orig_quantity - value).value, _orig_quantity, value, [c.twig for c in self.in_constraints]))
             for constraint_id in self._in_constraints:
                 if constraint_id not in self._bundle._delayed_constraints:
                     self._bundle._delayed_constraints.append(constraint_id)
