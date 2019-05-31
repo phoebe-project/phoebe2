@@ -3620,6 +3620,7 @@ class Bundle(ParameterSet):
         Flip an existing constraint to solve for a different parameter.
 
         See also:
+        * <phoebe.frontend.bundle.Bundle.flip_constraint_all>
         * <phoebe.frontend.bundle.Bundle.add_constraint>
         * <phoebe.frontend.bundle.Bundle.get_constraint>
         * <phoebe.frontend.bundle.Bundle.remove_constraint>
@@ -3628,14 +3629,27 @@ class Bundle(ParameterSet):
 
         Arguments
         ----------
-        * `twig` (string, optional, default=None): twig to filter the constraint
+        * `twig` (string, optional, default=None): twig to filter the constraint.
+            This (along with `**kwargs`) must resolve to a single constraint or
+            else a ValueError will be raised.  See
+            <phoebe.frontend.bundle.Bundle.flip_constraint_all> for flipping
+            multiple constraints at once.
         * `solve_for` (string or Parameter, optional, default=None): twig or
             <phoebe.parameters.Parameter> object of the new parameter for which
             this constraint should constrain (solve for).
+        * `**kwargs`: additional kwargs to use for filtering.
 
         Returns
         ---------
         * The <phoebe.parameters.ConstraintParameter>.
+
+        Raises
+        --------
+        * ValueError: if the constraint cannot be flipped because one of the
+            dependent parameters is currently nan
+        * ValueError: if cannot resolve to a single constraint.  See
+            <phoebe.frontend.bundle.Bundle.flip_constraint_all> for flipping
+            multiple constraints at once.
         """
         self._kwargs_checks(kwargs, additional_allowed_keys=['check_nan'])
 
@@ -3677,6 +3691,51 @@ class Bundle(ParameterSet):
                           undo_kwargs=undo_kwargs)
 
         return param
+
+    def flip_constraint_all(self, twig=None, solve_for=None, **kwargs):
+        """
+        Flip a multiple existing constraints to solve for a different parameter.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.flip_constraint>
+        * <phoebe.frontend.bundle.Bundle.add_constraint>
+        * <phoebe.frontend.bundle.Bundle.get_constraint>
+        * <phoebe.frontend.bundle.Bundle.remove_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_constraint>
+        * <phoebe.frontend.bundle.Bundle.run_delayed_constraints>
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig to filter the constraint.
+            If multiple constraints are returned from this and `**kwargs`, each
+            will attempt to be flipped for the same value of `solve_for`
+        * `solve_for` (string or Parameter, optional, default=None): twig or
+            <phoebe.parameters.Parameter> object of the new parameter for which
+            this constraint should constrain (solve for).
+        * `**kwargs`: additional kwargs to use for filtering.
+
+        Returns
+        ---------
+        * The <phoebe.parameters.ConstraintParameter>.
+
+        Raises
+        --------
+        * ValueError: if the constraint cannot be flipped because one of the
+            dependent parameters is currently nan
+        * ValueError: if cannot resolve to a single constraint.  See
+            <phoebe.frontend.bundle.Bundle.flip_constraint_all> for flipping
+            multiple constraints at once.
+        """
+        self._kwargs_checks(kwargs, additional_allowed_keys=['check_nan'])
+
+        if twig is not None:
+            kwargs['twig'] = twig
+        kwargs['context'] = 'constraint'
+
+        constraints = self.filter(**kwargs)
+
+        for constraint in constraints.to_list():
+            self.flip_constraint(uniqueid=constraint.uniqueid, solve_for=solve_for)
 
     def run_constraint(self, twig=None, return_parameter=False, **kwargs):
         """
