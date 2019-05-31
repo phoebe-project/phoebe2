@@ -249,6 +249,10 @@ class Passband:
             struct['_phoenix_axes'] = self._phoenix_axes
             struct['_phoenix_energy_grid'] = self._phoenix_energy_grid
             struct['_phoenix_photon_grid'] = self._phoenix_photon_grid
+        if 'blended' in self.content:
+            struct['_blended_axes'] = self._blended_axes
+            struct['_blended_energy_grid'] = self._blended_energy_grid
+            struct['_blended_photon_grid'] = self._blended_photon_grid
         if 'ck2004_all' in self.content:
             struct['_ck2004_intensity_axes'] = self._ck2004_intensity_axes
             struct['_ck2004_Imu_energy_grid'] = self._ck2004_Imu_energy_grid
@@ -261,18 +265,30 @@ class Passband:
             struct['_phoenix_Imu_photon_grid'] = self._phoenix_Imu_photon_grid
             # struct['_ck2004_boosting_energy_grid'] = self._ck2004_boosting_energy_grid
             # struct['_ck2004_boosting_photon_grid'] = self._ck2004_boosting_photon_grid
+        if 'blended_all' in self.content:
+            struct['_blended_intensity_axes'] =  self._blended_intensity_axes
+            struct['_blended_Imu_energy_grid'] = self._blended_Imu_energy_grid
+            struct['_blended_Imu_photon_grid'] = self._blended_Imu_photon_grid
+            # struct['_blended_boosting_energy_grid'] = self._blended_boosting_energy_grid
+            # struct['_blended_boosting_photon_grid'] = self._blended_boosting_photon_grid
         if 'ck2004_ld' in self.content:
             struct['_ck2004_ld_energy_grid'] = self._ck2004_ld_energy_grid
             struct['_ck2004_ld_photon_grid'] = self._ck2004_ld_photon_grid
         if 'phoenix_ld' in self.content:
             struct['_phoenix_ld_energy_grid'] = self._phoenix_ld_energy_grid
             struct['_phoenix_ld_photon_grid'] = self._phoenix_ld_photon_grid
+        if 'blended_ld' in self.content:
+            struct['_blended_ld_energy_grid'] = self._blended_ld_energy_grid
+            struct['_blended_ld_photon_grid'] = self._blended_ld_photon_grid
         if 'ck2004_ldint' in self.content:
             struct['_ck2004_ldint_energy_grid'] = self._ck2004_ldint_energy_grid
             struct['_ck2004_ldint_photon_grid'] = self._ck2004_ldint_photon_grid
         if 'phoenix_ldint' in self.content:
             struct['_phoenix_ldint_energy_grid'] = self._phoenix_ldint_energy_grid
             struct['_phoenix_ldint_photon_grid'] = self._phoenix_ldint_photon_grid
+        if 'blended_ldint' in self.content:
+            struct['_blended_ldint_energy_grid'] = self._blended_ldint_energy_grid
+            struct['_blended_ldint_photon_grid'] = self._blended_ldint_photon_grid
         if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
@@ -418,6 +434,20 @@ class Passband:
                 self._phoenix_energy_grid = struct['_phoenix_energy_grid']
                 self._phoenix_photon_grid = struct['_phoenix_photon_grid']
 
+        if 'blended' in self.content:
+            # Blended (ramped) ck2004-to-blackbody:
+            if marshaled:
+                # Axes needs to be a tuple of np.arrays, and grid a np.array:
+                self._blended_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_blended_axes']))
+                self._blended_energy_grid = np.fromstring(struct['_blended_energy_grid'], dtype='float64')
+                self._blended_energy_grid = self._blended_energy_grid.reshape(len(self._blended_axes[0]), len(self._blended_axes[1]), len(self._blended_axes[2]), 1)
+                self._blended_photon_grid = np.fromstring(struct['_blended_photon_grid'], dtype='float64')
+                self._blended_photon_grid = self._blended_photon_grid.reshape(len(self._blended_axes[0]), len(self._blended_axes[1]), len(self._blended_axes[2]), 1)
+            else:
+                self._blended_axes = struct['_blended_axes']
+                self._blended_energy_grid = struct['_blended_energy_grid']
+                self._blended_photon_grid = struct['_blended_photon_grid']
+        
         if 'ck2004_all' in self.content:
             # CASTELLI & KURUCZ (2004) all intensities:
             if marshaled:
@@ -458,6 +488,26 @@ class Passband:
                 # self._phoenix_boosting_energy_grid = struct['_phoenix_boosting_energy_grid']
                 # self._phoenix_boosting_photon_grid = struct['_phoenix_boosting_photon_grid']
 
+        if 'blended_all' in self.content:
+            # Blended model atmohperes, all intensities:
+            if marshaled:
+                # Axes needs to be a tuple of np.arrays, and grid a np.array:
+                self._blended_intensity_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_blended_intensity_axes']))
+                self._blended_Imu_energy_grid = np.fromstring(struct['_blended_Imu_energy_grid'], dtype='float64')
+                self._blended_Imu_energy_grid = self._blended_Imu_energy_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), len(self._blended_intensity_axes[3]), 1)
+                self._blended_Imu_photon_grid = np.fromstring(struct['_blended_Imu_photon_grid'], dtype='float64')
+                self._blended_Imu_photon_grid = self._blended_Imu_photon_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), len(self._blended_intensity_axes[3]), 1)
+                # self._blended_boosting_energy_grid = np.fromstring(struct['_blended_boosting_energy_grid'], dtype='float64')
+                # self._blended_boosting_energy_grid = self._blended_boosting_energy_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), len(self._blended_intensity_axes[3]), 1)
+                # self._blended_boosting_photon_grid = np.fromstring(struct['_blended_boosting_photon_grid'], dtype='float64')
+                # self._blended_boosting_photon_grid = self._blended_boosting_photon_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), len(self._blended_intensity_axes[3]), 1)
+            else:
+                self._blended_intensity_axes = struct['_blended_intensity_axes']
+                self._blended_Imu_energy_grid = struct['_blended_Imu_energy_grid']
+                self._blended_Imu_photon_grid = struct['_blended_Imu_photon_grid']
+                # self._blended_boosting_energy_grid = struct['_blended_boosting_energy_grid']
+                # self._blended_boosting_photon_grid = struct['_blended_boosting_photon_grid']
+
         if 'ck2004_ld' in self.content:
             if marshaled:
                 self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_ld_energy_grid'], dtype='float64')
@@ -478,6 +528,16 @@ class Passband:
                 self._phoenix_ld_energy_grid = struct['_phoenix_ld_energy_grid']
                 self._phoenix_ld_photon_grid = struct['_phoenix_ld_photon_grid']
 
+        if 'blended_ld' in self.content:
+            if marshaled:
+                self._blended_ld_energy_grid = np.fromstring(struct['_blended_ld_energy_grid'], dtype='float64')
+                self._blended_ld_energy_grid = self._blended_ld_energy_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), 11)
+                self._blended_ld_photon_grid = np.fromstring(struct['_blended_ld_photon_grid'], dtype='float64')
+                self._blended_ld_photon_grid = self._blended_ld_photon_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), 11)
+            else:
+                self._blended_ld_energy_grid = struct['_blended_ld_energy_grid']
+                self._blended_ld_photon_grid = struct['_blended_ld_photon_grid']
+
         if 'ck2004_ldint' in self.content:
             if marshaled:
                 self._ck2004_ldint_energy_grid = np.fromstring(struct['_ck2004_ldint_energy_grid'], dtype='float64')
@@ -497,6 +557,16 @@ class Passband:
             else:
                 self._phoenix_ldint_energy_grid = struct['_phoenix_ldint_energy_grid']
                 self._phoenix_ldint_photon_grid = struct['_phoenix_ldint_photon_grid']
+
+        if 'blended_ldint' in self.content:
+            if marshaled:
+                self._blended_ldint_energy_grid = np.fromstring(struct['_blended_ldint_energy_grid'], dtype='float64')
+                self._blended_ldint_energy_grid = self._blended_ldint_energy_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), 1)
+                self._blended_ldint_photon_grid = np.fromstring(struct['_blended_ldint_photon_grid'], dtype='float64')
+                self._blended_ldint_photon_grid = self._blended_ldint_photon_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), 1)
+            else:
+                self._blended_ldint_energy_grid = struct['_blended_ldint_energy_grid']
+                self._blended_ldint_photon_grid = struct['_blended_ldint_photon_grid']
 
         return self
 
