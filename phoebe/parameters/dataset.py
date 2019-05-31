@@ -148,7 +148,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
     if is_lc and not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
 
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
@@ -225,7 +225,7 @@ def rv(syn=False, as_ps=True, **kwargs):
         params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
 
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
 
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
@@ -354,7 +354,7 @@ def orb(syn=False, as_ps=True, **kwargs):
 
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.d, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
 
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
