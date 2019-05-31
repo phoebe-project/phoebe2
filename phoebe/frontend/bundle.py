@@ -3646,7 +3646,7 @@ class Bundle(ParameterSet):
         Raises
         --------
         * ValueError: if the constraint cannot be flipped because one of the
-            dependent parameters is currently nan
+            dependent parameters is currently nan.
         * ValueError: if cannot resolve to a single constraint.  See
             <phoebe.frontend.bundle.Bundle.flip_constraint_all> for flipping
             multiple constraints at once.
@@ -3721,10 +3721,7 @@ class Bundle(ParameterSet):
         Raises
         --------
         * ValueError: if the constraint cannot be flipped because one of the
-            dependent parameters is currently nan
-        * ValueError: if cannot resolve to a single constraint.  See
-            <phoebe.frontend.bundle.Bundle.flip_constraint_all> for flipping
-            multiple constraints at once.
+            dependent parameters is currently nan.
         """
         self._kwargs_checks(kwargs, additional_allowed_keys=['check_nan'])
 
