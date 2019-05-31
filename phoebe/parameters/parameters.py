@@ -6438,14 +6438,14 @@ class FloatParameter(Parameter):
             logger.debug("value of {} didn't change within 1e-12, skipping triggering of constraints".format(self.twig))
         elif run_constraints:
             if len(self._in_constraints):
-                logger.debug("changing value of {} (by {} from {} to {}) triggers {} constraints".format(self.twig, abs(_orig_quantity - value).value, _orig_quantity, value, [c.twig for c in self.in_constraints]))
+                logger.debug("changing value of {} triggers {} constraints".format(self.twig, [c.twig for c in self.in_constraints]))
             for constraint_id in self._in_constraints:
                 self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True)
         else:
             # then we want to delay running constraints... so we need to track
             # which ones need to be run once requested
             if len(self._in_constraints):
-                logger.debug("changing value of {} (by {} from {} to {}) triggers delayed constraints {}".format(self.twig, abs(_orig_quantity - value).value, _orig_quantity, value, [c.twig for c in self.in_constraints]))
+                logger.debug("changing value of {} triggers delayed constraints {}".format(self.twig, [c.twig for c in self.in_constraints]))
             for constraint_id in self._in_constraints:
                 if constraint_id not in self._bundle._delayed_constraints:
                     self._bundle._delayed_constraints.append(constraint_id)
