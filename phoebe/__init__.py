@@ -53,10 +53,10 @@ def _env_variable_bool(key, default):
     else:
         return False
 
-# If we try to load matplotlib.pyplot on a non-X _system, it will fail
-# unless 'Agg' is used before the import. All X-_systems define the
-# 'DISPLAY' environment variable, and all non-X-_systems do not. We do make a
-# distinction between windows and unix based _system. Hence:
+# If we try to load matplotlib.pyplot on a non-X system, it will fail
+# unless 'Agg' is used before the import. All X-systems define the
+# 'DISPLAY' environment variable, and all non-X-systems do not. We do make a
+# distinction between windows and unix based system. Hence:
 if _env_variable_bool('PHOEBE_ENABLE_PLOTTING', True):
     try:
         import matplotlib
@@ -68,7 +68,7 @@ if _env_variable_bool('PHOEBE_ENABLE_PLOTTING', True):
             matplotlib.use('Agg')
         elif hasattr(_sys, 'real_prefix'):
             # then we're likely in a virtualenv.  Our best bet is to use the 'TkAgg'
-            # backend, but this will require python-tk to be installed on the _system
+            # backend, but this will require python-tk to be installed on the system
             matplotlib.use('TkAgg')
 
 
@@ -220,7 +220,7 @@ class Settings(object):
         # See #154 (https://github.com/phoebe-project/phoebe2/issues/154)
         self._interactive_constraints = True
 
-        # We'll set interactive _system checks to be on if running within a Python
+        # We'll set interactive system checks to be on if running within a Python
         # console, but False if running from within a script
         # See #255 (https://github.com/phoebe-project/phoebe2/issues/255)
         self._interactive_checks = not hasattr(__main__, '__file__') or bool(_sys.flags.interactive)
@@ -479,13 +479,13 @@ def interactive_constraints_off():
 
 def interactive_checks_on():
     """
-    Turn interactive checks on.  When enabled, PHOEBE will run _system checks
+    Turn interactive checks on.  When enabled, PHOEBE will run system checks
     (<phoebe.frontend.bundle.Bundle.run_checks>) after any
     <phoebe.parameters.Parameter> value is changed and will log any issues
     to the logger as a warning.  In order to see these messages, you must
     have a logger enabled with at least the "WARNING" level (see <phoebe.logger>).
 
-    Whether interactive checks is on or off, _system checks will be run when
+    Whether interactive checks is on or off, system checks will be run when
     calling <phoebe.frontend.bundle.Bundle.run_compute> and will raise
     an error if failing.
 
@@ -500,16 +500,16 @@ def interactive_checks_on():
 
 def interactive_checks_off():
     """
-    Turn interactive checks off.  When disabled, PHOEBE will **NOT** run _system checks
+    Turn interactive checks off.  When disabled, PHOEBE will **NOT** run system checks
     (<phoebe.frontend.bundle.Bundle.run_checks>) after any
     <phoebe.parameters.Parameter> value is changed and will **NOT** log any issues
     to the logger as a warning.
 
-    Whether interactive checks is on or off, _system checks will be run when
+    Whether interactive checks is on or off, system checks will be run when
     calling <phoebe.frontend.bundle.Bundle.run_compute> and will raise
     an error if failing.
 
-    To manually run _system checks at any time, you can call
+    To manually run system checks at any time, you can call
     <phoebe.frontend.bundle.Bundle.run_checks>.
 
     By default, interactive checks is ON if running PHOEBE in an interactive
