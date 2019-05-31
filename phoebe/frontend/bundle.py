@@ -3827,7 +3827,9 @@ class Bundle(ParameterSet):
 
         result = expression_param.result
 
-        if result != constrained_param.get_value():
+        # we won't bother checking for arrays (we'd have to do np.all),
+        # but for floats, let's only set the value if the value has changed.
+        if not isinstance(result, float) or result != constrained_param.get_value():
             logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
             constrained_param.set_value(result, force=True, run_constraints=True)
 
