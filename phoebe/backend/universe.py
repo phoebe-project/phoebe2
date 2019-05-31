@@ -200,9 +200,9 @@ class System(object):
         for ds in b.filter('l3_mode').datasets:
             l3_mode = b.get_value('l3_mode', dataset=ds, context='dataset')
             if l3_mode == 'flux':
-                l3s[ds] = {'flux': b.get_value('l3', dataset=ds, context='dataset', unit=u.W/u.m**2)}
+                l3s[ds] = {'flux': b.get_value('l3', dataset=ds, context='dataset', check_visible=False, unit=u.W/u.m**2)}
             elif l3_mode == 'fraction of total light':
-                l3s[ds] = {'frac': b.get_value('l3_frac', dataset=ds, context='dataset')}
+                l3s[ds] = {'frac': b.get_value('l3_frac', dataset=ds, context='dataset', check_visible=False)}
             else:
                 raise NotImplementedError("l3_mode='{}' not supported".format(l3_mode))
 
@@ -1398,13 +1398,17 @@ class Star(Body):
             mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
 
             if mesh_method == 'marching':
+                # we need check_visible=False in each of these in case mesh_method
+                # was overriden from kwargs
                 ntriangles_override = kwargs.pop('ntriangle', None)
-                kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, ntriangles=ntriangles_override) if compute is not None else 1000
+                kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, check_visible=False, ntriangles=ntriangles_override) if compute is not None else 1000
                 distortion_method_override = kwargs.pop('distortion_method', None)
-                kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, distortion_method=distortion_method_override) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
+                kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, check_visible=False, distortion_method=distortion_method_override) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
             elif mesh_method == 'wd':
+                # we need check_visible=False in each of these in case mesh_method
+                # was overriden from kwargs
                 gridsize_override = kwargs.pop('gridsize', None)
-                kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, gridsize=gridsize_override) if compute is not None else 30
+                kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, check_visible=False, gridsize=gridsize_override) if compute is not None else 30
             else:
                 raise NotImplementedError
         else:
@@ -1427,7 +1431,7 @@ class Star(Body):
             do_mesh_offset = True
 
         if conf.devel and mesh_method=='marching':
-            kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs))
+            kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, check_visible=False, **kwargs))
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
@@ -2856,7 +2860,7 @@ class Envelope(Body):
         if conf.devel:
             mesh_init_phi_override = kwargs.pop('mesh_init_phi', 0.0)
             try:
-                mesh_init_phi = b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, mesh_init_phi=mesh_init_phi_override)
+                mesh_init_phi = b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, check_visible=False, mesh_init_phi=mesh_init_phi_override)
             except ValueError:
                 kwargs.setdefault('mesh_init_phi', mesh_init_phi_override)
             else:
