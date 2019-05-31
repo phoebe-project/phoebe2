@@ -200,9 +200,9 @@ class System(object):
         for ds in b.filter('l3_mode').datasets:
             l3_mode = b.get_value('l3_mode', dataset=ds, context='dataset')
             if l3_mode == 'flux':
-                l3s[ds] = {'flux': b.get_value('l3', dataset=ds, context='dataset', unit=u.W/u.m**2)}
+                l3s[ds] = {'flux': b.get_value('l3', dataset=ds, context='dataset', check_visible=False, unit=u.W/u.m**2)}
             elif l3_mode == 'fraction of total light':
-                l3s[ds] = {'frac': b.get_value('l3_frac', dataset=ds, context='dataset')}
+                l3s[ds] = {'frac': b.get_value('l3_frac', dataset=ds, context='dataset', check_visible=False)}
             else:
                 raise NotImplementedError("l3_mode='{}' not supported".format(l3_mode))
 
@@ -1393,19 +1393,27 @@ class Star(Body):
             # rv_grav may not have been copied to this component if no rvs are attached
             do_rv_grav = False
 
-        mesh_method_override = kwargs.pop('mesh_method', None)
-        mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
+        if b.hierarchy.is_meshable(component):
+            mesh_method_override = kwargs.pop('mesh_method', None)
+            mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
 
-        if mesh_method == 'marching':
-            ntriangles_override = kwargs.pop('ntriangle', None)
-            kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, ntriangles=ntriangles_override) if compute is not None else 1000
-            distortion_method_override = kwargs.pop('distortion_method', None)
-            kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, distortion_method=distortion_method_override) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
-        elif mesh_method == 'wd':
-            gridsize_override = kwargs.pop('gridsize', None)
-            kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, gridsize=gridsize_override) if compute is not None else 30
+            if mesh_method == 'marching':
+                # we need check_visible=False in each of these in case mesh_method
+                # was overriden from kwargs
+                ntriangles_override = kwargs.pop('ntriangle', None)
+                kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, check_visible=False, ntriangles=ntriangles_override) if compute is not None else 1000
+                distortion_method_override = kwargs.pop('distortion_method', None)
+                kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, check_visible=False, distortion_method=distortion_method_override) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
+            elif mesh_method == 'wd':
+                # we need check_visible=False in each of these in case mesh_method
+                # was overriden from kwargs
+                gridsize_override = kwargs.pop('gridsize', None)
+                kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, check_visible=False, gridsize=gridsize_override) if compute is not None else 30
+            else:
+                raise NotImplementedError
         else:
-            raise NotImplementedError
+            # then we're half of a contact... the Envelope object will handle meshing
+            mesh_method = kwargs.pop('mesh_method', None)
 
         features = []
         for feature in b.filter(component=component).features:
@@ -1423,7 +1431,7 @@ class Star(Body):
             do_mesh_offset = True
 
         if conf.devel and mesh_method=='marching':
-            kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs))
+            kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, check_visible=False, **kwargs))
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
@@ -2341,9 +2349,13 @@ class Star_roche_envelope_half(Star):
     def from_bundle(cls, b, component, compute=None,
                     datasets=[], pot=None, **kwargs):
 
+        envelope = b.hierarchy.get_envelope_of(component)
+
         if pot is None:
-            envelope = b.hierarchy.get_envelope_of(component)
             pot = b.get_value('pot', component=envelope, context='component')
+
+        kwargs.setdefault('mesh_method', b.get_value('mesh_method', component=envelope, compute=compute) if compute is not None else 'marching')
+        kwargs.setdefault('ntriangles', b.get_value('ntriangles', component=envelope, compute=compute) if compute is not None else 1000)
 
         return super(Star_roche_envelope_half, cls).from_bundle(b, component, compute,
                                                   datasets,
@@ -2848,7 +2860,7 @@ class Envelope(Body):
         if conf.devel:
             mesh_init_phi_override = kwargs.pop('mesh_init_phi', 0.0)
             try:
-                mesh_init_phi = b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, mesh_init_phi=mesh_init_phi_override)
+                mesh_init_phi = b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, check_visible=False, mesh_init_phi=mesh_init_phi_override)
             except ValueError:
                 kwargs.setdefault('mesh_init_phi', mesh_init_phi_override)
             else:
@@ -2858,7 +2870,7 @@ class Envelope(Body):
 
         # we'll pass on the potential from the envelope to both halves (even
         # though technically only the primary will ever actually build a mesh)
-        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, datasets=datasets, pot=pot, **kwargs) for star in stars]
+        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, datasets=datasets, pot=pot, mesh_method=mesh_method, **kwargs) for star in stars]
 
         return cls(component, halves, pot, q, mesh_method)
 

@@ -9,7 +9,7 @@ PHOEBE 2.1
 
 <p align="center">
   <a href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
-  <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-2.7+-blue.svg"/></a>
+  <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-2.7+%20%7C%203.6+-blue.svg"/></a>
   <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
   <a href="https://travis-ci.org/phoebe-project/phoebe2"><img src="https://travis-ci.org/phoebe-project/phoebe2.svg?branch=master"/></a>
   <a href="http://phoebe-project.org/docs"><img src="https://img.shields.io/badge/docs-passing-success.svg"/></a>

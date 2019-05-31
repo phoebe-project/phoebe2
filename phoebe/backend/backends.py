@@ -408,7 +408,10 @@ class BaseBackend(object):
                 # single time/dataset
                 for packet in packetlist:
                     # single parameter
-                    new_syns.set_value(**packet)
+                    try:
+                        new_syns.set_value(**packet)
+                    except Exception as err:
+                        raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, err.message))
 
         return new_syns
 
