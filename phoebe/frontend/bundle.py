@@ -1953,6 +1953,21 @@ class Bundle(ParameterSet):
                 if len(set(mesh_methods)) > 1:
                     return False, "all (or none) components must use mesh_method='wd'."
 
+            # estimate if any body is smaller than any other body's triangles, using a spherical assumption
+            if compute_kind=='phoebe' and 'wd' not in mesh_methods:
+                requivs = {comp: self.get_value(qualifier='requiv', component=comp, context='component', unit='solRad')**2 for comp in self.hierarchy.get_stars()}
+                areas = {comp: np.pi*requiv**2 for comp, requiv in requivs.items()}
+                triangle_areas = {comp: (4*np.pi*requiv**2)/self.get_value('ntriangles', component=comp, compute=compute) for comp, requiv in requivs.items()}
+                if max(triangle_areas.values()) > 5*min(areas.values()):
+                    if max(triangle_areas.values()) > 2*min(areas.values()):
+                        offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 2*min(areas.values())]
+                        smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
+                        return False, "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.".format(offending_components, smallest_components, smallest_components, offending_components)
+                    else:
+                        # only raise a warning
+                        offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 5*min(areas.values())]
+                        smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
+                        return None, "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.".format(offending_components, smallest_components, smallest_components, offending_components)
 
         # forbid color-coupling with a dataset which is scaled to data or to another that is in-turn color-coupled
         for param in self.filter(qualifier='pblum_mode', value='color coupled').to_list():
