@@ -3063,14 +3063,20 @@ class ParameterSet(object):
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
                         array_value = ps._bundle.get_value('times', dataset=ps.dataset, component=ps.component, context='dataset')
                     else:
-                        if len(ps.filter(current_value, check_visible=False))==1:
-                            array_value = ps.get_quantity(current_value, check_visible=False)
-                        elif len(ps.filter(current_value, check_visible=False).times) > 1 and ps.get_value(current_value, time=ps.filter(current_value, check_visible=False).times[0]):
-                            # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
-                            unit = ps.get_quantity(current_value, time=ps.filter(current_value).times[0]).unit
-                            array_value = np.array([ps.get_quantity(current_value, time=time, check_visible=False).to(unit).value for time in ps.filter(current_value, check_visible=False).times])*unit
+                        if '@' in current_value:
+                            # then we need to remove the dataset from the filter
+                            psf = self._bundle.filter(check_visible=False, **{k:v for k,v in ps.meta.items() if k!='dataset'})
                         else:
-                            raise ValueError("could not find Parameter for {} in {}".format(current_value, ps.meta))
+                            psf = ps
+
+                        if len(psf.filter(current_value, check_visible=False))==1:
+                            array_value = psf.get_quantity(current_value, check_visible=False)
+                        elif len(psf.filter(current_value, check_visible=False).times) > 1 and psf.get_value(current_value, time=psf.filter(current_value, check_visible=False).times[0]):
+                            # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
+                            unit = psf.get_quantity(current_value, time=psf.filter(current_value).times[0]).unit
+                            array_value = np.array([psf.get_quantity(current_value, time=time, check_visible=False).to(unit).value for time in psf.filter(current_value, check_visible=False).times])*unit
+                        else:
+                            raise ValueError("could not find Parameter for {} in {}".format(current_value, psf.meta))
 
                     kwargs[direction] = array_value
 
