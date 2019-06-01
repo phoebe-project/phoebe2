@@ -333,7 +333,7 @@ class System(object):
 
         for kind, dataset in zip(kinds, datasets):
             for starref, body in self.items():
-                body.populate_observable(time, kind, dataset)
+                body.populate_observable(time, kind, dataset, ignore_effects=ignore_effects)
 
     def compute_pblum_scalings(self, b, datasets, t0,
                                x0, y0, z0, vx0, vy0, vz0,
@@ -372,7 +372,6 @@ class System(object):
                 # absolute and relative intensities
                 pblum_scale_copy_comp = {}
                 for component in ds_components:
-                    # print "**** pblum scaling component:", component
                     if component=='_default':
                         continue
                     pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
@@ -1103,7 +1102,7 @@ class Body(object):
         :parameter list ds: (optional) a list/array of instantaneous distances of ALL COMPONENTS in the :class:`System`
         :parameter list Fs: (optional) a list/array of instantaneous syncpars of ALL COMPONENTS in the :class:`System`
         """
-
+        logger.debug("{}.update_position ignore_effects={}".format(self.component, ignore_effects))
         self.reset_time(time, ethetas[self.ind_self], elongans[self.ind_self], eincls[self.ind_self])
 
         #-- Get current position/euler information
@@ -1225,7 +1224,7 @@ class Body(object):
         # TODO [DONE?]: make sure features smartly trigger needs_recompute_instantaneous
         # TODO: get rid of the or True here... the problem is that we're saving the standard mesh before filling local quantities
         if self.needs_recompute_instantaneous or did_remesh or self._force_recompute_instantaneous_next_update_position:
-            logger.debug("{}.update_position: calling compute_local_quantities at t={}".format(self.component, self.time))
+            logger.debug("{}.update_position: calling compute_local_quantities at t={} ignore_effects={}".format(self.component, self.time, ignore_effects))
             self.compute_local_quantities(xs, ys, zs, ignore_effects)
             self._force_recompute_instantaneous_next_update_position = False
 
@@ -1236,7 +1235,7 @@ class Body(object):
         """
         raise NotImplementedError("compute_local_quantities needs to be overridden by the subclass of Star")
 
-    def populate_observable(self, time, kind, dataset, **kwargs):
+    def populate_observable(self, time, kind, dataset, ignore_effects=False, **kwargs):
         """
         TODO: add documentation
         """
@@ -1252,7 +1251,7 @@ class Body(object):
             # and then lc requesting intensities with SAME passband/atm)
             return
 
-        new_mesh_cols = getattr(self, '_populate_{}'.format(kind.lower()))(dataset, **kwargs)
+        new_mesh_cols = getattr(self, '_populate_{}'.format(kind.lower()))(dataset, ignore_effects=ignore_effects, **kwargs)
 
         for key, col in new_mesh_cols.items():
 
@@ -1918,7 +1917,7 @@ class Star(Body):
         return cols
 
 
-    def _populate_lc(self, dataset, **kwargs):
+    def _populate_lc(self, dataset, ignore_effects=False, **kwargs):
         """
         Populate columns necessary for an LC dataset
 
@@ -1927,7 +1926,7 @@ class Star(Body):
 
         :raises NotImplementedError: if lc_method is not supported
         """
-        logger.debug("{}._populate_lc(dataset={})".format(self.component, dataset))
+        logger.debug("{}._populate_lc(dataset={}, ignore_effects={})".format(self.component, dataset, ignore_effects))
 
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
 
@@ -2038,9 +2037,10 @@ class Star(Body):
 
 
             # Beaming/boosting
-            if boosting_method == 'none':
+            if boosting_method == 'none' or ignore_effects:
                 boost_factors = 1.0
             elif boosting_method == 'linear':
+                logger.debug("calling pb.bindex for boosting_method='linear'")
                 bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
                                    logg=self.mesh.loggs.for_computations,
                                    abun=self.mesh.abuns.for_computations,

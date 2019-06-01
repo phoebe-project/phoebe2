@@ -4115,6 +4115,13 @@ class Bundle(ParameterSet):
         the translation from `l3_frac` to `l3` (when necessary) will include
         extrinsic effects.  See also <phoebe.frontend.bundle.Bundle.compute_l3s>.
 
+        Note about boosting: as boosting is an aspect-dependent effect that
+        does not affect normal intensities, boosting will not be included
+        in any of the returned values, including `pbflux_ext` due to the
+        approximation of flux explained above.  This also means that boosting
+        will be ignored in any scaling if providing `pbflux` (by setting
+        `pblum_mode = 'total flux'`).
+
         This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute> as needed.
         Alternatively, you can create a mesh dataset
@@ -4136,8 +4143,8 @@ class Bundle(ParameterSet):
             intrinsic (excluding irradiation & features) pblums.  These
             will be exposed in the returned dictionary as pblum@component@dataset.
         * `pblum_ext` (bool, optional, default=True): whether to include
-            extrinsic (irradiation & features) pblums.  These will be exposed
-            as pblum_ext@component@dataset.
+            extrinsic (irradiation & features) pblums.  These will
+            be exposed as pblum_ext@component@dataset.
         * `pbflux` (bool, optional, default=False): whether to include
             intrinsic per-system passband fluxes.  These include third-light
             (from the l3 or l3_frac parameter), but are estimated based
@@ -4249,10 +4256,16 @@ class Bundle(ParameterSet):
             for dataset in datasets:
                 pbflux_this_dataset = 0
 
-                if compute_extrinsic:
-                    logger.debug("computing (extrinsic) observables for {}".format(dataset))
-                    system.populate_observables(t0, ['lc'], [dataset],
-                                                ignore_effects=False)
+                # TODO: can we get away with skipping this in some cases?  If we
+                # skipped the compute_extrinsic=True case, then we should
+                # already have these with ignore_effects=True from computing the
+                # scaling
+                # Technically we only need to do this if compute_extrinsic as of
+                # right now, since there is nothing in _populate_lc which
+                # affects Inorms (though boosting affects Imus).
+                logger.debug("computing observables with ignore_effects={} for {}".format(not compute_extrinsic, dataset))
+                system.populate_observables(t0, ['lc'], [dataset],
+                                            ignore_effects=not compute_extrinsic)
 
                 for component, star in system.items():
                     if component not in components:
