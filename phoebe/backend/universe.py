@@ -291,6 +291,7 @@ class System(object):
         #
         # rather than calling self.meshes repeatedly
 
+        # return mesh.Meshes({c:b for c,b in self._bodies.items() if b is not None}, self._parent_envelope_of)
         return mesh.Meshes(self._bodies, self._parent_envelope_of)
 
     def reset(self, force_remesh=False, force_recompute_instantaneous=False):
@@ -534,6 +535,7 @@ class System(object):
         logger.debug("reflection: computing bolometric intensities")
         fluxes_intrins_per_body = []
         for starref, body in self.items():
+            if body.mesh is None: continue
             abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
                                                             atm='blackbody',
                                                             photon_weighted=False)
@@ -542,7 +544,11 @@ class System(object):
 
         fluxes_intrins_flat = meshes.pack_column_flat(fluxes_intrins_per_body)
 
-        if np.all([body.is_convex for body in self.bodies]):
+        if len(fluxes_intrins_per_body) == 1 and np.all([body.is_convex for body in self.bodies]):
+            logger.info("skipping reflection because only 1 (convex) body")
+            return
+
+        elif np.all([body.is_convex for body in self.bodies]):
             logger.debug("handling reflection (convex case), method='{}'".format(self.irrad_method))
 
             vertices_per_body = list(meshes.get_column('vertices').values())
@@ -783,12 +789,15 @@ class System(object):
             # then we will need to build a flat column based on the component
             # of each element so that ptfarea is an array with the same shape
             # as those above
-            if isinstance(self.bodies[0], Envelope):
-                # for envelopes, we'll make the same assumption and just grab
-                # that value stored in the first "half"
-                ptfarea = self.bodies[0]._halves[0].get_ptfarea(dataset)
-            else:
-                ptfarea = self.bodies[0].get_ptfarea(dataset)
+            for body in self.bodies:
+                if body.mesh is not None:
+                    if isinstance(body, Envelope):
+                        # for envelopes, we'll make the same assumption and just grab
+                        # that value stored in the first "half"
+                        ptfarea = body._halves[0].get_ptfarea(dataset)
+                    else:
+                        ptfarea = body.get_ptfarea(dataset)
+                    break
 
             # intensities (Imu) is the intensity in the direction of the observer per unit surface area of the triangle, scaled according to pblum scaling
             # areas is the area of each triangle (using areas_si from the mesh to force SI units)
@@ -2829,6 +2838,95 @@ class Star_sphere(Star):
             raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
 
         return new_mesh, scale
+
+
+class Star_none(Star):
+    """
+    Override everything to do nothing... the Star just exists to be a mass
+    for dynamics (and possibly distortion of other stars), but will not have
+    any mesh or produce any observables
+    """
+    @property
+    def is_convex(self):
+        return True
+
+    @property
+    def needs_remesh(self):
+        """
+        whether the star needs to be re-meshed (for any reason)
+        """
+        return False
+
+    @classmethod
+    def _return_nones(*args, **kwargs):
+        return 0.0
+
+    @property
+    def _rpole_func(self):
+        return self._return_nones
+
+    @property
+    def _gradOmega_func(self):
+        return self._return_nones
+
+    @property
+    def instantaneous_mesh_args(self):
+        return None
+
+    @property
+    def instantaneous_maxr(self):
+        return 0.0
+
+    def _build_mesh(self, mesh_method, **kwargs):
+        return {}, 0.0
+
+    def _offset_mesh(self, new_mesh):
+        return new_mesh
+
+    def update_position(self, time,
+                        xs, ys, zs, vxs, vys, vzs,
+                        ethetas, elongans, eincls,
+                        ds=None, Fs=None,
+                        ignore_effects=False,
+                        component_com_x=None,
+                        **kwargs):
+
+        # scaledprotomesh = mesh.ScaledProtoMesh(scale=1.0, **{})
+        #
+        # # TODO: get rid of this ugly _value stuff
+        # pos = (_value(xs[self.ind_self]), _value(ys[self.ind_self]), _value(zs[self.ind_self]))
+        # vel = (_value(vxs[self.ind_self_vel]), _value(vys[self.ind_self_vel]), _value(vzs[self.ind_self_vel]))
+        # euler = (_value(ethetas[self.ind_self]), _value(elongans[self.ind_self]), _value(eincls[self.ind_self]))
+        # euler_vel = (_value(ethetas[self.ind_self_vel]), _value(elongans[self.ind_self_vel]), _value(eincls[self.ind_self_vel]))
+        #
+        # self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh,
+        #                                         pos, vel, euler, euler_vel,
+        #                                         np.array([0,0,1]),
+        #                                         component_com_x)
+
+        self._mesh = None
+
+
+    def compute_pblum_scale(self, *args, **kwargs):
+        return
+
+    def get_pblum_scale(self, *args, **kwargs):
+        return 1.0
+
+    def set_pblum_scale(self, *args, **kwargs):
+        return
+
+    def compute_luminosity(self, *args, **kwargs):
+        return 0.0
+
+    def _populate_lp(self, dataset, **kwargs):
+        return {}
+
+    def _populate_rv(self, dataset, **kwargs):
+        return {}
+
+    def _populate_lc(self, dataset, ignore_effects=False, **kwargs):
+        return {}
 
 
 class Envelope(Body):

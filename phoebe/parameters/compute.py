@@ -124,7 +124,7 @@ def phoebe(**kwargs):
     # any new envelopes in which copy_for triggers a new ntriangles parameter
     # will still get 1500 as a default)
     params += [IntParameter(visible_if='mesh_method:marching,hierarchy.is_meshable:true', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='ntriangles', value=kwargs.get('ntriangles', 1500), limits=(100,None), default_unit=u.dimensionless_unscaled, description='Requested number of triangles (won\'t be exact).')]
-    params += [ChoiceParameter(visible_if='mesh_method:marching,hierarchy.is_meshable:true', copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=['roche', 'rotstar', 'sphere'], description='Method to use for distorting stars')]
+    params += [ChoiceParameter(visible_if='mesh_method:marching,hierarchy.is_meshable:true', copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=['roche', 'rotstar', 'sphere', 'none'], description='Method to use for distorting stars')]
 
 
     if conf.devel:

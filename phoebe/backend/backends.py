@@ -560,7 +560,7 @@ class PhoebeBackend(BaseBackendByTime):
         starrefs  = hier.get_stars()
         meshablerefs = hier.get_meshables()
 
-        if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0], **kwargs) in ['roche']:
+        if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0], **kwargs) in ['roche', 'none']:
             raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0], **kwargs)))
 
     def _create_system_and_compute_pblums(self, b, compute,
@@ -945,6 +945,8 @@ class PhoebeBackend(BaseBackendByTime):
 
             elif kind=='mesh':
                 body = system.get_body(info['component'])
+                if body.mesh is None:
+                    continue
 
                 packetlist.append(_make_packet('uvw_elements',
                                               body.mesh.vertices_per_triangle,

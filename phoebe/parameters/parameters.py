@@ -3054,10 +3054,14 @@ class ParameterSet(object):
                     if kwargs['autofig_method'] == 'mesh' and current_value in ['xs', 'ys', 'zs']:
                         # then we actually need to unpack from the xyz_elements
                         verts = ps.get_quantity(qualifier='xyz_elements')
+                        if not verts.shape[0]:
+                            return None
                         array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
                     elif kwargs['autofig_method'] == 'mesh' and current_value in ['us', 'vs', 'ws']:
                         # then we actually need to unpack from the uvw_elements
                         verts = ps.get_quantity(qualifier='uvw_elements')
+                        if not verts.shape[0]:
+                            return None
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
                     elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
@@ -3371,6 +3375,10 @@ class ParameterSet(object):
 
             # logger.debug("_kwargs_fill_dimension {} {} {}".format(kwargs, af_direction, ps.twigs))
             kwargs = _kwargs_fill_dimension(kwargs, af_direction, ps)
+            if kwargs is None:
+                # cannot plot
+                logger.warning("cannot plot {}-dimension of {}@{}, skipping".format(af_direction, ps.component, ps.dataset))
+                return []
 
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
         # try to find 'times' in the cartesian dimensions:
