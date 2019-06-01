@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import os
 
 # phb2.devel_on()
+#phb2.logger('debug')
 
 def legacy_test(filename='default.phoebe', verbose=False):
 
@@ -189,8 +190,9 @@ if __name__ == '__main__':
     detached = 'default.phoebe'
     weighted = 'weight.phoebe'
     contact = 'contact.phoebe'
-#    print "checking detached system"
+#    print("checking contact system")
+#    legacy_test(contact, verbose=True)
+    print("checking weighted system")
     legacy_test(weighted, verbose=True)
+    print("checking detached system")
     legacy_test(detached, verbose=True)
-#    print "checking contact system"
-    legacy_test(contact, verbose=True)
