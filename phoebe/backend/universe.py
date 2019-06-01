@@ -338,7 +338,7 @@ class System(object):
     def compute_pblum_scalings(self, b, datasets, t0,
                                x0, y0, z0, vx0, vy0, vz0,
                                etheta0, elongan0, eincl0,
-                               reset=True):
+                               reset=True, lc_only=True):
 
         logger.debug("system.compute_pblum_scalings")
 
@@ -348,11 +348,15 @@ class System(object):
         for dataset in datasets:
             ds = b.get_dataset(dataset=dataset)
             kind = ds.kind
-            if kind not in ['lc']:
+            if kind not in ['lc'] and lc_only:
                 # only LCs need pblum scaling
                 continue
 
-            pblum_mode = ds.get_value(qualifier='pblum_mode')
+            try:
+                pblum_mode = ds.get_value(qualifier='pblum_mode')
+            except ValueError:
+                # RVs etc don't have pblum_mode, but may still want luminosities
+                pblum_mode = 'absolute'
 
             ignore_effects = pblum_mode not in ['total flux']
             logger.debug("system.compute_pblum_scalings: populating observables for dataset={} with ignore_effects={} for pblum_mode={}".format(dataset, ignore_effects, pblum_mode))

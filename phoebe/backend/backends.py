@@ -572,6 +572,7 @@ class PhoebeBackend(BaseBackendByTime):
                                           compute_l3_frac=False,
                                           compute_extrinsic=False,
                                           reset=True,
+                                          lc_only=True,
                                           **kwargs):
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: calling universe.System.from_bundle".format(mpi.myrank, mpi.nprocs))
@@ -628,7 +629,7 @@ class PhoebeBackend(BaseBackendByTime):
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
         # NOTE: system.compute_pblum_scalings populates at t0 with ignore_effect=True (so intrinsic pblum)
-        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, reset=False)
+        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, reset=False, lc_only=lc_only)
         if compute_l3 or compute_extrinsic:
             if len(b.features):
                 # then the features may affect intrinsic vs extrinsic pblums,

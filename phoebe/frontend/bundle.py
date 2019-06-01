@@ -4002,7 +4002,7 @@ class Bundle(ParameterSet):
 
         system_compute = compute if compute_kind=='phoebe' else None
         logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
-        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, compute_extrinsic=compute_extrinsic, reset=False, **kwargs)
+        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, compute_extrinsic=compute_extrinsic, reset=False, lc_only=False, **kwargs)
 
     def compute_l3s(self, compute=None, set_value=False, **kwargs):
         """
@@ -4101,6 +4101,9 @@ class Bundle(ParameterSet):
         Note that pblum scaling is computed (and applied to flux scaling) based
         on intrinsic luminosities (`pblum`).
 
+        For any `dataset` which does not support pblum scaling (rv or lp dataset,
+        for example), will have their absolute intensities exposed.
+
         Note that luminosities cannot be exposed for any dataset in which
         `pblum_mode` is 'scale to data' as the entire light curve must be
         computed prior to scaling.
@@ -4148,7 +4151,9 @@ class Bundle(ParameterSet):
             components in the hierarchy.
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
-            datasets attached to the bundle.
+            passband-dependent datasets attached to the bundle.  Those without
+            a pblum_mode parameter (eg. rv or lp datasets) will be computed
+            in absolute luminosities.
         * `set_value` (bool, optional, default=False): apply the computed
             values to the respective `pblum` or `pbflux` parameters (even if not
             currently visible).  Note that extrinsic values (`pblum_ext` and
@@ -4165,10 +4170,18 @@ class Bundle(ParameterSet):
             pblum@component@dataset (for intrinsic pblums) or
             pblum_ext@component@dataset (for extrinsic pblums) and the pblums
             as values (as quantity objects with default units of W).
+
+        Raises
+        ----------
+        * ValueError: if `compute` needs to be provided but is not.
+        * ValueError: if any value in `dataset` points to a dataset that is not
+            passband-dependent (eg. a mesh or orb dataset).
+        * ValueError: if the system fails to pass
+            <phoebe.frontend.bundle.Bundle.run_checks>.
         """
         logger.debug("b.compute_pblums")
 
-        datasets = kwargs.pop('dataset', self.datasets)
+        datasets = kwargs.pop('dataset', self.filter(qualifier='passband').datasets)
         if isinstance(datasets, str):
             datasets = [datasets]
         components = kwargs.pop('component', self.components)
@@ -4179,6 +4192,7 @@ class Bundle(ParameterSet):
         forbidden_keys = parameters._meta_fields_filter
         self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks'], additional_forbidden_keys=forbidden_keys)
 
+        # check to make sure value of passed compute is valid
         if compute is None:
             if len(self.computes)==1:
                 compute = self.computes[0]
@@ -4187,6 +4201,7 @@ class Bundle(ParameterSet):
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
 
+        # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
             passed, msg = self.run_checks(compute=compute, **kwargs)
             if passed is None:
@@ -4196,8 +4211,18 @@ class Bundle(ParameterSet):
                 # then raise an error
                 raise ValueError("system failed to pass checks: {}".format(msg))
 
-        # TODO: technically we don't need all dataset, but we do need datasets + any datasets that are referenced by pblum_ref of those datasets...
-        pblum_datasets = self.filter(qualifier='pblum_mode').datasets
+        # determine datasets which need intensities computed and check to make
+        # sure all passed datasets are passband-dependent
+        pblum_datasets = datasets
+        for dataset in datasets:
+            if not len(self.filter(qualifier='passband', dataset=dataset)):
+                raise ValueError("dataset '{}' is not passband-dependent".format(dataset))
+            for pblum_ref_param in self.filter(qualifier='pblum_ref', dataset=dataset).to_list():
+                ref_dataset = pblum_ref_param.get_value()
+                if ref_dataset in self.datasets and ref_dataset not in pblum_datasets:
+                    # then we need to compute the system at this dataset too,
+                    # even though it isn't requested to be returned
+                    pblum_datasets.append(ref_dataset)
 
         t0 = self.get_value('t0', context='system', unit=u.d)
 
