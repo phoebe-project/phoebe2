@@ -6720,7 +6720,7 @@ class FloatArrayParameter(FloatParameter):
         np.set_printoptions(**opt)
         return str_
 
-    def interp_value(self, **kwargs):
+    def interp_value(self, unit=None, **kwargs):
         """
         Interpolate to find the value in THIS array given a value from
         ANOTHER array in the SAME parent <phoebe.parameters.ParameterSet>
@@ -6761,35 +6761,46 @@ class FloatArrayParameter(FloatParameter):
         available range, phase-interpolation will automatically be attempted,
         with a warning raised via the <phoebe.logger>.
 
-        NOTE: this method does not currently support units.  You must provide
-        the interpolating value in its default units and are returned the
-        value in the default units (no support for quantities).
+        See also:
+        * <phoebe.parameters.FloatArrayParameter.interp_quantity>
 
         Arguments
         ----------
+        * `unit` (string or unit, optional, default=None): units to convert
+            the *returned* value.  If not provided or None, will return in the
+            default_units of the referenced parameter.  **NOTE**: to provide
+            units on the *passed* value, you must send a quantity object (see
+            `**kwargs` below).
         * `component` (string, optional): if interpolating in phases, `component`
             will be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `t0` (string/float, optional): if interpolating in phases, `t0` will
             be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `**kwargs`: see examples above, must provide a single
             qualifier-value pair to use for interpolation.  In most cases
-            this will probably be time=value or wavelength=value.
+            this will probably be time=value or wavelength=value.  If the value
+            is provided as a quantity object, it will be converted to the default
+            units of the referenced parameter prior to interpolation (enable
+            a 'warning' <phoebe.logger> for conversion messages)
 
         Returns
         --------
-        * (float) the interpolated value.
+        * (float or array) the interpolated value in value of `unit` if provided,
+            or the <phoebe.parameters.FloatParameter.default_unit> of the
+            referenced <phoebe.parameters.FloatArrayParameter>.  To return
+            a quantity instead, see
+            <phoebe.parameters.FloatArrayParameter.interp_quantity>.
 
         Raises
         --------
-        * KeyError: if more than one qualifier is passed
+        * KeyError: if more than one qualifier is passed.
         * KeyError: if no qualifier is passed that belongs to the
-            parent :class:`ParameterSet`
+            parent <phoebe.parameters.ParameterSet>.
         * KeyError: if the qualifier does not point to another
-            <phoebe.parameters.FloatArrayParameter>
+            <phoebe.parameters.FloatArrayParameter>.
         """
-        # TODO: add support for units
         # TODO: add support for non-linear interpolation (probably would need to use scipy)?
-        # TODO: add support for interpolating in phase_space
+
+        return_quantity = kwargs.pop('return_quantity', False)
 
         if len(kwargs.keys()) > 1:
             raise KeyError("interp_value only takes a single qualifier-value pair")
@@ -6807,6 +6818,11 @@ class FloatArrayParameter(FloatParameter):
             # TODO: handle plural to singular (having to say
             # interp_value(times=5) is awkward)
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
+
+        if isinstance(qualifier_interp_value, u.Quantity):
+            default_unit = parent_ps.get_parameter(qualifier=qualifier).default_unit
+            logger.warning("converting from provided quantity with units {} to default units ({}) of {}".format(qualifier_interp_value.unit, default_unit, qualifier))
+            qualifier_interp_value = qualifier_interp_value.to(default_unit).value
 
         if qualifier=='times':
             times = parent_ps.get_value(qualifier='times')
@@ -6826,7 +6842,7 @@ class FloatArrayParameter(FloatParameter):
 
             sort = phases.argsort()
 
-            return np.interp(qualifier_interp_value, phases[sort], self.get_value()[sort])
+            value = np.interp(qualifier_interp_value, phases[sort], self.get_value()[sort])
 
         else:
 
@@ -6835,8 +6851,68 @@ class FloatArrayParameter(FloatParameter):
             if not isinstance(qualifier_parameter, FloatArrayParameter):
                 raise KeyError("'{}' does not point to a FloatArrayParameter".format(qualifier))
 
-            return np.interp(qualifier_interp_value, qualifier_parameter.get_value(), self.get_value())
+            value = np.interp(qualifier_interp_value, qualifier_parameter.get_value(), self.get_value())
 
+        if unit is not None:
+            if return_quantity:
+                return value*qualifier_parameter.default_unit.to(unit)
+            else:
+                return (value*qualifier_parameter.default_unit).to(unit).value
+        else:
+            if return_quantity:
+                return value*qualifier_parameter.default_unit
+            else:
+                return value
+
+    def interp_quantity(self, unit=None, **kwargs):
+        """
+        Interpolate to find the value in THIS array given a value from
+        ANOTHER array in the SAME parent <phoebe.parameters.ParameterSet>
+        (see <phoebe.parameters.Parameter.get_parent_ps>).
+
+        See <phoebe.parameters.FloatArrayParameter.interp_value> for examples,
+        this method calls interp_value and then returns the quantity object
+        instead of the array.
+
+        See also:
+        * <phoebe.parameters.FloatArrayParameter.interp_value>
+
+        Arguments
+        ----------
+        * `unit` (string or unit, optional, default=None): units to convert
+            the *returned* value.  If not provided or None, will return in the
+            default_units of the referenced parameter.  **NOTE**: to provide
+            units on the *passed* value, you must send a quantity object (see
+            `**kwargs` below).
+        * `component` (string, optional): if interpolating in phases, `component`
+            will be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `t0` (string/float, optional): if interpolating in phases, `t0` will
+            be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `**kwargs`: see examples above, must provide a single
+            qualifier-value pair to use for interpolation.  In most cases
+            this will probably be time=value or wavelength=value.  If the value
+            is provided as a quantity object, it will be converted to the default
+            units of the referenced parameter prior to interpolation (enable
+            a 'warning' <phoebe.logger> for conversion messages)
+
+        Returns
+        --------
+        * (quantity) the interpolated value in value of `unit` if provided, or
+            the <phoebe.parameters.FloatParameter.default_unit> of the
+            referenced <phoebe.parameters.FloatArrayParameter>.  To return
+            a float or array instead of a quantity object, see
+            <phoebe.parameters.FloatArrayParameter.interp_value>.
+
+        Raises
+        --------
+        * KeyError: if more than one qualifier is passed.
+        * KeyError: if no qualifier is passed that belongs to the
+            parent <phoebe.parameters.ParameterSet>.
+        * KeyError: if the qualifier does not point to another
+            <phoebe.parameters.FloatArrayParameter>.
+        """
+
+        return self.interp_value(unit=unit, return_quantity=True, **kwargs)
 
     def append(self, value):
         """
