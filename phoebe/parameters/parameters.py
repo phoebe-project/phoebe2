@@ -1120,7 +1120,7 @@ class ParameterSet(object):
                 continue
 
             ps_for_this_search = self.filter(check_visible=False,
-                                             **{ki: metawargs[k]
+                                             **{ki: metawargs[ki]
                                                 for ki in _meta_fields_twig
                                                 if ki != k})
 
@@ -1942,15 +1942,15 @@ class ParameterSet(object):
 
         params = self.to_list()
 
-        def string_to_time(time):
+        def string_to_time(string):
             try:
-                return float(time)
+                return float(string)
             except ValueError:
-                # allow for passing a twig that needs to resolve a float
+                # allow for passing a twig that needs to resolve a float (ie. 't0_supconj')
                 if self._bundle is None:
-                    return self.get_value(time, context=['system', 'component'])
+                    return self.get_value(string, context=['system', 'component'])
                 else:
-                    return self._bundle.get_value(time, context=['system', 'component'])
+                    return self._bundle.get_value(string, context=['system', 'component'])
 
         # TODO: replace with key,value in kwargs.items()... unless there was
         # some reason that won't work?
@@ -4911,7 +4911,6 @@ class Parameter(object):
 
 
         try:
-            # print "***", type(other), mathfunc
             if isinstance(other, ConstraintParameter):
                 # print "*** __math__", self.quantity, mathfunc, other.result, other.expr
                 return ConstraintParameter(self._bundle, "{%s} %s (%s)" % (self.uniquetwig, symbol, other.expr), default_unit=(getattr(self.quantity, mathfunc)(other.result).unit))
