@@ -2012,7 +2012,7 @@ class Star(Body):
                         raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or to 'none' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
                     else:
                         if ld_func=='interp':
-                            blackbody_msg = " (in which case ld_func must be set anything other than 'interp') "
+                            blackbody_msg = " (in which case ld_func must be set to anything other than 'interp') "
                         else:
                             blackbody_msg = " "
                         raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm and ld_coeffs_source to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_coeffs_source to 'none' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
