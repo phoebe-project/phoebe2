@@ -67,7 +67,6 @@ def orbit(component, **kwargs):
     """
     params = []
 
-    #~ params += [ObjrefParameter(value=component)]
     params += [FloatParameter(qualifier='period', timederiv='dpdt', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Orbital period')]
     params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi/3.0), default_unit=u.rad/u.d, description='Orbital frequency')]
     params += [FloatParameter(qualifier='dpdt', value=kwargs.get('dpdt', 0.0), default_unit=u.s/u.yr, description='Time derivative of orbital period')]
@@ -163,8 +162,7 @@ def star(component, **kwargs):
 
     params = []
 
-    #~ params += [ObjrefParameter(value=component)]
-    params += [FloatParameter(qualifier='requiv', value=kwargs.get('requiv', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Equivalent radius')]
+    params += [FloatParameter(qualifier='requiv', value=kwargs.get('requiv', 1.0), default_unit=u.solRad, limits=(1e-6,None), description='Equivalent radius')]
     params += [FloatParameter(qualifier='requiv_max', value=kwargs.get('requiv_max', 10.0), default_unit=u.solRad, limits=(0.0, None), description='Critical (maximum) value of the equivalent radius for the given morphology')]
     params += [FloatParameter(qualifier='requiv_min', visible_if='hierarchy.is_contact_binary:True', value=kwargs.get('requiv_min', 0.1), default_unit=u.solRad, limits=(0.0, None), description='Critical (minimum) value of the equivalent radius for the given morphology')]
     params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
@@ -193,13 +191,10 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='irrad_frac_refl_bol', value=kwargs.get('irrad_frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
     params += [FloatParameter(qualifier='irrad_frac_lost_bol', value=kwargs.get('irrad_frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
-    # TODO: allow for 'interp' as choice, make default, and set visible_if for ld_coeffs_bol (see ld_coeffs in dataset.py)
     params += [ChoiceParameter(qualifier='ld_func_bol', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
     params += [FloatArrayParameter(qualifier='ld_coeffs_bol', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
 
     params += [FloatParameter(qualifier='mass', value=kwargs.get('mass', 1.0), default_unit=u.solMass, description='Mass')]
-
-    # TODO: add others or move to a bol_dep (in which case create the bol_dep now)?
 
     constraints = []
     # constraints handled by set_hierarchy:

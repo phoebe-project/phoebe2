@@ -17,6 +17,17 @@ import platform
 import os
 import re
 
+
+# Python version checks (in both __init__.py and setup.py)
+if sys.version_info[0] == 3:
+    if sys.version_info[1] < 6:
+        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+elif sys.version_info[0] == 2:
+    if sys.version_info[1] < 7:
+        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+else:
+    raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+
 #
 # Auxiliary functions
 #
@@ -307,7 +318,7 @@ setup (name = 'phoebe',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.7',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.10',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.utils', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.unitsiau2015'],
        install_requires=['numpy>=1.10','scipy>=0.17','astropy>=1.0,<3.0' if sys.version_info[0] < 3 else 'astropy>=1.0'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],

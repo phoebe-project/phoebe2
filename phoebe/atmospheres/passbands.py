@@ -1359,7 +1359,7 @@ class Passband:
         These are used for intensity-to-flux transformations. The evaluated
         integral is:
 
-        ldint = 2 \pi \int_0^1 Imu mu dmu
+        ldint = 2 \int_0^1 Imu mu dmu
         """
 
         if 'ck2004_all' not in self.content:
@@ -1729,7 +1729,7 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: atm=%s, ldatm=%s, Teff=%s, logg=%s, abun=%s' % (atm, ldatm, Teff[nanmask], logg[nanmask], abun[nanmask]))
+            raise ValueError('Atmosphere parameters out of bounds: atm=%s, ldatm=%s, Teff=%s, logg=%s, abun=%s' % (atm, ldatm, Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
     def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
@@ -1776,13 +1776,13 @@ class Passband:
                 retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
                 nanmask = np.isnan(retval)
                 if np.any(nanmask):
-                    raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
+                    raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
                 return retval
             elif atm == 'phoenix' and 'phoenix_all' in self.content:
                 retval = self._Imu_phoenix(Teff, logg, abun, mu, photon_weighted=photon_weighted)
                 nanmask = np.isnan(retval)
                 if np.any(nanmask):
-                    raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
+                    raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
                 return retval
             else:
                 raise ValueError('atm={} not supported by {}:{} ld_func=interp'.format(atm, self.pbset, self.pbname))
@@ -1807,7 +1807,7 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
+            raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
         return retval
 
     def _ldint_ck2004(self, Teff, logg, abun, photon_weighted):
@@ -1865,7 +1865,7 @@ class Passband:
                 raise ValueError('ldatm={} not supported with ld_func=interp'.format(ldatm))
             nanmask = np.isnan(retval)
             if np.any(nanmask):
-                raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
+                raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
             return retval
 
         if ld_coeffs is None:
@@ -1886,7 +1886,7 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
+            raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
     def _bindex_ck2004(self, Teff, logg, abun, mu, atm, photon_weighted=False):
@@ -1932,7 +1932,7 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
+            raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
 def _timestamp_to_dt(timestamp):

@@ -1,7 +1,25 @@
-PHOEBE 2.1 RELEASE NOTES
+PHOEBE 2.1
 ------------------------
 
-Hello and thank you for your interest in PHOEBE 2!
+<p align="center"><a href="http://phoebe-project.org"><img src="./images/logo_blue.svg" alt="PHOEBE logo" width="160px" align="center"/></a></p>
+
+<pre align="center" style="text-align:center; font-family:monospace; margin: 30px">
+  pip install phoebe
+</pre>
+
+<p align="center">
+  <a href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
+  <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-2.7+%20%7C%203.6+-blue.svg"/></a>
+  <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
+  <a href="https://travis-ci.org/phoebe-project/phoebe2"><img src="https://travis-ci.org/phoebe-project/phoebe2.svg?branch=master"/></a>
+  <a href="http://phoebe-project.org/docs"><img src="https://img.shields.io/badge/docs-passing-success.svg"/></a>
+  <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
+  <a href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
+</p>
+
+<p align="center">
+  <a href="http://phoebe-project.org"><img src="./images/console.gif" alt="Console Animation" width="600px" align="center"/></a>
+</p>
 
 
 INTRODUCTION
@@ -61,6 +79,18 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 
 CHANGELOG
 ----------
+
+### 2.1.10 - ldint hotfix
+
+* Removes ldint from the weights in the computations of RVs and LPs.
+
+### 2.1.9 - limits hotfix
+
+* Fixes a bug where parameter limits were not being checked and out-of-limits errors not raised correctly.
+
+### 2.1.8 - mesh convergence hotfix
+
+* Fixes a bug where certain parameters would cause the meshing algorithm to fail to converge.  With this fix, up to 4 additional attempts will be made with random initial starting locations which should converge for most cases.
 
 ### 2.1.7 - comparison operators hotfix
 
