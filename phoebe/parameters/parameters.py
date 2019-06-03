@@ -1127,7 +1127,7 @@ class ParameterSet(object):
         if len(ps_for_this_search) != 1:
             # TODO: after fixing regex in twig (t0type vs t0)
             # change this to raise Error instead of return
-            return twig
+            return for_this_param.twig
 
         # now we go in the other direction and try to remove each to make sure
         # the count goes up
