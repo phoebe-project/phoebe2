@@ -545,6 +545,8 @@ class Bundle(ParameterSet):
             if starA != 'starA':
                 b.rename_component('starA', starA)
 
+            b._update_atm_choices()
+
             return b
 
         b = cls()
@@ -609,6 +611,8 @@ class Bundle(ParameterSet):
                 b.rename_component(secondary, starB)
             if orbit != 'binary':
                 b.rename_component('binary', 'orbit')
+
+            b._update_atm_choices()
 
             return b
 
@@ -1177,6 +1181,11 @@ class Bundle(ParameterSet):
         self.remove_parameter(uniqueid=param.uniqueid)
         if _history_enabled:
             self.enable_history()
+
+    def _update_atm_choices(self):
+        for param in self.filter(qualifier='atm', kind='phoebe',
+                                 check_visible=False, check_default=False).to_list():
+            param._choices = _compute._atm_choices
 
     def _handle_pblum_defaults(self):
         """
