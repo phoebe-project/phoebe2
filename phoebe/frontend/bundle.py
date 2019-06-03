@@ -46,6 +46,8 @@ if sys.version_info[0] == 3:
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
+_skip_filter_checks = {'check_default': False, 'check_visible': False}
+
 # Attempt imports for client requirements
 try:
     import requests
@@ -237,14 +239,14 @@ class Bundle(ParameterSet):
         f.close()
         b = cls(data)
 
-        version = b.get_value('phoebe_version')
+        version = b.get_value(qualifier='phoebe_version', check_default=False, check_visible=False)
         phoebe_version_import = StrictVersion(version if version != 'devel' else '2.2.0')
         phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.2.0')
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
         # update the entry in the PS, so if this is saved again it will have the new version
-        b.set_value('phoebe_version', __version__)
+        b.set_value(qualifier='phoebe_version', value=__version__, check_default=False, check_visible=False)
 
         if phoebe_version_import == phoebe_version_this:
             return b
@@ -322,15 +324,15 @@ class Bundle(ParameterSet):
                 # TODO: actually do the translation
                 rpole = dict_stars[star].pop('rpole', 1.0*u.solRad).to(u.solRad).value
                 # PHOEBE 2.0 didn't have syncpar for contacts
-                if len(b.filter('syncpar', component=star)):
-                    F = b.get_value('syncpar', component=star, context='component')
+                if len(b.filter(qualifier='syncpar', component=star)):
+                    F = b.get_value(qualifier='syncpar', component=star, context='component')
                 else:
                     F = 1.0
                 parent_orbit = b.hierarchy.get_parent_of(star)
                 component = b.hierarchy.get_primary_or_secondary(star, return_ind=True)
-                sma = b.get_value('sma', component=parent_orbit, context='component', unit=u.solRad)
-                q = b.get_value('q', component=parent_orbit, context='component')
-                d = 1 - b.get_value('ecc', component=parent_orbit)
+                sma = b.get_value(qualifier='sma', component=parent_orbit, context='component', unit=u.solRad)
+                q = b.get_value(qualifier='q', component=parent_orbit, context='component')
+                d = 1 - b.get_value(qualifier='ecc', component=parent_orbit)
 
                 logger.info("roche.rpole_to_requiv_aligned(rpole={}, sma={}, q={}, F={}, d={}, component={})".format(rpole, sma, q, F, d, component))
                 dict_stars[star]['requiv'] = roche.rpole_to_requiv_aligned(rpole, sma, q, F, d, component=component)
@@ -363,7 +365,7 @@ class Bundle(ParameterSet):
 
                 primary = b.hierarchy.get_stars()[0]
                 b.flip_constraint('pot', component=env, solve_for='requiv@{}'.format(primary), check_nan=False)
-                b.set_value('pot', component=env, context='component', value=dict_env['pot'])
+                b.set_value(qualifier='pot', component=env, context='component', value=dict_env['pot'])
                 b.flip_constraint('requiv', component=primary, solve_for='pot', check_nan=False)
 
             # reset all hieararchy-dependent constraints
@@ -383,7 +385,7 @@ class Bundle(ParameterSet):
 
             # vgamma definition: https://github.com/phoebe-project/phoebe2/issues/234
             logger.info("updating vgamma to new version requirements")
-            b.set_value('vgamma', -1*b.get_value('vgamma'))
+            b.set_value(qualifier='vgamma', value=-1*b.get_value(qualifier='vgamma'))
 
             # remove phshift parameter: https://github.com/phoebe-project/phoebe2/commit/1fa3a4e1c0f8d80502101e1b1e750f5fb14115cb
             logger.info("removing any phshift parameters for new version requirements")
@@ -1222,31 +1224,30 @@ class Bundle(ParameterSet):
 
         changed_param = self.run_delayed_constraints()
 
-        pbdep_datasets = self.filter(context='dataset',
-                                     kind=_dataset._pbdep_columns.keys()).datasets
+        dss_ps = self.filter(context='dataset', check_default=False, check_visible=False)
+
+        pbdep_datasets = dss_ps.filter(kind=_dataset._pbdep_columns.keys(),
+                                       check_default=False, check_visible=False).datasets
 
         pbdep_columns = _dataset._mesh_columns[:] # force deepcopy
         for pbdep_dataset in pbdep_datasets:
-            pbdep_kind = self.filter(context='dataset',
-                                     dataset=pbdep_dataset,
-                                     kind=_dataset._pbdep_columns.keys()).kind
+            pbdep_kind = dss_ps.filter(dataset=pbdep_dataset,
+                                       kind=_dataset._pbdep_columns.keys(),
+                                       check_default=False, check_visible=False).kind
 
             pbdep_columns += ["{}@{}".format(column, pbdep_dataset) for column in _dataset._pbdep_columns[pbdep_kind]]
 
-        time_datasets = (self.filter(context='dataset')-
-                         self.filter(context='dataset', kind='mesh')).datasets
+        time_datasets = dss_ps.exclude(kind='mesh').datasets
 
         t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component']).to_list()]
         t0s += ["t0@system"]
 
-        for param in self.filter(qualifier='columns',
-                                 context='dataset').to_list():
+        for param in dss_ps.filter(qualifier='columns', check_default=False, check_visible=False).to_list():
 
             param._choices = pbdep_columns
             param.remove_not_valid_selections()
 
-        for param in self.filter(qualifier='include_times',
-                                 context='dataset').to_list():
+        for param in dss_ps.filter(qualifier='include_times', check_default=False, check_visible=False).to_list():
 
             # NOTE: existing value is updated in change_component
             param._choices = time_datasets + t0s
@@ -1743,18 +1744,25 @@ class Bundle(ParameterSet):
         if isinstance(computes, str):
             computes = [computes]
 
+        kwargs.setdefault('check_visible', False)
+        kwargs.setdefault('check_default', False)
+
         hier = self.hierarchy
         if hier is None:
             return True, ''
-        for component in hier.get_stars():
-            kind = hier.get_kind_of(component)
-            comp_ps = self.get_component(component)
+
+        hier_stars = hier.get_stars()
+        hier_meshables = hier.get_meshables()
+
+        for component in hier_stars:
+            kind = hier.get_kind_of(component) # shouldn't this always be 'star'?
+            comp_ps = self.get_component(component, **_skip_filter_checks)
 
             if not len(comp_ps):
                 return False, "component '{}' in the hierarchy is not in the bundle".format(component)
 
             parent = hier.get_parent_of(component)
-            parent_ps = self.get_component(parent)
+            parent_ps = self.get_component(parent, **_skip_filter_checks)
             if kind in ['star']:
                 # ignore the single star case
                 if parent:
@@ -1778,8 +1786,8 @@ class Bundle(ParameterSet):
 
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
-                    requiv = comp_ps.get_value('requiv', unit=u.solRad, **kwargs)
-                    requiv_max = comp_ps.get_value('requiv_max', unit=u.solRad, **kwargs)
+                    requiv = comp_ps.get_value(qualifier='requiv', unit=u.solRad, **kwargs)
+                    requiv_max = comp_ps.get_value(qualifier='requiv_max', unit=u.solRad, **kwargs)
 
 
 
@@ -1789,7 +1797,7 @@ class Bundle(ParameterSet):
                                 '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
 
 
-                        requiv_min = comp_ps.get_value('requiv_min')
+                        requiv_min = comp_ps.get_value(qualifier='requiv_min')
 
                         if np.isnan(requiv) or requiv <= requiv_min:
                             return False,\
@@ -1818,10 +1826,10 @@ class Bundle(ParameterSet):
                 if hier.get_kind_of(starrefs[0]) != 'star' or hier.get_kind_of(starrefs[1]) != 'star':
                     # print "***", hier.get_kind_of(starrefs[0]), hier.get_kind_of(starrefs[1])
                     continue
-                if self.get_value(qualifier='pitch', component=starrefs[0])!=0.0 or \
-                        self.get_value(qualifier='pitch', component=starrefs[1])!=0.0 or \
-                        self.get_value(qualifier='yaw', component=starrefs[0])!=0.0 or \
-                        self.get_value(qualifier='yaw', component=starrefs[1])!=0.0:
+                if self.get_value(qualifier='pitch', component=starrefs[0], **_skip_filter_checks)!=0.0 or \
+                        self.get_value(qualifier='pitch', component=starrefs[1], **_skip_filter_checks)!=0.0 or \
+                        self.get_value(qualifier='yaw', component=starrefs[0], **_skip_filter_checks)!=0.0 or \
+                        self.get_value(qualifier='yaw', component=starrefs[1], **_skip_filter_checks)!=0.0:
 
                     # we cannot run this test for misaligned cases
                    continue
@@ -1851,13 +1859,13 @@ class Bundle(ParameterSet):
         all_pbs = list_passbands(full_dict=True)
         installed_pbs = list_installed_passbands(full_dict=True)
         online_pbs = list_online_passbands(full_dict=True)
-        for pbparam in self.filter(qualifier='passband').to_list():
+        for pbparam in self.filter(qualifier='passband', **_skip_filter_checks).to_list():
             pb = pbparam.get_value()
             pbatms = installed_pbs[pb]['atms']
             # NOTE: atms are not attached to datasets, but per-compute and per-component
             # check to make sure passband supports the selected atm
-            for atmparam in self.filter(qualifier='atm', kind='phoebe').to_list():
-                atm = atmparam.get_value()
+            for atmparam in self.filter(qualifier='atm', kind='phoebe', **_skip_filter_checks).to_list():
+                atm = atmparam.get_value(**_skip_filter_checks)
                 if atm not in pbatms:
                     return False, "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig)
 
@@ -1883,10 +1891,10 @@ class Bundle(ParameterSet):
             else:
                 return False, "ld_coeffs={} wrong length for ld_func='{}'.".format(ld_coeffs, ld_func)
 
-        for component in self.hierarchy.get_stars():
+        for component in hier_stars:
             # first check ld_coeffs_bol vs ld_func_bol
-            ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', check_visible=False, **kwargs))
-            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs)
+            ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', **kwargs))
+            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
             check = ld_coeffs_len(ld_func, ld_coeffs)
             if not check[0]:
                 return check
@@ -1897,16 +1905,16 @@ class Bundle(ParameterSet):
                     return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
 
                 for compute in computes:
-                    if self.get_compute(compute).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
-                        return False, "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
+                    if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
+                        return False, "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
 
             for dataset in self.datasets:
-                if dataset=='_default' or self.get_dataset(dataset=dataset).kind not in ['lc', 'rv']:
+                if dataset=='_default' or self.get_dataset(dataset=dataset, **_skip_filter_checks).kind not in ['lc', 'rv']:
                     continue
                 ld_func = str(self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs))
-                ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
-                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
-                pb = self.get_value(qualifier='passband', dataset=dataset, context='dataset', check_visible=False, **kwargs)
+                ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source', dataset=dataset, component=component, context='dataset', **kwargs)
+                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', **kwargs)
+                pb = self.get_value(qualifier='passband', dataset=dataset, context='dataset', **kwargs)
 
                 if ld_func != 'interp':
                     if ld_coeffs_source not in ['none', 'auto']:
@@ -1923,10 +1931,10 @@ class Bundle(ParameterSet):
                             return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
 
                         for compute in computes:
-                            if self.get_compute(compute).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
-                                return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
-                            if self.get_compute(compute).kind in ['jktebop'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic']:
-                                return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute).kind, compute)
+                            if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
+                                return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
+                            if self.get_compute(compute, **_skip_filter_checks).kind in ['jktebop'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic']:
+                                return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
 
 
                 if ld_func=='interp':
@@ -1944,35 +1952,62 @@ class Bundle(ParameterSet):
                                 else:
                                     return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
+        def _get_proj_area(comp):
+            if self.hierarchy.get_kind_of(comp)=='envelope':
+                return np.sum([_get_proj_area(c) for c in self.hierarchy.get_siblings_of(comp)])
+            else:
+                return np.pi*self.get_value(qualifier='requiv', component=comp, context='component', unit='solRad')**2
+
+        def _get_surf_area(comp):
+            if self.hierarchy.get_kind_of(comp)=='envelope':
+                return np.sum([_get_surf_area(c) for c in self.hierarchy.get_siblings_of(comp)])
+            else:
+                return 4*np.pi*self.get_value(qualifier='requiv', component=comp, context='component', unit='solRad')**2
+
+
         for compute in computes:
-            compute_kind = self.get_compute(compute=compute).kind
+            compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
 
             # mesh-consistency checks
-            mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
+            mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
-                    return False, "all (or none) components must use mesh_method='wd'."
+                    return False, "all (or no) components must use mesh_method='wd'."
 
+            # estimate if any body is smaller than any other body's triangles, using a spherical assumption
+            if compute_kind=='phoebe' and 'wd' not in mesh_methods:
+                areas = {comp: _get_proj_area(comp) for comp in hier_meshables}
+                triangle_areas = {comp: _get_surf_area(comp)/self.get_value(qualifier='ntriangles', component=comp, compute=compute, **_skip_filter_checks) for comp in hier_meshables}
+                if max(triangle_areas.values()) > 5*min(areas.values()):
+                    if max(triangle_areas.values()) > 2*min(areas.values()):
+                        offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 2*min(areas.values())]
+                        smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
+                        return False, "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.".format(offending_components, smallest_components, smallest_components, offending_components)
+                    else:
+                        # only raise a warning
+                        offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 5*min(areas.values())]
+                        smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
+                        return None, "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.".format(offending_components, smallest_components, smallest_components, offending_components)
 
         # forbid color-coupling with a dataset which is scaled to data or to another that is in-turn color-coupled
-        for param in self.filter(qualifier='pblum_mode', value='color coupled').to_list():
-            coupled_to = self.get_value(qualifier='pblum_ref', dataset=param.dataset)
+        for param in self.filter(qualifier='pblum_mode', value='color coupled', **_skip_filter_checks).to_list():
+            coupled_to = self.get_value(qualifier='pblum_ref', dataset=param.dataset, check_visible=True)
             if coupled_to == '':
                 continue
-            pblum_mode = self.get_value(qualifier='pblum_mode', dataset=coupled_to)
+            pblum_mode = self.get_value(qualifier='pblum_mode', dataset=coupled_to, **_skip_filter_checks)
             if pblum_mode in ['scale to data', 'color coupled']:
                 return False, "cannot set pblum_ref@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode)
 
         # require any pblum_mode == 'scale to data' to have accompanying data
-        for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
-            if not len(self.get_value(qualifier='fluxes', dataset=param.dataset, context='dataset')):
+        for param in self.filter(qualifier='pblum_mode', value='scale to data', **_skip_filter_checks).to_list():
+            if not len(self.get_value(qualifier='fluxes', dataset=param.dataset, context='dataset', **_skip_filter_checks)):
                 return False, "fluxes@{} cannot be empty if pblum_mode@{}='scale to data'".format(param.dataset, param.dataset)
 
         ### TODO: add tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
 
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol and irrad_frac_refl_bol
-        for component in self.hierarchy.get_stars():
+        for component in hier_stars:
             teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
             gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component', **kwargs)
 
@@ -1983,7 +2018,7 @@ class Bundle(ParameterSet):
             elif gravb_bol < 0.32 or gravb_bol > 1.00:
                 return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
 
-        for component in self.hierarchy.get_stars():
+        for component in hier_stars:
             teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
             irrad_frac_refl_bol = self.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)
 
@@ -2447,6 +2482,8 @@ class Bundle(ParameterSet):
             self._check_label(kwargs['component'], allow_overwrite=False)
 
         self._attach_params(params, **metawargs)
+        # attach params called _check_copy_for, but only on it's own parameterset
+        self._check_copy_for()
 
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['func'] = fname
@@ -3118,7 +3155,7 @@ class Bundle(ParameterSet):
 
                     # we've already set pblum_mode in the dataset, and popped
                     # then entry from kwargs
-                    if self.get_value('pblum_mode', dataset=kwargs['dataset']) == 'color coupled':
+                    if self.get_value(qualifier='pblum_mode', dataset=kwargs['dataset']) == 'color coupled':
                         components_ = None
                     else:
                         components_ = components+['_default']
@@ -3694,7 +3731,7 @@ class Bundle(ParameterSet):
 
     def flip_constraint_all(self, twig=None, solve_for=None, **kwargs):
         """
-        Flip a multiple existing constraints to solve for a different parameter.
+        Flip multiple existing constraints to solve for a different parameter.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.flip_constraint>
@@ -3800,7 +3837,9 @@ class Bundle(ParameterSet):
 
         result = expression_param.result
 
-        if result != constrained_param.get_value():
+        # we won't bother checking for arrays (we'd have to do np.all),
+        # but for floats, let's only set the value if the value has changed.
+        if not isinstance(result, float) or result != constrained_param.get_value():
             logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
             constrained_param.set_value(result, force=True, run_constraints=True)
 
@@ -3973,7 +4012,7 @@ class Bundle(ParameterSet):
 
         system_compute = compute if compute_kind=='phoebe' else None
         logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
-        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, compute_extrinsic=compute_extrinsic, reset=False, **kwargs)
+        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, compute_extrinsic=compute_extrinsic, reset=False, lc_only=False, **kwargs)
 
     def compute_l3s(self, compute=None, set_value=False, **kwargs):
         """
@@ -4040,19 +4079,19 @@ class Bundle(ParameterSet):
 
         l3s = {}
         for dataset in datasets:
-            l3_mode = self.get_value('l3_mode', dataset=dataset)
+            l3_mode = self.get_value(qualifier='l3_mode', dataset=dataset)
             if l3_mode == 'flux':
                 l3_frac = system.l3s[dataset]['frac']
                 l3s['l3_frac@{}'.format(dataset)] = l3_frac
                 if set_value:
-                    self.set_value('l3_frac', dataset=dataset, check_visible=False, value=l3_frac)
+                    self.set_value(qualifier='l3_frac', dataset=dataset, check_visible=False, value=l3_frac)
 
             elif l3_mode == 'fraction of total light':
                 l3_flux = system.l3s[dataset]['flux'] * u.W / u.m**2
                 l3s['l3@{}'.format(dataset)] = l3_flux
 
                 if set_value:
-                    self.set_value('l3', dataset=dataset, check_visible=False, value=l3_flux)
+                    self.set_value(qualifier='l3', dataset=dataset, check_visible=False, value=l3_flux)
 
             else:
                 raise NotImplementedError("l3_mode='{}' not supported.".format(l3_mode))
@@ -4072,6 +4111,9 @@ class Bundle(ParameterSet):
         Note that pblum scaling is computed (and applied to flux scaling) based
         on intrinsic luminosities (`pblum`).
 
+        For any `dataset` which does not support pblum scaling (rv or lp dataset,
+        for example), will have their absolute intensities exposed.
+
         Note that luminosities cannot be exposed for any dataset in which
         `pblum_mode` is 'scale to data' as the entire light curve must be
         computed prior to scaling.
@@ -4082,6 +4124,18 @@ class Bundle(ParameterSet):
         or `pbflux_ext = sum(pblum_ext / (4 pi)) + l3`.  Note that in either case,
         the translation from `l3_frac` to `l3` (when necessary) will include
         extrinsic effects.  See also <phoebe.frontend.bundle.Bundle.compute_l3s>.
+
+        Note about eclipses: `pbflux` and `pbflux_ext` estimates will not include
+        any eclipsing or ellipsoidal effects (even if an eclipse occurs at time
+        `t0`) as they are estimated directly from the luminosities under the
+        spherical assumption.
+
+        Note about boosting: as boosting is an aspect-dependent effect that
+        does not affect normal intensities, boosting will not be included
+        in any of the returned values, including `pbflux_ext` due to the
+        approximation of flux explained above.  This also means that boosting
+        will be ignored in any scaling if providing `pbflux` (by setting
+        `pblum_mode = 'total flux'`).
 
         This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute> as needed.
@@ -4104,8 +4158,8 @@ class Bundle(ParameterSet):
             intrinsic (excluding irradiation & features) pblums.  These
             will be exposed in the returned dictionary as pblum@component@dataset.
         * `pblum_ext` (bool, optional, default=True): whether to include
-            extrinsic (irradiation & features) pblums.  These will be exposed
-            as pblum_ext@component@dataset.
+            extrinsic (irradiation & features) pblums.  These will
+            be exposed as pblum_ext@component@dataset.
         * `pbflux` (bool, optional, default=False): whether to include
             intrinsic per-system passband fluxes.  These include third-light
             (from the l3 or l3_frac parameter), but are estimated based
@@ -4119,7 +4173,9 @@ class Bundle(ParameterSet):
             components in the hierarchy.
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
-            datasets attached to the bundle.
+            passband-dependent datasets attached to the bundle.  Those without
+            a pblum_mode parameter (eg. rv or lp datasets) will be computed
+            in absolute luminosities.
         * `set_value` (bool, optional, default=False): apply the computed
             values to the respective `pblum` or `pbflux` parameters (even if not
             currently visible).  Note that extrinsic values (`pblum_ext` and
@@ -4136,10 +4192,18 @@ class Bundle(ParameterSet):
             pblum@component@dataset (for intrinsic pblums) or
             pblum_ext@component@dataset (for extrinsic pblums) and the pblums
             as values (as quantity objects with default units of W).
+
+        Raises
+        ----------
+        * ValueError: if `compute` needs to be provided but is not.
+        * ValueError: if any value in `dataset` points to a dataset that is not
+            passband-dependent (eg. a mesh or orb dataset).
+        * ValueError: if the system fails to pass
+            <phoebe.frontend.bundle.Bundle.run_checks>.
         """
         logger.debug("b.compute_pblums")
 
-        datasets = kwargs.pop('dataset', self.datasets)
+        datasets = kwargs.pop('dataset', self.filter(qualifier='passband').datasets)
         if isinstance(datasets, str):
             datasets = [datasets]
         components = kwargs.pop('component', self.components)
@@ -4150,6 +4214,7 @@ class Bundle(ParameterSet):
         forbidden_keys = parameters._meta_fields_filter
         self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks'], additional_forbidden_keys=forbidden_keys)
 
+        # check to make sure value of passed compute is valid
         if compute is None:
             if len(self.computes)==1:
                 compute = self.computes[0]
@@ -4158,6 +4223,7 @@ class Bundle(ParameterSet):
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
 
+        # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
             passed, msg = self.run_checks(compute=compute, **kwargs)
             if passed is None:
@@ -4167,10 +4233,20 @@ class Bundle(ParameterSet):
                 # then raise an error
                 raise ValueError("system failed to pass checks: {}".format(msg))
 
-        # TODO: technically we don't need all dataset, but we do need datasets + any datasets that are referenced by pblum_ref of those datasets...
-        pblum_datasets = self.filter(qualifier='pblum_mode').datasets
+        # determine datasets which need intensities computed and check to make
+        # sure all passed datasets are passband-dependent
+        pblum_datasets = datasets
+        for dataset in datasets:
+            if not len(self.filter(qualifier='passband', dataset=dataset)):
+                raise ValueError("dataset '{}' is not passband-dependent".format(dataset))
+            for pblum_ref_param in self.filter(qualifier='pblum_ref', dataset=dataset).to_list():
+                ref_dataset = pblum_ref_param.get_value()
+                if ref_dataset in self.datasets and ref_dataset not in pblum_datasets:
+                    # then we need to compute the system at this dataset too,
+                    # even though it isn't requested to be returned
+                    pblum_datasets.append(ref_dataset)
 
-        t0 = self.get_value('t0', context='system', unit=u.d)
+        t0 = self.get_value(qualifier='t0', context='system', unit=u.d)
 
         ret = {}
         l3s = None
@@ -4195,10 +4271,16 @@ class Bundle(ParameterSet):
             for dataset in datasets:
                 pbflux_this_dataset = 0
 
-                if compute_extrinsic:
-                    logger.debug("computing (extrinsic) observables for {}".format(dataset))
-                    system.populate_observables(t0, ['lc'], [dataset],
-                                                ignore_effects=False)
+                # TODO: can we get away with skipping this in some cases?  If we
+                # skipped the compute_extrinsic=True case, then we should
+                # already have these with ignore_effects=True from computing the
+                # scaling
+                # Technically we only need to do this if compute_extrinsic as of
+                # right now, since there is nothing in _populate_lc which
+                # affects Inorms (though boosting affects Imus).
+                logger.debug("computing observables with ignore_effects={} for {}".format(not compute_extrinsic, dataset))
+                system.populate_observables(t0, ['lc'], [dataset],
+                                            ignore_effects=not compute_extrinsic)
 
                 for component, star in system.items():
                     if component not in components:
@@ -4209,19 +4291,19 @@ class Bundle(ParameterSet):
 
                     if (compute_extrinsic and pblum_ext) or (not compute_extrinsic and pblum):
                         if not compute_extrinsic and set_value:
-                            self.set_value('pblum', component=component, dataset=dataset, context='dataset', check_visible=False, value=pblum*u.W)
+                            self.set_value(qualifier='pblum', component=component, dataset=dataset, context='dataset', check_visible=False, value=pblum*u.W)
 
                         ret["{}@{}@{}".format('pblum_ext' if compute_extrinsic else 'pblum', component, dataset)] = pblum*u.W
 
                 if (compute_extrinsic and pbflux_ext) or (not compute_extrinsic and pbflux):
                     if l3s is None:
                         # then we didn't need to compute l3s, so we can pull straight from the parameter
-                        pbflux_this_dataset += self.get_value('l3', dataset=dataset, context='dataset', unit=u.W/u.m**2)
+                        pbflux_this_dataset += self.get_value(qualifier='l3', dataset=dataset, context='dataset', unit=u.W/u.m**2)
                     else:
                         pbflux_this_dataset += l3s[dataset]
 
                     if not compute_extrinsic and set_value:
-                        self.set_value('pbflux', dataset=dataset, context='dataset', check_visible=False, value=pbflux_this_dataset*u.W/u.m**2)
+                        self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', check_visible=False, value=pbflux_this_dataset*u.W/u.m**2)
 
                     ret["{}@{}".format('pbflux_ext' if compute_extrinsic else 'pbflux', dataset)] = pbflux_this_dataset*u.W/u.m**2
 
@@ -4337,7 +4419,7 @@ class Bundle(ParameterSet):
         if kind=='phoebe' and 'ntriangles' not in kwargs.keys():
             # the default for ntriangles in compute.py is 1500, we want 3000 for an envelope
             for envelope in self.hierarchy.get_envelopes():
-                self.set_value('ntriangles', compute=kwargs['compute'], component=envelope, value=3000, check_visible=False)
+                self.set_value(qualifier='ntriangles', compute=kwargs['compute'], component=envelope, value=3000, check_visible=False)
 
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['func'] = func.__name__
@@ -4525,13 +4607,13 @@ class Bundle(ParameterSet):
 
         # handle case where compute is not provided
         if compute is None:
-            computes = self.get_compute(**kwargs).computes
+            computes = self.get_compute(check_default=False, check_visible=False, **kwargs).computes
             if len(computes)==0:
                 # NOTE: this doesn't take **kwargs since we want those to be
                 # temporarily overriden as is the case when the compute options
                 # are already attached
                 self.add_compute()
-                computes = self.get_compute().computes
+                computes = self.computes
                 # now len(computes) should be 1 and will trigger the next
                 # if statement
 
@@ -4709,8 +4791,8 @@ class Bundle(ParameterSet):
                                 # exposures to "overlap" each other, so we'll
                                 # later need to determine which times (and
                                 # therefore fluxes) belong to which datapoint
-                                times_oversampled_sorted = params.get_value('times', dataset=dataset)
-                                fluxes_oversampled = params.get_value('fluxes', dataset=dataset)
+                                times_oversampled_sorted = params.get_value(qualifier='times', dataset=dataset)
+                                fluxes_oversampled = params.get_value(qualifier='fluxes', dataset=dataset)
 
                                 for i,t in enumerate(times_ds):
                                     # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
@@ -4732,12 +4814,12 @@ class Bundle(ParameterSet):
         # scale fluxes whenever pblum_mode = 'scale to data'
         for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
             logger.debug("rescaling fluxes to data for dataset='{}'".format(param.dataset))
-            ds_times = self.get_dataset(param.dataset).get_value('times')
-            ds_fluxes = self.get_dataset(param.dataset).get_value('fluxes')
-            ds_sigmas = self.get_dataset(param.dataset).get_value('sigmas')
+            ds_times = self.get_dataset(param.dataset).get_value(qualifier='times')
+            ds_fluxes = self.get_dataset(param.dataset).get_value(qualifier='fluxes')
+            ds_sigmas = self.get_dataset(param.dataset).get_value(qualifier='sigmas')
 
-            model_fluxes = self.get_model(model).get_value('fluxes')
-            model_fluxes_interp = self.get_model(model).get_parameter('fluxes').interp_value(times=ds_times)
+            model_fluxes = self.get_model(model).get_value(qualifier='fluxes')
+            model_fluxes_interp = self.get_model(model).get_parameter(qualifier='fluxes').interp_value(times=ds_times)
             scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
 
             # TODO: can we skip this if sigmas don't exist?
@@ -4746,7 +4828,7 @@ class Bundle(ParameterSet):
             scale_factor = popt[0]
 
             logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, param.dataset))
-            self.get_model(model).set_value('fluxes', dataset=param.dataset, value=model_fluxes*scale_factor)
+            self.get_model(model).set_value(qualifier='fluxes', dataset=param.dataset, value=model_fluxes*scale_factor)
 
             for param in self.get_model(model, dataset=param.dataset, kind='mesh').to_list():
                 if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:

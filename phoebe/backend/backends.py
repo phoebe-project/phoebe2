@@ -232,7 +232,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                     # of columns@mesh.  Let's store the needed information here,
                     # where mesh_datasets and mesh_kinds correspond to each
                     # other (but mesh_columns does not).
-                    info['mesh_columns'] = dataset_ps.get_value('columns', expand=True)
+                    info['mesh_columns'] = dataset_ps.get_value(qualifier='columns', expand=True)
                     info['mesh_datasets'] = list(set([c.split('@')[1] for c in info['mesh_columns'] if len(c.split('@'))>1]))
                     info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').kind for ds in info['mesh_datasets']]
 
@@ -409,7 +409,7 @@ class BaseBackend(object):
                 for packet in packetlist:
                     # single parameter
                     try:
-                        new_syns.set_value(**packet)
+                        new_syns.set_value(check_default=False, check_visible=False, **packet)
                     except Exception as err:
                         raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, err.message))
 
@@ -560,8 +560,8 @@ class PhoebeBackend(BaseBackendByTime):
         starrefs  = hier.get_stars()
         meshablerefs = hier.get_meshables()
 
-        if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0], **kwargs) in ['roche']:
-            raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0], **kwargs)))
+        if len(starrefs)==1 and computeparams.get_value(qualifier='distortion_method', component=starrefs[0], **kwargs) in ['roche', 'none']:
+            raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value(qualifier='distortion_method', component=starrefs[0], **kwargs)))
 
     def _create_system_and_compute_pblums(self, b, compute,
                                           dynamics_method=None,
@@ -572,6 +572,7 @@ class PhoebeBackend(BaseBackendByTime):
                                           compute_l3_frac=False,
                                           compute_extrinsic=False,
                                           reset=True,
+                                          lc_only=True,
                                           **kwargs):
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: calling universe.System.from_bundle".format(mpi.myrank, mpi.nprocs))
@@ -579,7 +580,7 @@ class PhoebeBackend(BaseBackendByTime):
 
         if dynamics_method is None:
             computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
-            dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
+            dynamics_method = computeparams.get_value(qualifier='dynamics_method', **kwargs)
 
         if hier is None:
             hier = b.get_hierarchy()
@@ -612,8 +613,8 @@ class PhoebeBackend(BaseBackendByTime):
 
         else:
             # singlestar case
-            incl = b.get_value('incl', component=meshablerefs[0], unit=u.rad)
-            long_an = b.get_value('long_an', component=meshablerefs[0], unit=u.rad)
+            incl = b.get_value(qualifier='incl', component=meshablerefs[0], unit=u.rad)
+            long_an = b.get_value(qualifier='long_an', component=meshablerefs[0], unit=u.rad)
 
             x0, y0, z0 = [0.], [0.], [0.]
             vx0, vy0, vz0 = [0.], [0.], [0.]
@@ -628,7 +629,7 @@ class PhoebeBackend(BaseBackendByTime):
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
         # NOTE: system.compute_pblum_scalings populates at t0 with ignore_effect=True (so intrinsic pblum)
-        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, reset=False)
+        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, reset=False, lc_only=lc_only)
         if compute_l3 or compute_extrinsic:
             if len(b.features):
                 # then the features may affect intrinsic vs extrinsic pblums,
@@ -656,10 +657,10 @@ class PhoebeBackend(BaseBackendByTime):
         starrefs  = hier.get_stars()
         meshablerefs = hier.get_meshables()
 
-        do_horizon = False #computeparams.get_value('horizon', **kwargs)
-        dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
+        do_horizon = False #computeparams.get_value(qualifier='horizon', **kwargs)
+        dynamics_method = computeparams.get_value(qualifier='dynamics_method', **kwargs)
         dump_ = kwargs.pop('dynamics_method', None)
-        ltte = computeparams.get_value('ltte', **kwargs)
+        ltte = computeparams.get_value(qualifier='ltte', **kwargs)
         distance = b.get_value(qualifier='distance', context='system', unit=u.m, **kwargs)
         dump_ = kwargs.pop('distance', None)
 
@@ -695,10 +696,10 @@ class PhoebeBackend(BaseBackendByTime):
 
         else:
             # singlestar case
-            incl = b.get_value('incl', component=meshablerefs[0], unit=u.rad)
-            long_an = b.get_value('long_an', component=meshablerefs[0], unit=u.rad)
-            vgamma = b.get_value('vgamma', context='system', unit=u.solRad/u.d)
-            t0 = b.get_value('t0', context='system', unit=u.d)
+            incl = b.get_value(qualifier='incl', component=meshablerefs[0], unit=u.rad)
+            long_an = b.get_value(qualifier='long_an', component=meshablerefs[0], unit=u.rad)
+            vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.solRad/u.d)
+            t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
 
             ts = [times]
             vxs, vys, vzs = [np.zeros(len(times))], [np.zeros(len(times))], [np.zeros(len(times))]
@@ -760,8 +761,8 @@ class PhoebeBackend(BaseBackendByTime):
 
 
             # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
-            # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
-            # sma = b.get_value('sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
+            # masses = [b.get_value(qualifier='mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
+            # sma = b.get_value(qualifier='sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
 
             logger.debug("rank:{}/{} PhoebeBackend._run_single_time: calling system.update_positions at time={}".format(mpi.myrank, mpi.nprocs, time))
             system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli, ds=di, Fs=Fi)
@@ -889,7 +890,7 @@ class PhoebeBackend(BaseBackendByTime):
             elif kind=='etv':
 
                 # TODO: add support for other etv kinds (barycentric, robust, others?)
-                time_ecl = etvs.crossing(b, info['component'], time, dynamics_method, ltte, tol=computeparams.get_value('etv_tol', u.d, dataset=info['dataset'], component=info['component']))
+                time_ecl = etvs.crossing(b, info['component'], time, dynamics_method, ltte, tol=computeparams.get_value(qualifier='etv_tol', unit=u.d, dataset=info['dataset'], component=info['component']))
 
                 this_obs = b.filter(dataset=info['dataset'], component=info['component'], context='dataset')
 
@@ -944,6 +945,8 @@ class PhoebeBackend(BaseBackendByTime):
 
             elif kind=='mesh':
                 body = system.get_body(info['component'])
+                if body.mesh is None:
+                    continue
 
                 packetlist.append(_make_packet('uvw_elements',
                                               body.mesh.vertices_per_triangle,
@@ -1511,8 +1514,8 @@ class PhotodynamBackend(BaseBackendByDataset):
         starrefs  = hier.get_stars()
         orbitrefs = hier.get_orbits()
 
-        step_size = computeparams.get_value('stepsize', **kwargs)
-        orbit_error = computeparams.get_value('orbiterror', **kwargs)
+        step_size = computeparams.get_value(qualifier='stepsize', **kwargs)
+        orbit_error = computeparams.get_value(qualifier='orbiterror', **kwargs)
         time0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
 
 
@@ -1542,17 +1545,17 @@ class PhotodynamBackend(BaseBackendByDataset):
         fi.write('{} {}\n'.format(len(starrefs), time0))
         fi.write('{} {}\n'.format(step_size, orbit_error))
         fi.write('\n')
-        fi.write(' '.join([str(b.get_value('mass', component=star,
+        fi.write(' '.join([str(b.get_value(qualifier='mass', component=star,
                 context='component', unit=u.solMass) * c.G.to('AU3 / (Msun d2)').value)
                 for star in starrefs])+'\n') # GM
 
-        fi.write(' '.join([str(b.get_value('requiv', component=star,
+        fi.write(' '.join([str(b.get_value(qualifier='requiv', component=star,
                 context='component', unit=u.AU))
                 for star in starrefs])+'\n')
 
         if info['kind'] == 'lc':
             # TODO: this will make two meshing calls, let's create and extract from the dictionary instead, or use set_value=True
-            pblums = [b.get_value('pblum', dataset=info['dataset'], component=starref, unit=u.W, check_visible=False) for starref in starrefs]
+            pblums = [b.get_value(qualifier='pblum', dataset=info['dataset'], component=starref, unit=u.W, check_visible=False) for starref in starrefs]
 
             u1s, u2s = [], []
             for star in starrefs:
@@ -1583,24 +1586,24 @@ class PhotodynamBackend(BaseBackendByDataset):
         fi.write('\n')
 
         for orbitref in orbitrefs:
-            a = b.get_value('sma', component=orbitref,
+            a = b.get_value(qualifier='sma', component=orbitref,
                 context='component', unit=u.AU)
-            e = b.get_value('ecc', component=orbitref,
+            e = b.get_value(qualifier='ecc', component=orbitref,
                 context='component')
-            i = b.get_value('incl', component=orbitref,
+            i = b.get_value(qualifier='incl', component=orbitref,
                 context='component', unit=u.rad)
-            o = b.get_value('per0', component=orbitref,
+            o = b.get_value(qualifier='per0', component=orbitref,
                 context='component', unit=u.rad)
-            l = b.get_value('long_an', component=orbitref,
+            l = b.get_value(qualifier='long_an', component=orbitref,
                 context='component', unit=u.rad)
 
-            # t0 = b.get_value('t0_perpass', component=orbitref,
+            # t0 = b.get_value(qualifier='t0_perpass', component=orbitref,
                 # context='component', unit=u.d)
-            # period = b.get_value('period', component=orbitref,
+            # period = b.get_value(qualifier='period', component=orbitref,
                 # context='component', unit=u.d)
 
             # om = 2 * np.pi * (time0 - t0) / period
-            om = b.get_value('mean_anom', component=orbitref,
+            om = b.get_value(qualifier='mean_anom', component=orbitref,
                              context='component', unit=u.rad)
 
             fi.write('{} {} {} {} {} {}\n'.format(a, e, i, o, l, om))
@@ -1614,7 +1617,7 @@ class PhotodynamBackend(BaseBackendByDataset):
         # v light-time corrected velocities
         fr.write('t F x v \n')   # TODO: don't always get all?
 
-        for t in b.get_value('times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d):
+        for t in b.get_value(qualifier='times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d):
             fr.write('{}\n'.format(t))
         fr.close()
 
@@ -1635,7 +1638,7 @@ class PhotodynamBackend(BaseBackendByDataset):
                                            info))
 
             packetlist.append(_make_packet('fluxes',
-                                           stuff[1] +b.get_value('pbflux', dataset=info['dataset'], unit=u.W/u.m**2, check_visible=False) - 1,
+                                           stuff[1] +b.get_value(qualifier='pbflux', dataset=info['dataset'], unit=u.W/u.m**2, check_visible=False) - 1,
                                            None,
                                            info))
 
@@ -1723,7 +1726,7 @@ class JktebopBackend(BaseBackendByDataset):
         # handled in bundle checks
         # for dataset in b.filter(compute=compute, context='compute', qualifier='enabled', value=True).datasets:
         #     for comp in starrefs:
-        #         if b.get_value('ld_func', component=comp, dataset=datset, context='dataset') == 'interp':
+        #         if b.get_value(qualifier='ld_func', component=comp, dataset=datset, context='dataset') == 'interp':
         #             raise ValueError("jktebop backend does not accept ld_func='interp'")
 
         logger.warning("jktebop backend is still in development/testing and is VERY experimental")
@@ -1745,22 +1748,22 @@ class JktebopBackend(BaseBackendByDataset):
 
         orbitref = orbitrefs[0]
 
-        ringsize = computeparams.get_value('ringsize', unit=u.deg, **kwargs)
+        ringsize = computeparams.get_value(qualifier='ringsize', unit=u.deg, **kwargs)
 
-        rA = b.get_value('requiv', component=starrefs[0], context='component', unit=u.solRad)
-        rB = b.get_value('requiv', component=starrefs[1], context='component', unit=u.solRad)
-        sma = b.get_value('sma', component=orbitref, context='component', unit=u.solRad)
-        incl = b.get_value('incl', component=orbitref, context='component', unit=u.deg)
-        q = b.get_value('q', component=orbitref, context='component')
-        ecosw = b.get_value('ecosw', component=orbitref, context='component')
-        esinw = b.get_value('esinw', component=orbitref, context='component')
+        rA = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)
+        rB = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)
+        sma = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad)
+        incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg)
+        q = b.get_value(qualifier='q', component=orbitref, context='component')
+        ecosw = b.get_value(qualifier='ecosw', component=orbitref, context='component')
+        esinw = b.get_value(qualifier='esinw', component=orbitref, context='component')
 
-        gravbA = b.get_value('gravb_bol', component=starrefs[0], context='component')
-        gravbB = b.get_value('gravb_bol', component=starrefs[1], context='component')
+        gravbA = b.get_value(qualifier='gravb_bol', component=starrefs[0], context='component')
+        gravbB = b.get_value(qualifier='gravb_bol', component=starrefs[1], context='component')
 
 
-        period = b.get_value('period', component=orbitref, context='component', unit=u.d)
-        t0_supconj = b.get_value('t0_supconj', component=orbitref, context='component', unit=u.d)
+        period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d)
+        t0_supconj = b.get_value(qualifier='t0_supconj', component=orbitref, context='component', unit=u.d)
 
 
         return dict(compute=compute,
@@ -1795,20 +1798,20 @@ class JktebopBackend(BaseBackendByDataset):
         t0_supconj = kwargs.get('t0_supconj')
 
         # get dataset-dependent things that we need
-        l3 = b.get_value('l3', dataset=info['dataset'], context='dataset', check_visible=False)
+        l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset', check_visible=False)
 
-        ldfuncA = b.get_value('ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
-        ldfuncB = b.get_value('ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
+        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
+        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
 
         # use check_visible=False to access the ld_coeffs from
         # compute_ld_coeffs(set_value=True) done in _worker_setup
-        ldcoeffsA = b.get_value('ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
-        ldcoeffsB = b.get_value('ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
 
-        irrad_method = b.get_value("irrad_method", compute=compute, context='compute')
+        irrad_method = b.get_value(qualifier="irrad_method", compute=compute, context='compute')
         if irrad_method == "biaxial spheroid":
-            albA = b.get_value('irrad_frac_refl_bol', component=starrefs[0], context='component')
-            albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
+            albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component')
+            albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component')
         elif irrad_method == 'none':
             albA = 0.0
             albB = 0.0
@@ -1817,8 +1820,8 @@ class JktebopBackend(BaseBackendByDataset):
 
         logger.debug("estimating surface brightness ratio from pblum and requiv")
         # note: these aren't true surface brightnesses, but the ratio should be fine
-        sb_primary = b.get_value('pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value('requiv', component=starrefs[0], context='component', unit=u.solRad)**2
-        sb_secondary = b.get_value('pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value('requiv', component=starrefs[1], context='component', unit=u.solRad)**2
+        sb_primary = b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2
+        sb_secondary = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2
         sb_ratio =  sb_secondary / sb_primary
 
         # provide translation from phoebe's 'ld_func' to jktebop's 'LD law type'
@@ -1917,8 +1920,8 @@ class JktebopBackend(BaseBackendByDataset):
 
         # TODO: create_tmp_jktebop_lc_in - probably with times and dummy fluxes if none are in the obs
         #~ flc = open('_tmp_jktebop_lc_in', 'w')
-        #~ times = b.get_value('times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
-        #~ fluxes = b.get_value('flux', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
+        #~ times = b.get_value(qualifier='times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
+        #~ fluxes = b.get_value(qualifier='flux', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
 
         #~ if len(fluxes) < len(times):
             #~ # then just provide dummy fluxes - we're not using
@@ -1945,7 +1948,7 @@ class JktebopBackend(BaseBackendByDataset):
         mags_interp = np.interp(info['times'], times_all, mags_all)
 
         logger.warning("converting from mags from jktebop to flux")
-        fluxes = 10**((0.0-mags_interp)/2.5) * b.get_value('pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
+        fluxes = 10**((0.0-mags_interp)/2.5) * b.get_value(qualifier='pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
 
         packetlist.append(_make_packet('times',
                                        info['times']*u.d,
@@ -1999,41 +2002,41 @@ class EllcBackend(BaseBackendByDataset):
 
         orbitref = orbitrefs[0]
 
-        shape_1 = computeparams.get_value('distortion_method', component=starrefs[0])
-        shape_2 = computeparams.get_value('distortion_method', component=starrefs[1])
+        shape_1 = computeparams.get_value(qualifier='distortion_method', component=starrefs[0])
+        shape_2 = computeparams.get_value(qualifier='distortion_method', component=starrefs[1])
 
-        hf_1 = computeparams.get_value('hf', component=starrefs[0], check_visible=False)
-        hf_2 = computeparams.get_value('hf', component=starrefs[1], check_visible=False)
+        hf_1 = computeparams.get_value(qualifier='hf', component=starrefs[0], check_visible=False)
+        hf_2 = computeparams.get_value(qualifier='hf', component=starrefs[1], check_visible=False)
 
-        grid_1 = computeparams.get_value('grid', component=starrefs[0])
-        grid_2 = computeparams.get_value('grid', component=starrefs[1])
+        grid_1 = computeparams.get_value(qualifier='grid', component=starrefs[0])
+        grid_2 = computeparams.get_value(qualifier='grid', component=starrefs[1])
 
-        exact_grav = computeparams.get_value('exact_grav')
+        exact_grav = computeparams.get_value(qualifier='exact_grav')
 
-        a = b.get_value('sma', component=orbitref, context='component', unit=u.solRad)
-        radius_1 = b.get_value('requiv', component=starrefs[0], context='component', unit=u.solRad) / a
-        radius_2 = b.get_value('requiv', component=starrefs[1], context='component', unit=u.solRad) / a
+        a = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad)
+        radius_1 = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad) / a
+        radius_2 = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad) / a
 
-        period = b.get_value('period', component=orbitref, context='component', unit=u.d)
-        q = b.get_value('q', component=orbitref, context='component')
+        period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d)
+        q = b.get_value(qualifier='q', component=orbitref, context='component')
 
         # TODO: there seems to be a convention flip between primary and secondary star in ellc... maybe we can just address via t_zero?
-        t_zero = b.get_value('t0_supconj', component=orbitref, context='component', unit=u.d)
+        t_zero = b.get_value(qualifier='t0_supconj', component=orbitref, context='component', unit=u.d)
 
-        incl = b.get_value('incl', component=orbitref, context='component', unit=u.deg)
+        incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg)
         didt = 0.0
-        # didt = b.get_value('dincldt', component=orbitref, context='component', unit=u.deg/u.d) * period
+        # didt = b.get_value(qualifier='dincldt', component=orbitref, context='component', unit=u.deg/u.d) * period
 
-        ecc = b.get_value('ecc', component=orbitref, context='component')
-        w = b.get_value('per0', component=orbitref, context='component', unit=u.rad)
+        ecc = b.get_value(qualifier='ecc', component=orbitref, context='component')
+        w = b.get_value(qualifier='per0', component=orbitref, context='component', unit=u.rad)
 
-        domdt = b.get_value('dperdt', component=orbitref, context='component', unit=u.deg/u.d) * period
+        domdt = b.get_value(qualifier='dperdt', component=orbitref, context='component', unit=u.deg/u.d) * period
 
-        gdc_1 = b.get_value('gravb_bol', component=starrefs[0], context='component')
-        gdc_2 = b.get_value('gravb_bol', component=starrefs[1], context='component')
+        gdc_1 = b.get_value(qualifier='gravb_bol', component=starrefs[0], context='component')
+        gdc_2 = b.get_value(qualifier='gravb_bol', component=starrefs[1], context='component')
 
-        rotfac_1 = b.get_value('syncpar', component=starrefs[0], context='component')
-        rotfac_2 = b.get_value('syncpar', component=starrefs[1], context='component')
+        rotfac_1 = b.get_value(qualifier='syncpar', component=starrefs[0], context='component')
+        rotfac_2 = b.get_value(qualifier='syncpar', component=starrefs[1], context='component')
 
         f_c = np.sqrt(ecc) * np.cos(w)
         f_s = np.sqrt(ecc) * np.sin(w)
@@ -2098,32 +2101,32 @@ class EllcBackend(BaseBackendByDataset):
 
 
         # get dataset-dependent things that we need
-        ldfuncA = b.get_value('ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
-        ldfuncB = b.get_value('ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
+        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
+        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
 
         # use check_visible=False to access the ld_coeffs from
         # compute_ld_coeffs(set_value=True) done in _worker_setup
-        ldcoeffsA = b.get_value('ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
-        ldcoeffsB = b.get_value('ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
 
-        # albA = b.get_value('irrad_frac_refl_bol', component=starrefs[0], context='component')
-        # albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
+        # albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component')
+        # albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component')
 
         if info['kind'] == 'lc':
-            light_3 = b.get_value('l3_frac', dataset=info['dataset'], context='dataset', check_visible=False)
+            light_3 = b.get_value(qualifier='l3_frac', dataset=info['dataset'], context='dataset', check_visible=False)
 
             # this is just a hack for now, we'll eventually want the true sb ratio
             logger.info("computing sb_ratio from pblums and requivs for dataset='{}'".format(info['dataset']))
             # note: these aren't true surface brightnesses, but the ratio should be fine
-            sb_primary = b.get_value('pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value('requiv', component=starrefs[0], context='component', unit=u.solRad)**2
-            sb_secondary = b.get_value('pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value('requiv', component=starrefs[1], context='component', unit=u.solRad)**2
+            sb_primary = b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2
+            sb_secondary = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2
             sb_ratio =  sb_secondary / sb_primary
 
-            t_exp = b.get_value('exptime', dataset=info['dataset'], context='dataset')
+            t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
 
             # move outside above 'lc' if-statement once exptime is supported for RVs in phoebe
-            if b.get_value('fti_method', compute=compute, dataset=info['dataset'], context='compute') == 'oversample':
-                n_int = b.get_value('fti_oversample', compute=compute, dataset=info['dataset'], context='compute')
+            if b.get_value(qualifier='fti_method', compute=compute, dataset=info['dataset'], context='compute') == 'oversample':
+                n_int = b.get_value(qualifier='fti_oversample', compute=compute, dataset=info['dataset'], context='compute')
             else:
                 n_int = 1
 
@@ -2154,7 +2157,7 @@ class EllcBackend(BaseBackendByDataset):
 
             # ellc returns "arbitrary" flux values... let's try to rescale
             # to our flux units to be compatible with other backends
-            fluxes *= b.get_value('pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
+            fluxes *= b.get_value(qualifier='pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
 
             # fill packets
             packetlist = []
@@ -2170,7 +2173,7 @@ class EllcBackend(BaseBackendByDataset):
                                            info))
 
         elif info['kind'] == 'rv':
-            rv_method = b.get_value('rv_method', compute=compute, dataset=info['dataset'], component=info['component'], context='compute')
+            rv_method = b.get_value(qualifier='rv_method', compute=compute, dataset=info['dataset'], component=info['component'], context='compute')
             flux_weighted = rv_method == 'flux-weighted'
             if flux_weighted:
                 raise NotImplementedError("flux-weighted does not seem to work in ellc")
@@ -2179,7 +2182,7 @@ class EllcBackend(BaseBackendByDataset):
             sb_ratio = 1.0
 
             # enable once exptime for RVs is supported in PHOEBE
-            # t_exp = b.get_value('exptime', dataset=info['dataset'], context='dataset')
+            # t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
             t_exp = 0
             n_int = 1
 

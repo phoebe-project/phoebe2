@@ -95,7 +95,10 @@ def sun_earth_result():
     b['ntriangles@primary'] = Nt
     b['ntriangles@secondary'] = Nt
 
-    b.run_compute()
+    # we're not actually computing light curves so don't care about
+    # the failing check that the earth is smaller than triangles on
+    # the sun
+    b.run_compute(skip_checks=True)
 
     q = b['value@q@orbit']
     F = b['value@syncpar@primary']
