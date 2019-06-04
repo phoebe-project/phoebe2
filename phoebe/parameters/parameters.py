@@ -3024,12 +3024,17 @@ class ParameterSet(object):
                 # overwrite kwargs[k] based on any match in v
                 match = None
                 for kk,vv in v.items():
-                    meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig'])
-                    if kk in meta.values():
+                    meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])
+                    # support twigs as well as wildcards in the dictionary keys
+                    # for example: color={'lc*': 'blue', 'primary@rv*': 'green'}
+                    # this will likely be a little expensive, but we only do it
+                    # in the case where a dictionary is passed.
+                    if np.all([np.any([fnmatch(mv, kksplit) for mv in meta.values() if mv is not None]) for kksplit in kk.split('@')]):
                         if match is not None:
                             raise ValueError("dictionary {}={} is not unique for {}".format(k,v, meta))
                         match = vv
 
+                logger.debug("_unpack_plotting_kwargs: trying to find match for dictionary {}={} in kwargs against meta={}.  match={}".format(k,v,meta,match))
                 if match is not None:
                     kwargs[k] = match
                 else:
@@ -3554,6 +3559,15 @@ class ParameterSet(object):
         * <phoebe.parameters.ParameterSet.gcf>
         * <phoebe.parameters.ParameterSet.clf>
 
+        All keyword arguments also support passing dictionaries.  In this case,
+        they are applied to any resulting plotting call in which the dictionary
+        matches (including support for wildcards) to the tags of the respective
+        ParameterSet.  For example:
+
+        ```
+        plot(c={'primary@rv*': 'blue', 'secondary@rv*': 'red'})
+        ```
+
         Note: not all options are listed below.  See the
         [autofig](https://github.com/kecnry/autofig/tree/1.0.0)
         tutorials and documentation for more options which are passed along
@@ -3668,6 +3682,8 @@ class ParameterSet(object):
         * `highlight_marker` (string, optional): marker to use for highlighting.
             Only applicable if `highlight=True` and `time` or `times` provided.
         * `highlight_color` (string, optional): color to use for highlighting.
+            Only applicable if `highlight=True` and `time` or `times` provided.
+        * `highlight_size` (int, optional): size to use for highlighting.
             Only applicable if `highlight=True` and `time` or `times` provided.
 
         * `uncover` (bool, optional): whether to uncover data based on the current
