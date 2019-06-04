@@ -3363,7 +3363,7 @@ class ParameterSet(object):
         elif ps.kind == 'lp':
             defaults = {'x': 'wavelengths',
                         'y': 'flux_densities',
-                        'z': 0}
+                        'z': ps._bundle.hierarchy.get_components().index(ps.component if ps.component is not None else ps._bundle.hierarchy.get_top())}
             sigmas_avail = ['flux_densities']
 
             # since we'll be selecting from the time tag, we need a non-zero tolerance
