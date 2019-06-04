@@ -259,6 +259,10 @@ class Passband:
             struct['_phoenix_axes'] = self._phoenix_axes
             struct['_phoenix_energy_grid'] = self._phoenix_energy_grid
             struct['_phoenix_photon_grid'] = self._phoenix_photon_grid
+        if 'blended' in self.content:
+            struct['_blended_axes'] = self._blended_axes
+            struct['_blended_energy_grid'] = self._blended_energy_grid
+            struct['_blended_photon_grid'] = self._blended_photon_grid
         if 'ck2004_all' in self.content:
             struct['_ck2004_intensity_axes'] = self._ck2004_intensity_axes
             struct['_ck2004_Imu_energy_grid'] = self._ck2004_Imu_energy_grid
@@ -271,12 +275,21 @@ class Passband:
             struct['_phoenix_Imu_photon_grid'] = self._phoenix_Imu_photon_grid
             # struct['_ck2004_boosting_energy_grid'] = self._ck2004_boosting_energy_grid
             # struct['_ck2004_boosting_photon_grid'] = self._ck2004_boosting_photon_grid
+        if 'blended_all' in self.content:
+            struct['_blended_intensity_axes'] =  self._blended_intensity_axes
+            struct['_blended_Imu_energy_grid'] = self._blended_Imu_energy_grid
+            struct['_blended_Imu_photon_grid'] = self._blended_Imu_photon_grid
+            # struct['_blended_boosting_energy_grid'] = self._blended_boosting_energy_grid
+            # struct['_blended_boosting_photon_grid'] = self._blended_boosting_photon_grid
         if 'ck2004_ld' in self.content:
             struct['_ck2004_ld_energy_grid'] = self._ck2004_ld_energy_grid
             struct['_ck2004_ld_photon_grid'] = self._ck2004_ld_photon_grid
         if 'phoenix_ld' in self.content:
             struct['_phoenix_ld_energy_grid'] = self._phoenix_ld_energy_grid
             struct['_phoenix_ld_photon_grid'] = self._phoenix_ld_photon_grid
+        if 'blended_ld' in self.content:
+            struct['_blended_ld_energy_grid'] = self._blended_ld_energy_grid
+            struct['_blended_ld_photon_grid'] = self._blended_ld_photon_grid
         if 'ck2004_ldint' in self.content:
             struct['_ck2004_ldint_energy_grid'] = self._ck2004_ldint_energy_grid
             struct['_ck2004_ldint_photon_grid'] = self._ck2004_ldint_photon_grid
@@ -291,6 +304,9 @@ class Passband:
         if 'phoenix_ldint' in self.content:
             struct['_phoenix_ldint_energy_grid'] = self._phoenix_ldint_energy_grid
             struct['_phoenix_ldint_photon_grid'] = self._phoenix_ldint_photon_grid
+        if 'blended_ldint' in self.content:
+            struct['_blended_ldint_energy_grid'] = self._blended_ldint_energy_grid
+            struct['_blended_ldint_photon_grid'] = self._blended_ldint_photon_grid
         if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
@@ -457,6 +473,20 @@ class Passband:
                 self._phoenix_energy_grid = struct['_phoenix_energy_grid']
                 self._phoenix_photon_grid = struct['_phoenix_photon_grid']
 
+        if 'blended' in self.content:
+            # Blended (ramped) ck2004-to-blackbody:
+            if marshaled:
+                # Axes needs to be a tuple of np.arrays, and grid a np.array:
+                self._blended_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_blended_axes']))
+                self._blended_energy_grid = np.fromstring(struct['_blended_energy_grid'], dtype='float64')
+                self._blended_energy_grid = self._blended_energy_grid.reshape(len(self._blended_axes[0]), len(self._blended_axes[1]), len(self._blended_axes[2]), 1)
+                self._blended_photon_grid = np.fromstring(struct['_blended_photon_grid'], dtype='float64')
+                self._blended_photon_grid = self._blended_photon_grid.reshape(len(self._blended_axes[0]), len(self._blended_axes[1]), len(self._blended_axes[2]), 1)
+            else:
+                self._blended_axes = struct['_blended_axes']
+                self._blended_energy_grid = struct['_blended_energy_grid']
+                self._blended_photon_grid = struct['_blended_photon_grid']
+        
         if 'ck2004_all' in self.content:
             # CASTELLI & KURUCZ (2004) all intensities:
             if marshaled:
@@ -497,6 +527,26 @@ class Passband:
                 # self._phoenix_boosting_energy_grid = struct['_phoenix_boosting_energy_grid']
                 # self._phoenix_boosting_photon_grid = struct['_phoenix_boosting_photon_grid']
 
+        if 'blended_all' in self.content:
+            # Blended model atmohperes, all intensities:
+            if marshaled:
+                # Axes needs to be a tuple of np.arrays, and grid a np.array:
+                self._blended_intensity_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_blended_intensity_axes']))
+                self._blended_Imu_energy_grid = np.fromstring(struct['_blended_Imu_energy_grid'], dtype='float64')
+                self._blended_Imu_energy_grid = self._blended_Imu_energy_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), len(self._blended_intensity_axes[3]), 1)
+                self._blended_Imu_photon_grid = np.fromstring(struct['_blended_Imu_photon_grid'], dtype='float64')
+                self._blended_Imu_photon_grid = self._blended_Imu_photon_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), len(self._blended_intensity_axes[3]), 1)
+                # self._blended_boosting_energy_grid = np.fromstring(struct['_blended_boosting_energy_grid'], dtype='float64')
+                # self._blended_boosting_energy_grid = self._blended_boosting_energy_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), len(self._blended_intensity_axes[3]), 1)
+                # self._blended_boosting_photon_grid = np.fromstring(struct['_blended_boosting_photon_grid'], dtype='float64')
+                # self._blended_boosting_photon_grid = self._blended_boosting_photon_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), len(self._blended_intensity_axes[3]), 1)
+            else:
+                self._blended_intensity_axes = struct['_blended_intensity_axes']
+                self._blended_Imu_energy_grid = struct['_blended_Imu_energy_grid']
+                self._blended_Imu_photon_grid = struct['_blended_Imu_photon_grid']
+                # self._blended_boosting_energy_grid = struct['_blended_boosting_energy_grid']
+                # self._blended_boosting_photon_grid = struct['_blended_boosting_photon_grid']
+
         if 'ck2004_ld' in self.content:
             if marshaled:
                 self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_ld_energy_grid'], dtype='float64')
@@ -517,6 +567,16 @@ class Passband:
                 self._phoenix_ld_energy_grid = struct['_phoenix_ld_energy_grid']
                 self._phoenix_ld_photon_grid = struct['_phoenix_ld_photon_grid']
 
+        if 'blended_ld' in self.content:
+            if marshaled:
+                self._blended_ld_energy_grid = np.fromstring(struct['_blended_ld_energy_grid'], dtype='float64')
+                self._blended_ld_energy_grid = self._blended_ld_energy_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), 11)
+                self._blended_ld_photon_grid = np.fromstring(struct['_blended_ld_photon_grid'], dtype='float64')
+                self._blended_ld_photon_grid = self._blended_ld_photon_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), 11)
+            else:
+                self._blended_ld_energy_grid = struct['_blended_ld_energy_grid']
+                self._blended_ld_photon_grid = struct['_blended_ld_photon_grid']
+
         if 'ck2004_ldint' in self.content:
             if marshaled:
                 self._ck2004_ldint_energy_grid = np.fromstring(struct['_ck2004_ldint_energy_grid'], dtype='float64')
@@ -536,6 +596,16 @@ class Passband:
             else:
                 self._phoenix_ldint_energy_grid = struct['_phoenix_ldint_energy_grid']
                 self._phoenix_ldint_photon_grid = struct['_phoenix_ldint_photon_grid']
+
+        if 'blended_ldint' in self.content:
+            if marshaled:
+                self._blended_ldint_energy_grid = np.fromstring(struct['_blended_ldint_energy_grid'], dtype='float64')
+                self._blended_ldint_energy_grid = self._blended_ldint_energy_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), 1)
+                self._blended_ldint_photon_grid = np.fromstring(struct['_blended_ldint_photon_grid'], dtype='float64')
+                self._blended_ldint_photon_grid = self._blended_ldint_photon_grid.reshape(len(self._blended_intensity_axes[0]), len(self._blended_intensity_axes[1]), len(self._blended_intensity_axes[2]), 1)
+            else:
+                self._blended_ldint_energy_grid = struct['_blended_ldint_energy_grid']
+                self._blended_ldint_photon_grid = struct['_blended_ldint_photon_grid']
 
         return self
 
@@ -1077,6 +1147,307 @@ class Passband:
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
         self.content.append('phoenix')
         self.atmlist.append('phoenix')
+
+    def _blender_find_edge(self, new_axes, new_table):
+        edge = np.nan*np.ones_like(new_table)
+
+        for Ti in range(len(new_axes[0])):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    if np.isnan(new_table[Ti, Li, Mi, 0]):
+                        continue
+                    
+                    if (Mi+1 < len(new_axes[2]) and np.isnan(new_table[Ti, Li, Mi+1, 0])) or (Mi > 1 and np.isnan(new_table[Ti, Li, Mi-1, 0])):
+                        edge[Ti, Li, Mi, 0] = new_table[Ti, Li, Mi, 0]
+                    if (Li+1 < len(new_axes[1]) and np.isnan(new_table[Ti, Li+1, Mi, 0])) or (Li > 1 and np.isnan(new_table[Ti, Li-1, Mi, 0])):
+                        edge[Ti, Li, Mi, 0] = new_table[Ti, Li, Mi, 0]
+                    if (Ti+1 < len(new_axes[0]) and np.isnan(new_table[Ti+1, Li, Mi, 0])) or (Ti > 1 and np.isnan(new_table[Ti-1, Li, Mi, 0])):
+                        edge[Ti, Li, Mi, 0] = new_table[Ti, Li, Mi, 0]
+
+        return edge
+
+    def _blender_find_edge_4d(self, new_axes, new_table):
+        edge = np.nan*np.ones_like(new_table)
+
+        for Ti in range(new_table.shape[0]):
+            for Li in range(new_table.shape[1]):
+                for Mi in range(new_table.shape[2]):
+                    for mui in range(new_table.shape[3]):
+                        if np.isnan(new_table[Ti, Li, Mi, mui, 0]):
+                            continue
+                        
+                        if (mui+1 < len(new_axes[3]) and np.isnan(new_table[Ti, Li, Mi, mui+1, 0])) or (mui > 1 and np.isnan(new_table[Ti, Li, Mi, mui-1, 0])):
+                            edge[Ti, Li, Mi, mui, 0] = new_table[Ti, Li, Mi, mui, 0]
+                        if (Mi+1 < len(new_axes[2]) and np.isnan(new_table[Ti, Li, Mi+1, mui, 0])) or (Mi > 1 and np.isnan(new_table[Ti, Li, Mi-1, mui, 0])):
+                            edge[Ti, Li, Mi, mui, 0] = new_table[Ti, Li, Mi, mui, 0]
+                        if (Li+1 < len(new_axes[1]) and np.isnan(new_table[Ti, Li+1, Mi, mui, 0])) or (Li > 1 and np.isnan(new_table[Ti, Li-1, Mi, mui, 0])):
+                            edge[Ti, Li, Mi, mui, 0] = new_table[Ti, Li, Mi, mui, 0]
+                        if (Ti+1 < len(new_axes[0]) and np.isnan(new_table[Ti+1, Li, Mi, mui, 0])) or (Ti > 1 and np.isnan(new_table[Ti-1, Li, Mi, mui, 0])):
+                            edge[Ti, Li, Mi, mui, 0] = new_table[Ti, Li, Mi, mui, 0]
+
+        return edge
+
+    def _blender_extrapolate(self, new_axes, axes, table):
+        if new_axes is None:
+            new_axes = []
+
+            # add extrapolation knots:
+            for i, axis in enumerate(axes):
+                new_axes.append(np.insert(axis, (0, len(axis)), (axis[0]-(axis[1]-axis[0]), axis[len(axis)-1]+(axis[len(axis)-1]-axis[len(axis)-2]))))
+
+        # make sure that new_axes contain axes:
+        for i in range(len(axes)):
+            if axes[i].tostring() not in new_axes[i].tostring():
+                print('axes must be contained in new_axes; aborting.')
+                return None
+
+        new_table = np.nan*np.ones((len(new_axes[0]), len(new_axes[1]), len(new_axes[2]), 1))
+
+        if new_axes is None:
+            new_table[1:-1,1:-1,1:-1] = table
+        else:
+            # find an overlap between axes and new_axes:
+            Ti, Tl = new_axes[0].tostring().index(axes[0].tostring())/new_axes[0].itemsize, len(axes[0])
+            Li, Ll = new_axes[1].tostring().index(axes[1].tostring())/new_axes[1].itemsize, len(axes[1])
+            Mi, Ml = new_axes[2].tostring().index(axes[2].tostring())/new_axes[2].itemsize, len(axes[2])
+
+            new_table[Ti:Ti+Tl,Li:Li+Ll,Mi:Mi+Ml] = table
+
+        extrapolant = np.nan*np.ones_like(new_table)
+
+        for Ti in range(len(new_axes[0])):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    if not np.isnan(new_table[Ti, Li, Mi, 0]):
+                        continue
+                    
+                    num_directions = 0
+                    extrapolated_value = 0.0
+
+                    if Mi+2 < len(new_axes[2]) and not np.isnan(new_table[Ti, Li, Mi+1, 0]) and not np.isnan(new_table[Ti, Li, Mi+2, 0]):
+                        extrapolated_value += 2*new_table[Ti, Li, Mi+1,0]-new_table[Ti, Li, Mi+2, 0]
+                        # print('M[%d,%d,%d] is right-defined in metallicity, extrap=%f' % (Ti, Li, Mi, extrapolated_value))
+                        num_directions += 1
+
+                    if Mi > 2 and not np.isnan(new_table[Ti, Li, Mi-1, 0]) and not np.isnan(new_table[Ti, Li, Mi-2, 0]):
+                        extrapolated_value += 2*new_table[Ti, Li, Mi-1,0]-new_table[Ti, Li, Mi-2, 0]
+                        # print('M[%d,%d,%d] is right-defined in metallicity, extrap=%f' % (Ti, Li, Mi, extrapolated_value))
+                        num_directions += 1
+
+                    if Li+2 < len(new_axes[1]) and not np.isnan(new_table[Ti, Li+1, Mi, 0]) and not np.isnan(new_table[Ti, Li+2, Mi, 0]):
+                        extrapolated_value += 2*new_table[Ti, Li+1, Mi,0]-new_table[Ti, Li+2, Mi, 0]
+                        # print('M[%d,%d,%d] is right-defined in log(g), extrap=%f' % (Ti, Li, Mi, extrapolated_value))
+                        num_directions += 1
+
+                    if Li > 2 and not np.isnan(new_table[Ti, Li-1, Mi, 0]) and not np.isnan(new_table[Ti, Li-2, Mi, 0]):
+                        extrapolated_value += 2*new_table[Ti, Li-1, Mi,0]-new_table[Ti, Li-2, Mi, 0]
+                        # print('M[%d,%d,%d] is left-defined in log(g), extrap=%f' % (Ti, Li, Mi, extrapolated_value))
+                        num_directions += 1
+
+                    if Ti+2 < len(new_axes[0]) and not np.isnan(new_table[Ti+1, Li, Mi, 0]) and not np.isnan(new_table[Ti+2, Li, Mi, 0]):
+                        extrapolated_value += 2*new_table[Ti+1, Li, Mi,0]-new_table[Ti+2, Li, Mi, 0]
+                        # print('M[%d,%d,%d] is right-defined in temperature, extrap=%f' % (Ti, Li, Mi, extrapolated_value))
+                        num_directions += 1
+
+                    if Ti > 2 and not np.isnan(new_table[Ti-1, Li, Mi, 0]) and not np.isnan(new_table[Ti-2, Li, Mi, 0]):
+                        extrapolated_value += 2*new_table[Ti-1, Li, Mi,0]-new_table[Ti-2, Li, Mi, 0]
+                        # print('M[%d,%d,%d] is left-defined in temperature, extrap=%f' % (Ti, Li, Mi, extrapolated_value))
+                        num_directions += 1
+
+                    if num_directions == 0:
+                        continue
+
+                    extrapolant[Ti, Li, Mi, 0] = extrapolated_value/num_directions
+
+        return (new_table, extrapolant)
+
+    def _blender_extrapolate_4d(self, new_axes, axes, table):
+        # make sure that new_axes contain axes:
+        for i in range(len(axes)):
+            if axes[i].tostring() not in new_axes[i].tostring():
+                print('axes must be contained in new_axes; aborting.')
+                return None
+
+        new_table = np.nan*np.ones((len(new_axes[0]), len(new_axes[1]), len(new_axes[2]), len(new_axes[3]), 1))
+
+        # find an overlap between axes and new_axes:
+        Ti, Tl = new_axes[0].tostring().index(axes[0].tostring())/new_axes[0].itemsize, len(axes[0])
+        Li, Ll = new_axes[1].tostring().index(axes[1].tostring())/new_axes[1].itemsize, len(axes[1])
+        Mi, Ml = new_axes[2].tostring().index(axes[2].tostring())/new_axes[2].itemsize, len(axes[2])
+        mi, ml = new_axes[3].tostring().index(axes[3].tostring())/new_axes[3].itemsize, len(axes[3])
+
+        new_table[Ti:Ti+Tl,Li:Li+Ll,Mi:Mi+Ml,mi:mi+ml] = table
+
+        extrapolant = np.nan*np.ones_like(new_table)
+
+        for Ti in range(len(new_axes[0])):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    for mi in range(len(new_axes[3])):
+                        if not np.isnan(new_table[Ti, Li, Mi, mi, 0]):
+                            continue
+                        
+                        num_directions = 0
+                        extrapolated_value = 0.0
+
+                        if mi+2 < len(new_axes[3]) and not np.isnan(new_table[Ti,Li,Mi,mi+1,0]) and not np.isnan(new_table[Ti,Li,Mi,mi+2,0]):
+                            extrapolated_value += 2*new_table[Ti,Li,Mi,mi+1,0]-new_table[Ti,Li,Mi,mi+2,0]
+                            num_directions += 1
+
+                        if mi > 2 and not np.isnan(new_table[Ti,Li,Mi,mi-1,0]) and not np.isnan(new_table[Ti,Li,Mi,mi-2,0]):
+                            extrapolated_value += 2*new_table[Ti,Li,Mi,mi-1,0]-new_table[Ti,Li,Mi,mi-2,0]
+                            num_directions += 1
+
+                        if Mi+2 < len(new_axes[2]) and not np.isnan(new_table[Ti,Li,Mi+1,mi,0]) and not np.isnan(new_table[Ti,Li,Mi+2,mi,0]):
+                            extrapolated_value += 2*new_table[Ti,Li,Mi+1,mi,0]-new_table[Ti,Li,Mi+2,mi,0]
+                            num_directions += 1
+
+                        if Mi > 2 and not np.isnan(new_table[Ti,Li,Mi-1,mi,0]) and not np.isnan(new_table[Ti,Li,Mi-2,mi,0]):
+                            extrapolated_value += 2*new_table[Ti,Li,Mi-1,mi,0]-new_table[Ti,Li,Mi-2,mi,0]
+                            num_directions += 1
+
+                        if Li+2 < len(new_axes[1]) and not np.isnan(new_table[Ti,Li+1,Mi,mi,0]) and not np.isnan(new_table[Ti,Li+2,Mi,mi,0]):
+                            extrapolated_value += 2*new_table[Ti,Li+1,Mi,mi,0]-new_table[Ti,Li+2,Mi,mi,0]
+                            num_directions += 1
+
+                        if Li > 2 and not np.isnan(new_table[Ti,Li-1,Mi,mi,0]) and not np.isnan(new_table[Ti,Li-2,Mi,mi,0]):
+                            extrapolated_value += 2*new_table[Ti,Li-1,Mi,mi,0]-new_table[Ti,Li-2,Mi,mi,0]
+                            num_directions += 1
+
+                        if Ti+2 < len(new_axes[0]) and not np.isnan(new_table[Ti+1,Li,Mi,mi,0]) and not np.isnan(new_table[Ti+2,Li,Mi,mi,0]):
+                            extrapolated_value += 2*new_table[Ti+1,Li,Mi,mi,0]-new_table[Ti+2,Li,Mi,mi,0]
+                            num_directions += 1
+
+                        if Ti > 2 and not np.isnan(new_table[Ti-1,Li,Mi,mi,0]) and not np.isnan(new_table[Ti-2,Li,Mi,mi,0]):
+                            extrapolated_value += 2*new_table[Ti-1,Li,Mi,mi,0]-new_table[Ti-2,Li,Mi,mi,0]
+                            num_directions += 1
+
+                        if num_directions == 0:
+                            continue
+
+                        extrapolant[Ti,Li,Mi,mi,0] = extrapolated_value/num_directions
+
+        return (new_table, extrapolant)
+
+    def _blend(self, photon_weighted=False):
+        """
+        """
+
+        axes = self._phoenix_axes
+        if photon_weighted:
+            table = self._phoenix_photon_grid
+        else:
+            table = self._phoenix_energy_grid
+
+        new_axes = (
+            np.concatenate((np.arange(250., 3251, 250), axes[0], np.arange(55000., 500001, 5000))),
+            np.concatenate((axes[1], np.arange(5.5, 10.1, 0.5))),
+            axes[2]
+        )
+
+        new_table, extrapolant = self._blender_extrapolate(new_axes, axes, table)
+
+        bb_table = np.empty_like(new_table)
+        for Ti, T in enumerate(new_axes[0]):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    bb_table[Ti, Li, Mi, 0] = self._log10_Inorm_bb_energy(T)
+                    # bb_table[Ti, Li, Mi, 0] = np.log10(self._bb_intensity(T, photon_weighted=False))
+
+        # blend the edge:
+        edge = self._blender_find_edge(new_axes, new_table)
+        blend = edge * 0.5 + bb_table * 0.5
+
+        # blend the extrapolated edge:
+        blend_e = extrapolant * 0.25 + bb_table * 0.75
+
+        # peal the edge:
+        np.nan_to_num(edge, copy=False)
+        pealed_table = new_table - edge
+        pealed_table[pealed_table == 0] = np.nan
+
+        # blend the pealed edge:
+        pealed_edge = self._blender_find_edge(new_axes, pealed_table)
+        blend_p = pealed_edge * 0.75 + bb_table * 0.25
+
+        new_table[~np.isnan(blend)] = blend[~np.isnan(blend)]
+        new_table[~np.isnan(blend_p)] = blend_p[~np.isnan(blend_p)]
+        new_table[~np.isnan(blend_e)] = blend_e[~np.isnan(blend_e)]
+
+        # finally, adopt blackbody everywhere else:
+        new_table[np.isnan(new_table)] = bb_table[np.isnan(new_table)]
+
+        return (new_axes, new_table)
+
+    def _blend_4d(self, photon_weighted=False):
+        """
+        """
+
+        ck_axes = self._ck2004_intensity_axes
+        if photon_weighted:
+            ck_table = self._ck2004_Imu_photon_grid
+        else:
+            ck_table = self._ck2004_Imu_energy_grid
+
+        new_axes = (
+            np.concatenate((np.arange(250., 3251, 250), ck_axes[0], np.arange(55000., 500001, 5000))),
+            np.concatenate((ck_axes[1], np.arange(5.5, 10.1, 0.5))),
+            ck_axes[2],
+            ck_axes[3]
+        )
+
+        new_table, extrapolant = self._blender_extrapolate_4d(new_axes, ck_axes, ck_table)
+
+        bb_table = np.empty_like(new_table)
+        for Ti, T in enumerate(new_axes[0]):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    for mi in range(len(new_axes[3])):
+                        bb_table[Ti, Li, Mi, mi, 0] = self._log10_Inorm_bb_energy(T)
+
+        # blend the edge:
+        ck_edge = self._blender_find_edge_4d(new_axes, new_table)
+        blend = ck_edge * 0.5 + bb_table * 0.5
+
+        # blend the extrapolated edge:
+        blend_e = extrapolant * 0.25 + bb_table * 0.75
+
+        # peal the edge:
+        np.nan_to_num(ck_edge, copy=False)
+        pealed_table = new_table - ck_edge
+        pealed_table[pealed_table == 0] = np.nan
+
+        # blend the pealed edge:
+        pealed_edge = self._blender_find_edge(new_axes, pealed_table)
+        blend_p = pealed_edge * 0.75 + bb_table * 0.25
+
+        new_table[~np.isnan(blend)] = blend[~np.isnan(blend)]
+        new_table[~np.isnan(blend_p)] = blend_p[~np.isnan(blend_p)]
+        new_table[~np.isnan(blend_e)] = blend_e[~np.isnan(blend_e)]
+
+        # finally, adopt blackbody everywhere else:
+        new_table[np.isnan(new_table)] = bb_table[np.isnan(new_table)]
+
+        return (new_axes, new_table)
+
+    def compute_blended_response(self):
+        blended_axes, blended_energy_grid = self._blend(photon_weighted=False)
+        blended_axes, blended_photon_grid = self._blend(photon_weighted=True)
+        
+        self._blended_axes = blended_axes
+        self._blended_energy_grid = blended_energy_grid
+        self._blended_photon_grid = blended_photon_grid
+
+        self.content.append('blended')
+
+        # blended_intensity_axes, blended_Imu_energy_grid = self._blend_4d(photon_weighted=False)
+        # blended_intensity_axes, blended_Imu_photon_grid = self._blend_4d(photon_weighted=True)
+
+        # self._blended_intensity_axes = blended_intensity_axes
+        # self._blended_Imu_energy_grid = blended_Imu_energy_grid
+        # self._blended_Imu_photon_grid = blended_Imu_photon_grid
+
+        # self.content.append('blended_all')
 
     def _rescale_phoenix_intensities(self, mu_interp, mu_phoenix, intensity_phoenix):
         '''
@@ -1999,6 +2370,12 @@ class Passband:
 
         return Inorm
 
+    def _Inorm_blended(self, Teff, logg, abun, photon_weighted=False):
+        req = np.vstack((Teff, logg, abun)).T
+        Inorm = libphoebe.interp(req, self._blended_axes, 10**self._blended_photon_grid if photon_weighted else 10**self._blended_energy_grid).T[0]
+
+        return Inorm
+
     def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
@@ -2101,6 +2478,8 @@ class Passband:
         elif atm == 'phoenix' and 'phoenix' in self.content:
             retval = self._Inorm_phoenix(Teff, logg, abun, photon_weighted=photon_weighted)
 
+        elif atm == 'blended' and 'blended' in self.content:
+            retval = self._Inorm_blended(Teff, logg, abun, photon_weighted=photon_weighted)
         else:
             raise NotImplementedError('atm={} not supported by {}:{}'.format(atm, self.pbset, self.pbname))
 
