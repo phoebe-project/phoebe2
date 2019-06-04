@@ -136,7 +136,7 @@ def only_horizon(meshes, xs, ys, zs, expose_horizon=False):
 
     # this can all by easily done by multiplying by int(mu>0) (1 if visible, 0 if hidden)
 
-    return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items()}, None, None
+    return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items() if mesh is not None}, None, None
 
 def native(meshes, xs, ys, zs, expose_horizon=False, horizon_method='boolean'):
     """

@@ -17,6 +17,17 @@ import platform
 import os
 import re
 
+
+# Python version checks (in both __init__.py and setup.py)
+if sys.version_info[0] == 3:
+    if sys.version_info[1] < 6:
+        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+elif sys.version_info[0] == 2:
+    if sys.version_info[1] < 7:
+        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+else:
+    raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+
 #
 # Auxiliary functions
 #

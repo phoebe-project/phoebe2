@@ -123,7 +123,11 @@ class ArrayWrapper(object):
     @property
     def quantity(self):
         """
-        return the underlying astropy quantity (if astropy is installed)
+        Return the underlying astropy quantity (if astropy is installed).
+
+        Returns
+        --------
+        * astropy quantity
         """
         if not _has_astropy:
             raise ImportError("astropy must be installed for unit/quantity support")
@@ -135,7 +139,15 @@ class ArrayWrapper(object):
 
     def to(self, unit):
         """
-        convert between units.  Returns a new nparray object with the new units
+        Convert between units.  Returns a new nparray object with the new units.
+
+        Arguments
+        ---------
+        * `unit` (astropy unit or string): new units
+
+        Returns
+        -------
+        * nparray object of the same class as the original
         """
         if not _has_astropy:
             raise ImportError("astropy must be installed for unit/quantity support")
@@ -219,13 +231,20 @@ class ArrayWrapper(object):
         return self.__copy__(self)
 
     def copy(self):
+        """
+        Create and return a copy.
+        """
         return self.__copy__()
 
     def to_dict(self):
         """
-        dump a representation of the nparray object to a dictionary.  The
+        Dump a representation of the nparray object to a dictionary.  The
         nparray object should then be able to be fully restored via
-        nparray.from_dict
+        <nparray.from_dict>
+
+        Returns
+        ----------
+        * (dictionary)
         """
         def _json_safe(v):
             if isinstance(v, np.ndarray):
@@ -240,22 +259,36 @@ class ArrayWrapper(object):
 
     def to_json(self, **kwargs):
         """
-        dump a representation of the nparray object to a json-formatted string.
+        Dump a representation of the nparray object to a json-formatted string.
         The nparray object should then be able to be fully restored via
-        nparray.from_json
+        <nparray.from_json>.
+
+        Arguments
+        -----------
+        * `**kwargs`: all keyword arguments are sent to json.dumps
+
+        Returns
+        ---------
+        * (string): json formatted string.
         """
         return json.dumps(self.to_dict(), **kwargs)
 
     def to_file(self, filename, **kwargs):
         """
-        dump a representation of the nparray object to a json-formatted file.
+        Dump a representation of the nparray object to a json-formatted file.
         The nparray object should then be able to be fully restored via
-        nparray.from_file
+        <nparray.from_file>.
 
-        @parameter str filename: path to the file to be created (will overwrite
+        Arguments
+        -----------
+        * `filename` (string): path to the file to be created (will overwrite
             if already exists)
-        @rtype: str
-        @returns: the filename
+        * `**kwargs`: additional keyword arguments are passed to
+            json.dumps.
+
+        Returns
+        -----------
+        * (string): the filename
         """
         f = open(filename, 'w')
         f.write(self.to_json(**kwargs))
@@ -264,8 +297,12 @@ class ArrayWrapper(object):
 
     def to_array(self):
         """
-        convert to an nparray array object (note: not a numpy array, to access
+        Convert to an nparray <Array> object (**note**: not a numpy array, to access
         the underlying numpy object, call the .array property)
+
+        Returns
+        ---------
+        * <Array>
         """
         return Array(self.array)
 
@@ -344,13 +381,37 @@ class ArrayWrapper(object):
         return self.__comparison__('__contains__', other)
 
 class Array(ArrayWrapper):
+    """
+    This is available as a top-level convenience function as <nparray.array>.
+    """
     def __init__(self, value, unit=None):
+        """
+        This is available as a top-level convenience function as <nparray.array>.
+
+        Arguments
+        ------------
+        * `value` (array or list): array or list of values.
+        * `unit` (astropy unit or string, optional, default=None): unit
+          corresponding to the passed values.
+
+        Returns
+        -----------
+        * <Array>
+        """
         super(Array, self).__init__(('value', value, is_iterable), ('unit', unit, is_unit_or_unitstring_or_none))
 
     @property
     def array(self):
         """
-        return the underlying numpy array
+        Compute the underyling numpy array by calling:
+
+        ```py
+        np.array(value)
+        ```
+
+        Returns
+        ---------
+        * (numpy array): the underlying (computed) numpy array
         """
         return np.array(self.value)
 
@@ -366,7 +427,27 @@ class Array(ArrayWrapper):
         self.value.__setitem__(index, value)
 
 class Arange(ArrayWrapper):
+    """
+    This is available as a top-level convenience function as <nparray.arange>.
+    """
     def __init__(self, start, stop, step, unit=None):
+        """
+        This is available as a top-level convenience function as <nparray.arange>.
+
+        Arguments
+        ------------
+        * `start` (int or float): the starting point of the sequence.
+        * `stop` (int or float): the ending point of the sequence.  The interval
+            does not include this value, except in some cases where `step` is not an
+            integer and floating point round-off affects the length of the array.
+        * `step` (int or float): the stepsize between each item in the sequence.
+        * `unit` (astropy unit or string, optional, default=None): unit
+          corresponding to the passed values.
+
+        Returns
+        -----------
+        * <Arange>
+        """
         super(Arange, self).__init__(('start', start, is_float),
                                      ('stop', stop, is_float),
                                      ('step', step, is_float),
@@ -375,20 +456,41 @@ class Arange(ArrayWrapper):
     @property
     def array(self):
         """
-        return the underlying numpy array
+        Compute the underyling numpy array by calling:
+
+        ```py
+        np.arange(start, stop, step)
+        ```
+
+        Returns
+        ---------
+        * (numpy array): the underlying (computed) numpy array
         """
         return np.arange(self.start, self.stop, self.step)
 
     def to_linspace(self):
         """
-        convert from arange to linspace
+        Convert from <Arange> to <Linspace>.
+
+        ```py
+        num = int((self.stop - self.start)/self.step)
+        Linspace(self.start, self.stop-self.step, num)
+        ```
+
+        Returns
+        -------
+        * <Linspace>
         """
-        num = int((self.stop-self.start)/(self.step))
+        num = int((self.stop-self.start)/self.step)
         return Linspace(self.start, self.stop-self.step, num)
 
     def to_array(self):
         """
-        convert from arange to array
+        Convert from <Arange> to <Array> by executing <Arange.array>.
+
+        Returns
+        --------
+        * <Array>
         """
         return Array(self.array)
 
@@ -410,7 +512,30 @@ class Arange(ArrayWrapper):
             raise ValueError("{} not supported with type {}".format(operator, type(other)))
 
 class Linspace(ArrayWrapper):
+    """
+    This is available as a top-level convenience function as <nparray.linspace>.
+    """
     def __init__(self, start, stop, num, endpoint=True, unit=None):
+        """
+        This is available as a top-level convenience function as <nparray.linspace>.
+
+        Arguments
+        ------------
+        * `start` (int or float): the starting point of the sequence.
+        * `stop` (int or float): the ending point of the sequence, unless `endpoint`
+            is set to False.  In that case, the sequence consists of all but the
+            last of ``num + 1`` evenly spaced samples, so that `stop` is excluded.
+            Note that the step size changes when `endpoint` is False.
+        * `num` (int): number of samples to generate.
+        * `endpoint` (bool, optional, default=True): If True, `stop` is the last
+            sample. Otherwise, it is not included.
+        * `unit` (astropy unit or string, optional, default=None): unit
+            corresponding to the passed values.
+
+        Returns
+        -----------
+        * <Linspace>
+        """
         super(Linspace, self).__init__(('start', start, is_float),
                                        ('stop', stop, is_float),
                                        ('num', num, is_int_positive),
@@ -420,13 +545,30 @@ class Linspace(ArrayWrapper):
     @property
     def array(self):
         """
-        return the underlying numpy array
+        Compute the underyling numpy array by calling:
+
+        ```py
+        np.linspace(start, stop, num, endpoint)
+        ```
+
+        Returns
+        ---------
+        * (numpy array): the underlying (computed) numpy array
         """
         return np.linspace(self.start, self.stop, self.num, self.endpoint)
 
     def to_arange(self):
         """
-        convert from linspace to arange
+        Convert from <Linspace> to <Arange>
+
+        ```py
+        arr, step = np.linspace(self.start, self.stop, self.num, self.endpoint, retstep=True)
+        Arange(self.start, self.stop+step, step)
+        ```
+
+        Returns
+        ----------
+        * <Arange>
         """
         arr, step = np.linspace(self.start, self.stop, self.num, self.endpoint, retstep=True)
         return Arange(self.start, self.stop+step, step)
@@ -449,7 +591,33 @@ class Linspace(ArrayWrapper):
             raise ValueError("{} not supported with type {}".format(operator, type(other)))
 
 class Logspace(ArrayWrapper):
+    """
+    This is available as a top-level convenience function as <nparray.logspace>.
+    """
     def __init__(self, start, stop, num, endpoint=True, base=10.0, unit=None):
+        """
+        This is available as a top-level convenience function as <nparray.logspace>.
+
+        Arguments
+        ------------
+        * `start` (int or float): ``base ** start`` is the starting value of the sequence.
+        * `stop` (int or float): ``base ** stop`` is the final value of the sequence,
+            unless `endpoint` is False.  In that case, ``num + 1`` values are spaced
+            over the interval in log-space, of which all but the last (a sequence of
+            length `num`) are returned.
+        * `num` (int): number of samples to generate.
+        * `endpoint` (bool, optional, default=True): If True, `stop` is the last
+            sample. Otherwise, it is not included.
+        * `base` (float, optional, default=10.0): The base of the log space. The
+            step size between the elements in ``ln(samples) / ln(base)``
+            (or ``log_base(samples)``) is uniform.
+        * `unit` (astropy unit or string, optional, default=None): unit
+          corresponding to the passed values.
+
+        Returns
+        -----------
+        * <Logspace>
+        """
         super(Logspace, self).__init__(('start', start, is_float),
                                        ('stop', stop, is_float),
                                        ('num', num, is_int_positive),
@@ -460,7 +628,15 @@ class Logspace(ArrayWrapper):
     @property
     def array(self):
         """
-        return the underlying numpy array
+        Compute the underyling numpy array by calling:
+
+        ```py
+        np.logspace(start, stop, num, endpoint, base)
+        ```
+
+        Returns
+        ---------
+        * (numpy array): the underlying (computed) numpy array
         """
         return np.logspace(self.start, self.stop, self.num, self.endpoint, self.base)
 
@@ -478,7 +654,30 @@ class Logspace(ArrayWrapper):
 
 
 class Geomspace(ArrayWrapper):
+    """
+    This is available as a top-level convenience function as <nparray.geomspace>.
+    """
     def __init__(self, start, stop, num, endpoint=True, unit=None):
+        """
+        This is available as a top-level convenience function as <nparray.geomspace>.
+
+        Arguments
+        ------------
+        * `start` (int or float): the starting point of the sequence.
+        * `stop` (int or float): the final value of the sequence, unless `endpoint`
+            is False.  In that case, ``num + 1`` values are spaced over the
+            interval in log-space, of which all but the last (a sequence of
+            length `num`) are returned.
+        * `num` (int): number of samples to generate.
+        * `endpoint` (bool, optional, default=True): If True, `stop` is the last
+            sample. Otherwise, it is not included.
+        * `unit` (astropy unit or string, optional, default=None): unit
+          corresponding to the passed values.
+
+        Returns
+        -----------
+        * <Geomspace>
+        """
         super(Geomspace, self).__init__(('start', start, is_float),
                                        ('stop', stop, is_float),
                                        ('num', num, is_int_positive),
@@ -488,7 +687,15 @@ class Geomspace(ArrayWrapper):
     @property
     def array(self):
         """
-        return the underlying numpy array
+        Compute the underyling numpy array by calling:
+
+        ```py
+        np.geomspace(start, stop, num, endpoint)
+        ```
+
+        Returns
+        ---------
+        * (numpy array): the underlying (computed) numpy array
         """
         return np.geomspace(self.start, self.stop, self.num, self.endpoint)
 
@@ -510,7 +717,27 @@ class Geomspace(ArrayWrapper):
             raise ValueError("{} not supported with type {}".format(operator, type(other)))
 
 class Full(ArrayWrapper):
+    """
+    This is available as a top-level convenience function as <nparray.full> or
+    <nparray.full_like>.
+    """
     def __init__(self, shape, fill_value, unit=None):
+        """
+        This is available as a top-level convenience function as <nparray.full>
+        or <nparray.full_like>.
+
+        Arguments
+        ------------
+        * `shape` (int or sequence of ints): Shape of the new array, e.g.,
+            ``(2, 3)`` or ``2``.
+        * `fill_value` (int or float): Value to fill each element in the array.
+        * `unit` (astropy unit or string, optional, default=None): unit
+          corresponding to the passed values.
+
+        Returns
+        -----------
+        * <Full>
+        """
         super(Full, self).__init__(('shape', shape, is_valid_shape),
                                     ('fill_value', fill_value, is_float),
                                     ('unit', unit, is_unit_or_unitstring_or_none))
@@ -518,13 +745,34 @@ class Full(ArrayWrapper):
     @property
     def array(self):
         """
-        return the underlying numpy array
+        Compute the underyling numpy array by calling:
+
+        ```py
+        np.full(shape, fill_value)
+        ```
+
+        Returns
+        ---------
+        * (numpy array): the underlying (computed) numpy array
         """
         return np.full(self.shape, self.fill_value)
 
     def to_linspace(self):
         """
-        convert from full to linspace
+        Convert from <Full> to <Linspace> (only supported for flat arrays in
+        which `shape` is an integer, not a tuple).
+
+        ```py
+        Linspace(self.fill_value, self.fill_value, self.shape)
+        ```
+
+        Returns
+        --------
+        * <Linspace>
+
+        Raises
+        --------
+        * NotImplementedError: if the `shape` is not flat.
         """
         if hasattr(self.shape, '__len__'):
             raise NotImplementedError("can only convert flat Full arrays to linspace")
@@ -560,26 +808,74 @@ class Full(ArrayWrapper):
 
 
 class Zeros(ArrayWrapper):
+    """
+    This is available as a top-level convenience function as <nparray.zeros>
+    or <nparray.zeros_like>.
+    """
     def __init__(self, shape, unit=None):
+        """
+        This is available as a top-level convenience function as <nparray.zeros>
+        or <nparray.zeros_like>.
+
+        Arguments
+        ------------
+        * `shape` (int or sequence of ints): Shape of the new array, e.g.,
+            ``(2, 3)`` or ``2``.
+        * `unit` (astropy unit or string, optional, default=None): unit
+          corresponding to the passed values.
+
+        Returns
+        -----------
+        * <Zeros>
+        """
         super(Zeros, self).__init__(('shape', shape, is_valid_shape),
                                     ('unit', unit, is_unit_or_unitstring_or_none))
 
     @property
     def array(self):
         """
-        return the underlying numpy array
+        Compute the underyling numpy array by calling:
+
+        ```py
+        np.zeros(shape)
+        ```
+
+        Returns
+        ---------
+        * (numpy array): the underlying (computed) numpy array
         """
         return np.zeros(self.shape)
 
     def to_full(self):
         """
-        convert from zeros to full
+        Convert from <Zeros> to <Full>.
+
+        ```py
+        Full(self.shape, 0)
+        ```
+
+        Returns
+        ---------
+        * <Full>
         """
         return Full(self.shape, 0)
 
     def to_linspace(self):
         """
-        convert from zeros to linspace
+        Convert from <Zeros> to <Linspace> (only supported for flat arrays in
+        which `shape` is an integer, not a tuple).
+
+        ```py
+        Linspace(0, 0, self.shape)
+        ```
+
+        Returns
+        --------
+        * <Linspace>
+
+        Raises
+        --------
+        * NotImplementedError: if the `shape` is not flat.
         """
         if hasattr(self.shape, '__len__'):
             raise NotImplementedError("can only convert flat Zeros arrays to linspace")
@@ -609,26 +905,74 @@ class Zeros(ArrayWrapper):
             raise ValueError("{} not supported with type {}".format(operator, type(other)))
 
 class Ones(ArrayWrapper):
+    """
+    This is available as a top-level convenience function as <nparray.ones> or
+    <nparray.ones_like>.
+    """
     def __init__(self, shape, unit=None):
+        """
+        This is available as a top-level convenience function as <nparray.ones>
+        or <nparray.ones_like>.
+
+        Arguments
+        ------------
+        * `shape` (int or sequence of ints): Shape of the new array, e.g.,
+            ``(2, 3)`` or ``2``.
+        * `unit` (astropy unit or string, optional, default=None): unit
+          corresponding to the passed values.
+
+        Returns
+        -----------
+        * <Ones>
+        """
         super(Ones, self).__init__(('shape', shape, is_valid_shape),
                                    ('unit', unit, is_unit_or_unitstring_or_none))
 
     @property
     def array(self):
         """
-        return the underlying numpy array
+        Compute the underyling numpy array by calling:
+
+        ```py
+        np.ones(shape)
+        ```
+
+        Returns
+        ---------
+        * (numpy array): the underlying (computed) numpy array
         """
         return np.ones(self.shape)
 
     def to_full(self):
         """
-        convert from ones to full
+        Convert from <Ones> to <Full>.
+
+        ```py
+        Full(self.shape, 1)
+        ```
+
+        Returns
+        --------
+        * <Full>
         """
         return Full(self.shape, 1)
 
     def to_linspace(self):
         """
-        convert from ones to linspace
+        Convert from <Ones> to <Linspace> (only supported for flat arrays in
+        which `shape` is an integer, not a tuple).
+
+        ```py
+        Linspace(1, 1, self.shape)
+        ```
+
+        Returns
+        --------
+        * <Linspace>
+
+        Raises
+        --------
+        * NotImplementedError: if the `shape` is not flat.
         """
         if hasattr(self.shape, '__len__'):
             raise NotImplementedError("can only convert flat Ones arrays to linspace")
@@ -658,7 +1002,28 @@ class Ones(ArrayWrapper):
             raise ValueError("{} not supported with type {}".format(operator, type(other)))
 
 class Eye(ArrayWrapper):
+    """
+    This is available as a top-level convenience function as <nparray.eye>.
+    """
     def __init__(self, M, N=None, k=0, unit=None):
+        """
+        This is available as a top-level convenience function as <nparray.eye>.
+
+        Arguments
+        ------------
+        * `M` (int): Number of rows in the output.
+        * `N` (int or None, optional, default=None): Number of columns in the output.
+            If None, defaults to `N`.
+        * `k` (int, optional, default=1): Index of the diagonal: 0 (the default)
+            refers to the main diagonal, a positive value refers to an upper
+            diagonal, and a negative value to a lower diagonal.
+        * `unit` (astropy unit or string, optional, default=None): unit
+          corresponding to the passed values.
+
+        Returns
+        -----------
+        * <Eye>
+        """
         super(Eye, self).__init__(('M', M, is_int_positive),
                                   ('N', N, is_int_positive_or_none),
                                   ('k', k, is_int_positive_or_none),
@@ -667,7 +1032,15 @@ class Eye(ArrayWrapper):
     @property
     def array(self):
         """
-        return the underlying numpy array
+        Compute the underyling numpy array by calling:
+
+        ```py
+        np.eye(M, N, k)
+        ```
+
+        Returns
+        ---------
+        * (numpy array): the underlying (computed) numpy array
         """
         return np.eye(self.M, self.N, self.k)
 

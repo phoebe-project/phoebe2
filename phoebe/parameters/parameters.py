@@ -61,7 +61,7 @@ from phoebe import u
 from phoebe import conf
 from phoebe import list_passbands, list_installed_passbands, list_online_passbands, download_passband
 
-if os.getenv('PHOEBE_ENABLE_SYMPY', 'TRUE').upper() == 'TRUE':
+if os.getenv('PHOEBE_ENABLE_SYMPY', 'FALSE').upper() == 'TRUE':
     try:
         import sympy
     except ImportError:
@@ -458,6 +458,21 @@ class ParameterSet(object):
                 if getattr(param, '_{}'.format(k)) is None:
                     setattr(param, '_{}'.format(k), v)
 
+    def _options_for_tag(self, tag, include_default=True):
+        # keys_for_this_field = set([getattr(p, tag)
+        #                            for p in self.to_list()
+        #                            if getattr(p, tag) is not None])
+
+        # especially as the PS gets larger, this is actually somewhat cheaper
+        # than building the large list and taking the set.
+        keys_for_this_field = []
+        for p in self.to_list():
+            key = getattr(p, tag)
+            if key is not None and key not in keys_for_this_field and (include_default or key!='_default'):
+                keys_for_this_field.append(key)
+
+        return keys_for_this_field
+
     @property
     def tags(self):
         """Returns a dictionary that lists all available tags that can be used
@@ -542,7 +557,8 @@ class ParameterSet(object):
         -----------
         * (string) common twig of Parameters in the ParameterSet
         """
-        return "@".join([getattr(self, k) for k in _meta_fields_twig if self.meta.get(k) is not None])
+        meta = self.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])
+        return "@".join([getattr(self, k) for k in _meta_fields_twig if meta.get(k) is not None])
 
     @property
     def qualifier(self):
@@ -576,7 +592,7 @@ class ParameterSet(object):
         * (list) a list of all qualifiers for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='qualifier').keys())
+        return self._options_for_tag('qualifier')
 
     @property
     def time(self):
@@ -610,7 +626,7 @@ class ParameterSet(object):
         * (list) a list of all times for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='time').keys())
+        return self._options_for_tag('time')
 
     @property
     def history(self):
@@ -645,7 +661,7 @@ class ParameterSet(object):
         * (list) a list of all histories for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='history').keys())
+        return self._options_for_tag('history')
 
     @property
     def historys(self):
@@ -699,7 +715,7 @@ class ParameterSet(object):
         * (list) a list of all features for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='feature').keys())
+        return self._options_for_tag('feature', include_default=False)
 
 
     # @property
@@ -742,7 +758,7 @@ class ParameterSet(object):
         * (list) a list of all components for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return [c for c in self.to_dict(field='component').keys() if c!='_default']
+        return self._options_for_tag('component', include_default=False)
 
     @property
     def dataset(self):
@@ -776,7 +792,7 @@ class ParameterSet(object):
         * (list) a list of all datasets for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return [d for d in self.to_dict(field='dataset').keys() if d!='_default']
+        return self._options_for_tag('dataset', include_default=False)
 
     @property
     def constraint(self):
@@ -810,7 +826,7 @@ class ParameterSet(object):
         * (list) a list of all constraints for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='constraint').keys())
+        return self._options_for_tag('constraint')
 
     @property
     def compute(self):
@@ -844,7 +860,7 @@ class ParameterSet(object):
         * (list) a list of all computes for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='compute').keys())
+        return self._options_for_tag('compute')
 
     @property
     def model(self):
@@ -878,7 +894,7 @@ class ParameterSet(object):
         * (list) a list of all models for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='model').keys())
+        return self._options_for_tag('model')
 
     @property
     def fitting(self):
@@ -912,7 +928,7 @@ class ParameterSet(object):
         * (list) a list of all fittings for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='fitting').keys())
+        return self._options_for_tag('fitting')
 
     @property
     def feedback(self):
@@ -946,7 +962,7 @@ class ParameterSet(object):
         * (list) a list of all feedbacks for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='feedback').keys())
+        return self._options_for_tag('feedback')
 
     @property
     def plugin(self):
@@ -980,7 +996,7 @@ class ParameterSet(object):
         * (list) a list of all plugins for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='plugin').keys())
+        return self._options_for_tag('plugin')
 
     @property
     def kind(self):
@@ -1014,7 +1030,7 @@ class ParameterSet(object):
         * (list) a list of all kinds for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='kind').keys())
+        return self._options_for_tag('kind')
 
     @property
     def context(self):
@@ -1048,7 +1064,7 @@ class ParameterSet(object):
         * (list) a list of all contexts for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return list(self.to_dict(field='context').keys())
+        return self._options_for_tag('context')
 
     def _set_meta(self):
         """
@@ -1066,7 +1082,7 @@ class ParameterSet(object):
             else:
                 setattr(self, '_'+field, None)
 
-    def _uniquetwig(self, twig, force_levels=['qualifier']):
+    def _uniquetwig(self, param_or_twig, force_levels=['qualifier']):
         """
         get the least unique twig for the parameter given by twig that
         will return this single result for THIS PS
@@ -1079,7 +1095,7 @@ class ParameterSet(object):
         :return: the unique twig
         :rtype: str
         """
-        for_this_param = self.filter(twig, check_visible=False)
+        for_this_param = param_or_twig if isinstance(param_or_twig, Parameter) else self.get_parameter(twig, check_default=False, check_visible=False)
 
         metawargs = {}
 
@@ -1111,7 +1127,7 @@ class ParameterSet(object):
         if len(ps_for_this_search) != 1:
             # TODO: after fixing regex in twig (t0type vs t0)
             # change this to raise Error instead of return
-            return twig
+            return for_this_param.twig
 
         # now we go in the other direction and try to remove each to make sure
         # the count goes up
@@ -1120,7 +1136,7 @@ class ParameterSet(object):
                 continue
 
             ps_for_this_search = self.filter(check_visible=False,
-                                             **{ki: metawargs[k]
+                                             **{ki: metawargs[ki]
                                                 for ki in _meta_fields_twig
                                                 if ki != k})
 
@@ -1145,11 +1161,13 @@ class ParameterSet(object):
         :parameter **kwargs: attributes to set for each parameter (ie tags)
         """
         lst = params.to_list() if isinstance(params, ParameterSet) else params
+        ps = params if isinstance(params, ParameterSet) else ParameterSet(params)
         for param in lst:
             param._bundle = self
 
             for k, v in kwargs.items():
                 # Here we'll set the attributes (_context, _qualifier, etc)
+                if k in ['check_default', 'check_visible']: continue
                 if getattr(param, '_{}'.format(k)) is None:
                     setattr(param, '_{}'.format(k), v)
             self._params.append(param)
@@ -1165,6 +1183,7 @@ class ParameterSet(object):
 
         # read the following at your own risk - I just wrote it and it still
         # confuses me and baffles me that it works
+        pss = {}
         for param in self.to_list():
             if param.copy_for:
                 # copy_for tells us how to filter and what set of attributes
@@ -1208,12 +1227,23 @@ class ParameterSet(object):
                     else:
                         filter_[k] = force_list(v)
 
-                ps = self._bundle.filter(check_visible=False,
-                                         check_default=False,
-                                         force_ps=True, **filter_)
-                metawargs = {k:v for k,v in ps.meta.items() if v is not None and k in attrs}
-                for k,v in param.meta.items():
-                    if k not in ['twig', 'uniquetwig'] and k not in attrs:
+                # making this filter call repeatedly is expensive, so since
+                # we're filtering for the same thing multiple times, let's
+                # cache the filter by the json string of the filter dictionary
+                filter_json = json.dumps(filter_)
+                if filter_json in pss.keys():
+                    ps = pss.get(filter_json)
+                else:
+                    ps = self.filter(check_visible=False,
+                                             check_default=False,
+                                             force_ps=True, **filter_)
+                    pss[filter_json] = ps
+
+                metawargs = {k:v for k,v in ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).items() if v is not None and k in attrs}
+                # print("*** check_copy_for {} attrs={} filter_={}, metawargs={}".format(param.copy_for, attrs, filter_, metawargs))
+
+                for k,v in param.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).items():
+                    if k not in attrs:
                         metawargs[k] = v
                 # metawargs is a list of the shared tags that will be used to filter for
                 # existing parameters so that we know whether they already exist or
@@ -1553,9 +1583,8 @@ class ParameterSet(object):
             return self.filter(**kwargs).to_dict(field=field)
 
         if field is not None:
-            keys_for_this_field = set([getattr(p, field)
-                                       for p in self.to_list()
-                                       if getattr(p, field) is not None])
+            keys_for_this_field = self._options_for_tag(field)
+
             return {k: self.filter(check_visible=False, **{field: k}) for k in keys_for_this_field}
 
         # we want to find the first level (from the bottom) in which filtering
@@ -1942,15 +1971,15 @@ class ParameterSet(object):
 
         params = self.to_list()
 
-        def string_to_time(time):
+        def string_to_time(string):
             try:
-                return float(time)
+                return float(string)
             except ValueError:
-                # allow for passing a twig that needs to resolve a float
+                # allow for passing a twig that needs to resolve a float (ie. 't0_supconj')
                 if self._bundle is None:
-                    return self.get_value(time, context=['system', 'component'])
+                    return self.get_value(string, context=['system', 'component'], check_default=False, check_visible=False)
                 else:
-                    return self._bundle.get_value(time, context=['system', 'component'])
+                    return self._bundle.get_value(string, context=['system', 'component'], check_default=False, check_visible=False)
 
         # TODO: replace with key,value in kwargs.items()... unless there was
         # some reason that won't work?
@@ -2169,7 +2198,7 @@ class ParameterSet(object):
         """
         return self.get(twig=twig, **kwargs)
 
-    def get_or_create(self, qualifier, new_parameter, **kwargs):
+    def get_or_create(self, qualifier, new_parameter, attach_to_bundle=False, **kwargs):
         """
         Get a <phoebe.parameters.Parameter> from the
         <phoebe.parameters.ParameterSet>. If it does not exist,
@@ -2178,7 +2207,8 @@ class ParameterSet(object):
         Note: running this on a ParameterSet that is NOT a
         <phoebe.frontend.bundle.Bundle>,
         will NOT add the Parameter to the Bundle, but only the temporary
-        ParameterSet.
+        ParameterSet, unless `attach_to_bundle` is set to True and the bundle
+        can be found.
 
         See also:
         * <phoebe.parameters.ParameterSet.filter>
@@ -2193,6 +2223,8 @@ class ParameterSet(object):
             **NOTE**: this must be a qualifier, not a twig.
         * `new_parameter`: (<phoebe.parameters.Parameter>): the parameter to
             attach if no result is found.
+        * `attach_to_bundle` (bool, optional, default=False): whether to attach
+            the added parameter (if created) to the bundle.
         * `**kwargs`: meta-tags to use when filtering, including `check_visible` and
             `check_default`.  See <phoebe.parameters.ParameterSet.filter_or_get>.
 
@@ -2213,11 +2245,14 @@ class ParameterSet(object):
             # TODO: custom exception?
             raise ValueError("more than 1 result was found")
         else:
-            self._attach_params(ParameterSet([new_parameter]), **kwargs)
-
             logger.debug("creating and attaching new parameter: {}".format(new_parameter.qualifier))
 
-            return self.filter_or_get(qualifier=qualifier, **kwargs), True
+            if attach_to_bundle:
+                self._bundle._attach_params(ParameterSet([new_parameter]), **kwargs)
+                return self._bundle.get_parameter(uniqueid=new_parameter.uniqueid), True
+            else:
+                self._attach_params(ParameterSet([new_parameter]), **kwargs)
+                return self.get_parameter(uniqueid=new_parameter.uniqueid), True
 
     def _remove_parameter(self, param):
         """
@@ -2861,7 +2896,7 @@ class ParameterSet(object):
 
         # TODO: do we need to worry about conflicting units?
         # NOTE: this should automatically handle interpolating in phases, if necessary
-        times = dataset_ps.get_value('times', component=component)
+        times = dataset_ps.get_value(qualifier='times', component=component)
         if not len(times):
             raise ValueError("no times in the dataset: {}@{}".format(dataset, component))
         if not len(dataset_param.get_value()) == len(times):
@@ -2897,7 +2932,7 @@ class ParameterSet(object):
         kwargs.setdefault('context', ['dataset', 'model'])
 
         filter_kwargs = {}
-        for k in list(self.meta.keys())+['twig']:
+        for k in list(self.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).keys())+['twig']:
             if k in ['time']:
                 # time handled later
                 continue
@@ -2930,9 +2965,6 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        # For kinds, we want to ignore the deps - those won't have arrays
-        kinds = [m for m in ps.kinds if m[-3:] != 'dep']
-
         # If we are asking to plot a dataset that also shows up in columns in
         # the mesh, then remove the mesh kind.  In other words: mesh stuff
         # will only be plotted if mesh is the only kind in the filter.
@@ -2940,13 +2972,8 @@ class ParameterSet(object):
         if len(pskinds) > 1 and 'mesh' in pskinds:
             pskinds.remove('mesh')
 
-        if len(kinds) == 1 and len(pskinds) > 1:
-            # then we need to filter to exclude the dep
-            ps = ps.filter(check_visible=False, kind=kinds[0])
-            pskinds = [kinds[0]]
-
         if len(ps.kinds) > 1:
-            for kind in [m for m in pskinds if m[-3:]!='dep']:
+            for kind in pskinds:
                 this_return = ps.filter(check_visible=False, kind=kind)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
@@ -2965,7 +2992,8 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if len(ps.components) > 1:
+        if len(ps.components) > 1 and ps.kind not in ['lc']:
+            # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
             for component in ps.components:
                 this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(**kwargs)
@@ -2996,9 +3024,10 @@ class ParameterSet(object):
                 # overwrite kwargs[k] based on any match in v
                 match = None
                 for kk,vv in v.items():
-                    if kk in ps.meta.values():
+                    meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig'])
+                    if kk in meta.values():
                         if match is not None:
-                            raise ValueError("dictionary {}={} is not unique for {}".format(k,v, ps.meta))
+                            raise ValueError("dictionary {}={} is not unique for {}".format(k,v, meta))
                         match = vv
 
                 if match is not None:
@@ -3061,23 +3090,33 @@ class ParameterSet(object):
                     if kwargs['autofig_method'] == 'mesh' and current_value in ['xs', 'ys', 'zs']:
                         # then we actually need to unpack from the xyz_elements
                         verts = ps.get_quantity(qualifier='xyz_elements')
+                        if not verts.shape[0]:
+                            return None
                         array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
                     elif kwargs['autofig_method'] == 'mesh' and current_value in ['us', 'vs', 'ws']:
                         # then we actually need to unpack from the uvw_elements
                         verts = ps.get_quantity(qualifier='uvw_elements')
+                        if not verts.shape[0]:
+                            return None
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
                     elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
-                        array_value = ps._bundle.get_value('times', dataset=ps.dataset, component=ps.component, context='dataset')
+                        array_value = ps._bundle.get_value(qualifier='times', dataset=ps.dataset, component=ps.component, context='dataset')
                     else:
-                        if len(ps.filter(current_value, check_visible=False))==1:
-                            array_value = ps.get_quantity(current_value, check_visible=False)
-                        elif len(ps.filter(current_value, check_visible=False).times) > 1 and ps.get_value(current_value, time=ps.filter(current_value, check_visible=False).times[0]):
-                            # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
-                            unit = ps.get_quantity(current_value, time=ps.filter(current_value).times[0]).unit
-                            array_value = np.array([ps.get_quantity(current_value, time=time, check_visible=False).to(unit).value for time in ps.filter(current_value, check_visible=False).times])*unit
+                        if '@' in current_value:
+                            # then we need to remove the dataset from the filter
+                            psf = self._bundle.filter(check_visible=False, **{k:v for k,v in ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).items() if k!='dataset'})
                         else:
-                            raise ValueError("could not find Parameter for {} in {}".format(current_value, ps.meta))
+                            psf = ps
+
+                        if len(psf.filter(current_value, check_visible=False))==1:
+                            array_value = psf.get_quantity(current_value, check_visible=False)
+                        elif len(psf.filter(current_value, check_visible=False).times) > 1 and psf.get_value(current_value, time=psf.filter(current_value, check_visible=False).times[0]):
+                            # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
+                            unit = psf.get_quantity(current_value, time=psf.filter(current_value).times[0]).unit
+                            array_value = np.array([psf.get_quantity(current_value, time=time, check_visible=False).to(unit).value for time in psf.filter(current_value, check_visible=False).times])*unit
+                        else:
+                            raise ValueError("could not find Parameter for {} in {}".format(current_value, psf.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])))
 
                     kwargs[direction] = array_value
 
@@ -3111,7 +3150,7 @@ class ParameterSet(object):
 
                 elif current_value in ['wavelengths'] and ps.time is not None:
                     # these are not tagged with the time, so we need to find them
-                    full_dataset_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'time']}
+                    full_dataset_meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig', 'qualifier', 'time'])
                     full_dataset_ps = ps._bundle.filter(**full_dataset_meta)
                     candidate_params = full_dataset_ps.filter(current_value)
                     if len(candidate_params) == 1:
@@ -3133,11 +3172,11 @@ class ParameterSet(object):
 
                     if 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
-                        times = ps._bundle.get_value('times', dataset=ps.dataset, component=ps.component, context='dataset')
+                        times = ps._bundle.get_value(qualifier='times', dataset=ps.dataset, component=ps.component, context='dataset')
                     elif ps.kind == 'etvs':
-                        times = ps.get_value('time_ecls', unit=u.d)
+                        times = ps.get_value(qualifier='time_ecls', unit=u.d)
                     else:
-                        times = ps.get_value('times', unit=u.d)
+                        times = ps.get_value(qualifier='times', unit=u.d)
 
                     kwargs[direction] = self._bundle.to_phase(times, component=component_phase, t0=kwargs.get('t0', 't0_supconj')) * u.dimensionless_unscaled
 
@@ -3171,7 +3210,7 @@ class ParameterSet(object):
                     # check for that first.
 
                     if ps.kind == 'mesh' and ps._bundle is not None:
-                        full_mesh_meta = {k:v for k,v in ps.meta.items() if k not in ['qualifier', 'dataset']}
+                        full_mesh_meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig', 'qualifier', 'dataset'])
                         full_mesh_ps = ps._bundle.filter(**full_mesh_meta)
                         candidate_params = full_mesh_ps.filter(current_value)
                         if len(candidate_params) == 1:
@@ -3372,12 +3411,16 @@ class ParameterSet(object):
 
             # logger.debug("_kwargs_fill_dimension {} {} {}".format(kwargs, af_direction, ps.twigs))
             kwargs = _kwargs_fill_dimension(kwargs, af_direction, ps)
+            if kwargs is None:
+                # cannot plot
+                logger.warning("cannot plot {}-dimension of {}@{}, skipping".format(af_direction, ps.component, ps.dataset))
+                return []
 
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
         # try to find 'times' in the cartesian dimensions:
         iqualifier = kwargs.pop('i', 'times')
         for af_direction in ['x', 'y', 'z']:
-            if kwargs['autofig_method'] != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
+            if kwargs.get('autofig_method', 'plot') != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
                 kwargs['i'] = af_direction
                 kwargs['iqualifier'] = None
                 break
@@ -4643,7 +4686,8 @@ class Parameter(object):
 
         if ps is None:
             return self.twig
-        return ps._uniquetwig(self.twig)
+
+        return ps._uniquetwig(self)
 
     @property
     def twig(self):
@@ -4904,7 +4948,6 @@ class Parameter(object):
 
 
         try:
-            # print "***", type(other), mathfunc
             if isinstance(other, ConstraintParameter):
                 # print "*** __math__", self.quantity, mathfunc, other.result, other.expr
                 return ConstraintParameter(self._bundle, "{%s} %s (%s)" % (self.uniquetwig, symbol, other.expr), default_unit=(getattr(self.quantity, mathfunc)(other.result).unit))
@@ -6251,13 +6294,13 @@ class FloatParameter(Parameter):
 
             parent_ps = self.get_parent_ps()
             deriv = parent_ps.get_value(self.timederiv, unit=self.default_unit/u.d)
-            # t0 = parent_ps.get_value('t0_values', unit=u.d)
-            t0 = self._bundle.get_value('t0', context='system', unit=u.d)
+            # t0 = parent_ps.get_value(qualifier='t0_values', unit=u.d)
+            t0 = self._bundle.get_value(qualifier='t0', context='system', unit=u.d)
 
             # if time has been provided without units, we assume the same units as t0
             if not hasattr(time, 'value'):
-                # time = time * parent_ps.get_parameter('t0_values').default_unit
-                time = time * self._bundle.get_value('t0', context='system').default_unit
+                # time = time * parent_ps.get_parameter(qualifier='t0_values').default_unit
+                time = time * self._bundle.get_value(qualifier='t0', context='system').default_unit
 
             # print "***", value, deriv, time, t0
             value = value + deriv*(time-t0)
@@ -6371,7 +6414,7 @@ class FloatParameter(Parameter):
             <phoebe.parameters.FloatParameter.get_limits> and
             <phoebe.parameters.FloatParameter.within_limits>
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_quantity = deepcopy(self.get_quantity())
 
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
@@ -6434,16 +6477,19 @@ class FloatParameter(Parameter):
 
         if run_constraints is None:
             run_constraints = conf.interactive_constraints
-        if run_constraints:
+
+        if _orig_quantity is not None and self.__class__.__name__ == 'FloatParameter' and abs(_orig_quantity - value).value < 1e-12:
+            logger.debug("value of {} didn't change within 1e-12, skipping triggering of constraints".format(self.twig))
+        elif run_constraints:
             if len(self._in_constraints):
-                logger.debug("changing value of {} triggers {} constraints".format(self.twig, self.in_constraints))
+                logger.debug("changing value of {} triggers {} constraints".format(self.twig, [c.twig for c in self.in_constraints]))
             for constraint_id in self._in_constraints:
                 self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True)
         else:
             # then we want to delay running constraints... so we need to track
             # which ones need to be run once requested
             if len(self._in_constraints):
-                logger.debug("changing value of {} triggers delayed constraint {}".format(self.twig, self.in_constraints))
+                logger.debug("changing value of {} triggers delayed constraints {}".format(self.twig, [c.twig for c in self.in_constraints]))
             for constraint_id in self._in_constraints:
                 if constraint_id not in self._bundle._delayed_constraints:
                     self._bundle._delayed_constraints.append(constraint_id)
@@ -6455,10 +6501,11 @@ class FloatParameter(Parameter):
             passed, msg = self._bundle.run_checks()
             if not passed:
                 # passed is either False (failed) or None (raise Warning)
-                msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
+                if passed is not None:
+                    msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                 logger.warning(msg)
 
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+        self._add_history(redo_func='set_quantity', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_quantity, 'uniqueid': self.uniqueid})
 
 
     #~ @property
@@ -6673,7 +6720,7 @@ class FloatArrayParameter(FloatParameter):
         np.set_printoptions(**opt)
         return str_
 
-    def interp_value(self, **kwargs):
+    def interp_value(self, unit=None, **kwargs):
         """
         Interpolate to find the value in THIS array given a value from
         ANOTHER array in the SAME parent <phoebe.parameters.ParameterSet>
@@ -6714,35 +6761,46 @@ class FloatArrayParameter(FloatParameter):
         available range, phase-interpolation will automatically be attempted,
         with a warning raised via the <phoebe.logger>.
 
-        NOTE: this method does not currently support units.  You must provide
-        the interpolating value in its default units and are returned the
-        value in the default units (no support for quantities).
+        See also:
+        * <phoebe.parameters.FloatArrayParameter.interp_quantity>
 
         Arguments
         ----------
+        * `unit` (string or unit, optional, default=None): units to convert
+            the *returned* value.  If not provided or None, will return in the
+            default_units of the referenced parameter.  **NOTE**: to provide
+            units on the *passed* value, you must send a quantity object (see
+            `**kwargs` below).
         * `component` (string, optional): if interpolating in phases, `component`
             will be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `t0` (string/float, optional): if interpolating in phases, `t0` will
             be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
         * `**kwargs`: see examples above, must provide a single
             qualifier-value pair to use for interpolation.  In most cases
-            this will probably be time=value or wavelength=value.
+            this will probably be time=value or wavelength=value.  If the value
+            is provided as a quantity object, it will be converted to the default
+            units of the referenced parameter prior to interpolation (enable
+            a 'warning' <phoebe.logger> for conversion messages)
 
         Returns
         --------
-        * (float) the interpolated value.
+        * (float or array) the interpolated value in value of `unit` if provided,
+            or the <phoebe.parameters.FloatParameter.default_unit> of the
+            referenced <phoebe.parameters.FloatArrayParameter>.  To return
+            a quantity instead, see
+            <phoebe.parameters.FloatArrayParameter.interp_quantity>.
 
         Raises
         --------
-        * KeyError: if more than one qualifier is passed
+        * KeyError: if more than one qualifier is passed.
         * KeyError: if no qualifier is passed that belongs to the
-            parent :class:`ParameterSet`
+            parent <phoebe.parameters.ParameterSet>.
         * KeyError: if the qualifier does not point to another
-            <phoebe.parameters.FloatArrayParameter>
+            <phoebe.parameters.FloatArrayParameter>.
         """
-        # TODO: add support for units
         # TODO: add support for non-linear interpolation (probably would need to use scipy)?
-        # TODO: add support for interpolating in phase_space
+
+        return_quantity = kwargs.pop('return_quantity', False)
 
         if len(kwargs.keys()) > 1:
             raise KeyError("interp_value only takes a single qualifier-value pair")
@@ -6760,6 +6818,11 @@ class FloatArrayParameter(FloatParameter):
             # TODO: handle plural to singular (having to say
             # interp_value(times=5) is awkward)
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
+
+        if isinstance(qualifier_interp_value, u.Quantity):
+            default_unit = parent_ps.get_parameter(qualifier=qualifier).default_unit
+            logger.warning("converting from provided quantity with units {} to default units ({}) of {}".format(qualifier_interp_value.unit, default_unit, qualifier))
+            qualifier_interp_value = qualifier_interp_value.to(default_unit).value
 
         if qualifier=='times':
             times = parent_ps.get_value(qualifier='times')
@@ -6779,7 +6842,7 @@ class FloatArrayParameter(FloatParameter):
 
             sort = phases.argsort()
 
-            return np.interp(qualifier_interp_value, phases[sort], self.get_value()[sort])
+            value = np.interp(qualifier_interp_value, phases[sort], self.get_value()[sort])
 
         else:
 
@@ -6788,8 +6851,68 @@ class FloatArrayParameter(FloatParameter):
             if not isinstance(qualifier_parameter, FloatArrayParameter):
                 raise KeyError("'{}' does not point to a FloatArrayParameter".format(qualifier))
 
-            return np.interp(qualifier_interp_value, qualifier_parameter.get_value(), self.get_value())
+            value = np.interp(qualifier_interp_value, qualifier_parameter.get_value(), self.get_value())
 
+        if unit is not None:
+            if return_quantity:
+                return value*qualifier_parameter.default_unit.to(unit)
+            else:
+                return (value*qualifier_parameter.default_unit).to(unit).value
+        else:
+            if return_quantity:
+                return value*qualifier_parameter.default_unit
+            else:
+                return value
+
+    def interp_quantity(self, unit=None, **kwargs):
+        """
+        Interpolate to find the value in THIS array given a value from
+        ANOTHER array in the SAME parent <phoebe.parameters.ParameterSet>
+        (see <phoebe.parameters.Parameter.get_parent_ps>).
+
+        See <phoebe.parameters.FloatArrayParameter.interp_value> for examples,
+        this method calls interp_value and then returns the quantity object
+        instead of the array.
+
+        See also:
+        * <phoebe.parameters.FloatArrayParameter.interp_value>
+
+        Arguments
+        ----------
+        * `unit` (string or unit, optional, default=None): units to convert
+            the *returned* value.  If not provided or None, will return in the
+            default_units of the referenced parameter.  **NOTE**: to provide
+            units on the *passed* value, you must send a quantity object (see
+            `**kwargs` below).
+        * `component` (string, optional): if interpolating in phases, `component`
+            will be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `t0` (string/float, optional): if interpolating in phases, `t0` will
+            be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `**kwargs`: see examples above, must provide a single
+            qualifier-value pair to use for interpolation.  In most cases
+            this will probably be time=value or wavelength=value.  If the value
+            is provided as a quantity object, it will be converted to the default
+            units of the referenced parameter prior to interpolation (enable
+            a 'warning' <phoebe.logger> for conversion messages)
+
+        Returns
+        --------
+        * (quantity) the interpolated value in value of `unit` if provided, or
+            the <phoebe.parameters.FloatParameter.default_unit> of the
+            referenced <phoebe.parameters.FloatArrayParameter>.  To return
+            a float or array instead of a quantity object, see
+            <phoebe.parameters.FloatArrayParameter.interp_value>.
+
+        Raises
+        --------
+        * KeyError: if more than one qualifier is passed.
+        * KeyError: if no qualifier is passed that belongs to the
+            parent <phoebe.parameters.ParameterSet>.
+        * KeyError: if the qualifier does not point to another
+            <phoebe.parameters.FloatArrayParameter>.
+        """
+
+        return self.interp_value(unit=unit, return_quantity=True, **kwargs)
 
     def append(self, value):
         """
@@ -7350,6 +7473,7 @@ class HierarchyParameter(StringParameter):
          <phoebe.frontend.bundle.Bundle.get_hierarchy>.
 
         See also:
+        * <phoebe.parameters.HierarchyParameter.is_meshable>
         * <phoebe.parameters.HierarchyParameter.get_components>
         * <phoebe.parameters.HierarchyParameter.get_top>
         * <phoebe.parameters.HierarchyParameter.get_stars>
@@ -7371,6 +7495,24 @@ class HierarchyParameter(StringParameter):
                 has_sibling_envelope.append(item)
 
         return [m for m in meshables if m not in has_sibling_envelope]
+
+    def is_meshable(self, component):
+        """
+        Determine if `component` is one of
+        <phoebe.parameters.HierarchyParameter.get_meshables>.
+
+        See also:
+        * <phoebe.parameters.HierarchyParameter.get_meshables>
+
+        Arguments
+        ------------
+        * `component` (string): the name of the component to check.
+
+        Returns
+        ----------
+        * (bool)
+        """
+        return component in self.get_meshables()
 
     def get_parent_of(self, component):
         """
@@ -7837,9 +7979,9 @@ class HierarchyParameter(StringParameter):
         * (bool): whether the system is misaligned.
         """
         for component in self.get_stars():
-            if self._bundle.get_value('pitch', component=component, context='component') != 0:
+            if self._bundle.get_value(qualifier='pitch', component=component, context='component') != 0:
                 return True
-            if self._bundle.get_value('yaw', component=component, context='component') != 0:
+            if self._bundle.get_value(qualifier='yaw', component=component, context='component') != 0:
                 return True
 
         return False
@@ -7854,11 +7996,11 @@ class HierarchyParameter(StringParameter):
         * (bool): whether the system is time-dependent
         """
         for orbit in self.get_orbits():
-            if self._bundle.get_value('dpdt', component=orbit, context='component') != 0:
+            if self._bundle.get_value(qualifier='dpdt', component=orbit, context='component') != 0:
                 return True
-            if self._bundle.get_value('dperdt', component=orbit, context='component') != 0:
+            if self._bundle.get_value(qualifier='dperdt', component=orbit, context='component') != 0:
                 return True
-            if conf.devel and self._bundle.get_value('deccdt', component=orbit, context='component') != 0:
+            if conf.devel and self._bundle.get_value(qualifier='deccdt', component=orbit, context='component') != 0:
                 return True
 
         return False
@@ -8067,7 +8209,7 @@ class ConstraintParameter(Parameter):
 
         Returns
         -------
-        * (<phoebe.parameters>parameter>)
+        * (<phoebe.parameters.Parameter>)
         """
         return self.get_parameter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, check_visible=False)
 
@@ -8107,6 +8249,10 @@ class ConstraintParameter(Parameter):
             # all items have the same uniqueid?  Maybe check len(ps.uniqueids)?
             return ps.to_list()[0]
         else:
+            if self._bundle is not None:
+                logger.debug("ConstraintParameter.get_parameter: reverting to filtering on bundle, could not {} find in {}".format(kwargs, vars.twigs))
+                kwargs['context'] = [c for c in self._bundle.contexts if c!='constraint']
+                return self._bundle.get_parameter(**kwargs)
             raise KeyError("no result found")
 
     @property
@@ -8533,7 +8679,7 @@ class ConstraintParameter(Parameter):
         newly_constrained_var = self._get_var(**kwargs)
         newly_constrained_param = self.get_parameter(**kwargs)
 
-        check_kwargs = {k:v for k,v in newly_constrained_param.meta.items() if k not in ['context', 'twig', 'uniquetwig']}
+        check_kwargs = newly_constrained_param.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig', 'context'])
         check_kwargs['context'] = 'constraint'
         if len(self._bundle.filter(**check_kwargs)) and not kwargs.get('force', False):
             raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))

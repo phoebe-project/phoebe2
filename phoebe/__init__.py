@@ -30,6 +30,16 @@ if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]
     # with a helpful error message
     raise ImportError('\n\tYou cannot import Phoebe from inside its main source tree.\n')
 
+# Python version checks (in both __init__.py and setup.py)
+if _sys.version_info[0] == 3:
+    if _sys.version_info[1] < 6:
+        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+elif _sys.version_info[0] == 2:
+    if _sys.version_info[1] < 7:
+        raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+else:
+    raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+
 def _env_variable_int(key, default):
     value = os.getenv(key, default)
     return int(value)
@@ -203,7 +213,7 @@ class Settings(object):
         import __main__
         # hasattr(__main__, '__file__') will be True if running a python script, but
         # false if in a python or ipython interpreter.
-        # sys.flags.interactive will be 1 if the -i flag is sent to python
+        # _sys.flags.interactive will be 1 if the -i flag is sent to python
 
         # For now we'll set interactive_constraints to True by default, requiring it to
         # explicitly be disabled.
@@ -571,8 +581,26 @@ def mpi_off():
 # let's use magic to shutdown the workers when the user-script is complete
 atexit.register(mpi.shutdown_workers)
 
+# edit API docs for imported functions
+array, linspace, arange, logspace, geomspace
+
+def add_nparray_docstring(obj):
+
+    nparraydocsprefix = """This is an included dependency from [nparray](https://nparray.readthedocs.io).\n\n===============================================================\n\n"""
+
+    obj.__doc__ = nparraydocsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+
+add_nparray_docstring(array)
+add_nparray_docstring(linspace)
+add_nparray_docstring(arange)
+add_nparray_docstring(logspace)
+add_nparray_docstring(geomspace)
+
+
+
+
 # delete things we don't want exposed to the user at the top-level
-# NOTE: we need _sys for reset_settings
+# NOTE: we need _sys for reset_settings, that's why its __sys
 del os
 del atexit
 try:
@@ -587,3 +615,5 @@ except:
 del logging
 del Settings
 del MPI
+
+del add_nparray_docstring
