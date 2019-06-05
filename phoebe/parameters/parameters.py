@@ -53,7 +53,6 @@ else:
 if sys.version_info[0] == 3:
   unicode = str
 
-
 # things needed to be imported at top-level for constraints to solve:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
@@ -1184,7 +1183,7 @@ class ParameterSet(object):
         # read the following at your own risk - I just wrote it and it still
         # confuses me and baffles me that it works
         pss = {}
-        for param in self.to_list():
+        for param in self.to_list(check_visible=False, check_default=False):
             if param.copy_for:
                 # copy_for tells us how to filter and what set of attributes
                 # needs a copy of this parameter
@@ -1235,8 +1234,8 @@ class ParameterSet(object):
                     ps = pss.get(filter_json)
                 else:
                     ps = self.filter(check_visible=False,
-                                             check_default=False,
-                                             force_ps=True, **filter_)
+                                     check_default=False,
+                                     force_ps=True, **filter_)
                     pss[filter_json] = ps
 
                 metawargs = {k:v for k,v in ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).items() if v is not None and k in attrs}
@@ -1273,7 +1272,7 @@ class ParameterSet(object):
                         metawargs[attr] = attrvalue
 
                     # logger.debug("_check_copy_for {}: metawargs={}".format(param.twig, metawargs))
-                    if valid and not len(self._bundle.filter(check_visible=False, **metawargs)):
+                    if valid and not len(self._bundle.filter(check_visible=False, check_default=False, **metawargs)):
                         # then we need to make a new copy
                         logger.debug("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
 
@@ -2007,11 +2006,11 @@ class ParameterSet(object):
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
         # handle hiding _default (cheaper than visible_if so let's do first)
-        if check_default:
+        if check_default and conf.check_default:
             params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default']
 
         # handle visible_if
-        if check_visible:
+        if check_visible and conf.check_visible:
             params = [pi for pi in params if pi.is_visible]
 
         if isinstance(twig, int):
@@ -2938,7 +2937,7 @@ class ParameterSet(object):
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
-        ps = self.filter(check_visible=False, **filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases'])
+        ps = self.filter(**filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases'])
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'lp']:
             ps = ps.filter(time=kwargs.get('time'))
@@ -2955,13 +2954,13 @@ class ParameterSet(object):
 
         if len(ps.contexts) > 1:
             for context in ps.contexts:
-                this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(context=context)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             for dataset in ps.datasets:
-                this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(dataset=dataset)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -2974,21 +2973,21 @@ class ParameterSet(object):
 
         if len(ps.kinds) > 1:
             for kind in pskinds:
-                this_return = ps.filter(check_visible=False, kind=kind)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.models) > 1:
             for model in ps.models:
                 # TODO: change linestyle for models instead of color?
-                this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(model=model)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
             # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
-                this_return = ps.filter(check_visible=False, time=time)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(time=time)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -2996,7 +2995,7 @@ class ParameterSet(object):
             # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
             for component in ps.components:
-                this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(component=component)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -3110,16 +3109,16 @@ class ParameterSet(object):
                     else:
                         if '@' in current_value:
                             # then we need to remove the dataset from the filter
-                            psf = self._bundle.filter(check_visible=False, **{k:v for k,v in ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).items() if k!='dataset'})
+                            psf = self._bundle.filter(**{k:v for k,v in ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).items() if k!='dataset'})
                         else:
                             psf = ps
 
-                        if len(psf.filter(current_value, check_visible=False))==1:
-                            array_value = psf.get_quantity(current_value, check_visible=False)
-                        elif len(psf.filter(current_value, check_visible=False).times) > 1 and psf.get_value(current_value, time=psf.filter(current_value, check_visible=False).times[0]):
+                        if len(psf.filter(current_value))==1:
+                            array_value = psf.get_quantity(current_value)
+                        elif len(psf.filter(current_value).times) > 1 and psf.get_value(current_value, time=psf.filter(current_value).times[0]):
                             # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
                             unit = psf.get_quantity(current_value, time=psf.filter(current_value).times[0]).unit
-                            array_value = np.array([psf.get_quantity(current_value, time=time, check_visible=False).to(unit).value for time in psf.filter(current_value, check_visible=False).times])*unit
+                            array_value = np.array([psf.get_quantity(current_value, time=time).to(unit).value for time in psf.filter(current_value).times])*unit
                         else:
                             raise ValueError("could not find Parameter for {} in {}".format(current_value, psf.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])))
 
@@ -3135,7 +3134,7 @@ class ParameterSet(object):
                             errors = ps.get_quantity(kwargs.get(errorkey))
                             kwargs[errorkey] = errors
                         else:
-                            sigmas = ps.get_quantity('sigmas', check_visible=False)
+                            sigmas = ps.get_quantity('sigmas')
                             if len(sigmas):
                                 kwargs.setdefault(errorkey, sigmas)
 
@@ -3738,27 +3737,52 @@ class ParameterSet(object):
         if twig is not None:
             kwargs['twig'] = twig
 
-        plot_kwargss = self._unpack_plotting_kwargs(**kwargs)
+        # temporarily check_default, and check_visible
+        conf_check_default = conf.check_default
+        if conf_check_default:
+            logger.debug("temporarily disabling check_default")
+            conf.check_default_off()
 
-        # this loop handles any of the automatically-generated
-        # multiple plotting calls, passing each on to autofig
-        for plot_kwargs in plot_kwargss:
-            y = plot_kwargs.get('y', [])
-            if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
-                pass
-            elif not len(y):
-                # a dataset without observational data, for example
-                continue
+        conf_check_visible = conf.check_visible
+        if conf_check_visible:
+            logger.debug("temporarily disabling check_visible")
+            conf.check_visible_off()
 
-            autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-            # we kept the qualifiers around so we could do some default-logic,
-            # but it isn't necessary to pass them on to autofig.
-            plot_kwargs = {k:v for k,v in plot_kwargs.items() if 'qualifier' not in k}
-            logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
-            func = getattr(self.gcf(), autofig_method)
+        def restore_conf():
+            if conf_check_visible:
+                logger.debug("restoring check_visible")
+                conf.check_visible_on()
 
-            func(**plot_kwargs)
+            if conf_check_default:
+                logger.debug("restoring check_default")
+                conf.check_default_on()
 
+        try:
+            plot_kwargss = self._unpack_plotting_kwargs(**kwargs)
+
+            # this loop handles any of the automatically-generated
+            # multiple plotting calls, passing each on to autofig
+            for plot_kwargs in plot_kwargss:
+                y = plot_kwargs.get('y', [])
+                if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
+                    pass
+                elif not len(y):
+                    # a dataset without observational data, for example
+                    continue
+
+                autofig_method = plot_kwargs.pop('autofig_method', 'plot')
+                # we kept the qualifiers around so we could do some default-logic,
+                # but it isn't necessary to pass them on to autofig.
+                plot_kwargs = {k:v for k,v in plot_kwargs.items() if 'qualifier' not in k}
+                logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
+                func = getattr(self.gcf(), autofig_method)
+
+                func(**plot_kwargs)
+        except Exception as err:
+            restore_conf()
+            raise
+
+        restore_conf()
 
         if save or show or animate:
             # NOTE: time, times, will all be included in kwargs
@@ -6552,7 +6576,7 @@ class FloatParameter(Parameter):
         """
         if self._is_constraint is None:
             return None
-        return self._bundle.get_parameter(context='constraint', uniqueid=self._is_constraint)
+        return self._bundle.get_parameter(context='constraint', uniqueid=self._is_constraint, check_visible=False)
 
     @property
     def constrained_by(self):
@@ -8253,8 +8277,8 @@ class ConstraintParameter(Parameter):
             * KeyError: if the filtering results in 0 matches
         """
         kwargs['twig'] = twig
-        kwargs['check_default'] = False
-        kwargs['check_visible'] = False
+        kwargs.setdefault('check_default', False)
+        kwargs.setdefault('check_visible', False)
         vars = self.vars + self.addl_vars
         ps = vars.filter(**kwargs)
         if len(ps)==1:

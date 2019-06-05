@@ -156,7 +156,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
 
     for dataset in b.filter(qualifier='enabled', compute=compute, value=True).datasets:
         dataset_ps = b.filter(context='dataset', dataset=dataset)
-        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, check_visible=False)
+        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute)
         dataset_kind = dataset_ps.kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
         if dataset_kind in ['lc']:
@@ -198,8 +198,8 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
 
             if allow_oversample and \
                     dataset_kind in ['lc'] and \
-                    b.get_value(qualifier='exptime', dataset=dataset, check_visible=False) > 0 and \
-                    dataset_compute_ps.get_value(qualifier='fti_method', **kwargs)=='oversample':
+                    b.get_value(qualifier='exptime', dataset=dataset, **skip_filter_checks) > 0 and \
+                    dataset_compute_ps.get_value(qualifier='fti_method', check_visible=False, **kwargs)=='oversample':
 
                 # Then we need to override the times retrieved from the dataset
                 # with the oversampled times.  Later we'll do an average over
@@ -409,7 +409,7 @@ class BaseBackend(object):
                 for packet in packetlist:
                     # single parameter
                     try:
-                        new_syns.set_value(check_default=False, check_visible=False, **packet)
+                        new_syns.set_value(check_visible=False, check_default=False, **packet)
                     except Exception as err:
                         raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, err.message))
 
@@ -554,7 +554,7 @@ class PhoebeBackend(BaseBackendByTime):
     """
 
     def run_checks(self, b, compute, times=[], **kwargs):
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -579,7 +579,7 @@ class PhoebeBackend(BaseBackendByTime):
         system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
 
         if dynamics_method is None:
-            computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+            computeparams = b.get_compute(compute, force_ps=True)
             dynamics_method = computeparams.get_value(qualifier='dynamics_method', **kwargs)
 
         if hier is None:
@@ -652,7 +652,7 @@ class PhoebeBackend(BaseBackendByTime):
 
     def _worker_setup(self, b, compute, times, infolists, **kwargs):
         logger.debug("rank:{}/{} PhoebeBackend._worker_setup: extracting parameters".format(mpi.myrank, mpi.nprocs))
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
         starrefs  = hier.get_stars()
         meshablerefs = hier.get_meshables()
@@ -1183,7 +1183,7 @@ class LegacyBackend(BaseBackendByDataset):
     """
 
     def run_checks(self, b, compute, times=[], **kwargs):
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -1233,7 +1233,7 @@ class LegacyBackend(BaseBackendByDataset):
             rvcurve = rvid+'-'+comp
             rvinds[rvcurve] = rvind
 
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True)
 
         os.remove(tmp_filename)
 
@@ -1798,7 +1798,7 @@ class JktebopBackend(BaseBackendByDataset):
         t0_supconj = kwargs.get('t0_supconj')
 
         # get dataset-dependent things that we need
-        l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset', check_visible=False)
+        l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
 
         ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
         ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')

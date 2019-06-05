@@ -4666,12 +4666,6 @@ class Bundle(ParameterSet):
                 # then raise an error
                 raise ValueError("system failed to pass checks: {}".format(msg))
 
-        # temporarily disable interactive checks
-        _interactive_checks = conf.interactive_checks
-        if _interactive_checks:
-            logger.debug("temporarily disabling interactive_checks")
-            conf._interactive_checks = False
-
         # let's first make sure that there is no duplication of enabled datasets
         datasets = []
         # compute_ so we don't write over compute which we need if detach=True
@@ -4679,7 +4673,9 @@ class Bundle(ParameterSet):
             # TODO: filter by value instead of if statement once implemented
             for enabled_param in self.filter(qualifier='enabled',
                                              compute=compute_,
-                                             context='compute').to_list():
+                                             context='compute',
+                                             check_default=False,
+                                             check_visible=False).to_list():
                 if enabled_param.get_value():
                     item = (enabled_param.dataset, enabled_param.component)
                     if item in datasets:
@@ -4752,111 +4748,144 @@ class Bundle(ParameterSet):
             # return self.get_model(model)
             return job_param
 
-        for compute in computes:
+        # temporarily disable interactive_checks, check_default, and check_visible
+        conf_interactive_checks = conf.interactive_checks
+        if conf_interactive_checks:
+            logger.debug("temporarily disabling interactive_checks")
+            conf._interactive_checks = False
 
-            computeparams = self.get_compute(compute=compute)
+        conf_check_default = conf.check_default
+        if conf_check_default:
+            logger.debug("temporarily disabling check_default")
+            conf.check_default_off()
 
-            if not computeparams.kind:
-                raise KeyError("could not recognize backend from compute: {}".format(compute))
+        conf_check_visible = conf.check_visible
+        if conf_check_visible:
+            logger.debug("temporarily disabling check_visible")
+            conf.check_visible_off()
 
-            logger.info("running {} backend to create '{}' model".format(computeparams.kind, model))
-            compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
-            # compute_func = getattr(backends, computeparams.kind)
+        def restore_conf():
+            # restore user-set interactive checks
+            if conf_interactive_checks:
+                logger.debug("restoring interactive_checks={}".format(conf_interactive_checks))
+                conf._interactive_checks = conf_interactive_checks
 
-            metawargs = {'compute': compute, 'model': model, 'context': 'model'}  # dataset, component, etc will be set by the compute_func
+            if conf_check_visible:
+                logger.debug("restoring check_visible")
+                conf.check_visible_on()
 
-            params = compute_class().run(self, compute, times=times, **kwargs)
-
-
-            # average over any exposure times before attaching parameters
-            if computeparams.kind == 'phoebe':
-                # TODO: we could eventually do this for all backends - we would
-                # just need to copy the computeoption parameters into each backend's
-                # compute PS, and include similar logic for oversampling that is
-                # currently in backends._extract_info_from_bundle_by_time into
-                # backends._extract_info_from_bundle_by_dataset.  We'd also
-                # need to make sure that exptime is not being passed to any
-                # alternate backend - and ALWAYS handle it here
-                for dataset in params.datasets:
-                    # not all dataset-types currently support exposure times.
-                    # Once they do, this ugly if statement can be removed
-                    if len(self.filter(dataset=dataset, qualifier='exptime')):
-                        exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
-                        if exptime > 0:
-                            if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
-                                times_ds = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset')
-                                if not len(times_ds):
-                                    times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
-                                # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
-                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
-                                # NOTE: this is hardcoded for LCs which is the
-                                # only dataset that currently supports oversampling,
-                                # but this will need to be generalized if/when
-                                # we expand that support to other dataset kinds
-                                fluxes = np.zeros(times_ds.shape)
-
-                                # the oversampled times and fluxes will be
-                                # sorted according to times this may cause
-                                # exposures to "overlap" each other, so we'll
-                                # later need to determine which times (and
-                                # therefore fluxes) belong to which datapoint
-                                times_oversampled_sorted = params.get_value(qualifier='times', dataset=dataset)
-                                fluxes_oversampled = params.get_value(qualifier='fluxes', dataset=dataset)
-
-                                for i,t in enumerate(times_ds):
-                                    # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
-                                    # TODO: try to optimize this by having these indices returned by the backend itself
-                                    times_oversampled_this = np.linspace(t-exptime/2., t+exptime/2., fti_oversample)
-                                    sample_inds = np.searchsorted(times_oversampled_sorted, times_oversampled_this)
-
-                                    fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
-
-                                params.set_value(qualifier='times', dataset=dataset, value=times_ds)
-                                params.set_value(qualifier='fluxes', dataset=dataset, value=fluxes)
+            if conf_check_default:
+                logger.debug("restoring check_default")
+                conf.check_default_on()
 
 
-            self._attach_params(params, **metawargs)
+        try:
+            for compute in computes:
 
-        def _scale_fluxes(model_fluxes, scale_factor):
-            return model_fluxes * scale_factor
+                computeparams = self.get_compute(compute=compute)
 
-        # scale fluxes whenever pblum_mode = 'scale to data'
-        for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
-            logger.debug("rescaling fluxes to data for dataset='{}'".format(param.dataset))
-            ds_times = self.get_dataset(param.dataset).get_value(qualifier='times')
-            ds_fluxes = self.get_dataset(param.dataset).get_value(qualifier='fluxes')
-            ds_sigmas = self.get_dataset(param.dataset).get_value(qualifier='sigmas')
+                if not computeparams.kind:
+                    raise KeyError("could not recognize backend from compute: {}".format(compute))
 
-            model_fluxes = self.get_model(model).get_value(qualifier='fluxes')
-            model_fluxes_interp = self.get_model(model).get_parameter(qualifier='fluxes').interp_value(times=ds_times)
-            scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
+                logger.info("running {} backend to create '{}' model".format(computeparams.kind, model))
+                compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
+                # compute_func = getattr(backends, computeparams.kind)
 
-            # TODO: can we skip this if sigmas don't exist?
-            logger.debug("calling curve_fit with estimated scale_factor={}".format(scale_factor_approx))
-            popt, pcov = cfit(_scale_fluxes, model_fluxes_interp, ds_fluxes, p0=(scale_factor_approx), sigma=ds_sigmas if len(ds_sigmas) else None)
-            scale_factor = popt[0]
+                metawargs = {'compute': compute, 'model': model, 'context': 'model'}  # dataset, component, etc will be set by the compute_func
 
-            logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, param.dataset))
-            self.get_model(model).set_value(qualifier='fluxes', dataset=param.dataset, value=model_fluxes*scale_factor)
+                params = compute_class().run(self, compute, times=times, **kwargs)
 
-            for param in self.get_model(model, dataset=param.dataset, kind='mesh').to_list():
-                if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
-                    logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
-                    param.set_value(param.get_value() * scale_factor)
 
-        redo_kwargs = deepcopy(kwargs)
-        redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
-        redo_kwargs['model'] = model
+                # average over any exposure times before attaching parameters
+                if computeparams.kind == 'phoebe':
+                    # TODO: we could eventually do this for all backends - we would
+                    # just need to copy the computeoption parameters into each backend's
+                    # compute PS, and include similar logic for oversampling that is
+                    # currently in backends._extract_info_from_bundle_by_time into
+                    # backends._extract_info_from_bundle_by_dataset.  We'd also
+                    # need to make sure that exptime is not being passed to any
+                    # alternate backend - and ALWAYS handle it here
+                    for dataset in params.datasets:
+                        # not all dataset-types currently support exposure times.
+                        # Once they do, this ugly if statement can be removed
+                        if len(self.filter(dataset=dataset, qualifier='exptime')):
+                            exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
+                            if exptime > 0:
+                                if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
+                                    times_ds = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset')
+                                    if not len(times_ds):
+                                        times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
+                                    # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
+                                    fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
+                                    # NOTE: this is hardcoded for LCs which is the
+                                    # only dataset that currently supports oversampling,
+                                    # but this will need to be generalized if/when
+                                    # we expand that support to other dataset kinds
+                                    fluxes = np.zeros(times_ds.shape)
 
-        self._add_history(redo_func='run_compute',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='remove_model',
-                          undo_kwargs={'model': model})
+                                    # the oversampled times and fluxes will be
+                                    # sorted according to times this may cause
+                                    # exposures to "overlap" each other, so we'll
+                                    # later need to determine which times (and
+                                    # therefore fluxes) belong to which datapoint
+                                    times_oversampled_sorted = params.get_value(qualifier='times', dataset=dataset)
+                                    fluxes_oversampled = params.get_value(qualifier='fluxes', dataset=dataset)
 
-        # restore user-set interactive checks
-        if _interactive_checks:
-            logger.debug("restoring interactive_checks={}".format(_interactive_checks))
-            conf._interactive_checks = _interactive_checks
+                                    for i,t in enumerate(times_ds):
+                                        # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
+                                        # TODO: try to optimize this by having these indices returned by the backend itself
+                                        times_oversampled_this = np.linspace(t-exptime/2., t+exptime/2., fti_oversample)
+                                        sample_inds = np.searchsorted(times_oversampled_sorted, times_oversampled_this)
+
+                                        fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
+
+                                    params.set_value(qualifier='times', dataset=dataset, value=times_ds)
+                                    params.set_value(qualifier='fluxes', dataset=dataset, value=fluxes)
+
+
+                self._attach_params(params, **metawargs)
+
+            def _scale_fluxes(model_fluxes, scale_factor):
+                return model_fluxes * scale_factor
+
+            # scale fluxes whenever pblum_mode = 'scale to data'
+            for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
+                logger.debug("rescaling fluxes to data for dataset='{}'".format(param.dataset))
+                ds_times = self.get_dataset(param.dataset).get_value(qualifier='times')
+                ds_fluxes = self.get_dataset(param.dataset).get_value(qualifier='fluxes')
+                ds_sigmas = self.get_dataset(param.dataset).get_value(qualifier='sigmas')
+
+                model_fluxes = self.get_model(model).get_value(qualifier='fluxes')
+                model_fluxes_interp = self.get_model(model).get_parameter(qualifier='fluxes').interp_value(times=ds_times)
+                scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
+
+                # TODO: can we skip this if sigmas don't exist?
+                logger.debug("calling curve_fit with estimated scale_factor={}".format(scale_factor_approx))
+                popt, pcov = cfit(_scale_fluxes, model_fluxes_interp, ds_fluxes, p0=(scale_factor_approx), sigma=ds_sigmas if len(ds_sigmas) else None)
+                scale_factor = popt[0]
+
+                logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, param.dataset))
+                self.get_model(model).set_value(qualifier='fluxes', dataset=param.dataset, value=model_fluxes*scale_factor)
+
+                for param in self.get_model(model, dataset=param.dataset, kind='mesh').to_list():
+                    if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
+                        logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
+                        param.set_value(param.get_value() * scale_factor)
+
+            redo_kwargs = deepcopy(kwargs)
+            redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
+            redo_kwargs['model'] = model
+
+            self._add_history(redo_func='run_compute',
+                              redo_kwargs=redo_kwargs,
+                              undo_func='remove_model',
+                              undo_kwargs={'model': model})
+
+        except Exception as err:
+            restore_conf()
+            raise
+
+        restore_conf()
 
         return self.get_model(model)
 
