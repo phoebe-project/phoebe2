@@ -198,7 +198,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
 
             if allow_oversample and \
                     dataset_kind in ['lc'] and \
-                    b.get_value(qualifier='exptime', dataset=dataset, **skip_filter_checks) > 0 and \
+                    b.get_value(qualifier='exptime', dataset=dataset) > 0 and \
                     dataset_compute_ps.get_value(qualifier='fti_method', check_visible=False, **kwargs)=='oversample':
 
                 # Then we need to override the times retrieved from the dataset

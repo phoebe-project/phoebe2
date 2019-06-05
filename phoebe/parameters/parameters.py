@@ -1183,7 +1183,7 @@ class ParameterSet(object):
         # read the following at your own risk - I just wrote it and it still
         # confuses me and baffles me that it works
         pss = {}
-        for param in self.to_list(check_visible=False, check_default=False):
+        for param in self.to_list():
             if param.copy_for:
                 # copy_for tells us how to filter and what set of attributes
                 # needs a copy of this parameter
