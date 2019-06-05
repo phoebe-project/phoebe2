@@ -301,6 +301,10 @@ class Passband:
             struct['_phoenix_extinct_axes']= self._phoenix_extinct_axes
             struct['_phoenix_extinct_energy_grid'] = self._phoenix_extinct_energy_grid
             struct['_phoenix_extinct_photon_grid'] = self._phoenix_extinct_photon_grid
+        if 'blended_ext' in self.content:
+            struct['_blended_extinct_axes']= self._blended_extinct_axes
+            struct['_blended_extinct_energy_grid'] = self._blended_extinct_energy_grid
+            struct['_blended_extinct_photon_grid'] = self._blended_extinct_photon_grid
         if 'phoenix_ldint' in self.content:
             struct['_phoenix_ldint_energy_grid'] = self._phoenix_ldint_energy_grid
             struct['_phoenix_ldint_photon_grid'] = self._phoenix_ldint_photon_grid
@@ -436,6 +440,13 @@ class Passband:
             self._phoenix_extinct_photon_grid = np.fromstring(struct['_phoenix_extinct_photon_grid'], dtype='float64')
             self._phoenix_extinct_photon_grid = self._phoenix_extinct_photon_grid.reshape(len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1)
 
+            if 'blended_ext' in self.content:
+                self._blended_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_blended_extinct_axes']))
+                self._blended_extinct_energy_grid = np.fromstring(struct['_blended_extinct_energy_grid'], dtype='float64')
+                self._blended_extinct_energy_grid = self._blended_extinct_energy_grid.reshape(len(self._blended_extinct_axes[0]), len(self._blended_extinct_axes[1]), len(self._blended_extinct_axes[2]), len(self._blended_extinct_axes[3]), len(self._blended_extinct_axes[4]), 1)
+                self._blended_extinct_photon_grid = np.fromstring(struct['_blended_extinct_photon_grid'], dtype='float64')
+                self._blended_extinct_photon_grid = self._blended_extinct_photon_grid.reshape(len(self._blended_extinct_axes[0]), len(self._blended_extinct_axes[1]), len(self._blended_extinct_axes[2]), len(self._blended_extinct_axes[3]), len(self._blended_extinct_axes[4]), 1)
+
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
 
@@ -486,7 +497,7 @@ class Passband:
                 self._blended_axes = struct['_blended_axes']
                 self._blended_energy_grid = struct['_blended_energy_grid']
                 self._blended_photon_grid = struct['_blended_photon_grid']
-        
+
         if 'ck2004_all' in self.content:
             # CASTELLI & KURUCZ (2004) all intensities:
             if marshaled:
@@ -1156,7 +1167,7 @@ class Passband:
                 for Mi in range(len(new_axes[2])):
                     if np.isnan(new_table[Ti, Li, Mi, 0]):
                         continue
-                    
+
                     if (Mi+1 < len(new_axes[2]) and np.isnan(new_table[Ti, Li, Mi+1, 0])) or (Mi > 1 and np.isnan(new_table[Ti, Li, Mi-1, 0])):
                         edge[Ti, Li, Mi, 0] = new_table[Ti, Li, Mi, 0]
                     if (Li+1 < len(new_axes[1]) and np.isnan(new_table[Ti, Li+1, Mi, 0])) or (Li > 1 and np.isnan(new_table[Ti, Li-1, Mi, 0])):
@@ -1175,7 +1186,7 @@ class Passband:
                     for mui in range(new_table.shape[3]):
                         if np.isnan(new_table[Ti, Li, Mi, mui, 0]):
                             continue
-                        
+
                         if (mui+1 < len(new_axes[3]) and np.isnan(new_table[Ti, Li, Mi, mui+1, 0])) or (mui > 1 and np.isnan(new_table[Ti, Li, Mi, mui-1, 0])):
                             edge[Ti, Li, Mi, mui, 0] = new_table[Ti, Li, Mi, mui, 0]
                         if (Mi+1 < len(new_axes[2]) and np.isnan(new_table[Ti, Li, Mi+1, mui, 0])) or (Mi > 1 and np.isnan(new_table[Ti, Li, Mi-1, mui, 0])):
@@ -1220,7 +1231,7 @@ class Passband:
                 for Mi in range(len(new_axes[2])):
                     if not np.isnan(new_table[Ti, Li, Mi, 0]):
                         continue
-                    
+
                     num_directions = 0
                     extrapolated_value = 0.0
 
@@ -1286,7 +1297,7 @@ class Passband:
                     for mi in range(len(new_axes[3])):
                         if not np.isnan(new_table[Ti, Li, Mi, mi, 0]):
                             continue
-                        
+
                         num_directions = 0
                         extrapolated_value = 0.0
 
@@ -1433,7 +1444,7 @@ class Passband:
     def compute_blended_response(self):
         blended_axes, blended_energy_grid = self._blend(photon_weighted=False)
         blended_axes, blended_photon_grid = self._blend(photon_weighted=True)
-        
+
         self._blended_axes = blended_axes
         self._blended_energy_grid = blended_energy_grid
         self._blended_photon_grid = blended_photon_grid
