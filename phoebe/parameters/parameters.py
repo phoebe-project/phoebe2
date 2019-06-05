@@ -3702,6 +3702,9 @@ class ParameterSet(object):
             figure (or False to not save).
         * `show` (bool, optional, default=False): whether to show the plot
         * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `interval` (int, optional, default=100): time in ms between each
+            frame in the animation.  Applicable only if `animate` is True.
+
         * `draw_sidebars` (bool, optional, default=False): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
         * `draw_title` (bool, optional, default=False): whether to draw axes
@@ -3820,6 +3823,7 @@ class ParameterSet(object):
             # prefer times over time
             times = kwargs.get('times', kwargs.get('time', None))
             save_kwargs = kwargs.get('save_kwargs', {})
+            interval = kwargs.get('interval', 100)
 
             if times is None:
                 # then let's try to get all SYNTHETIC times
@@ -3838,13 +3842,14 @@ class ParameterSet(object):
 
                 times = sorted(list(set(times)))
 
-            logger.info("calling autofig.animate(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={}, save_kwargs={})".format(times, draw_sidebars, draw_title, tight_layout, save, show, save_kwargs))
+            logger.info("calling autofig.animate(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, interval={}, save={}, show={}, save_kwargs={})".format(times, draw_sidebars, draw_title, tight_layout, interval, save, show, save_kwargs))
 
             mplanim = self.gcf().animate(i=times,
                                          draw_sidebars=draw_sidebars,
                                          draw_title=draw_title,
                                          tight_layout=tight_layout,
                                          subplot_grid=subplot_grid,
+                                         interval=interval,
                                          save=save,
                                          show=show,
                                          save_kwargs=save_kwargs)

@@ -25,6 +25,12 @@ class CallGroup(common.Group):
 
     @property
     def callbacks(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Call.callbacks> for each child
+            <autofig.call.Call>
+        """
         return self._get_attrs('callbacks')
 
     def connect_callback(self, callback):
@@ -33,22 +39,52 @@ class CallGroup(common.Group):
 
     @property
     def i(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Call.i> for each child
+            <autofig.call.Call>
+        """
         return CallDimensionGroup(self._get_attrs('i'))
 
     @property
     def x(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Call.x> for each child
+            <autofig.call.Call>
+        """
         return CallDimensionGroup(self._get_attrs('x'))
 
     @property
     def y(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Call.y> for each child
+            <autofig.call.Call>
+        """
         return CallDimensionGroup(self._get_attrs('y'))
 
     @property
     def z(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Call.z> for each child
+            <autofig.call.Call>
+        """
         return CallDimensionGroup(self._get_attrs('z'))
 
     @property
     def consider_for_limits(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Call.consider_for_limits> for each child
+            <autofig.call.Call>
+        """
         return self._get_attrs('consider_for_limits')
 
     @consider_for_limits.setter
@@ -57,6 +93,26 @@ class CallGroup(common.Group):
 
     def draw(self, *args, **kwargs):
         """
+        Calls <autofig.call.Plot.draw> or <autofig.call.Mesh.draw> for each
+        <autofig.call.Call> in the <autofig.call.CallGroup>.
+
+        See also:
+
+        * <autofig.draw>
+        * <autofig.figure.Figure.draw>
+        * <autofig.axes.Axes.draw>
+        * <autofig.call.Plot.draw>
+        * <autofig.call.Mesh.draw>
+
+        Arguments
+        ------------
+        * `*args`: all arguments are passed on to each <autofig.call.Call>.
+        * `**kwargs`: all keyword arguments are passed on to each
+            <autofig.call.Call>.
+
+        Returns
+        -----------
+        * (list): list of all created matplotlib artists
         """
         # CallGroup.draw
         return_artists = []
@@ -69,14 +125,32 @@ class CallGroup(common.Group):
 class PlotGroup(CallGroup):
     @property
     def s(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Plot.s> for each child
+            <autofig.call.Plot>
+        """
         return CallDimensionSGroup(self._get_attrs('s'))
 
     @property
     def c(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Plot.c> for each child
+            <autofig.call.Plot>
+        """
         return CallDimensionCGroup(self._get_attrs('c'))
 
     @property
     def size_scale(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Plot.size_scale> for each child
+            <autofig.call.Plot>
+        """
         return self._get_attrs('size_scale')
 
     @size_scale.setter
@@ -86,10 +160,22 @@ class PlotGroup(CallGroup):
 class MeshGroup(CallGroup):
     @property
     def fc(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Mesh.fc> for each child
+            <autofig.call.Mesh>
+        """
         return CallDimensionCGroup(self._get_attrs('fc'))
 
     @property
     def ec(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.Mesh.ec> for each child
+            <autofig.call.Mesh>
+        """
         return CallDimensionCGroup(self._get_attrs('ec'))
 
 def make_callgroup(items):
@@ -114,6 +200,56 @@ class Call(object):
                  trail=False,
                  **kwargs):
         """
+        Create a <autofig.call.Call> object which defines a single call to
+        matplotlib.
+
+        Arguments
+        -------------
+        * `x` (list/array, optional, default=None): array of values for the x-axes.
+            Access via <autofig.call.Call.x>.
+        * `y` (list/array, optional, default=None): array of values for the y-axes.
+            Access via <autofig.call.Call.y>.
+        * `z` (list/array, optional, default=None): array of values for the z-axes.
+            Access via <autofig.call.Call.z>
+        * `i` (list/array or string, optional, default=None): array of values for
+            the independent-variable.  If a string, can be one of: 'x', 'y', 'z'
+            to reference an existing array.  Access via <autofig.call.Call.i>.
+        * `xerror` (float or list/array, optional, default=None): errors for `x`.
+            See <autofig.call.Call.x> and <autofig.call.CallDimensionX.error>.
+        * `xunit` (string or astropy unit, optional, default=None): units for `x`.
+            See <autofig.call.Call.x> and <autofig.call.CallDimensionX.unit>.
+        * `xlabel` (strong, optional, default=None): label for `x`.
+            See <autofig.call.Call.x> and <autofig.call.CallDimensionX.label>.
+        * `yerror` (float or list/array, optional, default=None): errors for `y`.
+            See <autofig.call.Call.y> and <autofig.call.CallDimensionY.error>.
+        * `yunit` (string or astropy unit, optional, default=None): units for `y`.
+            See <autofig.call.Call.y> and <autofig.call.CallDimensionY.unit>.
+        * `ylabel` (strong, optional, default=None): label for `y`.
+            See <autofig.call.Call.y> and <autofig.call.CallDimensionY.label>.
+        * `zerror` (float or list/array, optional, default=None): errors for `z`.
+            See <autofig.call.Call.z> and <autofig.call.CallDimensionZ.error>.
+        * `zunit` (string or astropy unit, optional, default=None): units for `z`.
+            See <autofig.call.Call.z> and <autofig.call.CallDimensionZ.unit>.
+        * `zlabel` (strong, optional, default=None): label for `x`.
+            See <autofig.call.Call.z> and <autofig.call.CallDimensionZ.label>.
+        * `iunit` (string or astropy unit, optional, default=None): units for `i`.
+            See <autofig.call.Call.i> and <autofig.call.CallDimensionI.unit>.
+        * `itol` (float, optional, default=0.0): see <autofig.call.DimensionI.tol>.
+        * `axorder` (int, optional, default=None): see <autofig.call.Call.axorder>.
+        * `axpos` (tuple, optional, default=None): see <autofig.call.Call.axpos>.
+        * `title` (string, optional, default=None): see <autofig.call.Call.title>.
+        * `label` (string, optional, default=None): see <autofig.call.Call.label>.
+        * `consider_for_limits` (bool, optional, default=True): see
+            <autofig.call.Call.consider_for_limits>.
+        * `uncover` (bool, optional, default=False): see <autofig.call.Call.uncover>.
+        * `trail` (bool or Float, optional, default=False): see
+            <autofig.call.Call.trail>.
+        * `**kwargs`: additional keyword arguments are stored and passed on when
+            attaching to a parent axes.  See <autofig.axes.Axes.add_call>.
+
+        Returns
+        ---------
+        * the instantiated <autofig.call.Call> object.
         """
         self._class = 'Call' # just to avoid circular import in order to use isinstance
 
@@ -158,11 +294,21 @@ class Call(object):
 
     @property
     def axes(self):
+        """
+        Returns
+        --------
+        * (<autofig.axes.Axes> or None): the parent axes, if applicable.
+        """
         # no setter as this can only be set internally when attaching to an axes
         return self._axes
 
     @property
     def figure(self):
+        """
+        Returns
+        --------
+        * (<autofig.figure.Figure> or None): the parent figure, if applicable.
+        """
         # no setter as this can only be set internally when attaching to an axes
         if self.axes is None:
             return None
@@ -170,26 +316,59 @@ class Call(object):
 
     @property
     def i(self):
+        """
+        Returns
+        ----------
+        * <autofig.call.CallDimensionI>
+        """
         return self._i
 
     @property
     def indep(self):
+        """
+        Shortcut to <autofig.call.Call.i>
+
+        Returns
+        ----------
+        * <autofig.call.CallDimensionI>
+        """
         return self.i
 
     @property
     def x(self):
+        """
+        Returns
+        ----------
+        * <autofig.call.CallDimensionX>
+        """
         return self._x
 
     @property
     def y(self):
+        """
+        Returns
+        ----------
+        * <autofig.call.CallDimensionY>
+        """
         return self._y
 
     @property
     def z(self):
+        """
+        Returns
+        ----------
+        * <autofig.call.CallDimensionZ>
+        """
         return self._z
 
     @property
     def consider_for_limits(self):
+        """
+        Returns
+        -----------
+        * (bool): whether the data in this <autofig.call.Call> should be considered
+            when determining axes limits.
+        """
         return self._consider_for_limits
 
     @consider_for_limits.setter
@@ -201,6 +380,11 @@ class Call(object):
 
     @property
     def uncover(self):
+        """
+        Returns
+        ---------
+        * (bool): whether uncover is enabled
+        """
         return self._uncover
 
     @uncover.setter
@@ -212,6 +396,12 @@ class Call(object):
 
     @property
     def trail(self):
+        """
+        Returns
+        ---------
+        * (bool or Float): whether trail is enabled.  If a float, then a value
+            between 0 and 1 indicating the length of the trail.
+        """
         return self._trail
 
     @trail.setter
@@ -229,6 +419,15 @@ class Call(object):
 
     @property
     def axorder(self):
+        """
+        See tutorial:
+
+        * [Subplot/Axes Positioning](../../tutorials/subplot_positioning.md)
+
+        Returns
+        --------
+        * (int or None)
+        """
         return self._axorder
 
     @axorder.setter
@@ -244,6 +443,15 @@ class Call(object):
 
     @property
     def axpos(self):
+        """
+        See tutorial:
+
+        * [Subplot/Axes Positioning](../../tutorials/subplot_positioning.md)
+
+        Returns
+        --------
+        * (tuple or None)
+        """
         return self._axpos
 
     @axpos.setter
@@ -265,7 +473,11 @@ class Call(object):
 
     @property
     def title(self):
-        "title used for axes title"
+        """
+        Returns
+        -----------
+        * (str): title used for axes title
+        """
         return self._title
 
     @title.setter
@@ -281,7 +493,11 @@ class Call(object):
 
     @property
     def label(self):
-        "label used for legends"
+        """
+        Returns
+        -----------
+        * (str): label used for legends
+        """
         return self._label
 
     @label.setter
@@ -303,7 +519,7 @@ class Plot(Call):
                        zerror=None, zunit=None, zlabel=None,
                        cunit=None, clabel=None, cmap=None,
                        sunit=None, slabel=None, smap=None, smode=None,
-                       iunit=None,
+                       iunit=None, itol=0.0,
                        axorder=None, axpos=None,
                        title=None,
                        label=None,
@@ -313,13 +529,103 @@ class Plot(Call):
                        consider_for_limits=True,
                        **kwargs):
         """
-        marker
-        size (takes precedence over s)
-        color (takes precedence over c)
+        Create a <autofig.call.Plot> object which defines a single call to
+        matplotlib.
 
-        highlight_marker
-        highlight_size / highlight_s
-        highlight_color /highlight_c
+        See also:
+
+        * <autofig.call.Mesh>
+
+        Note that the following keyword arguments are not allowed and will raise
+        an error suggesting the appropriate autofig argument:
+
+        * `markersize` or `ms`: use `size` or `s`
+        * `linewidth` or `lw`: use `size` or `s`
+
+
+        Arguments
+        -------------
+        * `x` (list/array, optional, default=None): array of values for the x-axes.
+            Access via <autofig.call.Plot.x>.
+        * `y` (list/array, optional, default=None): array of values for the y-axes.
+            Access via <autofig.call.Plot.y>.
+        * `z` (list/array, optional, default=None): array of values for the z-axes.
+            Access via <autofig.call.Plot.z>
+        * `c` or `color` (list/array, optional, default=None): array of values for the
+            color-direction.  Access via <autofig.call.Plot.c>.  Note: `color`
+            takes precedence over `c` if both are provided.
+        * `s` or `size` (list/array, optional, default=None): array of values for the
+            size-direction.  Access via <autofig.call.Plot.s>.  Note: `size` takes
+            precedence over `s` if both are provided.
+        * `i` (list/array or string, optional, default=None): array of values for
+            the independent-variable.  If a string, can be one of: 'x', 'y', 'z',
+            'c', 's' to reference an existing array.  Access via
+            <autofig.call.Plot.i>.
+        * `xerror` (float or list/array, optional, default=None): errors for `x`.
+            See <autofig.call.Plot.x> and <autofig.call.CallDimensionX.error>.
+        * `xunit` (string or astropy unit, optional, default=None): units for `x`.
+            See <autofig.call.Plot.x> and <autofig.call.CallDimensionX.unit>.
+        * `xlabel` (strong, optional, default=None): label for `x`.
+            See <autofig.call.Plot.x> and <autofig.call.CallDimensionX.label>.
+        * `yerror` (float or list/array, optional, default=None): errors for `y`.
+            See <autofig.call.Plot.y> and <autofig.call.CallDimensionY.error>.
+        * `yunit` (string or astropy unit, optional, default=None): units for `y`.
+            See <autofig.call.Plot.y> and <autofig.call.CallDimensionY.unit>.
+        * `ylabel` (strong, optional, default=None): label for `y`.
+            See <autofig.call.Plot.y> and <autofig.call.CallDimensionY.label>.
+        * `zerror` (float or list/array, optional, default=None): errors for `z`.
+            See <autofig.call.Plot.z> and <autofig.call.CallDimensionZ.error>.
+        * `zunit` (string or astropy unit, optional, default=None): units for `z`.
+            See <autofig.call.Plot.z> and <autofig.call.CallDimensionZ.unit>.
+        * `zlabel` (strong, optional, default=None): label for `x`.
+            See <autofig.call.Plot.z> and <autofig.call.CallDimensionZ.label>.
+        * `cerror` (float or list/array, optional, default=None): errors for `c`.
+            See <autofig.call.Plot.c> and <autofig.call.CallDimensionC.error>.
+        * `cunit` (string or astropy unit, optional, default=None): units for `c`.
+            See <autofig.call.Plot.c> and <autofig.call.CallDimensionC.unit>.
+        * `clabel` (strong, optional, default=None): label for `c`.
+            See <autofig.call.Plot.c> and <autofig.call.CallDimensionC.label>.
+        * `serror` (float or list/array, optional, default=None): errors for `s`.
+            See <autofig.call.Plot.s> and <autofig.call.CallDimensionS.error>.
+        * `sunit` (string or astropy unit, optional, default=None): units for `s`.
+            See <autofig.call.Plot.s> and <autofig.call.CallDimensionS.unit>.
+        * `slabel` (strong, optional, default=None): label for `s`.
+            See <autofig.call.Plot.s> and <autofig.call.CallDimensionS.label>.
+        * `iunit` (string or astropy unit, optional, default=None): units for `i`.
+            See <autofig.call.Plot.i> and <autofig.call.CallDimensionI.unit>.
+        * `itol` (float, optional, default=0.0): see <autofig.call.DimensionI.tol>.
+        * `axorder` (int, optional, default=None): see <autofig.call.Plot.axorder>.
+        * `axpos` (tuple, optional, default=None): see <autofig.call.Plot.axpos>.
+        * `title` (string, optional, default=None): see <autofig.call.Plot.title>.
+        * `label` (string, optional, default=None): see <autofig.call.Plot.label>.
+        * `marker` or `m` (string, optional, default=None): see <autofig.call.Plot.marker>.
+            Note: `marker` takes precedence over `m` if both are provided.
+        * `linestyle` or `ls` (string, optional, default=None): see
+            <autofig.call.Plot.linestyle>. Note: `linestyle` takes precedence
+            over `ls` if both are provided.
+        * `linebreak` (string, optional, default=None): see <autofig.call.Plot.linebreak>.
+        * `highlight` (bool, optional, default=False): see <autofig.call.Plot.highlight>.
+        * `highlight_marker` (string, optional, default=None)
+        * `highlight_linestyle` or `highlight_ls` (string, optional, default=None):
+            Note: `highlight_linestyle` takes precedence over `highlight_ls` if
+            both are provided.
+        * `highlight_size` or `highlight_s` (float, optional, default=None):
+            Note: `highlight_size` takes precedence over `highlight_s` if both
+            are provided.
+        * `highlight_color` or `highlight_c` (string, optional, default=None):
+            Note: `highlight_color` takes precedence over `highlight_c` if both
+            are provided.
+        * `consider_for_limits` (bool, optional, default=True): see
+            <autofig.call.Call.consider_for_limits>.
+        * `uncover` (bool, optional, default=False): see <autofig.call.Call.uncover>.
+        * `trail` (bool or Float, optional, default=False): see
+            <autofig.call.Call.trail>.
+        * `**kwargs`: additional keyword arguments are stored and passed on when
+            attaching to a parent axes.  See <autofig.axes.Axes.add_call>.
+
+        Returns
+        ---------
+        * the instantiated <autofig.call.Plot> object.
         """
         if 'markersize' in kwargs.keys():
             raise ValueError("use 'size' or 's' instead of 'markersize'")
@@ -369,7 +675,7 @@ class Plot(Call):
 
         self.linebreak = linebreak
 
-        super(Plot, self).__init__(i=i, iunit=iunit,
+        super(Plot, self).__init__(i=i, iunit=iunit, itol=itol,
                                    x=x, xerror=xerror, xunit=xunit, xlabel=xlabel,
                                    y=y, yerror=yerror, yunit=yunit, ylabel=ylabel,
                                    z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
@@ -656,6 +962,20 @@ class Plot(Call):
     def draw(self, ax=None, i=None,
              colorcycler=None, markercycler=None, linestylecycler=None):
         """
+        See also:
+
+        * <autofig.draw>
+        * <autofig.figure.Figure.draw>
+        * <autofig.axes.Axes.draw>
+        * <autofig.call.Mesh.draw>
+
+        Arguments
+        -----------
+        * `ax`
+        * `i`
+        * `colorcycler`
+        * `markercycler`
+        * `linestylecycler`
         """
         # Plot.draw
         if ax is None:
@@ -1039,17 +1359,91 @@ class Mesh(Call):
                        zerror=None, zunit=None, zlabel=None,
                        fcunit=None, fclabel=None, fcmap=None,
                        ecunit=None, eclabel=None, ecmap=None,
-                       iunit=None,
+                       iunit=None, itol=0.0,
                        axorder=None, axpos=None,
                        title=None, label=None,
-                       linestyle='solid',
+                       linestyle=None,
                        consider_for_limits=True,
                        uncover=True,
                        trail=0,
                        **kwargs):
         """
-        """
+        Create a <autofig.call.Mesh> object which defines a single call to
+        matplotlib.
 
+        See also:
+
+        * <autofig.call.Plot>
+
+
+        Arguments
+        -------------
+        * `x` (list/array, optional, default=None): array of values for the x-axes.
+            Access via <autofig.call.Mesh.x>.
+        * `y` (list/array, optional, default=None): array of values for the y-axes.
+            Access via <autofig.call.Mesh.y>.
+        * `z` (list/array, optional, default=None): array of values for the z-axes.
+            Access via <autofig.call.Mesh.z>
+        * `fc` or `facecolor` (list/array, optional, default=None): array of values for the
+            facecolor-direction.  Access via <autofig.call.Mesh.fc>.  Note: `facecolor`
+            takes precedence over `fc` if both are provided.
+        * `ec` or `edgecolor` (list/array, optional, default=None): array of values for the
+            edgecolor-direction.  Access via <autofig.call.Mesh.ec>.  Note: `edgecolor`
+            takes precedence over `ec` if both are provided.
+        * `i` (list/array or string, optional, default=None): array of values for
+            the independent-variable.  If a string, can be one of: 'x', 'y', 'z',
+            'fc', 'ec' to reference an existing array.  Access via
+            <autofig.call.Mesh.i>.
+        * `xerror` (float or list/array, optional, default=None): errors for `x`.
+            See <autofig.call.Mesh.x> and <autofig.call.CallDimensionX.error>.
+        * `xunit` (string or astropy unit, optional, default=None): units for `x`.
+            See <autofig.call.Mesh.x> and <autofig.call.CallDimensionX.unit>.
+        * `xlabel` (strong, optional, default=None): label for `x`.
+            See <autofig.call.Mesh.x> and <autofig.call.CallDimensionX.label>.
+        * `yerror` (float or list/array, optional, default=None): errors for `y`.
+            See <autofig.call.Mesh.y> and <autofig.call.CallDimensionY.error>.
+        * `yunit` (string or astropy unit, optional, default=None): units for `y`.
+            See <autofig.call.Mesh.y> and <autofig.call.CallDimensionY.unit>.
+        * `ylabel` (strong, optional, default=None): label for `y`.
+            See <autofig.call.Mesh.y> and <autofig.call.CallDimensionY.label>.
+        * `zerror` (float or list/array, optional, default=None): errors for `z`.
+            See <autofig.call.Mesh.z> and <autofig.call.CallDimensionZ.error>.
+        * `zunit` (string or astropy unit, optional, default=None): units for `z`.
+            See <autofig.call.Mesh.z> and <autofig.call.CallDimensionZ.unit>.
+        * `zlabel` (strong, optional, default=None): label for `x`.
+            See <autofig.call.Mesh.z> and <autofig.call.CallDimensionZ.label>.
+        * `fcerror` (float or list/array, optional, default=None): errors for `fc`.
+            See <autofig.call.Mesh.fc> and <autofig.call.CallDimensionC.error>.
+        * `fcunit` (string or astropy unit, optional, default=None): units for `fc`.
+            See <autofig.call.Mesh.fc> and <autofig.call.CallDimensionC.unit>.
+        * `fclabel` (strong, optional, default=None): label for `fc`.
+            See <autofig.call.Mesh.fc> and <autofig.call.CallDimensionC.label>.
+        * `ecerror` (float or list/array, optional, default=None): errors for `ec`.
+            See <autofig.call.Mesh.ec> and <autofig.call.CallDimensionC.error>.
+        * `ecunit` (string or astropy unit, optional, default=None): units for `ec`.
+            See <autofig.call.Mesh.ec> and <autofig.call.CallDimensionC.unit>.
+        * `eclabel` (strong, optional, default=None): label for `ec`.
+            See <autofig.call.Mesh.ec> and <autofig.call.CallDimensionC.label>.
+        * `iunit` (string or astropy unit, optional, default=None): units for `i`.
+            See <autofig.call.Mesh.i> and <autofig.call.CallDimensionI.unit>.
+        * `itol` (float, optional, default=0.0): see <autofig.call.DimensionI.tol>.
+        * `axorder` (int, optional, default=None): see <autofig.call.Mesh.axorder>.
+        * `axpos` (tuple, optional, default=None): see <autofig.call.Mesh.axpos>.
+        * `title` (string, optional, default=None): see <autofig.call.Mesh.title>.
+        * `label` (string, optional, default=None): see <autofig.call.Mesh.label>.
+        * `linestyle` or `ls` (string, optional, default='solid'): see
+            <autofig.call.Mesh.linestyle>. Note: `linestyle` takes precedence
+            over `ls` if both are provided.  So technically `ls` defaults
+            to 'solid' and `linestyle` defaults to None.
+        * `consider_for_limits` (bool, optional, default=True): see
+            <autofig.call.Call.consider_for_limits>.
+        * `**kwargs`: additional keyword arguments are stored and passed on when
+            attaching to a parent axes.  See <autofig.axes.Axes.add_call>.
+
+        Returns
+        ---------
+        * the instantiated <autofig.call.Mesh> object.
+        """
         self._axes_fc = None
         self._axes_ec = None
 
@@ -1061,7 +1455,7 @@ class Mesh(Call):
         ec = edgecolor if edgecolor is not None else ec
         self._ec = CallDimensionC(self, ec, None, ecunit, eclabel, cmap=ecmap)
 
-        ls = kwargs.pop('ls', None)
+        ls = kwargs.pop('ls', 'solid')
         self.linestyle = linestyle if linestyle is not None else ls
 
         self.linebreak = False
@@ -1069,7 +1463,7 @@ class Mesh(Call):
         if hasattr(i, '__iter__'):
             raise ValueError("i as an iterable not supported for Meshes, make separate calls for each value of i")
 
-        super(Mesh, self).__init__(i=i, iunit=iunit,
+        super(Mesh, self).__init__(i=i, iunit=iunit, itol=itol,
                                    x=x, xerror=xerror, xunit=xunit, xlabel=xlabel,
                                    y=y, yerror=yerror, yunit=yunit, ylabel=ylabel,
                                    z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
@@ -1100,13 +1494,43 @@ class Mesh(Call):
 
     @property
     def c(self):
-        return CallDimensionGroup([self.fc, self.ec])
+        """
+        Returns
+        ---------
+        * <autofig.call.CallDimensionCGroup> of <autofig.call.Mesh.fc> and
+            <autofig.call.Mesh.ec>
+        """
+        return CallDimensionCGroup([self.fc, self.ec])
 
     @property
     def fc(self):
+        """
+        See also:
+
+        * <autofig.call.Mesh.get_facecolor>
+
+        Returns
+        ----------
+        * <autofig.call.CallDimensionC>
+        """
         return self._fc
 
     def get_facecolor(self, colorcycler=None):
+        """
+        See also:
+
+        * <autofig.call.Mesh.fc>
+
+        Arguments
+        -----------
+        * `colorcycler` (optional, default=None): **IGNORED** (only included
+            to have a similar calling signature as other methods that do
+            account for color cyclers)
+
+        Returns
+        ----------
+        * (string): 'none' if <autofig.call.Mesh.fc> is not a string.
+        """
         if isinstance(self.fc.value, str):
             color = self.fc.value
         else:
@@ -1120,6 +1544,17 @@ class Mesh(Call):
 
     @property
     def facecolor(self):
+        """
+        Shortcut to <autofig.call.Mesh.get_facecolor>.
+
+        See also:
+
+        * <autofig.call.Mesh.fc>
+
+        Returns
+        ----------
+        * (string)
+        """
         return self.get_facecolor()
 
     @facecolor.setter
@@ -1144,9 +1579,33 @@ class Mesh(Call):
 
     @property
     def ec(self):
+        """
+        See also:
+
+        * <autofig.call.Mesh.get_edgecolor>
+
+        Returns
+        ----------
+        * <autofig.call.CallDimensionC>
+        """
         return self._ec
 
     def get_edgecolor(self, colorcycler=None):
+        """
+        See also:
+
+        * <autofig.call.Mesh.ec>
+
+        Arguments
+        -----------
+        * `colorcycler` (optional, default=None): **IGNORED** (only included
+            to have a similar calling signature as other methods that do
+            account for color cyclers)
+
+        Returns
+        ----------
+        * (string): 'black' if <autofig.call.Mesh.ec> is not a string.
+        """
         if isinstance(self.ec.value, str):
             color = self.ec.value
         else:
@@ -1160,6 +1619,17 @@ class Mesh(Call):
 
     @property
     def edgecolor(self):
+        """
+        Shortcut to <autofig.call.Mesh.get_edgecolor>.
+
+        See also:
+
+        * <autofig.call.Mesh.ec>
+
+        Returns
+        ----------
+        * (string)
+        """
         return self.get_edgecolor()
 
     @edgecolor.setter
@@ -1185,6 +1655,21 @@ class Mesh(Call):
     def draw(self, ax=None, i=None,
              colorcycler=None, markercycler=None, linestylecycler=None):
         """
+
+        See also:
+
+        * <autofig.draw>
+        * <autofig.figure.Figure.draw>
+        * <autofig.axes.Axes.draw>
+        * <autofig.call.Plot.draw>
+
+        Arguments
+        ----------
+        * `ax`
+        * `i`
+        * `colorcycler`
+        * `markercycler`
+        * `linestylecycler`
         """
         # Mesh.draw
         if ax is None:
@@ -1203,11 +1688,11 @@ class Mesh(Call):
 
         # PLOTTING
         return_artists = []
-        x = self.x.get_value(i=i, unit=self.axes.x.unit)
-        y = self.y.get_value(i=i, unit=self.axes.y.unit)
-        z = self.z.get_value(i=i, unit=self.axes.z.unit)
-        fc = self.fc.get_value(i=i, unit=self.axes_fc.unit if self.axes_fc is not None else None)
-        ec = self.ec.get_value(i=i, unit=self.axes_ec.unit if self.axes_ec is not None else None)
+        x = self.x.get_value(i=i, sort_by_indep=False, unit=self.axes.x.unit)
+        y = self.y.get_value(i=i, sort_by_indep=False, unit=self.axes.y.unit)
+        z = self.z.get_value(i=i, sort_by_indep=False, unit=self.axes.z.unit)
+        fc = self.fc.get_value(i=i, sort_by_indep=False, unit=self.axes_fc.unit if self.axes_fc is not None else None)
+        ec = self.ec.get_value(i=i, sort_by_indep=False, unit=self.axes_ec.unit if self.axes_ec is not None else None)
 
         # DETERMINE PER-DATAPOINT Z-ORDERS
         zorders, do_zorder = self.axes.z.get_zorders(z, i=i)
@@ -1232,7 +1717,6 @@ class Mesh(Call):
             if x is not None and y is not None:
                 polygons = np.concatenate((x[:,:,np.newaxis], y[:,:,np.newaxis]), axis=2)
 
-                z = self.z.get_value(i=i)
                 if not do_zorder and z is not None:
                     # then we'll handle zorder within this Mesh call by
                     # sorting instead of looping.  This is MUCH quicking
@@ -1320,11 +1804,23 @@ class CallDimensionGroup(common.Group):
 
     @property
     def value(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.CallDimension.value> for each child
+            <autofig.call.CallDimension>
+        """
         return np.array([c.value for c in self._items]).flatten()
 
 class CallDimensionCGroup(CallDimensionGroup):
     @property
     def cmap(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.CallDimensionC.cmap> for each child
+            <autofig.call.CallDimensionC>
+        """
         return self._get_attrs('cmap')
 
     @cmap.setter
@@ -1334,6 +1830,12 @@ class CallDimensionCGroup(CallDimensionGroup):
 class CallDimensionSGroup(CallDimensionGroup):
     @property
     def smap(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.CallDimensionS.smap> for each child
+            <autofig.call.CallDimensionS>
+        """
         return self._get_attrs('smap')
 
     @smap.setter
@@ -1342,6 +1844,12 @@ class CallDimensionSGroup(CallDimensionGroup):
 
     @property
     def mode(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.call.CallDimensionS.mode> for each child
+            <autofig.call.CallDimensionS>
+        """
         return self._get_attrs('mode')
 
     @mode.setter
@@ -1384,12 +1892,20 @@ class CallDimension(object):
 
     @property
     def call(self):
+        """
+        Returns
+        ---------
+        * <autofig.call.Call> (<autofig.call.Plot> or <autofig.call.Mesh>): the
+            parent call object.
+        """
         return self._call
 
     @property
     def direction(self):
         """
-        access the direction
+        Returns
+        -------------
+        * (str) one of 'i', 'x', 'y', 'z', 's', 'c'
         """
         return self._direction
 
@@ -1421,7 +1937,20 @@ class CallDimension(object):
 
     def interpolate_at_i(self, i, unit=None):
         """
-        access the interpolated value at a give value of i (independent-variable)
+        Access the interpolated value at a given value of `i` (independent-variable).
+
+        Arguments
+        -----------
+        `i`
+        `unit` (unit or string, optional, default=None)
+
+        Returns
+        -------------
+        * (float): the interpolated value
+
+        Raises
+        ------------
+        * ValueError: if there is a lenght mismatch
         """
         if isinstance(self.call.i._value, float):
             if self.call.i._value==i:
@@ -1537,11 +2066,14 @@ class CallDimension(object):
             else:
                 trail_perc = float(trail)
 
-            all_i = np.hstack(self.call.axes.calls.i.value)
-            trail_i = i - trail_perc*(np.nanmax(all_i) - np.nanmin(all_i))
-            if trail_i < np.nanmin(self.call.i.get_value(linebreak=False, sort_by_indep=False)):
-                # don't allow extraploating below the lower range
-                trail_i = np.nanmin(self.call.i.get_value(linebreak=False, sort_by_indep=False))
+            if trail_perc == 0.0:
+                trail_i = i
+            else:
+                all_i = np.hstack(self.call.axes.calls.i.value)
+                trail_i = i - trail_perc*(np.nanmax(all_i) - np.nanmin(all_i))
+                if trail_i < np.nanmin(self.call.i.get_value(linebreak=False, sort_by_indep=False)):
+                    # don't allow extraploating below the lower range
+                    trail_i = np.nanmin(self.call.i.get_value(linebreak=False, sort_by_indep=False))
 
         else:
             trail_i = None
@@ -1584,11 +2116,27 @@ class CallDimension(object):
                   linebreak=None, sort_by_indep=None,
                   attr='_value'):
         """
-        access the value for a given value of i (independent-variable) depending
+        Access the value for a given value of `i` (independent-variable) depending
         on which effects (i.e. uncover) are enabled.
 
-        If uncover, trail, or linebreak are None (default), then the value from
-        the parent Call will be used.
+        If `uncover`, `trail`, or `linebreak` are None (default), then the value from
+        the parent <autofig.call.Call> from <autofig.call.CallDimension.call>
+        (probably (<autofig.call.Plot>) will be used.  See <autofig.call.Plot.uncover>,
+        <autofig.call.Plot.trail>, <autofig.call.Plot.linebreak>.
+
+        Arguments
+        -----------
+        * `i`
+        * `unit`
+        * `uncover`
+        * `trail`
+        * `linebreak`
+        * `sort_by_indep`
+        * `attr`
+
+        Returns
+        ----------
+        * (array or None)
         """
 
         value = getattr(self, attr)  # could be self._value or self._error
@@ -1846,7 +2394,9 @@ class CallDimensionI(CallDimension):
     @property
     def tol(self):
         """
-        tolerance to use when selecting/uncover/trail
+        Returns
+        -----------
+        * (float) tolerance to use when selecting/uncover/trail
         """
         if self._tol is None:
             return 0.0
