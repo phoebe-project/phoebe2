@@ -345,7 +345,7 @@ class ParameterSet(object):
         self._set_meta()
 
         # force an update to _next_field
-        self.to_dict()
+        self.to_dict(skip_return=True)
 
         # set tab completer
         readline.set_completer(tabcomplete.Completer().complete)
@@ -1079,11 +1079,10 @@ class ParameterSet(object):
         """
         # we want to set meta-fields that are shared by ALL params in the PS
         for field in _meta_fields_twig:
-            keys_for_this_field = set([getattr(p, field)
-                                       for p in self.to_list()
-                                       if getattr(p, field) is not None])
+            keys_for_this_field = self._options_for_tag(field)
+
             if len(keys_for_this_field)==1:
-                setattr(self, '_'+field, list(keys_for_this_field)[0])
+                setattr(self, '_'+field, keys_for_this_field[0])
             else:
                 setattr(self, '_'+field, None)
 
@@ -1585,12 +1584,17 @@ class ParameterSet(object):
         * (dict) dictionary of <phoebe.parameters.ParameterSet> or
             <phoebe.parameters.Parameter> objects.
         """
+        # skip_return is used internally when we want to call this just to update
+        # self._next field, but don't want to waste time on the actual dictionary
+        # comprehension
+        skip_return = kwargs.pop('skip_return', False)
+
         if kwargs:
             return self.filter(**kwargs).to_dict(field=field)
 
         if field is not None:
             keys_for_this_field = self._options_for_tag(field)
-
+            if skip_return: return
             return {k: self.filter(check_visible=False, **{field: k}) for k in keys_for_this_field}
 
         # we want to find the first level (from the bottom) in which filtering
@@ -1609,6 +1613,7 @@ class ParameterSet(object):
             # those keys and the ParameterSet of the matching items
             if len(keys_for_this_field) > 1:
                 self._next_field = field
+                if skip_return: return
                 return {k: self.filter(check_visible=False, **{field: k})
                         for k in keys_for_this_field}
 
@@ -1616,9 +1621,11 @@ class ParameterSet(object):
         # qualifier left
         if self.context in ['hierarchy']:
             self._next_field = 'qualifier'
+            if skip_return: return
             return {param.qualifier: param for param in self._params}
         else:
             self._next_field = 'time'
+            if skip_return: return
             return {param.time: param for param in self._params}
 
     def keys(self):
