@@ -440,12 +440,12 @@ class Passband:
             self._phoenix_extinct_photon_grid = np.fromstring(struct['_phoenix_extinct_photon_grid'], dtype='float64')
             self._phoenix_extinct_photon_grid = self._phoenix_extinct_photon_grid.reshape(len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1)
 
-            if 'blended_ext' in self.content:
-                self._blended_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_blended_extinct_axes']))
-                self._blended_extinct_energy_grid = np.fromstring(struct['_blended_extinct_energy_grid'], dtype='float64')
-                self._blended_extinct_energy_grid = self._blended_extinct_energy_grid.reshape(len(self._blended_extinct_axes[0]), len(self._blended_extinct_axes[1]), len(self._blended_extinct_axes[2]), len(self._blended_extinct_axes[3]), len(self._blended_extinct_axes[4]), 1)
-                self._blended_extinct_photon_grid = np.fromstring(struct['_blended_extinct_photon_grid'], dtype='float64')
-                self._blended_extinct_photon_grid = self._blended_extinct_photon_grid.reshape(len(self._blended_extinct_axes[0]), len(self._blended_extinct_axes[1]), len(self._blended_extinct_axes[2]), len(self._blended_extinct_axes[3]), len(self._blended_extinct_axes[4]), 1)
+        if 'blended_ext' in self.content:
+            self._blended_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_blended_extinct_axes']))
+            self._blended_extinct_energy_grid = np.fromstring(struct['_blended_extinct_energy_grid'], dtype='float64')
+            self._blended_extinct_energy_grid = self._blended_extinct_energy_grid.reshape(len(self._blended_extinct_axes[0]), len(self._blended_extinct_axes[1]), len(self._blended_extinct_axes[2]), len(self._blended_extinct_axes[3]), len(self._blended_extinct_axes[4]), 1)
+            self._blended_extinct_photon_grid = np.fromstring(struct['_blended_extinct_photon_grid'], dtype='float64')
+            self._blended_extinct_photon_grid = self._blended_extinct_photon_grid.reshape(len(self._blended_extinct_axes[0]), len(self._blended_extinct_axes[1]), len(self._blended_extinct_axes[2]), len(self._blended_extinct_axes[3]), len(self._blended_extinct_axes[4]), 1)
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
