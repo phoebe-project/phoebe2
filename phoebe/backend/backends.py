@@ -435,6 +435,7 @@ class BaseBackend(object):
 
         if mpi.enabled:
             # broadcast the packet to ALL workers
+            logger.debug("rank:{}/{} broadcasting to all workers".format(mpi.myrank, mpi.nprocs))
             mpi.comm.bcast(packet, root=0)
 
             # now even the master can become a worker and take on a chunk
@@ -442,11 +443,13 @@ class BaseBackend(object):
             rpacketlists = self._run_chunk(**packet)
 
             # now receive all packetlists
+            logger.debug("rank:{}/{} gathering packetlists from all workers".format(mpi.myrank, mpi.nprocs))
             rpacketlists_per_worker = mpi.comm.gather(rpacketlists, root=0)
 
         else:
             rpacketlists_per_worker = [self._run_chunk(**packet)]
 
+        logger.debug("rank:{}/{} calling _fill_syns".format(mpi.myrank, mpi.nprocs))
         return self._fill_syns(new_syns, rpacketlists_per_worker)
 
 
@@ -484,6 +487,8 @@ class BaseBackendByTime(BaseBackend):
 
 
     def _run_chunk(self, b, compute, times, infolists, **kwargs):
+        logger.debug("rank:{}/{} _run_chunk".format(mpi.myrank, mpi.nprocs))
+
         worker_setup_kwargs = self._worker_setup(b, compute, times, infolists, **kwargs)
 
         inds = range(len(times))
@@ -499,6 +504,7 @@ class BaseBackendByTime(BaseBackend):
             packetlist = self._run_single_time(b, i, time, infolist, **worker_setup_kwargs)
             packetlists.append(packetlist)
 
+        logger.debug("rank:{}/{} _run_chunk returning packetlist".format(mpi.myrank, mpi.nprocs))
         return packetlists
 
 
@@ -554,6 +560,8 @@ class PhoebeBackend(BaseBackendByTime):
     """
 
     def run_checks(self, b, compute, times=[], **kwargs):
+        logger.debug("rank:{}/{} run_checks".format(mpi.myrank, mpi.nprocs))
+
         computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
 
@@ -1169,6 +1177,8 @@ class PhoebeBackend(BaseBackendByTime):
 
             else:
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
+
+        logger.debug("rank:{}/{} PhoebeBackend._run_single_time: returning packetlist at time={}".format(mpi.myrank, mpi.nprocs, time))
 
         return packetlist
 

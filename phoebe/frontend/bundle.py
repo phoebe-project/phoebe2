@@ -4586,6 +4586,7 @@ class Bundle(ParameterSet):
             compute options sent to run_compute.
         """
         if isinstance(detach, str):
+            raise ValueError("detach must be a boolean")
             # then we want to temporarily go in to client mode
             self.as_client(server=detach)
             self.run_compute(compute=compute, model=model, time=time, **kwargs)
@@ -4674,7 +4675,6 @@ class Bundle(ParameterSet):
             for enabled_param in self.filter(qualifier='enabled',
                                              compute=compute_,
                                              context='compute',
-                                             check_default=False,
                                              check_visible=False).to_list():
                 if enabled_param.get_value():
                     item = (enabled_param.dataset, enabled_param.component)
@@ -4724,7 +4724,8 @@ class Bundle(ParameterSet):
             cmd = mpi.detach_cmd.format(script_fname)
             # TODO: would be nice to catch errors caused by the detached script...
             # but that would probably need to be the responsibility of the
-            # jobparam to return a failed status and message
+            # jobparam to return a failed status and message.
+            # Unfortunately right now an error just results in the job hanging.
             subprocess.call(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
 
             # create model parameter and attach (and then return that instead of None)
@@ -4811,6 +4812,7 @@ class Bundle(ParameterSet):
                         if len(self.filter(dataset=dataset, qualifier='exptime')):
                             exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
                             if exptime > 0:
+                                logger.info("handling fti for dataset='{}'".format(dataset))
                                 if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
                                     times_ds = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset')
                                     if not len(times_ds):
@@ -4850,7 +4852,7 @@ class Bundle(ParameterSet):
 
             # scale fluxes whenever pblum_mode = 'scale to data'
             for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
-                logger.debug("rescaling fluxes to data for dataset='{}'".format(param.dataset))
+                logger.info("rescaling fluxes to data for dataset='{}'".format(param.dataset))
                 ds_times = self.get_dataset(param.dataset).get_value(qualifier='times')
                 ds_fluxes = self.get_dataset(param.dataset).get_value(qualifier='fluxes')
                 ds_sigmas = self.get_dataset(param.dataset).get_value(qualifier='sigmas')

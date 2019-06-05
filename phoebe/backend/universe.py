@@ -381,7 +381,7 @@ class System(object):
                     if pblum_ref=='self':
                         pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component)
                         ld_func = ds.get_value(qualifier='ld_func', component=component)
-                        ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset')
+                        ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
                         # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
                         self.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
@@ -1456,11 +1456,11 @@ class Star(Body):
         intens_weighting_override = kwargs.pop('intens_weighting', None)
         intens_weighting = {ds: b.get_value(qualifier='intens_weighting', dataset=ds, intens_weighting=intens_weighting_override) for ds in datasets_intens}
         ld_func_override = kwargs.pop('ld_func', None)
-        ld_func = {ds: b.get_value(qualifier='ld_func', dataset=ds, component=component, ld_func=ld_func_override) for ds in datasets_intens}
+        ld_func = {ds: b.get_value(qualifier='ld_func', dataset=ds, component=component, ld_func=ld_func_override, check_visible=False) for ds in datasets_intens}
         ld_coeffs_override = kwargs.pop('ld_coeffs', None)
-        ld_coeffs = {ds: b.get_value(qualifier='ld_coeffs', dataset=ds, component=component, ld_coeffs=ld_coeffs_override) for ds in datasets_intens}
+        ld_coeffs = {ds: b.get_value(qualifier='ld_coeffs', dataset=ds, component=component, ld_coeffs=ld_coeffs_override, check_visible=False) for ds in datasets_intens}
         ld_coeffs_source_override = kwargs.pop('ld_coeffs_source', None)
-        ld_coeffs_source = {ds: b.get_value(qualifier='ld_coeffs_source', dataset=ds, component=component, ld_coeffs_source=ld_coeffs_source_override) for ds in datasets_intens}
+        ld_coeffs_source = {ds: b.get_value(qualifier='ld_coeffs_source', dataset=ds, component=component, ld_coeffs_source=ld_coeffs_source_override, check_visible=False) for ds in datasets_intens}
         ld_func_bol_override = kwargs.pop('ld_func_bol', None)
         ld_func['bol'] = b.get_value(qualifier='ld_func_bol', component=component, context='component', ld_func_bol=ld_func_bol_override)
         ld_coeffs_bol_override = kwargs.pop('ld_coeffs_bol', None)

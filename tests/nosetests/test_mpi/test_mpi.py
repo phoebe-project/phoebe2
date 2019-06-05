@@ -6,7 +6,7 @@ import numpy as np
 import sys
 
 
-def test_mpi(plot=False, npoints=8):
+def test_mpi(verbose=False, plot=False, npoints=8, turn_mpi_off_after=True):
     phoebe.reset_settings()
     phoebe.mpi_on(4)
 
@@ -14,15 +14,19 @@ def test_mpi(plot=False, npoints=8):
 
     b.add_dataset('lc', times=np.linspace(0,1,npoints))
 
-    if plot: print("calling compute")
+    if verbose: print("calling compute")
     b.run_compute(irrad_method='none', model='phoebe2model')
-    if plot: print("model received")
+    if verbose: print("model received")
 
     if plot:
         b.plot(show=True)
 
     phoebe.reset_settings()
-    phoebe.mpi_off()
+    if turn_mpi_off_after:
+        # we need to turn this off for the next test in nosetests... but
+        # if running from python or mpirun, we don't want to release all the
+        # workers or they'll just pickup all the previous tasks
+        phoebe.mpi_off()
 
     return b
 
@@ -38,4 +42,4 @@ if __name__ == '__main__':
 
     logger = phoebe.logger(clevel='INFO')
 
-    b = test_mpi(plot=False, npoints=101)
+    b = test_mpi(verbose=True, plot=False, npoints=101, turn_mpi_off_after=False)
