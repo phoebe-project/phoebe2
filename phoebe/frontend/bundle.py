@@ -4845,7 +4845,7 @@ class Bundle(ParameterSet):
                                     params.set_value(qualifier='fluxes', dataset=dataset, value=fluxes)
 
 
-                self._attach_params(params, **metawargs)
+                self._attach_params(params, check_copy_for=False, **metawargs)
 
             def _scale_fluxes(model_fluxes, scale_factor):
                 return model_fluxes * scale_factor

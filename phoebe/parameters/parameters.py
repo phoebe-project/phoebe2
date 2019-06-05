@@ -283,6 +283,12 @@ def _instance_in(obj, *types):
 
     return False
 
+def _fnmatch(to_this, expression_or_string):
+    if '*' in expression_or_string or '?' in expression_or_string:
+        return fnmatch(to_this, expression_or_string)
+    else:
+        return expression_or_string == to_this
+
 
 class ParameterSet(object):
     """ParameterSet.
@@ -1153,7 +1159,7 @@ class ParameterSet(object):
                          for k in _meta_fields_twig
                          if metawargs[k] is not None])
 
-    def _attach_params(self, params, **kwargs):
+    def _attach_params(self, params, check_copy_for=True, **kwargs):
         """Attach a list of parameters (or ParameterSet) to this ParameterSet.
 
         :parameter list params: list of parameters, or ParameterSet
@@ -1171,7 +1177,8 @@ class ParameterSet(object):
                     setattr(param, '_{}'.format(k), v)
             self._params.append(param)
 
-        self._check_copy_for()
+        if check_copy_for:
+            self._check_copy_for()
 
         return
 
@@ -1998,8 +2005,8 @@ class ParameterSet(object):
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None) and
                     (getattr(pi,key)==kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
-                    (isinstance(kwargs[key],list) and np.any([fnmatch(getattr(pi,key),keyi) for keyi in kwargs[key]])) or
-                    (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and fnmatch(getattr(pi,key),kwargs[key])) or
+                    (isinstance(kwargs[key],list) and np.any([_fnmatch(getattr(pi,key),keyi) for keyi in kwargs[key]])) or
+                    (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and _fnmatch(getattr(pi,key),kwargs[key])) or
                     (key=='kind' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
                     (key=='kind' and hasattr(kwargs[key],'__iter__') and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
                     (key=='time' and abs(float(getattr(pi,key))-string_to_time(kwargs[key]))<1e-6))]
@@ -2069,7 +2076,7 @@ class ParameterSet(object):
                 # TODO: need to fix repeating twigs (ie
                 # period@period@period@period still matches and causes problems
                 # with the tabcomplete)
-                params = [pi for pi in params if ti in pi.twig.split('@') or fnmatch(pi.twig, ti)]
+                params = [pi for pi in params if ti in pi.twig.split('@') or _fnmatch(pi.twig, ti)]
 
             if autocomplete:
                 # we want to provide options for what twigautomplete
@@ -3028,7 +3035,7 @@ class ParameterSet(object):
                     # for example: color={'lc*': 'blue', 'primary@rv*': 'green'}
                     # this will likely be a little expensive, but we only do it
                     # in the case where a dictionary is passed.
-                    if np.all([np.any([fnmatch(mv, kksplit) for mv in meta.values() if mv is not None]) for kksplit in kk.split('@')]):
+                    if np.all([np.any([_fnmatch(mv, kksplit) for mv in meta.values() if mv is not None]) for kksplit in kk.split('@')]):
                         if match is not None:
                             raise ValueError("dictionary {}={} is not unique for {}".format(k,v, meta))
                         match = vv
@@ -3777,7 +3784,7 @@ class ParameterSet(object):
                 autofig_method = plot_kwargs.pop('autofig_method', 'plot')
                 # we kept the qualifiers around so we could do some default-logic,
                 # but it isn't necessary to pass them on to autofig.
-                plot_kwargs = {k:v for k,v in plot_kwargs.items() if 'qualifier' not in k}
+                dump = kwargs.pop('qualifier', None)
                 logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
                 func = getattr(self.gcf(), autofig_method)
 
@@ -5565,7 +5572,7 @@ class SelectParameter(Parameter):
 
         # allow for wildcards
         for choice in self.choices:
-            if fnmatch(choice, value):
+            if _fnmatch(choice, value):
                 return True
 
         return False
@@ -5640,7 +5647,7 @@ class SelectParameter(Parameter):
             for choice in self.choices:
                 if v==choice and choice not in selection:
                     selection.append(choice)
-                elif fnmatch(choice, v) and choice not in selection:
+                elif _fnmatch(choice, v) and choice not in selection:
                     selection.append(choice)
 
         return selection
@@ -7307,6 +7314,7 @@ class HierarchyParameter(StringParameter):
         """
         self._is_binary = {}
         self._is_contact_binary = {}
+        self._meshables = []
 
     def _update_cache(self):
         """
@@ -7314,6 +7322,8 @@ class HierarchyParameter(StringParameter):
         # update cache for is_binary and is_contact_binary
         self._clear_cache()
         if self._bundle is not None:
+            self._meshables = self._compute_meshables()
+
             # for comp in self.get_components():
             for comp in self._bundle.components:
                 if comp == '_default':
@@ -7509,6 +7519,19 @@ class HierarchyParameter(StringParameter):
                 orbits.append(parent)
         return orbits
 
+    def _compute_meshables(self):
+        l = re.findall(r"[\w']+", self.get_value())
+        # now search for indices of star and take the next entry from this flat list
+        meshables = [l[i+1] for i,s in enumerate(l) if s in ['star', 'envelope']]
+
+        # now we want to remove any star which has a sibling envelope
+        has_sibling_envelope = []
+        for item in meshables:
+            if self.get_sibling_of(item, kind='envelope'):
+                has_sibling_envelope.append(item)
+
+        return [m for m in meshables if m not in has_sibling_envelope]
+
     def get_meshables(self):
         """
         Return a list of all components that are meshable (generally stars,
@@ -7530,17 +7553,10 @@ class HierarchyParameter(StringParameter):
         -------
         * (list of strings)
         """
-        l = re.findall(r"[\w']+", self.get_value())
-        # now search for indices of star and take the next entry from this flat list
-        meshables = [l[i+1] for i,s in enumerate(l) if s in ['star', 'envelope']]
+        if not len(self._meshables):
+            self._update_cache()
 
-        # now we want to remove any star which has a sibling envelope
-        has_sibling_envelope = []
-        for item in meshables:
-            if self.get_sibling_of(item, kind='envelope'):
-                has_sibling_envelope.append(item)
-
-        return [m for m in meshables if m not in has_sibling_envelope]
+        return self._meshables
 
     def is_meshable(self, component):
         """
