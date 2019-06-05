@@ -963,6 +963,13 @@ class PhoebeBackend(BaseBackendByTime):
                                               body.mesh.roche_vertices_per_triangle,
                                               time, info))
 
+                packetlist.append(_make_packet('uvw_normals',
+                                              body.mesh.tnormals,
+                                              time, info))
+                packetlist.append(_make_packet('xyz_normals',
+                                              body.mesh.roche_tnormals,
+                                              time, info))
+
                 # if 'pot' in info['mesh_columns']:
                     # packetlist.append(_make_packet('pot',
                                                   # body._instantaneous_pot,

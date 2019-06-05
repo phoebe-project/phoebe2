@@ -3104,12 +3104,30 @@ class ParameterSet(object):
                         if not verts.shape[0]:
                             return None
                         array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
+
+                        if direction == 'z':
+                            norms = ps.get_quantity(qualifier='xyz_normals')
+                            array_value_norms = norms.value[:, ['xs', 'ys', 'zs'].index(current_value)]
+                            # TODO: flip if necessary for a right-handed axes?  (currently the z-values aren't flipped)
+                            # if
+                                # array_value_norms *= -1
+                            kwargs['{}normals'.format(direction)] = array_value_norms
+
                     elif kwargs['autofig_method'] == 'mesh' and current_value in ['us', 'vs', 'ws']:
                         # then we actually need to unpack from the uvw_elements
                         verts = ps.get_quantity(qualifier='uvw_elements')
                         if not verts.shape[0]:
                             return None
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
+
+                        if direction == 'z':
+                            norms = ps.get_quantity(qualifier='uvw_normals')
+                            array_value_norms = norms.value[:, ['us', 'vs', 'ws'].index(current_value)]
+                            # TODO: flip if necessary for a right-handed axes?  (currently the z-values aren't flipped)
+                            # if
+                                # array_value_norms *= -1
+                            kwargs['{}normals'.format(direction)] = array_value_norms
+
                     elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
                         array_value = ps._bundle.get_value(qualifier='times', dataset=ps.dataset, component=ps.component, context='dataset')
@@ -3260,6 +3278,7 @@ class ParameterSet(object):
         #### DIRECTION DEFAULTS
         # define defaults for directions based on ps.kind
         if ps.kind == 'mesh':
+            # TODO: check to make sure axes will be right-handed?
             # first determine from any passed values if we're in xyz or uvw
             # (do not allow mixing between roche and POS)
             detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
@@ -3330,6 +3349,11 @@ class ParameterSet(object):
                 # we want the wireframe by default
                 kwargs.setdefault('ec', 'black')
                 kwargs.setdefault('fc', 'white')
+
+                # by default, we'll exclude the back if fc is not 'none'
+                if kwargs.get('fc') != 'none':
+                    kwargs.setdefault('exclude_back', True)
+
             else:
                 # then even though the scatter may be rs vs cartesian with same
                 # units, let's default to disabling equal aspect ratio
@@ -3712,6 +3736,20 @@ class ParameterSet(object):
         * `interval` (int, optional, default=100): time in ms between each
             frame in the animation.  Applicable only if `animate` is True.
 
+        * `projection` (string, optional, default='2d'): whether to plot
+            on a 2d or 3d axes.  If '3d', the orientation of the axes will
+            be provided by `azim` and `elev` (see [autofig tutorial on 3d](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/3d.ipynb))
+        * `azim` (float or list, optional): azimuth to use when `projection`
+            is '3d'.  If `animate` is True, then a tuple or list will allow
+            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/3d.ipynb))
+        * `elev` (float or list, optional): elevation to use when `projection`
+            is '3d'.  If `animate` is True, then a tuple or list will allow
+            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/3d.ipynb))
+        * `exclude_back` (bool, optional): whether to exclude plotting the back
+            of meshes when in '2d' projections.  Defaults to True if `fc` is
+            not 'none' (otherwise defaults to False so that you can "see through"
+            the star).
+
         * `draw_sidebars` (bool, optional, default=False): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
         * `draw_title` (bool, optional, default=False): whether to draw axes
@@ -3721,7 +3759,8 @@ class ParameterSet(object):
             for more details).
 
         * `save_kwargs` (dict, optional): any kwargs necessary to pass on to
-            save (only applicable if `animate=True`).
+            save (only applicable if `animate=True`).  On many systems,
+            it may be necessary to pass save_kwargs={'writer': 'imagemagick'}
 
         * `**kwargs`: additional keyword arguments are sent along to [autofig](https://github.com/kecnry/autofig/tree/1.0.0).
 

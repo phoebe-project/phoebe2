@@ -188,9 +188,9 @@ def make_callgroup(items):
 
 class Call(object):
     def __init__(self, x=None, y=None, z=None, i=None,
-                 xerror=None, xunit=None, xlabel=None,
-                 yerror=None, yunit=None, ylabel=None,
-                 zerror=None, zunit=None, zlabel=None,
+                 xerror=None, xunit=None, xlabel=None, xnormals=None,
+                 yerror=None, yunit=None, ylabel=None, ynormals=None,
+                 zerror=None, zunit=None, zlabel=None, znormals=None,
                  iunit=None, itol=0.0,
                  axorder=None, axpos=None,
                  title=None,
@@ -220,18 +220,24 @@ class Call(object):
             See <autofig.call.Call.x> and <autofig.call.CallDimensionX.unit>.
         * `xlabel` (strong, optional, default=None): label for `x`.
             See <autofig.call.Call.x> and <autofig.call.CallDimensionX.label>.
+        * `xnormals` (list/array, optional, default=None): normals for `x`.
+            Currently ignored.
         * `yerror` (float or list/array, optional, default=None): errors for `y`.
             See <autofig.call.Call.y> and <autofig.call.CallDimensionY.error>.
         * `yunit` (string or astropy unit, optional, default=None): units for `y`.
             See <autofig.call.Call.y> and <autofig.call.CallDimensionY.unit>.
         * `ylabel` (strong, optional, default=None): label for `y`.
             See <autofig.call.Call.y> and <autofig.call.CallDimensionY.label>.
+        * `ynormals` (list/array, optional, default=None): normals for `y`.
+            Currently ignored.
         * `zerror` (float or list/array, optional, default=None): errors for `z`.
             See <autofig.call.Call.z> and <autofig.call.CallDimensionZ.error>.
         * `zunit` (string or astropy unit, optional, default=None): units for `z`.
             See <autofig.call.Call.z> and <autofig.call.CallDimensionZ.unit>.
         * `zlabel` (strong, optional, default=None): label for `x`.
             See <autofig.call.Call.z> and <autofig.call.CallDimensionZ.label>.
+        * `znormals` (list/array, optional, default=None): normals for `z`.
+            Currently only used for <autofig.call.Mesh>.
         * `iunit` (string or astropy unit, optional, default=None): units for `i`.
             See <autofig.call.Call.i> and <autofig.call.CallDimensionI.unit>.
         * `itol` (float, optional, default=0.0): see <autofig.call.DimensionI.tol>.
@@ -257,9 +263,9 @@ class Call(object):
         self._backend_objects = []
         self._callbacks = []
 
-        self._x = CallDimensionX(self, x, xerror, xunit, xlabel)
-        self._y = CallDimensionY(self, y, yerror, yunit, ylabel)
-        self._z = CallDimensionZ(self, z, zerror, zunit, zlabel)
+        self._x = CallDimensionX(self, x, xerror, xunit, xlabel, xnormals)
+        self._y = CallDimensionY(self, y, yerror, yunit, ylabel, ynormals)
+        self._z = CallDimensionZ(self, z, zerror, zunit, zlabel, znormals)
 
         # defined last so all other dimensions are in place in case indep
         # is a reference and needs to access units, etc
@@ -1354,9 +1360,9 @@ class Plot(Call):
 
 class Mesh(Call):
     def __init__(self, x=None, y=None, z=None, fc=None, ec=None, i=None,
-                       xerror=None, xunit=None, xlabel=None,
-                       yerror=None, yunit=None, ylabel=None,
-                       zerror=None, zunit=None, zlabel=None,
+                       xerror=None, xunit=None, xlabel=None, xnormals=None,
+                       yerror=None, yunit=None, ylabel=None, ynormals=None,
+                       zerror=None, zunit=None, zlabel=None, znormals=None,
                        fcunit=None, fclabel=None, fcmap=None,
                        ecunit=None, eclabel=None, ecmap=None,
                        iunit=None, itol=0.0,
@@ -1366,6 +1372,7 @@ class Mesh(Call):
                        consider_for_limits=True,
                        uncover=True,
                        trail=0,
+                       exclude_back=False,
                        **kwargs):
         """
         Create a <autofig.call.Mesh> object which defines a single call to
@@ -1400,18 +1407,28 @@ class Mesh(Call):
             See <autofig.call.Mesh.x> and <autofig.call.CallDimensionX.unit>.
         * `xlabel` (strong, optional, default=None): label for `x`.
             See <autofig.call.Mesh.x> and <autofig.call.CallDimensionX.label>.
+        * `xnormals` (list/array, optional, default=None): normals for `x`.
+            Currently ignored.
+            See <autofig.call.Mesh.x> and <autofig.call.CallDimensionX.normals>.
         * `yerror` (float or list/array, optional, default=None): errors for `y`.
             See <autofig.call.Mesh.y> and <autofig.call.CallDimensionY.error>.
         * `yunit` (string or astropy unit, optional, default=None): units for `y`.
             See <autofig.call.Mesh.y> and <autofig.call.CallDimensionY.unit>.
         * `ylabel` (strong, optional, default=None): label for `y`.
             See <autofig.call.Mesh.y> and <autofig.call.CallDimensionY.label>.
+        * `ynormals` (list/array, optional, default=None): normals for `y`.
+            Currently ignored.
+            See <autofig.call.Mesh.y> and <autofig.call.CallDimensionY.normals>.
         * `zerror` (float or list/array, optional, default=None): errors for `z`.
             See <autofig.call.Mesh.z> and <autofig.call.CallDimensionZ.error>.
         * `zunit` (string or astropy unit, optional, default=None): units for `z`.
             See <autofig.call.Mesh.z> and <autofig.call.CallDimensionZ.unit>.
         * `zlabel` (strong, optional, default=None): label for `x`.
             See <autofig.call.Mesh.z> and <autofig.call.CallDimensionZ.label>.
+        * `znormals` (list/array, optional, default=None): normals for `z`.
+            If provided then the back of the mesh can be ignored by setting
+            `exclude_back=True`.
+            See <autofig.call.Mesh.z> and <autofig.call.CallDimensionZ.normals>.
         * `fcerror` (float or list/array, optional, default=None): errors for `fc`.
             See <autofig.call.Mesh.fc> and <autofig.call.CallDimensionC.error>.
         * `fcunit` (string or astropy unit, optional, default=None): units for `fc`.
@@ -1437,6 +1454,11 @@ class Mesh(Call):
             to 'solid' and `linestyle` defaults to None.
         * `consider_for_limits` (bool, optional, default=True): see
             <autofig.call.Call.consider_for_limits>.
+        * `exclude_back` (bool, optional, default=False): whether to exclude
+            any elements pointing away from the screen.  This will be ignored
+            for 3d projections or if `znormals` is not provided.  Setting this
+            to True can save significant time in drawing the mesh in matplotlib,
+            and is especially useful for closed surfaces if `fc` is not 'none'.
         * `**kwargs`: additional keyword arguments are stored and passed on when
             attaching to a parent axes.  See <autofig.axes.Axes.add_call>.
 
@@ -1460,13 +1482,15 @@ class Mesh(Call):
 
         self.linebreak = False
 
+        self.exclude_back = exclude_back
+
         if hasattr(i, '__iter__'):
             raise ValueError("i as an iterable not supported for Meshes, make separate calls for each value of i")
 
         super(Mesh, self).__init__(i=i, iunit=iunit, itol=itol,
-                                   x=x, xerror=xerror, xunit=xunit, xlabel=xlabel,
-                                   y=y, yerror=yerror, yunit=yunit, ylabel=ylabel,
-                                   z=z, zerror=zerror, zunit=zunit, zlabel=zlabel,
+                                   x=x, xerror=xerror, xunit=xunit, xlabel=xlabel, xnormals=xnormals,
+                                   y=y, yerror=yerror, yunit=yunit, ylabel=ylabel, ynormals=ynormals,
+                                   z=z, zerror=zerror, zunit=zunit, zlabel=zlabel, znormals=znormals,
                                    consider_for_limits=consider_for_limits,
                                    uncover=uncover, trail=trail,
                                    axorder=axorder, axpos=axpos,
@@ -1652,6 +1676,17 @@ class Mesh(Call):
 
         return cmap
 
+    @property
+    def exclude_back(self):
+        return self._exclude_back
+
+    @exclude_back.setter
+    def exclude_back(self, exclude_back):
+        if not isinstance(exclude_back, bool):
+            raise TypeError("exclude back must be of type bool")
+
+        self._exclude_back = exclude_back
+
     def draw(self, ax=None, i=None,
              colorcycler=None, markercycler=None, linestylecycler=None):
         """
@@ -1688,11 +1723,11 @@ class Mesh(Call):
 
         # PLOTTING
         return_artists = []
-        x = self.x.get_value(i=i, sort_by_indep=False, unit=self.axes.x.unit)
-        y = self.y.get_value(i=i, sort_by_indep=False, unit=self.axes.y.unit)
-        z = self.z.get_value(i=i, sort_by_indep=False, unit=self.axes.z.unit)
-        fc = self.fc.get_value(i=i, sort_by_indep=False, unit=self.axes_fc.unit if self.axes_fc is not None else None)
-        ec = self.ec.get_value(i=i, sort_by_indep=False, unit=self.axes_ec.unit if self.axes_ec is not None else None)
+        x = self.x.get_value(i=i, sort_by_indep=False, exclude_back=self.exclude_back, unit=self.axes.x.unit)
+        y = self.y.get_value(i=i, sort_by_indep=False, exclude_back=self.exclude_back, unit=self.axes.y.unit)
+        z = self.z.get_value(i=i, sort_by_indep=False, exclude_back=self.exclude_back, unit=self.axes.z.unit)
+        fc = self.fc.get_value(i=i, sort_by_indep=False, exclude_back=self.exclude_back, unit=self.axes_fc.unit if self.axes_fc is not None else None)
+        ec = self.ec.get_value(i=i, sort_by_indep=False, exclude_back=self.exclude_back, unit=self.axes_ec.unit if self.axes_ec is not None else None)
 
         # DETERMINE PER-DATAPOINT Z-ORDERS
         zorders, do_zorder = self.axes.z.get_zorders(z, i=i)
@@ -1865,7 +1900,7 @@ def make_calldimensiongroup(items):
         return CallDimensionGroup(items)
 
 class CallDimension(object):
-    def __init__(self, direction, call, value, error=None, unit=None, label=None):
+    def __init__(self, direction, call, value, error=None, unit=None, label=None, normals=None):
         self._call = call
         self.direction = direction
         # unit must be set before value as setting value pulls the appropriate
@@ -1874,6 +1909,7 @@ class CallDimension(object):
         self.value = value
         self.error = error
         self.label = label
+        self.normals = normals
         # self.lim = lim
 
     def __repr__(self):
@@ -2114,6 +2150,7 @@ class CallDimension(object):
     def get_value(self, i=None, unit=None,
                   uncover=None, trail=None,
                   linebreak=None, sort_by_indep=None,
+                  exclude_back=False,
                   attr='_value'):
         """
         Access the value for a given value of `i` (independent-variable) depending
@@ -2132,6 +2169,7 @@ class CallDimension(object):
         * `trail`
         * `linebreak`
         * `sort_by_indep`
+        * `exclude_back`
         * `attr`
 
         Returns
@@ -2175,6 +2213,8 @@ class CallDimension(object):
         if not isinstance(value, np.ndarray):
             raise NotImplementedError("value/error must be a numpy array")
 
+        if exclude_back and self.call.z.normals is not None and self.call.axes.projection == '2d':
+            value = value[self.call.z.normals >= 0]
 
         if linebreak is not False:
             return self._do_linebreak(func='get{}'.format(attr),
@@ -2384,6 +2424,30 @@ class CallDimension(object):
                 raise TypeError("label must be of type str")
 
         self._label = label
+
+    @property
+    def normals(self):
+        """
+        access the normals
+        """
+        return self._normals
+
+    @normals.setter
+    def normals(self, normals):
+        """
+        set the normals
+        """
+        if self.direction not in ['x', 'y', 'z'] and normals is not None:
+            raise ValueError("normals only accepted for x, y, z dimensions")
+
+        if normals is None:
+            self._normals = None
+            return
+
+        if not (isinstance(normals, list) or isinstance(normals, np.ndarray)):
+            raise TypeError("normals must be of type list or array")
+
+        self._normals = normals
 
 
 class CallDimensionI(CallDimension):

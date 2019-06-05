@@ -420,6 +420,9 @@ def mesh(syn=False, as_ps=True, **kwargs):
             params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), default_unit=u.solRad, description='Vertices of triangles in the plane-of-sky')]
             params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), default_unit=u.dimensionless_unscaled, description='Vertices of triangles in Roche coordinates')]
 
+            params += [FloatArrayParameter(qualifier='uvw_normals', time=t, value=kwargs.get('uvw_normals', []), default_unit=u.solRad, description='Normals of triangles in the plane-of-sky')]
+            params += [FloatArrayParameter(qualifier='xyz_normals', time=t, value=kwargs.get('xyz_normals ', []), default_unit=u.dimensionless_unscaled, description='Normals of triangles in Roche coordinates')]
+
             # NOTE: if changing the parameters which are optional, changes must
             # be made here, in the choices for the columns Parameter, and in
             # backends.py when the values are extracted and included in the
