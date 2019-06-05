@@ -3113,12 +3113,13 @@ class ParameterSet(object):
                         else:
                             psf = ps
 
-                        if len(psf.filter(current_value))==1:
-                            array_value = psf.get_quantity(current_value)
-                        elif len(psf.filter(current_value).times) > 1 and psf.get_value(current_value, time=psf.filter(current_value).times[0]):
+                        psff = psf.filter(twig=current_value)
+                        if len(psff)==1:
+                            array_value = psff.get_quantity()
+                        elif len(psff.times) > 1 and psff.get_value(time=psff.times[0]):
                             # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
-                            unit = psf.get_quantity(current_value, time=psf.filter(current_value).times[0]).unit
-                            array_value = np.array([psf.get_quantity(current_value, time=time).to(unit).value for time in psf.filter(current_value).times])*unit
+                            unit = psff.get_quantity(time=psff.times[0]).unit
+                            array_value = np.array([psff.get_quantity(time=time).to(unit).value for time in psff.times])*unit
                         else:
                             raise ValueError("could not find Parameter for {} in {}".format(current_value, psf.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])))
 
@@ -3134,7 +3135,7 @@ class ParameterSet(object):
                             errors = ps.get_quantity(kwargs.get(errorkey))
                             kwargs[errorkey] = errors
                         else:
-                            sigmas = ps.get_quantity('sigmas')
+                            sigmas = ps.get_quantity(qualifier='sigmas')
                             if len(sigmas):
                                 kwargs.setdefault(errorkey, sigmas)
 
@@ -3156,7 +3157,7 @@ class ParameterSet(object):
                     # these are not tagged with the time, so we need to find them
                     full_dataset_meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig', 'qualifier', 'time'])
                     full_dataset_ps = ps._bundle.filter(**full_dataset_meta)
-                    candidate_params = full_dataset_ps.filter(current_value)
+                    candidate_params = full_dataset_ps.filter(qualifier=current_value)
                     if len(candidate_params) == 1:
                         kwargs[direction] = candidate_params.get_quantity()
                         kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
