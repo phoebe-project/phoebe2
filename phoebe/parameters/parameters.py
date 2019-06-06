@@ -3271,7 +3271,7 @@ class ParameterSet(object):
                     return kwargs
 
                 else:
-                    raise ValueError("could not recognize {} for {} direction in dataset='{}', ps.meta={}".format(current_value, direction, ps.dataset, ps.meta))
+                    raise ValueError("could not recognize '{}' for {} direction in dataset='{}', ps.meta={}".format(current_value, direction, ps.dataset, ps.meta))
 
             elif _instance_in(current_value, np.ndarray, list, tuple, float, int):
                 # then leave it as-is
@@ -3302,8 +3302,13 @@ class ParameterSet(object):
                     # then len(coordinate_system) == 0
                     coordinates = ['us', 'vs', 'ws']
 
-            else:
+            elif 'uvw_elements' in ps.qualifiers:
                 coordinates = ['us', 'vs', 'ws']
+            elif 'xyz_elements' in ps.qualifiers:
+                coordinates = ['xs', 'ys', 'zs']
+            else:
+                # then we're doing a scatter plot
+                coordinates = []
 
 
             defaults = {}
@@ -3329,7 +3334,7 @@ class ParameterSet(object):
 
                         # now we'll remove from coordinates still available
                         coordinates.remove(kwargs[af_direction])
-                else:
+                elif len(coordinates):
                     # we'll take the first entry remaining in coordinates
                     coordinate = coordinates.pop(0)
 
@@ -3341,6 +3346,29 @@ class ParameterSet(object):
                     # list so the next direction will fill from the next available
                     if mesh_all_cartesian or coordinate in ps.qualifiers:
                         defaults[af_direction] = coordinate
+
+                else:
+                    # then we need defaults for a scatter plot
+                    mesh_all_cartesian = False
+
+                    # for now we'll just go based on the order of the qualifiers
+                    # but we probably could be a little smarter here, especially
+                    # if the user overrides a dimension to make sure we don't
+                    # repeat, etc.
+                    if af_direction == 'z':
+                        # otherwise for 2d scatter plots this just gets
+                        # prohibitively expensive
+                        defaults['z'] = 0.0
+                    else:
+                        qualifiers_avail = [q for q in ps.qualifiers if q != 'times']
+                        index = ['x', 'y'].index(af_direction)
+                        if not len(qualifiers_avail):
+                            raise ValueError("cannot plot mesh with no columns")
+
+                        if index > len(qualifiers_avail) - 1:
+                            index = len(qualifiers_avail) - 1
+
+                        defaults[af_direction] = qualifiers_avail[index]
 
 
             # since we'll be selecting from the time tag, we need a non-zero tolerance
@@ -3463,7 +3491,7 @@ class ParameterSet(object):
         # try to find 'times' in the cartesian dimensions:
         iqualifier = kwargs.pop('i', 'times')
         for af_direction in ['x', 'y', 'z']:
-            if kwargs.get('autofig_method', 'plot') != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
+            if ps.kind != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
                 kwargs['i'] = af_direction
                 kwargs['iqualifier'] = None
                 break

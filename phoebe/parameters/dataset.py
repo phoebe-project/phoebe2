@@ -404,11 +404,13 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
     if not syn:
         params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), description='append to times from the following datasets/time standards', choices=['t0@system'])]
+        params += [SelectParameter(qualifier='coordinates', value=kwargs.get('coordinates', ['xyz', 'uvw']), choices=['xyz', 'uvw'], description='coordinates to expose the mesh.  uvw (plane of sky) and/or xyz (roche)')]
         params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', []), description='columns to expose within the mesh', choices=_mesh_columns)]
 
     # the following will all be arrays (value per triangle) per time
     if syn:
         columns = kwargs.get('mesh_columns', [])
+        coordinates = kwargs.get('mesh_coordinates', ['xyz', 'uvw'])
         mesh_datasets = kwargs.get('mesh_datasets', [])
 
         for t in times:
@@ -416,12 +418,14 @@ def mesh(syn=False, as_ps=True, **kwargs):
                 raise ValueError("times must all be of type float")
 
 
-            # always include basic geometric columns
-            params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), default_unit=u.solRad, description='Vertices of triangles in the plane-of-sky')]
-            params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), default_unit=u.dimensionless_unscaled, description='Vertices of triangles in Roche coordinates')]
+            # basic geometric columns
+            if 'uvw' in coordinates:
+                params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), default_unit=u.solRad, description='Vertices of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='uvw_normals', time=t, value=kwargs.get('uvw_normals', []), default_unit=u.solRad, description='Normals of triangles in the plane-of-sky')]
 
-            params += [FloatArrayParameter(qualifier='uvw_normals', time=t, value=kwargs.get('uvw_normals', []), default_unit=u.solRad, description='Normals of triangles in the plane-of-sky')]
-            params += [FloatArrayParameter(qualifier='xyz_normals', time=t, value=kwargs.get('xyz_normals ', []), default_unit=u.dimensionless_unscaled, description='Normals of triangles in Roche coordinates')]
+            if 'xyz' in coordinates:
+                params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), default_unit=u.dimensionless_unscaled, description='Vertices of triangles in Roche coordinates')]
+                params += [FloatArrayParameter(qualifier='xyz_normals', time=t, value=kwargs.get('xyz_normals ', []), default_unit=u.dimensionless_unscaled, description='Normals of triangles in Roche coordinates')]
 
             # NOTE: if changing the parameters which are optional, changes must
             # be made here, in the choices for the columns Parameter, and in

@@ -232,6 +232,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                     # of columns@mesh.  Let's store the needed information here,
                     # where mesh_datasets and mesh_kinds correspond to each
                     # other (but mesh_columns does not).
+                    info['mesh_coordinates'] = dataset_ps.get_value(qualifier='coordinates', expand=True)
                     info['mesh_columns'] = dataset_ps.get_value(qualifier='columns', expand=True)
                     info['mesh_datasets'] = list(set([c.split('@')[1] for c in info['mesh_columns'] if len(c.split('@'))>1]))
                     info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').kind for ds in info['mesh_datasets']]
@@ -956,19 +957,21 @@ class PhoebeBackend(BaseBackendByTime):
                 if body.mesh is None:
                     continue
 
-                packetlist.append(_make_packet('uvw_elements',
-                                              body.mesh.vertices_per_triangle,
-                                              time, info))
-                packetlist.append(_make_packet('xyz_elements',
-                                              body.mesh.roche_vertices_per_triangle,
-                                              time, info))
+                if 'uvw' in info['mesh_coordinates']:
+                    packetlist.append(_make_packet('uvw_elements',
+                                                  body.mesh.vertices_per_triangle,
+                                                  time, info))
+                    packetlist.append(_make_packet('uvw_normals',
+                                                  body.mesh.tnormals,
+                                                  time, info))
 
-                packetlist.append(_make_packet('uvw_normals',
-                                              body.mesh.tnormals,
-                                              time, info))
-                packetlist.append(_make_packet('xyz_normals',
-                                              body.mesh.roche_tnormals,
-                                              time, info))
+                if 'xyz' in info['mesh_coordinates']:
+                    packetlist.append(_make_packet('xyz_elements',
+                                                  body.mesh.roche_vertices_per_triangle,
+                                                  time, info))
+                    packetlist.append(_make_packet('xyz_normals',
+                                                  body.mesh.roche_tnormals,
+                                                  time, info))
 
                 # if 'pot' in info['mesh_columns']:
                     # packetlist.append(_make_packet('pot',
