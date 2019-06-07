@@ -7,11 +7,11 @@ from phoebe import conf
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
-_ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power']
+_ld_func_choices = ['linear', 'logarithmic', 'quadratic', 'square_root', 'power']
 
 
 passbands._init_passbands()  # TODO: move to module import
-_ld_coeffs_source_choices = ['none', 'auto'] + list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms_ld']]))
+_ld_coeffs_source_choices = ['auto'] + list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms_ld']]))
 
 global _mesh_columns
 global _pbdep_columns
@@ -90,15 +90,26 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         the model.  Only applicable if `syn` is False and `is_lc` is True.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False and `is_lc` is True.
-    * `ld_func` (string, optional): limb-darkening model.  Only applicable
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
         if `syn` is False.
+    * `ld_func` (string, optional, default='logarithmic'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
     * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
-        coefficients ('none' to provide manually, 'auto' to interpolate from
-        the applicable table according to the 'atm' parameter, or the name of
-        a specific atmosphere table).  Not applicable if `ld_func` is 'interp'.
-        Only applicable if `syn` is False.
-    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Only applicable
-       if `ld_coeffs_source` is 'none' (and therefore `ld_func` is not 'interp').
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'func:lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy of photons.  Only applicable if `syn` is False.
@@ -139,9 +150,22 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), default_unit=u.W/u.m**2, description='Observed flux')]
 
     if not syn:
-        params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
-        params += [ChoiceParameter(qualifier='ld_coeffs_source', visible_if='ld_func:!interp', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs_source', 'auto'), choices=_ld_coeffs_source_choices, description='Source for limb darkening coefficients (\'none\' to provide manually, \'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
-        params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp,ld_coeffs_source:none', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
+        params += [ChoiceParameter(qualifier='ld_mode', copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('ld_mode', 'interp'), choices=['interp', 'func_lookup', 'func_provided'],
+                                   description='Mode to use for limb-darkening')]
+        params += [ChoiceParameter(visible_if='ld_mode:func_lookup|func_provided', qualifier='ld_func',
+                                   copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('ld_func', 'logarithmic'), choices=_ld_func_choices,
+                                   description='Limb darkening model')]
+        params += [ChoiceParameter(visible_if='ld_mode:func_lookup', qualifier='ld_coeffs_source',
+                                   copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('ld_coeffs_source', 'auto'), choices=_ld_coeffs_source_choices,
+                                   description='Source for limb darkening coefficients (\'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
+        params += [FloatArrayParameter(visible_if='ld_mode:func_provided', qualifier='ld_coeffs',
+                                       copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                       value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled,
+                                       description='Limb darkening coefficients')]
+
         passbands._init_passbands()  # NOTE: this only actually does something on the first call
         params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
         params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy of photons')]
@@ -200,10 +224,26 @@ def rv(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
-    * `ld_func` (string, optional): limb-darkening model.  Only applicable if
-        `syn` is False.
-    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Only applicable
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
         if `syn` is False.
+    * `ld_func` (string, optional, default='linear'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
+    * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'func:lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy of photons.  Only applicable if `syn` is False.
@@ -264,10 +304,26 @@ def lp(syn=False, as_ps=True, **kwargs):
     * `flux_densities` (array/quantity, optional): observed flux densities.
     * `sigmas` (array/quantity, optional): errors on flux densities measurements.
         Only applicable if `syn` is False.
-    * `ld_func` (string, optional): limb-darkening model.  Only applicable if
-    `syn` is False.
-    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Only
-    applicable if `syn` is False.
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
+        if `syn` is False.
+    * `ld_func` (string, optional, default='linear'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
+    * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'func:lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy of photons.  Only applicable if `syn` is False.

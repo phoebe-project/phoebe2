@@ -380,11 +380,12 @@ class System(object):
                     pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
                     if pblum_ref=='self':
                         pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component)
-                        ld_func = ds.get_value(qualifier='ld_func', component=component)
-                        ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
+                        # ld_mode = ds.get_value(qualifier='ld_mode', component=component)
+                        # ld_func = ds.get_value(qualifier='ld_func', component=component, check_visible=False)
+                        # ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
                         # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
-                        self.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
+                        self.get_body(component).compute_pblum_scale(dataset, pblum, component=component)
                     else:
                         # then this component wants to copy the scale from another component
                         # in the system.  We'll just store this now so that we make sure the
@@ -1275,7 +1276,7 @@ class Star(Body):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, ld_coeffs_source,
+                 ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -1316,9 +1317,10 @@ class Star(Body):
         # DATSET-DEPENDENT DICTS
         self.passband = passband
         self.intens_weighting = intens_weighting
+        self.ld_mode = ld_mode
+        self.ld_func = ld_func
         self.ld_coeffs = ld_coeffs
         self.ld_coeffs_source = ld_coeffs_source
-        self.ld_func = ld_func
         self.lp_profile_rest = lp_profile_rest
 
         # Let's create a dictionary to handle how each dataset should scale between
@@ -1455,6 +1457,8 @@ class Star(Body):
         passband = {ds: b.get_value(qualifier='passband', dataset=ds, passband=passband_override) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)
         intens_weighting = {ds: b.get_value(qualifier='intens_weighting', dataset=ds, intens_weighting=intens_weighting_override) for ds in datasets_intens}
+        ld_mode_override = kwargs.pop('ld_mode', None)
+        ld_mode = {ds: b.get_value(qualifier='ld_mode', dataset=ds, component=component, ld_mode=ld_mode_override) for ds in datasets_intens}
         ld_func_override = kwargs.pop('ld_func', None)
         ld_func = {ds: b.get_value(qualifier='ld_func', dataset=ds, component=component, ld_func=ld_func_override, check_visible=False) for ds in datasets_intens}
         ld_coeffs_override = kwargs.pop('ld_coeffs', None)
@@ -1482,6 +1486,7 @@ class Star(Body):
                    datasets,
                    passband,
                    intens_weighting,
+                   ld_mode,
                    ld_func,
                    ld_coeffs,
                    ld_coeffs_source,
@@ -1943,33 +1948,29 @@ class Star(Body):
 
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
-        ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
-        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
-        ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none'))
-        if ld_coeffs_source == 'auto':
-            if atm == 'blackbody':
-                ldatm = 'ck2004'
-            elif atm == 'extern_atmx':
-                ldatm = 'ck2004'
-            elif atm == 'extern_planckint':
-                ldatm = 'ck2004'
+        ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
+        ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
+        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'func_provided' else None
+        ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none')) if ld_mode == 'func_lookup' else None
+        if ld_mode == 'interp':
+            ldatm = atm
+        elif ld_mode == 'func_lookup':
+            if ld_coeffs_source == 'auto':
+                if atm == 'blackbody':
+                    ldatm = 'ck2004'
+                elif atm == 'extern_atmx':
+                    ldatm = 'ck2004'
+                elif atm == 'extern_planckint':
+                    ldatm = 'ck2004'
+                else:
+                    ldatm = atm
             else:
-                ldatm = atm
-        elif ld_coeffs_source == 'none':
+                ldatm = ld_coeffs_source
+        elif ld_mode == 'func_provided':
             ldatm = 'none'
         else:
-            ldatm = ld_coeffs_source
-
-        if ldatm != 'none':
-            # then ld_coeffs was a hidden parameter anyways, but the backend
-            # needs None passed to use ldatm
-            ld_coeffs = None
-
-        if ld_func == 'interp':
-            # then ld_coeffs_source is a hidden parameter to the user, but the
-            # backend needs to know to use the same atmosphere
-            ldatm = atm
+            raise NotImplementedError
 
         boosting_method = kwargs.get('boosting_method', self.boosting_method)
 
@@ -1982,7 +1983,10 @@ class Star(Body):
             pb = passbands.get_passband(passband)
 
             if ldatm != 'none' and '{}_ld'.format(ldatm) not in pb.content:
-                raise ValueError("{} not supported for limb-darkening.  Try changing the value of the ld_coeffs_source parameter".format(ldatm))
+                if ld_mode == 'func_lookup':
+                    raise ValueError("{} not supported for limb-darkening.  Try changing the value of the ld_coeffs_source parameter".format(ldatm))
+                else:
+                    raise ValueError("{} not supported for limb-darkening.  Try changing the value of the atm parameter".format(ldatm))
 
             if intens_weighting=='photon':
                 ptfarea = pb.ptf_photon_area/pb.h/pb.c
@@ -2004,13 +2008,15 @@ class Star(Body):
                     # let's override with a more helpful error message
                     logger.warning(err.message)
                     if atm=='blackbody':
-                        raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or to 'none' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
+                        raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or set ld_mode to 'func_provided' and manually provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
                     else:
-                        if ld_func=='interp':
-                            blackbody_msg = " (in which case ld_func must be set to anything other than 'interp') "
+                        if ld_mode=='interp':
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_mode to 'func_provided' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
+                        elif ld_mode == 'func_lookup':
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_mode to 'func_provided' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
                         else:
-                            blackbody_msg = " "
-                        raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm and ld_coeffs_source to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_coeffs_source to 'none' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
+                            # func_provided... this means that the atm itself is out of bounds, so the only option is atm=blackbody
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}, ld_mode to 'func_provided', and provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
                 else:
                     raise err
 
@@ -2027,7 +2033,7 @@ class Star(Body):
                 if err.message.split(":")[0] == 'Atmosphere parameters out of bounds':
                     # let's override with a more helpful error message
                     logger.warning(err.message)
-                    raise ValueError("Could not compute intensities with atm='{}'.  Try changing atm to a table that covers a sufficient range of values (or to 'blackbody' in which case ld_coeffs_source will likely need to be changed to 'none' and coefficients provided via ld_coeffs).  Enable 'warning' logger to see out-of-bounds arrays.".format(atm))
+                    raise ValueError("Could not compute intensities with atm='{}'.  Try changing atm to a table that covers a sufficient range of values (or to 'blackbody' in which case ld_mode will need to be set to 'func_provided' and coefficients provided via ld_coeffs).  Enable 'warning' logger to see out-of-bounds arrays.".format(atm))
                 else:
                     raise err
 
@@ -2100,7 +2106,7 @@ class Star_roche(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, ld_coeffs_source,
+                 ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -2123,7 +2129,7 @@ class Star_roche(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
-                                         ld_func, ld_coeffs, ld_coeffs_source,
+                                         ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
                                          requiv, sma,
                                          polar_direction_uvw,
@@ -2317,7 +2323,7 @@ class Star_roche_envelope_half(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, ld_coeffs_source,
+                 ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -2344,7 +2350,7 @@ class Star_roche_envelope_half(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
-                                         ld_func, ld_coeffs, ld_coeffs_source,
+                                         ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
                                          requiv, sma,
                                          polar_direction_uvw,
@@ -2514,7 +2520,7 @@ class Star_rotstar(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, ld_coeffs_source,
+                 ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -2536,7 +2542,7 @@ class Star_rotstar(Star):
                                            do_mesh_offset, mesh_init_phi,
 
                                            atm, datasets, passband, intens_weighting,
-                                           ld_func, ld_coeffs, ld_coeffs_source,
+                                           ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                            lp_profile_rest,
                                            requiv, sma,
                                            polar_direction_uvw,
@@ -2686,7 +2692,7 @@ class Star_sphere(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs, ld_coeffs_source,
+                 ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -2709,7 +2715,7 @@ class Star_sphere(Star):
                                           do_mesh_offset, mesh_init_phi,
 
                                           atm, datasets, passband, intens_weighting,
-                                          ld_func, ld_coeffs, ld_coeffs_source,
+                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                           lp_profile_rest,
                                           requiv, sma,
                                           polar_direction_uvw,

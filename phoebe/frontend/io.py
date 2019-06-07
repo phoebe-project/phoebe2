@@ -694,7 +694,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb.set_value_all(check_visible= False, **d)
 
         # disable interpolating ld coefficients
-        eb.set_value_all(qualifier='ld_coeffs_source', dataset=dataid, value='none', check_visible=False)
+        eb.set_value_all(qualifier='ld_mode', dataset=dataid, value='func_provided', check_visible=False)
 
     #set pblum reference
 
@@ -816,7 +816,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb.set_value_all(check_visible= False, **d)
 
         # disable interpolating ld coefficients
-        eb.set_value_all(qualifier='ld_coeffs_source', dataset=dataid, value='none', check_visible=False)
+        eb.set_value_all(qualifier='ld_mode', dataset=dataid, value='func_provided', check_visible=False)
 
 
     #get available passbands and set

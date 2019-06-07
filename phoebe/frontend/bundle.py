@@ -257,7 +257,7 @@ class Bundle(ParameterSet):
             return b
 
         if phoebe_version_import < StrictVersion("2.2.0"):
-            warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
             # print("WARNING: {}".format(warning))
             logger.warning(warning)
 
@@ -269,6 +269,11 @@ class Bundle(ParameterSet):
                     except:
                         # older versions had the unit incorrect, so let's just assume u.W/u.m**3 meant u.W/u.m**2
                         return q.to(u.W/u.m**3).value * u.W/u.m**2
+                if param.qualifier == 'ld_func':
+                    if param.value == 'interp':
+                        return 'logarithmic'
+                    else:
+                        return param.value
                 else:
                     return param.get_quantity() if hasattr(param, 'get_quantity') else param.get_value()
 
@@ -276,6 +281,7 @@ class Bundle(ParameterSet):
             # let's save a copy and re-attach it after
             ps_model = b.filter(context='model', check_visible=False, check_default=False)
 
+            existing_values_per_ds = {}
             for ds in b.filter(context='dataset').datasets:
                 # NOTE: before 2.2.0, contexts included *_syn and *_dep, so
                 # we need to be aware of that in this block of logic.
@@ -287,18 +293,30 @@ class Bundle(ParameterSet):
                         existing_values[qualifier] = {}
                         for param in ps.to_list():
                             existing_values[qualifier]["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = existing_value(param)
+                            if qualifier=='ld_func':
+                                if 'ld_mode' not in existing_values.keys():
+                                    existing_values['ld_mode'] = {}
+                                existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'func_provided'
+
                     else:
                         param = b.get_parameter(qualifier=qualifier, context='dataset', dataset=ds, check_visible=False, check_default=False)
                         existing_values[qualifier] = existing_value(param)
-
+                        if qualifier=='ld_func':
+                            existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'func_provided'
 
                 if ds_kind in ['lp']:
                     # then we need to pass the times from the attribute instead of parameter
                     existing_values['times'] = b.filter(context='dataset', dataset=ds, check_visible=False, check_default=False).times
 
+                existing_values['kind'] = ds_kind
+                existing_values_per_ds[ds] = existing_values
+                b.remove_dataset(dataset=ds)
+
+            for ds, existing_values in existing_values_per_ds.items():
+                ds_kind = existing_values.pop('kind')
                 logger.warning("migrating '{}' {} dataset.".format(ds, ds_kind))
                 logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
-                b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
+                b.add_dataset(ds_kind, dataset=ds, overwrite=True, run_checks=False, **existing_values)
 
             logger.debug("restoring previous models")
             b._attach_params(ps_model, context='model')
@@ -1888,10 +1906,8 @@ class Bundle(ParameterSet):
         # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
             # current choices for ld_func are:
-            # ['interp', 'uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa']
-            if ld_func == 'interp':
-                return True,
-            elif ld_func in ['linear'] and (ld_coeffs is None or len(ld_coeffs)==1):
+            # ['uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa']
+            if ld_func in ['linear'] and (ld_coeffs is None or len(ld_coeffs)==1):
                 return True,
             elif ld_func in ['logarithmic', 'square_root', 'quadratic'] and (ld_coeffs is None or len(ld_coeffs)==2):
                 return True,
@@ -1908,45 +1924,28 @@ class Bundle(ParameterSet):
             if not check[0]:
                 return check
 
-            if ld_func != 'interp':
-                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
-                if not check:
-                    return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
+            check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+            if not check:
+                return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
 
-                for compute in computes:
-                    if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
-                        return False, "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
+            for compute in computes:
+                if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
+                    return False, "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
 
-            for dataset in self.datasets:
-                if dataset=='_default' or self.get_dataset(dataset=dataset, **_skip_filter_checks).kind not in ['lc', 'rv']:
+            for dataset in self.filter(context='dataset', kind=['lc', 'rv'], check_default=True).datasets:
+                if dataset=='_default':
+                    # just in case conf.check_default = False
                     continue
-                ld_func = str(self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs))
-                ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source', dataset=dataset, component=component, context='dataset', **kwargs)
-                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', **kwargs)
-                pb = self.get_value(qualifier='passband', dataset=dataset, context='dataset', **kwargs)
+                dataset_ps = self.get_dataset(dataset=dataset, check_visible=False)
 
-                if ld_func != 'interp':
-                    if ld_coeffs_source not in ['none', 'auto']:
-                        if ld_coeffs_source not in all_pbs[pb]['atms_ld']:
-                            return False, 'passband={} does not support ld_coeffs_source={}'.format(pb, ld_coeffs_source)
+                ld_mode = dataset_ps.get_value(qualifier='ld_mode', component=component, **kwargs)
+                # cast to string to ensure not a unicode since we're passing to libphoebe
+                ld_func = str(dataset_ps.get_value(qualifier='ld_func', component=component, **kwargs))
+                ld_coeffs_source = dataset_ps.get_value(qualifier='ld_coeffs_source', component=component, **kwargs)
+                ld_coeffs = dataset_ps.get_value(qualifier='ld_coeffs', component=component, **kwargs)
+                pb = dataset_ps.get_value(qualifier='passband', **kwargs)
 
-                    elif ld_coeffs_source == 'none':
-                        check = ld_coeffs_len(ld_func, ld_coeffs)
-                        if not check[0]:
-                            return check
-
-                        check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
-                        if not check:
-                            return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
-
-                        for compute in computes:
-                            if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
-                                return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
-                            if self.get_compute(compute, **_skip_filter_checks).kind in ['jktebop'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic']:
-                                return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
-
-
-                if ld_func=='interp':
+                if ld_mode == 'interp':
                     for compute in computes:
                         # TODO: should we ignore if the dataset is disabled?
                         try:
@@ -1955,11 +1954,36 @@ class Bundle(ParameterSet):
                             # not all backends have atm as a parameter/option
                             continue
                         else:
-                            if atm != 'ck2004' and atm != 'phoenix':
+                            if atm not in ['ck2004', 'phoenix']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
-                                    return False, "ld_func='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_func@{}@{}.".format(atm, component, compute, component, dataset)
+                                    return False, "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset)
                                 else:
-                                    return False, "ld_func='interp' not supported by '{}' backend used by compute='{}'.  Change ld_func@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
+                                    return False, "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
+
+                elif ld_mode == 'func_lookup':
+                    if ld_coeffs_source not in all_pbs[pb]['atms_ld'] and ld_coeffs_source != 'auto':
+                        return False, 'passband={} does not support ld_coeffs_source={}.  Either change ld_coeffs_source@{}@{} or ld_mode@{}@{}'.format(pb, ld_coeffs_source, component, dataset, component, dataset)
+
+                elif ld_mode == 'func_provided':
+                    check = ld_coeffs_len(ld_func, ld_coeffs)
+                    if not check[0]:
+                        return check
+
+                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+                    if not check:
+                        return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
+
+                else:
+                    raise NotImplementedError("checks for ld_mode='{}' not implemented".format(ld_mode))
+
+                if 'func' in ld_mode:
+                    for compute in computes:
+                        compute_kind = self.get_compute(compute, **_skip_filter_checks).kind
+                        if compute_kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
+                            return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
+                        if compute_kind in ['jktebop'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic']:
+                            return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
+
 
         def _get_proj_area(comp):
             if self.hierarchy.get_kind_of(comp)=='envelope':
@@ -3899,11 +3923,10 @@ class Bundle(ParameterSet):
         <phoebe.parameters.compute.phoebe> backend will instead interpolate
         limb-darkening coefficients **per-element**.
 
-        Coefficients will only be interpolated/returned for those where `ld_func`
-        is not 'interp' and `ld_coeffs_source` is not 'none'.  The values of
-        the `ld_coeffs` parameter will be returned for cases where `ld_func` is
-        not `interp` but `ld_coeffs_source` is 'none'.  Cases where `ld_func` is
-        'interp' will not be included in the output.
+        Coefficients will only be interpolated/returned for those where `ld_mode`
+        is 'func_lookup'.  The values of the `ld_coeffs` parameter will be
+        returned for cases where `ld_mode` is 'func_provided'.  Cases where
+        `ld_mode` is 'interp' will not be included in the output.
 
         Note:
         * for backends without `atm` compute options, 'ck2004' will be used.
@@ -3959,16 +3982,20 @@ class Bundle(ParameterSet):
                 raise ValueError("system failed to pass checks: {}".format(msg))
 
         ld_coeffs_ret = {}
-        for ldcs_param in self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components).to_list():
-            ldcs = ldcs_param.get_value()
-            if ldcs == 'none':
+        for ldcs_param in self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components, check_visible=False).to_list():
+            ld_mode = self.get_value(qualifier='ld_mode', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+            if ld_mode == 'interp':
+                logger.debug("skipping computing ld_coeffs for {}@{} because ld_mode='interp'".format(ldcs_param.dataset, ldcs_param.component))
+            elif ld_mode == 'func_provided':
                 ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
-
                 continue
+            elif ld_mode == 'func_lookup':
+                ldcs = ldcs_param.get_value(check_visible=False)
+                ld_func = self.get_value(qualifier='ld_func', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+                passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, check_visible=False)
 
-            if ldcs=='auto':
                 try:
-                    atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component)
+                    atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, check_visible=False)
                 except ValueError:
                     # not all backends have atm as an option
                     logger.warning("backend compute='{}' has no 'atm' option: falling back on ck2004 for ld_coeffs interpolation".format(compute))
@@ -3979,27 +4006,21 @@ class Bundle(ParameterSet):
                 else:
                     ldcs = atm
 
-            passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset)
-            ld_func = self.get_value(qualifier='ld_func', dataset=ldcs_param.dataset, component=ldcs_param.component)
+                logger.info("interpolating {} ld_coeffs for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
+                pb = get_passband(passband)
+                teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', check_visible=False)
+                logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', check_visible=False)
+                abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', check_visible=False)
+                photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
+                ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
 
-            if ld_func == 'interp':
-                # really shouldn't happen as the ld_coeffs_source parameter should not be visible
-                # and so shouldn't be included in the loop
-                raise ValueError("cannot interpolating ld_coeffs for ld_func='interp'")
+                logger.info("interpolated {} ld_coeffs={}".format(ld_func, ld_coeffs))
 
-            logger.info("interpolating {} ld_coeffs for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
-            pb = get_passband(passband)
-            teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K')
-            logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component')
-            abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component')
-            photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset') == 'photon'
-            ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
-
-            logger.info("interpolated {} ld_coeffs={}".format(ld_func, ld_coeffs))
-
-            ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = ld_coeffs
-            if set_value:
-                self.set_value(qualifier='ld_coeffs', component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
+                ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = ld_coeffs
+                if set_value:
+                    self.set_value(qualifier='ld_coeffs', component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
+            else:
+                raise NotImplementedError("compute_ld_coeffs not implemented for ld_mode='{}'".format(ld_mode))
 
         return ld_coeffs_ret
 
