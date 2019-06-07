@@ -3113,11 +3113,16 @@ class ParameterSet(object):
                         array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
 
                         if direction == 'z':
-                            norms = ps.get_quantity(qualifier='xyz_normals')
-                            array_value_norms = norms.value[:, ['xs', 'ys', 'zs'].index(current_value)]
-                            # TODO: flip if necessary for a right-handed axes?  (currently the z-values aren't flipped)
-                            # if
-                                # array_value_norms *= -1
+                            try:
+                                norms = ps.get_quantity(qualifier='xyz_normals')
+                            except ValueError:
+                                # if importing from 2.1, uvw_elements may exist, but uvw_normals won't
+                                array_value_norms = None
+                            else:
+                                array_value_norms = norms.value[:, ['xs', 'ys', 'zs'].index(current_value)]
+                                # TODO: flip if necessary for a right-handed axes?  (currently the z-values aren't flipped)
+                                # if
+                                    # array_value_norms *= -1
                             kwargs['{}normals'.format(direction)] = array_value_norms
 
                     elif kwargs['autofig_method'] == 'mesh' and current_value in ['us', 'vs', 'ws']:
@@ -3128,11 +3133,16 @@ class ParameterSet(object):
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
 
                         if direction == 'z':
-                            norms = ps.get_quantity(qualifier='uvw_normals')
-                            array_value_norms = norms.value[:, ['us', 'vs', 'ws'].index(current_value)]
-                            # TODO: flip if necessary for a right-handed axes?  (currently the z-values aren't flipped)
-                            # if
-                                # array_value_norms *= -1
+                            try:
+                                norms = ps.get_quantity(qualifier='uvw_normals')
+                            except ValueError:
+                                # if importing from 2.1, uvw_elements may exist, but uvw_normals won't
+                                array_value_norms = None
+                            else:
+                                array_value_norms = norms.value[:, ['us', 'vs', 'ws'].index(current_value)]
+                                # TODO: flip if necessary for a right-handed axes?  (currently the z-values aren't flipped)
+                                # if
+                                    # array_value_norms *= -1
                             kwargs['{}normals'.format(direction)] = array_value_norms
 
                     elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
