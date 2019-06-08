@@ -316,7 +316,7 @@ class Bundle(ParameterSet):
                 ds_kind = existing_values.pop('kind')
                 logger.warning("migrating '{}' {} dataset.".format(ds, ds_kind))
                 logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
-                b.add_dataset(ds_kind, dataset=ds, overwrite=True, run_checks=False, **existing_values)
+                b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
 
             logger.debug("restoring previous models")
             b._attach_params(ps_model, context='model')
