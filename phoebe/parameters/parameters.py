@@ -109,53 +109,78 @@ _contexts = ['history', 'system', 'component', 'feature',
 # components and datasets should also forbid this list
 _forbidden_labels = deepcopy(_meta_fields_all)
 
-# forbid all "contexts"
+# forbid all "contexts", although should already be in _meta_fields_all
 _forbidden_labels += _contexts
-_forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh']
 
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
+                      'quantity',
                       'unit', 'timederiv', 'visible_if', 'description', 'result']
-# _forbidden_labels += ['parent', 'child']
+
+# forbid some random things
 _forbidden_labels += ['protomesh', 'pbmesh']
-_forbidden_labels += ['component']
 _forbidden_labels += ['bol']
+
+# forbid all kinds
+_forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh']
+_forbidden_labels += ['star', 'orbit', 'envelope']
+_forbidden_labels += ['spot', 'pulsation']
+_forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']
 
 
 
 # we also want to forbid any possible qualifiers
 # from system:
-_forbidden_labels = ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma']
+_forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarchy']
 
 # from setting:
-_forbidden_labels = ['phoebe_version', 'log_history', 'dict_filter', 'dict_set_all']
+_forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter', 'dict_set_all']
+
+# from component
+_forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
+                      'fillout_factor', 'pot_min', 'pot_max',
+                      'syncpar', 'period', 'pitch', 'yaw', 'incl', 'long_an',
+                      'gravb_bol', 'irrad_frac_refl_bol', 'irrad_frac_lost_bol',
+                      'ld_func_bol', 'ld_coeffs_bol', 'mass', 'dpdt', 'per0',
+                      'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
+                      't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
+                      ]
 
 # from dataset:
-_forbidden_labels = ['times', 'fluxes', 'sigmas', 'ld_func', 'ld_coeffs',
-                     'passband', 'intens_weighting', 'pblum_ref', 'pblum', 'l3',
+_forbidden_labels += ['times', 'fluxes', 'sigmas',
+                     'compute_times', 'compute_phases',
+                     'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
+                     'passband', 'intens_weighting',
+                     'pblum_mode', 'pblum_ref', 'pblum', 'pbflux',
+                     'l3_mode', 'l3', 'l3_frac',
                      'exptime', 'rvs', 'wavelengths',
                      'flux_densities', 'profile_func', 'profile_rest', 'profile_sv',
                      'Ns', 'time_ecls', 'time_ephems', 'etvs',
                      'us', 'vs', 'ws', 'vus', 'vvs', 'vws',
-                     'include_times', 'columns',
+                     'include_times', 'columns', 'coordinates',
                      'uvw_elements', 'xyz_elements',
                      'pot', 'rpole', 'volume',
                      'xs', 'ys', 'zs', 'vxs', 'vys', 'vzs',
                      'nxs', 'nys', 'nzs', 'nus', 'nvs', 'nws',
                      'areas', 'rs', 'rprojs', 'loggs', 'teffs', 'mus',
                      'visible_centroids', 'visibilities',
-                     'intensities', 'normal_intensities', 'abs_normal_intensities',
-                     'boost_factors', 'ldint', 'ptfarea', 'pblum', 'abs_pblum']
+                     'intensities', 'abs_intensities',
+                     'normal_intensities', 'abs_normal_intensities',
+                     'boost_factors', 'ldint', 'ptfarea',
+                     'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext']
+
 
 # from compute:
 _forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
                       'gr', 'stepsize', 'integrator',
                       'irrad_method', 'boosting_method', 'mesh_method', 'distortion_method',
-                      'ntriangles',
+                      'ntriangles', 'rv_grav',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
-                      'atm', 'lc_method', 'rv_method', 'fti_method', 'etv_method',
+                      'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
+                      'etv_method', 'etv_tol',
                       'gridsize', 'refl_num', 'ie',
-                      'stepsize', 'orbiterror', 'ringsize'
+                      'stepsize', 'orbiterror', 'ringsize',
+                      'exact_grav', 'grid', 'hf'
                       ]
 
 # from feature:
