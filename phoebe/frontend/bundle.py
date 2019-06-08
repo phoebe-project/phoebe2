@@ -3096,11 +3096,25 @@ class Bundle(ParameterSet):
             if 'compute_times' in kwargs.keys():
                 self.remove_dataset(dataset=kwargs['dataset'])
                 raise ValueError("cannot provide both 'compute_phases' and 'compute_times'. Dataset has not been added.")
+            elif kind=='mesh' and 'times' in kwargs.keys():
+                self.remove_dataset(dataset=kwargs['dataset'])
+                raise ValueError("cannot provide both 'compute_phases' and 'compute_times' for a mesh dataset. Dataset has not been added.")
             else:
                 # then we must flip the constraint
                 # TODO: this will probably break with triple support - we'll need to handle the multiple orbit components by accepting the dictionary.
                 # For now we'll assume the component is top-level binary
                 self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times')
+
+        if kind=='mesh' and 'times' in kwargs.keys():
+            # we already checked and would have raised an error if compute_phases
+            # was provided, but we still need to handle compute_times
+            if 'compute_times' in kwargs.keys():
+                self.remove_dataset(dataset=kwargs['dataset'])
+                raise ValueError("cannot provide both 'compute_times' and 'times' (which would write to 'compute_times') for a mesh dataset.  Dataset has not been added.")
+
+            # if we're this far, the user passed times, but not compute_times/phases
+            logger.warning("mesh dataset uses 'compute_times' instead of 'times', applying value sent as 'times' to 'compute_times'.")
+            kwargs['compute_times'] = kwargs.pop('times')
 
         if 'pblum_mode' in kwargs.keys():
             # we need to set this first so that pblum visibilities are set
@@ -3128,7 +3142,9 @@ class Bundle(ParameterSet):
 
 
         for k, v in kwargs.items():
-            if isinstance(v, dict):
+            if k in ['dataset']:
+                pass
+            elif isinstance(v, dict):
                 for component_or_twig, value in v.items():
                     ps = self.filter(qualifier=k,
                                      dataset=kwargs['dataset'],
@@ -3168,8 +3184,6 @@ class Bundle(ParameterSet):
                         self.remove_dataset(dataset=kwargs['dataset'])
                         raise ValueError("could not set value for {}={}.  {} did not match either a component or general filter.  Dataset has not been added".format(k, value, component_or_twig))
 
-            elif k in ['dataset']:
-                pass
             else:
                 # for dataset kinds that include passband dependent AND
                 # independent parameters, we need to carefully default on
@@ -3181,7 +3195,9 @@ class Bundle(ParameterSet):
                     # passband-dependent parameters do not have
                     # assigned components
                     components_ = None
-                elif k in ['compute_times', 'compute_phases']:
+                elif k in ['compute_times']:
+                    components_ = None
+                elif k in ['compute_phases']:
                     components_ = self.hierarchy.get_top()
                 elif k in ['pblum_ref']:
                     check_visible = True

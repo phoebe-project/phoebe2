@@ -103,8 +103,8 @@ def _expand_mesh_times(b, dataset_ps, component):
     if dataset_ps.kind != 'mesh':
         raise TypeError("_expand_mesh_times only works for mesh datasets")
 
-    # we're first going to access the times@mesh... this should not have a component tag
-    this_times = dataset_ps.get_value(qualifier='times', component=None, unit=u.d)
+    # we're first going to access the compute_times@mesh... this should not have a component tag
+    this_times = dataset_ps.get_value(qualifier='compute_times', component=None, unit=u.d)
     this_times = np.unique(np.append(this_times,
                                      [get_times(b, include_times_entry) for include_times_entry in dataset_ps.get_value(qualifier='include_times', expand=True)]
                                      )
@@ -175,9 +175,11 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
             elif dataset_kind == 'mesh':
                 this_times = _expand_mesh_times(b, dataset_ps, component)
             elif dataset_kind in ['lp']:
-                # then we have Parameters tagged by times, this will probably
-                # also apply to spectra.
-                this_times = [float(t) for t in dataset_ps.times]
+                this_times = np.unique(dataset_ps.get_value(qualifier='compute_times', unit=u.d))
+                if not len(this_times):
+                    # then we have Parameters tagged by times, this will probably
+                    # also apply to spectra.
+                    this_times = [float(t) for t in dataset_ps.times]
             else:
                 timequalifier = _timequalifier_by_kind(dataset_kind)
                 timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
@@ -220,6 +222,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 this_wavelengths = None
 
             if len(this_times) and (this_wavelengths is None or len(this_wavelengths)):
+
                 info = {'dataset': dataset,
                         'component': component,
                         'kind': dataset_kind,

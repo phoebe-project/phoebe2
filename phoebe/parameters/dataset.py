@@ -51,6 +51,10 @@ _pbdep_columns = {'lc': lc_columns,
                   'rv': rv_columns,
                   'lp': lp_columns}
 
+import logging
+logger = logging.getLogger("DATASET")
+logger.addHandler(logging.NullHandler())
+
 def _empty_array(kwargs, qualifier):
     if qualifier in kwargs.keys():
         return kwargs.get(qualifier)
@@ -150,6 +154,8 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), default_unit=u.W/u.m**2, description='Observed flux')]
 
     if not syn:
+        # TODO: should we move all limb-darkening to compute options since
+        # not all backends support interp (and func_lookup is atm-dependent)
         params += [ChoiceParameter(qualifier='ld_mode', copy_for={'kind': ['star'], 'component': '*'}, component='_default',
                                    value=kwargs.get('ld_mode', 'interp'), choices=['interp', 'func_lookup', 'func_provided'],
                                    description='Mode to use for limb-darkening')]
@@ -173,7 +179,6 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
     if is_lc and not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
-
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
@@ -266,7 +271,6 @@ def rv(syn=False, as_ps=True, **kwargs):
 
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
-
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
@@ -299,11 +303,29 @@ def lp(syn=False, as_ps=True, **kwargs):
         <phoebe.parameters.Parameter> objects.
     * `times` (array/quantity): times at which the dataset should be defined.
         **IMPORTANT**: times is not a parameter and must be passed during creation,
-        see note above.
+        see note above.  If `syn` is True, a `times` parameter will be created,
+        but all other parameters will be tagged with individual times.
     * `wavelengths` (array/quantity, optional): observed wavelengths.
     * `flux_densities` (array/quantity, optional): observed flux densities.
+        A copy of this parameter will exist per-time (as passed to the `times`
+        argument at creation, see above) and will be tagged with that time.
     * `sigmas` (array/quantity, optional): errors on flux densities measurements.
-        Only applicable if `syn` is False.
+        Only applicable if `syn` is False.  A copy of this parameter will exist
+        per-time (as passed to the `times` argument at creation, see above) and
+        will be tagged with that time.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.  If provided, this will override the tagged times as defined
+        by `times` (note that interpolating between the model computed at
+        `compute_times` and the dataset defined at `times` is not currently
+        supported).  Only applicable if `syn` is False.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `profile_func` (string, optional, default='gaussian'): function to use
+        for the rest line profile.
+    * `profile_rest` (float, optional, default=550): rest central wavelength
+        for the line profile.
+    * `profile_sv` (float, optional, default=1e-4): subsidiary value of the
+        profile.
     * `ld_mode` (string, optional, default='interp'): mode to use for handling
         limb-darkening.  Note that 'interp' is not available for all values
         of `atm` (availability can be checked by calling
@@ -340,6 +362,14 @@ def lp(syn=False, as_ps=True, **kwargs):
 
     times = kwargs.get('times', [])
 
+    # if syn:
+        # expose the computed times as we do for a mesh, even though the actual
+        # parameters will be **tagged** with times
+        # TODO: it would be nice if this wasn't copied per-component in the model... but it is also somewhat useful
+        # NOTE: enabling this requires some changes to plotting logic.  We have it for meshes so you can plot pot vs time, for example, but lp doesn't have any syn FloatParameters
+        # params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+
+
     # wavelengths is time-independent
     params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
 
@@ -353,6 +383,10 @@ def lp(syn=False, as_ps=True, **kwargs):
             params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
 
     if not syn:
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times of individual entries.  Note that interpolation is not currently supported for lp datasets.')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+
         params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
         params += [FloatParameter(qualifier='profile_rest', value=kwargs.get('profile_rest', 550), default_unit=u.nm, limits=(0, None), description='Rest central wavelength of the profile')]
         params += [FloatParameter(qualifier='profile_sv', value=kwargs.get('profile_sv', 1e-4), default_unit=u.dimensionless_unscaled, limits=(0, None), description='Subsidiary value of the profile')]
@@ -411,7 +445,6 @@ def orb(syn=False, as_ps=True, **kwargs):
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
-
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(params) if as_ps else params, constraints
@@ -435,10 +468,21 @@ def mesh(syn=False, as_ps=True, **kwargs):
         as a <phoebe.parameters.ParameterSet> instead of a list of
         <phoebe.parameters.Parameter> objects.
     * `times` (array/quantity, optional): observed times.  Only applicable
-        if `syn` is False.
-    * `include_times` (string, optional): append to times from the following
-        datasets/time standards.  Only applicable if `syn` is False.
-    * `columns` (list, optional): columns to expose within the mesh.
+        if `syn` is True.  When `syn` is False: if provided, but `compute_times`
+        is not provided, this will write to `compute_times` with a warning
+        in the logger.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `include_times` (string, optional): append to `compute_times` from the
+        following datasets/time standards.  If referring to other datasets,
+        this will copy the computed times of that dataset (whether that be
+        from the `times` or `compute_times` of the respective dataset).
+        Only applicable if `syn` is False.
+    * `coordinates` (list, optional, default=['xyz', 'uvw']): coordinates to
+        expose the mesh.  uvw (plane of sky) and/or xyz (roche).
+    * `columns` (list, optional, default=[]): columns to expose within the mesh.
         Only applicable if `syn` is False.
     * `**kwargs`: if `syn` is True, additional kwargs will be applied to the
         exposed columns according to the passed lists for `mesh_columns`
@@ -456,10 +500,26 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
     times = kwargs.get('times', [])
 
-    params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+    if syn:
+        # TODO: it would be nice if this wasn't copied per-component in the model... but it is also somewhat useful
+        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
 
     if not syn:
-        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), description='append to times from the following datasets/time standards', choices=['t0@system'])]
+        if 'times' in kwargs.keys():
+            if 'compute_times' in kwargs.keys():
+                raise KeyError("mesh dataset cannot accept both 'times' and 'compute_times'.")
+            else:
+                logger.warning("mesh datasets do not have a 'times' parameter.  Applying value sent to 'times' to 'compute_times'")
+                compute_times = kwargs.get('times', [])
+        else:
+            compute_times = kwargs.get('compute_times', [])
+
+
+        params += [FloatArrayParameter(qualifier='compute_times', value=compute_times, default_unit=u.d, description='Times to use during run_compute.')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+
+        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), description='append to compute_times from the following datasets/time standards', choices=['t0@system'])]
         params += [SelectParameter(qualifier='coordinates', value=kwargs.get('coordinates', ['xyz', 'uvw']), choices=['xyz', 'uvw'], description='coordinates to expose the mesh.  uvw (plane of sky) and/or xyz (roche)')]
         params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', []), description='columns to expose within the mesh', choices=_mesh_columns)]
 

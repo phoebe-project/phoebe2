@@ -3044,6 +3044,10 @@ class ParameterSet(object):
             # nothing to plot here... at least for now
             return []
 
+        if ps.kind in ['lp'] and not len(ps.filter(qualifier='flux_densities', check_visible=False)):
+            # then maybe we're in the dataset where just compute_times is defined
+            return []
+
         if not len(ps):
             return []
 
