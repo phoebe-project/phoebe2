@@ -8695,7 +8695,7 @@ class ConstraintParameter(Parameter):
         """
         return self.get_result()
 
-    def get_result(self, t=None):
+    def get_result(self, t=None, suppress_error=True):
         """
         Get the current value (as a quantity) of the result of the expression
         of this <phoebe.parameters.ConstraintParameter>.
@@ -8774,9 +8774,19 @@ class ConstraintParameter(Parameter):
                     locals()[func] = getattr(builtin, func)
 
                 try:
+                # if True:
                     value = float(eval(eq.format(**values)))
+                except ValueError as err:
+                    if suppress_error:
+                        value = np.nan
+                        logger.error("{} constraint raised the following error: {}".format(self.twig, err.message))
+                    else:
+                        raise
                 except:
-                    value = np.nan
+                    if suppress_error:
+                        value = np.nan
+                    else:
+                        raise
 
 
             else:
@@ -8913,12 +8923,15 @@ class ConstraintParameter(Parameter):
         if len(addl_vars):
             # then the vars may have changed (esinw,ecosw, for example)
             vars_ = []
+            var_safe_labels = []
             # technically addl_vars probably hasn't changed... but let's recompute to be safe
             # self._addl_vars = [ConstraintVar(self._bundle, v.twig) for v in addl_vars]
 
             for var in self._vars + self._addl_vars:
-                if var.safe_label in expression and var not in vars_:
+                var_safe_label = var.safe_label
+                if var_safe_label in expression and var_safe_label not in var_safe_labels:
                     vars_.append(var)
+                    var_safe_labels.append(var_safe_label)
             self._vars = vars_
 
             # and we'll reset the cached version of the parameters
