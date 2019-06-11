@@ -1,7 +1,25 @@
-PHOEBE 2.1 RELEASE NOTES
+PHOEBE 2.1
 ------------------------
 
-Hello and thank you for your interest in PHOEBE 2!
+<p align="center"><a href="http://phoebe-project.org"><img src="./images/logo_blue.svg" alt="PHOEBE logo" width="160px" align="center"/></a></p>
+
+<pre align="center" style="text-align:center; font-family:monospace; margin: 30px">
+  pip install phoebe
+</pre>
+
+<p align="center">
+  <a target="_blank" rel="noopener" href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
+  <a target="_blank" rel="noopener" href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-2.7+-blue.svg"/></a>
+  <a target="_blank" rel="noopener" href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
+  <a target="_blank" rel="noopener" href="https://travis-ci.org/phoebe-project/phoebe2"><img src="https://travis-ci.org/phoebe-project/phoebe2.svg?branch=master"/></a>
+  <a target="_blank" rel="noopener" href="http://phoebe-project.org/docs"><img src="https://img.shields.io/badge/docs-passing-success.svg"/></a>
+  <a target="_blank" rel="noopener" href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
+  <a target="_blank" rel="noopener" href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
+</p>
+
+<p align="center">
+  <a href="http://phoebe-project.org"><img src="./images/console.gif" alt="Console Animation" width="600px" align="center"/></a>
+</p>
 
 
 INTRODUCTION
@@ -61,6 +79,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 
 CHANGELOG
 ----------
+
+### 2.1.11 - legacy dataset import hotfix
+
+* Fixes loading legacy datasets which use phase (by translating to time with the current ephemeris).
+* Fixes plotting RV datasets in which only one component has times (which is often the case when importing from a legacy file).
 
 ### 2.1.10 - ldint hotfix
 
