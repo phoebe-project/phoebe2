@@ -255,6 +255,19 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
     load_file = os.path.join(path, filename)
     lcdata = np.loadtxt(load_file)
     ncol = len(lcdata[0])
+    
+    #check if there are enough columns for errors 
+    if ncol >= 3:
+        sigma = True
+        # convert standard weight to standard deviation
+
+        if indweight == 'Standard weight':
+            err = np.sqrt(1/lcdata[:,2])
+            lcdata[:,2] = err
+            logger.warning('Standard weight has been converted to Standard deviation.')
+    else:
+        logger.warning('A sigma column was mentioned in the .phoebe file but is not present in the lc data file')
+
     #if phase convert to time 
     if indep == 'Phase':
         logger.warning("Phoebe 2 doesn't accept phases, converting to time with respect to the given ephemeris")
@@ -264,28 +277,19 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
     if dep == 'Magnitude':
         mag = lcdata[:,1]
         flux = 10**(-0.4*(mag-mzero))
-        lcdata[:,1] = flux
 
+        if sigma == True:
+            mag_err = lcdata[:,2]
+            flux_err = np.abs(10**(-0.4*((mag+mag_err)-mzero)) - flux)
+            lcdata[:,2] = flux_err
+
+        lcdata[:,1] = flux
     d = {}
     d['phoebe_lc_time'] = lcdata[:,0]
     d['phoebe_lc_flux'] = lcdata[:,1]
-    if indweight=="Standard deviation":
-        if ncol >= 3:
-            d['phoebe_lc_sigmalc'] = lcdata[:,2]
-        else:
-            logger.warning('A sigma column was mentioned in the .phoebe file but is not present in the lc data file')
-    elif indweight =="Standard weight":
-                if ncol >= 3:
-                    sigma = np.sqrt(1/lcdata[:,2])
-                    d['phoebe_lc_sigmalc'] = sigma
-                    logger.warning('Standard weight has been converted to Standard deviation.')
 
-                else:
-                    logger.warning('A sigma column was mentioned in the .phoebe file but is not present in the lc data file')
-    else:
-        logger.warning('Phoebe 2 currently only supports standard deviaton')
-
-#    dataset.set_value(check_visible=False, **d)
+    if sigma == True:
+        d['phoebe_lc_sigmalc'] = lcdata[:,2]
 
     return d
 
