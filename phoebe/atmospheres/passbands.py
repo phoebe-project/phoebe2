@@ -2317,7 +2317,7 @@ def list_online_passbands(refresh=False, full_dict=False):
         except Exception as err:
             url_repo = 'http://github.com/phoebe-project/phoebe2-tables'
             msg = "connection to online passbands at {} could not be established.  Check your internet connection or try again later.  If the problem persists and you're using a Mac, you may need to update openssl (see http://phoebe-project.org/help/faq).".format(url_repo)
-            msg += " Original error from urlopen: {} {}".format(err.__class__.__name__, err.message)
+            msg += " Original error from urlopen: {} {}".format(err.__class__.__name__, str(err))
 
             logger.warning(msg)
 

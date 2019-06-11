@@ -8779,7 +8779,7 @@ class ConstraintParameter(Parameter):
                 except ValueError as err:
                     if suppress_error:
                         value = np.nan
-                        logger.error("{} constraint raised the following error: {}".format(self.twig, err.message))
+                        logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
                     else:
                         raise
                 except:

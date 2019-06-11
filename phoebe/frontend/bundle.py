@@ -3145,7 +3145,7 @@ class Bundle(ParameterSet):
                                    ignore_none=True)
             except Exception as err:
                 self.remove_dataset(dataset=kwargs['dataset'])
-                raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+                raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, str(err)))
 
 
         for k, v in kwargs.items():
@@ -3172,7 +3172,7 @@ class Bundle(ParameterSet):
                                                ignore_none=True)
                         except Exception as err:
                             self.remove_dataset(dataset=kwargs['dataset'])
-                            raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+                            raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, str(err)))
                     elif len(ps.filter(component_or_twig, check_visible=False, check_default=False).to_list()) >= 1:
                         twig = component_or_twig
                         logger.debug("setting value of dataset parameter: qualifier={}, twig={}, component={}, value={}".format(k, kwargs['dataset'], twig, value))
@@ -3186,7 +3186,7 @@ class Bundle(ParameterSet):
                                                ignore_none=True)
                         except Exception as err:
                             self.remove_dataset(dataset=kwargs['dataset'])
-                            raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, err.message))
+                            raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added".format(k, value, str(err)))
                     else:
                         self.remove_dataset(dataset=kwargs['dataset'])
                         raise ValueError("could not set value for {}={}.  {} did not match either a component or general filter.  Dataset has not been added".format(k, value, component_or_twig))
@@ -3232,7 +3232,7 @@ class Bundle(ParameterSet):
                                        ignore_none=True)
                 except Exception as err:
                     self.remove_dataset(dataset=kwargs['dataset'])
-                    raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added.".format(k, v, err.message))
+                    raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added.".format(k, v, str(err)))
 
 
         def _to_safe_value(v):
@@ -3783,11 +3783,7 @@ class Bundle(ParameterSet):
 
             message_prefix = "Constraint '{}' raised the following error while flipping to solve for '{}'.  Consider flipping the constraint back or changing the value of one of {} until the constraint succeeds.  Original error: ".format(param.twig, solve_for, [p.twig for p in param.vars.to_list()])
 
-            # if len(e.args) >= 1:
-                # e.args = (message_prefix + e.message,) + e.args[1:]
-            # raise
-
-            logger.error(message_prefix + e.message)
+            logger.error(message_prefix + str(e))
 
         self._add_history(redo_func='flip_constraint',
                           redo_kwargs=redo_kwargs,
@@ -3863,7 +3859,7 @@ class Bundle(ParameterSet):
             return the constrained <phoebe.parameters.Parameter> (otherwise will
             return the resulting value).
         * `suppress_error` (bool, optional, default=True): if True, any errors
-            while running the constraint will be availble via the logger at the 
+            while running the constraint will be availble via the logger at the
             'error' level and can be re-attempted via
             <phoebe.frontend.bundle.Bundle.run_failed_constraints>.  If False,
             any errors will be raised immediately.
@@ -3915,11 +3911,11 @@ class Bundle(ParameterSet):
             message_prefix = "Constraint '{}' raised the following error while attempting to solve for '{}'.  Consider flipping the constraint or changing the value of one of {} until the constraint succeeds.  Original error: ".format(expression_param.twig, constrained_param.twig, [p.twig for p in expression_param.vars.to_list()])
 
             if suppress_error:
-                logger.error(message_prefix + e.message)
+                logger.error(message_prefix + str(e))
                 result = None
             else:
                 if len(e.args) >= 1:
-                    e.args = (message_prefix + e.message,) + e.args[1:]
+                    e.args = (message_prefix + str(e),) + e.args[1:]
                 raise
         else:
             # we won't bother checking for arrays (we'd have to do np.all),
@@ -3927,7 +3923,7 @@ class Bundle(ParameterSet):
             if not isinstance(result, float) or result != constrained_param.get_value():
                 logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
                 constrained_param.set_value(result, force=True, run_constraints=True)
-        
+
         if return_parameter:
             return constrained_param
         else:
@@ -3971,13 +3967,12 @@ class Bundle(ParameterSet):
         <phoebe.frontend.bundle.Bundle.run_checks> from succeeding.
         """
         changes = []
-        failed_constraints = self._failed_constraints
-        self._failed_constraints = []
-        for constraint_id in failed_constraints:
+        for constraint_id in self._failed_constraints:
             param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True, suppress_error=False)
             if param not in changes:
                 changes.append(param)
-        return list(set(changes))
+        self._failed_constraints = []
+        return changes
 
     def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):
         """

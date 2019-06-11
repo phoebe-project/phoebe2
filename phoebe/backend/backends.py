@@ -415,7 +415,7 @@ class BaseBackend(object):
                     try:
                         new_syns.set_value(check_visible=False, check_default=False, **packet)
                     except Exception as err:
-                        raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, err.message))
+                        raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, str(err)))
 
         return new_syns
 

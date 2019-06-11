@@ -496,8 +496,8 @@ class Figure(object):
             try:
                 anim.save(save, **save_kwargs)
             except ValueError as err:
-                if err.message=='I/O operation on closed file':
-                    raise ValueError("saving animation failed (with message: {}). Try passing a valid option to 'write' via save_kwargs.  For example: save_kwargs={{'writer': 'imagemagick'}}".format(err.message))
+                if str(err)=='I/O operation on closed file':
+                    raise ValueError("saving animation failed (with message: {}). Try passing a valid option to 'write' via save_kwargs.  For example: save_kwargs={{'writer': 'imagemagick'}}".format(str(err)))
                 else:
                     traceback.print_exc()
 

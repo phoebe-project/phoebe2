@@ -2004,9 +2004,9 @@ class Star(Body):
                                  ld_coeffs=ld_coeffs,
                                  photon_weighted=intens_weighting=='photon')
             except ValueError as err:
-                if err.message.split(":")[0] == 'Atmosphere parameters out of bounds':
+                if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
                     # let's override with a more helpful error message
-                    logger.warning(err.message)
+                    logger.warning(str(err))
                     if atm=='blackbody':
                         raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or set ld_mode to 'func_provided' and manually provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
                     else:
@@ -2030,9 +2030,9 @@ class Star(Body):
                                                   ldint=ldint,
                                                   photon_weighted=intens_weighting=='photon')
             except ValueError as err:
-                if err.message.split(":")[0] == 'Atmosphere parameters out of bounds':
+                if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
                     # let's override with a more helpful error message
-                    logger.warning(err.message)
+                    logger.warning(str(err))
                     raise ValueError("Could not compute intensities with atm='{}'.  Try changing atm to a table that covers a sufficient range of values (or to 'blackbody' in which case ld_mode will need to be set to 'func_provided' and coefficients provided via ld_coeffs).  Enable 'warning' logger to see out-of-bounds arrays.".format(atm))
                 else:
                     raise err
@@ -2277,7 +2277,7 @@ class Star_roche(Star):
                                                                     volume=False,
                                                                     init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
             except Exception as err:
-                if err.message == 'There are too many triangles!':
+                if str(err) == 'There are too many triangles!':
                     mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
                     if mesh_init_phi_attempts > 5:
                         raise err
@@ -2478,7 +2478,7 @@ class Star_roche_envelope_half(Star):
                                                          volume=False,
                                                          init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
             except Exception as err:
-                if err.message == 'There are too many triangles!':
+                if str(err) == 'There are too many triangles!':
                     mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
                     if mesh_init_phi_attempts > 5:
                         raise err
@@ -2659,7 +2659,7 @@ class Star_rotstar(Star):
                                                                       volume=True,
                                                                       init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
             except Exception as err:
-                if err.message == 'There are too many triangles!':
+                if str(err) == 'There are too many triangles!':
                     mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
                     if mesh_init_phi_attempts > 5:
                         raise err
@@ -2822,7 +2822,7 @@ class Star_sphere(Star):
                                                           volume=True,
                                                           init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
             except Exception as err:
-                if err.message == 'There are too many triangles!':
+                if str(err) == 'There are too many triangles!':
                     mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
                     if mesh_init_phi_attempts > 5:
                         raise err
