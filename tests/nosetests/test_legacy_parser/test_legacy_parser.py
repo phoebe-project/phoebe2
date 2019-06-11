@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import os
 
 # phb2.devel_on()
+#phb2.logger('debug')
 
 def legacy_test(filename='default.phoebe', verbose=False):
 
@@ -95,7 +96,7 @@ def legacy_test(filename='default.phoebe', verbose=False):
         elif comp == 'secondary':
             comp_name = 'pig'
         a = int(x/2.)
-        if verbose: print a
+        if verbose: print("loop iteration", a)
         datafile = phb1.getpar('phoebe_rv_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
         time = b.filter(dataset=id, qualifier='times', component=comp_name).get_value()
@@ -143,7 +144,6 @@ def legacy_test(filename='default.phoebe', verbose=False):
         lc2 = b.filter('fluxes', context='model', dataset=lcs[x]).get_value()
         time = b.filter('times', context='model', dataset=lcs[x]).get_value()
         if verbose: print("comparing lightcurve "+str(lcs[x]))
-
         assert(np.allclose(fluxes[x], lc2, atol=1e-5))
 
     for x in range(rvno):
@@ -187,10 +187,11 @@ if __name__ == '__main__':
 
 #    logger= phb2.logger()
     detached = 'default.phoebe'
-    weighted = 'weight.phoebe'
-    contact = 'contact.phoebe'
-#    print "checking detached system"
-    legacy_test(weighted, verbose=True)
+#    weighted = 'weight.phoebe'
+#    contact = 'contact.phoebe'
+#    print("checking contact system")
+#    legacy_test(contact, verbose=True)
+#    print("checking weighted system")
+#    legacy_test(weighted, verbose=True)
+    print("checking detached system")
     legacy_test(detached, verbose=True)
-#    print "checking contact system"
-    legacy_test(contact, verbose=True)
