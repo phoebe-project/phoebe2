@@ -80,6 +80,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.11 - legacy dataset import hotfix
+
+* Fixes loading legacy datasets which use phase (by translating to time with the current ephemeris).
+* Fixes loading legacy datasets with errors in magnitudes (by converting to errors in flux units).
+* Fixes plotting RV datasets in which only one component has times (which is often the case when importing from a legacy file).
+
 ### 2.1.10 - ldint hotfix
 
 * Removes ldint from the weights in the computations of RVs and LPs.

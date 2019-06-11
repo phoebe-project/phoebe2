@@ -2024,10 +2024,10 @@ class ParameterSet(object):
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
-        ps = self.filter(**filter_kwargs)
+        ps = self.filter(check_visible=False, **filter_kwargs)
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn', 'lp', 'lp_syn']:
-            ps = ps.filter(time=kwargs.get('time'))
+            ps = ps.filter(time=kwargs.get('time'), check_visible=False)
 
         # If ps returns more than one dataset/model/component, then we need to
         # loop and plot all.  This will automatically rotate through colors
@@ -2041,13 +2041,13 @@ class ParameterSet(object):
 
         if len(ps.contexts) > 1:
             for context in ps.contexts:
-                this_return = ps.filter(context=context)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             for dataset in ps.datasets:
-                this_return = ps.filter(dataset=dataset)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -2063,33 +2063,33 @@ class ParameterSet(object):
 
         if len(kinds) == 1 and len(pskinds) > 1:
             # then we need to filter to exclude the dep
-            ps = ps.filter(kind=kinds[0])
+            ps = ps.filter(check_visible=False, kind=kinds[0])
             pskinds = [kinds[0]]
 
         if len(ps.kinds) > 1:
             for kind in [m for m in pskinds if m[-3:]!='dep']:
-                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, kind=kind)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.models) > 1:
             for model in ps.models:
                 # TODO: change linestyle for models instead of color?
-                this_return = ps.filter(model=model)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
             # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
-                this_return = ps.filter(time=time)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, time=time)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.components) > 1:
             return_ = []
             for component in ps.components:
-                this_return = ps.filter(component=component)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -2188,12 +2188,12 @@ class ParameterSet(object):
                         verts = ps.get_quantity(qualifier='uvw_elements')
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
                     else:
-                        if len(ps.filter(current_value))==1:
-                            array_value = ps.get_quantity(current_value)
-                        elif len(ps.filter(current_value).times) > 1 and ps.get_value(current_value, time=ps.filter(current_value).times[0]):
+                        if len(ps.filter(current_value, check_visible=False))==1:
+                            array_value = ps.get_quantity(current_value, check_visible=False)
+                        elif len(ps.filter(current_value, check_visible=False).times) > 1 and ps.get_value(current_value, time=ps.filter(current_value, check_visible=False).times[0], check_visible=False):
                             # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
-                            unit = ps.get_quantity(current_value, time=ps.filter(current_value).times[0]).unit
-                            array_value = np.array([ps.get_quantity(current_value, time=time).to(unit).value for time in ps.filter(current_value).times])*unit
+                            unit = ps.get_quantity(current_value, time=ps.filter(current_value, check_visible=False).times[0], check_visible=False).unit
+                            array_value = np.array([ps.get_quantity(current_value, time=time, check_visible=False).to(unit).value for time in ps.filter(current_value, check_visible=False).times])*unit
                         else:
                             raise ValueError("could not find Parameter for {} in {}".format(current_value, ps.meta))
 
@@ -2206,10 +2206,10 @@ class ParameterSet(object):
                         if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
                             kwargs[errorkey] = errors
                         elif isinstance(errors, str):
-                            errors = ps.get_quantity(kwargs.get(errorkey))
+                            errors = ps.get_quantity(kwargs.get(errorkey), check_visible=False)
                             kwargs[errorkey] = errors
                         else:
-                            sigmas = ps.get_quantity('sigmas')
+                            sigmas = ps.get_quantity('sigmas', check_visible=False)
                             if len(sigmas):
                                 kwargs.setdefault(errorkey, sigmas)
 
