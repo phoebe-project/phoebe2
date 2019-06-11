@@ -2902,12 +2902,12 @@ class Bundle(ParameterSet):
         """
         changes = []
         failed_constraints = self._failed_constraints
-        self._failed_constraints = []
         for constraint_id in failed_constraints:
             param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True, suppress_error=False)
             if param not in changes:
                 changes.append(param)
-        return list(set(changes))
+        self._failed_constraints = []
+        return changes
 
     def compute_pblums(self, compute=None, **kwargs):
         """
