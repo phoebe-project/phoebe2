@@ -308,12 +308,12 @@ ext_modules = [
 # Main setup
 #
 setup (name = 'phoebe',
-       version = '2.1.11',
-       description = 'PHOEBE 2.1.11',
+       version = '2.1.12',
+       description = 'PHOEBE 2.1.12',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.11',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.12',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.utils', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.unitsiau2015'],
        install_requires=['numpy>=1.10','scipy>=0.17','astropy>=1.0,<3.0'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
