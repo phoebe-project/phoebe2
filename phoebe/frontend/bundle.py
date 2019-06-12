@@ -1663,7 +1663,7 @@ class Bundle(ParameterSet):
         """
         return self._hierarchy_param
 
-    def _kwargs_checks(self, kwargs, on_filter={},
+    def _kwargs_checks(self, kwargs,
                        additional_allowed_keys=[],
                        additional_forbidden_keys=[],
                        warning_only=False,
@@ -1696,10 +1696,10 @@ class Bundle(ParameterSet):
             if isinstance(value, dict):
                 for k,v in value.items():
                     self._kwargs_checks({'{}@{}'.format(key, k): v},
-                                        on_filter=on_filter,
                                         additional_allowed_keys=additional_allowed_keys+['{}@{}'.format(key, k)],
                                         additional_forbidden_keys=additional_forbidden_keys,
-                                        warning_only=warning_only
+                                        warning_only=warning_only,
+                                        ps=ps
                                         )
 
                 continue
