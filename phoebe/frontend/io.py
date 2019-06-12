@@ -4,7 +4,7 @@ import os.path
 import logging
 from phoebe import conf
 from phoebe.distortions import roche
-from phoebe.constraints.builtin import t0_ref_to_supconj
+# from phoebe.constraints.builtin import t0_ref_to_supconj
 
 import libphoebe
 logger = logging.getLogger("IO")
@@ -255,8 +255,8 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
     load_file = os.path.join(path, filename)
     lcdata = np.loadtxt(load_file)
     ncol = len(lcdata[0])
-    
-    #check if there are enough columns for errors 
+
+    #check if there are enough columns for errors
     if ncol >= 3:
         sigma = True
         # convert standard weight to standard deviation
@@ -268,7 +268,7 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
     else:
         logger.warning('A sigma column was mentioned in the .phoebe file but is not present in the lc data file')
 
-    #if phase convert to time 
+    #if phase convert to time
     if indep == 'Phase':
         logger.warning("Phoebe 2 doesn't accept phases, converting to time with respect to the given ephemeris")
         times = bundle.to_time(lcdata[:,0])
@@ -552,7 +552,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # create datasets and fill with the correct parameters
     for x in range(len(params)):
-        
+
         pname = params[:,0][x]
         pname = pname.split('.')[0]
         val = params[:,1][x].strip('"')
@@ -605,9 +605,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d.pop('value') #avoiding possible conflicts
             #
             #
-            
+
             eb.flip_constraint(solve_for='t0_supconj', constraint_func='t0_ref_supconj', **d)
-            
+
     #        elif pnew == 'filter':
     #       make sure t0 accounts for any phase shift present in phoebe 1
             try:
@@ -775,7 +775,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             if indweight == 'Unavailable':
                 indweight = None
-            
+
             data_dict = load_lc_data(filename=lc_dict['phoebe_lc_filename'],  indep=lc_dict['phoebe_lc_indep'], dep=lc_dict['phoebe_lc_dep'], indweight=indweight, mzero=mzero, dir=legacy_file_dir, bundle=eb)
 
             lc_dict.update(data_dict)
@@ -820,11 +820,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             eb.set_value(qualifier='pblum_ref', component='secondary', value='self', dataset=dataid)
 
     #set ldlaw
-        
+
         ldlaws_1to2= {'Linear cosine law': 'linear', 'Logarithmic law': 'logarithmic', 'Square root law': 'square_root'}
         if ldlaw == 'Linear cosine law':
             logger.warning('Linear cosine law is not currently supported. Converting to linear instead')
-        
+
         value = ldlaws_1to2[ldlaw]#val[0].lower()+val[1::]
 
         # since ld_coeffs is dataset specific make sure there is at least one dataset
@@ -943,11 +943,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb.set_value_all(check_visible= False, **d)
 
     #set ldlaw
-      
+
         ldlaws_1to2= {'Linear cosine law': 'linear', 'Logarithmic law': 'logarithmic', 'Square root law': 'square_root'}
         if ldlaw == 'Linear cosine law':
             logger.warning('Linear cosine law is not currently supported. Converting to linear instead')
-        
+
         value = ldlaws_1to2[ldlaw]#val[0].lower()+val[1::]
 
         # since ld_coeffs is dataset specific make sure there is at least one dataset
@@ -1066,7 +1066,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #             #
 #             #
 #             eb.flip_constraint(solve_for='t0_supconj', constraint_func='t0_ref_supconj', **d)
-            
+
 #     #        elif pnew == 'filter':
 #     #       make sure t0 accounts for any phase shift present in phoebe 1
 #             try:
@@ -1131,10 +1131,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #     # get rid of seconddary coefficient if ldlaw  is linear
 #     eb.flip_constraint(solve_for='t0_ref', constraint_func='t0_ref_supconj')
     #hack because we know hjd0 has been added at this point.
-    #if lc_indep is in phases 
+    #if lc_indep is in phases
 #flip back all constraints
     # get rid of seconddary coefficient if ldlaw  is linear
- 
+
     eb.flip_constraint(solve_for='t0_ref', constraint_func='t0_ref_supconj')
 
     if contact_binary:
