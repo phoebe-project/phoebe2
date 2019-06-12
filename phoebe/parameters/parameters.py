@@ -2993,13 +2993,13 @@ class ParameterSet(object):
 
         if len(ps.contexts) > 1:
             for context in ps.contexts:
-                this_return = ps.filter(context=context)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             for dataset in ps.datasets:
-                this_return = ps.filter(dataset=dataset)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -3019,14 +3019,14 @@ class ParameterSet(object):
         if len(ps.models) > 1:
             for model in ps.models:
                 # TODO: change linestyle for models instead of color?
-                this_return = ps.filter(model=model)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
             # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
-                this_return = ps.filter(time=time)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, time=time)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -3034,7 +3034,7 @@ class ParameterSet(object):
             # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
             for component in ps.components:
-                this_return = ps.filter(component=component)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -3203,7 +3203,7 @@ class ParameterSet(object):
                         if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
                             kwargs[errorkey] = errors
                         elif isinstance(errors, str):
-                            errors = ps.get_quantity(kwargs.get(errorkey))
+                            errors = ps.get_quantity(kwargs.get(errorkey), check_visible=False)
                             kwargs[errorkey] = errors
                         else:
                             sigmas = ps.get_quantity(qualifier='sigmas')

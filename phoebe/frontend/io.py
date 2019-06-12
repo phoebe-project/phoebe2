@@ -4,7 +4,7 @@ import os.path
 import logging
 from phoebe import conf
 from phoebe.distortions import roche
-from phoebe.constraints.builtin import t0_ref_to_supconj
+# from phoebe.constraints.builtin import t0_ref_to_supconj
 
 import libphoebe
 logger = logging.getLogger("IO")
@@ -688,6 +688,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             eb.add_constraint('semidetached', component='secondary')
 
 
+
+
+
+    #make sure constraints have been applied
+    eb.run_delayed_constraints()
 
 
 # First LC

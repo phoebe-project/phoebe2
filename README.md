@@ -80,6 +80,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.12 - legacy ephemeris and kwargs checks hotfix
+
+* Fixes applying t0 when importing legacy dataset which use phase.
+* Fixes ignoring other compute options when running checks on kwargs during run_compute.
+
 ### 2.1.11 - legacy dataset import hotfix
 
 * Fixes loading legacy datasets which use phase (by translating to time with the current ephemeris).

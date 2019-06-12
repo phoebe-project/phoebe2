@@ -137,7 +137,6 @@ def _legacy_test(filename='default.phoebe', verbose=False):
         lc2 = b.filter('fluxes', context='model', dataset=lc_id[x]).get_value()
         time = b.filter('times', context='model', dataset=lc_id[x]).get_value()
         if verbose: print("comparing lightcurve "+str(lcs[x]))
-
         assert(np.allclose(fluxes[x], lc2, atol=1e-5))
 
     for x in range(rvno):
