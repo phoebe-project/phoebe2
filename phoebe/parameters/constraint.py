@@ -1091,19 +1091,33 @@ def mass(b, component, solve_for=None, **kwargs):
 
     component_ps = _get_system_ps(b, component)
 
+    sibling = hier.get_sibling_of(component)
+    sibling_ps = _get_system_ps(b, sibling)
+
     parentorbit = hier.get_parent_of(component)
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
-    metawargs = component_ps.meta
-    metawargs.pop('qualifier')
-    mass_def = FloatParameter(qualifier='mass', value=1.0, default_unit=u.solMass, description='Mass')
-    mass, created = b.get_or_create('mass', mass_def, **metawargs)
+    mass = component_ps.get_parameter('mass')
+    mass_sibling = sibling_ps.get_parameter('mass')
 
-    metawargs = parentorbit_ps.meta
-    metawargs.pop('qualifier')
-    sma = b.get_parameter(qualifier='sma', **metawargs)
-    period = b.get_parameter(qualifier='period', **metawargs)
-    q = b.get_parameter(qualifier='q', **metawargs)
+    # we need to find the constraint attached to the other component... but we
+    # don't know who is constrained, or whether it belongs to the sibling or parent
+    # orbit, so we'll have to do a bit of digging.
+    mass_constraint_sibling = None
+    for p in b.filter(constraint_func='mass', component=[parentorbit, sibling], context='constraint').to_list():
+        if p.constraint_kwargs['component'] == sibling:
+            mass_constraint_sibling = p
+            break
+    if mass_constraint_sibling is not None:
+        sibling_solve_for = mass_constraint_sibling.qualifier
+        logger.debug("constraint.mass for component='{}': sibling ('{}') is solved for '{}'".format(component, sibling, sibling_solve_for))
+    else:
+        # this could happen when we build the first constraint, before the second has been built
+        sibling_solve_for = None
+
+    sma = parentorbit_ps.get_parameter(qualifier='sma')
+    period = parentorbit_ps.get_parameter(qualifier='period')
+    q = parentorbit_ps.get_parameter(qualifier='q')
 
     G = c.G.to('solRad3 / (solMass d2)')
     G.keep_in_solar_units = True
@@ -1114,32 +1128,91 @@ def mass(b, component, solve_for=None, **kwargs):
         qthing = 1.0+1./q
 
     if solve_for in [None, mass]:
-
         lhs = mass
         rhs = (4*np.pi**2 * sma**3 ) / (period**2 * qthing * G)
 
     elif solve_for==sma:
-
+        if sibling_solve_for in ['period', 'sma']:
+            raise ValueError("cannot solve for '{}' when sibling ('{}') is solved for '{}'".format(solve_for.twig, sibling, sibling_solve_for))
         lhs = sma
         rhs = ((mass * period**2 * qthing * G)/(4 * np.pi**2))**"(1./3)"
 
     elif solve_for==period:
-
+        if sibling_solve_for in ['period', 'sma']:
+            raise ValueError("cannot solve for '{}' when sibling ('{}') is solved for '{}'".format(solve_for.twig, sibling, sibling_solve_for))
         lhs = period
         rhs = ((4 * np.pi**2 * sma**3)/(mass * qthing * G))**"(1./2)"
 
     elif solve_for==q:
-        # TODO: implement this so that one mass can be solved for sma and the
-        # other can be solved for q.  The tricky thing is that we actually
-        # have qthing here... so we'll probably need to handle the primary
-        # vs secondary case separately.
-        raise NotImplementedError
+        lhs = q
+
+        if hier.get_primary_or_secondary(component) == 'primary':
+            rhs = mass_sibling / mass
+        else:
+            rhs = mass / mass_sibling
+
+        # qthing = (4*np.pi**2 * sma**3 ) / (period**2 * mass * G)
+        # if hier.get_primary_or_secondary(component) == 'primary':
+        #     rhs = qthing - 1.0
+        # else:
+        #     rhs = 1 / (qthing - 1.0)
 
     else:
-        # TODO: solve for other options
         raise NotImplementedError
 
-    return lhs, rhs, [], {'component': component}
+    return lhs, rhs, [mass_sibling, period, sma, q], {'component': component}
+
+
+    # ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
+    # ecosw, ecosw_created = b.get_or_create('ecosw', ecosw_def, **metawargs)
+    #
+    # ecosw_constrained = kwargs.get('ecosw_constrained', len(ecosw.constrained_by) > 0)
+    # logger.debug("esinw constraint: solve_for={}, ecosw_constrained={}, ecosw_created={}".format(solve_for.qualifier if solve_for is not None else "None", ecosw_constrained, ecosw_created))
+    #
+    # ecc = b.get_parameter(qualifier='ecc', **metawargs)
+    # per0 = b.get_parameter(qualifier='per0', **metawargs)
+    #
+    # if solve_for in [None, esinw]:
+    #     lhs = esinw
+    #     rhs = ecc * sin(per0)
+    #     if not ecosw_created and not ecosw_constrained:
+    #         if per0.is_constraint:
+    #             per0.is_constraint.constraint_kwargs['esinw_constrained'] = True
+    #             per0.is_constraint.flip_for('per0', force=True)
+    #         elif ecc.is_constraint:
+    #             ecc.is_constraint.constraint_kwargs['esinw_constrained'] = True
+    #             ecc.is_constraint.flip_for('ecc', force=True)
+    #
+    # elif solve_for == ecc:
+    #     lhs = ecc
+    #     if ecosw_constrained:
+    #         rhs = esinw / sin(per0)
+    #     else:
+    #         rhs = (esinw**2 + ecosw**2)**0.5
+    #         # the other constraint needs to also follow the alternate equations
+    #         if per0.is_constraint and 'esinw_constrained' not in per0.is_constraint.constraint_kwargs.keys():
+    #             logger.debug("esinw constraint: attempting to also flip per0 constraint")
+    #             per0.is_constraint.constraint_kwargs['esinw_constrained'] = False
+    #             per0.is_constraint.flip_for('per0', force=True)
+    #
+    # elif solve_for == per0:
+    #     lhs = per0
+    #     if ecosw_constrained:
+    #         # cannot just do arcsin because ecc may be zero
+    #         rhs = esinw2per0(ecc, esinw)
+    #     else:
+    #         rhs = arctan2(esinw, ecosw)
+    #         # the other constraint needs to also follow the alternate equations
+    #         if ecc.is_constraint and 'esinw_constrained' not in ecc.is_constraint.constraint_kwargs.keys():
+    #             logger.debug("esinw constraint: attempting to also flip ecc constraint")
+    #             ecc.is_constraint.constraint_kwargs['esinw_constrained'] = False
+    #             ecc.is_constraint.flip_for('ecc', force=True)
+    # elif solve_for == ecosw:
+    #     raise NotImplementedError("cannot solve this constraint for 'ecosw' since it was originally 'esinw'")
+    # else:
+    #     raise NotImplementedError
+    #
+    # return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
 
 def comp_sma(b, component, solve_for=None, **kwargs):

@@ -4432,7 +4432,7 @@ class FloatParameter(Parameter):
             to cause the system to be non-computable (will not raise an error, but
             will cause a warning in the logger)
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_quantity = deepcopy(self.get_quantity())
 
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
@@ -4495,13 +4495,20 @@ class FloatParameter(Parameter):
 
         if run_constraints is None:
             run_constraints = conf.interactive_constraints
-        if run_constraints:
+
+        if _orig_quantity is not None and isinstance(value.value, float) and abs(_orig_quantity - value).value < 1e-12:
+            logger.debug("value of {} didn't change within 1e-12, skipping triggering of constraints".format(self.twig))
+        elif run_constraints:
+            if len(self._in_constraints):
+                logger.debug("changing value of {} (by {} from {} to {}) triggers {} constraints".format(self.twig, abs(_orig_quantity - value).value, _orig_quantity, value, [c.twig for c in self.in_constraints]))
             for constraint_id in self._in_constraints:
                 #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
                 self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True)
         else:
             # then we want to delay running constraints... so we need to track
             # which ones need to be run once requested
+            if len(self._in_constraints):
+                logger.debug("changing value of {} (by {} from {} to {}) triggers delayed constraints {}".format(self.twig, bs(_orig_quantity - value).value, _orig_quantity, value, [c.twig for c in self.in_constraints]))
             for constraint_id in self._in_constraints:
                 if constraint_id not in self._bundle._delayed_constraints:
                     self._bundle._delayed_constraints.append(constraint_id)
@@ -4516,7 +4523,7 @@ class FloatParameter(Parameter):
                 msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                 logger.warning(msg)
 
-        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+        self._add_history(redo_func='set_quantity', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_quantity, 'uniqueid': self.uniqueid})
 
 
     #~ @property
@@ -5494,6 +5501,10 @@ class ConstraintParameter(Parameter):
             # all items have the same uniqueid?  Maybe check len(ps.uniqueids)?
             return ps.to_list()[0]
         else:
+            if self._bundle is not None:
+                logger.debug("ConstraintParameter.get_parameter: reverting to filtering on bundle, could not {} find in {}".format(kwargs, vars.twigs))
+                kwargs['context'] = [c for c in self._bundle.contexts if c!='constraint']
+                return self._bundle.get_parameter(**kwargs)
             raise KeyError("no result found")
 
     @property
