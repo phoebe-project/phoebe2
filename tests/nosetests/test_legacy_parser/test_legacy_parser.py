@@ -134,9 +134,10 @@ def _legacy_test(filename='default.phoebe', verbose=False):
 
     b.run_compute(kind='legacy')
     for x in range(len(lcs)):
-        lc2 = b.filter('fluxes', context='model', dataset=lcs[x]).get_value()
-        time = b.filter('times', context='model', dataset=lcs[x]).get_value()
+        lc2 = b.filter('fluxes', context='model', dataset=lc_id[x]).get_value()
+        time = b.filter('times', context='model', dataset=lc_id[x]).get_value()
         if verbose: print("comparing lightcurve "+str(lcs[x]))
+
         assert(np.allclose(fluxes[x], lc2, atol=1e-5))
 
     for x in range(rvno):
@@ -174,8 +175,8 @@ def _legacy_test(filename='default.phoebe', verbose=False):
 def test_default(verbose=False):
     return _legacy_test('default.phoebe', verbose=verbose)
 
-def test_weighted(verbose=False):
-    return _legacy_test('weight.phoebe', verbose=verbose)
+#def test_weighted(verbose=False):
+#    return _legacy_test('weight.phoebe', verbose=verbose)
 
 def test_contact(verbose=False):
     return _legacy_test('contact.phoebe', verbose=verbose)
@@ -183,5 +184,5 @@ def test_contact(verbose=False):
 if __name__ == '__main__':
 
     test_default(verbose=True)
-    test_weighted(verbose=True)
+#    test_weighted(verbose=True)
     test_contact(verbose=True)
