@@ -668,7 +668,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         elif 'secondary' in morphology:
             eb.add_constraint('semidetached', component='secondary')
 
-
+    #make sure constraints have been applied
+    eb.run_delayed_constraints()
 
 
 # First LC
@@ -774,7 +775,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             if indweight == 'Unavailable':
                 indweight = None
-
+            
             data_dict = load_lc_data(filename=lc_dict['phoebe_lc_filename'],  indep=lc_dict['phoebe_lc_indep'], dep=lc_dict['phoebe_lc_dep'], indweight=indweight, mzero=mzero, dir=legacy_file_dir, bundle=eb)
 
             lc_dict.update(data_dict)
