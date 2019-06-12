@@ -554,6 +554,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     lcin.extend(spotin)
     params = np.delete(params, lcin, axis=0)
 
+# grab third light unit which is not lightcurve dependent in phoebe legacy and remove from params
+    l3_units = params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"')
+    params = np.delete(params, [list(params[:,0]).index('phoebe_el3_units')], axis=0)
+
 #load orbital/stellar parameters
 
 #we do this here because we may need it to convert phases to times
@@ -688,8 +692,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # First LC
     # grab third light unit which is not lightcurve dependent in phoebe legacy and remove from params
-    l3_units = params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"')
-    params = np.delete(params, [list(params[:,0]).index('phoebe_el3_units')], axis=0)
+#    l3_units = params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"')
+#    params = np.delete(params, [list(params[:,0]).index('phoebe_el3_units')], axis=0)
 
     for x in range(1,lcno+1):
 
