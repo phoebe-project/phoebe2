@@ -3506,7 +3506,7 @@ class ParameterSet(object):
                 kwargs['autofig_method'] = 'plot'
 
             if self.time is not None:
-                kwargs['i'] = float(self.time)
+                kwargs['i'] = float(self.time) * u.d
         else:
             kwargs['autofig_method'] = 'plot'
 
@@ -3541,12 +3541,12 @@ class ParameterSet(object):
                 # a single mesh will pass just that single time on as the
                 # independent variable/direction
                 if iqualifier=='times':
-                    kwargs['i'] = float(ps.time)
+                    kwargs['i'] = float(ps.time) * u.d
                     kwargs['iqualifier'] = 'ps.times'
-                elif isinstance(iqualifier, float):
+                elif _instance_in(iqualifier, float, u.Quantity):
                     kwargs['i'] = iqualifier
                     kwargs['iqualifier'] = iqualifier
-                elif iqualifier.split(':')[0] == 'phases':
+                elif isinstance(iqualifier, str) and iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     component = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
                     kwargs['i'] = self._bundle.to_phase(float(ps.time), component=component)

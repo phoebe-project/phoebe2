@@ -1484,7 +1484,7 @@ class Mesh(Call):
 
         self.exclude_back = exclude_back
 
-        if hasattr(i, '__iter__'):
+        if hasattr(i, '__iter__') and not isinstance(i, u.Quantity):
             raise ValueError("i as an iterable not supported for Meshes, make separate calls for each value of i")
 
         super(Mesh, self).__init__(i=i, iunit=iunit, itol=itol,
