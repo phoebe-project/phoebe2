@@ -1377,7 +1377,8 @@ class Bundle(ParameterSet):
         """
         return self._hierarchy_param
 
-    def _kwargs_checks(self, kwargs, additional_allowed_keys=[],
+    def _kwargs_checks(self, kwargs, on_filter={},
+                       additional_allowed_keys=[],
                        additional_forbidden_keys=[],
                        warning_only=False):
         """
@@ -1404,6 +1405,7 @@ class Bundle(ParameterSet):
             if isinstance(value, dict):
                 for k,v in value.items():
                     self._kwargs_checks({'{}@{}'.format(key, k): v},
+                                        on_filter=on_filter,
                                         additional_allowed_keys=additional_allowed_keys+['{}@{}'.format(key, k)],
                                         additional_forbidden_keys=additional_forbidden_keys,
                                         warning_only=warning_only
@@ -1411,7 +1413,7 @@ class Bundle(ParameterSet):
 
                 continue
 
-            for param in self.filter(qualifier=key).to_list():
+            for param in self.filter(qualifier=key, **on_filter).to_list():
                 if hasattr(param, 'valid_selection'):
                     if not param.valid_selection(value):
                         msg = "{}={} not valid with choices={}".format(key, value, param.choices)
@@ -2889,7 +2891,9 @@ class Bundle(ParameterSet):
 
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_forbidden_keys=forbidden_keys)
+        self._kwargs_checks(kwargs,
+                            on_filter={'compute': compute, 'dataset': datasets, 'component': components},
+                            additional_forbidden_keys=forbidden_keys)
 
         if compute is None:
             if len(self.computes)==1:
@@ -2970,7 +2974,9 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, warning_only=True)
+        self._kwargs_checks(kwargs,
+                            on_filter={'compute': kwargs['compute']},
+                            warning_only=True)
 
         return self.get_compute(**metawargs)
 
@@ -3141,7 +3147,9 @@ class Bundle(ParameterSet):
         allowed_kwargs = ['skip_checks', 'jobid']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
-        self._kwargs_checks(kwargs, allowed_kwargs)
+        self._kwargs_checks(kwargs,
+                            on_filter={'compute': compute},
+                            additional_allowed_keys=allowed_kwargs)
 
         if not kwargs.get('skip_checks', False):
             passed, msg = self.run_checks(computes=computes, **kwargs)
