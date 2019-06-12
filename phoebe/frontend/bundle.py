@@ -3779,11 +3779,12 @@ class Bundle(ParameterSet):
         try:
             result = self.run_constraint(uniqueid=param.uniqueid, skip_kwargs_checks=True)
         except Exception as e:
-            self._failed_constraints.append(param.uniqueid)
+            if param.uniqueid not in self._failed_constraints:
+                self._failed_constraints.append(param.uniqueid)
 
-            message_prefix = "Constraint '{}' raised the following error while flipping to solve for '{}'.  Consider flipping the constraint back or changing the value of one of {} until the constraint succeeds.  Original error: ".format(param.twig, solve_for, [p.twig for p in param.vars.to_list()])
+                message_prefix = "Constraint '{}' raised the following error while flipping to solve for '{}'.  Consider flipping the constraint back or changing the value of one of {} until the constraint succeeds.  Original error: ".format(param.twig, solve_for, [p.twig for p in param.vars.to_list()])
 
-            logger.error(message_prefix + str(e))
+                logger.error(message_prefix + str(e))
 
         self._add_history(redo_func='flip_constraint',
                           redo_kwargs=redo_kwargs,
@@ -3906,12 +3907,17 @@ class Bundle(ParameterSet):
         try:
             result = expression_param.get_result(suppress_error=False)
         except Exception as e:
-            self._failed_constraints.append(expression_param.uniqueid)
+            if expression_param.uniqueid not in self._failed_constraints:
+                self._failed_constraints.append(expression_param.uniqueid)
+                new = True
+            else:
+                new = False
 
             message_prefix = "Constraint '{}' raised the following error while attempting to solve for '{}'.  Consider flipping the constraint or changing the value of one of {} until the constraint succeeds.  Original error: ".format(expression_param.twig, constrained_param.twig, [p.twig for p in expression_param.vars.to_list()])
 
             if suppress_error:
-                logger.error(message_prefix + str(e))
+                if new:
+                    logger.error(message_prefix + str(e))
                 result = None
             else:
                 if len(e.args) >= 1:
@@ -3967,11 +3973,13 @@ class Bundle(ParameterSet):
         <phoebe.frontend.bundle.Bundle.run_checks> from succeeding.
         """
         changes = []
-        for constraint_id in self._failed_constraints:
+        failed_constraints = self._failed_constraints
+        self._failed_constraints = []
+        for constraint_id in failed_constraints:
+            logger.debug("run_failed_constraints: {}".format(constraint_id))
             param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True, suppress_error=False)
             if param not in changes:
                 changes.append(param)
-        self._failed_constraints = []
         return changes
 
     def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):
