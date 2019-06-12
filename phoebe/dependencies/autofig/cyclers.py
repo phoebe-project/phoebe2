@@ -101,7 +101,7 @@ class MPLPropCycler(object):
             raise ValueError("{} not one of {}".format(option, self._options_orig))
 
     def add_to_used(self, option):
-        if option in [None, 'None', 'none']:
+        if option in [None, 'None', 'none', 'face']:
             return
         if option not in self._options_orig:
             raise ValueError("{} not one of {}".format(option, self._options_orig))

@@ -1659,6 +1659,10 @@ class Mesh(Call):
     @edgecolor.setter
     def edgecolor(self, edgecolor):
         # TODO: type and cycler checks
+        if edgecolor in ['face']:
+            self._ec.value = edgecolor
+            return
+
         edgecolor = common.coloralias.map(_map_none(edgecolor))
         if self.axes is not None:
             self.axes._colorcycler.replace_used(self.get_edgecolor(), edgecolor)

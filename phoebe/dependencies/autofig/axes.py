@@ -826,6 +826,7 @@ class Axes(object):
                 c_match = self._match_color(call, 'c')
                 s_match = self._match_size(call, 's')
 
+
             elif isinstance(call, _call.Mesh):
                 self._colorcycler.add_to_used(call.get_facecolor())
                 self._colorcycler.add_to_used(call.get_edgecolor())
@@ -861,29 +862,44 @@ class Axes(object):
                     original_k = "{}{}".format(direction, k)
 
                     if direction=='c':
-                        # then only apply to c_match
-                        if c_match is None:
-                            # I hate to raise an error here since stuff has already been done
-                            raise ValueError("could not set {}, call still added".format(original_k))
-                        setattr(c_match, k, v)
+                        if isinstance(call, _call.Plot):
+                            # then only apply to c_match
+                            if c_match is None:
+                                # I hate to raise an error here since stuff has already been done
+                                raise ValueError("could not set {}, call still added".format(original_k))
+                            setattr(c_match, k, v)
+                        else:
+                            print("WARNING: direction {} for {} not supported for {}, ignoring".format(direction, k, call.__class__.__name__))
                     elif direction=='fc':
-                        if fc_match is None:
-                            # I hate to raise an error here since stuff has already been done
-                            raise ValueError("could not set {}, call still added".format(original_k))
-                        setattr(fc_match, k, v)
+                        if isinstance(call, _call.Mesh):
+                            if fc_match is None:
+                                # I hate to raise an error here since stuff has already been done
+                                raise ValueError("could not set {}, call still added".format(original_k))
+                            setattr(fc_match, k, v)
+                        else:
+                            print("WARNING: direction {} for {} not supported for {}, ignoring".format(direction, k, call.__class__.__name__))
+
                     elif direction=='ec':
-                        if ec_match is None:
-                            # I hate to raise an error here since stuff has already been done
-                            raise ValueError("could not set {}, call still added".format(original_k))
-                        setattr(ec_match, k, v)
+                        if isinstance(call, _call.Mesh):
+                            if ec_match is None:
+                                # I hate to raise an error here since stuff has already been done
+                                raise ValueError("could not set {}, call still added".format(original_k))
+                            setattr(ec_match, k, v)
+                        else:
+                            print("WARNING: direction {} for {} not supported for {}, ignoring".format(direction, k, call.__class__.__name__))
+
                     elif direction=='s':
-                        # then only apply to s_match
-                        if s_match is not None:
-                            setattr(s_match, k, v)
-                        # else:
-                            # I hate to raise an error here since stuff has already been done
-                            # this case could happen under normal circumstances for smode when CallDimensionS is a float instead of an array
-                            # raise ValueError("could not set {}, call still added".format(original_k))
+                        if isinstance(call, _call.Plot):
+                            # then only apply to s_match
+                            if s_match is not None:
+                                setattr(s_match, k, v)
+                            # else:
+                                # I hate to raise an error here since stuff has already been done
+                                # this case could happen under normal circumstances for smode when CallDimensionS is a float instead of an array
+                                # raise ValueError("could not set {}, call still added".format(original_k))
+                        else:
+                            print("WARNING: direction {} for {} not supported for {}, ignoring".format(direction, k, call.__class__.__name__))
+
                     else:
                         setattr(getattr(self, direction), k, v)
 
