@@ -1771,8 +1771,14 @@ class Bundle(ParameterSet):
         computes = kwargs.pop('compute', self.computes)
         if computes is None:
             computes = self.computes
-        if isinstance(computes, str):
-            computes = [computes]
+        else:
+            if isinstance(computes, str):
+                computes = [computes]
+
+            for compute in computes:
+                if compute not in self.computes:
+                    raise ValueError("compute='{}' not found".format(compute))
+
 
         kwargs.setdefault('check_visible', False)
         kwargs.setdefault('check_default', False)
