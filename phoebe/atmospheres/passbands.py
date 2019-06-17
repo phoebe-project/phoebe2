@@ -1198,6 +1198,30 @@ class Passband:
 
         return edge
 
+    def _blender_find_edge_5d(self, new_axes, new_table):
+        edge = np.nan*np.ones_like(new_table)
+
+        for Ti in range(len(new_axes[0])):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    for Ai in range(len(new_axes[3])):
+                        for Bi in range(len(new_axes[4])):
+                            if np.isnan(new_table[Ti, Li, Mi, Ai, Bi, 0]):
+                                continue
+
+                            if (Bi+1 < len(new_axes[4]) and np.isnan(new_table[Ti, Li, Mi, Ai, Bi+1, 0])) or (Bi > 1 and np.isnan(new_table[Ti, Li, Mi, Ai, Bi-1, 0])):
+                                edge[Ti, Li, Mi, Ai, Bi, 0] = new_table[Ti, Li, Mi, Ai, Bi, 0]
+                            if (Ai+1 < len(new_axes[3]) and np.isnan(new_table[Ti, Li, Mi, Ai+1, Bi, 0])) or (Ai > 1 and np.isnan(new_table[Ti, Li, Mi, Ai-1, Bi, 0])):
+                                edge[Ti, Li, Mi, Ai, Bi, 0] = new_table[Ti, Li, Mi, Ai, Bi, 0]
+                            if (Mi+1 < len(new_axes[2]) and np.isnan(new_table[Ti, Li, Mi+1, Ai, Bi, 0])) or (Mi > 1 and np.isnan(new_table[Ti, Li, Mi-1, Ai, Bi, 0])):
+                                edge[Ti, Li, Mi, Ai, Bi, 0] = new_table[Ti, Li, Mi, Ai, Bi, 0]
+                            if (Li+1 < len(new_axes[1]) and np.isnan(new_table[Ti, Li+1, Mi, Ai, Bi, 0])) or (Li > 1 and np.isnan(new_table[Ti, Li-1, Mi, Ai, Bi, 0])):
+                                edge[Ti, Li, Mi, Ai, Bi, 0] = new_table[Ti, Li, Mi, Ai, Bi, 0]
+                            if (Ti+1 < len(new_axes[0]) and np.isnan(new_table[Ti+1, Li, Mi, Ai, Bi, 0])) or (Ti > 1 and np.isnan(new_table[Ti-1, Li, Mi, Ai, Bi, 0])):
+                                edge[Ti, Li, Mi, Ai, Bi, 0] = new_table[Ti, Li, Mi, Ai, Bi, 0]
+
+        return edge
+
     def _blender_extrapolate(self, new_axes, axes, table):
         if new_axes is None:
             new_axes = []
@@ -1340,6 +1364,84 @@ class Passband:
 
         return (new_table, extrapolant)
 
+    def _blender_extrapolate_5d(self, new_axes, axes, table):
+        # make sure that new_axes contain axes:
+        for i in range(len(axes)):
+            if axes[i].tostring() not in new_axes[i].tostring():
+                print('axes must be contained in new_axes; aborting.')
+                return (None, None)
+
+        new_table = np.nan*np.ones((len(new_axes[0]), len(new_axes[1]), len(new_axes[2]), len(new_axes[3]), len(new_axes[4]), 1))
+
+        # find an overlap between axes and new_axes:
+        Ti, Tl = new_axes[0].tostring().index(axes[0].tostring())/new_axes[0].itemsize, len(axes[0])
+        Li, Ll = new_axes[1].tostring().index(axes[1].tostring())/new_axes[1].itemsize, len(axes[1])
+        Mi, Ml = new_axes[2].tostring().index(axes[2].tostring())/new_axes[2].itemsize, len(axes[2])
+        Ai, Al = new_axes[3].tostring().index(axes[3].tostring())/new_axes[3].itemsize, len(axes[3])
+        Bi, Bl = new_axes[4].tostring().index(axes[4].tostring())/new_axes[4].itemsize, len(axes[4])
+
+        new_table[Ti:Ti+Tl,Li:Li+Ll,Mi:Mi+Ml,Ai:Ai+Al,Bi:Bi+Bl] = table
+
+        extrapolant = np.nan*np.ones_like(new_table)
+
+        for Ti in range(len(new_axes[0])):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    for Ai in range(len(new_axes[3])):
+                        for Bi in range(len(new_axes[4])):
+                            if not np.isnan(new_table[Ti, Li, Mi, Ai, Bi, 0]):
+                                continue
+
+                            num_directions = 0
+                            extrapolated_value = 0.0
+
+                            if Bi+2 < len(new_axes[4]) and not np.isnan(new_table[Ti, Li, Mi, Ai, Bi+1, 0]) and not np.isnan(new_table[Ti, Li, Mi, Ai, Bi+2, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi, Ai, Bi+1, 0]-new_table[Ti, Li, Mi, Ai, Bi+2, 0]
+                                num_directions += 1
+
+                            if Bi > 2 and not np.isnan(new_table[Ti, Li, Mi, Ai, Bi-1, 0]) and not np.isnan(new_table[Ti, Li, Mi, Ai, Bi-2, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi, Ai, Bi-1, 0]-new_table[Ti, Li, Mi, Ai, Bi-2, 0]
+                                num_directions += 1
+
+                            if Ai+2 < len(new_axes[3]) and not np.isnan(new_table[Ti, Li, Mi, Ai+1, Bi, 0]) and not np.isnan(new_table[Ti, Li, Mi, Ai+2, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi, Ai+1, Bi, 0]-new_table[Ti, Li, Mi, Ai+2, Bi, 0]
+                                num_directions += 1
+
+                            if Ai > 2 and not np.isnan(new_table[Ti, Li, Mi, Ai-1, Bi, 0]) and not np.isnan(new_table[Ti, Li, Mi, Ai-2, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi, Ai-1, Bi, 0]-new_table[Ti, Li, Mi, Ai-2, Bi, 0]
+                                num_directions += 1
+
+                            if Mi+2 < len(new_axes[2]) and not np.isnan(new_table[Ti, Li, Mi+1, Ai, Bi, 0]) and not np.isnan(new_table[Ti, Li, Mi+2, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi+1, Ai, Bi, 0]-new_table[Ti, Li, Mi+2, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if Mi > 2 and not np.isnan(new_table[Ti, Li, Mi-1, Ai, Bi, 0]) and not np.isnan(new_table[Ti, Li, Mi-2, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi-1, Ai, Bi, 0]-new_table[Ti, Li, Mi-2, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if Li+2 < len(new_axes[1]) and not np.isnan(new_table[Ti, Li+1, Mi, Ai, Bi, 0]) and not np.isnan(new_table[Ti, Li+2, Mi, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li+1, Mi, Ai, Bi, 0]-new_table[Ti, Li+2, Mi, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if Li > 2 and not np.isnan(new_table[Ti, Li-1, Mi, Ai, Bi, 0]) and not np.isnan(new_table[Ti, Li-2, Mi, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li-1, Mi, Ai, Bi, 0]-new_table[Ti, Li-2, Mi, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if Ti+2 < len(new_axes[0]) and not np.isnan(new_table[Ti+1, Li, Mi, Ai, Bi, 0]) and not np.isnan(new_table[Ti+2, Li, Mi, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti+1, Li, Mi, Ai, Bi, 0]-new_table[Ti+2, Li, Mi, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if Ti > 2 and not np.isnan(new_table[Ti-1, Li, Mi, Ai, Bi, 0]) and not np.isnan(new_table[Ti-2, Li, Mi, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti-1, Li, Mi, Ai, Bi, 0]-new_table[Ti-2, Li, Mi, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if num_directions == 0:
+                                continue
+
+                            extrapolant[Ti, Li, Mi, Ai, Bi, 0] = extrapolated_value/num_directions
+
+        return (new_table, extrapolant)
+
     def _blend(self, photon_weighted=False):
         """
         """
@@ -1351,9 +1453,9 @@ class Passband:
             table = self._phoenix_energy_grid
 
         new_axes = (
-            np.concatenate((np.arange(250., 3251, 250), axes[0], np.arange(55000., 500001, 5000))),
-            np.concatenate((axes[1], np.arange(5.5, 10.1, 0.5))),
-            axes[2]
+            np.concatenate((np.arange(300., 2201, 100), axes[0], np.arange(13000., 50001, 1000), np.arange(55000., 500001, 5000))),
+            np.concatenate((axes[1], np.arange(6.5, 10.1, 0.5))),
+            axes[2],
         )
 
         new_table, extrapolant = self._blender_extrapolate(new_axes, axes, table)
@@ -1441,6 +1543,60 @@ class Passband:
 
         return (new_axes, new_table)
 
+    def _blend_5d(self, photon_weighted=False):
+        """
+        """
+
+        axes = self._phoenix_extinct_axes
+        if photon_weighted:
+            table = self._phoenix_extinct_photon_grid
+        else:
+            table = self._phoenix_extinct_energy_grid
+
+        new_axes = (
+            np.concatenate((np.arange(300., 2201, 100), axes[0], np.arange(13000., 50001, 1000), np.arange(55000., 500001, 5000))),
+            np.concatenate((axes[1], np.arange(6.5, 10.1, 0.5))),
+            axes[2],
+            axes[3],
+            axes[4],
+        )
+
+        new_table, extrapolant = self._blender_extrapolate_5d(new_axes, axes, table)
+
+        bb_table = np.empty_like(new_table)
+        for Ti, T in enumerate(new_axes[0]):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    for Ai in range(len(new_axes[3])):
+                        for Bi in range(len(new_axes[4])):
+                            bb_table[Ti, Li, Mi, 0] = self._log10_Inorm_bb_energy(T)
+                            # bb_table[Ti, Li, Mi, 0] = np.log10(self._bb_intensity(T, photon_weighted=False))
+
+        # blend the edge:
+        edge = self._blender_find_edge_5d(new_axes, new_table)
+        blend = edge * 0.5 + bb_table * 0.5
+
+        # blend the extrapolated edge:
+        blend_e = extrapolant * 0.25 + bb_table * 0.75
+
+        # peal the edge:
+        np.nan_to_num(edge, copy=False)
+        pealed_table = new_table - edge
+        pealed_table[pealed_table == 0] = np.nan
+
+        # blend the pealed edge:
+        pealed_edge = self._blender_find_edge_5d(new_axes, pealed_table)
+        blend_p = pealed_edge * 0.75 + bb_table * 0.25
+
+        new_table[~np.isnan(blend)] = blend[~np.isnan(blend)]
+        new_table[~np.isnan(blend_p)] = blend_p[~np.isnan(blend_p)]
+        new_table[~np.isnan(blend_e)] = blend_e[~np.isnan(blend_e)]
+
+        # finally, adopt blackbody everywhere else:
+        new_table[np.isnan(new_table)] = bb_table[np.isnan(new_table)]
+
+        return (new_axes, new_table)
+
     def compute_blended_response(self):
         blended_axes, blended_energy_grid = self._blend(photon_weighted=False)
         blended_axes, blended_photon_grid = self._blend(photon_weighted=True)
@@ -1450,6 +1606,15 @@ class Passband:
         self._blended_photon_grid = blended_photon_grid
 
         self.content.append('blended')
+
+        blended_extinct_axes, blended_extinct_energy_grid = self._blend_5d(photon_weighted=False)
+        blended_extinct_axes, blended_extinct_photon_grid = self._blend_5d(photon_weighted=True)
+
+        self._blended_extinct_axes = blended_extinct_axes
+        self._blended_extinct_energy_grid = blended_extinct_energy_grid
+        self._blended_extinct_photon_grid = blended_extinct_photon_grid
+
+        self.content.append('blended_ext')
 
         # blended_intensity_axes, blended_Imu_energy_grid = self._blend_4d(photon_weighted=False)
         # blended_intensity_axes, blended_Imu_photon_grid = self._blend_4d(photon_weighted=True)
