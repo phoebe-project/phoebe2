@@ -802,7 +802,7 @@ class Passband:
         if verbose:
             print('Computing reddening corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
-#        a = libphoebe.CCM89_extinction(self.wl)
+        # a = libphoebe.CCM89_extinction(self.wl)
         a = libphoebe.gordon_extinction(self.wl)
 
         for j in range(0,combos):
@@ -897,7 +897,7 @@ class Passband:
             fl *= self.ptf(wl)
             flP = fl*wl
 
-#            Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
+            # Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
             Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
             flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
 
@@ -928,7 +928,6 @@ class Passband:
 
         self.content.append('ck2004_ext')
         self.atmlist.append('ck2004_ext')
-
 
     def compute_phoenix_reddening(self, path, Ebv=None, Rv=None, verbose=False):
         """
@@ -997,7 +996,7 @@ class Passband:
             fl *= self.ptf(wl)
             flP = fl*wl
 
-#            Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
+            # Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
             Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
             flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
 
@@ -1030,8 +1029,6 @@ class Passband:
 
         self.content.append('phoenix_ext')
         self.atmlist.append('phoenix_ext')
-
-
 
     def compute_ck2004_response(self, path, verbose=False):
         """
@@ -1159,6 +1156,21 @@ class Passband:
         self.content.append('phoenix')
         self.atmlist.append('phoenix')
 
+    def _blender_plot(self, axes, table, fname=None, show=False):
+        import matplotlib.pyplot as plt
+        nx, ny = axes[0], axes[1]
+        plt.figure(figsize=(15, 15))
+        for zi in range(len(axes[2])):
+            plt.subplot(3, 3, zi+1)
+            plt.imshow(table[:,:,zi,0].T, aspect='auto')
+            for xi, xv in enumerate(nx):
+                for yi, yv in enumerate(ny):
+                    plt.annotate('%1.1f' % table[xi,yi,zi,0], xy=(xv-0.3, yv), color='red', size=6)
+        if fname:
+            plt.savefig(fname)
+        if show:
+            plt.show()
+
     def _blender_find_edge(self, new_axes, new_table):
         edge = np.nan*np.ones_like(new_table)
 
@@ -1223,30 +1235,21 @@ class Passband:
         return edge
 
     def _blender_extrapolate(self, new_axes, axes, table):
-        if new_axes is None:
-            new_axes = []
-
-            # add extrapolation knots:
-            for i, axis in enumerate(axes):
-                new_axes.append(np.insert(axis, (0, len(axis)), (axis[0]-(axis[1]-axis[0]), axis[len(axis)-1]+(axis[len(axis)-1]-axis[len(axis)-2]))))
-
         # make sure that new_axes contain axes:
         for i in range(len(axes)):
             if axes[i].tostring() not in new_axes[i].tostring():
                 print('axes must be contained in new_axes; aborting.')
-                return None
+                return (None, None)
 
         new_table = np.nan*np.ones((len(new_axes[0]), len(new_axes[1]), len(new_axes[2]), 1))
 
-        if new_axes is None:
-            new_table[1:-1,1:-1,1:-1] = table
-        else:
-            # find an overlap between axes and new_axes:
-            Ti, Tl = new_axes[0].tostring().index(axes[0].tostring())/new_axes[0].itemsize, len(axes[0])
-            Li, Ll = new_axes[1].tostring().index(axes[1].tostring())/new_axes[1].itemsize, len(axes[1])
-            Mi, Ml = new_axes[2].tostring().index(axes[2].tostring())/new_axes[2].itemsize, len(axes[2])
+        # find an overlap between axes and new_axes:
+        Ti, Tl = new_axes[0].tostring().index(axes[0].tostring())/new_axes[0].itemsize, len(axes[0])
+        Li, Ll = new_axes[1].tostring().index(axes[1].tostring())/new_axes[1].itemsize, len(axes[1])
+        Mi, Ml = new_axes[2].tostring().index(axes[2].tostring())/new_axes[2].itemsize, len(axes[2])
 
-            new_table[Ti:Ti+Tl,Li:Li+Ll,Mi:Mi+Ml] = table
+        # copy the contents from the original table to the subset of the new table:
+        new_table[Ti:Ti+Tl,Li:Li+Ll,Mi:Mi+Ml] = table
 
         extrapolant = np.nan*np.ones_like(new_table)
 
@@ -1458,8 +1461,13 @@ class Passband:
             axes[2],
         )
 
+        # Extrapolate to the adjacent nans throughout the table:
         new_table, extrapolant = self._blender_extrapolate(new_axes, axes, table)
 
+        self._blender_plot(new_axes, new_table, fname='01_new_table.png')
+        self._blender_plot(new_axes, extrapolant, fname='02_extrapolant.png')
+
+        # Calculate the blackbody response for the entire new table:
         bb_table = np.empty_like(new_table)
         for Ti, T in enumerate(new_axes[0]):
             for Li in range(len(new_axes[1])):
@@ -1467,28 +1475,43 @@ class Passband:
                     bb_table[Ti, Li, Mi, 0] = self._log10_Inorm_bb_energy(T)
                     # bb_table[Ti, Li, Mi, 0] = np.log10(self._bb_intensity(T, photon_weighted=False))
 
-        # blend the edge:
-        edge = self._blender_find_edge(new_axes, new_table)
-        blend = edge * 0.5 + bb_table * 0.5
+        self._blender_plot(new_axes, bb_table, fname='03_bb_table.png')
 
-        # blend the extrapolated edge:
-        blend_e = extrapolant * 0.25 + bb_table * 0.75
+        # blend the edge of the original table at 50-50:
+        edge = self._blender_find_edge(new_axes, new_table)
+        blend = 0.5*edge + 0.5*bb_table
+
+        self._blender_plot(new_axes, blend, fname='04_blended_edge.png')
+
+        # blend the extrapolated edge at 25-75:
+        blend_e = 0.25*extrapolant + 0.75*bb_table
+
+        self._blender_plot(new_axes, blend_e, fname='05_blended_outer_edge.png')
 
         # peal the edge:
         np.nan_to_num(edge, copy=False)
         pealed_table = new_table - edge
         pealed_table[pealed_table == 0] = np.nan
 
-        # blend the pealed edge:
+        self._blender_plot(new_axes, pealed_table, fname='06_pealed_table.png')
+
+        # blend the pealed edge at 75-25:
         pealed_edge = self._blender_find_edge(new_axes, pealed_table)
-        blend_p = pealed_edge * 0.75 + bb_table * 0.25
+        blend_p = 0.75*pealed_edge + 0.25*bb_table
+
+        self._blender_plot(new_axes, pealed_edge, fname='07_pealed_edge.png')
+        self._blender_plot(new_axes, blend_p, fname='08_blended_inner_edge.png')
 
         new_table[~np.isnan(blend)] = blend[~np.isnan(blend)]
         new_table[~np.isnan(blend_p)] = blend_p[~np.isnan(blend_p)]
         new_table[~np.isnan(blend_e)] = blend_e[~np.isnan(blend_e)]
 
+        self._blender_plot(new_axes, new_table, fname='09_blended_table.png')
+
         # finally, adopt blackbody everywhere else:
         new_table[np.isnan(new_table)] = bb_table[np.isnan(new_table)]
+
+        self._blender_plot(new_axes, new_table, fname='10_final_table.png')
 
         return (new_axes, new_table)
 
@@ -1569,8 +1592,8 @@ class Passband:
                 for Mi in range(len(new_axes[2])):
                     for Ai in range(len(new_axes[3])):
                         for Bi in range(len(new_axes[4])):
-                            bb_table[Ti, Li, Mi, 0] = self._log10_Inorm_bb_energy(T)
-                            # bb_table[Ti, Li, Mi, 0] = np.log10(self._bb_intensity(T, photon_weighted=False))
+                            bb_table[Ti, Li, Mi, Ai, Bi, 0] = self._log10_Inorm_bb_energy(T)
+                            # bb_table[Ti, Li, Mi, Ai, Bi, 0] = np.log10(self._bb_intensity(T, photon_weighted=False))
 
         # blend the edge:
         edge = self._blender_find_edge_5d(new_axes, new_table)
@@ -2371,7 +2394,6 @@ class Passband:
             print('ld_func=%s is invalid; please choose from [linear, logarithmic, square_root, quadratic, power, all].' % ld_func)
             return None
 
-
     def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody',  extinct=0.0, Rv=3.1, photon_weighted=False):
         """
         Interpolates the passband-stored tables of extinction corrections
@@ -2408,12 +2430,12 @@ class Passband:
 
             if not hasattr(Teff, '__iter__'):
                 req = np.array(((Teff, logg, abun, extinct, Rv),))
-                extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes[0:5], table)[0][0]
+                extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes, table)[0][0]
             else:
-                extinct=extinct*np.ones(len(Teff))
-                Rv=Rv*np.ones(len(Teff))
+                extinct=extinct*np.ones_like(Teff)
+                Rv=Rv*np.ones_like(Teff)
                 req = np.vstack((Teff, logg, abun, extinct, Rv)).T
-                extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes[0:5], table).T[0]
+                extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes, table).T[0]
             return extinct_factor
 
         if atm == 'blended':
@@ -2427,12 +2449,12 @@ class Passband:
 
             if not hasattr(Teff, '__iter__'):
                 req = np.array(((Teff, logg, abun, extinct, Rv),))
-                extinct_factor = libphoebe.interp(req, self._blended_extinct_axes[0:5], table)[0][0]
+                extinct_factor = libphoebe.interp(req, self._blended_extinct_axes, table)[0][0]
             else:
-                extinct=extinct*np.ones(len(Teff))
-                Rv=Rv*np.ones(len(Teff))
+                extinct=extinct*np.ones_like(Teff)
+                Rv=Rv*np.ones_like(Teff)
                 req = np.vstack((Teff, logg, abun, extinct, Rv)).T
-                extinct_factor = libphoebe.interp(req, self._blended_extinct_axes[0:5], table).T[0]
+                extinct_factor = libphoebe.interp(req, self._blended_extinct_axes, table).T[0]
             return extinct_factor
 
         elif atm != 'blackbody':
@@ -2457,7 +2479,6 @@ class Passband:
 
 
             return extinct_factor
-
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
         """
