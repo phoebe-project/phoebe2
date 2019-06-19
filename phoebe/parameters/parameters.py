@@ -3693,7 +3693,7 @@ class ParameterSet(object):
             x-axis (will default based on the dataset-kind if not provided).
             With the exception of phase, `b.get_value(x)` needs to provide a
             valid float or array.  To plot phase along the x-axis, pass
-            `x='phases'` or `x=phases:[component]`.  This will use the ephemeris
+            `x='phases'` or `x='phases:[component]'`.  This will use the ephemeris
             from <phoebe.frontend.bundle.Bundle.get_ephemeris>(component) if
             possible to phase the applicable times array.
         * `y` (string/float/array, optional): qualifier/twig of the array to plot on the
@@ -3714,11 +3714,11 @@ class ParameterSet(object):
         * `ec` (string/float/array, optional): qualifier/twig of the array to use
             for edgecolor (only applicable for mesh plots).
 
-        * `i` (string, optional, default='time'): qualifier/twig to use for the
+        * `i` (string, optional, default='times'): qualifier/twig to use for the
             independent variable.  In the vast majority of cases, using the default
-            is sufficient.  If `x` is phase, then setting `i` to phase as well
-            will sort and connect the points in phase-order instead of the default
-            behavior or time-order.
+            is sufficient.  If `x` is 'phases' or ('phases:[component]'), then
+            setting `i` to phases as well will sort and connect the points in
+            phase-order instead of the default behavior of time-order.
 
         * `xerror` (string/float/array, optional): qualifier/twig of the array to plot as
             x-errors (will default based on `x` if not provided).
