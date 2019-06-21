@@ -3712,7 +3712,9 @@ class ParameterSet(object):
         * `fc` (string/float/array, optional): qualifier/twig of the array to use
             for facecolor (only applicable for mesh plots).
         * `ec` (string/float/array, optional): qualifier/twig of the array to use
-            for edgecolor (only applicable for mesh plots).
+            for edgecolor (only applicable for mesh plots).   To disable plotting
+            edges, use `ec='none'`.  To plot edges in the same colors as the face,
+            use `ec='face'` (not supported if `projection='3d'`).
 
         * `i` (string, optional, default='times'): qualifier/twig to use for the
             independent variable.  In the vast majority of cases, using the default
@@ -3857,6 +3859,9 @@ class ParameterSet(object):
         subplot_grid = kwargs.pop('subplot_grid', None)
         animate = kwargs.pop('animate', False)
         time = kwargs.get('time', None)  # don't pop since time may be used for filtering
+
+        if kwargs.get('projection', '2d') == '3d' and kwargs.get('ec', None) =='face':
+            raise ValueError("projection='3d' and ec='face' do not work together.  Consider ec='none' instead.")
 
         if twig is not None:
             kwargs['twig'] = twig
