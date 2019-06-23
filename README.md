@@ -80,6 +80,13 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.13 - constraint flip loop hotfix
+
+* Fixes infinite loop when trying to flip esinw AND ecosw
+* Adds ability to flip mass (Kepler's third law) to solve for q
+* Fixes bug introduced in 2.1.9 in which out-of-limits constrained parameters in
+an envelope were being raised before all constraints could resolve successfully.
+
 ### 2.1.12 - legacy ephemeris and kwargs checks hotfix
 
 * Fixes applying t0 when importing legacy dataset which use phase.

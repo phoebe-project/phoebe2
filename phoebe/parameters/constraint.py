@@ -138,6 +138,15 @@ def arctan2(param1, param2):
     """
     return ConstraintParameter(param1._bundle, "arctan2({}, {})".format(_get_expr(param1), _get_expr(param2)))
 
+def arctan2(param1, param2):
+    """
+    Allows using the arctan2 function in a constraint
+
+    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
+    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    """
+    return ConstraintParameter(param1._bundle, "arctan2({}, {})".format(_get_expr(param1), _get_expr(param2)))
+
 def abs(param):
     """
     Allows using the abs (absolute value) function in a constraint

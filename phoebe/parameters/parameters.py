@@ -8808,6 +8808,8 @@ class ConstraintParameter(Parameter):
 
                 values = get_values(self._vars+self._addl_vars, safe_label=False)
 
+                values = get_values(self._vars+self._addl_vars, safe_label=False)
+
                 # cannot do from builtin import *
                 for func in _constraint_builtin_funcs:
                     # I should be shot for doing this...
