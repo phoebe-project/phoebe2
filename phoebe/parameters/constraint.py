@@ -97,6 +97,15 @@ def arctan(param):
     """
     return ConstraintParameter(param._bundle, "arctan({})".format(_get_expr(param)))
 
+def arctan2(param1, param2):
+    """
+    Allows using the arctan2 function in a constraint
+
+    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
+    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    """
+    return ConstraintParameter(param1._bundle, "arctan2({}, {})".format(_get_expr(param1), _get_expr(param2)))
+
 def abs(param):
     """
     Allows using the abs (absolute value) function in a constraint
@@ -179,6 +188,18 @@ def ecosw2per0(ecc, ecosw):
     """
     # print "***", "ecosw2per0({}, {})".format(_get_expr(ecc), _get_expr(ecosw))
     return ConstraintParameter(ecc._bundle, "ecosw2per0({}, {})".format(_get_expr(ecc), _get_expr(ecosw)))
+
+def esinw2ecc(esinw, per0):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(esinw._bundle, "esinw2ecc({}, {})".format(_get_expr(esinw), _get_expr(per0)))
+
+def ecosw2ecc(ecosw, per0):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(ecosw._bundle, "ecosw2ecc({}, {})".format(_get_expr(ecosw), _get_expr(per0)))
 
 def t0_perpass_to_supconj(t0_perpass, period, ecc, per0):
     """
@@ -284,7 +305,7 @@ def asini(b, orbit, solve_for=None):
         raise NotImplementedError
 
     #- return lhs, rhs, args_as_pss
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 def esinw(b, orbit, solve_for=None, **kwargs):
     """
@@ -309,24 +330,57 @@ def esinw(b, orbit, solve_for=None, **kwargs):
     esinw_def = FloatParameter(qualifier='esinw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
     esinw, created = b.get_or_create('esinw', esinw_def, **metawargs)
 
+    ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
+    ecosw, ecosw_created = b.get_or_create('ecosw', ecosw_def, **metawargs)
+
+    ecosw_constrained = kwargs.get('ecosw_constrained', len(ecosw.constrained_by) > 0)
+    # print("~~~esinw constraint: solve_for={}, ecosw_constrained={}".format(solve_for.qualifier if solve_for is not None else "None", ecosw_constrained))
+
     ecc = b.get_parameter(qualifier='ecc', **metawargs)
     per0 = b.get_parameter(qualifier='per0', **metawargs)
 
     if solve_for in [None, esinw]:
         lhs = esinw
         rhs = ecc * sin(per0)
+        if not ecosw_created and not ecosw_constrained:
+            if per0.is_constraint and per0.is_constraint.constraint_func != 'esinw':
+                per0.is_constraint.constraint_kwargs['esinw_constrained'] = True
+                per0.is_constraint.flip_for('per0', force=True)
+            elif ecc.is_constraint and ecc.is_constraint.constraint_func != 'esinw':
+                ecc.is_constraint.constraint_kwargs['esinw_constrained'] = True
+                ecc.is_constraint.flip_for('ecc', force=True)
+
     elif solve_for == ecc:
         lhs = ecc
-        rhs = esinw / sin(per0)
+        if ecosw_constrained:
+            # cannot just do esinw/sin(per0) because sin(per0) may be zero
+            rhs = esinw2ecc(esinw, per0)
+        else:
+            rhs = (esinw**2 + ecosw**2)**0.5
+            # the other constraint needs to also follow the alternate equations
+            if per0.is_constraint and 'esinw_constrained' not in per0.is_constraint.constraint_kwargs.keys():
+                # print("~~~esinw constraint: attempting to also flip per0 constraint")
+                per0.is_constraint.constraint_kwargs['esinw_constrained'] = False
+                per0.is_constraint.flip_for('per0', force=True)
+
     elif solve_for == per0:
         lhs = per0
-        #rhs = arcsin(esinw/ecc)
-        rhs = esinw2per0(ecc, esinw)
-
+        if ecosw_constrained:
+            # cannot just do arcsin because ecc may be zero
+            rhs = esinw2per0(ecc, esinw)
+        else:
+            rhs = arctan2(esinw, ecosw)
+            # the other constraint needs to also follow the alternate equations
+            if ecc.is_constraint and 'esinw_constrained' not in ecc.is_constraint.constraint_kwargs.keys():
+                # print("~~~esinw constraint: attempting to also flip ecc constraint")
+                ecc.is_constraint.constraint_kwargs['esinw_constrained'] = False
+                ecc.is_constraint.flip_for('ecc', force=True)
+    elif solve_for == ecosw:
+        raise NotImplementedError("cannot solve this constraint for 'ecosw' since it was originally 'esinw'")
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
 def ecosw(b, orbit, solve_for=None, **kwargs):
     """
@@ -351,24 +405,57 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
     ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
     ecosw, created = b.get_or_create('ecosw', ecosw_def, **metawargs)
 
+    esinw_def = FloatParameter(qualifier='esinw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times sin of argument of periastron')
+    esinw, esinw_created = b.get_or_create('esinw', esinw_def, **metawargs)
+
+    esinw_constrained = kwargs.get('esinw_constrained', len(esinw.constrained_by) > 0)
+    # print("~~~ecosw constraint: solve_for={}, esinw_constrained={}".format(solve_for.qualifier if solve_for is not None else "None", esinw_constrained))
+
     ecc = b.get_parameter(qualifier='ecc', **metawargs)
     per0 = b.get_parameter(qualifier='per0', **metawargs)
 
     if solve_for in [None, ecosw]:
         lhs = ecosw
         rhs = ecc * cos(per0)
+        if not esinw_created and not esinw_constrained:
+            if per0.is_constraint and per0.is_constraint.constraint_func != 'ecosw':
+                per0.is_constraint.constraint_kwargs['ecosw_constrained'] = True
+                per0.is_constraint.flip_for('per0', force=True)
+            elif ecc.is_constraint and ecc.is_constraint.constraint_func != 'ecosw':
+                ecc.is_constraint.constraint_kwargs['ecosw_constrained'] = True
+                ecc.is_constraint.flip_for('ecc', force=True)
 
     elif solve_for == ecc:
         lhs = ecc
-        rhs = ecosw / cos(per0)
+        if esinw_constrained:
+            # cannot just do ecosw/cos(per0) because cos(per0) may be zero
+            rhs = ecosw2ecc(ecosw, per0)
+        else:
+            rhs = (esinw**2 + ecosw**2)**0.5
+            # the other constraint needs to also follow the alternate equations
+            if per0.is_constraint and 'ecosw_constrained' not in per0.is_constraint.constraint_kwargs.keys():
+                # print("~~~ecosw constraint: attempting to also flip per0 constraint")
+                per0.is_constraint.constraint_kwargs['ecosw_constrained'] = False
+                per0.is_constraint.flip_for('per0', force=True)
+
     elif solve_for == per0:
         lhs = per0
-        #rhs = arccos(ecosw/ecc)
-        rhs = ecosw2per0(ecc, ecosw)
+        if esinw_constrained:
+            # cannot just do arccos because ecc may be 0
+            rhs = ecosw2per0(ecc, ecosw)
+        else:
+            rhs = arctan2(esinw, ecosw)
+            # the other constraint needs to also follow the alternate equations
+            if ecc.is_constraint and 'ecosw_constrained' not in ecc.is_constraint.constraint_kwargs.keys():
+                # print("~~~ecosw constraint: attempting to also flip per0 constraint")
+                ecc.is_constraint.constraint_kwargs['ecosw_constrained'] = False
+                ecc.is_constraint.flip_for('ecc', force=True)
+    elif solve_for == esinw:
+        raise NotImplementedError("cannot solve this constraint for 'esinw' since it was originally 'ecosw'")
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
 def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     """
@@ -410,7 +497,7 @@ def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 def t0(*args, **kwargs):
     """
@@ -456,7 +543,7 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 
 def mean_anom(b, orbit, solve_for=None, **kwargs):
@@ -479,7 +566,7 @@ def mean_anom(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 def _true_anom_to_phase(true_anom, period, ecc, per0):
     """
@@ -530,7 +617,7 @@ def ph_supconj(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 def ph_infconj(b, orbit, solve_for=None, **kwargs):
     """
@@ -555,7 +642,7 @@ def ph_infconj(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 def ph_perpass(b, orbit, solve_for=None, **kwargs):
     """
@@ -579,7 +666,7 @@ def ph_perpass(b, orbit, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit': orbit}
+    return lhs, rhs, [], {'orbit': orbit}
 
 
 
@@ -620,7 +707,7 @@ def freq(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 #}
 #{ Inter-orbit constraints
@@ -658,7 +745,7 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
         # TODO: add other options to solve_for
         raise NotImplementedError
 
-    return lhs, rhs, {'orbit1': orbit1, 'orbit2': orbit2}
+    return lhs, rhs, [], {'orbit1': orbit1, 'orbit2': orbit2}
 
 #}
 #{ Intra-component constraints
@@ -683,7 +770,7 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def semidetached(b, component, solve_for=None, **kwargs):
     """
@@ -700,17 +787,277 @@ def semidetached(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 
 #}
 #{ Inter-component constraints
 
-def teffratio(b, comp1, comp2, **kwargs):
+def teffratio(b, orbit=None, solve_for=None, **kwargs):
     """
-    :raises NotImplementedError: because this isn't yet
+    Introduced in 2.1.7
+
+    Create a constraint to for the teff ratio between two stars in the same orbit.
+    Defined as teffratio = teff@comp2 / teff@comp1, where comp1 and comp2 are
+    determined from the primary and secondary components of the orbit `orbit`.
+
+    This is usually passed as an argument to
+    <phoebe.frontend.bundle.Bundle.add_constraint> as
+    `b.add_constraint('teffratio', orbit='binary')`, where
+    `orbit` is one of <phoebe.parameters.HierarchyParameter.get_orbits>.
+
+    Arguments
+    -----------
+    * `b` (phoebe.frontend.bundle.Bundle): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should be built.
+        Optional if only one orbit exists in the hierarchy.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'teffratio' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'teff@...').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list): lhs (Parameter), rhs (ConstraintParameter), args (list of arguments that were passed to this function)
+
+    Raises
+    -------------
+    * ValueError: if `orbit` is not provided, but more than one orbit exists
+        in the hierarchy.
+    * NotImplementedError: if the value of `solve_for` is not implemented.
     """
-    raise NotImplementedError
+    # TODO: do we need to rebuild this if the hierarchy changes???
+    hier = b.hierarchy
+
+    if orbit is None:
+        orbits = hier.get_orbits()
+        if len(orbits)==1:
+            orbit = orbits[0]
+        else:
+            raise ValueError("must provide orbit since more than one orbit present in the hierarchy")
+
+    comp1, comp2 = hier.get_stars_of_children_of(orbit)
+
+    comp1_ps = b.get_component(component=comp1)
+    comp2_ps = b.get_component(component=comp2)
+
+    teffratio_def = FloatParameter(qualifier='teffratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between effective temperatures of children stars')
+    teffratio, created = b.get_or_create('teffratio', teffratio_def, component=orbit, context='component')
+
+    teff1 = comp1_ps.get_parameter(qualifier='teff')
+    teff2 = comp2_ps.get_parameter(qualifier='teff')
+
+    if solve_for in [teffratio, None]:
+        lhs = teffratio
+        rhs = teff2/teff1
+    elif solve_for in [teff1]:
+        lhs = teff1
+        rhs = teff2 / teffratio
+    elif solve_for in [teff2]:
+        lhs = teff2
+        rhs = teffratio * teff1
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, [], {'orbit': orbit}
+
+
+
+def requivratio(b, orbit=None, solve_for=None, **kwargs):
+    """
+    Introduced in 2.1.7
+
+    Create a constraint to for the requiv ratio between two stars in the same orbit.
+    Defined as requivratio = requiv@comp2 / requiv@comp1, where comp1 and comp2 are
+    determined from the primary and secondary components of the orbit `orbit`.
+
+    This is usually passed as an argument to
+    <phoebe.frontend.bundle.Bundle.add_constraint> as
+    `b.add_constraint('requivratio', orbit='binary')`, where
+    `orbit` is one of <phoebe.parameters.HierarchyParameter.get_orbits>.
+
+    Arguments
+    -----------
+    * `b` (phoebe.frontend.bundle.Bundle): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should be built.
+        Optional if only one orbit exists in the hierarchy.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'requivratio' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'requiv@...').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list): lhs (Parameter), rhs (ConstraintParameter), args (list of arguments that were passed to this function)
+
+    Raises
+    -------------
+    * ValueError: if `orbit` is not provided, but more than one orbit exists
+        in the hierarchy.
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+    # TODO: do we need to rebuild this if the hierarchy changes???
+    hier = b.hierarchy
+
+    if orbit is None:
+        orbits = hier.get_orbits()
+        if len(orbits)==1:
+            orbit = orbits[0]
+        else:
+            raise ValueError("must provide orbit since more than one orbit present in the hierarchy")
+
+    comp1, comp2 = hier.get_stars_of_children_of(orbit)
+
+    comp1_ps = b.get_component(component=comp1)
+    comp2_ps = b.get_component(component=comp2)
+
+    requiv1 = comp1_ps.get_parameter(qualifier='requiv')
+    requiv2 = comp2_ps.get_parameter(qualifier='requiv')
+
+    requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
+    requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, component=orbit, context='component')
+
+    requivsum_def = FloatParameter(qualifier='requivsum', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of equivalent radii of children stars')
+    requivsum, requivsum_created = b.get_or_create('requivsum', requivsum_def, component=orbit, context='component')
+
+    requivsum_constrained = kwargs.get('requivsum_constrained', len(requivsum.constrained_by) > 0)
+
+    if solve_for in [requivratio, None]:
+        lhs = requivratio
+        rhs = requiv2/requiv1
+        if not requivsum_created and not requivsum_constrained:
+            if requiv1.is_constraint:
+                requiv1.is_constraint.constraint_kwargs['requivratio_constrained'] = True
+                requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
+            elif requiv2.is_constraint:
+                requiv2.is_constraint.constraint_kwargs['requivratio_constrained'] = True
+                requiv2.is_constraint.flip_for('requiv@'.format(requiv2.component), force=True)
+
+    elif solve_for in [requiv1]:
+        lhs = requiv1
+        if requivsum_constrained:
+            rhs = requiv2 / requivratio
+        else:
+            rhs = requivsum / (requivratio + 1)
+            # the other constraint needs to also follow the alternate equations
+            if requiv2.is_constraint and 'requivratio_constrained' not in requiv2.is_constraint.constraint_kwargs.keys():
+                requiv2.is_constraint.constraint_kwargs['requivratio_constrained'] = False
+                requiv2.is_constraint.flip_for('requiv@{}'.format(requiv2.component), force=True)
+
+    elif solve_for in [requiv2]:
+        lhs = requiv2
+        if requivsum_constrained:
+            rhs = requivratio * requiv1
+        else:
+            rhs = (requivratio * requivsum) / (requivratio + 1)
+            # the other constraint needs to also follow the alternate equations
+            if requiv1.is_constraint and 'requivratio_constrained' not in requiv1.is_constraint.constraint_kwargs.keys():
+                requiv1.is_constraint.constraint_kwargs['requivratio_constrained'] = False
+                requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
+    elif solve_for == requivsum:
+        raise NotImplementedError("cannot solve this constraint for 'requivsum' since it was originally 'requivratio'")
+    else:
+        raise NotImplementedError
+
+
+    return lhs, rhs, [requivratio, requivsum, requiv1, requiv2], {'orbit': orbit}
+
+def requivsum(b, orbit=None, solve_for=None, **kwargs):
+    """
+    Introduced in 2.1.7
+
+    Create a constraint to for the requiv sum of two stars in the same orbit.
+    Defined as requivsum = requiv@comp2 / requiv@comp1, where comp1 and comp2 are
+    determined from the primary and secondary components of the orbit `orbit`.
+
+    This is usually passed as an argument to
+    <phoebe.frontend.bundle.Bundle.add_constraint> as
+    `b.add_constraint('requivsum', orbit='binary')`, where
+    `orbit` is one of <phoebe.parameters.HierarchyParameter.get_orbits>.
+
+    Arguments
+    -----------
+    * `b` (phoebe.frontend.bundle.Bundle): the Bundle
+    * `orbit` (string): the label of the orbit in which this constraint should be built.
+        Optional if only one orbit exists in the hierarchy.
+    * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
+        'requivsum' should not be the derived/constrained parameter, provide which
+        other parameter should be derived (ie 'requiv@...').
+
+    Returns
+    ----------
+    * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list): lhs (Parameter), rhs (ConstraintParameter), args (list of arguments that were passed to this function)
+
+    Raises
+    -------------
+    * ValueError: if `orbit` is not provided, but more than one orbit exists
+        in the hierarchy.
+    * NotImplementedError: if the value of `solve_for` is not implemented.
+    """
+    # TODO: do we need to rebuild this if the hierarchy changes???
+    hier = b.hierarchy
+
+    if orbit is None:
+        orbits = hier.get_orbits()
+        if len(orbits)==1:
+            orbit = orbits[0]
+        else:
+            raise ValueError("must provide orbit since more than one orbit present in the hierarchy")
+
+    comp1, comp2 = hier.get_stars_of_children_of(orbit)
+
+    comp1_ps = b.get_component(component=comp1)
+    comp2_ps = b.get_component(component=comp2)
+
+    requiv1 = comp1_ps.get_parameter(qualifier='requiv')
+    requiv2 = comp2_ps.get_parameter(qualifier='requiv')
+
+    requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
+    requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, component=orbit, context='component')
+
+    requivsum_def = FloatParameter(qualifier='requivsum', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of equivalent radii of children stars')
+    requivsum, requivsum_created = b.get_or_create('requivsum', requivsum_def, component=orbit, context='component')
+
+    requivratio_constrained = kwargs.get('requivratio_constrained', len(requivratio.constrained_by) > 0)
+
+    if solve_for in [requivsum, None]:
+        lhs = requivsum
+        rhs = requiv1 + requiv2
+        if not requivratio_created and not requivratio_constrained:
+            if requiv1.is_constraint:
+                requiv1.is_constraint.constraint_kwargs['requivsum_constrained'] = True
+                requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
+            elif requiv2.is_constraint:
+                requiv2.is_constraint.constraint_kwargs['requivsum_constrained'] = True
+                requiv2.is_constraint.flip_for('requiv@'.format(requiv2.component), force=True)
+
+    elif solve_for in [requiv1]:
+        lhs = requiv1
+        if requivratio_constrained:
+            rhs = requivsum - requiv2
+        else:
+            rhs = requivsum / (requivratio + 1)
+            # the other constraint needs to also follow the alternate equations
+            if requiv2.is_constraint and 'requivsum_constrained' not in requiv2.is_constraint.constraint_kwargs.keys():
+                requiv2.is_constraint.constraint_kwargs['requivsum_constrained'] = False
+                requiv2.is_constraint.flip_for('requiv@{}'.format(requiv2.component), force=True)
+
+    elif solve_for in [requiv2]:
+        lhs = requiv2
+        if requivratio_constrained:
+            rhs = requivsum - requiv1
+        else:
+            rhs = (requivratio * requivsum) / (requivratio + 1)
+            # the other constraint needs to also follow the alternate equations
+            if requiv1.is_constraint and 'requivsum_constrained' not in requiv1.is_constraint.constraint_kwargs.keys():
+                requiv1.is_constraint.constraint_kwargs['requivsum_constrained'] = False
+                requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
+
+    elif solve_for == requivratio:
+        raise NotImplementedError("cannot solve this constraint for 'requivratio' since it was originally 'requivsum'")
+    else:
+        raise NotImplementedError
+
+
+    return lhs, rhs, [requivratio, requivsum, requiv1, requiv2], {'orbit': orbit}
 
 #}
 #{ Orbit-component constraints
@@ -744,19 +1091,33 @@ def mass(b, component, solve_for=None, **kwargs):
 
     component_ps = _get_system_ps(b, component)
 
+    sibling = hier.get_sibling_of(component)
+    sibling_ps = _get_system_ps(b, sibling)
+
     parentorbit = hier.get_parent_of(component)
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
-    metawargs = component_ps.meta
-    metawargs.pop('qualifier')
-    mass_def = FloatParameter(qualifier='mass', value=1.0, default_unit=u.solMass, description='Mass')
-    mass, created = b.get_or_create('mass', mass_def, **metawargs)
+    mass = component_ps.get_parameter('mass')
+    mass_sibling = sibling_ps.get_parameter('mass')
 
-    metawargs = parentorbit_ps.meta
-    metawargs.pop('qualifier')
-    sma = b.get_parameter(qualifier='sma', **metawargs)
-    period = b.get_parameter(qualifier='period', **metawargs)
-    q = b.get_parameter(qualifier='q', **metawargs)
+    # we need to find the constraint attached to the other component... but we
+    # don't know who is constrained, or whether it belongs to the sibling or parent
+    # orbit, so we'll have to do a bit of digging.
+    mass_constraint_sibling = None
+    for p in b.filter(constraint_func='mass', component=[parentorbit, sibling], context='constraint').to_list():
+        if p.constraint_kwargs['component'] == sibling:
+            mass_constraint_sibling = p
+            break
+    if mass_constraint_sibling is not None:
+        sibling_solve_for = mass_constraint_sibling.qualifier
+        logger.debug("constraint.mass for component='{}': sibling ('{}') is solved for '{}'".format(component, sibling, sibling_solve_for))
+    else:
+        # this could happen when we build the first constraint, before the second has been built
+        sibling_solve_for = None
+
+    sma = parentorbit_ps.get_parameter(qualifier='sma')
+    period = parentorbit_ps.get_parameter(qualifier='period')
+    q = parentorbit_ps.get_parameter(qualifier='q')
 
     G = c.G.to('solRad3 / (solMass d2)')
     G.keep_in_solar_units = True
@@ -767,32 +1128,91 @@ def mass(b, component, solve_for=None, **kwargs):
         qthing = 1.0+1./q
 
     if solve_for in [None, mass]:
-
         lhs = mass
         rhs = (4*np.pi**2 * sma**3 ) / (period**2 * qthing * G)
 
     elif solve_for==sma:
-
+        if sibling_solve_for in ['period', 'sma']:
+            raise ValueError("cannot solve for '{}' when sibling ('{}') is solved for '{}'".format(solve_for.twig, sibling, sibling_solve_for))
         lhs = sma
         rhs = ((mass * period**2 * qthing * G)/(4 * np.pi**2))**"(1./3)"
 
     elif solve_for==period:
-
+        if sibling_solve_for in ['period', 'sma']:
+            raise ValueError("cannot solve for '{}' when sibling ('{}') is solved for '{}'".format(solve_for.twig, sibling, sibling_solve_for))
         lhs = period
         rhs = ((4 * np.pi**2 * sma**3)/(mass * qthing * G))**"(1./2)"
 
     elif solve_for==q:
-        # TODO: implement this so that one mass can be solved for sma and the
-        # other can be solved for q.  The tricky thing is that we actually
-        # have qthing here... so we'll probably need to handle the primary
-        # vs secondary case separately.
-        raise NotImplementedError
+        lhs = q
+
+        if hier.get_primary_or_secondary(component) == 'primary':
+            rhs = mass_sibling / mass
+        else:
+            rhs = mass / mass_sibling
+
+        # qthing = (4*np.pi**2 * sma**3 ) / (period**2 * mass * G)
+        # if hier.get_primary_or_secondary(component) == 'primary':
+        #     rhs = qthing - 1.0
+        # else:
+        #     rhs = 1 / (qthing - 1.0)
 
     else:
-        # TODO: solve for other options
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [mass_sibling, period, sma, q], {'component': component}
+
+
+    # ecosw_def = FloatParameter(qualifier='ecosw', value=0.0, default_unit=u.dimensionless_unscaled, limits=(-1.0,1.0), description='Eccentricity times cos of argument of periastron')
+    # ecosw, ecosw_created = b.get_or_create('ecosw', ecosw_def, **metawargs)
+    #
+    # ecosw_constrained = kwargs.get('ecosw_constrained', len(ecosw.constrained_by) > 0)
+    # logger.debug("esinw constraint: solve_for={}, ecosw_constrained={}, ecosw_created={}".format(solve_for.qualifier if solve_for is not None else "None", ecosw_constrained, ecosw_created))
+    #
+    # ecc = b.get_parameter(qualifier='ecc', **metawargs)
+    # per0 = b.get_parameter(qualifier='per0', **metawargs)
+    #
+    # if solve_for in [None, esinw]:
+    #     lhs = esinw
+    #     rhs = ecc * sin(per0)
+    #     if not ecosw_created and not ecosw_constrained:
+    #         if per0.is_constraint:
+    #             per0.is_constraint.constraint_kwargs['esinw_constrained'] = True
+    #             per0.is_constraint.flip_for('per0', force=True)
+    #         elif ecc.is_constraint:
+    #             ecc.is_constraint.constraint_kwargs['esinw_constrained'] = True
+    #             ecc.is_constraint.flip_for('ecc', force=True)
+    #
+    # elif solve_for == ecc:
+    #     lhs = ecc
+    #     if ecosw_constrained:
+    #         rhs = esinw / sin(per0)
+    #     else:
+    #         rhs = (esinw**2 + ecosw**2)**0.5
+    #         # the other constraint needs to also follow the alternate equations
+    #         if per0.is_constraint and 'esinw_constrained' not in per0.is_constraint.constraint_kwargs.keys():
+    #             logger.debug("esinw constraint: attempting to also flip per0 constraint")
+    #             per0.is_constraint.constraint_kwargs['esinw_constrained'] = False
+    #             per0.is_constraint.flip_for('per0', force=True)
+    #
+    # elif solve_for == per0:
+    #     lhs = per0
+    #     if ecosw_constrained:
+    #         # cannot just do arcsin because ecc may be zero
+    #         rhs = esinw2per0(ecc, esinw)
+    #     else:
+    #         rhs = arctan2(esinw, ecosw)
+    #         # the other constraint needs to also follow the alternate equations
+    #         if ecc.is_constraint and 'esinw_constrained' not in ecc.is_constraint.constraint_kwargs.keys():
+    #             logger.debug("esinw constraint: attempting to also flip ecc constraint")
+    #             ecc.is_constraint.constraint_kwargs['esinw_constrained'] = False
+    #             ecc.is_constraint.flip_for('ecc', force=True)
+    # elif solve_for == ecosw:
+    #     raise NotImplementedError("cannot solve this constraint for 'ecosw' since it was originally 'esinw'")
+    # else:
+    #     raise NotImplementedError
+    #
+    # return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
 
 def comp_sma(b, component, solve_for=None, **kwargs):
@@ -854,7 +1274,7 @@ def comp_sma(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 
 def requiv_detached_max(b, component, solve_for=None, **kwargs):
@@ -908,7 +1328,7 @@ def requiv_detached_max(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("requiv_detached_max can only be solved for requiv_max")
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def potential_contact_min(b, component, solve_for=None, **kwargs):
     """
@@ -946,7 +1366,7 @@ def potential_contact_min(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("potential_contact_min can only be solved for requiv_min")
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def potential_contact_max(b, component, solve_for=None, **kwargs):
     """
@@ -984,7 +1404,7 @@ def potential_contact_max(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("potential_contact_max can only be solved for requiv_max")
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def requiv_contact_min(b, component, solve_for=None, **kwargs):
     """
@@ -1023,7 +1443,7 @@ def requiv_contact_min(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("requiv_contact_min can only be solved for requiv_min")
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def requiv_contact_max(b, component, solve_for=None, **kwargs):
     """
@@ -1062,7 +1482,7 @@ def requiv_contact_max(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("requiv_contact_max can only be solved for requiv_max")
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def fillout_factor(b, component, solve_for=None, **kwargs):
     """
@@ -1103,7 +1523,7 @@ def fillout_factor(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError("fillout_factor can not be solved for {}".format(solve_for))
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def rotation_period(b, component, solve_for=None, **kwargs):
     """
@@ -1155,7 +1575,7 @@ def rotation_period(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def pitch(b, component, solve_for=None, **kwargs):
     """
@@ -1201,7 +1621,7 @@ def pitch(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 def yaw(b, component, solve_for=None, **kwargs):
     """
@@ -1247,7 +1667,7 @@ def yaw(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}
 
 
 #}
@@ -1316,7 +1736,7 @@ def time_ephem(b, component, dataset, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component, 'dataset': dataset}
+    return lhs, rhs, [], {'component': component, 'dataset': dataset}
 
 def etv(b, component, dataset, solve_for=None, **kwargs):
     """
@@ -1334,7 +1754,7 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component, 'dataset': dataset}
+    return lhs, rhs, [], {'component': component, 'dataset': dataset}
 
 #}
 
@@ -1371,4 +1791,4 @@ def requiv_to_pot(b, component, solve_for=None, **kwargs):
     else:
         raise NotImplementedError
 
-    return lhs, rhs, {'component': component}
+    return lhs, rhs, [], {'component': component}

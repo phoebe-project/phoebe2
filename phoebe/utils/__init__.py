@@ -140,11 +140,22 @@ def parse_json(pairs):
 
     pass this to the object_pairs_hook kwarg of json.load/loads
     """
+    def _string(item):
+        if isinstance(item, unicode):
+            return item.encode('utf-8')
+        else:
+            return item
+
     new_pairs = []
     for key, value in pairs:
-        if isinstance(value, unicode):
-            value = value.encode('utf-8')
-        if isinstance(key, unicode):
-            key = key.encode('utf-8')
+        key = _string(key)
+
+        if isinstance(value, dict):
+            value = parse_json(value.items())
+        elif isinstance(value, list):
+            value = [_string(v) for v in value]
+        else:
+            value = _string(value)
+
         new_pairs.append((key, value))
     return dict(new_pairs)

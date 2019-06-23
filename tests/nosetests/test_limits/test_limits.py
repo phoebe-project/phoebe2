@@ -17,7 +17,7 @@ def test_limits():
     assert_raises(ValueError, b.set_value, 'teff@primary', -10)
     assert_raises(ValueError, b.set_value, 'teff@primary', -10*u.Celsius)
 
-    assert_raises(ValueError, b.set_value, 'ecc@binary', 1.2)
+    assert_raises(ValueError, b.set_value, 'ecc@binary', 1.0)
 
     return b
 
