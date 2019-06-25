@@ -4131,9 +4131,47 @@ class Bundle(ParameterSet):
         elif compute_kind in ['jktebop']:
             kwargs.setdefault('distortion_method', 'sphere')
 
+        # temporarily disable interactive_checks, check_default, and check_visible
+        conf_interactive_checks = conf.interactive_checks
+        if conf_interactive_checks:
+            logger.debug("temporarily disabling interactive_checks")
+            conf._interactive_checks = False
+
+        conf_check_default = conf.check_default
+        if conf_check_default:
+            logger.debug("temporarily disabling check_default")
+            conf.check_default_off()
+
+        conf_check_visible = conf.check_visible
+        if conf_check_visible:
+            logger.debug("temporarily disabling check_visible")
+            conf.check_visible_off()
+
+        def restore_conf():
+            # restore user-set interactive checks
+            if conf_interactive_checks:
+                logger.debug("restoring interactive_checks={}".format(conf_interactive_checks))
+                conf._interactive_checks = conf_interactive_checks
+
+            if conf_check_visible:
+                logger.debug("restoring check_visible")
+                conf.check_visible_on()
+
+            if conf_check_default:
+                logger.debug("restoring check_default")
+                conf.check_default_on()
+
         system_compute = compute if compute_kind=='phoebe' else None
         logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
-        return backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, compute_extrinsic=compute_extrinsic, reset=False, lc_only=False, **kwargs)
+        try:
+            system = backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, compute_extrinsic=compute_extrinsic, reset=False, lc_only=False, **kwargs)
+        except Exception as err:
+            restore_conf()
+            raise
+
+        restore_conf()
+
+        return system
 
     def compute_l3s(self, compute=None, set_value=False, **kwargs):
         """
