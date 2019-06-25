@@ -5011,12 +5011,14 @@ class Bundle(ParameterSet):
             # scale fluxes whenever pblum_mode = 'dataset-scaled'
             for param in self.filter(qualifier='pblum_mode', value='dataset-scaled').to_list():
                 logger.info("rescaling fluxes to data for dataset='{}'".format(param.dataset))
-                ds_times = self.get_dataset(param.dataset).get_value(qualifier='times')
-                ds_fluxes = self.get_dataset(param.dataset).get_value(qualifier='fluxes')
-                ds_sigmas = self.get_dataset(param.dataset).get_value(qualifier='sigmas')
+                ds_obs = self.get_dataset(param.dataset, check_visible=False)
+                ds_times = ds_obs.get_value(qualifier='times')
+                ds_fluxes = ds_obs.get_value(qualifier='fluxes')
+                ds_sigmas = ds_obs.get_value(qualifier='sigmas')
 
-                model_fluxes = self.get_model(model).get_value(qualifier='fluxes')
-                model_fluxes_interp = self.get_model(model).get_parameter(qualifier='fluxes').interp_value(times=ds_times)
+                ds_model = self.get_model(model, dataset=dataset, check_visible=False)
+                model_fluxes = ds_model.get_value(qualifier='fluxes')
+                model_fluxes_interp = ds_model.get_parameter(qualifier='fluxes').interp_value(times=ds_times)
                 scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
 
                 # TODO: can we skip this if sigmas don't exist?
