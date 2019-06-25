@@ -4406,7 +4406,9 @@ class Bundle(ParameterSet):
                     # then we need to compute the system at this dataset too,
                     # even though it isn't requested to be returned
                     pblum_datasets.append(ref_dataset)
-            if self.get_value(qualifier='pblum_mode', dataset=dataset, check_visible=False) == 'dataset-scaled':
+
+            ds_kind = self.get_dataset(dataset=dataset, check_visible=False).kind
+            if ds_kind == 'lc' and self.get_value(qualifier='pblum_mode', dataset=dataset, check_visible=False) == 'dataset-scaled':
                 logger.warning("cannot expose pblum for dataset={} with pblum_mode@{}='dataset-scaled'".format(dataset, dataset))
                 pblum_datasets.remove(dataset)
 
