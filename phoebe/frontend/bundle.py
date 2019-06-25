@@ -5005,34 +5005,37 @@ class Bundle(ParameterSet):
 
                 self._attach_params(params, check_copy_for=False, **metawargs)
 
-            def _scale_fluxes(model_fluxes, scale_factor):
-                return model_fluxes * scale_factor
+                def _scale_fluxes(model_fluxes, scale_factor):
+                    return model_fluxes * scale_factor
 
-            # scale fluxes whenever pblum_mode = 'dataset-scaled'
-            for param in self.filter(qualifier='pblum_mode', value='dataset-scaled').to_list():
-                logger.info("rescaling fluxes to data for dataset='{}'".format(param.dataset))
-                ds_obs = self.get_dataset(param.dataset, check_visible=False)
-                ds_times = ds_obs.get_value(qualifier='times')
-                ds_fluxes = ds_obs.get_value(qualifier='fluxes')
-                ds_sigmas = ds_obs.get_value(qualifier='sigmas')
+                # scale fluxes whenever pblum_mode = 'dataset-scaled'
+                for param in self.filter(qualifier='pblum_mode', value='dataset-scaled').to_list():
+                    if not self.get_value(qualifier='enabled', compute=compute, dataset=param.dataset):
+                        continue
 
-                ds_model = self.get_model(model, dataset=dataset, check_visible=False)
-                model_fluxes = ds_model.get_value(qualifier='fluxes')
-                model_fluxes_interp = ds_model.get_parameter(qualifier='fluxes').interp_value(times=ds_times)
-                scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
+                    logger.info("rescaling fluxes to data for dataset='{}'".format(param.dataset))
+                    ds_obs = self.get_dataset(param.dataset, check_visible=False)
+                    ds_times = ds_obs.get_value(qualifier='times')
+                    ds_fluxes = ds_obs.get_value(qualifier='fluxes')
+                    ds_sigmas = ds_obs.get_value(qualifier='sigmas')
 
-                # TODO: can we skip this if sigmas don't exist?
-                logger.debug("calling curve_fit with estimated scale_factor={}".format(scale_factor_approx))
-                popt, pcov = cfit(_scale_fluxes, model_fluxes_interp, ds_fluxes, p0=(scale_factor_approx), sigma=ds_sigmas if len(ds_sigmas) else None)
-                scale_factor = popt[0]
+                    ds_model = self.get_model(model, dataset=param.dataset, check_visible=False)
+                    model_fluxes = ds_model.get_value(qualifier='fluxes')
+                    model_fluxes_interp = ds_model.get_parameter(qualifier='fluxes').interp_value(times=ds_times)
+                    scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
 
-                logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, param.dataset))
-                self.get_model(model).set_value(qualifier='fluxes', dataset=param.dataset, value=model_fluxes*scale_factor)
+                    # TODO: can we skip this if sigmas don't exist?
+                    logger.debug("calling curve_fit with estimated scale_factor={}".format(scale_factor_approx))
+                    popt, pcov = cfit(_scale_fluxes, model_fluxes_interp, ds_fluxes, p0=(scale_factor_approx), sigma=ds_sigmas if len(ds_sigmas) else None)
+                    scale_factor = popt[0]
 
-                for param in self.get_model(model, dataset=param.dataset, kind='mesh').to_list():
-                    if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
-                        logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
-                        param.set_value(param.get_value() * scale_factor)
+                    logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, param.dataset))
+                    ds_model.set_value(qualifier='fluxes', value=model_fluxes*scale_factor)
+
+                    for param in ds_model.filter(kind='mesh').to_list():
+                        if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
+                            logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
+                            param.set_value(param.get_value() * scale_factor)
 
             redo_kwargs = deepcopy(kwargs)
             redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
