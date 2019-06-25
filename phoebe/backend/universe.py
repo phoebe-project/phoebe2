@@ -201,7 +201,7 @@ class System(object):
             l3_mode = b.get_value(qualifier='l3_mode', dataset=ds, context='dataset')
             if l3_mode == 'flux':
                 l3s[ds] = {'flux': b.get_value(qualifier='l3', dataset=ds, context='dataset', unit=u.W/u.m**2)}
-            elif l3_mode == 'fraction of total light':
+            elif l3_mode == 'fraction':
                 l3s[ds] = {'frac': b.get_value(qualifier='l3_frac', dataset=ds, context='dataset')}
             else:
                 raise NotImplementedError("l3_mode='{}' not supported".format(l3_mode))
@@ -361,7 +361,7 @@ class System(object):
                 # RVs etc don't have pblum_mode, but may still want luminosities
                 pblum_mode = 'absolute'
 
-            ignore_effects = pblum_mode not in ['total flux']
+            ignore_effects = pblum_mode not in ['pbflux']
             logger.debug("system.compute_pblum_scalings: populating observables for dataset={} with ignore_effects={} for pblum_mode={}".format(dataset, ignore_effects, pblum_mode))
             self.populate_observables(t0, [kind], [dataset],
                                         ignore_effects=ignore_effects)
@@ -369,16 +369,29 @@ class System(object):
             ds_components = hier_stars
             #ds_components = ds.filter(qualifier='pblum_ref', check_visible=False).components
 
-            if pblum_mode == 'provided':
+            if pblum_mode == 'decoupled':
+                for component in ds_components:
+                    if component=='_default':
+                        continue
+
+                    pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component)
+                    # ld_mode = ds.get_value(qualifier='ld_mode', component=component)
+                    # ld_func = ds.get_value(qualifier='ld_func', component=component, check_visible=False)
+                    # ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
+
+                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
+                    self.get_body(component).compute_pblum_scale(dataset, pblum, component=component)
+
+            elif pblum_mode == 'component-coupled':
 
                 # now for each component we need to store the scaling factor between
                 # absolute and relative intensities
                 pblum_scale_copy_comp = {}
+                pblum_component = ds.get_value(qualifier='pblum_component')
                 for component in ds_components:
                     if component=='_default':
                         continue
-                    pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
-                    if pblum_ref=='self':
+                    if pblum_component==component:
                         pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component)
                         # ld_mode = ds.get_value(qualifier='ld_mode', component=component)
                         # ld_func = ds.get_value(qualifier='ld_func', component=component, check_visible=False)
@@ -391,51 +404,45 @@ class System(object):
                         # in the system.  We'll just store this now so that we make sure the
                         # component we're copying from has a chance to compute its scale
                         # first.
-                        pblum_scale_copy_comp[component] = pblum_ref
+                        pblum_scale_copy_comp[component] = pblum_component
 
                 # now let's copy all the scales for those that are just referencing another component
                 for comp, comp_copy in pblum_scale_copy_comp.items():
                     pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
                     self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
-            elif pblum_mode == 'color coupled':
-                pblum_ref = ds.get_value(qualifier='pblum_ref')
+            elif pblum_mode == 'dataset-coupled':
+                pblum_ref = ds.get_value(qualifier='pblum_dataset')
                 pblum_scale_copy_ds[dataset] = pblum_ref
 
-            elif pblum_mode in ['system flux', 'total flux']:
+            elif pblum_mode == 'pbflux':
                 pbflux = ds.get_value(qualifier='pbflux', unit=u.W/u.m**2)
 
                 # TODO: add ld_func and ld_coeffs?
                 system_flux = np.sum([self.get_body(comp).compute_luminosity(dataset)/(4*np.pi) for comp in ds_components])
 
-                if pblum_mode == 'system flux':
-                    # then we'll apply the scale based on the INTRINSIC system luminosities divided by 4*pi
-                    pblum_scale = pbflux / system_flux
-                else: # pblum_mode == 'total flux'
-                    l3_mode = ds.get_value(qualifier='l3_mode')
-                    # note that pbflux here is the TOTAL FLUX requested in RELATIVE UNITS
+                l3_mode = ds.get_value(qualifier='l3_mode')
+                # note that pbflux here is the flux requested in RELATIVE UNITS
 
-                    # flux_sys = sum(L_star/4pi for star in stars)
-                    # flux_tot = flux_sys + l3_flux
-                    # l3_frac = l3_flux / flux_tot
-                    # pblum_scale = pbflux / flux_tot
+                # flux_sys = sum(L_star/4pi for star in stars)
+                # flux_tot = flux_sys + l3_flux
+                # l3_frac = l3_flux / flux_tot
+                # pblum_scale = pbflux / flux_tot
 
-                    if l3_mode == 'flux':
-                        l3_flux = ds.get_value(qualifier='l3', unit=u.W/u.m**2)
-                        pblum_scale = (pbflux - l3_flux) / system_flux
-                    elif l3_mode == 'fraction of total light':
-                        l3_frac = ds.get_value(qualifier='l3_frac')
-                        l3_flux = l3_frac * pbflux
-                        pblum_scale = (pbflux - l3_flux) / system_flux
-                    else:
-                        raise NotImplementedError("l3_mode={} not implemented for pblum scaling".format(l3_mode))
+                if l3_mode == 'flux':
+                    l3_flux = ds.get_value(qualifier='l3', unit=u.W/u.m**2)
+                    pblum_scale = (pbflux - l3_flux) / system_flux
+                elif l3_mode == 'fraction':
+                    l3_frac = ds.get_value(qualifier='l3_frac')
+                    l3_flux = l3_frac * pbflux
+                    pblum_scale = (pbflux - l3_flux) / system_flux
+                else:
+                    raise NotImplementedError("l3_mode={} not implemented for pblum scaling".format(l3_mode))
 
                 for comp in ds_components:
                     self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
-
-
-            elif pblum_mode == 'scale to data':
+            elif pblum_mode == 'dataset-scaled':
                 # for now we'll allow the scaling to fallback on 1.0, but not
                 # set the actual value so that these are EXCLUDED from b.compute_pblums
                 continue
@@ -447,7 +454,7 @@ class System(object):
                     self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=1.0)
 
             else:
-                raise NotImplementedError("pblum_mode='{}' not supported".format(pblum_scale))
+                raise NotImplementedError("pblum_mode='{}' not supported".format(pblum_mode))
 
 
             # now let's copy all the scales for those that are just referencing another dataset
@@ -499,7 +506,7 @@ class System(object):
 
 
             if compute_l3_frac and 'frac' not in l3.keys():
-                logger.debug('system.compute_l3s: computing l3 in fraction of total light for dataset={}'.format(dataset))
+                logger.debug('system.compute_l3s: computing l3 in fraction for dataset={}'.format(dataset))
                 if not populated:
                     self.populate_observables(t0, ['lc'], [dataset],
                                                 ignore_effects=False)
@@ -1675,7 +1682,7 @@ class Star(Body):
 
             if self.mesh is None:
                 raise ValueError("mesh must be computed before determining tpole")
-            # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
+            # Convert from mean to polar by dividing flux by gravity darkened flux (Ls drop out)
             # see PHOEBE Legacy scientific reference eq 5.20
             self.inst_vals['tpole'] = self.teff*(np.sum(self.mesh.areas) / np.sum(self.mesh.gravs.centers*self.mesh.areas))**(0.25)
 
@@ -1951,11 +1958,11 @@ class Star(Body):
         atm = kwargs.get('atm', self.atm)
         ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
-        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'func_provided' else None
-        ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none')) if ld_mode == 'func_lookup' else None
+        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'manual' else None
+        ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none')) if ld_mode == 'lookup' else None
         if ld_mode == 'interp':
             ldatm = atm
-        elif ld_mode == 'func_lookup':
+        elif ld_mode == 'lookup':
             if ld_coeffs_source == 'auto':
                 if atm == 'blackbody':
                     ldatm = 'ck2004'
@@ -1967,7 +1974,7 @@ class Star(Body):
                     ldatm = atm
             else:
                 ldatm = ld_coeffs_source
-        elif ld_mode == 'func_provided':
+        elif ld_mode == 'manual':
             ldatm = 'none'
         else:
             raise NotImplementedError
@@ -1983,7 +1990,7 @@ class Star(Body):
             pb = passbands.get_passband(passband)
 
             if ldatm != 'none' and '{}_ld'.format(ldatm) not in pb.content:
-                if ld_mode == 'func_lookup':
+                if ld_mode == 'lookup':
                     raise ValueError("{} not supported for limb-darkening.  Try changing the value of the ld_coeffs_source parameter".format(ldatm))
                 else:
                     raise ValueError("{} not supported for limb-darkening.  Try changing the value of the atm parameter".format(ldatm))
@@ -2008,15 +2015,15 @@ class Star(Body):
                     # let's override with a more helpful error message
                     logger.warning(str(err))
                     if atm=='blackbody':
-                        raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or set ld_mode to 'func_provided' and manually provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
+                        raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or set ld_mode to 'manual' and manually provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
                     else:
                         if ld_mode=='interp':
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_mode to 'func_provided' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
-                        elif ld_mode == 'func_lookup':
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_mode to 'func_provided' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
+                        elif ld_mode == 'lookup':
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
                         else:
-                            # func_provided... this means that the atm itself is out of bounds, so the only option is atm=blackbody
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}, ld_mode to 'func_provided', and provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
+                            # manual... this means that the atm itself is out of bounds, so the only option is atm=blackbody
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}, ld_mode to 'manual', and provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
                 else:
                     raise err
 
@@ -2033,7 +2040,7 @@ class Star(Body):
                 if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
                     # let's override with a more helpful error message
                     logger.warning(str(err))
-                    raise ValueError("Could not compute intensities with atm='{}'.  Try changing atm to a table that covers a sufficient range of values (or to 'blackbody' in which case ld_mode will need to be set to 'func_provided' and coefficients provided via ld_coeffs).  Enable 'warning' logger to see out-of-bounds arrays.".format(atm))
+                    raise ValueError("Could not compute intensities with atm='{}'.  Try changing atm to a table that covers a sufficient range of values (or to 'blackbody' in which case ld_mode will need to be set to 'manual' and coefficients provided via ld_coeffs).  Enable 'warning' logger to see out-of-bounds arrays.".format(atm))
                 else:
                     raise err
 

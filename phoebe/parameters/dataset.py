@@ -117,22 +117,29 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy of photons.  Only applicable if `syn` is False.
-    * `pblum_mode` (string, optional, default='provided'): mode for scaling
+    * `pblum_mode` (string, optional, default='manual'): mode for scaling
         passband luminosities.  Only applicable if `syn` is False and `is_lc`
         is True.
-    * `pblum_ref` (string, optional): whether to use this components pblum or to
-        couple to that from another component in the system.  Only applicable
-        if `pblum_mode` is 'provided'.  Only applicable if `syn` is False and
-        `is_lc` is True.
-    * `pblum` (float/quantity, optional): passband luminosity (defined at t0).
+    * `pblum_dataset` (string, optional):  Dataset to reference for coupling
+        luminosities.  Only applicable if `pblum_mode` is 'dataset-coupled'.
+    * `pblum_component` (string, optional): Component to provide `pblum`.
+        Only applicable if `pblum_mode` is 'component-coupled'.
+    * `pblum` (float/quantity or string, optional): passband luminosity (defined at t0).
+        If `pblum_mode` is 'decoupled', then one entry per-star will be applicable.
+        If `pblum_mode` is 'component-coupled', then only the entry for the primary
+        component, according to <phoebe.parameters.HierarchyParameter> will be
+        available.  To change the provided component, see `pblum_component`.
         Only applicable if `syn` is False and `is_lc` is True.
+    * `pbflux` (float/quantity, optional): passband flux (defined here as
+        `pblum/4pi`).  Only applicable if `pblum_mode` is 'pbflux', `syn` is False,
+        and `is_lc` is True.
     * `l3_mode` (string, optional, default='flux'): mode for providing third
         light (`l3`).  Only applicable if `syn` is False and `is_lc` is True.
     * `l3` (float/quantity, optional): third light in flux units (only applicable
         if `l3_mode` is 'flux'). Only applicable if `syn` is False and `is_lc`
         is True.
-    * `l3_frac` (float/quantity, optional): third light in fraction of total light
-        (only applicable if `l3_mode` is 'fraction of total light').
+    * `l3_frac` (float/quantity, optional): third light in fraction
+        (only applicable if `l3_mode` is 'fraction').
         Only applicable if `syn` is False and `is_lc` is True.
     * `exptime` (float/quantity, optional): exposure time of the observations
         (`times` is defined at the mid-exposure).
@@ -155,19 +162,19 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
     if not syn:
         # TODO: should we move all limb-darkening to compute options since
-        # not all backends support interp (and func_lookup is atm-dependent)
+        # not all backends support interp (and lookup is atm-dependent)
         params += [ChoiceParameter(qualifier='ld_mode', copy_for={'kind': ['star'], 'component': '*'}, component='_default',
-                                   value=kwargs.get('ld_mode', 'interp'), choices=['interp', 'func_lookup', 'func_provided'],
+                                   value=kwargs.get('ld_mode', 'interp'), choices=['interp', 'lookup', 'manual'],
                                    description='Mode to use for limb-darkening')]
-        params += [ChoiceParameter(visible_if='ld_mode:func_lookup|func_provided', qualifier='ld_func',
+        params += [ChoiceParameter(visible_if='ld_mode:lookup|manual', qualifier='ld_func',
                                    copy_for={'kind': ['star'], 'component': '*'}, component='_default',
                                    value=kwargs.get('ld_func', 'logarithmic'), choices=_ld_func_choices,
                                    description='Limb darkening model')]
-        params += [ChoiceParameter(visible_if='ld_mode:func_lookup', qualifier='ld_coeffs_source',
+        params += [ChoiceParameter(visible_if='ld_mode:lookup', qualifier='ld_coeffs_source',
                                    copy_for={'kind': ['star'], 'component': '*'}, component='_default',
                                    value=kwargs.get('ld_coeffs_source', 'auto'), choices=_ld_coeffs_source_choices,
                                    description='Source for limb darkening coefficients (\'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
-        params += [FloatArrayParameter(visible_if='ld_mode:func_provided', qualifier='ld_coeffs',
+        params += [FloatArrayParameter(visible_if='ld_mode:manual', qualifier='ld_coeffs',
                                        copy_for={'kind': ['star'], 'component': '*'}, component='_default',
                                        value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled,
                                        description='Limb darkening coefficients')]
@@ -183,20 +190,23 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
 
-        params += [ChoiceParameter(qualifier='pblum_mode', value=kwargs.get('pblum_mode', 'provided'),
-                                   choices=['provided', 'color coupled', 'system flux', 'total flux', 'scale to data', 'absolute'] if conf.devel else ['provided', 'color coupled', 'total flux', 'scale to data', 'absolute'],
+        params += [ChoiceParameter(qualifier='pblum_mode', value=kwargs.get('pblum_mode', 'component-coupled'),
+                                   choices=['decoupled', 'component-coupled', 'dataset-coupled', 'pbflux', 'dataset-scaled', 'absolute'],
                                    description='Mode for scaling passband luminosities')]
 
-        params += [ChoiceParameter(visible_if='[component]pblum_mode:provided', qualifier='pblum_ref', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
-        params += [FloatParameter(qualifier='pblum', visible_if='[component]pblum_mode:provided,pblum_ref:self', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
+        # pblum_mode = 'component-coupled' or 'decoupled'
+        params += [ChoiceParameter(visible_if='pblum_mode:component-coupled', qualifier='pblum_component', value=kwargs.get('pblum_component', ''), choices=kwargs.get('starrefs', ['']), description='Which component\'s pblum will be provided')]
+        params += [FloatParameter(qualifier='pblum', visible_if='[component]pblum_mode:decoupled||[component]pblum_mode:component-coupled,[component]pblum_component:<component>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
 
-        params += [ChoiceParameter(visible_if='pblum_mode:color coupled', qualifier='pblum_ref', value=kwargs.get('pblum_ref', ''), choices=['']+kwargs.get('lcrefs', []), description='Dataset with which to couple luminosities based on color')]
+        # pblum_mode = 'dataset-coupled'
+        params += [ChoiceParameter(visible_if='pblum_mode:dataset-coupled', qualifier='pblum_dataset', value=kwargs.get('pblum_dataset', ''), choices=['']+kwargs.get('lcrefs', []), description='Dataset with which to couple luminosities based on color')]
 
-        params += [FloatParameter(visible_if='pblum_mode:system flux|total flux', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total inrinsic (excluding features and irradiation) passband flux (at t0, including l3 if pblum_mode=\'total flux\')')]
+        # pblum_mode = 'pbflux'
+        params += [FloatParameter(visible_if='pblum_mode:pbflux', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total inrinsic (excluding features and irradiation) passband flux (at t0, including l3 if pblum_mode=\'flux\')')]
 
-        params += [ChoiceParameter(qualifier='l3_mode', value=kwargs.get('l3_mode', 'flux'), choices=['flux', 'fraction of total light'], description='Whether third light is given in units of flux or as a fraction of total light')]
+        params += [ChoiceParameter(qualifier='l3_mode', value=kwargs.get('l3_mode', 'flux'), choices=['flux', 'fraction'], description='Whether third light is given in units of flux or as a fraction of total light')]
         params += [FloatParameter(visible_if='l3_mode:flux', qualifier='l3', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
-        params += [FloatParameter(visible_if='l3_mode:fraction of total light', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total light')]
+        params += [FloatParameter(visible_if='l3_mode:fraction', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total light')]
 
         params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
 

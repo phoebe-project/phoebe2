@@ -286,9 +286,24 @@ class Bundle(ParameterSet):
             for ds in b.filter(context='dataset').datasets:
                 # NOTE: before 2.2.0, contexts included *_syn and *_dep, so
                 # we need to be aware of that in this block of logic.
+
+                # TODO: migrate pblum_ref to pblum_mode = 'decoupled' or pblum_mode = 'dataset-constrained' and set pblum_component?
                 ds_kind = b.get_dataset(ds).exclude(kind=["*_syn", "*_dep"]).kind
                 existing_values = {}
+
+                if ds_kind == 'lc':
+                    # handle pblum_ref -> pblum_mode/pblum_component
+                    if len(b.filter(qualifier='pblum_ref', value='self', context='dataset', dataset=ds, check_visible=False, check_default=False)) == 2:
+                        existing_values['pblum_mode'] == 'decoupled'
+                    else:
+                        existing_values['pblum_mode'] = 'component-coupled'
+                        existing_values['pblum_component'] = b.filter(qualifier='pblum_ref', context='dataset', dataset=ds, check_visible=False).exclude(value='self', check_visible=False).get_parameter(check_visible=False).component
+
+
                 for qualifier in b.filter(context='dataset', dataset=ds, check_visible=False, check_default=False).qualifiers:
+                    if qualifier in ['pblum_ref']:
+                        # already handled these above
+                        continue
                     ps = b.filter(qualifier=qualifier, context='dataset', dataset=ds, check_visible=False)
                     if len(ps.to_list()) > 1:
                         existing_values[qualifier] = {}
@@ -297,19 +312,20 @@ class Bundle(ParameterSet):
                             if qualifier=='ld_func':
                                 if 'ld_mode' not in existing_values.keys():
                                     existing_values['ld_mode'] = {}
-                                existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'func_provided'
+                                existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'manual'
 
                     else:
                         param = b.get_parameter(qualifier=qualifier, context='dataset', dataset=ds, check_visible=False, check_default=False)
                         existing_values[qualifier] = existing_value(param)
                         if qualifier=='ld_func':
-                            existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'func_provided'
+                            existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'manual'
 
                 if ds_kind in ['lp']:
                     # then we need to pass the times from the attribute instead of parameter
                     existing_values['times'] = b.filter(context='dataset', dataset=ds, check_visible=False, check_default=False).times
 
                 existing_values['kind'] = ds_kind
+
                 existing_values_per_ds[ds] = existing_values
                 b.remove_dataset(dataset=ds)
 
@@ -1219,31 +1235,29 @@ class Bundle(ParameterSet):
         starrefs = hier.get_stars()  # TODO: consider for overcontacts
         datasetrefs = self.filter(qualifier='pblum_mode', check_visible=False).datasets
 
-        for param in self.filter(qualifier='pblum_ref',
+        for param in self.filter(qualifier='pblum_dataset',
                                  context='dataset',
                                  check_visible=False,
                                  check_default=False).to_list():
 
-            if param.component is None:
-                param._choices = [ds for ds in datasetrefs if ds!=param.dataset]
+            param._choices = [ds for ds in datasetrefs if ds!=param.dataset]
 
-                if param.value == '' and len(param._choices):
-                    param.set_value(param._choices[0])
+            if param.value == '' and len(param._choices):
+                param.set_value(param._choices[0])
 
-                if not len(param._choices):
-                    param._choices = ['']
-                    param.set_value('')
+            if not len(param._choices):
+                param._choices = ['']
+                param.set_value('')
 
-            else:
-                param._choices = ['self'] + [s for s in starrefs if s!=param.component]
+        for param in self.filter(qualifier='pblum_component',
+                                 context='dataset',
+                                 check_visible=False,
+                                 check_default=False).to_list():
 
-                if param.value == '':
-                    # then this was the default from the parameter itself, so we
-                    # want to set it to be pblum of its the "primary" star
-                    if param.component == starrefs[0]:
-                        param.set_value('self')
-                    else:
-                        param.set_value(starrefs[0])
+            param._choices = [s for s in starrefs if s!=param.component]
+
+            if param.value == '':
+                param.set_value(starrefs[0])
 
     def _handle_dataset_selectparams(self):
         """
@@ -1969,11 +1983,11 @@ class Bundle(ParameterSet):
                                 else:
                                     return False, "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
 
-                elif ld_mode == 'func_lookup':
+                elif ld_mode == 'lookup':
                     if ld_coeffs_source not in all_pbs[pb]['atms_ld'] and ld_coeffs_source != 'auto':
                         return False, 'passband={} does not support ld_coeffs_source={}.  Either change ld_coeffs_source@{}@{} or ld_mode@{}@{}'.format(pb, ld_coeffs_source, component, dataset, component, dataset)
 
-                elif ld_mode == 'func_provided':
+                elif ld_mode == 'manual':
                     check = ld_coeffs_len(ld_func, ld_coeffs)
                     if not check[0]:
                         return check
@@ -2037,18 +2051,18 @@ class Bundle(ParameterSet):
                         return None, "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components)
 
         # forbid color-coupling with a dataset which is scaled to data or to another that is in-turn color-coupled
-        for param in self.filter(qualifier='pblum_mode', value='color coupled', **_skip_filter_checks).to_list():
-            coupled_to = self.get_value(qualifier='pblum_ref', dataset=param.dataset, check_visible=True)
+        for param in self.filter(qualifier='pblum_mode', value='dataset-coupled', **_skip_filter_checks).to_list():
+            coupled_to = self.get_value(qualifier='pblum_dataset', dataset=param.dataset, check_visible=True)
             if coupled_to == '':
                 continue
             pblum_mode = self.get_value(qualifier='pblum_mode', dataset=coupled_to, **_skip_filter_checks)
-            if pblum_mode in ['scale to data', 'color coupled']:
-                return False, "cannot set pblum_ref@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode)
+            if pblum_mode in ['dataset-scaled', 'dataset-coupled']:
+                return False, "cannot set pblum_dataset@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode)
 
-        # require any pblum_mode == 'scale to data' to have accompanying data
-        for param in self.filter(qualifier='pblum_mode', value='scale to data', **_skip_filter_checks).to_list():
+        # require any pblum_mode == 'dataset-scaled' to have accompanying data
+        for param in self.filter(qualifier='pblum_mode', value='dataset-scaled', **_skip_filter_checks).to_list():
             if not len(self.get_value(qualifier='fluxes', dataset=param.dataset, context='dataset', **_skip_filter_checks)):
-                return False, "fluxes@{} cannot be empty if pblum_mode@{}='scale to data'".format(param.dataset, param.dataset)
+                return False, "fluxes@{} cannot be empty if pblum_mode@{}='dataset-scaled'".format(param.dataset, param.dataset)
 
         ### TODO: add tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
 
@@ -3219,15 +3233,10 @@ class Bundle(ParameterSet):
                     components_ = None
                 elif k in ['compute_phases']:
                     components_ = self.hierarchy.get_top()
-                elif k in ['pblum_ref']:
+                elif k in ['pblum']:
                     check_visible = True
 
-                    # we've already set pblum_mode in the dataset, and popped
-                    # then entry from kwargs
-                    if self.get_value(qualifier='pblum_mode', dataset=kwargs['dataset']) == 'color coupled':
-                        components_ = None
-                    else:
-                        components_ = components+['_default']
+                    components_ = self.hierarchy.get_stars()+['_default']
                 elif components == [None]:
                     components_ = None
                 elif user_provided_components:
@@ -4006,8 +4015,8 @@ class Bundle(ParameterSet):
         limb-darkening coefficients **per-element**.
 
         Coefficients will only be interpolated/returned for those where `ld_mode`
-        is 'func_lookup'.  The values of the `ld_coeffs` parameter will be
-        returned for cases where `ld_mode` is 'func_provided'.  Cases where
+        is 'lookup'.  The values of the `ld_coeffs` parameter will be
+        returned for cases where `ld_mode` is 'manual'.  Cases where
         `ld_mode` is 'interp' will not be included in the output.
 
         Note:
@@ -4068,10 +4077,10 @@ class Bundle(ParameterSet):
             ld_mode = self.get_value(qualifier='ld_mode', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
             if ld_mode == 'interp':
                 logger.debug("skipping computing ld_coeffs for {}@{} because ld_mode='interp'".format(ldcs_param.dataset, ldcs_param.component))
-            elif ld_mode == 'func_provided':
+            elif ld_mode == 'manual':
                 ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
                 continue
-            elif ld_mode == 'func_lookup':
+            elif ld_mode == 'lookup':
                 ldcs = ldcs_param.get_value(check_visible=False)
                 ld_func = self.get_value(qualifier='ld_func', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
                 passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, check_visible=False)
@@ -4198,7 +4207,7 @@ class Bundle(ParameterSet):
                 if set_value:
                     self.set_value(qualifier='l3_frac', dataset=dataset, check_visible=False, value=l3_frac)
 
-            elif l3_mode == 'fraction of total light':
+            elif l3_mode == 'fraction':
                 l3_flux = system.l3s[dataset]['flux'] * u.W / u.m**2
                 l3s['l3@{}'.format(dataset)] = l3_flux
 
@@ -4227,8 +4236,10 @@ class Bundle(ParameterSet):
         for example), will have their absolute intensities exposed.
 
         Note that luminosities cannot be exposed for any dataset in which
-        `pblum_mode` is 'scale to data' as the entire light curve must be
-        computed prior to scaling.
+        `pblum_mode` is 'dataset-scaled' as the entire light curve must be
+        computed prior to scaling.  These will be excluded from the output
+        with error, but with a warning message in the <phoebe.logger>, if
+        enabled.
 
         Additionally, an estimate for the total fluxes `pbflux` and `pbflux_ext`
         can optionally be computed.  These will also be computed at t0@system,
@@ -4247,7 +4258,7 @@ class Bundle(ParameterSet):
         in any of the returned values, including `pbflux_ext` due to the
         approximation of flux explained above.  This also means that boosting
         will be ignored in any scaling if providing `pbflux` (by setting
-        `pblum_mode = 'total flux'`).
+        `pblum_mode = 'pbflux'`).
 
         This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute> as needed.
@@ -4351,12 +4362,15 @@ class Bundle(ParameterSet):
         for dataset in datasets:
             if not len(self.filter(qualifier='passband', dataset=dataset)):
                 raise ValueError("dataset '{}' is not passband-dependent".format(dataset))
-            for pblum_ref_param in self.filter(qualifier='pblum_ref', dataset=dataset).to_list():
+            for pblum_ref_param in self.filter(qualifier='pblum_dataset', dataset=dataset).to_list():
                 ref_dataset = pblum_ref_param.get_value()
                 if ref_dataset in self.datasets and ref_dataset not in pblum_datasets:
                     # then we need to compute the system at this dataset too,
                     # even though it isn't requested to be returned
                     pblum_datasets.append(ref_dataset)
+            if self.get_value(qualifier='pblum_mode', dataset=dataset, check_visible=False) == 'dataset-scaled':
+                logger.warning("cannot expose pblum for dataset={} with pblum_mode@{}='dataset-scaled'".format(dataset, dataset))
+                pblum_datasets.remove(dataset)
 
         t0 = self.get_value(qualifier='t0', context='system', unit=u.d)
 
@@ -4366,7 +4380,7 @@ class Bundle(ParameterSet):
             # we need to compute the extrinsic case if we're requesting pblum_ext
             # or pbflux_ext or if we're requesting pbflux but l3s need to be
             # converted (as those need to be translated with extrinsic enabled)
-            if compute_extrinsic and not (pblum_ext or pbflux_ext or (pbflux and len(self.filter(qualifier='l3_mode', dataset=datasets, value='fraction of total light')))):
+            if compute_extrinsic and not (pblum_ext or pbflux_ext or (pbflux and len(self.filter(qualifier='l3_mode', dataset=datasets, value='fraction')))):
                 continue
             if not compute_extrinsic and not (pblum or pbflux):
                 continue
@@ -4437,9 +4451,10 @@ class Bundle(ParameterSet):
             self.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True, skip_checks=True)
 
         # handle any necessary pblum computations
-        dataset_compute_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode').exclude(value='provided').datasets
+        allowed_pblum_modes = ['decoupled', 'component-coupled'] if computeparams.kind == 'legacy' else ['decoupled']
+        dataset_compute_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode').exclude(value=allowed_pblum_modes).datasets
         if len(dataset_compute_pblums):
-            logger.warning("{} does not natively support pblum_mode={}.  pblum values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, [p.get_value() for p in self.filter(qualifier='pblum_mode').exclude(value='provided').to_list()], computeparams.kind))
+            logger.warning("{} does not natively support pblum_mode={}.  pblum values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, [p.get_value() for p in self.filter(qualifier='pblum_mode').exclude(value=allowed_pblum_modes).to_list()], computeparams.kind))
             logger.debug("calling compute_pblums(compute={}, dataset={}, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True)".format(compute, dataset_compute_pblums))
             self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True)
 
@@ -4447,7 +4462,7 @@ class Bundle(ParameterSet):
         if computeparams.kind == 'ellc':
             dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='flux').datasets
         else:
-            dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction of total light').datasets
+            dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction').datasets
         if computeparams.kind == 'legacy':
             # legacy support either mode, but all must be the same
             l3_modes = [p.value for p in self.filter(qualifier='l3_mode').to_list()]
@@ -4460,7 +4475,7 @@ class Bundle(ParameterSet):
             elif computeparams.kind == 'ellc':
                 logger.warning("{} does not natively support l3_mode='flux'.  l3_frac values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
             else:
-                logger.warning("{} does not natively support l3_mode='fraction of total light'.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+                logger.warning("{} does not natively support l3_mode='fraction'.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
             logger.debug("calling compute_l3s(compute={}, dataset={}, set_value=True, skip_checks=True)".format(compute, dataset_compute_l3s))
             self.compute_l3s(compute, dataset=dataset_compute_l3s, set_value=True, skip_checks=True)
 
@@ -4953,8 +4968,8 @@ class Bundle(ParameterSet):
             def _scale_fluxes(model_fluxes, scale_factor):
                 return model_fluxes * scale_factor
 
-            # scale fluxes whenever pblum_mode = 'scale to data'
-            for param in self.filter(qualifier='pblum_mode', value='scale to data').to_list():
+            # scale fluxes whenever pblum_mode = 'dataset-scaled'
+            for param in self.filter(qualifier='pblum_mode', value='dataset-scaled').to_list():
                 logger.info("rescaling fluxes to data for dataset='{}'".format(param.dataset))
                 ds_times = self.get_dataset(param.dataset).get_value(qualifier='times')
                 ds_fluxes = self.get_dataset(param.dataset).get_value(qualifier='fluxes')

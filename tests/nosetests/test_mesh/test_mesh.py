@@ -21,7 +21,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     b.set_value_all('gridsize', gridsize)
 
     # TODO: make these options and test over various values for the intensity
-    b.set_value_all('ld_mode', 'func_provided')
+    b.set_value_all('ld_mode', 'manual')
     b.set_value_all('ld_func', 'linear')
     b.set_value_all('ld_coeffs', [0.])
     # TODO: also compare phoebe1:kurucz to phoebe:extern_atmx

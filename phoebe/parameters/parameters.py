@@ -152,6 +152,7 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
                      'pblum_mode', 'pblum_ref', 'pblum', 'pbflux',
+                     'pblum_dataset', 'pblum_component',
                      'l3_mode', 'l3', 'l3_frac',
                      'exptime', 'rvs', 'wavelengths',
                      'flux_densities', 'profile_func', 'profile_rest', 'profile_sv',
@@ -4920,7 +4921,7 @@ class Parameter(object):
         return self._visible_if
 
     @property
-    def is_visible(self):
+    def is_visible(self, visible_if=None):
         """
         Execute the `visible_if` expression for this <phoebe.parameters.Parameter>
         and determine whether it is currently visible in the parent
@@ -4936,8 +4937,36 @@ class Parameter(object):
         --------
         * (bool):  whether this parameter is currently visible
         """
+        return self._is_visible()
+
+
+    def _is_visible(self, visible_if=None):
+        """
+        Execute the `visible_if` expression for this <phoebe.parameters.Parameter>
+        and determine whether it is currently visible in the parent
+        <phoebe.parameters.ParameterSet>.
+
+        If `False`, <phoebe.parameters.ParameterSet.filter> calls must have
+        `check_visible=False` or else this Parameter will be excluded.
+
+        See also:
+        * <phoebe.parameters.Parameter.visible_if>
+
+        Arguments
+        -----------
+        * `visible_if` (string or list, optional, default=None): expression to
+            use to compute visibility.  If None or not provided, will default
+            to <phoebe.parameters.Parameter.visible_if>.
+
+        Returns
+        --------
+        * (bool):  whether this parameter is currently visible
+        """
         def is_visible_single(visible_if):
-            # visible_if syntax: [ignore,these]qualifier:value
+            # visible_if syntax:
+            # * [ignore,these]qualifier:value
+            # * [ignore,these]qualifier:<tag>
+            # print("is_visible_single {}".format(visible_if))
 
             if visible_if.lower() == 'false':
                 return False
@@ -5006,18 +5035,28 @@ class Parameter(object):
                     return param.get_value() in value.split("|")
                 elif value=='<notempty>':
                     return len(param.get_value()) > 0
+                elif isinstance(value, str) and value[0] == '<' and value[-1] == '>':
+                    return param.get_value() == getattr(self, value[1:-1])
                 else:
                     return param.get_value() == value
 
+        if visible_if is None:
+            visible_if = self.visible_if
 
-        if self.visible_if is None:
+        if visible_if is None:
             return True
 
         if not self._bundle:
             # then we may not be able to do the check, for now let's just return True
             return True
 
-        return np.all([is_visible_single(visible_if_i) for visible_if_i in self.visible_if.split(',')])
+
+        # if isinstance(visible_if, list) or isinstance(visible_if, tuple):
+            # return np.any([self.is_visible(vi) for vi in visible_if])
+
+        # syntax:
+        # * visible_if = 'condition1,condition2||condition3' (where '||' is or ',' is and)
+        return np.any([np.all([is_visible_single(visible_if_ii) for visible_if_ii in visible_if_i.split(',')]) for visible_if_i in visible_if.split('||')])
 
 
 

@@ -6,7 +6,7 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='func_provided'):
+def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='manual'):
     # length of ld_coeffs depends on ld_func
     if ld_coeff is None:
         ld_coeffs = None
@@ -37,7 +37,7 @@ def test_binary(plot=False):
     b.set_value_all('ld_func_bol', 'linear')
     b.set_value_all('ld_coeffs_bol', [0.])
 
-    b.set_value_all('ld_mode', 'func_provided')
+    b.set_value_all('ld_mode', 'manual')
     b.set_value_all('ld_func', 'linear')
     b.set_value_all('ld_coeffs', [0.])
 
@@ -96,9 +96,9 @@ def test_binary(plot=False):
                 b.set_value_all('ld_mode', 'interp')
             else:
                 if ld_coeffs is not None:
-                    b.set_value_all('ld_mode', 'func_provided')
+                    b.set_value_all('ld_mode', 'manual')
                 else:
-                    b.set_value_all('ld_mode', 'func_lookup')
+                    b.set_value_all('ld_mode', 'lookup')
                     b.set_value_all('ld_coeffs_source', ld_coeffs_source, check_visible=False)
 
                 b.set_value_all('ld_func', ld_func)
@@ -112,7 +112,7 @@ def test_binary(plot=False):
                 print("running phoebe1 model atm={}, ld_func={}, ld_coeffs={}, ld_coeffs_source={}...".format(atm_ph1, ld_func_ph1, ld_coeffs_ph1, ld_coeffs_source))
 
             b.set_value_all('atm@phoebe1', atm_ph1)
-            b.set_value_all('ld_mode', 'func_provided')
+            b.set_value_all('ld_mode', 'manual')
             b.set_value_all('ld_func', ld_func_ph1)
             if ld_coeffs_ph1 is not None:
                 b.set_value_all('ld_coeffs', ld_coeffs_ph1, check_visible=False)
@@ -167,9 +167,9 @@ def test_binary(plot=False):
 
                 if ld_coeffs is not None:
                     b.set_value_all('ld_coeffs', ld_coeffs, check_visible=False)
-                    b.set_value_all('ld_mode', 'func_provided')
+                    b.set_value_all('ld_mode', 'manual')
                 else:
-                    b.set_value_all('ld_mode', 'func_lookup')
+                    b.set_value_all('ld_mode', 'lookup')
 
                 b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
 

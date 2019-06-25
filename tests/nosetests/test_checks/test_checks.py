@@ -40,7 +40,7 @@ def test_checks():
         raise AssertionError
     b.set_value('ld_coeffs_bol', component='primary', value=[0.5, 0.5])
 
-    b.set_value('ld_mode', component='primary', value='func_provided')
+    b.set_value('ld_mode', component='primary', value='manual')
     b.set_value('ld_func', component='primary', value='logarithmic')
     b.set_value('ld_coeffs', component='primary', value=[0.])
     passed, msg = b.run_checks()

@@ -517,15 +517,15 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     mzero = None
     if 'phoebe_mnorm' in params:
         mzero = np.float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
-# determine if luminosities are decoupled and set pblum_ref accordingly
+# determine if luminosities are decoupled and set pblum_mode accordingly
     try:
         decoupled_luminosity = np.int(params[:,1][list(params[:,0]).index('phoebe_usecla_switch')])
     except:
         pass
 #    if decoupled_luminosity == 0:
-#        eb.set_value(qualifier='pblum_ref', component='secondary', value='primary')
+#        eb.set_value(qualifier='pblum_mode', value='component-coupled')
 #    else:
-#        eb.set_value(qualifier='pblum_ref', component='secondary', value='self')
+#        eb.set_value(qualifier='pblum_mode', value='decoupled')
 
 #Determin LD law
 
@@ -844,14 +844,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb.set_value_all(check_visible= False, **d)
 
         # disable interpolating ld coefficients
-        eb.set_value_all(qualifier='ld_mode', dataset=dataid, value='func_provided', check_visible=False)
+        eb.set_value_all(qualifier='ld_mode', dataset=dataid, value='manual', check_visible=False)
 
     #set pblum reference
 
         if decoupled_luminosity == 0:
-            eb.set_value(qualifier='pblum_ref', component='secondary', value='primary', dataset=dataid)
+            eb.set_value(qualifier='pblum_mode', dataset=dataid, value='component-coupled')
         else:
-            eb.set_value(qualifier='pblum_ref', component='secondary', value='self', dataset=dataid)
+            eb.set_value(qualifier='pblum_mode', dataset=dataid, value='decoupled')
 
     #set ldlaw
 
@@ -888,7 +888,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                     d['value'] = 'Johnson:V'
 
                 if d['qualifier'] == 'l3_mode':
-                    choice_dict = {'Flux':'flux', 'Total light':'fraction of total light'}
+                    choice_dict = {'Flux':'flux', 'Total light':'fraction'}
                     val = choice_dict[d['value']]
                     d['value'] = val
 
@@ -981,7 +981,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb.set_value_all(check_visible= False, **d)
 
         # disable interpolating ld coefficients
-        eb.set_value_all(qualifier='ld_mode', dataset=dataid, value='func_provided', check_visible=False)
+        eb.set_value_all(qualifier='ld_mode', dataset=dataid, value='manual', check_visible=False)
 
 
     #set ldlaw
@@ -1512,7 +1512,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     parvals.append('"Time (HJD)"')
     types.append('choice')
     # add l3_mode
-    choice_dict = {'flux':'Flux', 'fraction of total light':'Total light'}
+    choice_dict = {'flux':'Flux', 'fraction':'Total light'}
     if len(lcs) > 0:
         if l3_mode_force_flux:
             l3_mode = 'flux'
@@ -1572,32 +1572,17 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #    if len(ldlaws) == 0:
 #        pass
 
-    # TODO: technically we only want enabled datasets to be passed when using as the wrapper
-    datasets_lc_pblum_mode_provided = eb.filter(qualifier='pblum_mode', value='provided').datasets
-    if len(list(set(eb.get_value(qualifier='pblum_ref', component=primary, dataset=dataset) for dataset in datasets_lc_pblum_mode_provided))) > 1:
-        raise ValueError("legacy requires all pblums to either be coupled or decoupled")
-
-
     if len(lcs) != 0:
         pblum_mode = eb.get_value(dataset=lcs[0], qualifier='pblum_mode')
-        if pblum_mode == 'provided':
-            pblum_ref = eb.get_value(dataset=lcs[0], qualifier='pblum_ref', component=secondary)
+        if pblum_mode == 'decoupled':
+            decouple_luminosity = '1'
 
-            if pblum_ref == 'self':
-                if eb.get_value(dataset=lcs[0], qualifier='pblum_ref', component=primary) != 'self':
-                    # TODO: Can we add support for this?  Can we just flip the roles?
-                    raise ValueError("legacy only supports decoupled pblums or pblum_ref@{}='self' and pblum_ref@{}={}".format(primary, secondary, primary))
+            if contact_binary:
+                raise ValueError("contact binaries in legacy do not support decoupled pblums")
 
-
-                decouple_luminosity = '1'
-
-                if contact_binary:
-                    raise ValueError("contact binaries in legacy do not support decoupled pblums")
-
-            else:
-
-                decouple_luminosity = '0'
-        elif pblum_mode in ['scale to data']:
+        elif pblum_mode == 'component-coupled':
+            decouple_luminosity = '0'
+        elif pblum_mode == 'dataset-scaled':
             decouple_luminosity = '0'
         else:
             # then we'll rely on the values from compute_pblums and pass luminosities for both objecs
@@ -1739,7 +1724,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
 
 
-        # choice_dict = {'flux':'Flux', 'fraction of total light':'Total light'}
+        # choice_dict = {'flux':'Flux', 'fraction':'Total light'}
         # parnames.append('l3_mode')
         # parvals.append('"'+choice_dict[l3_mode]+'""')
         # types.append('choice')
