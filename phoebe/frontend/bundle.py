@@ -2018,18 +2018,23 @@ class Bundle(ParameterSet):
 
             # estimate if any body is smaller than any other body's triangles, using a spherical assumption
             if compute_kind=='phoebe' and 'wd' not in mesh_methods:
+                eclipse_method = self.get_value(qualifier='eclipse_method', compute=compute, **_skip_filter_checks)
+                if eclipse_method == 'only_horizon':
+                    # no need to check triangle sizes
+                    continue
+
                 areas = {comp: _get_proj_area(comp) for comp in hier_meshables}
                 triangle_areas = {comp: _get_surf_area(comp)/self.get_value(qualifier='ntriangles', component=comp, compute=compute, **_skip_filter_checks) for comp in hier_meshables}
                 if max(triangle_areas.values()) > 5*min(areas.values()):
                     if max(triangle_areas.values()) > 2*min(areas.values()):
                         offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 2*min(areas.values())]
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
-                        return False, "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.".format(offending_components, smallest_components, smallest_components, offending_components)
+                        return False, "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components)
                     else:
                         # only raise a warning
                         offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 5*min(areas.values())]
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
-                        return None, "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.".format(offending_components, smallest_components, smallest_components, offending_components)
+                        return None, "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components)
 
         # forbid color-coupling with a dataset which is scaled to data or to another that is in-turn color-coupled
         for param in self.filter(qualifier='pblum_mode', value='color coupled', **_skip_filter_checks).to_list():
