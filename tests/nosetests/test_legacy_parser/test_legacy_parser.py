@@ -88,7 +88,7 @@ def _legacy_test(filename='default.phoebe', verbose=False):
         elif comp == 'secondary':
             comp_name = 'pig'
         a = int(x/2.)
-        if verbose: print(a)
+        if verbose: print("loop iteration", a)
         datafile = phb1.getpar('phoebe_rv_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
         time = b.filter(dataset=id, qualifier='times', component=comp_name).get_value()
@@ -133,11 +133,10 @@ def _legacy_test(filename='default.phoebe', verbose=False):
             sec = sec+1
 
     b.run_compute(kind='legacy')
-    for x in range(len(lc_id)):
+    for x in range(len(lcs)):
         lc2 = b.filter('fluxes', context='model', dataset=lc_id[x]).get_value()
         time = b.filter('times', context='model', dataset=lc_id[x]).get_value()
-        if verbose: print("comparing lightcurve "+str(lc_id[x]))
-
+        if verbose: print("comparing lightcurve "+str(lcs[x]))
         assert(np.allclose(fluxes[x], lc2, atol=1e-5))
 
     for x in range(rvno):
@@ -175,8 +174,8 @@ def _legacy_test(filename='default.phoebe', verbose=False):
 def test_default(verbose=False):
     return _legacy_test('default.phoebe', verbose=verbose)
 
-def test_weighted(verbose=False):
-    return _legacy_test('weight.phoebe', verbose=verbose)
+#def test_weighted(verbose=False):
+#    return _legacy_test('weight.phoebe', verbose=verbose)
 
 def test_contact(verbose=False):
     return _legacy_test('contact.phoebe', verbose=verbose)
@@ -184,5 +183,5 @@ def test_contact(verbose=False):
 if __name__ == '__main__':
 
     test_default(verbose=True)
-    test_weighted(verbose=True)
+#    test_weighted(verbose=True)
     test_contact(verbose=True)

@@ -53,7 +53,6 @@ else:
 if sys.version_info[0] == 3:
   unicode = str
 
-
 # things needed to be imported at top-level for constraints to solve:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
@@ -110,53 +109,79 @@ _contexts = ['history', 'system', 'component', 'feature',
 # components and datasets should also forbid this list
 _forbidden_labels = deepcopy(_meta_fields_all)
 
-# forbid all "contexts"
+# forbid all "contexts", although should already be in _meta_fields_all
 _forbidden_labels += _contexts
-_forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh']
 
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
+                      'quantity',
                       'unit', 'timederiv', 'visible_if', 'description', 'result']
-# _forbidden_labels += ['parent', 'child']
+
+# forbid some random things
 _forbidden_labels += ['protomesh', 'pbmesh']
-_forbidden_labels += ['component']
 _forbidden_labels += ['bol']
+
+# forbid all kinds
+_forbidden_labels += ['lc', 'rv', 'lp', 'sp', 'orb', 'mesh']
+_forbidden_labels += ['star', 'orbit', 'envelope']
+_forbidden_labels += ['spot', 'pulsation']
+_forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']
 
 
 
 # we also want to forbid any possible qualifiers
 # from system:
-_forbidden_labels = ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma']
+_forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarchy']
 
 # from setting:
-_forbidden_labels = ['phoebe_version', 'log_history', 'dict_filter', 'dict_set_all']
+_forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter', 'dict_set_all']
+
+# from component
+_forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
+                      'fillout_factor', 'pot_min', 'pot_max',
+                      'syncpar', 'period', 'pitch', 'yaw', 'incl', 'long_an',
+                      'gravb_bol', 'irrad_frac_refl_bol', 'irrad_frac_lost_bol',
+                      'ld_func_bol', 'ld_coeffs_bol', 'mass', 'dpdt', 'per0',
+                      'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
+                      't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
+                      ]
 
 # from dataset:
-_forbidden_labels = ['times', 'fluxes', 'sigmas', 'ld_func', 'ld_coeffs',
-                     'passband', 'intens_weighting', 'pblum_ref', 'pblum', 'l3',
+_forbidden_labels += ['times', 'fluxes', 'sigmas',
+                     'compute_times', 'compute_phases',
+                     'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
+                     'passband', 'intens_weighting',
+                     'pblum_mode', 'pblum_ref', 'pblum', 'pbflux',
+                     'pblum_dataset', 'pblum_component',
+                     'l3_mode', 'l3', 'l3_frac',
                      'exptime', 'rvs', 'wavelengths',
                      'flux_densities', 'profile_func', 'profile_rest', 'profile_sv',
                      'Ns', 'time_ecls', 'time_ephems', 'etvs',
                      'us', 'vs', 'ws', 'vus', 'vvs', 'vws',
-                     'include_times', 'columns',
+                     'include_times', 'columns', 'coordinates',
                      'uvw_elements', 'xyz_elements',
                      'pot', 'rpole', 'volume',
                      'xs', 'ys', 'zs', 'vxs', 'vys', 'vzs',
                      'nxs', 'nys', 'nzs', 'nus', 'nvs', 'nws',
                      'areas', 'rs', 'rprojs', 'loggs', 'teffs', 'mus',
                      'visible_centroids', 'visibilities',
-                     'intensities', 'normal_intensities', 'abs_normal_intensities',
-                     'boost_factors', 'ldint', 'ptfarea', 'pblum', 'abs_pblum']
+                     'intensities', 'abs_intensities',
+                     'normal_intensities', 'abs_normal_intensities',
+                     'boost_factors', 'ldint', 'ptfarea',
+                     'pblum', 'pblum_ext', 'abs_pblum', 'abs_pblum_ext']
+
 
 # from compute:
 _forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
                       'gr', 'stepsize', 'integrator',
                       'irrad_method', 'boosting_method', 'mesh_method', 'distortion_method',
-                      'ntriangles',
+                      'ntriangles', 'rv_grav',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
-                      'atm', 'lc_method', 'rv_method', 'fti_method', 'etv_method',
+                      'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
+                      'etv_method', 'etv_tol',
                       'gridsize', 'refl_num', 'ie',
-                      'stepsize', 'orbiterror', 'ringsize'
+                      'stepsize', 'orbiterror', 'ringsize',
+                      'exact_grav', 'grid', 'hf'
                       ]
 
 # from feature:
@@ -284,6 +309,12 @@ def _instance_in(obj, *types):
 
     return False
 
+def _fnmatch(to_this, expression_or_string):
+    if '*' in expression_or_string or '?' in expression_or_string:
+        return fnmatch(to_this, expression_or_string)
+    else:
+        return expression_or_string == to_this
+
 
 class ParameterSet(object):
     """ParameterSet.
@@ -340,7 +371,7 @@ class ParameterSet(object):
         self._set_meta()
 
         # force an update to _next_field
-        self.to_dict()
+        self.to_dict(skip_return=True)
 
         # set tab completer
         readline.set_completer(tabcomplete.Completer().complete)
@@ -1074,11 +1105,10 @@ class ParameterSet(object):
         """
         # we want to set meta-fields that are shared by ALL params in the PS
         for field in _meta_fields_twig:
-            keys_for_this_field = set([getattr(p, field)
-                                       for p in self.to_list()
-                                       if getattr(p, field) is not None])
+            keys_for_this_field = self._options_for_tag(field)
+
             if len(keys_for_this_field)==1:
-                setattr(self, '_'+field, list(keys_for_this_field)[0])
+                setattr(self, '_'+field, keys_for_this_field[0])
             else:
                 setattr(self, '_'+field, None)
 
@@ -1154,7 +1184,7 @@ class ParameterSet(object):
                          for k in _meta_fields_twig
                          if metawargs[k] is not None])
 
-    def _attach_params(self, params, **kwargs):
+    def _attach_params(self, params, check_copy_for=True, **kwargs):
         """Attach a list of parameters (or ParameterSet) to this ParameterSet.
 
         :parameter list params: list of parameters, or ParameterSet
@@ -1172,7 +1202,8 @@ class ParameterSet(object):
                     setattr(param, '_{}'.format(k), v)
             self._params.append(param)
 
-        self._check_copy_for()
+        if check_copy_for:
+            self._check_copy_for()
 
         return
 
@@ -1235,8 +1266,8 @@ class ParameterSet(object):
                     ps = pss.get(filter_json)
                 else:
                     ps = self.filter(check_visible=False,
-                                             check_default=False,
-                                             force_ps=True, **filter_)
+                                     check_default=False,
+                                     force_ps=True, **filter_)
                     pss[filter_json] = ps
 
                 metawargs = {k:v for k,v in ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).items() if v is not None and k in attrs}
@@ -1273,7 +1304,7 @@ class ParameterSet(object):
                         metawargs[attr] = attrvalue
 
                     # logger.debug("_check_copy_for {}: metawargs={}".format(param.twig, metawargs))
-                    if valid and not len(self._bundle.filter(check_visible=False, **metawargs)):
+                    if valid and not len(self._bundle.filter(check_visible=False, check_default=False, **metawargs)):
                         # then we need to make a new copy
                         logger.debug("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
 
@@ -1579,12 +1610,17 @@ class ParameterSet(object):
         * (dict) dictionary of <phoebe.parameters.ParameterSet> or
             <phoebe.parameters.Parameter> objects.
         """
+        # skip_return is used internally when we want to call this just to update
+        # self._next field, but don't want to waste time on the actual dictionary
+        # comprehension
+        skip_return = kwargs.pop('skip_return', False)
+
         if kwargs:
             return self.filter(**kwargs).to_dict(field=field)
 
         if field is not None:
             keys_for_this_field = self._options_for_tag(field)
-
+            if skip_return: return
             return {k: self.filter(check_visible=False, **{field: k}) for k in keys_for_this_field}
 
         # we want to find the first level (from the bottom) in which filtering
@@ -1603,6 +1639,7 @@ class ParameterSet(object):
             # those keys and the ParameterSet of the matching items
             if len(keys_for_this_field) > 1:
                 self._next_field = field
+                if skip_return: return
                 return {k: self.filter(check_visible=False, **{field: k})
                         for k in keys_for_this_field}
 
@@ -1610,9 +1647,11 @@ class ParameterSet(object):
         # qualifier left
         if self.context in ['hierarchy']:
             self._next_field = 'qualifier'
+            if skip_return: return
             return {param.qualifier: param for param in self._params}
         else:
             self._next_field = 'time'
+            if skip_return: return
             return {param.time: param for param in self._params}
 
     def keys(self):
@@ -1999,19 +2038,19 @@ class ParameterSet(object):
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None) and
                     (getattr(pi,key)==kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
-                    (isinstance(kwargs[key],list) and np.any([fnmatch(getattr(pi,key),keyi) for keyi in kwargs[key]])) or
-                    (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and fnmatch(getattr(pi,key),kwargs[key])) or
+                    (isinstance(kwargs[key],list) and np.any([_fnmatch(getattr(pi,key),keyi) for keyi in kwargs[key]])) or
+                    (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and _fnmatch(getattr(pi,key),kwargs[key])) or
                     (key=='kind' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
                     (key=='kind' and hasattr(kwargs[key],'__iter__') and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
                     (key=='time' and abs(float(getattr(pi,key))-string_to_time(kwargs[key]))<1e-6))]
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
         # handle hiding _default (cheaper than visible_if so let's do first)
-        if check_default:
+        if check_default and conf.check_default:
             params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default']
 
         # handle visible_if
-        if check_visible:
+        if check_visible and conf.check_visible:
             params = [pi for pi in params if pi.is_visible]
 
         if isinstance(twig, int):
@@ -2070,7 +2109,7 @@ class ParameterSet(object):
                 # TODO: need to fix repeating twigs (ie
                 # period@period@period@period still matches and causes problems
                 # with the tabcomplete)
-                params = [pi for pi in params if ti in pi.twig.split('@') or fnmatch(pi.twig, ti)]
+                params = [pi for pi in params if ti in pi.twig.split('@') or _fnmatch(pi.twig, ti)]
 
             if autocomplete:
                 # we want to provide options for what twigautomplete
@@ -2938,7 +2977,7 @@ class ParameterSet(object):
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
-        ps = self.filter(check_visible=False, **filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases'])
+        ps = self.filter(**filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases'])
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'lp']:
             ps = ps.filter(time=kwargs.get('time'))
@@ -2974,7 +3013,7 @@ class ParameterSet(object):
 
         if len(ps.kinds) > 1:
             for kind in pskinds:
-                this_return = ps.filter(check_visible=False, kind=kind)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(**kwargs)
                 return_ += this_return
             return return_
 
@@ -3006,6 +3045,10 @@ class ParameterSet(object):
             # nothing to plot here... at least for now
             return []
 
+        if ps.kind in ['lp'] and not len(ps.filter(qualifier='flux_densities', check_visible=False)):
+            # then maybe we're in the dataset where just compute_times is defined
+            return []
+
         if not len(ps):
             return []
 
@@ -3024,12 +3067,17 @@ class ParameterSet(object):
                 # overwrite kwargs[k] based on any match in v
                 match = None
                 for kk,vv in v.items():
-                    meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig'])
-                    if kk in meta.values():
+                    meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])
+                    # support twigs as well as wildcards in the dictionary keys
+                    # for example: color={'lc*': 'blue', 'primary@rv*': 'green'}
+                    # this will likely be a little expensive, but we only do it
+                    # in the case where a dictionary is passed.
+                    if np.all([np.any([_fnmatch(mv, kksplit) for mv in meta.values() if mv is not None]) for kksplit in kk.split('@')]):
                         if match is not None:
                             raise ValueError("dictionary {}={} is not unique for {}".format(k,v, meta))
                         match = vv
 
+                logger.debug("_unpack_plotting_kwargs: trying to find match for dictionary {}={} in kwargs against meta={}.  match={}".format(k,v,meta,match))
                 if match is not None:
                     kwargs[k] = match
                 else:
@@ -3093,28 +3141,57 @@ class ParameterSet(object):
                         if not verts.shape[0]:
                             return None
                         array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
+
+                        if direction == 'z':
+                            try:
+                                norms = ps.get_quantity(qualifier='xyz_normals')
+                            except ValueError:
+                                # if importing from 2.1, uvw_elements may exist, but uvw_normals won't
+                                array_value_norms = None
+                            else:
+                                array_value_norms = norms.value[:, ['xs', 'ys', 'zs'].index(current_value)]
+                                # TODO: flip if necessary for a right-handed axes?  (currently the z-values aren't flipped)
+                                # if
+                                    # array_value_norms *= -1
+                            kwargs['{}normals'.format(direction)] = array_value_norms
+
                     elif kwargs['autofig_method'] == 'mesh' and current_value in ['us', 'vs', 'ws']:
                         # then we actually need to unpack from the uvw_elements
                         verts = ps.get_quantity(qualifier='uvw_elements')
                         if not verts.shape[0]:
                             return None
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
+
+                        if direction == 'z':
+                            try:
+                                norms = ps.get_quantity(qualifier='uvw_normals')
+                            except ValueError:
+                                # if importing from 2.1, uvw_elements may exist, but uvw_normals won't
+                                array_value_norms = None
+                            else:
+                                array_value_norms = norms.value[:, ['us', 'vs', 'ws'].index(current_value)]
+                                # TODO: flip if necessary for a right-handed axes?  (currently the z-values aren't flipped)
+                                # if
+                                    # array_value_norms *= -1
+                            kwargs['{}normals'.format(direction)] = array_value_norms
+
                     elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
                         array_value = ps._bundle.get_value(qualifier='times', dataset=ps.dataset, component=ps.component, context='dataset')
                     else:
                         if '@' in current_value:
                             # then we need to remove the dataset from the filter
-                            psf = self._bundle.filter(check_visible=False, **{k:v for k,v in ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).items() if k!='dataset'})
+                            psf = self._bundle.filter(**{k:v for k,v in ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).items() if k!='dataset'})
                         else:
                             psf = ps
 
-                        if len(psf.filter(current_value, check_visible=False))==1:
-                            array_value = psf.get_quantity(current_value, check_visible=False)
-                        elif len(psf.filter(current_value, check_visible=False).times) > 1 and psf.get_value(current_value, time=psf.filter(current_value, check_visible=False).times[0]):
+                        psff = psf.filter(twig=current_value)
+                        if len(psff)==1:
+                            array_value = psff.get_quantity()
+                        elif len(psff.times) > 1 and psff.get_value(time=psff.times[0]):
                             # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
-                            unit = psf.get_quantity(current_value, time=psf.filter(current_value).times[0]).unit
-                            array_value = np.array([psf.get_quantity(current_value, time=time, check_visible=False).to(unit).value for time in psf.filter(current_value, check_visible=False).times])*unit
+                            unit = psff.get_quantity(time=psff.times[0]).unit
+                            array_value = np.array([psff.get_quantity(time=time).to(unit).value for time in psff.times])*unit
                         else:
                             raise ValueError("could not find Parameter for {} in {}".format(current_value, psf.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])))
 
@@ -3127,10 +3204,10 @@ class ParameterSet(object):
                         if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
                             kwargs[errorkey] = errors
                         elif isinstance(errors, str):
-                            errors = ps.get_quantity(kwargs.get(errorkey))
+                            errors = ps.get_quantity(kwargs.get(errorkey), check_visible=False)
                             kwargs[errorkey] = errors
                         else:
-                            sigmas = ps.get_quantity('sigmas', check_visible=False)
+                            sigmas = ps.get_quantity(qualifier='sigmas')
                             if len(sigmas):
                                 kwargs.setdefault(errorkey, sigmas)
 
@@ -3152,7 +3229,7 @@ class ParameterSet(object):
                     # these are not tagged with the time, so we need to find them
                     full_dataset_meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig', 'qualifier', 'time'])
                     full_dataset_ps = ps._bundle.filter(**full_dataset_meta)
-                    candidate_params = full_dataset_ps.filter(current_value)
+                    candidate_params = full_dataset_ps.filter(qualifier=current_value)
                     if len(candidate_params) == 1:
                         kwargs[direction] = candidate_params.get_quantity()
                         kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
@@ -3234,7 +3311,7 @@ class ParameterSet(object):
                     return kwargs
 
                 else:
-                    raise ValueError("could not recognize {} for {} direction in dataset='{}', ps.meta={}".format(current_value, direction, ps.dataset, ps.meta))
+                    raise ValueError("could not recognize '{}' for {} direction in dataset='{}', ps.meta={}".format(current_value, direction, ps.dataset, ps.meta))
 
             elif _instance_in(current_value, np.ndarray, list, tuple, float, int):
                 # then leave it as-is
@@ -3248,6 +3325,7 @@ class ParameterSet(object):
         #### DIRECTION DEFAULTS
         # define defaults for directions based on ps.kind
         if ps.kind == 'mesh':
+            # TODO: check to make sure axes will be right-handed?
             # first determine from any passed values if we're in xyz or uvw
             # (do not allow mixing between roche and POS)
             detected_qualifiers = [kwargs[af_direction] for af_direction in ['x', 'y', 'z'] if af_direction in kwargs.keys()]
@@ -3264,8 +3342,13 @@ class ParameterSet(object):
                     # then len(coordinate_system) == 0
                     coordinates = ['us', 'vs', 'ws']
 
-            else:
+            elif 'uvw_elements' in ps.qualifiers:
                 coordinates = ['us', 'vs', 'ws']
+            elif 'xyz_elements' in ps.qualifiers:
+                coordinates = ['xs', 'ys', 'zs']
+            else:
+                # then we're doing a scatter plot
+                coordinates = []
 
 
             defaults = {}
@@ -3291,7 +3374,7 @@ class ParameterSet(object):
 
                         # now we'll remove from coordinates still available
                         coordinates.remove(kwargs[af_direction])
-                else:
+                elif len(coordinates):
                     # we'll take the first entry remaining in coordinates
                     coordinate = coordinates.pop(0)
 
@@ -3303,6 +3386,29 @@ class ParameterSet(object):
                     # list so the next direction will fill from the next available
                     if mesh_all_cartesian or coordinate in ps.qualifiers:
                         defaults[af_direction] = coordinate
+
+                else:
+                    # then we need defaults for a scatter plot
+                    mesh_all_cartesian = False
+
+                    # for now we'll just go based on the order of the qualifiers
+                    # but we probably could be a little smarter here, especially
+                    # if the user overrides a dimension to make sure we don't
+                    # repeat, etc.
+                    if af_direction == 'z':
+                        # otherwise for 2d scatter plots this just gets
+                        # prohibitively expensive
+                        defaults['z'] = 0.0
+                    else:
+                        qualifiers_avail = [q for q in ps.qualifiers if q != 'times']
+                        index = ['x', 'y'].index(af_direction)
+                        if not len(qualifiers_avail):
+                            raise ValueError("cannot plot mesh with no columns")
+
+                        if index > len(qualifiers_avail) - 1:
+                            index = len(qualifiers_avail) - 1
+
+                        defaults[af_direction] = qualifiers_avail[index]
 
 
             # since we'll be selecting from the time tag, we need a non-zero tolerance
@@ -3318,6 +3424,11 @@ class ParameterSet(object):
                 # we want the wireframe by default
                 kwargs.setdefault('ec', 'black')
                 kwargs.setdefault('fc', 'white')
+
+                # by default, we'll exclude the back if fc is not 'none'
+                if kwargs.get('fc') != 'none':
+                    kwargs.setdefault('exclude_back', True)
+
             else:
                 # then even though the scatter may be rs vs cartesian with same
                 # units, let's default to disabling equal aspect ratio
@@ -3363,7 +3474,7 @@ class ParameterSet(object):
         elif ps.kind == 'lp':
             defaults = {'x': 'wavelengths',
                         'y': 'flux_densities',
-                        'z': 0}
+                        'z': ps._bundle.hierarchy.get_components().index(ps.component if ps.component is not None else ps._bundle.hierarchy.get_top())}
             sigmas_avail = ['flux_densities']
 
             # since we'll be selecting from the time tag, we need a non-zero tolerance
@@ -3396,7 +3507,7 @@ class ParameterSet(object):
                 kwargs['autofig_method'] = 'plot'
 
             if self.time is not None:
-                kwargs['i'] = float(self.time)
+                kwargs['i'] = float(self.time) * u.d
         else:
             kwargs['autofig_method'] = 'plot'
 
@@ -3418,9 +3529,16 @@ class ParameterSet(object):
 
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
         # try to find 'times' in the cartesian dimensions:
-        iqualifier = kwargs.pop('i', 'times')
+        if 'phases' not in [kwargs[af_direction].split(':')[0] for af_direction in ['x', 'y', 'z'] if isinstance(kwargs[af_direction], str)]:
+            iqualifier_default = 'times'
+        elif self._bundle.hierarchy.is_time_dependent():
+            iqualifier_default = 'times'
+        else:
+            iqualifier_default = 'phases'
+
+        iqualifier = kwargs.pop('i', iqualifier_default)
         for af_direction in ['x', 'y', 'z']:
-            if kwargs.get('autofig_method', 'plot') != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
+            if ps.kind != 'mesh' and (kwargs.get('{}label'.format(af_direction), None) in ['times', 'time_ecls'] if iqualifier=='times' else [iqualifier]):
                 kwargs['i'] = af_direction
                 kwargs['iqualifier'] = None
                 break
@@ -3431,12 +3549,12 @@ class ParameterSet(object):
                 # a single mesh will pass just that single time on as the
                 # independent variable/direction
                 if iqualifier=='times':
-                    kwargs['i'] = float(ps.time)
+                    kwargs['i'] = float(ps.time) * u.d
                     kwargs['iqualifier'] = 'ps.times'
-                elif isinstance(iqualifier, float):
+                elif _instance_in(iqualifier, float, u.Quantity):
                     kwargs['i'] = iqualifier
                     kwargs['iqualifier'] = iqualifier
-                elif iqualifier.split(':')[0] == 'phases':
+                elif isinstance(iqualifier, str) and iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     component = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
                     kwargs['i'] = self._bundle.to_phase(float(ps.time), component=component)
@@ -3554,8 +3672,17 @@ class ParameterSet(object):
         * <phoebe.parameters.ParameterSet.gcf>
         * <phoebe.parameters.ParameterSet.clf>
 
+        All keyword arguments also support passing dictionaries.  In this case,
+        they are applied to any resulting plotting call in which the dictionary
+        matches (including support for wildcards) to the tags of the respective
+        ParameterSet.  For example:
+
+        ```
+        plot(c={'primary@rv*': 'blue', 'secondary@rv*': 'red'})
+        ```
+
         Note: not all options are listed below.  See the
-        [autofig](https://github.com/kecnry/autofig/tree/1.0.0)
+        [autofig](https://autofig.readthedocs.io/en/latest/)
         tutorials and documentation for more options which are passed along
         via `**kwargs`.
 
@@ -3574,7 +3701,7 @@ class ParameterSet(object):
             x-axis (will default based on the dataset-kind if not provided).
             With the exception of phase, `b.get_value(x)` needs to provide a
             valid float or array.  To plot phase along the x-axis, pass
-            `x='phases'` or `x=phases:[component]`.  This will use the ephemeris
+            `x='phases'` or `x='phases:[component]'`.  This will use the ephemeris
             from <phoebe.frontend.bundle.Bundle.get_ephemeris>(component) if
             possible to phase the applicable times array.
         * `y` (string/float/array, optional): qualifier/twig of the array to plot on the
@@ -3586,20 +3713,30 @@ class ParameterSet(object):
             z-axis.  By default, this will just order the points on a 2D plot.
             To plot in 3D, also pass `projection='3d'`.
         * `s` (strong/float/array, optional): qualifier/twig of the array to use
-            for size.  See the [autofig tutorial on size](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/size_modes.ipynb)
+            for size.  See the [autofig tutorial on size](https://autofig.readthedocs.io/en/latest/tutorials/size_modes/)
             for more information.
         * `c` (string/float/array, optional): qualifier/twig of the array to use
             for color.
         * `fc` (string/float/array, optional): qualifier/twig of the array to use
             for facecolor (only applicable for mesh plots).
         * `ec` (string/float/array, optional): qualifier/twig of the array to use
-            for edgecolor (only applicable for mesh plots).
+            for edgecolor (only applicable for mesh plots).   To disable plotting
+            edges, use `ec='none'`.  To plot edges in the same colors as the face,
+            use `ec='face'` (not supported if `projection='3d'`).
 
-        * `i` (string, optional, default='time'): qualifier/twig to use for the
-            independent variable.  In the vast majority of cases, using the default
-            is sufficient.  If `x` is phase, then setting `i` to phase as well
-            will sort and connect the points in phase-order instead of the default
-            behavior or time-order.
+        * `i` (string, optional, default='phases' or 'times'): qualifier/twig to
+            use for the independent variable.  In the vast majority of cases,
+            using the default is sufficient.  `i` will default to 'times' unless
+            'phases' is plotted along `x`, `y`, or `z`.  If 'phases' is plotted,
+            then `i` will still default to 'times' if the system is time-dependent,
+            according to <phoebe.parameters.HierarchyParameter.is_time_dependent>
+            (note that this is determined based on current values of the relevant
+            parameters, not neccessarily those when the model was computed),
+            otherwise will default to 'phases'.  If `x` is 'phases' or ('phases:[component]'),
+            then setting `i` to phases will sort and connect the points in
+            phase-order, whereas if set to `times` they will be sorted and connected
+            in time-order, with linebreaks when needed for phase-wrapping.
+            See also the [autofig tutorial on a looping independent variable](https://autofig.readthedocs.io/en/latest/gallery/looping_indep/).
 
         * `xerror` (string/float/array, optional): qualifier/twig of the array to plot as
             x-errors (will default based on `x` if not provided).
@@ -3639,28 +3776,37 @@ class ParameterSet(object):
             only applicable for mesh plots).
 
         * `xlim` (tuple/string, optional): limits for the x-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
             for more information/choices.
         * `ylim` (tuple/string, optional): limits for the y-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
             for more information/choices.
         * `zlim` (tuple/string, optional): limits for the z-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
             for more information/choices.
         * `slim` (tuple/string, optional): limits for the size-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
             for more information/choices.
         * `clim` (tuple/string, optional): limits for the color-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
             for more information/choices.
         * `fclim` (tuple/string, optional): limits for the facecolor-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
             for more information/choices.
         * `eclim` (tuple/string, optional): limits for the edgecolor-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/limits.ipynb)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
             for more information/choices.
 
-        * `smode` (string, optional): size mode.  See the [autofig tutorial on sizes](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/size_modes.ipynb)
+        * `fcmap` (string, optional): colormap to use for the facecolor-axis (will default on
+            the type of data passed to `fc` if not provided, only applicable for mesh plots).
+            See the [matplotlib colormap reference](https://matplotlib.org/3.1.0/gallery/color/colormap_reference.html)
+            for a list of options (may vary based on installed version of matplotlib).
+        * `ecmap` (string, optional): colormap to use for the edgecolor-axis (will default on
+            the type of data passed to `ec` if not provided, only applicable for mesh plots).
+            See the [matplotlib colormap reference](https://matplotlib.org/3.1.0/gallery/color/colormap_reference.html)
+            for a list of options (may vary based on installed version of matplotlib).
+
+        * `smode` (string, optional): size mode.  See the [autofig tutorial on sizes](https://autofig.readthedocs.io/en/latest/tutorials/size_modes/)
             for more information.
 
         * `highlight` (bool, optional, default=True): whether to highlight at the
@@ -3669,9 +3815,15 @@ class ParameterSet(object):
             Only applicable if `highlight=True` and `time` or `times` provided.
         * `highlight_color` (string, optional): color to use for highlighting.
             Only applicable if `highlight=True` and `time` or `times` provided.
+        * `highlight_size` (int, optional): size to use for highlighting.
+            Only applicable if `highlight=True` and `time` or `times` provided.
 
         * `uncover` (bool, optional): whether to uncover data based on the current
             time.  Only applicable if `time` or `times` provided.
+        * `trail` (bool or float, optional): whether trail is enabled.
+            If a float, then a value between 0 and 1 indicating the fractional
+            length of the trail.  Defaults to 0 for mesh and lineprofiles and False
+            otherwise.  Only applicable if `times` or `times` provided.
 
         * `legend` (bool, optional, default=False): whether to draw a legend for
             this axes.
@@ -3679,25 +3831,43 @@ class ParameterSet(object):
             formatting, etc) to be passed on to [plt.legend](https://matplotlib.org/api/_as_gen/matplotlib.pyplot.legend.html)
 
         * `fig` (matplotlib figure, optional): figure to use for plotting.  If
-            not provided, will use plt.gcf().  Ignored unless `save`, `show`,
+            not provided, will use `plt.gcf()`.  Ignored unless `save`, `show`,
             or `animate`.
 
         * `save` (string, optional, default=False): filename to save the
             figure (or False to not save).
         * `show` (bool, optional, default=False): whether to show the plot
         * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `interval` (int, optional, default=100): time in ms between each
+            frame in the animation.  Applicable only if `animate` is True.
+
+        * `projection` (string, optional, default='2d'): whether to plot
+            on a 2d or 3d axes.  If '3d', the orientation of the axes will
+            be provided by `azim` and `elev` (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/latest/tutorials/3d/))
+        * `azim` (float or list, optional): azimuth to use when `projection`
+            is '3d'.  If `animate` is True, then a tuple or list will allow
+            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/latest/tutorials/3d/))
+        * `elev` (float or list, optional): elevation to use when `projection`
+            is '3d'.  If `animate` is True, then a tuple or list will allow
+            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/latest/tutorials/3d/))
+        * `exclude_back` (bool, optional): whether to exclude plotting the back
+            of meshes when in '2d' projections.  Defaults to True if `fc` is
+            not 'none' (otherwise defaults to False so that you can "see through"
+            the star).
+
         * `draw_sidebars` (bool, optional, default=False): whether to include
             any applicable sidebars (colorbar, sizebar, etc).
         * `draw_title` (bool, optional, default=False): whether to draw axes
             titles.
         * `subplot_grid` (tuple, optional, default=None): override the subplot
-            grid used (see [autofig tutorial on subplots](https://github.com/kecnry/autofig/blob/1.0.0/tutorials/subplot_positioning.ipynb)
+            grid used (see [autofig tutorial on subplots](https://autofig.readthedocs.io/en/latest/tutorials/subplot_positioning/)
             for more details).
 
         * `save_kwargs` (dict, optional): any kwargs necessary to pass on to
-            save (only applicable if `animate=True`).
+            save (only applicable if `animate=True`).  On many systems,
+            it may be necessary to pass `save_kwargs={'writer': 'imagemagick'}`.
 
-        * `**kwargs`: additional keyword arguments are sent along to [autofig](https://github.com/kecnry/autofig/tree/1.0.0).
+        * `**kwargs`: additional keyword arguments are sent along to [autofig](https://autofig.readthedocs.io/en/latest/).
 
         Returns
         --------
@@ -3719,30 +3889,58 @@ class ParameterSet(object):
         animate = kwargs.pop('animate', False)
         time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
+        if kwargs.get('projection', '2d') == '3d' and kwargs.get('ec', None) =='face':
+            raise ValueError("projection='3d' and ec='face' do not work together.  Consider ec='none' instead.")
+
         if twig is not None:
             kwargs['twig'] = twig
 
-        plot_kwargss = self._unpack_plotting_kwargs(**kwargs)
+        # temporarily check_default, and check_visible
+        conf_check_default = conf.check_default
+        if conf_check_default:
+            logger.debug("temporarily disabling check_default")
+            conf.check_default_off()
 
-        # this loop handles any of the automatically-generated
-        # multiple plotting calls, passing each on to autofig
-        for plot_kwargs in plot_kwargss:
-            y = plot_kwargs.get('y', [])
-            if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
-                pass
-            elif not len(y):
-                # a dataset without observational data, for example
-                continue
+        conf_check_visible = conf.check_visible
+        if conf_check_visible:
+            logger.debug("temporarily disabling check_visible")
+            conf.check_visible_off()
 
-            autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-            # we kept the qualifiers around so we could do some default-logic,
-            # but it isn't necessary to pass them on to autofig.
-            plot_kwargs = {k:v for k,v in plot_kwargs.items() if 'qualifier' not in k}
-            logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
-            func = getattr(self.gcf(), autofig_method)
+        def restore_conf():
+            if conf_check_visible:
+                logger.debug("restoring check_visible")
+                conf.check_visible_on()
 
-            func(**plot_kwargs)
+            if conf_check_default:
+                logger.debug("restoring check_default")
+                conf.check_default_on()
 
+        try:
+            plot_kwargss = self._unpack_plotting_kwargs(**kwargs)
+
+            # this loop handles any of the automatically-generated
+            # multiple plotting calls, passing each on to autofig
+            for plot_kwargs in plot_kwargss:
+                y = plot_kwargs.get('y', [])
+                if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
+                    pass
+                elif not len(y):
+                    # a dataset without observational data, for example
+                    continue
+
+                autofig_method = plot_kwargs.pop('autofig_method', 'plot')
+                # we kept the qualifiers around so we could do some default-logic,
+                # but it isn't necessary to pass them on to autofig.
+                dump = kwargs.pop('qualifier', None)
+                logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
+                func = getattr(self.gcf(), autofig_method)
+
+                func(**plot_kwargs)
+        except Exception as err:
+            restore_conf()
+            raise
+
+        restore_conf()
 
         if save or show or animate:
             # NOTE: time, times, will all be included in kwargs
@@ -3779,6 +3977,7 @@ class ParameterSet(object):
             # prefer times over time
             times = kwargs.get('times', kwargs.get('time', None))
             save_kwargs = kwargs.get('save_kwargs', {})
+            interval = kwargs.get('interval', 100)
 
             if times is None:
                 # then let's try to get all SYNTHETIC times
@@ -3797,13 +3996,14 @@ class ParameterSet(object):
 
                 times = sorted(list(set(times)))
 
-            logger.info("calling autofig.animate(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={}, save_kwargs={})".format(times, draw_sidebars, draw_title, tight_layout, save, show, save_kwargs))
+            logger.info("calling autofig.animate(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, interval={}, save={}, show={}, save_kwargs={})".format(times, draw_sidebars, draw_title, tight_layout, interval, save, show, save_kwargs))
 
             mplanim = self.gcf().animate(i=times,
                                          draw_sidebars=draw_sidebars,
                                          draw_title=draw_title,
                                          tight_layout=tight_layout,
                                          subplot_grid=subplot_grid,
+                                         interval=interval,
                                          save=save,
                                          show=show,
                                          save_kwargs=save_kwargs)
@@ -4721,7 +4921,7 @@ class Parameter(object):
         return self._visible_if
 
     @property
-    def is_visible(self):
+    def is_visible(self, visible_if=None):
         """
         Execute the `visible_if` expression for this <phoebe.parameters.Parameter>
         and determine whether it is currently visible in the parent
@@ -4737,8 +4937,36 @@ class Parameter(object):
         --------
         * (bool):  whether this parameter is currently visible
         """
+        return self._is_visible()
+
+
+    def _is_visible(self, visible_if=None):
+        """
+        Execute the `visible_if` expression for this <phoebe.parameters.Parameter>
+        and determine whether it is currently visible in the parent
+        <phoebe.parameters.ParameterSet>.
+
+        If `False`, <phoebe.parameters.ParameterSet.filter> calls must have
+        `check_visible=False` or else this Parameter will be excluded.
+
+        See also:
+        * <phoebe.parameters.Parameter.visible_if>
+
+        Arguments
+        -----------
+        * `visible_if` (string or list, optional, default=None): expression to
+            use to compute visibility.  If None or not provided, will default
+            to <phoebe.parameters.Parameter.visible_if>.
+
+        Returns
+        --------
+        * (bool):  whether this parameter is currently visible
+        """
         def is_visible_single(visible_if):
-            # visible_if syntax: [ignore,these]qualifier:value
+            # visible_if syntax:
+            # * [ignore,these]qualifier:value
+            # * [ignore,these]qualifier:<tag>
+            # print("is_visible_single {}".format(visible_if))
 
             if visible_if.lower() == 'false':
                 return False
@@ -4807,18 +5035,28 @@ class Parameter(object):
                     return param.get_value() in value.split("|")
                 elif value=='<notempty>':
                     return len(param.get_value()) > 0
+                elif isinstance(value, str) and value[0] == '<' and value[-1] == '>':
+                    return param.get_value() == getattr(self, value[1:-1])
                 else:
                     return param.get_value() == value
 
+        if visible_if is None:
+            visible_if = self.visible_if
 
-        if self.visible_if is None:
+        if visible_if is None:
             return True
 
         if not self._bundle:
             # then we may not be able to do the check, for now let's just return True
             return True
 
-        return np.all([is_visible_single(visible_if_i) for visible_if_i in self.visible_if.split(',')])
+
+        # if isinstance(visible_if, list) or isinstance(visible_if, tuple):
+            # return np.any([self.is_visible(vi) for vi in visible_if])
+
+        # syntax:
+        # * visible_if = 'condition1,condition2||condition3' (where '||' is or ',' is and)
+        return np.any([np.all([is_visible_single(visible_if_ii) for visible_if_ii in visible_if_i.split(',')]) for visible_if_i in visible_if.split('||')])
 
 
 
@@ -5519,7 +5757,7 @@ class SelectParameter(Parameter):
 
         # allow for wildcards
         for choice in self.choices:
-            if fnmatch(choice, value):
+            if _fnmatch(choice, value):
                 return True
 
         return False
@@ -5594,7 +5832,7 @@ class SelectParameter(Parameter):
             for choice in self.choices:
                 if v==choice and choice not in selection:
                     selection.append(choice)
-                elif fnmatch(choice, v) and choice not in selection:
+                elif _fnmatch(choice, v) and choice not in selection:
                     selection.append(choice)
 
         return selection
@@ -5672,7 +5910,7 @@ class SelectParameter(Parameter):
         * <phoebe.parameters.SelectParameter.set_value>
         """
         value = [v for v in self.get_value() if self.valid_selection(v)]
-        self.set_value(value)
+        self.set_value(value, run_checks=False)
 
     def __add__(self, other):
         if isinstance(other, str):
@@ -6536,7 +6774,7 @@ class FloatParameter(Parameter):
         """
         if self._is_constraint is None:
             return None
-        return self._bundle.get_parameter(context='constraint', uniqueid=self._is_constraint)
+        return self._bundle.get_parameter(context='constraint', uniqueid=self._is_constraint, check_visible=False)
 
     @property
     def constrained_by(self):
@@ -7261,6 +7499,7 @@ class HierarchyParameter(StringParameter):
         """
         self._is_binary = {}
         self._is_contact_binary = {}
+        self._meshables = []
 
     def _update_cache(self):
         """
@@ -7268,6 +7507,8 @@ class HierarchyParameter(StringParameter):
         # update cache for is_binary and is_contact_binary
         self._clear_cache()
         if self._bundle is not None:
+            self._meshables = self._compute_meshables()
+
             # for comp in self.get_components():
             for comp in self._bundle.components:
                 if comp == '_default':
@@ -7463,6 +7704,19 @@ class HierarchyParameter(StringParameter):
                 orbits.append(parent)
         return orbits
 
+    def _compute_meshables(self):
+        l = re.findall(r"[\w']+", self.get_value())
+        # now search for indices of star and take the next entry from this flat list
+        meshables = [l[i+1] for i,s in enumerate(l) if s in ['star', 'envelope']]
+
+        # now we want to remove any star which has a sibling envelope
+        has_sibling_envelope = []
+        for item in meshables:
+            if self.get_sibling_of(item, kind='envelope'):
+                has_sibling_envelope.append(item)
+
+        return [m for m in meshables if m not in has_sibling_envelope]
+
     def get_meshables(self):
         """
         Return a list of all components that are meshable (generally stars,
@@ -7484,17 +7738,10 @@ class HierarchyParameter(StringParameter):
         -------
         * (list of strings)
         """
-        l = re.findall(r"[\w']+", self.get_value())
-        # now search for indices of star and take the next entry from this flat list
-        meshables = [l[i+1] for i,s in enumerate(l) if s in ['star', 'envelope']]
+        if not len(self._meshables):
+            self._update_cache()
 
-        # now we want to remove any star which has a sibling envelope
-        has_sibling_envelope = []
-        for item in meshables:
-            if self.get_sibling_of(item, kind='envelope'):
-                has_sibling_envelope.append(item)
-
-        return [m for m in meshables if m not in has_sibling_envelope]
+        return self._meshables
 
     def is_meshable(self, component):
         """
@@ -7989,7 +8236,14 @@ class HierarchyParameter(StringParameter):
     def is_time_dependent(self):
         """
         Return whether the system has any time-dependent parameters (other than
-        phase-dependent).
+        phase-dependence).
+
+        This will return True if any of the following conditions are met:
+        * `dpdt` is non-zero
+        * `dperdt` is non-zero
+        * `deccdt` (devel-only) is none-zero
+        * a feature (eg. spot) is attached to an asynchronous star (with
+            non-unity value for `syncpar`).
 
         Returns
         ---------
@@ -8001,6 +8255,11 @@ class HierarchyParameter(StringParameter):
             if self._bundle.get_value(qualifier='dperdt', component=orbit, context='component') != 0:
                 return True
             if conf.devel and self._bundle.get_value(qualifier='deccdt', component=orbit, context='component') != 0:
+                return True
+
+        for component in self.get_stars():
+            if self._bundle.get_value('syncpar', component=component, context='component') != 1 and len(self._bundle.filter(context='feature', component=component)):
+                # spots on asynchronous stars
                 return True
 
         return False
@@ -8237,8 +8496,8 @@ class ConstraintParameter(Parameter):
             * KeyError: if the filtering results in 0 matches
         """
         kwargs['twig'] = twig
-        kwargs['check_default'] = False
-        kwargs['check_visible'] = False
+        kwargs.setdefault('check_default', False)
+        kwargs.setdefault('check_visible', False)
         vars = self.vars + self.addl_vars
         ps = vars.filter(**kwargs)
         if len(ps)==1:
@@ -8520,7 +8779,7 @@ class ConstraintParameter(Parameter):
         """
         return self.get_result()
 
-    def get_result(self, t=None):
+    def get_result(self, t=None, suppress_error=True):
         """
         Get the current value (as a quantity) of the result of the expression
         of this <phoebe.parameters.ConstraintParameter>.
@@ -8588,6 +8847,8 @@ class ConstraintParameter(Parameter):
 
                 values = get_values(self._vars+self._addl_vars, safe_label=False)
 
+                values = get_values(self._vars+self._addl_vars, safe_label=False)
+
                 # cannot do from builtin import *
                 for func in _constraint_builtin_funcs:
                     # I should be shot for doing this...
@@ -8599,9 +8860,19 @@ class ConstraintParameter(Parameter):
                     locals()[func] = getattr(builtin, func)
 
                 try:
+                # if True:
                     value = float(eval(eq.format(**values)))
+                except ValueError as err:
+                    if suppress_error:
+                        value = np.nan
+                        logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
+                    else:
+                        raise
                 except:
-                    value = np.nan
+                    if suppress_error:
+                        value = np.nan
+                    else:
+                        raise
 
 
             else:
@@ -8738,12 +9009,15 @@ class ConstraintParameter(Parameter):
         if len(addl_vars):
             # then the vars may have changed (esinw,ecosw, for example)
             vars_ = []
+            var_safe_labels = []
             # technically addl_vars probably hasn't changed... but let's recompute to be safe
             # self._addl_vars = [ConstraintVar(self._bundle, v.twig) for v in addl_vars]
 
             for var in self._vars + self._addl_vars:
-                if var.safe_label in expression and var not in vars_:
+                var_safe_label = var.safe_label
+                if var_safe_label in expression and var_safe_label not in var_safe_labels:
                     vars_.append(var)
+                    var_safe_labels.append(var_safe_label)
             self._vars = vars_
 
             # and we'll reset the cached version of the parameters

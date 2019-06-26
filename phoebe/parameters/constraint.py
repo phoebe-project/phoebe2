@@ -138,6 +138,15 @@ def arctan2(param1, param2):
     """
     return ConstraintParameter(param1._bundle, "arctan2({}, {})".format(_get_expr(param1), _get_expr(param2)))
 
+def arctan2(param1, param2):
+    """
+    Allows using the arctan2 function in a constraint
+
+    :parameter param: the :class:`phoebe.parameters.parameters.Parameter`
+    :returns: the :class:`phoebe.parameters.parameters.ConstraintParameter`
+    """
+    return ConstraintParameter(param1._bundle, "arctan2({}, {})".format(_get_expr(param1), _get_expr(param2)))
+
 def abs(param):
     """
     Allows using the abs (absolute value) function in a constraint
@@ -214,6 +223,18 @@ def esinw2per0(ecc, esinw):
 
 def ecosw2per0(ecc, ecosw):
     return ConstraintParameter(ecc._bundle, "ecosw2per0({}, {})".format(_get_expr(ecc), _get_expr(ecosw)))
+
+def esinw2ecc(esinw, per0):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(esinw._bundle, "esinw2ecc({}, {})".format(_get_expr(esinw), _get_expr(per0)))
+
+def ecosw2ecc(ecosw, per0):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(ecosw._bundle, "ecosw2ecc({}, {})".format(_get_expr(ecosw), _get_expr(per0)))
 
 def t0_perpass_to_supconj(t0_perpass, period, ecc, per0):
     return ConstraintParameter(t0_perpass._bundle, "t0_perpass_to_supconj({}, {}, {}, {})".format(_get_expr(t0_perpass), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
@@ -385,17 +406,18 @@ def esinw(b, orbit, solve_for=None, **kwargs):
         lhs = esinw
         rhs = ecc * sin(per0)
         if not ecosw_created and not ecosw_constrained:
-            if per0.is_constraint:
+            if per0.is_constraint and per0.is_constraint.constraint_func != 'esinw':
                 per0.is_constraint.constraint_kwargs['esinw_constrained'] = True
                 per0.is_constraint.flip_for('per0', force=True)
-            elif ecc.is_constraint:
+            elif ecc.is_constraint and ecc.is_constraint.constraint_func != 'esinw':
                 ecc.is_constraint.constraint_kwargs['esinw_constrained'] = True
                 ecc.is_constraint.flip_for('ecc', force=True)
 
     elif solve_for == ecc:
         lhs = ecc
         if ecosw_constrained:
-            rhs = esinw / sin(per0)
+            # cannot just do esinw/sin(per0) because sin(per0) may be zero
+            rhs = esinw2ecc(esinw, per0)
         else:
             rhs = (esinw**2 + ecosw**2)**0.5
             # the other constraint needs to also follow the alternate equations
@@ -479,17 +501,18 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
         lhs = ecosw
         rhs = ecc * cos(per0)
         if not esinw_created and not esinw_constrained:
-            if per0.is_constraint:
+            if per0.is_constraint and per0.is_constraint.constraint_func != 'ecosw':
                 per0.is_constraint.constraint_kwargs['ecosw_constrained'] = True
                 per0.is_constraint.flip_for('per0', force=True)
-            elif ecc.is_constraint:
+            elif ecc.is_constraint and ecc.is_constraint.constraint_func != 'ecosw':
                 ecc.is_constraint.constraint_kwargs['ecosw_constrained'] = True
                 ecc.is_constraint.flip_for('ecc', force=True)
 
     elif solve_for == ecc:
         lhs = ecc
         if esinw_constrained:
-            rhs = ecosw / cos(per0)
+            # cannot just do ecosw/cos(per0) because cos(per0) may be zero
+            rhs = ecosw2ecc(ecosw, per0)
         else:
             rhs = (esinw**2 + ecosw**2)**0.5
             # the other constraint needs to also follow the alternate equations

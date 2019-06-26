@@ -40,14 +40,14 @@ def initiate_sun_earth_system(pb_str):
 
     if BLACKBODY:
         b.set_value_all('atm', value='blackbody')
+        b.set_value_all('ld_mode', 'manual')
         b.set_value_all('ld_func', value='linear')
-        b.set_value_all('ld_coeffs_source', 'none')
         b.set_value_all('ld_coeffs', value=[0.0])
     else:
         b.set_value_all('atm', component='secondary', value='blackbody')
         b.set_value_all('ld_func', component='primary', value='interp')
+        b.set_value_all('ld_mode', component='secondary', value='manual')
         b.set_value_all('ld_func', component='secondary', value='linear')
-        b.set_value_all('ld_coeffs_source', component='secondary', value='none')
         b.set_value_all('ld_coeffs', component='secondary', value=[0.0])
 
     return b

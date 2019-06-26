@@ -31,8 +31,8 @@ def test_binary(plot=False):
     b.set_value_all('ld_func_bol', 'logarithmic')
     b.set_value_all('ld_coeffs_bol', [0.0, 0.0])
 
+    b.set_value_all('ld_mode', 'manual')
     b.set_value_all('ld_func', 'logarithmic')
-    b.set_value_all('ld_coeffs_source', 'none')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [1.0, 0.5, 0.0]:
@@ -82,8 +82,8 @@ def test_contact(plot=False):
     b.set_value_all('ld_func_bol', 'logarithmic')
     b.set_value_all('ld_coeffs_bol', [0.0, 0.0])
 
+    b.set_value_all('ld_mode', 'manual')
     b.set_value_all('ld_func', 'logarithmic')
-    b.set_value_all('ld_coeffs_source', 'none')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [0, 0.5, 1.0]:
