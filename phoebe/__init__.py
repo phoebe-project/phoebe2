@@ -181,10 +181,15 @@ class MPI(object):
         if self.within_mpirun:
             raise ValueError("detach not available within mpirun")
 
-        if self.enabled:
-            return 'mpiexec -np %d python {}' % self.nprocs
+        if _sys.version_info[0] == 3:
+            python = 'python3'
         else:
-            return 'python {}'
+            python = 'python'
+
+        if self.enabled:
+            return 'mpiexec -np %d %s {}' % (self.nprocs, python)
+        else:
+            return '%s {}' % python
 
     def shutdown_workers(self):
         if self.within_mpirun and self.myrank == 0:
@@ -224,6 +229,11 @@ class Settings(object):
         # console, but False if running from within a script
         # See #255 (https://github.com/phoebe-project/phoebe2/issues/255)
         self._interactive_checks = not hasattr(__main__, '__file__') or bool(_sys.flags.interactive)
+
+        # we'll enable check_default and check_default by default (can still
+        # be disabled by passing to filter)
+        self._check_visible = True
+        self._check_default = True
 
         # And we'll require explicitly setting developer mode on
         self._devel = False
@@ -265,6 +275,26 @@ class Settings(object):
     @property
     def interactive_constraints(self):
         return self._interactive_constraints
+
+    def check_visible_on(self):
+        self._check_visible = True
+
+    def check_visible_off(self):
+        self._check_visible = False
+
+    @property
+    def check_visible(self):
+        return self._check_visible
+
+    def check_default_on(self):
+        self._check_default = True
+
+    def check_default_off(self):
+        self._check_default = False
+
+    @property
+    def check_default(self):
+        return self._check_default
 
     def devel_on(self):
         self._devel = True
@@ -520,6 +550,56 @@ def interactive_checks_off():
     * <phoebe.interactive_checks_on>
     """
     conf.interactive_checks_off()
+
+def check_visible_on():
+    """
+    Enable checking for visibility of parameters by default.  Passing
+    `check_visible=False` to <phoebe.parameters.ParameterSet.filter> (or many
+    other methods that involve filtering) can still be used to temporarily
+    skip checking visiblity.
+
+    See also:
+    * <phoebe.check_visible_off>
+    * <phoebe.parameters.Parameter.is_visible>
+    """
+    conf.check_visible_on()
+
+def check_visible_off():
+    """
+    Disable checking for visibility of parameters by default.  Passing
+    `check_visible=True` to <phoebe.parameters.ParameterSet.filter> (or many
+    other methods that involve filtering) will be ignored.
+
+    See also:
+    * <phoebe.check_visible_on>
+    * <phoebe.parameters.Parameter.is_visible>
+    """
+    conf.check_visible_off()
+
+def check_default_on():
+    """
+    Enable ignoring parameters tagged with component or dataset of '_default'
+    by default.  Passing `check_default=False` to
+     <phoebe.parameters.ParameterSet.filter> (or many other methods that involve
+     filtering) can still be used to temporarily skip ignoring '_default'
+     parameters.
+
+    See also:
+    * <phoebe.check_default_off>
+    """
+    conf.check_default_on()
+
+def check_default_off():
+    """
+    Distable ignoring parameters tagged with component or dataset of '_default'
+    by default.  Passing `check_default=True` to
+    <phoebe.parameters.ParameterSet.filter> (or many other methods that involve
+    filtering) will be ignored.
+
+    See also:
+    * <phoebe.check_default_off>
+    """
+    conf.check_default_off()
 
 def devel_on():
     conf.devel_on()

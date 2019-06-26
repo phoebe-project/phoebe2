@@ -6,9 +6,11 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-def _get_ld_coeffs(ld_coeff, ld_func):
+def _get_ld_coeffs(ld_coeff, ld_func, ld_mode='manual'):
     # length of ld_coeffs depends on ld_func
     if ld_coeff is None:
+        ld_coeffs = None
+    elif ld_func == 'interp':
         ld_coeffs = None
     elif ld_func in ['linear']:
         ld_coeffs = [ld_coeff]
@@ -16,8 +18,6 @@ def _get_ld_coeffs(ld_coeff, ld_func):
         ld_coeffs = [ld_coeff, ld_coeff]
     elif ld_func in ['power']:
         ld_coeffs = [ld_coeff, ld_coeff, ld_coeff, ld_coeff]
-    elif ld_func in ['interp']:
-        ld_coeffs = None
     else:
         raise NotImplementedError
 
@@ -37,14 +37,14 @@ def test_binary(plot=False):
     b.set_value_all('ld_func_bol', 'linear')
     b.set_value_all('ld_coeffs_bol', [0.])
 
+    b.set_value_all('ld_mode', 'manual')
     b.set_value_all('ld_func', 'linear')
-    b.set_value_all('ld_coeffs_source', 'none')
     b.set_value_all('ld_coeffs', [0.])
 
     #turn off albedos (legacy requirement)
     b.set_value_all('irrad_frac_refl_bol',  0.0)
 
-    for ld_func in b.get('ld_func', component='primary').choices:
+    for ld_func in b.get('ld_func', component='primary').choices + ['interp']:
         # let's test all of these against legacy.  For some we don't have
         # exact comparisons, so we'll get close and leave a really lose
         # tolerance.
@@ -92,10 +92,19 @@ def test_binary(plot=False):
 
 
             b.set_value_all('atm@phoebe2', atm)
-            b.set_value_all('ld_func', ld_func)
+            if ld_func == 'interp':
+                b.set_value_all('ld_mode', 'interp')
+            else:
+                if ld_coeffs is not None:
+                    b.set_value_all('ld_mode', 'manual')
+                else:
+                    b.set_value_all('ld_mode', 'lookup')
+                    b.set_value_all('ld_coeffs_source', ld_coeffs_source, check_visible=False)
+
+                b.set_value_all('ld_func', ld_func)
+
             if ld_coeffs is not None:
                 b.set_value_all('ld_coeffs', ld_coeffs, check_visible=False)
-            b.set_value_all('ld_coeffs_source', ld_coeffs_source, check_visible=False)
 
             b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
 
@@ -103,6 +112,7 @@ def test_binary(plot=False):
                 print("running phoebe1 model atm={}, ld_func={}, ld_coeffs={}, ld_coeffs_source={}...".format(atm_ph1, ld_func_ph1, ld_coeffs_ph1, ld_coeffs_source))
 
             b.set_value_all('atm@phoebe1', atm_ph1)
+            b.set_value_all('ld_mode', 'manual')
             b.set_value_all('ld_func', ld_func_ph1)
             if ld_coeffs_ph1 is not None:
                 b.set_value_all('ld_coeffs', ld_coeffs_ph1, check_visible=False)
@@ -134,11 +144,9 @@ def test_binary(plot=False):
             # This is especially important for those we couldn't check above
             # vs legacy (quadratic, power), but also important to run all
             # with blackbody.
-            if ld_func=='interp':
-                # there are no ld_coeffs here to vary
-                continue
 
-            b.set_value_all('ld_func', ld_func)
+
+            b.set_value_all('ld_func', ld_func, check_visible=False)
 
             med_fluxes = []
             if ld_func == 'power':
@@ -159,7 +167,9 @@ def test_binary(plot=False):
 
                 if ld_coeffs is not None:
                     b.set_value_all('ld_coeffs', ld_coeffs, check_visible=False)
-                b.set_value_all('ld_coeffs_source', ld_coeffs_source, check_visible=False)
+                    b.set_value_all('ld_mode', 'manual')
+                else:
+                    b.set_value_all('ld_mode', 'lookup')
 
                 b.run_compute(compute='phoebe2', model='phoebe2model', overwrite=True)
 

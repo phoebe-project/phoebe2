@@ -103,8 +103,8 @@ def _expand_mesh_times(b, dataset_ps, component):
     if dataset_ps.kind != 'mesh':
         raise TypeError("_expand_mesh_times only works for mesh datasets")
 
-    # we're first going to access the times@mesh... this should not have a component tag
-    this_times = dataset_ps.get_value(qualifier='times', component=None, unit=u.d)
+    # we're first going to access the compute_times@mesh... this should not have a component tag
+    this_times = dataset_ps.get_value(qualifier='compute_times', component=None, unit=u.d)
     this_times = np.unique(np.append(this_times,
                                      [get_times(b, include_times_entry) for include_times_entry in dataset_ps.get_value(qualifier='include_times', expand=True)]
                                      )
@@ -156,7 +156,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
 
     for dataset in b.filter(qualifier='enabled', compute=compute, value=True).datasets:
         dataset_ps = b.filter(context='dataset', dataset=dataset)
-        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, check_visible=False)
+        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute)
         dataset_kind = dataset_ps.kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
         if dataset_kind in ['lc']:
@@ -175,9 +175,11 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
             elif dataset_kind == 'mesh':
                 this_times = _expand_mesh_times(b, dataset_ps, component)
             elif dataset_kind in ['lp']:
-                # then we have Parameters tagged by times, this will probably
-                # also apply to spectra.
-                this_times = [float(t) for t in dataset_ps.times]
+                this_times = np.unique(dataset_ps.get_value(qualifier='compute_times', unit=u.d))
+                if not len(this_times):
+                    # then we have Parameters tagged by times, this will probably
+                    # also apply to spectra.
+                    this_times = [float(t) for t in dataset_ps.times]
             else:
                 timequalifier = _timequalifier_by_kind(dataset_kind)
                 timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
@@ -198,8 +200,8 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
 
             if allow_oversample and \
                     dataset_kind in ['lc'] and \
-                    b.get_value(qualifier='exptime', dataset=dataset, check_visible=False) > 0 and \
-                    dataset_compute_ps.get_value(qualifier='fti_method', **kwargs)=='oversample':
+                    b.get_value(qualifier='exptime', dataset=dataset) > 0 and \
+                    dataset_compute_ps.get_value(qualifier='fti_method', check_visible=False, **kwargs)=='oversample':
 
                 # Then we need to override the times retrieved from the dataset
                 # with the oversampled times.  Later we'll do an average over
@@ -220,6 +222,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 this_wavelengths = None
 
             if len(this_times) and (this_wavelengths is None or len(this_wavelengths)):
+
                 info = {'dataset': dataset,
                         'component': component,
                         'kind': dataset_kind,
@@ -232,6 +235,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                     # of columns@mesh.  Let's store the needed information here,
                     # where mesh_datasets and mesh_kinds correspond to each
                     # other (but mesh_columns does not).
+                    info['mesh_coordinates'] = dataset_ps.get_value(qualifier='coordinates', expand=True)
                     info['mesh_columns'] = dataset_ps.get_value(qualifier='columns', expand=True)
                     info['mesh_datasets'] = list(set([c.split('@')[1] for c in info['mesh_columns'] if len(c.split('@'))>1]))
                     info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').kind for ds in info['mesh_datasets']]
@@ -409,9 +413,9 @@ class BaseBackend(object):
                 for packet in packetlist:
                     # single parameter
                     try:
-                        new_syns.set_value(check_default=False, check_visible=False, **packet)
+                        new_syns.set_value(check_visible=False, check_default=False, **packet)
                     except Exception as err:
-                        raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, err.message))
+                        raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, str(err)))
 
         return new_syns
 
@@ -435,6 +439,7 @@ class BaseBackend(object):
 
         if mpi.enabled:
             # broadcast the packet to ALL workers
+            logger.debug("rank:{}/{} broadcasting to all workers".format(mpi.myrank, mpi.nprocs))
             mpi.comm.bcast(packet, root=0)
 
             # now even the master can become a worker and take on a chunk
@@ -442,11 +447,13 @@ class BaseBackend(object):
             rpacketlists = self._run_chunk(**packet)
 
             # now receive all packetlists
+            logger.debug("rank:{}/{} gathering packetlists from all workers".format(mpi.myrank, mpi.nprocs))
             rpacketlists_per_worker = mpi.comm.gather(rpacketlists, root=0)
 
         else:
             rpacketlists_per_worker = [self._run_chunk(**packet)]
 
+        logger.debug("rank:{}/{} calling _fill_syns".format(mpi.myrank, mpi.nprocs))
         return self._fill_syns(new_syns, rpacketlists_per_worker)
 
 
@@ -484,6 +491,8 @@ class BaseBackendByTime(BaseBackend):
 
 
     def _run_chunk(self, b, compute, times, infolists, **kwargs):
+        logger.debug("rank:{}/{} _run_chunk".format(mpi.myrank, mpi.nprocs))
+
         worker_setup_kwargs = self._worker_setup(b, compute, times, infolists, **kwargs)
 
         inds = range(len(times))
@@ -499,6 +508,7 @@ class BaseBackendByTime(BaseBackend):
             packetlist = self._run_single_time(b, i, time, infolist, **worker_setup_kwargs)
             packetlists.append(packetlist)
 
+        logger.debug("rank:{}/{} _run_chunk returning packetlist".format(mpi.myrank, mpi.nprocs))
         return packetlists
 
 
@@ -554,7 +564,9 @@ class PhoebeBackend(BaseBackendByTime):
     """
 
     def run_checks(self, b, compute, times=[], **kwargs):
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        logger.debug("rank:{}/{} run_checks".format(mpi.myrank, mpi.nprocs))
+
+        computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -579,7 +591,7 @@ class PhoebeBackend(BaseBackendByTime):
         system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
 
         if dynamics_method is None:
-            computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+            computeparams = b.get_compute(compute, force_ps=True)
             dynamics_method = computeparams.get_value(qualifier='dynamics_method', **kwargs)
 
         if hier is None:
@@ -652,7 +664,7 @@ class PhoebeBackend(BaseBackendByTime):
 
     def _worker_setup(self, b, compute, times, infolists, **kwargs):
         logger.debug("rank:{}/{} PhoebeBackend._worker_setup: extracting parameters".format(mpi.myrank, mpi.nprocs))
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
         starrefs  = hier.get_stars()
         meshablerefs = hier.get_meshables()
@@ -948,12 +960,21 @@ class PhoebeBackend(BaseBackendByTime):
                 if body.mesh is None:
                     continue
 
-                packetlist.append(_make_packet('uvw_elements',
-                                              body.mesh.vertices_per_triangle,
-                                              time, info))
-                packetlist.append(_make_packet('xyz_elements',
-                                              body.mesh.roche_vertices_per_triangle,
-                                              time, info))
+                if 'uvw' in info['mesh_coordinates']:
+                    packetlist.append(_make_packet('uvw_elements',
+                                                  body.mesh.vertices_per_triangle,
+                                                  time, info))
+                    packetlist.append(_make_packet('uvw_normals',
+                                                  body.mesh.tnormals,
+                                                  time, info))
+
+                if 'xyz' in info['mesh_coordinates']:
+                    packetlist.append(_make_packet('xyz_elements',
+                                                  body.mesh.roche_vertices_per_triangle,
+                                                  time, info))
+                    packetlist.append(_make_packet('xyz_normals',
+                                                  body.mesh.roche_tnormals,
+                                                  time, info))
 
                 # if 'pot' in info['mesh_columns']:
                     # packetlist.append(_make_packet('pot',
@@ -1170,6 +1191,8 @@ class PhoebeBackend(BaseBackendByTime):
             else:
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
 
+        logger.debug("rank:{}/{} PhoebeBackend._run_single_time: returning packetlist at time={}".format(mpi.myrank, mpi.nprocs, time))
+
         return packetlist
 
 
@@ -1183,7 +1206,7 @@ class LegacyBackend(BaseBackendByDataset):
     """
 
     def run_checks(self, b, compute, times=[], **kwargs):
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -1233,7 +1256,7 @@ class LegacyBackend(BaseBackendByDataset):
             rvcurve = rvid+'-'+comp
             rvinds[rvcurve] = rvind
 
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True)
 
         os.remove(tmp_filename)
 
@@ -1798,7 +1821,7 @@ class JktebopBackend(BaseBackendByDataset):
         t0_supconj = kwargs.get('t0_supconj')
 
         # get dataset-dependent things that we need
-        l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset', check_visible=False)
+        l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
 
         ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
         ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')

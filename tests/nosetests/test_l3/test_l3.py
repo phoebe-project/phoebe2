@@ -21,8 +21,8 @@ def test_binary(plot=False):
     b.set_value_all('ld_func_bol', 'linear')
     b.set_value_all('ld_coeffs_bol', [0.0])
 
+    b.set_value_all('ld_mode', 'manual')
     b.set_value_all('ld_func', 'linear')
-    b.set_value_all('ld_coeffs_source', 'none')
     b.set_value_all('ld_coeffs', [0.0])
     # b.set_value_all('ecc', 0.2)
 
@@ -32,7 +32,7 @@ def test_binary(plot=False):
     b.set_value('l3', 0.5)
     b.set_value('l3_frac', 0.2, check_visible=False)
 
-    for l3_mode in ['flux', 'fraction of total light']:
+    for l3_mode in ['flux', 'fraction']:
         if plot: print("l3_mode={}".format(l3_mode))
         b.set_value('l3_mode', l3_mode)
 

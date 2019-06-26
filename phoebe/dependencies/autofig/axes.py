@@ -23,30 +23,72 @@ class AxesGroup(common.Group):
 
     @property
     def i(self):
+        """
+        Returns
+        ----------
+        * <autofig.axes.AxDimensionGroup> of all `i` dimensions in all children
+            <autofig.axes.Axes>
+        """
         return AxDimensionGroup(self._get_attrs('i'))
 
     @property
     def x(self):
+        """
+        Returns
+        ----------
+        * <autofig.axes.AxDimensionGroup> of all `x` dimensions in all children
+            <autofig.axes.Axes>
+        """
         return AxDimensionGroup(self._get_attrs('x'))
 
     @property
     def y(self):
+        """
+        Returns
+        ----------
+        * <autofig.axes.AxDimensionGroup> of all `y` dimensions in all children
+            <autofig.axes.Axes>
+        """
         return AxDimensionGroup(self._get_attrs('y'))
 
     @property
     def z(self):
+        """
+        Returns
+        ----------
+        * <autofig.axes.AxDimensionGroup> of all `z` dimensions in all children
+            <autofig.axes.Axes>
+        """
         return AxDimensionGroup(self._get_attrs('z'))
 
     @property
     def ss(self):
+        """
+        Returns
+        ----------
+        * <autofig.axes.AxDimensionGroup> of all `s` dimensions in all children
+            <autofig.axes.Axes>
+        """
         return AxDimensionSGroup(self._get_attrs('ss'))
 
     @property
     def cs(self):
+        """
+        Returns
+        ----------
+        * <autofig.axes.AxDimensionGroup> of all `c` dimensions in all children
+            <autofig.axes.Axes>
+        """
         return AxDimensionCGroup(self._get_attrs('cs'))
 
     @property
     def equal_aspect(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.Axes.equal_aspect> for each child
+            <autofig.axes.Axes>
+        """
         return self._get_attrs('equal_aspect')
 
     @equal_aspect.setter
@@ -55,6 +97,12 @@ class AxesGroup(common.Group):
 
     @property
     def pad_aspect(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.Axes.pad_aspect> for each child
+            <autofig.axes.Axes>
+        """
         return self._get_attrs('pad_aspect')
 
     @pad_aspect.setter
@@ -63,6 +111,12 @@ class AxesGroup(common.Group):
 
     @property
     def projection(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.Axes.projection> for each child
+            <autofig.axes.Axes>
+        """
         return self._get_attrs('projection')
 
     @projection.setter
@@ -71,10 +125,22 @@ class AxesGroup(common.Group):
 
     @property
     def elev(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.Axes.elev> for each child
+            <autofig.axes.Axes>
+        """
         return AxViewGroup(self._get_attrs('elev'))
 
     @property
     def azim(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.Axes.azim> for each child
+            <autofig.axes.Axes>
+        """
         return AxViewGroup(self._get_attrs('azim'))
 
 
@@ -134,17 +200,46 @@ class Axes(object):
 
     @property
     def figure(self):
+        """
+        Access the parent <autofig.figure.Figure>
+
+        Returns
+        ----------
+        * <autofig.figure.Figure>
+        """
         # no setter as this can only be set internally when attaching to a figure
         return self._figure
 
     @property
     def calls(self):
+        """
+        Access all children <autofig.call.Call>s of the <autofig.axes.Axes>.
+
+        See also:
+
+        * <autofig.axes.Axes.calls_sorted>
+        * <autofig.axes.Axes.plots>
+        * <autofig.axes.Axes.meshes>
+
+        Returns
+        -----------
+        * <autofig.call.CallGroup> of <autofig.call.Call> objects
+        """
         return _call.make_callgroup(self._calls)
 
     @property
     def calls_sorted(self):
         """
-        calls sorted in z
+        Access all children <autofig.call.Call>s of the <autofig.axes.Axes> sorted
+        in z-order.
+
+        See also:
+
+        * <autofig.axes.Axes.calls>
+
+        Returns
+        -----------
+        * <autofig.call.CallGroup> of <autofig.call.Call> objects
         """
         def _z(call):
             if isinstance(call.z.value, np.ndarray):
@@ -164,22 +259,47 @@ class Axes(object):
 
     @property
     def colorcycler(self):
+        """
+        Returns
+        ---------
+        * the colorcycler
+        """
         return self._colorcycler
 
     @property
     def markercycler(self):
+        """
+        Returns
+        --------
+        * the markercycler
+        """
         return self._markercycler
 
     @property
     def linestylecycler(self):
+        """
+        Returns
+        ----------
+        * the linestylecycler
+        """
         return self._linestylecycler
 
     @property
     def cmapcycler(self):
+        """
+        Returns
+        ----------
+        * the cmap cycler
+        """
         return self._cmapcycler
 
     @property
     def projection(self):
+        """
+        Returns
+        -----------
+        * (str): whether the projection is '2d' or '3d'
+        """
         if self._projection is None:
             return '2d'
 
@@ -197,6 +317,16 @@ class Axes(object):
 
     @property
     def legend(self):
+        """
+        See also:
+
+        * <autofig.axes.Axes.legend_kwargs>
+
+        Returns
+        ----------
+        * (bool): whether the legend is enabled.  See
+            <autofig.axes.Axes.legend_kwargs> for legend options.
+        """
         return self._legend
 
     @legend.setter
@@ -208,6 +338,15 @@ class Axes(object):
 
     @property
     def legend_kwargs(self):
+        """
+        See also:
+
+        * <autofig.axes.Axes.legend>
+
+        Returns
+        ---------
+        * (dict): keyword arguments to be passed on to [plt.legend](https://matplotlib.org/api/_as_gen/matplotlib.pyplot.legend.html)
+        """
         return self._legend_kwargs
 
     @legend_kwargs.setter
@@ -280,50 +419,122 @@ class Axes(object):
 
     @property
     def i(self):
+        """
+        Returns
+        ---------
+        * (array): the data-array for the `i` direction.
+        """
         return self._i
 
     @property
     def indep(self):
+        """
+        Shortcut to <autofig.axes.Axes.i>.
+
+        Returns
+        ---------
+        * (array): the data-array for the `i` direction.
+        """
         return self.i
 
     @property
     def x(self):
+        """
+        Returns
+        ---------
+        * (array): the data-array for the `x` direction.
+        """
         return self._x
 
     @property
     def y(self):
+        """
+        Returns
+        ---------
+        * (array): the data-array for the `y` direction.
+        """
         return self._y
 
     @property
     def z(self):
+        """
+        Returns
+        ---------
+        * (array): the data-array for the `z` direction.
+        """
         return self._z
 
     @property
     def xy(self):
+        """
+        Returns
+        -----------
+        * <autofig.axes.AxDimensionGroup> of <autofig.axes.Axes.x> and
+            <autofig.axes.Axes.y>.
+        """
         return AxDimensionGroup([self.x, self.y])
 
     @property
     def xyz(self):
+        """
+        Returns
+        -----------
+        * <autofig.axes.AxDimensionGroup> of <autofig.axes.Axes.x> ,
+            <autofig.axes.Axes.y>, and <autofig.axes.Axes.z>.
+        """
         return AxDimensionGroup([self.x, self.y, self.z])
 
     @property
     def ss(self):
+        """
+        Returns
+        -----------
+        * <autofig.axes.AxDimensionGroup> of all `s` dimensions.
+        """
         return AxDimensionGroup(self._ss)
 
     @property
     def sizes(self):
+        """
+        Shortcut to <autofig.axes.Axes.ss>.
+
+        Returns
+        -----------
+        * <autofig.axes.AxDimensionGroup> of all `s` dimensions.
+        """
         return self.ss
 
     @property
     def cs(self):
+        """
+        Returns
+        -----------
+        * <autofig.axes.AxDimensionGroup> of all `c` dimensions.
+        """
         return AxDimensionGroup(self._cs)
 
     @property
     def colors(self):
+        """
+        Shortcut to <autofig.axes.Axes.cs>.
+
+        Returns
+        -----------
+        * <autofig.axes.AxDimensionGroup> of all `c` dimensions.
+        """
         return self.cs
 
     @property
     def elev(self):
+        """
+        Returns
+        ---------
+        * the elevation for the 3d projection of the axes.
+
+        Raises
+        --------
+        * ValueError: if <autofig.axes.Axes.projection> is not '3d'
+        """
         if self.projection != '3d':
             raise ValueError("elev only applicable for 3D projection")
 
@@ -331,6 +542,15 @@ class Axes(object):
 
     @property
     def azim(self):
+        """
+        Returns
+        ---------
+        * the azimuth for the 3d projection of the axes.
+
+        Raises
+        --------
+        * ValueError: if <autofig.axes.Axes.projection> is not '3d'
+        """
         if self.projection != '3d':
             raise ValueError("azim only applicable for 3D projection")
 
@@ -338,6 +558,11 @@ class Axes(object):
 
     @property
     def equal_aspect(self):
+        """
+        Returns
+        -----------
+        * (bool): whether equal aspect ratio is enabled.
+        """
         if self._equal_aspect is None:
             # TODO: logic for 3D
             if self.x.unit.physical_type == self.y.unit.physical_type:
@@ -363,6 +588,11 @@ class Axes(object):
 
     @property
     def pad_aspect(self):
+        """
+        Returns
+        ----------
+        * (bool): whether padding to achieve equal aspect ratio is enabled.
+        """
         if self._pad_aspect is None:
             if self.equal_aspect:
                 if self.x._lim in [None, (None, None)] or isinstance(self.x._lim, str):
@@ -387,11 +617,22 @@ class Axes(object):
 
     def consistent_with_call(self, call):
         """
-        check to see if a new call would be consistent to add to this Axes instance
+        Check to see if a new <autofig.call.Call> would be consistent to add to
+        this <autofig.axes.Axes> instance.
 
-        checks include:
+        Cchecks include:
+
         * compatible units in all directions
         * compatible independent-variable (if applicable)
+
+        Arguments
+        -----------
+        * `call` (<autofig.call.Call>)
+
+        Returns
+        ----------
+        * (bool, string): whether the call is consistent, and a message describing
+            why/why not (usually empty if returning True).
         """
         if len(self.calls) == 0:
             return True, ''
@@ -512,6 +753,21 @@ class Axes(object):
         return s_match
 
     def add_call(self, *calls):
+        """
+        Add a new <autofig.call.Call> (<autofig.call.Plot> or <autofig.call.Mesh>)
+        to the <autofig.axes.Axes>.
+
+        Arguments
+        -------------
+        * `*calls` (<autofig.call.Call>): positional arguments must each be an
+            <autofig.call.Call> object.
+
+        Raises
+        ----------
+        * TypeError: if any argument is not of type <autofig.call.Call>.
+        * ValueError: if the <autofig.call.Call> is not consistent with this
+            <autofig.axes.Axes>.  See <autofig.axes.Axes.consistent_with_call>.
+        """
         if len(calls) > 1:
             for c in calls:
                 self.add_call(c)
@@ -570,6 +826,7 @@ class Axes(object):
                 c_match = self._match_color(call, 'c')
                 s_match = self._match_size(call, 's')
 
+
             elif isinstance(call, _call.Mesh):
                 self._colorcycler.add_to_used(call.get_facecolor())
                 self._colorcycler.add_to_used(call.get_edgecolor())
@@ -605,29 +862,44 @@ class Axes(object):
                     original_k = "{}{}".format(direction, k)
 
                     if direction=='c':
-                        # then only apply to c_match
-                        if c_match is None:
-                            # I hate to raise an error here since stuff has already been done
-                            raise ValueError("could not set {}, call still added".format(original_k))
-                        setattr(c_match, k, v)
+                        if isinstance(call, _call.Plot):
+                            # then only apply to c_match
+                            if c_match is None:
+                                # I hate to raise an error here since stuff has already been done
+                                raise ValueError("could not set {}, call still added".format(original_k))
+                            setattr(c_match, k, v)
+                        else:
+                            print("WARNING: direction {} for {} not supported for {}, ignoring".format(direction, k, call.__class__.__name__))
                     elif direction=='fc':
-                        if fc_match is None:
-                            # I hate to raise an error here since stuff has already been done
-                            raise ValueError("could not set {}, call still added".format(original_k))
-                        setattr(fc_match, k, v)
+                        if isinstance(call, _call.Mesh):
+                            if fc_match is None:
+                                # I hate to raise an error here since stuff has already been done
+                                raise ValueError("could not set {}, call still added".format(original_k))
+                            setattr(fc_match, k, v)
+                        else:
+                            print("WARNING: direction {} for {} not supported for {}, ignoring".format(direction, k, call.__class__.__name__))
+
                     elif direction=='ec':
-                        if ec_match is None:
-                            # I hate to raise an error here since stuff has already been done
-                            raise ValueError("could not set {}, call still added".format(original_k))
-                        setattr(ec_match, k, v)
+                        if isinstance(call, _call.Mesh):
+                            if ec_match is None:
+                                # I hate to raise an error here since stuff has already been done
+                                raise ValueError("could not set {}, call still added".format(original_k))
+                            setattr(ec_match, k, v)
+                        else:
+                            print("WARNING: direction {} for {} not supported for {}, ignoring".format(direction, k, call.__class__.__name__))
+
                     elif direction=='s':
-                        # then only apply to s_match
-                        if s_match is not None:
-                            setattr(s_match, k, v)
-                        # else:
-                            # I hate to raise an error here since stuff has already been done
-                            # this case could happen under normal circumstances for smode when CallDimensionS is a float instead of an array
-                            # raise ValueError("could not set {}, call still added".format(original_k))
+                        if isinstance(call, _call.Plot):
+                            # then only apply to s_match
+                            if s_match is not None:
+                                setattr(s_match, k, v)
+                            # else:
+                                # I hate to raise an error here since stuff has already been done
+                                # this case could happen under normal circumstances for smode when CallDimensionS is a float instead of an array
+                                # raise ValueError("could not set {}, call still added".format(original_k))
+                        else:
+                            print("WARNING: direction {} for {} not supported for {}, ignoring".format(direction, k, call.__class__.__name__))
+
                     else:
                         setattr(getattr(self, direction), k, v)
 
@@ -635,6 +907,29 @@ class Axes(object):
                     del call.kwargs[original_k]
 
     def append_subplot(self, fig=None, subplot_grid=None):
+        """
+        Append this <autofig.axes.Axes> as a subplot to a matplotlib figure.
+
+        Arguments
+        ----------
+        * `fig` (matplotlib figure, optional, default=None): the matplotlib figure
+            on which to append the subplot.  If not provided or None, will default
+            to plt.gcf().
+        * `subplot_grid` (tuple of length 2 or None, optional, default=None):
+            subplot grid in format (nrows [int], ncols [int]).  The appended
+            subplot will then be placed in the location determined by
+            <autofig.axes.Axes.axpos> or the next open slot.
+
+        Returns
+        ------------
+        * [matplotlib Axes](https://matplotlib.org/api/axes_api.html#matplotlib.axes.Axes)
+
+        Raises
+        -----------
+        * TypeError: if `subplot_grid` is not None or a tuple
+        * ValueError: if `subplot_grid` is a tuple, but not of 2 integers
+
+        """
         def determine_grid(N):
             cols = np.floor(np.sqrt(N))
             rows = np.ceil(float(N)/cols) if cols > 0 else 1
@@ -704,6 +999,15 @@ class Axes(object):
         return self._backend_artists
 
     def draw_sidebars(self, ax=None, i=None):
+        """
+        Draw any applicable sidebars to the matplotlib axes.
+
+        Arguments
+        ------------
+        * `ax` (matplotlib axes, optional, default=None): matplotlib axes object
+            on which to draw the sidebars.
+        * `i` (float, optional, default=None)
+        """
 
         ax = self._get_backend_object(ax)
 
@@ -779,11 +1083,35 @@ class Axes(object):
 
     @property
     def plots(self):
+        """
+        Access all children <autofig.call.Plot>s of the <autofig.axes.Axes>.
+
+        See also:
+
+        * <autofig.axes.Axes.calls>
+        * <autofig.axes.Axes.meshes>
+
+        Returns
+        -----------
+        * <autofig.call.PlotGroup> of <autofig.call.Plot> objects
+        """
         calls = [c for c in self._calls if isinstance(c, _call.Plot)]
         return _call.PlotGroup(calls)
 
     @property
     def meshes(self):
+        """
+        Access all children <autofig.call.Mesh>es of the <autofig.axes.Axes>.
+
+        See also:
+
+        * <autofig.axes.Axes.calls>
+        * <autofig.axes.Axes.plots>
+
+        Returns
+        -----------
+        * <autofig.call.MeshGroup> of <autofig.call.Mesh> objects
+        """
         calls = [c for c in self._calls if isinstance(c, _call.Mesh)]
         return _call.MeshGroup(calls)
 
@@ -792,6 +1120,45 @@ class Axes(object):
              draw_title=True,
              show=False, save=False,
              in_animation=False):
+        """
+        Draw the contents of the <autofig.axes.Axes> to a matplotlib axes
+        object.
+
+        See also:
+
+        * <autofig.draw>
+        * <autofig.figure.Figure.draw>
+        * <autofig.call.Plot.draw>
+        * <autofig.call.Mesh.draw>
+
+
+        Arguments
+        ------------
+        * `ax` (matplotlib axes or None, optional, default=None): matplotlib
+            axes instances to use during drawing.
+        * `i` (float or None, optional, default=None): passed on to
+            <autofig.call.Call.draw> for all <autofig.call.Call>s in
+            <autofig.axes.Axes.calls>.
+        * `calls` (list of <autofig.call.Call> objects or None, optional, default=None):
+            <autofig.call.Call>s to draw.  If not provided or None, will draw
+            <autofig.axes.Axes.calls_sorted>.
+        * `draw_sidebars` (bool, optional, default=True): whether to draw
+            any applicable sidebars.
+        * `draw_title` (bool, optional, default=True): whether to draw the title
+            on the matplotlib axes.
+        * `show` (bool, optional, default=False): whether to immediately
+            draw and show the resulting matplotlib figure.
+        * `save` (False or string, optional, default=False): the filename
+            to save the resulting matplotlib figure, or False to not save.
+        * `in_animation` (bool, optional, default=False): whether the current
+            call to `draw` is a single frame in an animation.  Usually this
+            should not be changed by the user.  See <autofig.figure.Figure.animate>
+            for creating animations.
+
+        Returns
+        ----------
+        * [matplotlib Axes](https://matplotlib.org/api/axes_api.html#matplotlib.axes.Axes): the matplotlib axes object.
+        """
 
         ax = self._get_backend_object(ax)
 
@@ -873,10 +1240,22 @@ class AxDimensionGroup(common.Group):
 
     @property
     def direction(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.AxDimension.direction> for each child
+            <autofig.axes.AxDimension>
+        """
         return self._get_attrs('direction')
 
     @property
     def unit(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.AxDimension.unit> for each child
+            <autofig.axes.AxDimension>
+        """
         return self._get_attrs('unit')
 
     @unit.setter
@@ -885,6 +1264,12 @@ class AxDimensionGroup(common.Group):
 
     @property
     def pad(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.AxDimension.pad> for each child
+            <autofig.axes.AxDimension>
+        """
         return self._get_attrs('pad')
 
     @pad.setter
@@ -893,6 +1278,12 @@ class AxDimensionGroup(common.Group):
 
     @property
     def lim(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.AxDimension.lim> for each child
+            <autofig.axes.AxDimension>
+        """
         return self._get_attrs('lim')
 
     @lim.setter
@@ -901,6 +1292,12 @@ class AxDimensionGroup(common.Group):
 
     @property
     def label(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.AxDimension.label> for each child
+            <autofig.axes.AxDimension>
+        """
         return self._get_attrs('label')
 
     @label.setter
@@ -910,6 +1307,12 @@ class AxDimensionGroup(common.Group):
 class AxDimensionCGroup(AxDimensionGroup):
     @property
     def cmap(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.AxDimensionC.cmap> for each child
+            <autofig.axes.AxDimensionC>
+        """
         return self._get_attrs('cmap')
 
     @cmap.setter
@@ -919,6 +1322,12 @@ class AxDimensionCGroup(AxDimensionGroup):
 class AxDimensionSGroup(AxDimensionGroup):
     @property
     def smap(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.AxDimensionS.smap> for each child
+            <autofig.axes.AxDimensionS>
+        """
         return self._get_attrs('smap')
 
     @smap.setter
@@ -927,6 +1336,12 @@ class AxDimensionSGroup(AxDimensionGroup):
 
     @property
     def mode(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.AxDimensionS.mode> for each child
+            <autofig.axes.AxDimensionS>
+        """
         return self._get_attrs('mode')
 
     @mode.setter
@@ -955,10 +1370,21 @@ class AxArray(object):
 
     @property
     def axes(self):
+        """
+        Returns
+        --------
+        * (<autofig.axes.Axes>): the parent <autofig.axes.Axes> object.
+        """
         return self._axes
 
     @property
     def direction(self):
+        """
+        Returns
+        -------
+        * (str) the direction of the array.  One of: i, x, y, z, s, c, fc, ec,
+            elev, or azim.
+        """
         return self._direction
 
 class AxDimension(AxArray):
@@ -979,14 +1405,44 @@ class AxDimension(AxArray):
 
     @property
     def unit(self):
+        """
+        See also:
+
+        * <autofig.axes.AxDimension.unit_string>
+        * <autofig.axes.AxDimension.unit_latex>
+
+        Returns
+        ---------
+        * (astropy unit) the unit, if applicable.
+        """
         return self._unit
 
     @property
     def unit_string(self):
+        """
+        See also:
+
+        * <autofig.axes.AxDimension.unit>
+        * <autofig.axes.AxDimension.unit_latex>
+
+        Returns
+        --------
+        * (str): the string representation of the unit, if applicable.
+        """
         return self.unit.to_string()
 
     @property
     def unit_latex(self):
+        """
+        See also:
+
+        * <autofig.axes.AxDimension.unit>
+        * <autofig.axes.AxDimension.unit_string>
+
+        Returns
+        ----------
+        * (str): the latex representation of the unit, if applicable.
+        """
         return self.unit._repr_latex_()
 
     @unit.setter
@@ -1004,6 +1460,26 @@ class AxDimension(AxArray):
         self._pad = pad
 
     def get_lim(self, pad=None, i=None):
+        """
+        Compute the adopted axes limits at a given value of `i`, given the
+        value of <autofig.axes.AxDimension.lim> and <autofig.axes.AxDimension.pad>
+        (or `pad`).
+
+        See also:
+
+        * <autofig.axes.AxDimension.lim>
+
+        Arguments
+        -----------
+        * `pad` (float, optional, default=None): override the padding.  If not
+            provided or None, will use <autofig.axes.AxDimension.pad>.
+        * `i` (float, optional, default=None): the value to use for `i` when
+            computing visible data and limits.
+
+        Returns
+        --------
+        * (tuple): (min, max) in the <autofig.axes.AxDimension.direction>
+        """
 
         def _central_values(indep):
             central_values = []
@@ -1179,13 +1655,20 @@ class AxDimension(AxArray):
 
     @property
     def lim(self):
+        """
+        See also:
+
+        * <autofig.axes.AxDimension.get_lim>
+
+        Returns
+        ---------
+        * the user-set value for `lim`.  Could be one of tuple (min, max), float,
+            None, or a string (fixed, symmetric, frame, or sliding).
+        """
         return self._lim
 
     @lim.setter
     def lim(self, lim):
-        """
-        set lim (limits)
-        """
         if lim is None:
             self._lim = lim
             return
@@ -1224,18 +1707,67 @@ class AxDimension(AxArray):
         self._lim = lim
 
     def get_norm(self, pad=None, i=None):
+        """
+        Compute the adopted normalization at a given value of `i`, given the
+        value of <autofig.axes.AxDimension.pad> (or `pad`).
+
+        See also:
+
+        * <autofig.axes.AxDimension.norm>
+
+        Arguments
+        -----------
+        * `pad` (float, optional, default=None): override the padding.  If not
+            provided or None, will use <autofig.axes.AxDimension.pad>.
+        * `i` (float, optional, default=None): the value to use for `i` when
+            computing visible data and limits.
+
+        Returns
+        --------
+        * (plt.Normalize object)
+        """
         return plt.Normalize(*self.get_lim(pad=pad, i=i))
 
     @property
     def norm(self):
+        """
+        Compute the adopted normalization with `i=None` and the value of
+        <autofig.axes.AxDimension.pad>.
+
+        See also:
+
+        * <autofig.axes.AxDimension.get_norm>
+
+        Returns
+        -----------
+        * (plt.Normalize object)
+        """
         return self.get_norm(pad=self.pad)
 
     @property
     def label(self):
+        """
+        See also:
+
+        * <autofig.axes.AxDimension.label_with_units>
+
+        Returns
+        ----------
+        * (str): the label
+        """
         return '' if self._label is None else self._label
 
     @property
     def label_with_units(self):
+        """
+        See also:
+
+        * <autofig.axes.AxDimension.label>
+
+        Returns
+        ---------
+        * (str)
+        """
         if self.unit.physical_type != 'dimensionless':
             return r"{} [{}]".format(self.label, self.unit_latex)
         else:
@@ -1274,10 +1806,29 @@ class AxDimensionI(AxDimension):
 
     @property
     def is_reference(self):
+        """
+        See also:
+
+        * <autofig.axes.AxDimensionI.reference>
+
+        Returns
+        ----------
+        * (bool) whether the I dimension is referencing another dimension
+        """
         return self.reference is not None
 
     @property
     def reference(self):
+        """
+        See also:
+
+        * <autofig.axes.AxDimensionI.is_reference>
+
+        Returns
+        ----------
+        * (string or None): the <autofig.axes.AxDimension.dimension> referenced
+            by the I dimension.
+        """
         return self._reference
 
     @reference.setter
@@ -1303,6 +1854,20 @@ class AxDimensionZ(AxDimension):
         super(AxDimensionZ, self).__init__('z', *args, **processed_kwargs)
 
     def get_zorders(self, z, i=None):
+        """
+        Compute the zorders for all values in the array.  zorders are mapped
+        on the range 0-1000 depending on the current `zlim` given `i`.
+
+        Arguments
+        ------------
+        * `z` (array or None): values in z in which to compute zorders.
+        * `i` (float or None, optional, default=None): value of `i` to use
+            when calling <autofig.axes.AxDimensinZ.get_norm>.
+
+        Returns
+        --------
+        * (array, bool): (zorders, do_zorder)
+        """
         if z is None:
             zorders = -np.inf
             do_zorder = False
@@ -1375,6 +1940,11 @@ class AxDimensionS(AxDimensionScale):
 
     @property
     def nsamples(self):
+        """
+        Returns
+        ---------
+        * (int): number of samples (must be >=2)
+        """
         return self._nsamples
 
     @nsamples.setter
@@ -1388,6 +1958,11 @@ class AxDimensionS(AxDimensionScale):
 
     @property
     def smap(self):
+        """
+        Returns
+        ----------
+        * (tuple): range of the size mapping (min, max)
+        """
         smap = self._smap
         if smap is None:
             return (0.01,0.05)
@@ -1423,6 +1998,15 @@ class AxDimensionS(AxDimensionScale):
 
     @property
     def mode(self):
+        """
+        See tutorial:
+
+        * [size mode](../../tutorials/size_modes/#smode)
+
+        Returns
+        ----------
+        * (str): mode of the size-mapping.
+        """
         if self._mode is None:
             return 'xy:figure:fixed'
 
@@ -1495,6 +2079,11 @@ class AxDimensionC(AxDimensionScale):
 
     @property
     def cmap(self):
+        """
+        Returns
+        ------------
+        * ([matplotlib Colormap](https://matplotlib.org/api/_as_gen/matplotlib.colors.Colormap.html#matplotlib.colors.Colormap))
+        """
         return self._cmap
 
     @cmap.setter
@@ -1513,10 +2102,22 @@ class AxViewGroup(common.Group):
 
     @property
     def direction(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.AxView.direction> for each child
+            <autofig.axes.AxView>
+        """
         return self._get_attrs('direction')
 
     @property
     def value(self):
+        """
+        Returns
+        ---------
+        * (list) a list of  <autofig.axes.AxView.value> for each child
+            <autofig.axes.AxView>
+        """
         return self._get_attrs('value')
 
     @value.setter
@@ -1535,6 +2136,11 @@ class AxView(AxArray):
 
     @property
     def value(self):
+        """
+        Returns
+        -----------
+        * (array): array of value(s)
+        """
         return self._value
 
     @value.setter
@@ -1557,9 +2163,26 @@ class AxView(AxArray):
 
     def get_value(self, i, indeps=None):
         """
-        access the interpolated value at a give value of i (independent-variable)
+        Access the interpolated value at a given value of `i`
+        (independent-variable).
 
-        if indeps is not passed, then the entire range of indeps over all calls is assumed
+        If `indeps` is not passed, then the entire range of `indeps` over all
+        calls is assumed.
+
+        Arguments
+        -----------
+        * `i` (float, array, or None)
+        * `indeps` (list/array or None, optional, default=None): must have same
+            length as <autofig.axes.AxView.value>
+
+        Returns
+        ----------
+        * (float or array): interpolated value(s)
+
+        Raises
+        ---------
+        * ValueError: if <autofig.axes.AxView.value> and `indeps` have different
+            lengths.
         """
         if self.value is None:
             return None
