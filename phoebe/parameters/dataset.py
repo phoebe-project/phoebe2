@@ -7,11 +7,11 @@ from phoebe import conf
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
-_ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power']
+_ld_func_choices = ['linear', 'logarithmic', 'quadratic', 'square_root', 'power']
 
 
 passbands._init_passbands()  # TODO: move to module import
-_ld_coeffs_source_choices = ['none', 'auto'] + list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms_ld']]))
+_ld_coeffs_source_choices = ['auto'] + list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms_ld']]))
 
 global _mesh_columns
 global _pbdep_columns
@@ -50,6 +50,10 @@ lp_columns = rv_columns[:]
 _pbdep_columns = {'lc': lc_columns,
                   'rv': rv_columns,
                   'lp': lp_columns}
+
+import logging
+logger = logging.getLogger("DATASET")
+logger.addHandler(logging.NullHandler())
 
 def _empty_array(kwargs, qualifier):
     if qualifier in kwargs.keys():
@@ -90,34 +94,52 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         the model.  Only applicable if `syn` is False and `is_lc` is True.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False and `is_lc` is True.
-    * `ld_func` (string, optional): limb-darkening model.  Only applicable
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
         if `syn` is False.
+    * `ld_func` (string, optional, default='logarithmic'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
     * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
-        coefficients ('none' to provide manually, 'auto' to interpolate from
-        the applicable table according to the 'atm' parameter, or the name of
-        a specific atmosphere table).  Not applicable if `ld_func` is 'interp'.
-        Only applicable if `syn` is False.
-    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Only applicable
-       if `ld_coeffs_source` is 'none' (and therefore `ld_func` is not 'interp').
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'func:lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy of photons.  Only applicable if `syn` is False.
-    * `pblum_mode` (string, optional, default='provided'): mode for scaling
+    * `pblum_mode` (string, optional, default='manual'): mode for scaling
         passband luminosities.  Only applicable if `syn` is False and `is_lc`
         is True.
-    * `pblum_ref` (string, optional): whether to use this components pblum or to
-        couple to that from another component in the system.  Only applicable
-        if `pblum_mode` is 'provided'.  Only applicable if `syn` is False and
-        `is_lc` is True.
-    * `pblum` (float/quantity, optional): passband luminosity (defined at t0).
+    * `pblum_dataset` (string, optional):  Dataset to reference for coupling
+        luminosities.  Only applicable if `pblum_mode` is 'dataset-coupled'.
+    * `pblum_component` (string, optional): Component to provide `pblum`.
+        Only applicable if `pblum_mode` is 'component-coupled'.
+    * `pblum` (float/quantity or string, optional): passband luminosity (defined at t0).
+        If `pblum_mode` is 'decoupled', then one entry per-star will be applicable.
+        If `pblum_mode` is 'component-coupled', then only the entry for the primary
+        component, according to <phoebe.parameters.HierarchyParameter> will be
+        available.  To change the provided component, see `pblum_component`.
         Only applicable if `syn` is False and `is_lc` is True.
+    * `pbflux` (float/quantity, optional): passband flux (defined here as
+        `pblum/4pi`).  Only applicable if `pblum_mode` is 'pbflux', `syn` is False,
+        and `is_lc` is True.
     * `l3_mode` (string, optional, default='flux'): mode for providing third
         light (`l3`).  Only applicable if `syn` is False and `is_lc` is True.
     * `l3` (float/quantity, optional): third light in flux units (only applicable
         if `l3_mode` is 'flux'). Only applicable if `syn` is False and `is_lc`
         is True.
-    * `l3_frac` (float/quantity, optional): third light in fraction of total light
-        (only applicable if `l3_mode` is 'fraction of total light').
+    * `l3_frac` (float/quantity, optional): third light in fraction
+        (only applicable if `l3_mode` is 'fraction').
         Only applicable if `syn` is False and `is_lc` is True.
     * `exptime` (float/quantity, optional): exposure time of the observations
         (`times` is defined at the mid-exposure).
@@ -139,9 +161,24 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), default_unit=u.W/u.m**2, description='Observed flux')]
 
     if not syn:
-        params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
-        params += [ChoiceParameter(qualifier='ld_coeffs_source', visible_if='ld_func:!interp', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs_source', 'auto'), choices=_ld_coeffs_source_choices, description='Source for limb darkening coefficients (\'none\' to provide manually, \'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
-        params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp,ld_coeffs_source:none', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
+        # TODO: should we move all limb-darkening to compute options since
+        # not all backends support interp (and lookup is atm-dependent)
+        params += [ChoiceParameter(qualifier='ld_mode', copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('ld_mode', 'interp'), choices=['interp', 'lookup', 'manual'],
+                                   description='Mode to use for limb-darkening')]
+        params += [ChoiceParameter(visible_if='ld_mode:lookup|manual', qualifier='ld_func',
+                                   copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('ld_func', 'logarithmic'), choices=_ld_func_choices,
+                                   description='Limb darkening model')]
+        params += [ChoiceParameter(visible_if='ld_mode:lookup', qualifier='ld_coeffs_source',
+                                   copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('ld_coeffs_source', 'auto'), choices=_ld_coeffs_source_choices,
+                                   description='Source for limb darkening coefficients (\'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
+        params += [FloatArrayParameter(visible_if='ld_mode:manual', qualifier='ld_coeffs',
+                                       copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                       value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled,
+                                       description='Limb darkening coefficients')]
+
         passbands._init_passbands()  # NOTE: this only actually does something on the first call
         params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
         params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy of photons')]
@@ -149,25 +186,27 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
     if is_lc and not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
-
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
 
-        params += [ChoiceParameter(qualifier='pblum_mode', value=kwargs.get('pblum_mode', 'provided'),
-                                   choices=['provided', 'color coupled', 'system flux', 'total flux', 'scale to data', 'absolute'] if conf.devel else ['provided', 'color coupled', 'total flux', 'scale to data', 'absolute'],
+        params += [ChoiceParameter(qualifier='pblum_mode', value=kwargs.get('pblum_mode', 'component-coupled'),
+                                   choices=['decoupled', 'component-coupled', 'dataset-coupled', 'pbflux', 'dataset-scaled', 'absolute'],
                                    description='Mode for scaling passband luminosities')]
 
-        params += [ChoiceParameter(visible_if='[component]pblum_mode:provided', qualifier='pblum_ref', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
-        params += [FloatParameter(qualifier='pblum', visible_if='[component]pblum_mode:provided,pblum_ref:self', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
+        # pblum_mode = 'component-coupled' or 'decoupled'
+        params += [ChoiceParameter(visible_if='pblum_mode:component-coupled', qualifier='pblum_component', value=kwargs.get('pblum_component', ''), choices=kwargs.get('starrefs', ['']), description='Which component\'s pblum will be provided')]
+        params += [FloatParameter(qualifier='pblum', visible_if='[component]pblum_mode:decoupled||[component]pblum_mode:component-coupled,[component]pblum_component:<component>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
 
-        params += [ChoiceParameter(visible_if='pblum_mode:color coupled', qualifier='pblum_ref', value=kwargs.get('pblum_ref', ''), choices=['']+kwargs.get('lcrefs', []), description='Dataset with which to couple luminosities based on color')]
+        # pblum_mode = 'dataset-coupled'
+        params += [ChoiceParameter(visible_if='pblum_mode:dataset-coupled', qualifier='pblum_dataset', value=kwargs.get('pblum_dataset', ''), choices=['']+kwargs.get('lcrefs', []), description='Dataset with which to couple luminosities based on color')]
 
-        params += [FloatParameter(visible_if='pblum_mode:system flux|total flux', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total inrinsic (excluding features and irradiation) passband flux (at t0, including l3 if pblum_mode=\'total flux\')')]
+        # pblum_mode = 'pbflux'
+        params += [FloatParameter(visible_if='pblum_mode:pbflux', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total inrinsic (excluding features and irradiation) passband flux (at t0, including l3 if pblum_mode=\'flux\')')]
 
-        params += [ChoiceParameter(qualifier='l3_mode', value=kwargs.get('l3_mode', 'flux'), choices=['flux', 'fraction of total light'], description='Whether third light is given in units of flux or as a fraction of total light')]
+        params += [ChoiceParameter(qualifier='l3_mode', value=kwargs.get('l3_mode', 'flux'), choices=['flux', 'fraction'], description='Whether third light is given in units of flux or as a fraction of total light')]
         params += [FloatParameter(visible_if='l3_mode:flux', qualifier='l3', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
-        params += [FloatParameter(visible_if='l3_mode:fraction of total light', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total light')]
+        params += [FloatParameter(visible_if='l3_mode:fraction', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total light')]
 
         params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
 
@@ -200,10 +239,26 @@ def rv(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
-    * `ld_func` (string, optional): limb-darkening model.  Only applicable if
-        `syn` is False.
-    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Only applicable
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
         if `syn` is False.
+    * `ld_func` (string, optional, default='linear'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
+    * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'func:lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy of photons.  Only applicable if `syn` is False.
@@ -226,7 +281,6 @@ def rv(syn=False, as_ps=True, **kwargs):
 
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
-
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
@@ -259,15 +313,49 @@ def lp(syn=False, as_ps=True, **kwargs):
         <phoebe.parameters.Parameter> objects.
     * `times` (array/quantity): times at which the dataset should be defined.
         **IMPORTANT**: times is not a parameter and must be passed during creation,
-        see note above.
+        see note above.  If `syn` is True, a `times` parameter will be created,
+        but all other parameters will be tagged with individual times.
     * `wavelengths` (array/quantity, optional): observed wavelengths.
     * `flux_densities` (array/quantity, optional): observed flux densities.
+        A copy of this parameter will exist per-time (as passed to the `times`
+        argument at creation, see above) and will be tagged with that time.
     * `sigmas` (array/quantity, optional): errors on flux densities measurements.
-        Only applicable if `syn` is False.
-    * `ld_func` (string, optional): limb-darkening model.  Only applicable if
-    `syn` is False.
-    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Only
-    applicable if `syn` is False.
+        Only applicable if `syn` is False.  A copy of this parameter will exist
+        per-time (as passed to the `times` argument at creation, see above) and
+        will be tagged with that time.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.  If provided, this will override the tagged times as defined
+        by `times` (note that interpolating between the model computed at
+        `compute_times` and the dataset defined at `times` is not currently
+        supported).  Only applicable if `syn` is False.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `profile_func` (string, optional, default='gaussian'): function to use
+        for the rest line profile.
+    * `profile_rest` (float, optional, default=550): rest central wavelength
+        for the line profile.
+    * `profile_sv` (float, optional, default=1e-4): subsidiary value of the
+        profile.
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
+        if `syn` is False.
+    * `ld_func` (string, optional, default='linear'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
+    * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'func:lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy of photons.  Only applicable if `syn` is False.
@@ -284,6 +372,14 @@ def lp(syn=False, as_ps=True, **kwargs):
 
     times = kwargs.get('times', [])
 
+    # if syn:
+        # expose the computed times as we do for a mesh, even though the actual
+        # parameters will be **tagged** with times
+        # TODO: it would be nice if this wasn't copied per-component in the model... but it is also somewhat useful
+        # NOTE: enabling this requires some changes to plotting logic.  We have it for meshes so you can plot pot vs time, for example, but lp doesn't have any syn FloatParameters
+        # params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+
+
     # wavelengths is time-independent
     params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
 
@@ -297,6 +393,10 @@ def lp(syn=False, as_ps=True, **kwargs):
             params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
 
     if not syn:
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times of individual entries.  Note that interpolation is not currently supported for lp datasets.')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+
         params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
         params += [FloatParameter(qualifier='profile_rest', value=kwargs.get('profile_rest', 550), default_unit=u.nm, limits=(0, None), description='Rest central wavelength of the profile')]
         params += [FloatParameter(qualifier='profile_sv', value=kwargs.get('profile_sv', 1e-4), default_unit=u.dimensionless_unscaled, limits=(0, None), description='Subsidiary value of the profile')]
@@ -355,7 +455,6 @@ def orb(syn=False, as_ps=True, **kwargs):
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
-
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(params) if as_ps else params, constraints
@@ -379,10 +478,21 @@ def mesh(syn=False, as_ps=True, **kwargs):
         as a <phoebe.parameters.ParameterSet> instead of a list of
         <phoebe.parameters.Parameter> objects.
     * `times` (array/quantity, optional): observed times.  Only applicable
-        if `syn` is False.
-    * `include_times` (string, optional): append to times from the following
-        datasets/time standards.  Only applicable if `syn` is False.
-    * `columns` (list, optional): columns to expose within the mesh.
+        if `syn` is True.  When `syn` is False: if provided, but `compute_times`
+        is not provided, this will write to `compute_times` with a warning
+        in the logger.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `include_times` (string, optional): append to `compute_times` from the
+        following datasets/time standards.  If referring to other datasets,
+        this will copy the computed times of that dataset (whether that be
+        from the `times` or `compute_times` of the respective dataset).
+        Only applicable if `syn` is False.
+    * `coordinates` (list, optional, default=['xyz', 'uvw']): coordinates to
+        expose the mesh.  uvw (plane of sky) and/or xyz (roche).
+    * `columns` (list, optional, default=[]): columns to expose within the mesh.
         Only applicable if `syn` is False.
     * `**kwargs`: if `syn` is True, additional kwargs will be applied to the
         exposed columns according to the passed lists for `mesh_columns`
@@ -400,15 +510,33 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
     times = kwargs.get('times', [])
 
-    params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+    if syn:
+        # TODO: it would be nice if this wasn't copied per-component in the model... but it is also somewhat useful
+        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
 
     if not syn:
-        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), description='append to times from the following datasets/time standards', choices=['t0@system'])]
+        if 'times' in kwargs.keys():
+            if 'compute_times' in kwargs.keys():
+                raise KeyError("mesh dataset cannot accept both 'times' and 'compute_times'.")
+            else:
+                logger.warning("mesh datasets do not have a 'times' parameter.  Applying value sent to 'times' to 'compute_times'")
+                compute_times = kwargs.get('times', [])
+        else:
+            compute_times = kwargs.get('compute_times', [])
+
+
+        params += [FloatArrayParameter(qualifier='compute_times', value=compute_times, default_unit=u.d, description='Times to use during run_compute.')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+
+        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), description='append to compute_times from the following datasets/time standards', choices=['t0@system'])]
+        params += [SelectParameter(qualifier='coordinates', value=kwargs.get('coordinates', ['xyz', 'uvw']), choices=['xyz', 'uvw'], description='coordinates to expose the mesh.  uvw (plane of sky) and/or xyz (roche)')]
         params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', []), description='columns to expose within the mesh', choices=_mesh_columns)]
 
     # the following will all be arrays (value per triangle) per time
     if syn:
         columns = kwargs.get('mesh_columns', [])
+        coordinates = kwargs.get('mesh_coordinates', ['xyz', 'uvw'])
         mesh_datasets = kwargs.get('mesh_datasets', [])
 
         for t in times:
@@ -416,9 +544,14 @@ def mesh(syn=False, as_ps=True, **kwargs):
                 raise ValueError("times must all be of type float")
 
 
-            # always include basic geometric columns
-            params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), default_unit=u.solRad, description='Vertices of triangles in the plane-of-sky')]
-            params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), default_unit=u.dimensionless_unscaled, description='Vertices of triangles in Roche coordinates')]
+            # basic geometric columns
+            if 'uvw' in coordinates:
+                params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), default_unit=u.solRad, description='Vertices of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='uvw_normals', time=t, value=kwargs.get('uvw_normals', []), default_unit=u.solRad, description='Normals of triangles in the plane-of-sky')]
+
+            if 'xyz' in coordinates:
+                params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), default_unit=u.dimensionless_unscaled, description='Vertices of triangles in Roche coordinates')]
+                params += [FloatArrayParameter(qualifier='xyz_normals', time=t, value=kwargs.get('xyz_normals ', []), default_unit=u.dimensionless_unscaled, description='Normals of triangles in Roche coordinates')]
 
             # NOTE: if changing the parameters which are optional, changes must
             # be made here, in the choices for the columns Parameter, and in

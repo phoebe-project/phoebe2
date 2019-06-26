@@ -28,8 +28,8 @@ def test_binary(plot=False):
     cb.set_value_all('ld_func_bol', 'linear')
     cb.set_value_all('ld_coeffs_bol', [0.0])
 
+    cb.set_value_all('ld_mode', 'manual')
     cb.set_value_all('ld_func', 'linear')
-    cb.set_value_all('ld_coeffs_source', 'none')
     cb.set_value_all('ld_coeffs', [0.0])
 
     cb.set_value_all('rv_grav', False)

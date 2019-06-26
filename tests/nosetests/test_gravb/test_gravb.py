@@ -22,8 +22,8 @@ def test_binary(plot=False):
     b.set_value_all('ld_func_bol', 'linear')
     b.set_value_all('ld_coeffs_bol', [0.0])
 
+    b.set_value_all('ld_mode', 'manual')
     b.set_value_all('ld_func', 'linear')
-    b.set_value_all('ld_coeffs_source', 'none')
     b.set_value_all('ld_coeffs', [0.0])
 
     #turn off albedos (legacy requirement)

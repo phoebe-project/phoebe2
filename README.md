@@ -80,6 +80,24 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.13 - constraint flip loop hotfix
+
+* Fixes infinite loop when trying to flip esinw AND ecosw
+* Adds ability to flip mass (Kepler's third law) to solve for q
+* Fixes bug introduced in 2.1.9 in which out-of-limits constrained parameters in
+an envelope were being raised before all constraints could resolve successfully.
+
+### 2.1.12 - legacy ephemeris and kwargs checks hotfix
+
+* Fixes applying t0 when importing legacy dataset which use phase.
+* Fixes ignoring other compute options when running checks on kwargs during run_compute.
+
+### 2.1.11 - legacy dataset import hotfix
+
+* Fixes loading legacy datasets which use phase (by translating to time with the current ephemeris).
+* Fixes loading legacy datasets with errors in magnitudes (by converting to errors in flux units).
+* Fixes plotting RV datasets in which only one component has times (which is often the case when importing from a legacy file).
+
 ### 2.1.10 - ldint hotfix
 
 * Removes ldint from the weights in the computations of RVs and LPs.
