@@ -2,7 +2,6 @@
 
 """
 pip install flask
-pip install flask-sqlalchemy
 pip install flask-socketio
 pip install gevent-websocket
 
@@ -13,14 +12,18 @@ PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server
 try:
     from flask import Flask, jsonify, request, redirect, Response, make_response, send_from_directory
     from flask_socketio import SocketIO, emit, join_room, leave_room
-    #import flask.ext.sqlalchemy
+    from flask_cors import CORS
 except ImportError:
-    raise ImportError("dependencies not met: pip install flask flask-sqlalchemy flask-socketio gevent-websocket")
+    raise ImportError("dependencies not met: pip install flask flask-cors flask-socketio gevent-websocket")
+
+### NOTE: tested to work with eventlet, not sure about gevent
+
 
 ################################ SERVER/APP SETUP ##############################
 
 
 app = Flask(__name__)
+CORS(app)
 app._bundles = {}
 app._clients = []
 app._clients_per_bundle = {}
@@ -693,6 +696,6 @@ if __name__ == "__main__":
     app._parent = parent
 
     if app._verbose:
-        print("*** SERVER READY ***")
+        print("*** SERVER READY at {}:{} ***".format(host, port))
 
     socketio.run(app, host=host, port=port)

@@ -991,9 +991,9 @@ class Bundle(ParameterSet):
             if not server_running:
                 raise ValueError("server {} is not running".format(server))
 
-            server_split = server.split(':')
-            host = ':'.join(server_split[:-1])
-            port = int(float(server_split[-1] if len(server_split) else 8000))
+            server_split = server.split('://')[-1].split(':')
+            host = ':'.join(server_split[:-1]) if len(server_split) > 1 else server_split[0]
+            port = int(float(server_split[-1])) if len(server_split) > 1 else None
             self._socketio = SocketIO(host, port, BaseNamespace)
             self._socketio.on('connect', self._on_socket_connect)
             self._socketio.on('disconnect', self._on_socket_disconnect)
@@ -5251,11 +5251,11 @@ class Bundle(ParameterSet):
             # Figure options for this model
             if do_create_fig_params:
                 fig_params = _figure._run_compute(self, **kwargs)
-    
+
                 fig_metawargs = {'context': 'figure',
                                  'model': model}
                 self._attach_params(fig_params, **fig_metawargs)
-    
+
             redo_kwargs = deepcopy(kwargs)
             redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
             redo_kwargs['model'] = model

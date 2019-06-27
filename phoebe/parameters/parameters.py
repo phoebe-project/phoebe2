@@ -2075,7 +2075,7 @@ class ParameterSet(object):
             # of the Parameters hidden by this switch
             check_default = False
 
-        if not (twig is None or isinstance(twig, str)):
+        if not (twig is None or isinstance(twig, str) or isinstance(twig, unicode)):
             raise TypeError("first argument (twig) must be of type str or None, got {}".format(type(twig)))
 
         if kwargs.get('component', None) == '_default' or\
