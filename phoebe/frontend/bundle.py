@@ -3945,12 +3945,30 @@ class Bundle(ParameterSet):
                 if len(e.args) >= 1:
                     e.args = (message_prefix + str(e),) + e.args[1:]
                 raise
-        else:
-            # we won't bother checking for arrays (we'd have to do np.all),
-            # but for floats, let's only set the value if the value has changed.
-            if not isinstance(result, float) or result != constrained_param.get_value():
-                logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
+
+        # we won't bother checking for arrays (we'd have to do np.all),
+        # but for floats, let's only set the value if the value has changed.
+        if not isinstance(result, float) or result != constrained_param.get_value():
+            logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
+            try:
                 constrained_param.set_value(result, force=True, run_constraints=True)
+            except Exception as e:
+                if expression_param.uniqueid not in self._failed_constraints:
+                    self._failed_constraints.append(expression_param.uniqueid)
+                    new = True
+                else:
+                    new = False
+
+                message_prefix = "Constraint '{}' raised the following error while setting the value of '{}'.  Original error: ".format(expression_param.twig, constrained_param.twig)
+
+                if suppress_error:
+                    if new:
+                        logger.error(message_prefix + str(e))
+                else:
+                    if len(e.args) >= 1:
+                        e.args = (message_prefix + str(e),) + e.args[1:]
+                    raise
+
 
         if return_parameter:
             return constrained_param
