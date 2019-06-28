@@ -241,8 +241,8 @@ class Bundle(ParameterSet):
         b = cls(data)
 
         version = b.get_value(qualifier='phoebe_version', check_default=False, check_visible=False)
-        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.2.0')
-        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.2.0')
+        phoebe_version_import = StrictVersion(version if version not in ['devel', 'workshop'] else '2.2.0')
+        phoebe_version_this = StrictVersion(__version__ if __version__ not in ['devel', 'workshop'] else '2.2.0')
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 

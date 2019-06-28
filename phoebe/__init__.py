@@ -12,7 +12,7 @@ Available environment variables:
 
 """
 
-__version__ = '2.2-prerelease-workshop'
+__version__ = 'workshop'
 
 import os
 import sys as _sys
