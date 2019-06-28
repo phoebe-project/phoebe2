@@ -7228,10 +7228,13 @@ class FloatArrayParameter(FloatParameter):
 
         elif isinstance(value, u.Quantity):
             if isinstance(value.value, float) or isinstance(value.value, int):
-                value = np.array([value])
+                value = np.array([value.value])*value.unit
 
         # if isinstance(value, str):
             # value = np.fromstring(value)
+
+        elif isinstance(value, list) or isinstance(value, tuple):
+            value = np.asarray(value)
 
         elif isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
