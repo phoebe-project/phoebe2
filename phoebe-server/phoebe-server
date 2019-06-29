@@ -673,6 +673,65 @@ def set_value(msg):
 
             emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
 
+@socketio.on('set_default_unit')
+def set_default_unit(msg):
+    if app._verbose:
+        print("set_default_unit: ", msg)
+
+    bundleid = msg.pop('bundleid')
+
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("set_value {} error: {}".format(msg, err))
+        emit('set_value', {'success': False, 'error': err}, broadcast=False)
+        return
+
+
+    b = app._bundles[bundleid]
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    msg.setdefault('check_visible', False)
+    msg.setdefault('check_default', False)
+    msg.setdefault('check_advanced', False)
+
+    client_types = _client_types_for_bundle(bundleid)
+
+    try:
+        # TODO: handle getting nparray objects (probably as json strings/unicodes)
+        b.set_default_unit_all(**msg)
+    except Exception as err:
+        if app._verbose:
+            print("set_default_unit {} error: {}".format(msg, err.message))
+        emit('set_default_unit', {'success': False, 'error': err.message}, broadcast=False)
+        return
+
+    try:
+        ps_list = b.filter(**{k:v for k,v in msg.items() if k not in ['unit']}).to_list()
+    except Exception as err:
+        if app._verbose:
+            print("set_default_unit {} error on filter: {}".format(msg, err.message))
+        emit('set_default_unit', {'success': False, 'error': err.message}, broadcast=False)
+        return
+    else:
+        if 'web' in client_types or 'desktop' in client_types:
+            param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
+            param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+
+            if app._verbose:
+                print("set_default_unit success, broadcasting changes:react: {}".format(param_dict))
+
+            emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
+
+        if 'python' in client_types:
+            ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}
+
+            if app._verbose:
+                print("set_default_unit success, broadcasting changes:python: {}".format(ps_dict))
+
+            emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+
+
 
 
 

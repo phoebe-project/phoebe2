@@ -6741,8 +6741,16 @@ class FloatParameter(Parameter):
         # accept tuples (ie 1.2, 'rad') from dictionary access
         if isinstance(value, tuple) and unit is None:
             value, unit = value
-        if isinstance(value, str):
-            value = float(value)
+        if isinstance(value, str) or isinstance(value, unicode):
+            if len(value.strip().split(' ')) == 2 and unit is None:
+                # support value unit as string
+                valuesplit = value.strip().split(' ')
+                value = float(valuesplit[0])
+                unit = valuesplit[1]
+
+            else:
+                value = float(value)
+
         if isinstance(value, dict) and 'nparray' in value.keys():
             # then we're loading the JSON version of an nparray object
             value = nparray.from_dict(value)
@@ -6836,7 +6844,7 @@ class FloatParameter(Parameter):
 
         value, unit = self._check_value(value, unit)
 
-        if isinstance(unit, str):
+        if isinstance(unit, str) or isinstance(unit, unicode):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
         elif unit is not None and not _is_unit(unit):
