@@ -2482,6 +2482,10 @@ class Bundle(ParameterSet):
 
         :parameter old_feature: current label for the feature
         :parameter new_feature: new label for the feature
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed feature
         """
         for param in self.filter(feature=old_feature).to_list():
             param._feature = new_feature
@@ -2556,6 +2560,10 @@ class Bundle(ParameterSet):
         * `new_feature` (string): the desired new label of the feature
             (must not yet exist)
 
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed dataset
+
         Raises
         --------
         * ValueError: if the value of `new_feature` is forbidden or already exists.
@@ -2564,6 +2572,8 @@ class Bundle(ParameterSet):
 
         self._check_label(new_feature)
         self._rename_label('feature', old_feature, new_feature)
+
+        return self.filter(feature=new_feature)
 
     def add_spot(self, component=None, feature=None, **kwargs):
         """
@@ -2766,6 +2776,10 @@ class Bundle(ParameterSet):
         * `new_component` (string): the desired new label of the component
             (must not yet exist)
 
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed component
+
         Raises
         --------
         * ValueError: if the value of `new_component` is forbidden or already exists.
@@ -2785,6 +2799,8 @@ class Bundle(ParameterSet):
         self._rename_label('component', old_component, new_component)
 
         self._handle_dataset_selectparams()
+
+        return self.filter(component=new_component)
 
     def add_orbit(self, component=None, **kwargs):
         """
@@ -3479,26 +3495,6 @@ class Bundle(ParameterSet):
             kwargs['kind'] = kwargs['kind'].lower()
         return self.filter(**kwargs)
 
-    def rename_dataset(self, old_dataset, new_dataset):
-        """
-        Rename a 'dataset' in the bundle
-
-        :parameter old_dataset: current label for the dataset
-        :parameter new_dataset: new label for the dataset
-        """
-        for param in self.filter(dataset=old_dataset).to_list():
-            param._dataset = new_dataset
-
-        redo_kwargs = {'old_dataset': old_dataset, 'new_dataset': new_dataset}
-        undo_kwargs = {'old_dataset': new_dataset, 'new_dataset': old_dataset}
-
-        self._add_history(redo_func='rename_dataset',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='rename_dataset',
-                          undo_kwargs=undo_kwargs)
-
-        return self.filter(dataset=new_dataset)
-
     def remove_dataset(self, dataset=None, **kwargs):
         """
         Remove a 'dataset' from the Bundle.
@@ -3591,6 +3587,10 @@ class Bundle(ParameterSet):
         * `new_dataset` (string): the desired new label of the dataset
             (must not yet exist)
 
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed dataset
+
         Raises
         --------
         * ValueError: if the value of `new_dataset` is forbidden or already exists.
@@ -3600,6 +3600,8 @@ class Bundle(ParameterSet):
         self._check_label(new_dataset)
         self._rename_label('dataset', old_dataset, new_dataset)
         self._handle_dataset_selectparams()
+
+        return self.filter(dataset=new_dataset)
 
 
     def enable_dataset(self, dataset=None, **kwargs):
@@ -4818,7 +4820,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'compute'
         return self.filter(**kwargs)
 
-    def rename_compute(self, old_compute, new_compute):
+    def remove_compute(self, old_compute, new_compute):
         """
         Remove a 'compute' from the bundle.
 
@@ -4854,6 +4856,10 @@ class Bundle(ParameterSet):
         * `new_compute` (string): the desired new label of the compute options
             (must not yet exist)
 
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed dataset
+
         Raises
         --------
         * ValueError: if the value of `new_compute` is forbidden or already exists.
@@ -4862,6 +4868,8 @@ class Bundle(ParameterSet):
 
         self._check_label(new_compute)
         self._rename_label('compute', old_compute, new_compute)
+
+        return self.filter(compute=new_compute)
 
 
     @send_if_client
@@ -5312,26 +5320,6 @@ class Bundle(ParameterSet):
 
         return self.run_compute(model=model, **kwargs)
 
-    def rename_model(self, old_model, new_model):
-        """
-        Rename a 'model' in the bundle
-
-        :parameter old_model: current label for the model
-        :parameter new_model: new label for the model
-        """
-        for param in self.filter(model=old_model).to_list():
-            param._model = new_model
-
-        redo_kwargs = {'old_model': old_model, 'new_model': new_model}
-        undo_kwargs = {'old_model': new_model, 'new_model': old_model}
-
-        self._add_history(redo_func='rename_model',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='rename_model',
-                          undo_kwargs=undo_kwargs)
-
-        return self.filter(model=new_model)
-
     def remove_model(self, model, **kwargs):
         """
         Remove a 'model' from the bundle.
@@ -5368,6 +5356,10 @@ class Bundle(ParameterSet):
         * `new_model` (string): the desired new label of the model
             (must not yet exist)
 
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed model
+
         Raises
         --------
         * ValueError: if the value of `new_model` is forbidden or already exists.
@@ -5376,6 +5368,8 @@ class Bundle(ParameterSet):
 
         self._check_label(new_model)
         self._rename_label('model', old_model, new_model)
+
+        return self.filter(model=new_model)
 
     # TODO: ability to copy a posterior to a prior or have a prior reference an attached posterior (for drawing in fitting)
     def add_prior(self, twig=None, **kwargs):
@@ -5728,6 +5722,10 @@ class Bundle(ParameterSet):
 
         :parameter old_figure: current label for the figure options
         :parameter new_figure: new label for the figure options
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed dataset
         """
         for param in self.filter(figure=old_figure).to_list():
             param._figure = new_figure

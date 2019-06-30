@@ -2857,6 +2857,10 @@ class ParameterSet(object):
         * `**kwargs`: filter options to be passed along to
             <phoebe.parameters.ParameterSet.get_parameter> and
             `set_default_unit`.
+
+        Returns
+        ----------
+        * <phoebe.parameters.ParameterSet> of the changed Parameters.
         """
         # TODO: add support for ignore_none as per set_value_all
         if twig is not None and unit is None:
@@ -2869,8 +2873,11 @@ class ParameterSet(object):
                 unit = twig
                 twig = None
 
-        for param in self.filter(twig=twig, **kwargs).to_list():
+        ps = self.filter(twig=twig, **kwargs)
+        for param in ps.to_list():
             param.set_default_unit(unit)
+
+        return ps
 
     def get_adjust(self, twig=None, **kwargs):
         """

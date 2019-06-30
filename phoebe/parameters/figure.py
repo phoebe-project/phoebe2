@@ -191,3 +191,8 @@ def mesh(b, **kwargs):
 
 
     return ParameterSet(params)
+
+# del deepcopy
+# del _add_component, _add_dataset, _label_units_lims, _run_compute
+# del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
+# del fnmatch

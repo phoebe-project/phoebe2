@@ -628,3 +628,7 @@ def ellc(**kwargs):
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'none'), choices=['none'], description='Which method to use to handle all irradiation effects (ellc does not support irradiation)')]
 
     return ParameterSet(params)
+
+# del deepcopy
+# del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
+# del fnmatch

@@ -102,6 +102,7 @@ import tempfile
 import traceback
 import urllib2
 import StringIO
+import inspect
 from time import sleep
 from collections import OrderedDict
 from datetime import datetime
@@ -109,6 +110,21 @@ from datetime import datetime
 
 phoebe.interactive_off()
 phoebe.parameters._is_server = True
+
+def _get_phoebe_funcs(module):
+    ignore = ['_empty_array', 'deepcopy', 'fnmatch',
+              'download_passband', 'list_installed_passbands', 'list_online_passbands', 'list_passbands', 'parameter_from_json', 'parse_json',
+              'send_if_client', 'update_if_client',
+              '_add_component', '_add_dataset', '_label_units_lims', '_run_compute']
+
+
+    return [o[0] for o in inspect.getmembers(module) if inspect.isfunction(o[1]) and o[0] not in ignore]
+
+_available_kinds = {'component': _get_phoebe_funcs(phoebe.parameters.component),
+                    'feature': _get_phoebe_funcs(phoebe.parameters.feature),
+                    'dataset': _get_phoebe_funcs(phoebe.parameters.dataset),
+                    'figure': _get_phoebe_funcs(phoebe.parameters.figure),
+                    'compute': _get_phoebe_funcs(phoebe.parameters.compute)}
 
 # logger = phoebe.logger('INFO')
 _dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
@@ -327,6 +343,16 @@ def _param_json_detailed(param):
 
     return p
 
+def _sort_tags(group, tags):
+    if group=='contexts':
+        # try to order contexts in same order as shown in UI.. then fill in with the rest
+        lst = [k for k in ['constraint', 'component', 'feature', 'dataset', 'figure', 'compute', 'model'] if k in tags]
+        for k in tags:
+            if k not in lst:
+                lst.append(k)
+        return lst
+    else:
+        return sorted(tags)
 
 
 ############################ HTTP ROUTES ######################################
@@ -351,7 +377,9 @@ def info():
 
     return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent,
                           'nclients': len(app._clients), 'clients': app._clients,
-                          'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle},
+                          'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle,
+                          'available_kinds': _available_kinds
+                          },
                           api=True)
 
 @app.route('/new_bundle/<string:type>', methods=['GET'])
@@ -479,17 +507,6 @@ def bundle(bundleid):
     if app._verbose:
         print("bundle(bundleid={})".format(bundleid))
 
-    def sort(group, tags):
-        if group=='contexts':
-            # try to order contexts in same order as shown in UI.. then fill in with the rest
-            lst = [k for k in ['constraint', 'component', 'feature', 'dataset', 'figure', 'compute', 'model'] if k in tags]
-            for k in tags:
-                if k not in lst:
-                    lst.append(k)
-            return lst
-        else:
-            return sorted(tags)
-
 
     if bundleid not in app._bundles.keys():
         return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
@@ -500,7 +517,7 @@ def bundle(bundleid):
     param_list = sorted([_param_json_overview(param) for param in b.to_list()], key=lambda p: p['qualifier'])
     param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
 
-    tags = {k: sort(k, v) for k,v in b.tags.items()}
+    tags = {k: _sort_tags(k, v) for k,v in b.tags.items()}
 
     return _get_response({'success': True, 'parameters': param_dict, 'tags': tags}, api=True)
 
@@ -566,9 +583,9 @@ def register_client(msg):
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
-            print("set_value {} error: {}".format(msg, err))
+            print("register client {} error: {}".format(msg, err))
 
-        emit('set_value', {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
         return
 
     if app._verbose:
@@ -615,7 +632,7 @@ def set_value(msg):
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("set_value {} error: {}".format(msg, err))
-        emit('set_value', {'success': False, 'error': err}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
         return
 
 
@@ -637,7 +654,7 @@ def set_value(msg):
     except Exception as err:
         if app._verbose:
             print("set_value {} error: {}".format(msg, err.message))
-        emit('set_value', {'success': False, 'error': err.message}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
         return
 
     try:
@@ -645,7 +662,7 @@ def set_value(msg):
     except Exception as err:
         if app._verbose:
             print("set_value {} error on filter: {}".format(msg, err.message))
-        emit('set_value', {'success': False, 'error': err.message}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
         return
     else:
         if 'web' in client_types or 'desktop' in client_types:
@@ -673,6 +690,9 @@ def set_value(msg):
 
             emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
 
+
+# TODO: now that set_default_unit_all returns a PS, we could use bundle_method
+# instead? - need to see what needs to be done from the python-client side
 @socketio.on('set_default_unit')
 def set_default_unit(msg):
     if app._verbose:
@@ -683,8 +703,8 @@ def set_default_unit(msg):
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
-            print("set_value {} error: {}".format(msg, err))
-        emit('set_value', {'success': False, 'error': err}, broadcast=False)
+            print("set_default_unit {} error: {}".format(msg, err))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
         return
 
 
@@ -703,7 +723,7 @@ def set_default_unit(msg):
     except Exception as err:
         if app._verbose:
             print("set_default_unit {} error: {}".format(msg, err.message))
-        emit('set_default_unit', {'success': False, 'error': err.message}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
         return
 
     try:
@@ -711,7 +731,7 @@ def set_default_unit(msg):
     except Exception as err:
         if app._verbose:
             print("set_default_unit {} error on filter: {}".format(msg, err.message))
-        emit('set_default_unit', {'success': False, 'error': err.message}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
         return
     else:
         if 'web' in client_types or 'desktop' in client_types:
@@ -730,6 +750,70 @@ def set_default_unit(msg):
                 print("set_default_unit success, broadcasting changes:python: {}".format(ps_dict))
 
             emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+
+@socketio.on('bundle_method')
+def bundle_method(msg):
+    if app._verbose:
+        print("bundle_method: ", msg)
+
+    bundleid = msg.pop('bundleid')
+
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("bundle_method {} error: {}".format(msg, err))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        return
+
+
+    b = app._bundles[bundleid]
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    # msg.setdefault('check_visible', False)
+    # msg.setdefault('check_default', False)
+    # msg.setdefault('check_advanced', False)
+
+    client_types = _client_types_for_bundle(bundleid)
+
+    method = msg.pop('method')
+
+    try:
+        ps = getattr(b, method)(**msg)
+        ps_list = ps.to_list()
+    except Exception as err:
+        if app._verbose:
+            print("bundle_method {} error: {}".format(msg, err.message))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+        return
+
+
+
+    if 'web' in client_types or 'desktop' in client_types:
+        param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
+        param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+
+        if app._verbose:
+            print("bundle_method success, broadcasting changes:react: {}".format(param_dict))
+
+
+        packet = {'success': True, 'parameters': param_dict}
+
+        # if we added new parameters, then the tags likely have changed
+        if method.split('_')[0] in ['add', 'remove', 'rename']:
+            packet['tags'] = {k: _sort_tags(k, v) for k,v in b.tags.items()}
+
+        if method.split('_')[0] == 'add':
+            packet['add_filter'] = {method.split('_')[1]: getattr(ps, method.split('_')[1])}
+
+        emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
+
+    if 'python' in client_types:
+        ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}
+
+        if app._verbose:
+            print("bundle_method success, broadcasting changes:python: {}".format(ps_dict))
+
+        emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
 
 
 

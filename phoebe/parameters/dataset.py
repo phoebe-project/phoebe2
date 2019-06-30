@@ -669,3 +669,9 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
 
     return ParameterSet(params) if as_ps else params, constraints
+
+
+# del _empty_array
+# del deepcopy
+# del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
+# del fnmatch
