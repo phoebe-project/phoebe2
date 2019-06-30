@@ -262,6 +262,9 @@ def _unit_choices(unit):
                 # NOTE: doing same units on numerator and denominator will force this to be dimensionless
                 # and then we won't know that its time at all.
                 return ['d / yr', 'h / d', 'h / yr', 'min / d', 'min / h', 'min / yr', 's / min', 's / h', 's / d', 's / yr']
+            elif physical_types = ['power', 'length']:
+                # then assume flux units
+                return ['W / m2', 'W / km2', 'W / pc2', 'W / AU2', 'W / solRad2', 'solLum / m2', 'solLum / km2', 'solLum / pc2', 'solLum / AU2', 'solLum / solRad2']
             else:
                 return [unit.to_string()]
     elif physical_type == 'time':
@@ -269,7 +272,7 @@ def _unit_choices(unit):
     elif physical_type == 'mass':
         return ['solMass', 'jupiterMass', 'earthMass', 'kg', 'g']
     elif physical_type == 'length':
-        return ['solRad', 'jupiterRad', 'earthRad', 'AU', 'pc', 'km', 'm', 'cm']
+        return ['solRad', 'jupiterRad', 'earthRad', 'AU', 'pc', 'km', 'm', 'cm', 'mm', 'um', 'nm', 'angstrom']
     elif physical_type == 'area':
         return ['solRad2', 'jupiterRad2', 'earthRad2', 'AU2', 'pc2', 'km2', 'm2', 'cm2']
     elif physical_type == 'volume':
@@ -282,7 +285,12 @@ def _unit_choices(unit):
         return ['rad / yr', 'rad / d', 'rad / h', 'rad / s', 'deg / yr', 'deg / d', 'deg / h', 'deg / s']
     elif physical_type == 'temperature':
         # astropy cannot convert to u.deg_C or u.imperial.deg_F
+        # could support with equivalencies: https://docs.astropy.org/en/stable/units/equivalencies.html#temperature-equivalency
+        # but then we'd need to manually pass that within PHOEBE whenever
+        # the physical type is temperature
         return ['K']
+    elif physical_type == 'power':
+        return ['W', 'solLum']
     else:
         return [unit.to_string()]
 
