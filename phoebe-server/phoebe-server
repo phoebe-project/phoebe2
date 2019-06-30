@@ -31,28 +31,6 @@ app._last_access_per_bundle = {}
 app._verbose = True
 app._killable = False
 
-def bundle_memory_cleanup(stale_limit_seconds=600):
-    # TODO: its possible to get an entry in _clients_per_bundle that isn't
-    # available here.  The error message is raised in the UI and redirects
-    # out... but the entry is still made here and never cleared
-
-    now = datetime.now()
-    for bundleid, last_access in app._last_access_per_bundle.items():
-        stale_for = (now-last_access).total_seconds()
-        clients = app._clients_per_bundle.get(bundleid, [])
-        active_clients = [c for c in clients if c in app._clients]
-        print("bundle_memory_cleanup: {} stale for {}/{} seconds with {} active clients and {} total clients".format(bundleid, stale_for, stale_limit_seconds, len(active_clients), len(clients)))
-        # we'll delete if no active clients and past the stale limit, OR if no clients at all and stale for 30 seconds (in the case of closing where the client sent a deregister signal)
-        if (len(active_clients)==0 and stale_for > stale_limit_seconds) or (len(clients)==0 and stale_for > 30):
-            if app._verbose:
-                print("bundle_memory_cleanup: deleting {}".format(bundleid))
-            if bundleid in app._bundles.keys():
-                del app._bundles[bundleid]
-            if bundleid in app._clients_per_bundle.keys():
-                del app._clients_per_bundle[bundleid]
-            if bundleid in app._last_access_per_bundle.keys():
-                del app._last_access_per_bundle[bundleid]
-
 # we'll disable sorting the responses by keys so that we can control the sorting
 # by qualifier instead of uniqueid.  This will sacrifice caching ability in the
 # browser unless we set the order of all keys to be consistent.
@@ -110,6 +88,32 @@ from datetime import datetime
 
 phoebe.interactive_off()
 phoebe.parameters._is_server = True
+
+
+def bundle_memory_cleanup(stale_limit_seconds=600):
+    # TODO: its possible to get an entry in _clients_per_bundle that isn't
+    # available here.  The error message is raised in the UI and redirects
+    # out... but the entry is still made here and never cleared
+
+    now = datetime.now()
+    for bundleid, last_access in app._last_access_per_bundle.items():
+        stale_for = (now-last_access).total_seconds()
+        clients = app._clients_per_bundle.get(bundleid, [])
+        active_clients = [c for c in clients if c in app._clients]
+        print("bundle_memory_cleanup: {} stale for {}/{} seconds with {} active clients and {} total clients".format(bundleid, stale_for, stale_limit_seconds, len(active_clients), len(clients)))
+        # we'll delete if any of the following
+        # * no active clients and past the stale limit
+        # * no clients at all and stale for 30 seconds (in the case of closing where the client sent a deregister signal)
+        # * stale for more than an hour from the webclient
+        if (len(active_clients)==0 and stale_for > stale_limit_seconds) or (len(clients)==0 and stale_for > 30) or (stale_for > 60*60 and np.all([c.split('-')[0]=='web' for c in client_types])):
+            if app._verbose:
+                print("bundle_memory_cleanup: deleting {}".format(bundleid))
+            if bundleid in app._bundles.keys():
+                del app._bundles[bundleid]
+            if bundleid in app._clients_per_bundle.keys():
+                del app._clients_per_bundle[bundleid]
+            if bundleid in app._last_access_per_bundle.keys():
+                del app._last_access_per_bundle[bundleid]
 
 def _get_phoebe_funcs(module):
     ignore = ['_empty_array', 'deepcopy', 'fnmatch',
