@@ -540,7 +540,7 @@ def parameter(bundleid, uniqueid):
     app._last_access_per_bundle[bundleid] = datetime.now()
 
     try:
-        param = b.get_parameter(uniqueid=uniqueid)
+        param = b.get_parameter(uniqueid=uniqueid, check_visible=False, check_advanced=False, check_default=False)
     except:
         return _get_response({'success': False, 'error': 'could not find parameter with uniqueid={}'.format(uniqueid)}, api=True)
 
@@ -649,7 +649,7 @@ def set_value(msg):
 
     client_types = _client_types_for_bundle(bundleid)
     if 'web' in client_types or 'desktop' in client_types:
-        is_visible_before = {p.uniqueid: p.is_visible for p in b.to_list()}
+        is_visible_before = {p.uniqueid: p.is_visible for p in b.to_list(check_visible=False, check_default=False, check_advanced=False)}
 
     try:
         # TODO: handle getting nparray objects (probably as json strings/unicodes)
@@ -672,7 +672,7 @@ def set_value(msg):
         if 'web' in client_types or 'desktop' in client_types:
 
             # we need to also include parameters in which the visibility has changed
-            is_visible_changed = {p.uniqueid: p.is_visible for p in b.to_list() if p.is_visible!=is_visible_before.get(p.uniqueid, None)}
+            is_visible_changed = {p.uniqueid: p.is_visible for p in b.to_list(check_visible=False, check_default=False, check_advanced=False) if p.is_visible!=is_visible_before.get(p.uniqueid, None)}
             # TODO: need to figure out what should be shown in the client if a new items has become visible but not within the filter
             # TODO: tag visibility in the client needs to change based on the change in parameter visibilities
 
@@ -790,7 +790,7 @@ def bundle_method(msg):
         emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
         return
 
-
+    # TODO: handle any parameters in which the choices may have changed (columns, for example)
 
     if 'web' in client_types or 'desktop' in client_types:
         param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
