@@ -116,7 +116,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
        if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
-        weighted by energy of photons.  Only applicable if `syn` is False.
+        weighted by energy or photons.  Only applicable if `syn` is False.
     * `pblum_mode` (string, optional, default='manual'): mode for scaling
         passband luminosities.  Only applicable if `syn` is False and `is_lc`
         is True.
@@ -181,7 +181,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
         passbands._init_passbands()  # NOTE: this only actually does something on the first call
         params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
-        params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy of photons')]
+        params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy or photons')]
 
     if is_lc and not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
@@ -261,7 +261,7 @@ def rv(syn=False, as_ps=True, **kwargs):
        if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
-        weighted by energy of photons.  Only applicable if `syn` is False.
+        weighted by energy or photons.  Only applicable if `syn` is False.
 
     Returns
     --------
@@ -358,7 +358,7 @@ def lp(syn=False, as_ps=True, **kwargs):
        if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
-        weighted by energy of photons.  Only applicable if `syn` is False.
+        weighted by energy or photons.  Only applicable if `syn` is False.
 
     Returns
     --------
