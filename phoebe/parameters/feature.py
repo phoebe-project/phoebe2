@@ -96,7 +96,7 @@ def pulsation(feature, **kwargs):
     return ParameterSet(params), constraints
 
 
-del deepcopy
-del _component_allowed_for_feature
-del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
-del fnmatch
+# del deepcopy
+# del _component_allowed_for_feature
+# del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
+# del fnmatch
