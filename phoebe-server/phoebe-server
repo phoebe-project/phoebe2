@@ -105,7 +105,7 @@ def bundle_memory_cleanup(stale_limit_seconds=600):
         # * no active clients and past the stale limit
         # * no clients at all and stale for 30 seconds (in the case of closing where the client sent a deregister signal)
         # * stale for more than an hour from the webclient
-        if (len(active_clients)==0 and stale_for > stale_limit_seconds) or (len(clients)==0 and stale_for > 30) or (stale_for > 60*60 and np.all([c.split('-')[0]=='web' for c in client_types])):
+        if (len(active_clients)==0 and stale_for > stale_limit_seconds) or (len(clients)==0 and stale_for > 30) or (stale_for > 60*60 and np.all([c.split('-')[0]=='web' for c in _client_types_for_bundle(bundleid)])):
             if app._verbose:
                 print("bundle_memory_cleanup: deleting {}".format(bundleid))
             if bundleid in app._bundles.keys():
@@ -592,7 +592,7 @@ def disconnect():
 def register_client(msg):
     clientid = msg.get('clientid', None)
     bundleid = msg.get('bundleid', None)
-    if bundleid not in app._bundles.keys():
+    if bundleid is not None and bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
         if app._verbose:
             print("register client {} error: {}".format(msg, err))
@@ -768,7 +768,11 @@ def bundle_method(msg):
     if app._verbose:
         print("bundle_method: ", msg)
 
-    bundleid = msg.pop('bundleid')
+    bundleid = msg.pop('bundleid', None)
+
+    if bundleid is None:
+        emit('errors' {'success': False, 'error': "must provide bundleid"}, broadcast=False)
+        return
 
     if bundleid not in app._bundles.keys():
         err = 'bundle not found with bundleid={}'.format(bundleid)
