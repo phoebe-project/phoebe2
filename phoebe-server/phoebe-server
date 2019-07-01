@@ -262,7 +262,7 @@ def _unit_choices(unit):
                 # NOTE: doing same units on numerator and denominator will force this to be dimensionless
                 # and then we won't know that its time at all.
                 return ['d / yr', 'h / d', 'h / yr', 'min / d', 'min / h', 'min / yr', 's / min', 's / h', 's / d', 's / yr']
-            elif physical_types = ['power', 'length']:
+            elif physical_types == ['power', 'length']:
                 # then assume flux units
                 return ['W / m2', 'W / km2', 'W / pc2', 'W / AU2', 'W / solRad2', 'solLum / m2', 'solLum / km2', 'solLum / pc2', 'solLum / AU2', 'solLum / solRad2']
             else:
