@@ -771,7 +771,7 @@ def bundle_method(msg):
     bundleid = msg.pop('bundleid', None)
 
     if bundleid is None:
-        emit('errors' {'success': False, 'error': "must provide bundleid"}, broadcast=False)
+        emit('errors', {'success': False, 'error': "must provide bundleid"}, broadcast=False)
         return
 
     if bundleid not in app._bundles.keys():
