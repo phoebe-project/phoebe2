@@ -6749,11 +6749,18 @@ class FloatParameter(Parameter):
         if isinstance(value, tuple) and unit is None:
             value, unit = value
         if isinstance(value, str) or isinstance(value, unicode):
-            if len(value.strip().split(' ')) == 2 and unit is None:
+            if len(value.strip().split(' ')) == 2 and unit is None and self.__class__.__name__ == 'FloatParameter':
                 # support value unit as string
                 valuesplit = value.strip().split(' ')
                 value = float(valuesplit[0])
                 unit = valuesplit[1]
+
+            elif "," in value and self.__class__.__name__ == 'FloatArrayParameter':
+                try:
+                    value = json.loads(value)
+                    # we'll take it from here in the dict section below
+                except:
+                    value = np.asarray([float(v) for v in value.split(',') if len(v)])
 
             else:
                 value = float(value)

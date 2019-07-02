@@ -350,6 +350,11 @@ def _param_json_detailed(param):
 
     if param.__class__.__name__ in ['SelectParameter']:
         p['value'] = param.expand_value()
+    elif param.__class__.__name__ in ['FloatArrayParameter']:
+        value = param.to_json()['value']
+        if isinstance(value, list):
+            value = ",".join(str(vi) for vi in value)
+        p['value'] = value
 
     if hasattr(param, 'choices') or param.__class__.__name__ in ['BoolParameter']:
         p['choices'] = _choices(param)
@@ -562,6 +567,29 @@ def parameter(bundleid, uniqueid):
 
     return _get_response({'success': True, 'parameter': data}, api=True)
 
+@app.route('/nparray/<string:input>', methods=['GET'])
+@crossdomain(origin='*')
+def nparray(array):
+    # array is a json-string representation of an array or nparray helper dictionary
+
+    # first let's load the string
+    try:
+        if '{' not in input:
+            # then assume this is a comma-separate list to be converted to an array
+            npa = phoebe.dependencies.nparray.array([float(v) for v in input.split(',') if len(v)])
+        else:
+            npa = phoebe.dependencies.nparray.from_json(input)
+    except Exception as err:
+        return _get_response({'success': False, 'error': 'could not convert to valid nparray object'}, api=True)
+
+    # now we want to return all valid conversions
+    data = {'array': npa.to_array(),
+            'arraystr': ",".join([str(v) for v in npa.array().tolist()]),
+            'linspace': npa.to_linspace() if hasattr(npa, 'to_linspace') else None,
+            'arange': npa.to_arange() if hasattr(npa, 'to_arange') else None}
+
+    return _get_response({'success': True, 'response': data}, api=True)
+
 
 ############################# WEBSOCKET ROUTES ################################
 
@@ -701,7 +729,7 @@ def set_value(msg):
             emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
 
         if 'python' in client_types:
-            ps_dict = {p.uniqueid: {'value': p.get_value()} for p in ps_list}
+            ps_dict = {p.uniqueid: {'value': p.to_json()['value']} for p in ps_list}
 
             if app._verbose:
                 print("set_value success, broadcasting changes:python: {}".format(ps_dict))
