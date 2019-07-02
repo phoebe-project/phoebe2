@@ -4281,20 +4281,21 @@ class Bundle(ParameterSet):
         """
         Compute the passband luminosities that will be applied to the system,
         following all coupling, etc, as well as all relevant compute options
-        (ntriangles, distortion_method, etc).  The exposed passband luminosities
-        (and any coupling) are computed at t0@system.
+        (ntriangles, distortion_method, etc), third light, and distance.
+        The exposed passband luminosities (and any coupling) are computed at
+        t0@system.
 
         This method allows for computing both intrinsic and extrinsic luminosities.
         Note that pblum scaling is computed (and applied to flux scaling) based
         on intrinsic luminosities (`pblum`).
 
-        For any `dataset` which does not support pblum scaling (rv or lp dataset,
+        Any `dataset` which does not support pblum scaling (rv or lp dataset,
         for example), will have their absolute intensities exposed.
 
         Note that luminosities cannot be exposed for any dataset in which
         `pblum_mode` is 'dataset-scaled' as the entire light curve must be
         computed prior to scaling.  These will be excluded from the output
-        with error, but with a warning message in the <phoebe.logger>, if
+        without error, but with a warning message in the <phoebe.logger>, if
         enabled.
 
         Additionally, an estimate for the total fluxes `pbflux` and `pbflux_ext`
@@ -4480,11 +4481,15 @@ class Bundle(ParameterSet):
                         ret["{}@{}@{}".format('pblum_ext' if compute_extrinsic else 'pblum', component, dataset)] = pblum*u.W
 
                 if (compute_extrinsic and pbflux_ext) or (not compute_extrinsic and pbflux):
+
+                    pbflux_this_dataset /= self.get_value(qualifier='distance', context='system', unit=u.m)**2
+
                     if l3s is None:
                         # then we didn't need to compute l3s, so we can pull straight from the parameter
                         pbflux_this_dataset += self.get_value(qualifier='l3', dataset=dataset, context='dataset', unit=u.W/u.m**2)
                     else:
                         pbflux_this_dataset += l3s[dataset]
+
 
                     if not compute_extrinsic and set_value:
                         self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', check_visible=False, value=pbflux_this_dataset*u.W/u.m**2)
