@@ -416,7 +416,8 @@ class System(object):
                 pblum_scale_copy_ds[dataset] = pblum_ref
 
             elif pblum_mode == 'pbflux':
-                pbflux = ds.get_value(qualifier='pbflux', unit=u.W/u.m**2)
+                distance = b.get_value(qualifier='distance', context='system', unit=u.m)
+                pbflux = ds.get_value(qualifier='pbflux', unit=u.W/u.m**2) * distance**2
 
                 # TODO: add ld_func and ld_coeffs?
                 system_flux = np.sum([self.get_body(comp).compute_luminosity(dataset)/(4*np.pi) for comp in ds_components])
@@ -425,7 +426,7 @@ class System(object):
                 # note that pbflux here is the flux requested in RELATIVE UNITS
 
                 # flux_sys = sum(L_star/4pi for star in stars)
-                # flux_tot = flux_sys + l3_flux
+                # flux_tot = flux_sys/dist**2 + l3_flux
                 # l3_frac = l3_flux / flux_tot
                 # pblum_scale = pbflux / flux_tot
 
