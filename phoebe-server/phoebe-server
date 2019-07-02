@@ -218,6 +218,9 @@ def _value_string(param):
         return param.get_value()
     elif param_type in ['ConstraintParameter']:
         return "(Constraint)"
+    elif param_type in ['SelectParameter']:
+        v = param.expand_value()
+        return ",".join(v) if len(v) else "(empty)"
     elif param_type in ['JobParameter']:
         return param.get_status()
     elif param_type in ['UnitParameter']:
@@ -235,7 +238,7 @@ def _value_string(param):
             if len(arr):
                 return "[{} ... {} ({})]".format(arr[0], arr[-1], len(arr))
             else:
-                return "[] (empty)"
+                return "[ ] (empty)"
     else:
         return '({})'.format(param_type)
 
@@ -344,6 +347,9 @@ def _param_json_detailed(param):
             p['limits'] = param.limits + [None]
     # else:
         # p['limits'] = None
+
+    if param.__class__.__name__ in ['SelectParameter']:
+        p['value'] = param.expand_value()
 
     if hasattr(param, 'choices') or param.__class__.__name__ in ['BoolParameter']:
         p['choices'] = _choices(param)
