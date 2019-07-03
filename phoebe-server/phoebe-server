@@ -217,7 +217,7 @@ def _value_string(param):
     if param_type in ['StringParameter', 'ChoiceParameter', 'HierarchyParameter']:
         return param.get_value()
     elif param_type in ['ConstraintParameter']:
-        return "(Constraint)"
+        return "f({})".format(",".join([p.qualifier for p in param.vars.to_list()]))
     elif param_type in ['SelectParameter']:
         v = param.expand_value()
         return ",".join(v) if len(v) else "(empty)"
@@ -355,6 +355,8 @@ def _param_json_detailed(param):
         if isinstance(value, list):
             value = ",".join(str(vi) for vi in value)
         p['value'] = value
+    elif param.__class__.__name__ in ['ConstraintParameter']:
+        p['value'] = param.expr
 
     if hasattr(param, 'choices') or param.__class__.__name__ in ['BoolParameter']:
         p['choices'] = _choices(param)
@@ -829,12 +831,16 @@ def bundle_method(msg):
 
     try:
         ps = getattr(b, method)(**msg)
-        ps_list = ps.to_list()
+        ps_list = ps.to_list() if hasattr(ps, 'to_list') else [ps] if isinstance(ps, phoebe.parameters.Parameter) else []
     except Exception as err:
         if app._verbose:
             print("bundle_method {} error: {}".format(msg, err.message))
         emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
         return
+
+    if method in ['flip_constraint']:
+        param = b.get_parameter(**{k:v for k,v in msg.items() if k!='solve_for'})
+        ps_list += param.vars.to_list()
 
     # TODO: handle any parameters in which the choices may have changed (columns, for example)
 
