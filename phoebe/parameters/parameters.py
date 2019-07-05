@@ -7031,10 +7031,11 @@ class FloatParameter(Parameter):
     @property
     def constrains(self):
         """
-        Returns a list of Parameters that are constrained by this
+        Returns a list of Parameters that are directly constrained by this
          <phoebe.parameters.FloatParameter>.
 
         See also:
+        * <phoebe.parameters.FloatParameter.constrains_indirect>
         * <phoebe.parameters.FloatParameter.is_constraint>
         * <phoebe.parameters.FloatParameter.constrained_by>
         * <phoebe.parameters.FloatParameter.in_constraints>
@@ -7051,6 +7052,30 @@ class FloatParameter(Parameter):
                 if param.component == constraint.component and param.qualifier == constraint.qualifier:
                     if param not in params and param.uniqueid != self.uniqueid:
                         params.append(param)
+        return params
+
+    @property
+    def constrains_indirect(self):
+        """
+        Returns a list of Parameters that are directly or indirectly constrained by this
+         <phoebe.parameters.FloatParameter>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+         Returns
+         -------
+         * (list of Parameters)
+        """
+        params = self.constrains
+        for param in params:
+            for p in param.constrains_indirect:
+                if p not in params:
+                    params.append(p)
         return params
 
     @property
