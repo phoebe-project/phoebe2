@@ -440,10 +440,10 @@ def new_bundle(type):
         return _new_bundle('default_star')
     elif type == 'binary:detached':
         return _new_bundle('default_binary')
-    # elif type == 'binary:detached:primary':
-        # return _new_bundle('default_binary', semidetached='primary')
-    # elif type == 'binary:detached:secondary':
-        # return _new_bundle('default_binary', semidetached='secondary')
+    elif type == 'binary:semidetached:primary':
+        return _new_bundle('default_binary', semidetached='primary')
+    elif type == 'binary:semidetached:secondary':
+        return _new_bundle('default_binary', semidetached='secondary')
     elif type == 'binary:contact':
         return _new_bundle('default_binary', contact_binary=True)
     # elif type == 'triple:12:detached':

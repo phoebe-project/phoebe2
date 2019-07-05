@@ -610,6 +610,7 @@ class Bundle(ParameterSet):
 
     @classmethod
     def default_binary(cls, starA='primary', starB='secondary', orbit='binary',
+                       semidetached=False,
                        contact_binary=False, force_build=False):
         """
         For convenience, this function is available at the top-level as
@@ -634,9 +635,13 @@ class Bundle(ParameterSet):
             the secondary component.
         * `orbit` (string, optional, default='binary'): the label to be set for
             the binary component.
+        * `semidetached` (string or bool, optional, default=False): component
+            to apply a semidetached constraint.  If False, system will be detached.
+            If True, both components will have semidetached constraints (a
+            double-contact system).  `contact_binary` must be False.
         * `contact_binary` (bool, optional, default=False): whether to also
             add an envelope (with component='contact_envelope') and set the
-            hierarchy to a contact binary system.
+            hierarchy to a contact binary system.  `semidetached` must be False.
         * `force_build` (bool, optional, default=False): whether to force building
             the bundle from scratch.  If False, pre-cached files will be loaded
             whenever possible to save time.
@@ -644,7 +649,15 @@ class Bundle(ParameterSet):
         Returns
         -----------
         * an instantiated <phoebe.frontend.bundle.Bundle> object.
+
+        Raises
+        -----------
+        * ValueError: if at least one of `semidetached` and `contact_binary` are
+            not False.
         """
+        if semidetached and contact_binary:
+            raise ValueError("at least one of semidetached or binary must be False")
+
         if not force_build and not conf.devel:
             if contact_binary:
                 b = cls.open(os.path.join(_bundle_cache_dir, 'default_contact_binary.bundle'))
@@ -661,6 +674,11 @@ class Bundle(ParameterSet):
                 b.rename_component(secondary, starB)
             if orbit != 'binary':
                 b.rename_component('binary', 'orbit')
+
+            if semidetached == starA or semidetached is True:
+                b.add_constraint('semidetached', component=starA)
+            if semidetached == starB or semidetached is True:
+                b.add_constraint('semidetached', component=starB)
 
             b._update_atm_choices()
 
@@ -691,6 +709,12 @@ class Bundle(ParameterSet):
                             b[orbit],
                             b[starA],
                             b[starB])
+
+            if semidetached == starA or semidetached is True:
+                b.add_constraint('semidetached', component=starA)
+            if semidetached == starB or semidetached is True:
+                b.add_constraint('semidetached', component=starB)
+
 
         b.add_compute()
 
