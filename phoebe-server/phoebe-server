@@ -379,6 +379,13 @@ def _sort_tags(group, tags):
     else:
         return sorted(tags)
 
+def _get_failed_constraints(b):
+    affected_params = b._failed_constraints[:]
+    for constraint_id in b._failed_constraints:
+        cp = b.get_constraint(uniqueid=constraint_id, check_visible=False).constrained_parameter
+        affected_params += [cp.uniqueid] + [cpc.uniqueid for cpc in cp.constrains_indirect]
+    return affected_params
+
 
 ############################ HTTP ROUTES ######################################
 def _get_response(data, status_code=200, api=False, **metawargs):
@@ -544,7 +551,9 @@ def bundle(bundleid):
 
     tags = {k: _sort_tags(k, v) for k,v in b.tags.items()}
 
-    return _get_response({'success': True, 'parameters': param_dict, 'tags': tags}, api=True)
+    failed_constraints = _get_failed_constraints(b)
+
+    return _get_response({'success': True, 'parameters': param_dict, 'tags': tags, 'failed_constraints': failed_constraints}, api=True)
 
 @app.route('/parameter/<string:bundleid>/<string:uniqueid>', methods=['GET'])
 @crossdomain(origin='*')
@@ -729,6 +738,22 @@ def set_value(msg):
                 print("set_value success, broadcasting changes:react: {}".format(param_dict))
 
             emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
+
+            passed, msg = b.run_checks()
+            if not passed:
+                emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
+
+            # try:
+            #     b.run_failed_constraints()
+            # except Exception as err:
+            #     emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': err.message}, broadcast=False)
+            if len(b._failed_constraints):
+                msg = 'Constraints for the following parameters failed to run: {}.  Affected values will not be updated until the constraints can succeed.'.format(', '.join([b.get_parameter(uniqueid=c, check_visible=False).constrained_parameter.uniquetwig for c in b._failed_constraints]))
+                emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
+
+            failed_constraints = _get_failed_constraints(b)
+            emit('{}:failed_constraints:react'.format(bundleid), {'failed_constraints': failed_constraints}, broadcast=True)
+
 
         if 'python' in client_types:
             ps_dict = {p.uniqueid: {'value': p.to_json()['value']} for p in ps_list}
