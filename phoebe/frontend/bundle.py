@@ -827,7 +827,7 @@ class Bundle(ParameterSet):
         self.run_delayed_constraints()
 
         if not skip_checks:
-            passed, msg = self.run_checks(compute=compute)
+            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False)
             if passed is None:
                 # then just raise a warning
                 logger.warning(msg)
@@ -1884,6 +1884,9 @@ class Bundle(ParameterSet):
         * `compute` (string or list of strings, optional, default=None): the
             compute options to use  when running checks.  If None (or not provided),
             all available compute options will be considered.
+        * `allow_skip_constraints` (bool, optional, default=False): whether
+            to allow skipping running delayed constraints if interactive
+            constraints are disabled.  See <phoebe.interactive_constraints_off>.
         * `**kwargs`: overrides for any parameter (given as qualifier=value pairs)
 
         Returns
@@ -1893,7 +1896,8 @@ class Bundle(ParameterSet):
         """
 
         # make sure all constraints have been run
-        changed_params = self.run_delayed_constraints()
+        if conf.interactive_constraints or not kwargs.pop('allow_skip_constraints', False):
+            changed_params = self.run_delayed_constraints()
 
         computes = kwargs.pop('compute', self.computes)
         if computes is None:
@@ -4261,7 +4265,7 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=compute, **kwargs)
+            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
             if passed is None:
                 # then just raise a warning
                 logger.warning(msg)
@@ -4423,7 +4427,7 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=compute, **kwargs)
+            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
             if passed is None:
                 # then just raise a warning
                 logger.warning(msg)
@@ -4583,7 +4587,7 @@ class Bundle(ParameterSet):
 
         # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=compute, **kwargs)
+            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
             if passed is None:
                 # then just raise a warning
                 logger.warning(msg)
@@ -5032,7 +5036,7 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=computes, **kwargs)
+            passed, msg = self.run_checks(compute=computes, allow_skip_constraints=False, **kwargs)
             if passed is None:
                 # then just raise a warning
                 logger.warning(msg)
