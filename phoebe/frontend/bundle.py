@@ -4151,7 +4151,7 @@ class Bundle(ParameterSet):
             # but for floats, let's only set the value if the value has changed.
             if not isinstance(result, float) or result != constrained_param.get_value():
                 logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
-                constrained_param.set_value(result, force=True, run_constraints=True)
+                constrained_param.set_value(result, force=True)
 
         if return_parameter:
             return constrained_param
@@ -4183,11 +4183,17 @@ class Bundle(ParameterSet):
 
         """
         changes = []
-        for constraint_id in self._delayed_constraints:
+        delayed_constraints = self._delayed_constraints
+        self._delayed_constraints = []
+        for constraint_id in delayed_constraints:
             param = self.run_constraint(uniqueid=constraint_id, return_parameter=True, skip_kwargs_checks=True)
             if param not in changes:
                 changes.append(param)
-        self._delayed_constraints = []
+        if len(self._delayed_constraints):
+            # some of the calls above may have delayed even more constraints,
+            # we must keep calling recursively until they're all cleared
+            changes += self.run_delayed_constraints()
+
         return changes
 
     def run_failed_constraints(self):
