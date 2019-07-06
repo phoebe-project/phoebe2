@@ -3529,7 +3529,7 @@ class ParameterSet(object):
 
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
         # try to find 'times' in the cartesian dimensions:
-        if 'phases' not in [kwargs[af_direction].split(':')[0] for af_direction in ['x', 'y', 'z'] if isinstance(kwargs[af_direction], str)]:
+        if 'phases' not in [kwargs[af_direction].split(':')[0] for af_direction in ['x', 'y', 'z'] if isinstance(kwargs.get(af_direction, None), str)]:
             iqualifier_default = 'times'
         elif self._bundle.hierarchy.is_time_dependent():
             iqualifier_default = 'times'
