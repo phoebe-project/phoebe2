@@ -174,8 +174,8 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='period', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
     params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
 
-    params += [FloatParameter(qualifier='pitch', value=kwargs.get('pitch', 0), default_unit=u.deg, description='Pitch of the stellar rotation axis wrt the orbital inclination')]
-    params += [FloatParameter(qualifier='yaw', value=kwargs.get('yaw', 0), default_unit=u.deg, description='Yaw of the stellar rotation axis wrt the orbital longitude of ascending node')]
+    params += [FloatParameter(qualifier='pitch', visible_if='hierarchy.is_binary:True', value=kwargs.get('pitch', 0), default_unit=u.deg, description='Pitch of the stellar rotation axis wrt the orbital inclination')]
+    params += [FloatParameter(qualifier='yaw', visible_if='hierarchy.is_binary:True', value=kwargs.get('yaw', 0), default_unit=u.deg, description='Yaw of the stellar rotation axis wrt the orbital longitude of ascending node')]
 
     params += [FloatParameter(qualifier='incl', value=kwargs.get('incl', 90), default_unit=u.deg, description='Inclination of the stellar rotation axis')]
     params += [FloatParameter(qualifier='long_an', value=kwargs.get('long_an', 0.0), default_unit=u.deg, description='Longitude of the ascending node (ie. equator) of the star')]
