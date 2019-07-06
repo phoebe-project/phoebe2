@@ -217,7 +217,7 @@ def _value_string(param):
     if param_type in ['StringParameter', 'ChoiceParameter', 'HierarchyParameter']:
         return param.get_value()
     elif param_type in ['ConstraintParameter']:
-        return "f({})".format(",".join([p.qualifier for p in param.vars.to_list()]))
+        return "f({})".format(",".join([p.qualifier for p in param.vars.to_list() if p != param.constrained_parameter]))
     elif param_type in ['SelectParameter']:
         v = param.expand_value()
         return ",".join(v) if len(v) else "(empty)"
