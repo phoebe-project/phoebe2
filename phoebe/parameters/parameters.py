@@ -3956,6 +3956,9 @@ class ParameterSet(object):
                 raise
         else:
             afig = self.gcf()
+            if not len(afig.axes):
+                raise ValueError("Nothing could be found to plot.  Check all arguments.")
+
             fig = None
 
             return afig, fig
@@ -4009,6 +4012,8 @@ class ParameterSet(object):
                                          save_kwargs=save_kwargs)
 
             afig = self.gcf()
+            if not len(afig.axes):
+                raise ValueError("Nothing could be found to plot.  Check all arguments.")
 
             # clear the autofig figure
             self.clf()
@@ -4021,15 +4026,20 @@ class ParameterSet(object):
             if isinstance(time, str):
                 time = self.get_value(time, context=['component', 'system'])
 
-            logger.info("calling autofig.draw(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={})".format(time, draw_sidebars, draw_title, tight_layout, save, show))
-            fig = self.gcf().draw(i=time,
-                                  draw_sidebars=draw_sidebars,
-                                  draw_title=draw_title,
-                                  tight_layout=tight_layout,
-                                  subplot_grid=subplot_grid,
-                                  save=save, show=show)
-            # clear the figure so next call will start over and future shows will work
             afig = self.gcf()
+            if not len(afig.axes):
+                raise ValueError("Nothing could be found to plot.  Check all arguments.")
+
+
+            logger.info("calling autofig.draw(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={})".format(time, draw_sidebars, draw_title, tight_layout, save, show))
+            fig = afig.draw(i=time,
+                            draw_sidebars=draw_sidebars,
+                            draw_title=draw_title,
+                            tight_layout=tight_layout,
+                            subplot_grid=subplot_grid,
+                            save=save, show=show)
+
+            # clear the figure so next call will start over and future shows will work
             self.clf()
 
             return afig, fig
