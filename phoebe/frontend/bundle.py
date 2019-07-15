@@ -2566,12 +2566,14 @@ class Bundle(ParameterSet):
         for constraint in constraints:
             self.add_constraint(*constraint)
 
+
+        ret_ps = self.get_component(check_visible=False, check_default=False, **metawargs)
+
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, warning_only=True)
+        self._kwargs_checks(kwargs, warning_only=True, ps=ret_ps)
 
-        # return params
-        return self.get_component(**metawargs)
+        return ret_ps
 
     def get_component(self, component=None, **kwargs):
         """
@@ -3276,11 +3278,14 @@ class Bundle(ParameterSet):
                           undo_func='remove_dataset',
                           undo_kwargs={'dataset': kwargs['dataset']})
 
+
+        ret_ps = self.filter(dataset=kwargs['dataset'], check_visible=False, check_default=False)
+
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True)
+        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
 
-        return self.filter(dataset=kwargs['dataset'])
+        return ret_ps
 
     def get_dataset(self, dataset=None, **kwargs):
         """
@@ -4628,11 +4633,13 @@ class Bundle(ParameterSet):
                           undo_kwargs={'compute': kwargs['compute']})
 
 
+        ret_ps = self.get_compute(check_visible=False, check_default=False, **metawargs)
+
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True)
+        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
 
-        return self.get_compute(**metawargs)
+        return ret_ps
 
     def get_compute(self, compute=None, **kwargs):
         """
