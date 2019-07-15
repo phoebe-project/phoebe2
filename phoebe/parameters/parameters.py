@@ -2887,6 +2887,9 @@ class ParameterSet(object):
         phase-space otherwise. See
         <phoebe.parameters.FloatArrayParameter.interp_value>.
 
+        See also:
+        * <phoebe.parameters.ParameterSet.compute_chi2>
+
         Arguments
         -----------
         * `model` (string, optional, default=None): model to compare against
@@ -2958,6 +2961,72 @@ class ParameterSet(object):
         else:
             return residuals
 
+    def compute_chi2(self, model=None, dataset=None, component=None):
+        """
+        Compute the chi2 between a model and the observed values in the dataset(s).
+
+        Currently supports the following datasets:
+        * <phoebe.parameters.dataset.lc>
+        * <phoebe.parameters.dataset.rv>
+
+        If necessary (due to the `compute_times`/`compute_phases` parameters
+        or a change in the dataset `times` since the model was computed),
+        interpolation will be handled, in time-space if possible, and in
+        phase-space otherwise. See
+        <phoebe.parameters.FloatArrayParameter.interp_value>.
+
+        Residuals per-dataset for the given model are computed by
+        <phoebe.parameters.ParameterSet.compute_residuals>.  The returned
+        chi2 value is then the sum over the chi2 of each dataset, where each
+        dataset's chi2 value is computed as the sum of squares of residuals
+        over the squares of sigmas (if available).
+
+        See also:
+        * <phoebe.parameters.ParameterSet.compute_residuals>
+
+        Arguments
+        -----------
+        * `model` (string, optional, default=None): model to compare against
+            observations.  Required if more than one model exist.
+        * `dataset` (string or list, optional, default=None): dataset(s) for comparison.
+            Will sum over chi2 values of all datasets that match the filter.  So
+            if not provided, will default to all datasets exposed in the model.
+        * `component` (string or list, optional, default=None): component(s) for
+            comparison.  Required only if more than one component exist in the
+            dataset (for RVs, for example) and not all should be included in
+            the chi2
+
+        Returns
+        -----------
+        * (float) chi2 value
+
+        Raises
+        ----------
+        * NotImplementedError: if the dataset kind is not supported for residuals.
+        """
+
+        chi2 = 0
+
+        if not len(self.filter(context='model').models):
+            model_ps = self._bundle.get_model(model=model).filter(dataset=dataset, component=component)
+        else:
+            model_ps = self.filter(model=model, context='model').filter(dataset=dataset, component=component)
+
+        for ds in model_ps.datasets:
+            ds_comps = model_ps.filter(dataset=ds).components
+            if not len(ds_comps):
+                ds_comps = [None]
+
+            for ds_comp in ds_comps:
+                residuals = self.compute_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True)
+                sigmas = self._bundle.get_dataset(dataset=ds).get_value('sigmas', component=ds_comp, unit=residuals.unit)
+
+                if len(sigmas):
+                    chi2 += np.sum(residuals.value**2 / sigmas.value**2)
+                else:
+                    chi2 += np.sum(residuals.value**2)
+
+        return chi2
 
 
     def _unpack_plotting_kwargs(self, **kwargs):
