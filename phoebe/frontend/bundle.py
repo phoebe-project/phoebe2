@@ -3701,7 +3701,9 @@ class Bundle(ParameterSet):
 
         Arguments
         ----------
-        * `twig` (string, optional): twig to filter for the constraint.
+        * `twig` (string, optional): twig to filter for the constraint.  The
+            name of the constraint function (from <phoebe.parameters.constraint>)
+            can also be passed.  For example: 'semidetached'.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: context, twig.
@@ -3721,7 +3723,12 @@ class Bundle(ParameterSet):
 
         # we'll get the constraint so that we can undo the bookkeeping
         # and also reproduce an undo command
-        constraint = self.get_parameter(**kwargs)
+        try:
+            constraint = self.get_parameter(**kwargs)
+        except ValueError:
+            # then perhaps the first passed argument was the constraint_func instead
+            kwargs['constraint_func'] = kwargs.pop('twig')
+            constraint = self.get_parameter(**kwargs)
 
         # undo parameter bookkeeping
         constraint._remove_bookkeeping()
