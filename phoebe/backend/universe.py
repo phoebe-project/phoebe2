@@ -1424,7 +1424,7 @@ class Star(Body):
             if mesh_method == 'marching':
                 # we need check_visible=False in each of these in case mesh_method
                 # was overriden from kwargs
-                ntriangles_override = kwargs.pop('ntriangle', None)
+                ntriangles_override = kwargs.pop('ntriangles', None)
                 kwargs['ntriangles'] = b.get_value(qualifier='ntriangles', component=component, compute=compute, ntriangles=ntriangles_override, check_visible=False) if compute is not None else 1000
                 distortion_method_override = kwargs.pop('distortion_method', None)
                 kwargs['distortion_method'] = b.get_value(qualifier='distortion_method', component=component, compute=compute, distortion_method=distortion_method_override, check_visible=False) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
@@ -2383,8 +2383,10 @@ class Star_roche_envelope_half(Star):
         if pot is None:
             pot = b.get_value(qualifier='pot', component=envelope, context='component')
 
-        kwargs.setdefault('mesh_method', b.get_value(qualifier='mesh_method', component=envelope, compute=compute) if compute is not None else 'marching')
-        kwargs.setdefault('ntriangles', b.get_value(qualifier='ntriangles', component=envelope, compute=compute) if compute is not None else 1000)
+        mesh_method_override = kwargs.pop('mesh_method', None)
+        kwargs.setdefault('mesh_method', b.get_value(qualifier='mesh_method', component=envelope, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching')
+        ntriangles_override = kwargs.pop('ntriangles', None)
+        kwargs.setdefault('ntriangles', b.get_value(qualifier='ntriangles', component=envelope, compute=compute, ntriangles=ntriangles_override) if compute is not None else 1000)
 
         return super(Star_roche_envelope_half, cls).from_bundle(b, component, compute,
                                                   datasets,
