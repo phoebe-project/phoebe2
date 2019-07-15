@@ -16,6 +16,7 @@ __version__ = 'devel'
 
 import os
 import sys as _sys
+import inspect as _inspect
 import atexit
 
 # People shouldn't import Phoebe from the installation directory (inspired upon
@@ -318,7 +319,7 @@ conf = Settings()
 from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
 from .atmospheres.passbands import install_passband, uninstall_all_passbands, download_passband, update_passband_available, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-from .parameters import hierarchy, component, compute, constraint, dataset
+from .parameters import hierarchy, component, compute, constraint, dataset, feature
 from .frontend.bundle import Bundle
 from .backend import backends as _backends
 from . import utils as _utils
@@ -676,6 +677,101 @@ add_nparray_docstring(arange)
 add_nparray_docstring(logspace)
 add_nparray_docstring(geomspace)
 
+
+# expose available "kinds" per-context
+def _get_phoebe_funcs(module, devel=False):
+    ignore = ['_empty_array', 'deepcopy', 'fnmatch',
+              'download_passband', 'list_installed_passbands', 'list_online_passbands', 'list_passbands', 'parameter_from_json', 'parse_json',
+              'send_if_client', 'update_if_client',
+              '_add_component', '_add_dataset', '_label_units_lims', '_run_compute']
+
+    if not devel:
+        ignore += ['pulsation']
+        ignore += ['ellc', 'jktebop', 'photodynam']
+
+
+    return [o[0] for o in _inspect.getmembers(module) if _inspect.isfunction(o[1]) and o[0] not in ignore and o[0][0] != '_']
+
+
+def list_available_components(devel=False):
+    """
+    List all available 'kinds' for component from <phoebe.parameters.component>.
+
+    See also:
+    * <phoebe.list_available_features>
+    * <phoebe.list_available_datasets>
+    * <phoebe.list_available_computes>
+
+    Arguments
+    -----------
+    * `devel` (bool, default, optional=False): whether to include development-only
+        kinds.  See <phoebe.devel_on>.
+
+    Returns
+    ---------
+    * (list of strings)
+    """
+    return _get_phoebe_funcs(component, devel=devel)
+
+def list_available_features(devel=False):
+    """
+    List all available 'kinds' for feature from <phoebe.parameters.feature>.
+
+    See also:
+    * <phoebe.list_available_components>
+    * <phoebe.list_available_datasets>
+    * <phoebe.list_available_computes>
+
+    Arguments
+    -----------
+    * `devel` (bool, default, optional=False): whether to include development-only
+        kinds.  See <phoebe.devel_on>.
+
+    Returns
+    ---------
+    * (list of strings)
+    """
+    return _get_phoebe_funcs(feature, devel=devel)
+
+def list_available_datasets(devel=False):
+    """
+    List all available 'kinds' for dataset from <phoebe.parameters.dataset>.
+
+    See also:
+    * <phoebe.list_available_components>
+    * <phoebe.list_available_features>
+    * <phoebe.list_available_computes>
+
+    Arguments
+    -----------
+    * `devel` (bool, default, optional=False): whether to include development-only
+        kinds.  See <phoebe.devel_on>.
+
+    Returns
+    ---------
+    * (list of strings)
+    """
+    return  _get_phoebe_funcs(dataset, devel=devel)
+
+def list_available_computes(devel=False):
+    """
+    List all available 'kinds' for compute from <phoebe.parameters.compute>.
+
+    See also:
+    * <phoebe.list_available_components>
+    * <phoebe.list_available_features>
+    * <phoebe.list_available_datasets>
+
+    Arguments
+    -----------
+    * `devel` (bool, default, optional=False): whether to include development-only
+        kinds.  See <phoebe.devel_on>.
+
+    Returns
+    ---------
+    * (list of strings)
+    """
+    return _get_phoebe_funcs(compute, devel=devel)
 
 
 
