@@ -3499,7 +3499,6 @@ class Bundle(ParameterSet):
         For a list of optional built-in constraints, see <phoebe.parameters.constraint>
         including:
         * <phoebe.parameters.constraint.semidetached>
-        * <phoebe.parameters.constraint.logg>
 
         The following are automatically included for all orbits, during
         <phoebe.frontend.bundle.Bundle.add_component> for a
