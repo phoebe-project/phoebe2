@@ -4796,7 +4796,10 @@ class Bundle(ParameterSet):
         self._check_label(model, allow_overwrite=kwargs.get('overwrite', model=='latest'))
 
         if model in self.models and kwargs.get('overwrite', model=='latest'):
-            logger.warning("overwriting model: {}".format(model))
+            if model=='latest':
+                logger.warning("overwriting model: {}".format(model))
+            else:
+                logger.info("overwriting model: {}".format(model))
             self.remove_model(model)
             # check the label again, just in case model belongs to something
             # other than model
