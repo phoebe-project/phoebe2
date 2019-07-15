@@ -2054,11 +2054,13 @@ class Bundle(ParameterSet):
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
                         return None, "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components)
 
-        # forbid color-coupling with a dataset which is scaled to data or to another that is in-turn color-coupled
+        # forbid pblum_mode='dataset-coupled' if no other valid datasets
+        # forbid pblum_mode='dataset-coupled' with a dataset which is scaled to data or to another that is in-turn color-coupled
         for param in self.filter(qualifier='pblum_mode', value='dataset-coupled', **_skip_filter_checks).to_list():
             coupled_to = self.get_value(qualifier='pblum_dataset', dataset=param.dataset, check_visible=True)
             if coupled_to == '':
-                continue
+                if param.is_visible:
+                    return False, "cannot set pblum_mode@{}='dataset-coupled' when there are no other valid datasets.  Change pblum_mode or add another dataset.".format(param.dataset)
             pblum_mode = self.get_value(qualifier='pblum_mode', dataset=coupled_to, **_skip_filter_checks)
             if pblum_mode in ['dataset-scaled', 'dataset-coupled']:
                 return False, "cannot set pblum_dataset@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode)
