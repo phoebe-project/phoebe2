@@ -3134,24 +3134,24 @@ class Bundle(ParameterSet):
             if 'compute_times' in kwargs.keys():
                 self.remove_dataset(dataset=kwargs['dataset'])
                 raise ValueError("cannot provide both 'compute_phases' and 'compute_times'. Dataset has not been added.")
-            elif kind=='mesh' and 'times' in kwargs.keys():
+            elif kind in ['mesh', 'orb'] and 'times' in kwargs.keys():
                 self.remove_dataset(dataset=kwargs['dataset'])
-                raise ValueError("cannot provide both 'compute_phases' and 'compute_times' for a mesh dataset. Dataset has not been added.")
+                raise ValueError("cannot provide both 'compute_phases' and 'compute_times' for a {} dataset. Dataset has not been added.".format(kind))
             else:
                 # then we must flip the constraint
                 # TODO: this will probably break with triple support - we'll need to handle the multiple orbit components by accepting the dictionary.
                 # For now we'll assume the component is top-level binary
                 self.flip_constraint('compute_phases', component=self.hierarchy.get_top(), dataset=kwargs['dataset'], solve_for='compute_times')
 
-        if kind=='mesh' and 'times' in kwargs.keys():
+        if kind in ['mesh','orb'] and 'times' in kwargs.keys():
             # we already checked and would have raised an error if compute_phases
             # was provided, but we still need to handle compute_times
             if 'compute_times' in kwargs.keys():
                 self.remove_dataset(dataset=kwargs['dataset'])
-                raise ValueError("cannot provide both 'compute_times' and 'times' (which would write to 'compute_times') for a mesh dataset.  Dataset has not been added.")
+                raise ValueError("cannot provide both 'compute_times' and 'times' (which would write to 'compute_times') for a {} dataset.  Dataset has not been added.".format(kind))
 
             # if we're this far, the user passed times, but not compute_times/phases
-            logger.warning("mesh dataset uses 'compute_times' instead of 'times', applying value sent as 'times' to 'compute_times'.")
+            logger.warning("{} dataset uses 'compute_times' instead of 'times', applying value sent as 'times' to 'compute_times'.".format(kind))
             kwargs['compute_times'] = kwargs.pop('times')
 
         if 'pblum_mode' in kwargs.keys():
