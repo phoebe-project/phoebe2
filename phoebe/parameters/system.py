@@ -29,7 +29,7 @@ def system(**kwargs):
     # TODO: re-enable these once they're incorporated into orbits (dynamics) correctly.
     params += [FloatParameter(qualifier='ra', value=kwargs.get('ra', 0.0), default_unit=u.deg, description='Right ascension')]
     params += [FloatParameter(qualifier='dec', value=kwargs.get('dec', 0.0), default_unit=u.deg, description='Declination')]
-    params += [StringParameter(qualifier='epoch', value=kwargs.get('epoch', 'J2000'), description='Epoch of coordinates')]
+    # params += [StringParameter(qualifier='epoch', value=kwargs.get('epoch', 'J2000'), description='Epoch of coordinates')]
     #params += [FloatParameter(qualifier='pmra', value=kwargs.get('pmra', 0.0), default_unit=u.mas/u.yr, description='Proper motion in right ascension')]
     #params += [FloatParameter(qualifier='pmdec', value=kwargs.get('pmdec', 0.0), default_unit=u.mas/u.yr, description='Proper motion in declination')]
 
