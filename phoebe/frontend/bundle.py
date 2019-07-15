@@ -4820,7 +4820,7 @@ class Bundle(ParameterSet):
             if len(computes)==1:
                 compute = computes[0]
             elif len(computes)>1:
-                raise ValueError("must provide label of compute options since more than one are attached")
+                raise ValueError("must provide label of compute options since more than one are attached.  The following were found: {}".format(self.computes))
 
         # handle the ability to send multiple compute options/backends - here
         # we'll just always send a list of compute options
