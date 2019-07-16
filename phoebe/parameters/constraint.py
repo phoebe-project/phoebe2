@@ -1602,9 +1602,9 @@ def pitch(b, component, solve_for=None, **kwargs):
     parentorbit = hier.get_parent_of(component)
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
-    incl_comp = component_ps.get_parameter(qualifier='incl')
-    pitch_comp = component_ps.get_parameter(qualifier='pitch')
-    incl_orb = parentorbit_ps.get_parameter(qualifier='incl')
+    incl_comp = component_ps.get_parameter(qualifier='incl', check_visible=False)
+    pitch_comp = component_ps.get_parameter(qualifier='pitch', check_visible=False)
+    incl_orb = parentorbit_ps.get_parameter(qualifier='incl', check_visible=False)
 
     if solve_for in [None, incl_comp]:
         lhs = incl_comp
@@ -1648,9 +1648,9 @@ def yaw(b, component, solve_for=None, **kwargs):
     parentorbit = hier.get_parent_of(component)
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
-    long_an_comp = component_ps.get_parameter(qualifier='long_an')
-    yaw_comp = component_ps.get_parameter(qualifier='yaw')
-    long_an_orb = parentorbit_ps.get_parameter(qualifier='long_an')
+    long_an_comp = component_ps.get_parameter(qualifier='long_an', check_visible=False)
+    yaw_comp = component_ps.get_parameter(qualifier='yaw', check_visible=False)
+    long_an_orb = parentorbit_ps.get_parameter(qualifier='long_an', check_visible=False)
 
     if solve_for in [None, long_an_comp]:
         lhs = long_an_comp

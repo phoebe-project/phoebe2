@@ -1212,6 +1212,41 @@ class Bundle(ParameterSet):
                     self.add_constraint(constraint.rotation_period, component,
                                         constraint=self._default_label('rotation_period', context='constraint'))
 
+                logger.debug('re-creating pitch constraint for {}'.format(component))
+                # TODO: will this cause problems if the constraint has been flipped?
+                # TODO: what if the user disabled/removed this constraint?
+                if len(self.filter(context='constraint',
+                                   constraint_func='pitch',
+                                   component=component)):
+                    constraint_param = self.get_constraint(constraint_func='pitch',
+                                                           component=component)
+                    self.remove_constraint(constraint_func='pitch',
+                                           component=component)
+                    self.add_constraint(constraint.pitch, component,
+                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                        constraint=constraint_param.constraint)
+                else:
+                    self.add_constraint(constraint.pitch, component,
+                                        constraint=self._default_label('pitch', context='constraint'))
+
+                logger.debug('re-creating yaw constraint for {}'.format(component))
+                # TODO: will this cause problems if the constraint has been flipped?
+                # TODO: what if the user disabled/removed this constraint?
+                if len(self.filter(context='constraint',
+                                   constraint_func='yaw',
+                                component=component)):
+                    constraint_param = self.get_constraint(constraint_func='yaw',
+                                                           component=component)
+                    self.remove_constraint(constraint_func='yaw',
+                                           component=component)
+                    self.add_constraint(constraint.yaw, component,
+                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                        constraint=constraint_param.constraint)
+                else:
+                    self.add_constraint(constraint.yaw, component,
+                                        constraint=self._default_label('yaw', context='constraint'))
+
+
                 if self.hierarchy.is_contact_binary(component):
                     # then we're in a contact binary and need to create pot<->requiv constraints
                     # NOTE: pot_min and pot_max are handled above at the envelope level
@@ -1282,39 +1317,6 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.requiv_detached_max, component,
                                             constraint=self._default_label('requiv_max', context='constraint'))
 
-                    logger.debug('re-creating pitch constraint for {}'.format(component))
-                    # TODO: will this cause problems if the constraint has been flipped?
-                    # TODO: what if the user disabled/removed this constraint?
-                    if len(self.filter(context='constraint',
-                                       constraint_func='pitch',
-                                       component=component)):
-                        constraint_param = self.get_constraint(constraint_func='pitch',
-                                                               component=component)
-                        self.remove_constraint(constraint_func='pitch',
-                                               component=component)
-                        self.add_constraint(constraint.pitch, component,
-                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                            constraint=constraint_param.constraint)
-                    else:
-                        self.add_constraint(constraint.pitch, component,
-                                            constraint=self._default_label('pitch', context='constraint'))
-
-                    logger.debug('re-creating yaw constraint for {}'.format(component))
-                    # TODO: will this cause problems if the constraint has been flipped?
-                    # TODO: what if the user disabled/removed this constraint?
-                    if len(self.filter(context='constraint',
-                                       constraint_func='yaw',
-                                    component=component)):
-                        constraint_param = self.get_constraint(constraint_func='yaw',
-                                                               component=component)
-                        self.remove_constraint(constraint_func='yaw',
-                                               component=component)
-                        self.add_constraint(constraint.yaw, component,
-                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                            constraint=constraint_param.constraint)
-                    else:
-                        self.add_constraint(constraint.yaw, component,
-                                            constraint=self._default_label('yaw', context='constraint'))
 
         # if user_interactive_constraints:
             # conf.interactive_constraints_on()
@@ -1493,13 +1495,13 @@ class Bundle(ParameterSet):
                             return False,\
                                 'contact binaries must by circular, but ecc@{}!=0'.format(component)
 
-                        if self.get_value(qualifier='pitch', component=component, context='component', **kwargs) != 0.0:
+                        if self.get_value(qualifier='pitch', component=component, context='component', check_visible=False, **kwargs) != 0.0:
                             return False,\
-                                'contact binaries must be aligned, but pitch@{}!=0'.format(component)
+                                'contact binaries must be aligned, but pitch@{}!=0.  Try b.set_value(qualifier=\'pitch\', component=\'{}\' value=0.0, check_visible=False) to align.'.format(component, component)
 
-                        if self.get_value(qualifier='yaw', component=component, context='component', **kwargs) != 0.0:
+                        if self.get_value(qualifier='yaw', component=component, context='component', check_visible=False, **kwargs) != 0.0:
                             return False,\
-                                'contact binaries must be aligned, but yaw@{}!=0'.format(component)
+                                'contact binaries must be aligned, but yaw@{}!=0.  Try b.set_value(qualifier=\'yaw\', component=\'{}\', value=0.0, check_visible=False) to align.'.format(component, component)
 
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
