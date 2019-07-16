@@ -4252,6 +4252,9 @@ class Parameter(object):
         uniqueid = kwargs.get('uniqueid', _uniqueid())
         bundle = kwargs.get('bundle', None)
 
+        self._in_constraints = []   # labels of constraints that have this parameter in the expression
+        self._is_constraint = None  # label of the constraint that defines the value of this parameter
+
         self._description = description
         self._bundle = bundle
         self._value = None
@@ -5246,6 +5249,147 @@ class Parameter(object):
 
         return self._bundle.filter(**metawargs)
 
+    #~ @property
+    #~ def constraint(self):
+        #~ """
+        #~ returns the label of the constraint that constrains this parameter
+        #~
+        #~ you can then access all of the parameters of the constraint via bundle.get_constraint(label)
+        #~ """
+        #~ return self.constraint_expression.uniquetwig
+
+    @property
+    def is_constraint(self):
+        """
+        Returns the <phoebe.parameters.ConstraintParameter> that constrains
+        this parameter.  If this <phoebe.parameters.FloatParameter> is not
+        constrained, this will return None.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * (None or <phoebe.parameters.ConstraintParameter)
+        """
+        if self._is_constraint is None:
+            return None
+        return self._bundle.get_parameter(context='constraint', uniqueid=self._is_constraint, check_visible=False)
+
+    @property
+    def constrained_by(self):
+        """
+        Returns a list of <phoebe.parameters.Parameter> objects that constrain
+        this <phoebe.parameters.FloatParameter>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * (list of <phoebe.parameters.Parameter>)
+        """
+        if self._is_constraint is None:
+            return []
+        params = []
+        uniqueids = []
+        for var in self.is_constraint._vars:
+            param = var.get_parameter()
+            if param.uniqueid != self.uniqueid and param.uniqueid not in uniqueids:
+                params.append(param)
+                uniqueids.append(param.uniqueid)
+        return params
+
+    #~ @property
+    #~ def in_constraints(self):
+        #~ """
+        #~ returns a list the labels of the constraints in which this parameter constrains another
+        #~
+        #~ you can then access all of the parameters of a given constraint via bundle.get_constraint(constraint)
+        #~ """
+        #~ return [param.uniquetwig for param in self.in_constraints_expressions]
+
+    @property
+    def in_constraints(self):
+        """
+        Returns a list of the expressions in which this
+        <phoebe.parameters.FloatParameter> constrains other Parameters.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * (list of expressions)
+        """
+        expressions = []
+        for uniqueid in self._in_constraints:
+            expressions.append(self._bundle.get_parameter(context='constraint', uniqueid=uniqueid))
+        return expressions
+
+    @property
+    def constrains(self):
+        """
+        Returns a list of Parameters that are constrained by this
+         <phoebe.parameters.FloatParameter>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+         Returns
+         -------
+         * (list of Parameters)
+        """
+        params = []
+        for constraint in self.in_constraints:
+            for var in constraint._vars:
+                param = var.get_parameter()
+                if param.component == constraint.component and param.qualifier == constraint.qualifier:
+                    if param not in params and param.uniqueid != self.uniqueid:
+                        params.append(param)
+        return params
+
+    @property
+    def related_to(self):
+        """
+        Returns a list of all parameters that are either constrained by or
+        constrain this parameter.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+
+         Returns
+         -------
+         * (list of Parameters)
+        """
+        params = []
+        constraints = self.in_constraints
+        if self.is_constraint is not None:
+            constraints.append(self.is_constraint)
+
+        for constraint in constraints:
+            for var in constraint._vars:
+                param = var.get_parameter()
+                if param not in params and param.uniqueid != self.uniqueid:
+                    params.append(param)
+
+        return params
+
     def to_constraint(self):
         """
         Convert this <phoebe.parameters.Parameter> to a
@@ -5716,13 +5860,21 @@ class ChoiceParameter(Parameter):
         return str(self._value)
 
     @send_if_client
-    def set_value(self, value, run_checks=None, **kwargs):
+    def set_value(self, value, run_checks=None, run_constraints=None, **kwargs):
         """
         Set the current value of the <phoebe.parameters.ChoiceParameter>.
 
         Arguments
         ----------
         * `value` (string): the new value of the Parameter.
+        * `run_checks` (bool, optional): whether to call
+            <phoebe.frontend.bundle.Bundle.run_checks> after setting the value.
+            If `None`, the value in `phoebe.conf.interactive_checks` will be used.
+            This will not raise an error, but will cause a warning in the logger
+            if the new value will cause the system to fail checks.
+        * `run_constraints` whether to run any necessary constraints after setting
+            the value.  If `None`, the value in `phoebe.conf.interactive_constraints`
+            will be used.
         * `**kwargs`: IGNORED
 
         Raises
@@ -5751,6 +5903,24 @@ class ChoiceParameter(Parameter):
             download_passband(value)
 
         self._value = value
+
+
+        if run_constraints is None:
+            run_constraints = conf.interactive_constraints
+
+        if run_constraints:
+            if len(self._in_constraints):
+                logger.debug("changing value of {} triggers {} constraints".format(self.twig, [c.twig for c in self.in_constraints]))
+            for constraint_id in self._in_constraints:
+                self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True, run_constraints=run_constraints)
+        else:
+            # then we want to delay running constraints... so we need to track
+            # which ones need to be run once requested
+            if len(self._in_constraints):
+                logger.debug("changing value of {} triggers delayed constraints {}".format(self.twig, [c.twig for c in self.in_constraints]))
+            for constraint_id in self._in_constraints:
+                if constraint_id not in self._bundle._delayed_constraints:
+                    self._bundle._delayed_constraints.append(constraint_id)
 
         # run_checks if requested (default)
         if run_checks is None:
@@ -6324,9 +6494,6 @@ class FloatParameter(Parameter):
         """
         super(FloatParameter, self).__init__(*args, **kwargs)
 
-        self._in_constraints = []   # labels of constraints that have this parameter in the expression
-        self._is_constraint = None  # label of the constraint that defines the value of this parameter
-
         default_unit = kwargs.get('default_unit', None)
         self.set_default_unit(default_unit)
 
@@ -6669,7 +6836,7 @@ class FloatParameter(Parameter):
         return value
 
     #@send_if_client is on the called set_quantity
-    def set_value(self, value, unit=None, force=False, run_checks=None, **kwargs):
+    def set_value(self, value, unit=None, force=False, run_checks=None, run_constraints=None, **kwargs):
         """
         Set the current value/quantity of the <phoebe.parameters.FloatParameter>.
 
@@ -6684,7 +6851,9 @@ class FloatParameter(Parameter):
         * <phoebe.parameters.FloatParameter.set_limits>
         * <phoebe.parameters.FloatParameter.within_limits>
         """
-        return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks, **kwargs)
+        return self.set_quantity(value=value, unit=unit, force=force,
+                                 run_checks=run_checks, run_constraints=run_constraints,
+                                 **kwargs)
 
     @send_if_client
     def set_quantity(self, value, unit=None, force=False, run_checks=None, run_constraints=None, **kwargs):
@@ -6825,146 +6994,7 @@ class FloatParameter(Parameter):
         self._add_history(redo_func='set_quantity', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_quantity, 'uniqueid': self.uniqueid})
 
 
-    #~ @property
-    #~ def constraint(self):
-        #~ """
-        #~ returns the label of the constraint that constrains this parameter
-        #~
-        #~ you can then access all of the parameters of the constraint via bundle.get_constraint(label)
-        #~ """
-        #~ return self.constraint_expression.uniquetwig
 
-    @property
-    def is_constraint(self):
-        """
-        Returns the <phoebe.parameters.ConstraintParameter> that constrains
-        this parameter.  If this <phoebe.parameters.FloatParameter> is not
-        constrained, this will return None.
-
-        See also:
-        * <phoebe.parameters.FloatParameter.constrained_by>
-        * <phoebe.parameters.FloatParameter.in_constraints>
-        * <phoebe.parameters.FloatParameter.constrains>
-        * <phoebe.parameters.FloatParameter.related_to>
-
-        Returns
-        -------
-        * (None or <phoebe.parameters.ConstraintParameter)
-        """
-        if self._is_constraint is None:
-            return None
-        return self._bundle.get_parameter(context='constraint', uniqueid=self._is_constraint, check_visible=False)
-
-    @property
-    def constrained_by(self):
-        """
-        Returns a list of <phoebe.parameters.Parameter> objects that constrain
-        this <phoebe.parameters.FloatParameter>.
-
-        See also:
-        * <phoebe.parameters.FloatParameter.is_constraint>
-        * <phoebe.parameters.FloatParameter.in_constraints>
-        * <phoebe.parameters.FloatParameter.constrains>
-        * <phoebe.parameters.FloatParameter.related_to>
-
-        Returns
-        -------
-        * (list of <phoebe.parameters.Parameter>)
-        """
-        if self._is_constraint is None:
-            return []
-        params = []
-        uniqueids = []
-        for var in self.is_constraint._vars:
-            param = var.get_parameter()
-            if param.uniqueid != self.uniqueid and param.uniqueid not in uniqueids:
-                params.append(param)
-                uniqueids.append(param.uniqueid)
-        return params
-
-    #~ @property
-    #~ def in_constraints(self):
-        #~ """
-        #~ returns a list the labels of the constraints in which this parameter constrains another
-        #~
-        #~ you can then access all of the parameters of a given constraint via bundle.get_constraint(constraint)
-        #~ """
-        #~ return [param.uniquetwig for param in self.in_constraints_expressions]
-
-    @property
-    def in_constraints(self):
-        """
-        Returns a list of the expressions in which this
-        <phoebe.parameters.FloatParameter> constrains other Parameters.
-
-        See also:
-        * <phoebe.parameters.FloatParameter.is_constraint>
-        * <phoebe.parameters.FloatParameter.constrained_by>
-        * <phoebe.parameters.FloatParameter.constrains>
-        * <phoebe.parameters.FloatParameter.related_to>
-
-        Returns
-        -------
-        * (list of expressions)
-        """
-        expressions = []
-        for uniqueid in self._in_constraints:
-            expressions.append(self._bundle.get_parameter(context='constraint', uniqueid=uniqueid))
-        return expressions
-
-    @property
-    def constrains(self):
-        """
-        Returns a list of Parameters that are constrained by this
-         <phoebe.parameters.FloatParameter>.
-
-        See also:
-        * <phoebe.parameters.FloatParameter.is_constraint>
-        * <phoebe.parameters.FloatParameter.constrained_by>
-        * <phoebe.parameters.FloatParameter.in_constraints>
-        * <phoebe.parameters.FloatParameter.related_to>
-
-         Returns
-         -------
-         * (list of Parameters)
-        """
-        params = []
-        for constraint in self.in_constraints:
-            for var in constraint._vars:
-                param = var.get_parameter()
-                if param.component == constraint.component and param.qualifier == constraint.qualifier:
-                    if param not in params and param.uniqueid != self.uniqueid:
-                        params.append(param)
-        return params
-
-    @property
-    def related_to(self):
-        """
-        Returns a list of all parameters that are either constrained by or
-        constrain this parameter.
-
-        See also:
-        * <phoebe.parameters.FloatParameter.is_constraint>
-        * <phoebe.parameters.FloatParameter.constrained_by>
-        * <phoebe.parameters.FloatParameter.in_constraints>
-        * <phoebe.parameters.FloatParameter.constrains>
-
-         Returns
-         -------
-         * (list of Parameters)
-        """
-        params = []
-        constraints = self.in_constraints
-        if self.is_constraint is not None:
-            constraints.append(self.is_constraint)
-
-        for constraint in constraints:
-            for var in constraint._vars:
-                param = var.get_parameter()
-                if param not in params and param.uniqueid != self.uniqueid:
-                    params.append(param)
-
-        return params
 
 
 class FloatArrayParameter(FloatParameter):
@@ -8716,7 +8746,7 @@ class ConstraintParameter(Parameter):
         # logger.debug("ConstraintParameter {} _remove_bookkepping".format(self.twig))
         vars = self.vars + self.addl_vars
         for param in vars.to_list():
-            if param._is_constraint == self.uniqueid:
+            if hasattr(param, '_is_constraint') and param._is_constraint == self.uniqueid:
                 param._is_constraint = None
             if self.uniqueid in param._in_constraints:
                 logger.debug("removing {} from {}.in_constraints".format(self.twig, param.twig))
@@ -8892,16 +8922,31 @@ class ConstraintParameter(Parameter):
                     return True
             return False
 
-        def get_values(vars, safe_label=True):
+        def get_values(vars, safe_label=True, string_safe_arrays=False):
             # use np.float64 so that dividing by zero will result in a
             # np.inf
-            def _single_value(quantity):
-                if self.in_solar_units:
-                    return np.float64(u.to_solar(quantity).value)
-                else:
-                    return np.float64(quantity.si.value)
+            def _single_value(quantity, string_safe_arrays=False):
+                if isinstance(quantity, u.Quantity):
+                    if self.in_solar_units:
+                        v = np.float64(u.to_solar(quantity).value)
+                    else:
+                        v = np.float64(quantity.si.value)
 
-            return {var.safe_label if safe_label else var.user_label: _single_value(var.get_quantity(t=t)) if var.get_parameter()!=self.constrained_parameter else _single_value(var.get_quantity()) for var in vars}
+                    if isinstance(v, np.ndarray) and string_safe_arrays:
+                        v = v.tolist()
+                    return v
+                elif isinstance(quantity, str):
+                    return '\'{}\''.format(quantity)
+                else:
+                    return quantity
+
+            def _value(var, string_safe_arrays=False):
+                if var.get_parameter() != self.constrained_parameter:
+                    return _single_value(var.get_quantity(t=t), string_safe_arrays)
+                else:
+                    return _single_value(var.get_quantity(), string_safe_arrays)
+
+            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays) for var in vars}
 
         eq = self.get_value()
 
@@ -8927,9 +8972,7 @@ class ConstraintParameter(Parameter):
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
 
-                values = get_values(self._vars+self._addl_vars, safe_label=False)
-
-                values = get_values(self._vars+self._addl_vars, safe_label=False)
+                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True)
 
                 # cannot do from builtin import *
                 for func in _constraint_builtin_funcs:
@@ -8941,20 +8984,37 @@ class ConstraintParameter(Parameter):
                     # to the locals dictionary.
                     locals()[func] = getattr(builtin, func)
 
-                try:
-                # if True:
-                    value = float(eval(eq.format(**values)))
-                except ValueError as err:
+                # if eq.split('(')[0] in ['times_to_phases', 'phases_to_times']:
+                    # these require passing the bundle
+                    # values['b'] = self._bundle
+
+                value = eval(eq.format(**values))
+
+                if value is None:
                     if suppress_error:
                         value = np.nan
-                        logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
+                        logger.error("{} constraint returned None".format(self.twig))
                     else:
-                        raise
-                except:
-                    if suppress_error:
-                        value = np.nan
-                    else:
-                        raise
+                        raise ValueError("constraint returned None")
+                else:
+                    try:
+                        value = float(value)
+                    except TypeError as err:
+                        try:
+                            value = np.asarray(value)
+                        except:
+                            if suppress_error:
+                                value = np.nan
+                                logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
+                            else:
+                                raise
+                    except ValueError as err:
+                        if suppress_error:
+                            value = np.nan
+                            logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
+                        else:
+                            raise
+
 
 
             else:

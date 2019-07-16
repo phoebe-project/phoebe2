@@ -185,7 +185,8 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
     if is_lc and not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]

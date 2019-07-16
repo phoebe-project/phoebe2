@@ -2848,6 +2848,9 @@ class Bundle(ParameterSet):
         period = ephem.get('period', 1.0)
         dpdt = ephem.get('dpdt', 0.0)
 
+
+        # if changing this, also see parameters.constraint.time_ephem
+        # and phoebe.constraints.builtin.times_to_phases
         if dpdt != 0:
             phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
         else:
@@ -2861,6 +2864,11 @@ class Bundle(ParameterSet):
             phase[phase > 0.5] -= 1
 
         return phase
+
+    def to_phases(self, *args, **kwargs):
+        """
+        Alias to <phoebe.frontend.bundle.Bundle.to_phase>.
+        """
 
     def to_time(self, phase, component=None, t0='t0_supconj', **kwargs):
         """
@@ -2904,12 +2912,18 @@ class Bundle(ParameterSet):
         dpdt = ephem.get('dpdt', 0.0)
 
         # if changing this, also see parameters.constraint.time_ephem
+        # and phoebe.constraints.builtin.phases_to_times
         if dpdt != 0:
             time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
         else:
             time = t0 + (phase)*period
 
         return time
+
+    def to_times(self, *args, **kwargs):
+        """
+        Alias to <phoebe.frontend.bundle.Bundle.to_time>.
+        """
 
     def add_dataset(self, kind, component=None, **kwargs):
         """
@@ -3801,7 +3815,7 @@ class Bundle(ParameterSet):
             else:
                 return np.isnan(value)
 
-        if kwargs.pop('check_nan', True) and np.any([_check_nan(p.get_value()) for p in param.vars.to_list()]):
+        if kwargs.pop('check_nan', True) and np.any([_check_nan(p.get_value()) for p in param.vars.to_list() if hasattr(p, 'get_quantity')]):
             raise ValueError("cannot flip constraint while the value of {} is nan".format([p.twig for p in param.vars.to_list() if np.isnan(p.get_value())]))
 
         if solve_for is None:

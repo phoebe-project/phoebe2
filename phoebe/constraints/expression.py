@@ -100,7 +100,11 @@ class ConstraintVar(object):
         """
         if self.is_param:
             # TODO: CAREFUL, this may cause infinite loops if we try to run constraints through get_value
-            return self._bundle.get_quantity(uniqueid=self.unique_label, units=units, t=t)
+            try:
+                return self._bundle.get_quantity(uniqueid=self.unique_label, units=units, t=t)
+            except AttributeError:
+                # then not a FloatParameter
+                return self._bundle.get_value(uniqueid=self.unique_label)
 
         else:
             # TODO: constants and methods

@@ -11,6 +11,51 @@ logger.addHandler(logging.NullHandler())
 # expose these at top-level so they're available to constraints
 from numpy import sin, cos, tan, arcsin, arccos, arctan, arctan2, sqrt, log10
 
+def phases_to_times(phase, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
+    if t0 == 't0_supconj':
+        t0 = t0_supconj
+    elif t0 == 't0_perpass':
+        t0 = t0_perpass
+    elif t0 == 't0_ref':
+        t0 = t0_ref
+
+    if isinstance(phase, list):
+        phase = np.asarray(phase)
+
+    if dpdt != 0:
+        time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
+    else:
+        time = t0 + (phase)*period
+
+    return time
+
+def times_to_phases(time, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
+    if t0 == 't0_supconj':
+        t0 = t0_supconj
+    elif t0 == 't0_perpass':
+        t0 = t0_perpass
+    elif t0 == 't0_ref':
+        t0 = t0_ref
+
+    if isinstance(time, list):
+        time = np.asarray(time)
+
+
+    if dpdt != 0:
+        phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
+    else:
+        phase = np.mod((time-t0)/period, 1.0)
+
+    if isinstance(phase, float):
+        if phase > 0.5:
+            phase -= 1
+    else:
+        # then should be an array
+        phase[phase > 0.5] -= 1
+
+    return phase
+
+
 def requiv_L1(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno, **kwargs):
     """
     """

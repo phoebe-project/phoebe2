@@ -248,6 +248,12 @@ def t0_ref_to_supconj(t0_ref, period, ecc, per0):
 def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
 
+def _times_to_phases(times, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
+    return ConstraintParameter(times._bundle, "times_to_phases({}, {}, {}, {}, {}, {}, {})".format(_get_expr(times), _get_expr(period), _get_expr(dpdt), _get_expr(t0), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
+
+def _phases_to_times(phases, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
+    return ConstraintParameter(phases._bundle, "phases_to_times({}, {}, {}, {}, {}, {}, {})".format(_get_expr(phases), _get_expr(period), _get_expr(dpdt), _get_expr(t0), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
+
 #{ Custom constraints
 
 def custom(b, *args, **kwargs):
@@ -2336,14 +2342,19 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
     ds = b.get_dataset(dataset, check_default=False, check_visible=False)
     compute_times = ds.get_parameter(qualifier='compute_times', **_skip_filter_checks)
     compute_phases = ds.get_parameter(qualifier='compute_phases', component=component, **_skip_filter_checks)
+    compute_phases_t0 = ds.get_parameter(qualifier='compute_phases_t0', component=component, **_skip_filter_checks)
+    t0_supconj = b.get_parameter(qualifier='t0_supconj', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
+    t0_perpass = b.get_parameter(qualifier='t0_perpass', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
+    t0_ref = b.get_parameter(qualifier='t0_ref', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
     period = b.get_parameter(qualifier='period', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
+    dpdt = b.get_parameter(qualifier='dpdt', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
 
     if solve_for in [None, compute_phases]:
         lhs = compute_phases
-        rhs = (compute_times / period) % 1.0
+        rhs = _times_to_phases(compute_times, period, dpdt, compute_phases_t0, t0_supconj, t0_perpass, t0_ref)
     elif solve_for in [compute_times]:
         lhs = compute_times
-        rhs = compute_phases * period
+        rhs = _phases_to_times(compute_phases, period, dpdt, compute_phases_t0, t0_supconj, t0_perpass, t0_ref)
     else:
         raise NotImplementedError
 
