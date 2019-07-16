@@ -2907,7 +2907,7 @@ class Spot(Feature):
         else:
             star_ps = b.get_component(feature_ps.component)
             dlongdt = star_ps.get_value('freq', unit=u.rad/u.d)
-            longitude = np.pi/2
+            longitude += np.pi/2
 
         radius = feature_ps.get_value('radius', unit=u.rad)
         relteff = feature_ps.get_value('relteff', unit=u.dimensionless_unscaled)
