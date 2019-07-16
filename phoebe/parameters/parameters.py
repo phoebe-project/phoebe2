@@ -148,7 +148,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
 
 # from dataset:
 _forbidden_labels += ['times', 'fluxes', 'sigmas',
-                     'compute_times', 'compute_phases',
+                     'compute_times', 'compute_phases', 'compute_phases_t0',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
                      'pblum_mode', 'pblum_ref', 'pblum', 'pbflux',
