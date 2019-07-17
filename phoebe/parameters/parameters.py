@@ -7301,14 +7301,14 @@ class FloatArrayParameter(FloatParameter):
 
     def __add__(self, other):
         if not (isinstance(other, list) or isinstance(other, np.ndarray)):
-            return super(FloatArrayParameter, self).__add__(self, other)
+            return super(FloatArrayParameter, self).__add__(other)
 
         # then we have a list, so we want to append to the existing value
         return np.append(self.get_value(), np.asarray(other))
 
     def __sub__(self, other):
         if not (isinstance(other, list) or isinstance(other, np.ndarray)):
-            return super(FloatArrayParameter, self).__add__(self, other)
+            return super(FloatArrayParameter, self).__add__(other)
 
         # then we have a list, so we want to append to the existing value
         return np.array([v for v in self.get_value() if v not in other])
