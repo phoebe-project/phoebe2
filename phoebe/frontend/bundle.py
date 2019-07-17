@@ -1602,6 +1602,18 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.yaw, component,
                                             constraint=self._default_label('yaw', context='constraint'))
 
+
+        # rebuild compute_phases in case the top-level orbit has changged
+        # TODO: do we ever want to keep this fixed?
+        # TODO: do we need to handle the component tag of compute_* parameters?
+        # for constraint_param in self.filter(constraint_func='compute_phases', context='constraint').to_list():
+        #     logger.debug('re-creating compute_phases constraint {}'.format(constraint_param.dataset))
+        #
+        #     self.remove_constraint(uniqueid=constraint_param.uniqueid)
+        #     self.add_constraint(constraint.compute_phases, dataset=constraint.dataset,
+        #                         solve_for=constraint_param.constrained_parameter.uniquetwig,
+        #                         constraint=constraint_param.constraint)
+
         # if user_interactive_constraints:
             # conf.interactive_constraints_on()
             # self.run_delayed_constraints()
