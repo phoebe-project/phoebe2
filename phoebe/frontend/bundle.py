@@ -1602,6 +1602,18 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.yaw, component,
                                             constraint=self._default_label('yaw', context='constraint'))
 
+
+        # rebuild compute_phases in case the top-level orbit has changged
+        # TODO: do we ever want to keep this fixed?
+        # TODO: do we need to handle the component tag of compute_* parameters?
+        # for constraint_param in self.filter(constraint_func='compute_phases', context='constraint').to_list():
+        #     logger.debug('re-creating compute_phases constraint {}'.format(constraint_param.dataset))
+        #
+        #     self.remove_constraint(uniqueid=constraint_param.uniqueid)
+        #     self.add_constraint(constraint.compute_phases, dataset=constraint.dataset,
+        #                         solve_for=constraint_param.constrained_parameter.uniquetwig,
+        #                         constraint=constraint_param.constraint)
+
         # if user_interactive_constraints:
             # conf.interactive_constraints_on()
             # self.run_delayed_constraints()
@@ -2757,7 +2769,10 @@ class Bundle(ParameterSet):
             component will default to the top-most level of the current
             hierarchy.  See <phoebe.parameters.HierarchyParameter.get_top>.
         * `t0` (str, optional, default='t0_supconj'): qualifier of the parameter
-            to be used for t0
+            to be used for t0.  Must be 't0' for 't0@system' or a valid qualifier
+            (eg. 't0_supconj', 't0_perpass', 't0_ref' for binary orbits.)
+            For single stars, `t0` will be used if a float or integer, otherwise
+            t0@system will be used, ignoring the passed value of `t0`.
         * `**kwargs`: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
@@ -2786,7 +2801,10 @@ class Bundle(ParameterSet):
         if ps.kind in ['orbit']:
             ret['period'] = ps.get_value(qualifier='period', unit=u.d)
             if isinstance(t0, str):
-                ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
+                if t0 == 't0':
+                    ret['t0'] = self.get_value(qualifier='t0', context='system', unit=u.d)
+                else:
+                    ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
             elif isinstance(t0, float) or isinstance(t0, int):
                 ret['t0'] = t0
             else:
@@ -2795,6 +2813,10 @@ class Bundle(ParameterSet):
         elif ps.kind in ['star']:
             # TODO: consider renaming period to prot
             ret['period'] = ps.get_value(qualifier='period', unit=u.d)
+            if isinstance(t0, float) or isinstance(t0, int):
+                ret['t0'] = t0
+            else:
+                ret['t0'] = self.get_value('t0', context='system', unit=u.d)
         else:
             raise NotImplementedError
 
@@ -2848,6 +2870,9 @@ class Bundle(ParameterSet):
         period = ephem.get('period', 1.0)
         dpdt = ephem.get('dpdt', 0.0)
 
+
+        # if changing this, also see parameters.constraint.time_ephem
+        # and phoebe.constraints.builtin.times_to_phases
         if dpdt != 0:
             phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
         else:
@@ -2861,6 +2886,12 @@ class Bundle(ParameterSet):
             phase[phase > 0.5] -= 1
 
         return phase
+
+    def to_phases(self, *args, **kwargs):
+        """
+        Alias to <phoebe.frontend.bundle.Bundle.to_phase>.
+        """
+        return self.to_phase(*args, **kwargs)
 
     def to_time(self, phase, component=None, t0='t0_supconj', **kwargs):
         """
@@ -2904,12 +2935,19 @@ class Bundle(ParameterSet):
         dpdt = ephem.get('dpdt', 0.0)
 
         # if changing this, also see parameters.constraint.time_ephem
+        # and phoebe.constraints.builtin.phases_to_times
         if dpdt != 0:
             time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
         else:
             time = t0 + (phase)*period
 
         return time
+
+    def to_times(self, *args, **kwargs):
+        """
+        Alias to <phoebe.frontend.bundle.Bundle.to_time>.
+        """
+        return self.to_time(*args, **kwargs)
 
     def add_dataset(self, kind, component=None, **kwargs):
         """
@@ -3801,7 +3839,7 @@ class Bundle(ParameterSet):
             else:
                 return np.isnan(value)
 
-        if kwargs.pop('check_nan', True) and np.any([_check_nan(p.get_value()) for p in param.vars.to_list()]):
+        if kwargs.pop('check_nan', True) and np.any([_check_nan(p.get_value()) for p in param.vars.to_list() if hasattr(p, 'get_quantity')]):
             raise ValueError("cannot flip constraint while the value of {} is nan".format([p.twig for p in param.vars.to_list() if np.isnan(p.get_value())]))
 
         if solve_for is None:
