@@ -3046,7 +3046,7 @@ class ParameterSet(object):
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
-        ps = self.filter(**filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases'])
+        ps = self.filter(**filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0'])
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'lp']:
             ps = ps.filter(time=kwargs.get('time'))
