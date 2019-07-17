@@ -2869,6 +2869,7 @@ class Bundle(ParameterSet):
         """
         Alias to <phoebe.frontend.bundle.Bundle.to_phase>.
         """
+        return self.to_phase(*args, **kwargs)
 
     def to_time(self, phase, component=None, t0='t0_supconj', **kwargs):
         """
@@ -2924,6 +2925,7 @@ class Bundle(ParameterSet):
         """
         Alias to <phoebe.frontend.bundle.Bundle.to_time>.
         """
+        return self.to_time(*args, **kwargs)
 
     def add_dataset(self, kind, component=None, **kwargs):
         """
