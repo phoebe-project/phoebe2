@@ -4542,7 +4542,7 @@ class FloatParameter(Parameter):
         """
         if self._is_constraint is None:
             return None
-        return self._bundle.get_parameter(context='constraint', uniqueid=self._is_constraint)
+        return self._bundle.get_parameter(context='constraint', uniqueid=self._is_constraint, check_visible=False)
 
     @property
     def constrained_by(self):
@@ -4576,7 +4576,7 @@ class FloatParameter(Parameter):
         """
         expressions = []
         for uniqueid in self._in_constraints:
-            expressions.append(self._bundle.get_parameter(context='constraint', uniqueid=uniqueid))
+            expressions.append(self._bundle.get_parameter(context='constraint', uniqueid=uniqueid, check_visible=False))
         return expressions
 
     @property

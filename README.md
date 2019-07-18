@@ -80,6 +80,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.14 - contacts inclination RVs hotfix
+
+* Fixes the polar rotation axis for RVs in contact systems with non-90 inclinations
+  by re-enabling the alignment (pitch, yaw) constraints and enforcing them to be 0.
+
 ### 2.1.13 - constraint flip loop hotfix
 
 * Fixes infinite loop when trying to flip esinw AND ecosw
