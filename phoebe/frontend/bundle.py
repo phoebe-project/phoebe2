@@ -194,7 +194,7 @@ class Bundle(ParameterSet):
 
         # if loading something with constraints, we need to update the
         # bookkeeping so the parameters are aware of how they're constrained
-        for constraint in self.filter(context='constraint').to_list():
+        for constraint in self.filter(context='constraint', check_visible=False, check_default=False).to_list():
             constraint._update_bookkeeping()
 
         # TODO: is this the correct place to do this? is blank hierarchy still
@@ -1498,6 +1498,41 @@ class Bundle(ParameterSet):
                     self.add_constraint(constraint.rotation_period, component,
                                         constraint=self._default_label('rotation_period', context='constraint'))
 
+                logger.debug('re-creating pitch constraint for {}'.format(component))
+                # TODO: will this cause problems if the constraint has been flipped?
+                # TODO: what if the user disabled/removed this constraint?
+                if len(self.filter(context='constraint',
+                                   constraint_func='pitch',
+                                   component=component)):
+                    constraint_param = self.get_constraint(constraint_func='pitch',
+                                                           component=component)
+                    self.remove_constraint(constraint_func='pitch',
+                                           component=component)
+                    self.add_constraint(constraint.pitch, component,
+                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                        constraint=constraint_param.constraint)
+                else:
+                    self.add_constraint(constraint.pitch, component,
+                                        constraint=self._default_label('pitch', context='constraint'))
+
+                logger.debug('re-creating yaw constraint for {}'.format(component))
+                # TODO: will this cause problems if the constraint has been flipped?
+                # TODO: what if the user disabled/removed this constraint?
+                if len(self.filter(context='constraint',
+                                   constraint_func='yaw',
+                                component=component)):
+                    constraint_param = self.get_constraint(constraint_func='yaw',
+                                                           component=component)
+                    self.remove_constraint(constraint_func='yaw',
+                                           component=component)
+                    self.add_constraint(constraint.yaw, component,
+                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                        constraint=constraint_param.constraint)
+                else:
+                    self.add_constraint(constraint.yaw, component,
+                                        constraint=self._default_label('yaw', context='constraint'))
+
+
                 if self.hierarchy.is_contact_binary(component):
                     # then we're in a contact binary and need to create pot<->requiv constraints
                     # NOTE: pot_min and pot_max are handled above at the envelope level
@@ -1568,39 +1603,6 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.requiv_detached_max, component,
                                             constraint=self._default_label('requiv_max', context='constraint'))
 
-                    logger.debug('re-creating pitch constraint for {}'.format(component))
-                    # TODO: will this cause problems if the constraint has been flipped?
-                    # TODO: what if the user disabled/removed this constraint?
-                    if len(self.filter(context='constraint',
-                                       constraint_func='pitch',
-                                       component=component)):
-                        constraint_param = self.get_constraint(constraint_func='pitch',
-                                                               component=component)
-                        self.remove_constraint(constraint_func='pitch',
-                                               component=component)
-                        self.add_constraint(constraint.pitch, component,
-                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                            constraint=constraint_param.constraint)
-                    else:
-                        self.add_constraint(constraint.pitch, component,
-                                            constraint=self._default_label('pitch', context='constraint'))
-
-                    logger.debug('re-creating yaw constraint for {}'.format(component))
-                    # TODO: will this cause problems if the constraint has been flipped?
-                    # TODO: what if the user disabled/removed this constraint?
-                    if len(self.filter(context='constraint',
-                                       constraint_func='yaw',
-                                    component=component)):
-                        constraint_param = self.get_constraint(constraint_func='yaw',
-                                                               component=component)
-                        self.remove_constraint(constraint_func='yaw',
-                                               component=component)
-                        self.add_constraint(constraint.yaw, component,
-                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                            constraint=constraint_param.constraint)
-                    else:
-                        self.add_constraint(constraint.yaw, component,
-                                            constraint=self._default_label('yaw', context='constraint'))
 
 
         # rebuild compute_phases in case the top-level orbit has changged
@@ -1844,11 +1846,11 @@ class Bundle(ParameterSet):
 
                         if self.get_value(qualifier='pitch', component=component, context='component', **kwargs) != 0.0:
                             return False,\
-                                'contact binaries must be aligned, but pitch@{}!=0'.format(component)
+                                'contact binaries must be aligned, but pitch@{}!=0.  Try b.set_value(qualifier=\'pitch\', component=\'{}\' value=0.0, check_visible=False) to align.'.format(component, component)
 
                         if self.get_value(qualifier='yaw', component=component, context='component', **kwargs) != 0.0:
                             return False,\
-                                'contact binaries must be aligned, but yaw@{}!=0'.format(component)
+                                'contact binaries must be aligned, but yaw@{}!=0.  Try b.set_value(qualifier=\'yaw\', component=\'{}\', value=0.0, check_visible=False) to align.'.format(component, component)
 
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
@@ -3647,7 +3649,7 @@ class Bundle(ParameterSet):
 
         if 'solve_for' in kwargs.keys():
             # solve_for is a twig, we need to pass the parameter
-            kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model'])
+            kwargs['solve_for'] = self.get_parameter(kwargs['solve_for'], context=['component', 'dataset', 'model'], check_visible=False)
 
         lhs, rhs, addl_vars, constraint_kwargs = func(self, *func_args, **kwargs)
         # NOTE that any component parameters required have already been
@@ -3672,6 +3674,7 @@ class Bundle(ParameterSet):
         newly_constrained_param = constraint_param.get_constrained_parameter()
         check_kwargs = {k:v for k,v in newly_constrained_param.meta.items() if k not in ['context', 'twig', 'uniquetwig']}
         check_kwargs['context'] = 'constraint'
+        check_kwargs['check_visible'] = False
         if len(self._bundle.filter(**check_kwargs)):
             raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))
 
