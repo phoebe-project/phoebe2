@@ -5341,7 +5341,19 @@ class Parameter(object):
     @property
     def is_constraint(self):
         """
-        returns the expression of the constraint that constrains this parameter
+        Returns the <phoebe.parameters.ConstraintParameter> that constrains
+        this parameter.  If this <phoebe.parameters.Parameter>] is not
+        constrained, this will return None.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * None or <phoebe.parameters.ConstraintParameter>
         """
         if self._is_constraint is None:
             return None
@@ -5386,7 +5398,18 @@ class Parameter(object):
     @property
     def in_constraints(self):
         """
-        returns a list of the expressions in which this parameter constrains another
+        Returns a list of the expressions in which this
+        <phoebe.parameters.FloatParameter> constrains other Parameters.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * (list of expressions)
         """
         expressions = []
         for uniqueid in self._in_constraints:
@@ -5396,7 +5419,18 @@ class Parameter(object):
     @property
     def constrains(self):
         """
-        returns a list of parameters that are constrained by this parameter
+        Returns a list of Parameters that are constrained by this
+        <phoebe.parameters.FloatParameter>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+         Returns
+         -------
+         * (list of Parameters)
         """
         params = []
         for constraint in self.in_constraints:
@@ -5410,7 +5444,18 @@ class Parameter(object):
     @property
     def related_to(self):
         """
-        returns a list of all parameters that are either constrained by or constrain this parameter
+        Returns a list of all parameters that are either constrained by or
+        constrain this parameter.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+
+         Returns
+         -------
+         * (list of Parameters)
         """
         params = []
         constraints = self.in_constraints
