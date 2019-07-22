@@ -315,6 +315,48 @@ def _fnmatch(to_this, expression_or_string):
     else:
         return expression_or_string == to_this
 
+class ParameterSetInfo(dict):
+    def __init__(self, ps, attribute):
+        super(dict, self).__init__()
+        self._attribute = attribute
+
+        for qualifier in ps.qualifiers:
+            entries_this_qualifier = {}
+            for param in ps.filter(qualifier=qualifier, check_visible=False, check_default=False).to_list():
+                if not hasattr(param, attribute):
+                    continue
+
+                value = str(getattr(param, attribute))
+                if value not in entries_this_qualifier.keys():
+                    entries_this_qualifier[value] = []
+
+                entries_this_qualifier[value].append(param.uniqueid)
+
+            if not len(entries_this_qualifier):
+                # then the hasattr hasn't returned anything, so we don't need to
+                # do anything for this qualifier
+                continue
+
+
+            if len(entries_this_qualifier) == 1:
+                self[qualifier] = value
+            else:
+                for value, uniqueids in entries_this_qualifier.items():
+                    self[ps.filter(uniqueid=uniqueids, check_visible=False, check_default=False).common_twig] = value
+
+    def __repr__(self):
+        return "<ParameterSetInfo (qualifier/twig: {}): {}>".format(self._attribute, {k:v for k,v in self.items()})
+
+    def __str__(self):
+        """String representation for the ParameterSet."""
+        if len(self.keys()):
+            param_info = "\n".join("{:>32}: {}".format(k,v) for k,v in self.items())
+        else:
+            param_info = "NO PARAMETERS"
+
+        return "ParameterSetInfo: (qualfier/twig: {})\n".format(self._attribute)+param_info
+
+
 
 class ParameterSet(object):
     """ParameterSet.
@@ -420,6 +462,44 @@ class ParameterSet(object):
     def __ne__(self, other):
         raise NotImplementedError("comparison operators with ParameterSets are not supported")
 
+    @property
+    def info(self):
+        """
+        Shortcut to <phoebe.parameters.ParameterSet.get_info> with the default
+        arguments.
+        """
+        return self.get_info()
+
+    def get_info(self, attribute='description', **kwargs):
+        """
+        Access any available attribute across the ParameterSet.  This returns
+        a dictionary-like object where keys are the qualifier or twig
+        and values are according to the value passed to `attribute`.  Any
+        entries that can be merged (because they have the same value) will
+        be into a single entry.  Any that cannot, will show the shortest
+        common twig of all parameters that apply to that entry.  Parameters
+        without the requested `attribute` will omitted (non-FloatParameters will
+        be excluded if `attribute` is 'default_unit', for example).
+
+        See also:
+        * <phoebe.parameters.ParameterSet.info>
+
+        Arguments
+        -------------
+        * `attribute` (string, optional, default='description'): attribute
+            to access for each parameter.  This will be the values in the
+            returned dictionary object.
+        * `**kwargs`: additional keyword arguments are first sent to
+            <phoebe.parameters.ParameterSet.filter>.
+
+        Returns
+        -----------
+        * a dictionary-like object that is subclassed to provide a nice
+          representation when printed to the screen.
+        """
+        if len(kwargs.items()):
+            return self.filter(**kwargs).get_info(attribute)
+        return ParameterSetInfo(self, attribute)
 
     @property
     def meta(self):
