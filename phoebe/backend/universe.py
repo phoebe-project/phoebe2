@@ -1250,17 +1250,17 @@ class Star(Body):
         mesh_method_override = kwargs.pop('mesh_method', None)
         mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
 
-            if mesh_method == 'marching':
-                # we need check_visible=False in each of these in case mesh_method
-                # was overriden from kwargs
-                ntriangles_override = kwargs.pop('ntriangles', None)
-                kwargs['ntriangles'] = b.get_value(qualifier='ntriangles', component=component, compute=compute, ntriangles=ntriangles_override, check_visible=False) if compute is not None else 1000
-                distortion_method_override = kwargs.pop('distortion_method', None)
-                kwargs['distortion_method'] = b.get_value(qualifier='distortion_method', component=component, compute=compute, distortion_method=distortion_method_override, check_visible=False) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
-            elif mesh_method == 'wd':
-                # we need check_visible=False in each of these in case mesh_method
-                # was overriden from kwargs
-                gridsize_override = kwargs.pop('gridsize', None)
+        if mesh_method == 'marching':
+            # we need check_visible=False in each of these in case mesh_method
+            # was overriden from kwargs
+            ntriangles_override = kwargs.pop('ntriangles', None)
+            kwargs['ntriangles'] = b.get_value(qualifier='ntriangles', component=component, compute=compute, ntriangles=ntriangles_override, check_visible=False) if compute is not None else 1000
+            distortion_method_override = kwargs.pop('distortion_method', None)
+            kwargs['distortion_method'] = b.get_value(qualifier='distortion_method', component=component, compute=compute, distortion_method=distortion_method_override, check_visible=False) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
+        elif mesh_method == 'wd':
+            # we need check_visible=False in each of these in case mesh_method
+            # was overriden from kwargs
+            gridsize_override = kwargs.pop('gridsize', None)
             kwargs['gridsize'] = b.get_value(qualifier='gridsize', component=component, compute=compute, gridsize=gridsize_override, check_visible=False) if compute is not None else 30
         else:
             raise NotImplementedError
@@ -1585,7 +1585,13 @@ class Star(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    teffs = feature.process_teffs(teffs, mesh.roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+
+                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                        # then this is the secondary half of a contact envelope
+                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+                    else:
+                        roche_coords_for_computations = mesh.roche_coords_for_computations
+                    teffs = feature.process_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 else:
                     teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
