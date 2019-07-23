@@ -350,7 +350,7 @@ class ParameterSetInfo(dict):
     def __str__(self):
         """String representation for the ParameterSet."""
         if len(self.keys()):
-            param_info = "\n".join("{:>32}: {}".format(k,v) for k,v in self.items())
+            param_info = "\n".join("{:>32}: {}".format(k,v) for k,v in sorted(self.items()))
         else:
             param_info = "NO PARAMETERS"
 
