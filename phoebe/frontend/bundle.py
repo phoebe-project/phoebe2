@@ -278,6 +278,11 @@ class Bundle(ParameterSet):
                 else:
                     return param.get_quantity() if hasattr(param, 'get_quantity') else param.get_value()
 
+            existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
+            b.remove_parameters_all(context='setting')
+            b._attach_params(_setting.settings(**existing_values_settings), context='setting')
+
+
             # overwriting the datasets during migration will clear the model, so
             # let's save a copy and re-attach it after
             ps_model = b.filter(context='model', check_visible=False, check_default=False)

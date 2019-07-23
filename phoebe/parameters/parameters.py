@@ -134,7 +134,8 @@ _forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']
 _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarchy']
 
 # from setting:
-_forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter', 'dict_set_all']
+_forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter',
+                      'dict_set_all', 'run_checks_compute']
 
 # from component
 _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
