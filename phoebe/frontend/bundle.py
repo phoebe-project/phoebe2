@@ -2377,6 +2377,8 @@ class Bundle(ParameterSet):
             self._check_label(kwargs['feature'], allow_overwrite=False)
 
         self._attach_params(params, **metawargs)
+        # attach params called _check_copy_for, but only on it's own parameterset
+        self._check_copy_for()
 
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['func'] = func.__name__
@@ -2480,6 +2482,84 @@ class Bundle(ParameterSet):
 
         self._check_label(new_feature)
         self._rename_label('feature', old_feature, new_feature)
+
+
+    def enable_feature(self, feature=None, **kwargs):
+        """
+        Enable a `feature`.  Features that are enabled will be computed
+        during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
+        during run_fitting (once supported).
+
+        If `compute` is not provided, the dataset will be enabled across all
+        compute options.
+
+        Note that not all `compute` backends support all types of features.
+        Unsupported features do not have 'enabled' parameters, and therefore
+        cannot be enabled or disabled.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.disable_feature>
+
+        Arguments
+        -----------
+        * `feature` (string, optional): name of the feature
+        * `**kwargs`:  any other tags to do the filter
+            (except feature or context)
+
+        Returns
+        ---------
+        * a <phoebe.parameters.ParameterSet> object of the enabled feature
+        """
+        kwargs['context'] = 'compute'
+        kwargs['feature'] = feature
+        kwargs['qualifier'] = 'enabled'
+        self.set_value_all(value=True, **kwargs)
+
+        self._add_history(redo_func='enable_feature',
+                          redo_kwargs={'feature': feature},
+                          undo_func='disable_feature',
+                          undo_kwargs={'feature': feature})
+
+        return self.get_feature(feature=feature)
+
+
+    def disable_feature(self, feature=None, **kwargs):
+        """
+        Disable a `feature`.  Features that are enabled will be computed
+        during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
+        during run_fitting (once supported).
+
+        If `compute` is not provided, the dataset will be disabled across all
+        compute options.
+
+        Note that not all `compute` backends support all types of features.
+        Unsupported features do not have 'enabled' parameters, and therefore
+        cannot be enabled or disabled.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.enable_feature>
+
+        Arguments
+        -----------
+        * `feature` (string, optional): name of the feature
+        * `**kwargs`:  any other tags to do the filter
+            (except feature or context)
+
+        Returns
+        ---------
+        * a <phoebe.parameters.ParameterSet> object of the disabled feature
+        """
+        kwargs['context'] = 'compute'
+        kwargs['feature'] = feature
+        kwargs['qualifier'] = 'enabled'
+        self.set_value_all(value=False, **kwargs)
+
+        self._add_history(redo_func='disable_feature',
+                          redo_kwargs={'feature': feature},
+                          undo_func='enable_feature',
+                          undo_kwargs={'feature': feature})
+
+        return self.get_feature(feature=feature)
 
     def add_spot(self, component=None, feature=None, **kwargs):
         """
@@ -3496,6 +3576,13 @@ class Bundle(ParameterSet):
         If `compute` is not provided, the dataset will be enabled across all
         compute options.
 
+        Note that not all `compute` backends support all types of datasets.
+        Unsupported datasets do not have 'enabled' parameters, and therefore
+        cannot be enabled or disabled.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.diable_dataset>
+
         Arguments
         -----------
         * `dataset` (string, optional): name of the dataset
@@ -3526,6 +3613,13 @@ class Bundle(ParameterSet):
 
         If `compute` is not provided, the dataset will be disabled across all
         compute options.
+
+        Note that not all `compute` backends support all types of datasets.
+        Unsupported datasets do not have 'enabled' parameters, and therefore
+        cannot be enabled or disabled.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.enable_dataset>
 
         Arguments
         -----------
@@ -4958,7 +5052,7 @@ class Bundle(ParameterSet):
                                              compute=compute_,
                                              context='compute',
                                              check_visible=False).to_list():
-                if enabled_param.get_value():
+                if enabled_param.feature is None and enabled_param.get_value():
                     item = (enabled_param.dataset, enabled_param.component)
                     if item in datasets:
                         raise ValueError("dataset {}@{} is enabled in multiple compute options".format(item[0], item[1]))

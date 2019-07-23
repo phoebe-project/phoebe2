@@ -2134,7 +2134,7 @@ class ParameterSet(object):
 
         # handle hiding _default (cheaper than visible_if so let's do first)
         if check_default and conf.check_default:
-            params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default']
+            params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default' and pi.feature != '_default']
 
         # handle visible_if
         if check_visible and conf.check_visible:

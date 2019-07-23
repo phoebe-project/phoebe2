@@ -1440,8 +1440,10 @@ class Star(Body):
             mesh_method = kwargs.pop('mesh_method', None)
 
         features = []
-        for feature in b.filter(component=component).features:
-            feature_ps = b.filter(feature=feature, component=component)
+        for feature in b.filter(qualifier='enabled', compute=compute, value=True).features:
+            feature_ps = b.get_feature(feature=feature)
+            if feature_ps.component != component:
+                continue
             feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
