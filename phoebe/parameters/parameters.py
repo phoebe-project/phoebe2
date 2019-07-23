@@ -3211,7 +3211,7 @@ class ParameterSet(object):
         # linestyle={'rv01': 'solid', 'rv02': 'dashed'}
         # here we need to filter any kwargs that are dictionaries if they match
         # the current ps
-        for k,v in kwargs.items():
+        for k,v in kwargs.copy().items():
             if isinstance(v, dict) and 'kwargs' not in k:
                 # overwrite kwargs[k] based on any match in v
                 match = None
