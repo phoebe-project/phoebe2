@@ -3116,7 +3116,7 @@ class ParameterSet(object):
         return chi2
 
 
-    def _unpack_plotting_kwargs(self, **kwargs):
+    def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
 
 
@@ -3150,13 +3150,13 @@ class ParameterSet(object):
 
         if len(ps.contexts) > 1:
             for context in ps.contexts:
-                this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             for dataset in ps.datasets:
-                this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
@@ -3169,21 +3169,21 @@ class ParameterSet(object):
 
         if len(ps.kinds) > 1:
             for kind in pskinds:
-                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.models) > 1:
             for model in ps.models:
                 # TODO: change linestyle for models instead of color?
-                this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
             # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
-                this_return = ps.filter(check_visible=False, time=time)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, time=time)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
@@ -3191,7 +3191,7 @@ class ParameterSet(object):
             # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
             for component in ps.components:
-                this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
@@ -3576,6 +3576,7 @@ class ParameterSet(object):
                 # units will have handled this in POS (uvw) coordinates, but not
                 # Roche (xyz) as those are unitless
                 kwargs.setdefault('equal_aspect', True)
+                kwargs.setdefault('pad_aspect', not animate)
 
                 # we want the wireframe by default
                 kwargs.setdefault('ec', 'black')
@@ -4021,6 +4022,18 @@ class ParameterSet(object):
         * `interval` (int, optional, default=100): time in ms between each
             frame in the animation.  Applicable only if `animate` is True.
 
+        * `equal_aspect` (optional): whether to force the aspect ratio of the
+            axes to be equal.  If not provided, this will default to True if
+            all directions (i.e. `x` and `y` for `projection='2d'` or `x`,
+            `y`, and `z` for '3d') are positions and of the same units, or
+            False otherwise.
+        * `pad_aspect` (optional): whether to achieve the equal aspect ratio
+            by padding the limits instead of whitespace around the axes.  Only
+            applicable if `equal_aspect` is True.  If not provided, this will
+            default to True unless `animate` is True, in which case it will
+            default to False (as autofig cannot currently handle `pad_aspect`)
+            in animations.
+
         * `projection` (string, optional, default='2d'): whether to plot
             on a 2d or 3d axes.  If '3d', the orientation of the axes will
             be provided by `azim` and `elev` (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/latest/tutorials/3d/))
@@ -4134,7 +4147,7 @@ class ParameterSet(object):
                 conf.check_default_on()
 
         try:
-            plot_kwargss = self._unpack_plotting_kwargs(**kwargs)
+            plot_kwargss = self._unpack_plotting_kwargs(animate=animate, **kwargs)
 
             # this loop handles any of the automatically-generated
             # multiple plotting calls, passing each on to autofig
