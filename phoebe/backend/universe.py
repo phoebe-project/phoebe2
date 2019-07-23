@@ -1768,7 +1768,13 @@ class Star(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    teffs = feature.process_teffs(teffs, mesh.roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+
+                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                        # then this is the secondary half of a contact envelope
+                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+                    else:
+                        roche_coords_for_computations = mesh.roche_coords_for_computations
+                    teffs = feature.process_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 else:
                     teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
@@ -3259,7 +3265,7 @@ class Spot(Feature):
         else:
             star_ps = b.get_component(feature_ps.component)
             dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d)
-            longitude = np.pi/2
+            longitude += np.pi/2
 
         radius = feature_ps.get_value(qualifier='radius', unit=u.rad)
         relteff = feature_ps.get_value(qualifier='relteff', unit=u.dimensionless_unscaled)

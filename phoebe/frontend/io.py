@@ -1031,6 +1031,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             component = 'primary'
         elif source == 2:
             component = 'secondary'
+        elif source == 0:
+            component = 'secondary' 
         else:
             raise ValueError("spot component not specified and cannot be added")
 
