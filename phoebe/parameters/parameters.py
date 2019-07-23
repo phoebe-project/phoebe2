@@ -3852,7 +3852,11 @@ class ParameterSet(object):
             to `highlight` and `uncover`.  Use `times` to set the individual
             frames when animating with `animate=True`
         * `times` (list/array, optional): times to use for animating.  If
-            `animate` is not True, a warning will be raised in the logger.
+            `animate` is not True, a warning will be raised in the logger.  If
+            `animate` is True, and neither `times` nor `time` is passed,
+            then the animation will cycle over the tagged times of the model
+            datasets (i.e. if mesh or lp datasets exist), or the computed
+            times otherwise.
         * `t0` (string/float, optional): qualifier/twig or float of the t0 that
             should be used for phasing, if applicable.  If provided as a string,
             `b.get_value(t0)` needs to provide a valid float.  This is used
@@ -4200,18 +4204,23 @@ class ParameterSet(object):
                 # then let's try to get all SYNTHETIC times
                 # it would be nice to only do ENABLED, but then we have to worry about compute
                 # it would also be nice to worry about models... but then you should filter first
-                logger.info("no times were providing, so defaulting to animate over all dataset times")
-                times = []
+                times_attr = []
+                times_computed = []
                 for dataset in self.datasets:
                     ps = self.filter(dataset=dataset, context='model')
                     if len(ps.times):
                         # for the case of meshes/spectra
-                        times += [float(t) for t in ps.times]
+                        times_attr += [float(t) for t in ps.times]
                     else:
                         for param in ps.filter(qualifier='times').to_list():
-                            times += list(param.get_value())
+                            times_computed += list(param.get_value())
 
-                times = sorted(list(set(times)))
+                if len(times_attr):
+                    logger.info("no times were providing, so defaulting to animate over all tagged times")
+                    times = sorted(list(set(times_attr)))
+                else:
+                    logger.info("no times were provided, so defaulting to animate over all computed times in the model")
+                    times = sorted(list(set(times_computed)))
 
             logger.info("calling autofig.animate(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, interval={}, save={}, show={}, save_kwargs={})".format(times, draw_sidebars, draw_title, tight_layout, interval, save, show, save_kwargs))
 
