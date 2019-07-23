@@ -193,7 +193,7 @@ _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
 
-_singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
+_singular_to_plural = {'time': 'times', 'phase': 'phases', 'flux': 'fluxes', 'sigma': 'sigmas',
                        'rv': 'rvs', 'flux_density': 'flux_densities',
                        'time_ecl': 'time_ecls', 'time_ephem': 'time_ephems', 'N': 'Ns',
                        'x': 'xs', 'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
@@ -204,6 +204,12 @@ _singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
                        'r': 'rs', 'rproj': 'rprojs', 'mu': 'mus',
                        'visibility': 'visibilities'}
 _plural_to_singular = {v:k for k,v in _singular_to_plural.items()}
+
+def _singular_to_plural_get(k):
+    return _singular_to_plural.get(k, k)
+
+def _plural_to_singular_get(k):
+    return _plural_to_singular.get(k, k)
 
 def send_if_client(fctn):
     """Intercept and send to the server if bundle is in client mode."""
@@ -3361,7 +3367,7 @@ class ParameterSet(object):
                                 kwargs.setdefault(errorkey, sigmas)
 
                     # now let's set the label for the dimension from the qualifier/twig
-                    kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+                    kwargs.setdefault('{}label'.format(direction), _plural_to_singular_get(current_value))
 
                     # we'll also keep the qualifier around - autofig doesn't use this
                     # but we'll keep it so we can set some defaults
@@ -3381,7 +3387,7 @@ class ParameterSet(object):
                     candidate_params = full_dataset_ps.filter(qualifier=current_value)
                     if len(candidate_params) == 1:
                         kwargs[direction] = candidate_params.get_quantity()
-                        kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+                        kwargs.setdefault('{}label'.format(direction), _plural_to_singular_get(current_value))
                         kwargs['{}qualifier'.format(direction)] = current_value
                         return kwargs
                     elif len(candidate_params) > 1:
@@ -3441,7 +3447,7 @@ class ParameterSet(object):
                         candidate_params = full_mesh_ps.filter(current_value)
                         if len(candidate_params) == 1:
                             kwargs[direction] = candidate_params.get_quantity()
-                            kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+                            kwargs.setdefault('{}label'.format(direction), _plural_to_singular_get(current_value))
                             kwargs['{}qualifier'.format(direction)] = current_value
                             return kwargs
                         elif len(candidate_params) > 1:
@@ -3678,7 +3684,7 @@ class ParameterSet(object):
 
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
         # try to find 'times' in the cartesian dimensions:
-        if 'phases' not in [kwargs[af_direction].split(':')[0] for af_direction in ['x', 'y', 'z'] if isinstance(kwargs.get(af_direction, None), str)]:
+        if 'phases' not in [_singular_to_plural_get(kwargs['{}qualifier'.format(af_direction)].split(':')[0]) for af_direction in ['x', 'y', 'z'] if isinstance(kwargs.get('{}qualifier'.format(af_direction), None), str)]:
             iqualifier_default = 'times'
         elif self._bundle.hierarchy.is_time_dependent():
             iqualifier_default = 'times'
@@ -7202,7 +7208,7 @@ class FloatArrayParameter(FloatParameter):
         np.set_printoptions(**opt)
         return str_
 
-    def interp_value(self, unit=None, **kwargs):
+    def interp_value(self, unit=None, component=None, t0='t0_supconj', **kwargs):
         """
         Interpolate to find the value in THIS array given a value from
         ANOTHER array in the SAME parent <phoebe.parameters.ParameterSet>
@@ -7253,10 +7259,12 @@ class FloatArrayParameter(FloatParameter):
             default_units of the referenced parameter.  **NOTE**: to provide
             units on the *passed* value, you must send a quantity object (see
             `**kwargs` below).
-        * `component` (string, optional): if interpolating in phases, `component`
-            will be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
-        * `t0` (string/float, optional): if interpolating in phases, `t0` will
-            be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `component` (string, optional, default=None): if interpolating in phases,
+            `component` will be passed along to
+            <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `t0` (string/float, optional, default='t0_supconj'): if interpolating
+            in phases, `t0` will be passed along to
+             <phoebe.frontend.bundle.Bundle.to_phase>.
         * `**kwargs`: see examples above, must provide a single
             qualifier-value pair to use for interpolation.  In most cases
             this will probably be time=value or wavelength=value.  If the value
@@ -7289,6 +7297,10 @@ class FloatArrayParameter(FloatParameter):
 
         qualifier, qualifier_interp_value = list(kwargs.items())[0]
 
+        if qualifier in _singular_to_plural.keys():
+            logger.warning("assuming {} instead of {}".format(_singular_to_plural.get(qualifier), qualifier))
+            qualifier = _singular_to_plural.get(qualifier)
+
         if isinstance(qualifier_interp_value, str):
             # then assume its a twig and try to resolve
             # for example: time='t0_supconj'
@@ -7297,8 +7309,6 @@ class FloatArrayParameter(FloatParameter):
         parent_ps = self.get_parent_ps()
 
         if qualifier not in parent_ps.qualifiers and not (qualifier=='phases' and 'times' in parent_ps.qualifiers):
-            # TODO: handle plural to singular (having to say
-            # interp_value(times=5) is awkward)
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
 
         if isinstance(qualifier_interp_value, u.Quantity):
@@ -7311,8 +7321,11 @@ class FloatArrayParameter(FloatParameter):
             if np.any(qualifier_interp_value < times.min()) or np.any(qualifier_interp_value > times.max()):
                 qualifier_interp_value_time = qualifier_interp_value
                 qualifier = 'phases'
-                qualifier_interp_value = self._bundle.to_phase(qualifier_interp_value_time, **{k:v for k,v in kwargs.items() if k in ['component', 't0']})
-                logger.warning("times={} outside of interpolation limits ({} -> {})... attempting to interpolate at phases={}".format(qualifier_interp_value_time, times.min(), times.max(), qualifier_interp_value))
+                qualifier_interp_value = self._bundle.to_phase(qualifier_interp_value_time, component=component, t0=t0)
+
+                qualifier_interp_value_time_str = "({} -> {})".format(min(qualifier_interp_value_time), max(qualifier_interp_value_time)) if hasattr(qualifier_interp_value_time, '__iter__') else qualifier_interp_value_time
+                qualifier_interp_value_str = "({} -> {})".format(min(qualifier_interp_value), max(qualifier_interp_value)) if hasattr(qualifier_interp_value, '__iter__') else qualifier_interp_value
+                logger.warning("times={} outside of interpolation limits ({} -> {}), attempting to interpolate at phases={}".format(qualifier_interp_value_time_str, times.min(), times.max(), qualifier_interp_value_str))
 
 
         if qualifier=='phases':
@@ -7320,7 +7333,7 @@ class FloatArrayParameter(FloatParameter):
                 raise ValueError("cannot interpolate in phase for time-dependent systems")
 
             times = parent_ps.get_value(qualifier='times')
-            phases = self._bundle.to_phase(times, **{k:v for k,v in kwargs.items() if k in ['component', 't0']})
+            phases = self._bundle.to_phase(times, component=component, t0=t0)
 
             sort = phases.argsort()
 
