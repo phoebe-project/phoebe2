@@ -1003,10 +1003,21 @@ class Bundle(ParameterSet):
             for k, v in param.constraint_kwargs.items():
                 if v == old_value:
                     param._constraint_kwargs[k] = new_value
-        for param in self.filter(qualifier='include_times', check_visible=False, check_default=False).to_list():
-            old_param_value = param._value
-            new_param_value = [v.replace('@{}'.format(old_value), '@{}'.format(new_value)) for v in old_param_value]
-            param._value = new_param_value
+
+
+        if tag=='dataset':
+            for param in self.filter(qualifier='include_times', check_visible=False, check_default=False).to_list():
+                old_param_value = param._value
+                new_param_value = [v.replace('@{}'.format(old_value), '@{}'.format(new_value)) for v in old_param_value]
+                param._value = new_param_value
+
+        # elif tag=='component':
+
+        elif tag=='compute':
+            for param in self.filter(qualifier=['run_checks_compute'], check_visible=False, check_default=False).to_list():
+                old_param_value = param._value
+                new_param_value = [new_value if v!=old_value else v for v in old_param_value]
+                param._value = new_param_value
 
     def get_setting(self, twig=None, **kwargs):
         """
@@ -1294,6 +1305,18 @@ class Bundle(ParameterSet):
             # NOTE: existing value is updated in change_component
             param._choices = time_datasets + t0s
             param.remove_not_valid_selections()
+
+    def _handle_compute_selectparams(self):
+        """
+        """
+        changed_params = self.run_delayed_constraints()
+
+        computes = self.filter(context='compute', check_default=False, check_visible=False).computes
+
+        for param in self.filter(qualifier='run_checks_compute', check_default=False, check_visible=False).to_list():
+            param._choices = computes
+            param.remove_not_valid_selections()
+
 
 
     def set_hierarchy(self, *args, **kwargs):
@@ -1784,7 +1807,8 @@ class Bundle(ParameterSet):
         -----------
         * `compute` (string or list of strings, optional, default=None): the
             compute options to use  when running checks.  If None (or not provided),
-            all available compute options will be considered.
+            the compute options in the 'run_checks_compute@setting' parameter
+            will be used (which defaults to all available compute options).
         * `allow_skip_constraints` (bool, optional, default=False): whether
             to allow skipping running delayed constraints if interactive
             constraints are disabled.  See <phoebe.interactive_constraints_off>.
@@ -1800,7 +1824,7 @@ class Bundle(ParameterSet):
         if conf.interactive_constraints or not kwargs.pop('allow_skip_constraints', False):
             changed_params = self.run_delayed_constraints()
 
-        computes = kwargs.pop('compute', self.computes)
+        computes = kwargs.pop('compute', self.get_value(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False, expand=True))
         if computes is None:
             computes = self.computes
         else:
@@ -4689,6 +4713,8 @@ class Bundle(ParameterSet):
         # we'll only raise a warning
         self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
 
+        self._handle_compute_selectparams()
+
         return ret_ps
 
     def get_compute(self, compute=None, **kwargs):
@@ -4728,6 +4754,7 @@ class Bundle(ParameterSet):
         kwargs['compute'] = compute
         kwargs['context'] = 'compute'
         self.remove_parameters_all(**kwargs)
+        self._handle_compute_selectparams()
 
     def remove_computes_all(self):
         """
