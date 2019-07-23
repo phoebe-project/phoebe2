@@ -3839,9 +3839,13 @@ class ParameterSet(object):
         ----------
         * `twig` (string, optional, default=None): twig to use for filtering
             prior to plotting.  See <phoebe.parameters.ParameterSet.filter>
-        * `time` (float, optional): time to use for plotting/animating.
-        * `times` (list/array, optional): times to use for animating (will
-            override any value sent to `time`).
+        * `time` (float, optional): time to use for plotting/animating.  This will
+            filter on time for any applicable dataset (i.e. meshes, line profiles),
+            will be used for highlighting/uncovering based on the passed value
+            to `highlight` and `uncover`.  Use `times` to set the individual
+            frames when animating with `animate=True`
+        * `times` (list/array, optional): times to use for animating.  If
+            `animate` is not True, a warning will be raised in the logger.
         * `t0` (string/float, optional): qualifier/twig or float of the t0 that
             should be used for phasing, if applicable.  If provided as a string,
             `b.get_value(t0)` needs to provide a valid float.
@@ -4036,10 +4040,25 @@ class ParameterSet(object):
         draw_title = kwargs.pop('draw_title', False)
         subplot_grid = kwargs.pop('subplot_grid', None)
         animate = kwargs.pop('animate', False)
-        time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
         if kwargs.get('projection', '2d') == '3d' and kwargs.get('ec', None) =='face':
             raise ValueError("projection='3d' and ec='face' do not work together.  Consider ec='none' instead.")
+
+        if 'times' in kwargs.keys() and not animate:
+            if kwargs.get('time', None) is not None:
+                logger.warning("ignoring 'times' in favor of 'time'")
+            else:
+                logger.warning("assuming you meant 'time' instead of 'times' since animate=False")
+                kwargs['time'] = kwargs.pop('times')
+        elif 'time' in kwargs.keys() and animate:
+            if kwargs.get('times', None) is not None:
+                logger.warning("value passed for time will still be used for filtering, despite 'times' being passed.")
+            else:
+                logger.warning("value passed for time will still be used for filtering, but will also be assumed as 'times' since animate=True.")
+                kwargs['times'] = kwargs['time']
+
+        time = kwargs.get('time', None)  # don't pop since time may be used for filtering
+
 
         if twig is not None:
             kwargs['twig'] = twig
