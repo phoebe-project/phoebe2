@@ -1031,6 +1031,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             component = 'primary'
         elif source == 2:
             component = 'secondary'
+        elif source == 0:
+            component = 'secondary'
         else:
             raise ValueError("spot component not specified and cannot be added")
 
@@ -1496,7 +1498,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
     lcs = eb.get_dataset(kind='lc').datasets
     rvs = eb.get_dataset(kind='rv').datasets
-    spots = eb.features
+    # only spots have an enabled parameter in legacy compute options
+    spots = eb.filter(qualifier='enabled', compute=compute, value=True).features
 
     #make lists to put results with important things already added
 

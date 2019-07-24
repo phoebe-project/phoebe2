@@ -1016,7 +1016,7 @@ class Axes(object):
             cbax, cbkwargs = mplcolorbar.make_axes((ax,), location='right', fraction=0.15, shrink=1.0, aspect=20, panchor=False)
             callbacks._connect_to_autofig(self, cbax)
 
-            cbartist = mplcolorbar.ColorbarBase(cbax, cmap=c.cmap, norm=c.get_norm(i=i), **cbkwargs)
+            cbartist = mplcolorbar.ColorbarBase(cbax, cmap=plt.get_cmap(c.cmap), norm=c.get_norm(i=i), **cbkwargs)
             cbartist.set_label(c.label_with_units)
 
             callbacks._connect_to_autofig(c, cbartist)

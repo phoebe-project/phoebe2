@@ -1640,7 +1640,12 @@ class PhotodynamBackend(BaseBackendByDataset):
         # v light-time corrected velocities
         fr.write('t F x v \n')   # TODO: don't always get all?
 
-        for t in b.get_value(qualifier='times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d):
+        ds = b.get_dataset(dataset=info['dataset'])
+        times = ds.get_value(qualifier='compute_times', unit=u.d)
+        if not len(times) and 'times' in ds.qualifiers:
+            times = b.get_value(qualifier='times', component=info['component'], unit=u.d)
+
+        for t in times:
             fr.write('{}\n'.format(t))
         fr.close()
 

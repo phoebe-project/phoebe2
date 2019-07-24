@@ -94,6 +94,10 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         the model.  Only applicable if `syn` is False and `is_lc` is True.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False and `is_lc` is True.
+    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times`.  Only
+        applicable if `syn` is False and `is_lc` is True.  Not applicable for
+        single stars (in which case t0@system is always used).
     * `ld_mode` (string, optional, default='interp'): mode to use for handling
         limb-darkening.  Note that 'interp' is not available for all values
         of `atm` (availability can be checked by calling
@@ -185,7 +189,8 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
     if is_lc and not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
@@ -239,6 +244,10 @@ def rv(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
+    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times`.  Only
+        applicable if `syn` is False.  Not applicable for
+        single stars (in which case t0@system is always used).
     * `ld_mode` (string, optional, default='interp'): mode to use for handling
         limb-darkening.  Note that 'interp' is not available for all values
         of `atm` (availability can be checked by calling
@@ -280,7 +289,8 @@ def rv(syn=False, as_ps=True, **kwargs):
         params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
 
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
@@ -330,6 +340,10 @@ def lp(syn=False, as_ps=True, **kwargs):
         supported).  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
+    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times`.  Only
+        applicable if `syn` is False.  Not applicable for
+        single stars (in which case t0@system is always used).
     * `profile_func` (string, optional, default='gaussian'): function to use
         for the rest line profile.
     * `profile_rest` (float, optional, default=550): rest central wavelength
@@ -394,7 +408,8 @@ def lp(syn=False, as_ps=True, **kwargs):
 
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times of individual entries.  Note that interpolation is not currently supported for lp datasets.')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
@@ -431,6 +446,10 @@ def orb(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
+    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times`.  Only
+        applicable if `syn` is False.  Not applicable for
+        single stars (in which case t0@system is always used).
 
     Returns
     --------
@@ -442,7 +461,8 @@ def orb(syn=False, as_ps=True, **kwargs):
 
     params, constraints = [], []
 
-    params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+    if syn:
+        params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
 
     if syn:
         params += [FloatArrayParameter(qualifier='us', value=_empty_array(kwargs, 'us'), default_unit=u.solRad, description='U position')]
@@ -454,7 +474,8 @@ def orb(syn=False, as_ps=True, **kwargs):
 
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(params) if as_ps else params, constraints
@@ -485,6 +506,10 @@ def mesh(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
+    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times`.  Only
+        applicable if `syn` is False.  Not applicable for
+        single stars (in which case t0@system is always used).
     * `include_times` (string, optional): append to `compute_times` from the
         following datasets/time standards.  If referring to other datasets,
         this will copy the computed times of that dataset (whether that be
@@ -526,7 +551,8 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
 
         params += [FloatArrayParameter(qualifier='compute_times', value=compute_times, default_unit=u.d, description='Times to use during run_compute.')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.  Does not account for t0: for true phases, use b.to_phase or b.to_time')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), description='append to compute_times from the following datasets/time standards', choices=['t0@system'])]

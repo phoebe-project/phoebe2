@@ -207,7 +207,7 @@ class Passband:
 
     def __str__(self):
         # old passband files do not have versions embedded, that is why we have to do this:
-        if not hasattr(self, 'version'):
+        if not hasattr(self, 'version') or self.version is None:
             self.version = 1.0
         return 'Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content)
 
@@ -2342,7 +2342,7 @@ def list_online_passbands(refresh=False, full_dict=False):
 def get_passband(passband):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.get_passbands> as well as
+    <phoebe.get_passband> as well as
     <phoebe.atmospheres.passbands.get_passband>.
 
     Access a passband object by name.  If the passband isn't installed, it`

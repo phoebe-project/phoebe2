@@ -416,7 +416,8 @@ class System(object):
                 pblum_scale_copy_ds[dataset] = pblum_ref
 
             elif pblum_mode == 'pbflux':
-                pbflux = ds.get_value(qualifier='pbflux', unit=u.W/u.m**2)
+                distance = b.get_value(qualifier='distance', context='system', unit=u.m)
+                pbflux = ds.get_value(qualifier='pbflux', unit=u.W/u.m**2) * distance**2
 
                 # TODO: add ld_func and ld_coeffs?
                 system_flux = np.sum([self.get_body(comp).compute_luminosity(dataset)/(4*np.pi) for comp in ds_components])
@@ -425,7 +426,7 @@ class System(object):
                 # note that pbflux here is the flux requested in RELATIVE UNITS
 
                 # flux_sys = sum(L_star/4pi for star in stars)
-                # flux_tot = flux_sys + l3_flux
+                # flux_tot = flux_sys/dist**2 + l3_flux
                 # l3_frac = l3_flux / flux_tot
                 # pblum_scale = pbflux / flux_tot
 
@@ -1423,7 +1424,7 @@ class Star(Body):
             if mesh_method == 'marching':
                 # we need check_visible=False in each of these in case mesh_method
                 # was overriden from kwargs
-                ntriangles_override = kwargs.pop('ntriangle', None)
+                ntriangles_override = kwargs.pop('ntriangles', None)
                 kwargs['ntriangles'] = b.get_value(qualifier='ntriangles', component=component, compute=compute, ntriangles=ntriangles_override, check_visible=False) if compute is not None else 1000
                 distortion_method_override = kwargs.pop('distortion_method', None)
                 kwargs['distortion_method'] = b.get_value(qualifier='distortion_method', component=component, compute=compute, distortion_method=distortion_method_override, check_visible=False) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
@@ -1439,8 +1440,10 @@ class Star(Body):
             mesh_method = kwargs.pop('mesh_method', None)
 
         features = []
-        for feature in b.filter(component=component).features:
-            feature_ps = b.filter(feature=feature, component=component)
+        for feature in b.filter(qualifier='enabled', compute=compute, value=True).features:
+            feature_ps = b.get_feature(feature=feature)
+            if feature_ps.component != component:
+                continue
             feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
@@ -1767,7 +1770,13 @@ class Star(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    teffs = feature.process_teffs(teffs, mesh.roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
+
+                    if self.__class__.__name__ == 'Star_roche_envelope_half' and self.ind_self != self.ind_self_vel:
+                        # then this is the secondary half of a contact envelope
+                        roche_coords_for_computations = np.array([1.0, 0.0, 0.0]) - mesh.roche_coords_for_computations
+                    else:
+                        roche_coords_for_computations = mesh.roche_coords_for_computations
+                    teffs = feature.process_teffs(teffs, roche_coords_for_computations, s=self.polar_direction_xyz, t=self.time)
                 else:
                     teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction_xyz, t=self.time)
 
@@ -2018,12 +2027,12 @@ class Star(Body):
                         raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or set ld_mode to 'manual' and manually provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
                     else:
                         if ld_mode=='interp':
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody' and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
                         elif ld_mode == 'lookup':
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody' and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
                         else:
                             # manual... this means that the atm itself is out of bounds, so the only option is atm=blackbody
-                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody'{}, ld_mode to 'manual', and provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm, blackbody_msg))
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody', ld_mode to 'manual', and provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
                 else:
                     raise err
 
@@ -2382,8 +2391,10 @@ class Star_roche_envelope_half(Star):
         if pot is None:
             pot = b.get_value(qualifier='pot', component=envelope, context='component')
 
-        kwargs.setdefault('mesh_method', b.get_value(qualifier='mesh_method', component=envelope, compute=compute) if compute is not None else 'marching')
-        kwargs.setdefault('ntriangles', b.get_value(qualifier='ntriangles', component=envelope, compute=compute) if compute is not None else 1000)
+        mesh_method_override = kwargs.pop('mesh_method', None)
+        kwargs.setdefault('mesh_method', b.get_value(qualifier='mesh_method', component=envelope, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching')
+        ntriangles_override = kwargs.pop('ntriangles', None)
+        kwargs.setdefault('ntriangles', b.get_value(qualifier='ntriangles', component=envelope, compute=compute, ntriangles=ntriangles_override) if compute is not None else 1000)
 
         return super(Star_roche_envelope_half, cls).from_bundle(b, component, compute,
                                                   datasets,
@@ -3256,7 +3267,7 @@ class Spot(Feature):
         else:
             star_ps = b.get_component(feature_ps.component)
             dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d)
-            longitude = np.pi/2
+            longitude += np.pi/2
 
         radius = feature_ps.get_value(qualifier='radius', unit=u.rad)
         relteff = feature_ps.get_value(qualifier='relteff', unit=u.dimensionless_unscaled)
