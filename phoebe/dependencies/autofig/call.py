@@ -1056,7 +1056,7 @@ class Plot(Call):
         cs = _to_linebreak_list(c, linebreak_n)
         ss = _to_linebreak_list(s, linebreak_n)
 
-        for x,xerr,y,yerr,z,c,s in zip(xs, xerrs, ys, yerrs, zs, cs, ss):
+        for loop1,(x,xerr,y,yerr,z,c,s) in enumerate(zip(xs, xerrs, ys, yerrs, zs, cs, ss)):
             if axes_3d:
                 data = np.array([x, y, z])
                 points = np.array([x, y, z]).T.reshape(-1, 1, 3)
@@ -1203,15 +1203,15 @@ class Plot(Call):
                     zorders = [zorders]
                     segments = [segments]
 
-                for loop, (datapoint, segment, zorder) in enumerate(zip(datas, segments, zorders)):
+                for loop2, (datapoint, segment, zorder) in enumerate(zip(datas, segments, zorders)):
                     return_artists_this_loop = []
                     # DRAW ERRORBARS, if applicable
                     if xerr is not None or yerr is not None or zerr is not None:
                         artists = ax.errorbar(*datapoint,
                                                fmt='', linestyle='None',
                                                zorder=zorder,
-                                               label=self.label if loop==0 else None,
-                                               **error_kwargs_loop(xerr, yerr, zerr, loop, do_zorder))
+                                               label=self.label if loop1==0 and loop2==0 else None,
+                                               **error_kwargs_loop(xerr, yerr, zerr, loop2, do_zorder))
 
                         # NOTE: these are currently not included in return_artists
                         # so they don't scale according to per-element sizes.
@@ -1249,12 +1249,12 @@ class Plot(Call):
                             # marker and linestyle are present
                             lc = lccall(segments,
                                         zorder=zorder,
-                                        label=self.label if loop==0 and marker.lower()=='none' else None,
-                                        **lc_kwargs_loop(lc_kwargs_const, loop, do_zorder))
+                                        label=self.label if loop1==0 and loop2==0 and marker.lower()=='none' else None,
+                                        **lc_kwargs_loop(lc_kwargs_const, loop2, do_zorder))
 
                             if do_colorscale:
                                 if do_zorder:
-                                    lc.set_array(np.array([c[loop]]))
+                                    lc.set_array(np.array([c[loop2]]))
                                 else:
                                     lc.set_array(c)
 
@@ -1267,8 +1267,8 @@ class Plot(Call):
                         if marker.lower() != 'none':
                             artist = ax.scatter(*datapoint,
                                                 zorder=zorder,
-                                                label=self.label if loop==0 else None,
-                                                **sc_kwargs_loop(sc_kwargs_const, loop, do_zorder))
+                                                label=self.label if loop1==0 and loop2==0 else None,
+                                                **sc_kwargs_loop(sc_kwargs_const, loop2, do_zorder))
 
                             return_artists_this_loop.append(artist)
 
@@ -1281,11 +1281,11 @@ class Plot(Call):
                                           ls=ls,
                                           mec='none',
                                           color=color,
-                                          label=self.label if loop==0 else None)
+                                          label=self.label if loop1==0 and loop2==0 else None)
 
                         return_artists_this_loop += artists
 
-                    size_this_loop = sizes_loop(loop, do_zorder)
+                    size_this_loop = sizes_loop(loop2, do_zorder)
                     for artist in return_artists_this_loop:
                         # store the sizes so they can be rescaled appropriately by
                         # the callback
@@ -1805,13 +1805,13 @@ class Mesh(Call):
             if isinstance(facecolors, str):
                 facecolors = [facecolors] * len(zorders)
 
-            for polygon, zorder, edgecolor, facecolor in zip(polygons, zorders, edgecolors, facecolors):
+            for loop, (polygon, zorder, edgecolor, facecolor) in enumerate(zip(polygons, zorders, edgecolors, facecolors)):
                 pc = pccall((polygon,),
                             linestyle=self.linestyle,
                             edgecolors=edgecolor,
                             facecolors=facecolor,
                             zorder=zorder,
-                            label=self.label)
+                            label=self.label if loop==0 else None)
                 ax.add_collection(pc)
 
                 return_artists += [pc]
