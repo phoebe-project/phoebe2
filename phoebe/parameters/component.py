@@ -78,7 +78,7 @@ def orbit(component, **kwargs):
     params += [FloatParameter(qualifier='t0_perpass', value=kwargs.get('t0_perpass', 0.0), default_unit=u.d, description='Zeropoint date at periastron passage of the primary component')]  # TODO: d vs JD
     params += [FloatParameter(qualifier='t0_supconj', value=kwargs.get('t0_supconj', 0.0), default_unit=u.d, description='Zeropoint date at superior conjunction of the primary component')]  # TODO: d vs JD
     params += [FloatParameter(qualifier='t0_ref', value=kwargs.get('t0_ref', 0.0), default_unit=u.d, description='Zeropoint date at reference point for the primary component')]
-    params += [FloatParameter(qualifier='mean_anom', value=kwargs.get('mean_anom', 0.0), default_unit=u.deg, description='Mean anomaly')]
+    params += [FloatParameter(qualifier='mean_anom', value=kwargs.get('mean_anom', 0.0), default_unit=u.deg, description='Mean anomaly at t0@system')]
     #params += [FloatParameter(qualifier='ph_perpass', value=kwargs.get('ph_perpass', 0.0), default_unit=u.cycle, description='Phase at periastron passage')]
     #params += [FloatParameter(qualifier='ph_supconj', value=kwargs.get('ph_supconj', 0.0), default_unit=u.cycle, description='Phase at superior conjunction')]
     #params += [FloatParameter(qualifier='ph_infconj', value=kwargs.get('ph_infconj', 0.0), default_unit=u.cycle, description='Phase at inferior conjunction')]
@@ -165,7 +165,7 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='requiv', value=kwargs.get('requiv', 1.0), default_unit=u.solRad, limits=(1e-6,None), description='Equivalent radius')]
     params += [FloatParameter(qualifier='requiv_max', value=kwargs.get('requiv_max', 10.0), default_unit=u.solRad, limits=(0.0, None), description='Critical (maximum) value of the equivalent radius for the given morphology')]
     params += [FloatParameter(qualifier='requiv_min', visible_if='hierarchy.is_contact_binary:True', value=kwargs.get('requiv_min', 0.1), default_unit=u.solRad, limits=(0.0, None), description='Critical (minimum) value of the equivalent radius for the given morphology')]
-    params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
+    params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(300.0,None), description='Mean effective temperature')]
     params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Abundance/Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
     params += [FloatParameter(qualifier='logg', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')]
@@ -174,11 +174,11 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='period', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
     params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
 
-    params += [FloatParameter(qualifier='pitch', value=kwargs.get('pitch', 0), default_unit=u.deg, description='Pitch of the stellar rotation axis wrt the orbital inclination')]
-    params += [FloatParameter(qualifier='yaw', value=kwargs.get('yaw', 0), default_unit=u.deg, description='Yaw of the stellar rotation axis wrt the orbital longitude of ascending node')]
+    params += [FloatParameter(qualifier='pitch', visible_if='hierarchy.is_contact_binary:False,hierarchy.is_binary:True', value=kwargs.get('pitch', 0), default_unit=u.deg, description='Pitch of the stellar rotation axis wrt the orbital rotation axis')]
+    params += [FloatParameter(qualifier='yaw', visible_if='hierarchy.is_contact_binary:False,hierarchy.is_binary:True', value=kwargs.get('yaw', 0), default_unit=u.deg, description='Yaw of the stellar rotation axis wrt the orbital rotation axis')]
 
-    params += [FloatParameter(qualifier='incl', value=kwargs.get('incl', 90), default_unit=u.deg, description='Inclination of the stellar rotation axis')]
-    params += [FloatParameter(qualifier='long_an', value=kwargs.get('long_an', 0.0), default_unit=u.deg, description='Longitude of the ascending node (ie. equator) of the star')]
+    params += [FloatParameter(qualifier='incl', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('incl', 90), default_unit=u.deg, description='Inclination of the stellar rotation axis')]
+    params += [FloatParameter(qualifier='long_an', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('long_an', 0.0), default_unit=u.deg, description='Longitude of the ascending node (ie. equator) of the star')]
 
     # params += [FloatParameter(qualifier='vsini', value=kwargs.get('vsini', 1), default_unit=u.km/u.s, description='Projected maximum rotational velocity')]
 

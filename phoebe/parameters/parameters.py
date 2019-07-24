@@ -134,7 +134,8 @@ _forbidden_labels += ['phoebe', 'legacy', 'jktebop', 'photodynam', 'ellc']
 _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarchy']
 
 # from setting:
-_forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter', 'dict_set_all']
+_forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter',
+                      'dict_set_all', 'run_checks_compute']
 
 # from component
 _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
@@ -148,7 +149,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
 
 # from dataset:
 _forbidden_labels += ['times', 'fluxes', 'sigmas',
-                     'compute_times', 'compute_phases',
+                     'compute_times', 'compute_phases', 'compute_phases_t0',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
                      'pblum_mode', 'pblum_ref', 'pblum', 'pbflux',
@@ -193,7 +194,7 @@ _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
 
-_singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
+_singular_to_plural = {'time': 'times', 'phase': 'phases', 'flux': 'fluxes', 'sigma': 'sigmas',
                        'rv': 'rvs', 'flux_density': 'flux_densities',
                        'time_ecl': 'time_ecls', 'time_ephem': 'time_ephems', 'N': 'Ns',
                        'x': 'xs', 'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
@@ -204,6 +205,12 @@ _singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
                        'r': 'rs', 'rproj': 'rprojs', 'mu': 'mus',
                        'visibility': 'visibilities'}
 _plural_to_singular = {v:k for k,v in _singular_to_plural.items()}
+
+def _singular_to_plural_get(k):
+    return _singular_to_plural.get(k, k)
+
+def _plural_to_singular_get(k):
+    return _plural_to_singular.get(k, k)
 
 def send_if_client(fctn):
     """Intercept and send to the server if bundle is in client mode."""
@@ -315,6 +322,48 @@ def _fnmatch(to_this, expression_or_string):
     else:
         return expression_or_string == to_this
 
+class ParameterSetInfo(dict):
+    def __init__(self, ps, attribute):
+        super(dict, self).__init__()
+        self._attribute = attribute
+
+        for qualifier in ps.qualifiers:
+            entries_this_qualifier = {}
+            for param in ps.filter(qualifier=qualifier, check_visible=False, check_default=False).to_list():
+                if not hasattr(param, attribute):
+                    continue
+
+                value = str(getattr(param, attribute))
+                if value not in entries_this_qualifier.keys():
+                    entries_this_qualifier[value] = []
+
+                entries_this_qualifier[value].append(param.uniqueid)
+
+            if not len(entries_this_qualifier):
+                # then the hasattr hasn't returned anything, so we don't need to
+                # do anything for this qualifier
+                continue
+
+
+            if len(entries_this_qualifier) == 1:
+                self[qualifier] = value
+            else:
+                for value, uniqueids in entries_this_qualifier.items():
+                    self[ps.filter(uniqueid=uniqueids, check_visible=False, check_default=False).common_twig] = value
+
+    def __repr__(self):
+        return "<ParameterSetInfo (qualifier/twig: {}): {}>".format(self._attribute, {k:v for k,v in self.items()})
+
+    def __str__(self):
+        """String representation for the ParameterSet."""
+        if len(self.keys()):
+            param_info = "\n".join("{:>32}: {}".format(k,v) for k,v in sorted(self.items()))
+        else:
+            param_info = "NO PARAMETERS"
+
+        return "ParameterSetInfo: (qualfier/twig: {})\n".format(self._attribute)+param_info
+
+
 
 class ParameterSet(object):
     """ParameterSet.
@@ -420,6 +469,44 @@ class ParameterSet(object):
     def __ne__(self, other):
         raise NotImplementedError("comparison operators with ParameterSets are not supported")
 
+    @property
+    def info(self):
+        """
+        Shortcut to <phoebe.parameters.ParameterSet.get_info> with the default
+        arguments.
+        """
+        return self.get_info()
+
+    def get_info(self, attribute='description', **kwargs):
+        """
+        Access any available attribute across the ParameterSet.  This returns
+        a dictionary-like object where keys are the qualifier or twig
+        and values are according to the value passed to `attribute`.  Any
+        entries that can be merged (because they have the same value) will
+        be into a single entry.  Any that cannot, will show the shortest
+        common twig of all parameters that apply to that entry.  Parameters
+        without the requested `attribute` will omitted (non-FloatParameters will
+        be excluded if `attribute` is 'default_unit', for example).
+
+        See also:
+        * <phoebe.parameters.ParameterSet.info>
+
+        Arguments
+        -------------
+        * `attribute` (string, optional, default='description'): attribute
+            to access for each parameter.  This will be the values in the
+            returned dictionary object.
+        * `**kwargs`: additional keyword arguments are first sent to
+            <phoebe.parameters.ParameterSet.filter>.
+
+        Returns
+        -----------
+        * a dictionary-like object that is subclassed to provide a nice
+          representation when printed to the screen.
+        """
+        if len(kwargs.items()):
+            return self.filter(**kwargs).get_info(attribute)
+        return ParameterSetInfo(self, attribute)
 
     @property
     def meta(self):
@@ -2047,7 +2134,7 @@ class ParameterSet(object):
 
         # handle hiding _default (cheaper than visible_if so let's do first)
         if check_default and conf.check_default:
-            params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default']
+            params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default' and pi.feature != '_default']
 
         # handle visible_if
         if check_visible and conf.check_visible:
@@ -2762,7 +2849,7 @@ class ParameterSet(object):
                 unit = twig
                 twig = None
 
-            elif not len(self.filter(twig=twig, check_default=check_default, **kwargs)):
+            elif not len(self.filter(twig=twig, **kwargs)):
                 unit = twig
                 twig = None
 
@@ -2887,6 +2974,9 @@ class ParameterSet(object):
         phase-space otherwise. See
         <phoebe.parameters.FloatArrayParameter.interp_value>.
 
+        See also:
+        * <phoebe.parameters.ParameterSet.compute_chi2>
+
         Arguments
         -----------
         * `model` (string, optional, default=None): model to compare against
@@ -2958,9 +3048,75 @@ class ParameterSet(object):
         else:
             return residuals
 
+    def compute_chi2(self, model=None, dataset=None, component=None):
+        """
+        Compute the chi2 between a model and the observed values in the dataset(s).
+
+        Currently supports the following datasets:
+        * <phoebe.parameters.dataset.lc>
+        * <phoebe.parameters.dataset.rv>
+
+        If necessary (due to the `compute_times`/`compute_phases` parameters
+        or a change in the dataset `times` since the model was computed),
+        interpolation will be handled, in time-space if possible, and in
+        phase-space otherwise. See
+        <phoebe.parameters.FloatArrayParameter.interp_value>.
+
+        Residuals per-dataset for the given model are computed by
+        <phoebe.parameters.ParameterSet.compute_residuals>.  The returned
+        chi2 value is then the sum over the chi2 of each dataset, where each
+        dataset's chi2 value is computed as the sum of squares of residuals
+        over the squares of sigmas (if available).
+
+        See also:
+        * <phoebe.parameters.ParameterSet.compute_residuals>
+
+        Arguments
+        -----------
+        * `model` (string, optional, default=None): model to compare against
+            observations.  Required if more than one model exist.
+        * `dataset` (string or list, optional, default=None): dataset(s) for comparison.
+            Will sum over chi2 values of all datasets that match the filter.  So
+            if not provided, will default to all datasets exposed in the model.
+        * `component` (string or list, optional, default=None): component(s) for
+            comparison.  Required only if more than one component exist in the
+            dataset (for RVs, for example) and not all should be included in
+            the chi2
+
+        Returns
+        -----------
+        * (float) chi2 value
+
+        Raises
+        ----------
+        * NotImplementedError: if the dataset kind is not supported for residuals.
+        """
+
+        chi2 = 0
+
+        if not len(self.filter(context='model').models):
+            model_ps = self._bundle.get_model(model=model).filter(dataset=dataset, component=component)
+        else:
+            model_ps = self.filter(model=model, context='model').filter(dataset=dataset, component=component)
+
+        for ds in model_ps.datasets:
+            ds_comps = model_ps.filter(dataset=ds).components
+            if not len(ds_comps):
+                ds_comps = [None]
+
+            for ds_comp in ds_comps:
+                residuals = self.compute_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True)
+                sigmas = self._bundle.get_dataset(dataset=ds).get_value('sigmas', component=ds_comp, unit=residuals.unit)
+
+                if len(sigmas):
+                    chi2 += np.sum(residuals.value**2 / sigmas.value**2)
+                else:
+                    chi2 += np.sum(residuals.value**2)
+
+        return chi2
 
 
-    def _unpack_plotting_kwargs(self, **kwargs):
+    def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
 
 
@@ -2977,7 +3133,7 @@ class ParameterSet(object):
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
-        ps = self.filter(**filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases'])
+        ps = self.filter(**filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0'])
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'lp']:
             ps = ps.filter(time=kwargs.get('time'))
@@ -2994,13 +3150,13 @@ class ParameterSet(object):
 
         if len(ps.contexts) > 1:
             for context in ps.contexts:
-                this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             for dataset in ps.datasets:
-                this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
@@ -3013,21 +3169,21 @@ class ParameterSet(object):
 
         if len(ps.kinds) > 1:
             for kind in pskinds:
-                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.models) > 1:
             for model in ps.models:
                 # TODO: change linestyle for models instead of color?
-                this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
         if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
             # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
-                this_return = ps.filter(check_visible=False, time=time)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, time=time)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
@@ -3035,7 +3191,7 @@ class ParameterSet(object):
             # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
             for component in ps.components:
-                this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(**kwargs)
+                this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return return_
 
@@ -3062,7 +3218,7 @@ class ParameterSet(object):
         # linestyle={'rv01': 'solid', 'rv02': 'dashed'}
         # here we need to filter any kwargs that are dictionaries if they match
         # the current ps
-        for k,v in kwargs.items():
+        for k,v in kwargs.copy().items():
             if isinstance(v, dict) and 'kwargs' not in k:
                 # overwrite kwargs[k] based on any match in v
                 match = None
@@ -3212,7 +3368,7 @@ class ParameterSet(object):
                                 kwargs.setdefault(errorkey, sigmas)
 
                     # now let's set the label for the dimension from the qualifier/twig
-                    kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+                    kwargs.setdefault('{}label'.format(direction), _plural_to_singular_get(current_value))
 
                     # we'll also keep the qualifier around - autofig doesn't use this
                     # but we'll keep it so we can set some defaults
@@ -3232,7 +3388,7 @@ class ParameterSet(object):
                     candidate_params = full_dataset_ps.filter(qualifier=current_value)
                     if len(candidate_params) == 1:
                         kwargs[direction] = candidate_params.get_quantity()
-                        kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+                        kwargs.setdefault('{}label'.format(direction), _plural_to_singular_get(current_value))
                         kwargs['{}qualifier'.format(direction)] = current_value
                         return kwargs
                     elif len(candidate_params) > 1:
@@ -3292,7 +3448,7 @@ class ParameterSet(object):
                         candidate_params = full_mesh_ps.filter(current_value)
                         if len(candidate_params) == 1:
                             kwargs[direction] = candidate_params.get_quantity()
-                            kwargs.setdefault('{}label'.format(direction), _plural_to_singular.get(current_value, current_value))
+                            kwargs.setdefault('{}label'.format(direction), _plural_to_singular_get(current_value))
                             kwargs['{}qualifier'.format(direction)] = current_value
                             return kwargs
                         elif len(candidate_params) > 1:
@@ -3420,6 +3576,7 @@ class ParameterSet(object):
                 # units will have handled this in POS (uvw) coordinates, but not
                 # Roche (xyz) as those are unitless
                 kwargs.setdefault('equal_aspect', True)
+                kwargs.setdefault('pad_aspect', not animate)
 
                 # we want the wireframe by default
                 kwargs.setdefault('ec', 'black')
@@ -3529,7 +3686,7 @@ class ParameterSet(object):
 
         #### HANDLE AUTOFIG'S INDENPENDENT VARIABLE DIRECTION (i)
         # try to find 'times' in the cartesian dimensions:
-        if 'phases' not in [kwargs[af_direction].split(':')[0] for af_direction in ['x', 'y', 'z'] if isinstance(kwargs[af_direction], str)]:
+        if 'phases' not in [_singular_to_plural_get(kwargs['{}qualifier'.format(af_direction)].split(':')[0]) for af_direction in ['x', 'y', 'z'] if isinstance(kwargs.get('{}qualifier'.format(af_direction), None), str)]:
             iqualifier_default = 'times'
         elif self._bundle.hierarchy.is_time_dependent():
             iqualifier_default = 'times'
@@ -3690,12 +3847,36 @@ class ParameterSet(object):
         ----------
         * `twig` (string, optional, default=None): twig to use for filtering
             prior to plotting.  See <phoebe.parameters.ParameterSet.filter>
-        * `time` (float, optional): time to use for plotting/animating.
-        * `times` (list/array, optional): times to use for animating (will
-            override any value sent to `time`).
+        * `time` (float, optional): time to use for plotting/animating.  This will
+            filter on time for any applicable dataset (i.e. meshes, line profiles),
+            will be used for highlighting/uncovering based on the passed value
+            to `highlight` and `uncover`.  Use `times` to set the individual
+            frames when animating with `animate=True`
+        * `times` (list/array, optional): times to use for animating.  If
+            `animate` is not True, a warning will be raised in the logger.  If
+            `animate` is True, and neither `times` nor `time` is passed,
+            then the animation will cycle over the tagged times of the model
+            datasets (i.e. if mesh or lp datasets exist), or the computed
+            times otherwise.
         * `t0` (string/float, optional): qualifier/twig or float of the t0 that
             should be used for phasing, if applicable.  If provided as a string,
-            `b.get_value(t0)` needs to provide a valid float.
+            `b.get_value(t0)` needs to provide a valid float.  This is used
+            if `phase`/`phases` provided instead of `time`/`times` as well as
+            if 'phases' is set as any direction (`x`, `y`, `z`, etc).
+        * `phase` (float, optional): phase to use for plotting/animating.  This
+            will convert to `time` using the current ephemeris via
+            <phoebe.frontend.bundle.Bundle.to_time> along with the passed value
+            of `t0`.  If `time` and `phase` are both provided, an error will be
+            raised.  Note: if a dataset uses compute_phases_t0 that differs
+            from `t0`, this may result in a different mapping between
+            `phase` and `time`.
+        * `phases` (list/array, optional): phases to use for animating.  This
+            will convert to `times` using the current ephemeris via
+            <phoebe.frontend.bundle.Bundle.to_time> along with the passed
+            value of `t0`.  If `times` and `phases` are both provided, an error
+            will be raised.  Note: if a dataset uses compute_phases_t0 that differs
+            from `t0`, this may result in a different mapping between
+            `phase` and `time`.
 
         * `x` (string/float/array, optional): qualifier/twig of the array to plot on the
             x-axis (will default based on the dataset-kind if not provided).
@@ -3841,6 +4022,18 @@ class ParameterSet(object):
         * `interval` (int, optional, default=100): time in ms between each
             frame in the animation.  Applicable only if `animate` is True.
 
+        * `equal_aspect` (optional): whether to force the aspect ratio of the
+            axes to be equal.  If not provided, this will default to True if
+            all directions (i.e. `x` and `y` for `projection='2d'` or `x`,
+            `y`, and `z` for '3d') are positions and of the same units, or
+            False otherwise.
+        * `pad_aspect` (optional): whether to achieve the equal aspect ratio
+            by padding the limits instead of whitespace around the axes.  Only
+            applicable if `equal_aspect` is True.  If not provided, this will
+            default to True unless `animate` is True, in which case it will
+            default to False (as autofig cannot currently handle `pad_aspect`)
+            in animations.
+
         * `projection` (string, optional, default='2d'): whether to plot
             on a 2d or 3d axes.  If '3d', the orientation of the axes will
             be provided by `azim` and `elev` (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/latest/tutorials/3d/))
@@ -3872,6 +4065,11 @@ class ParameterSet(object):
         Returns
         --------
         * (autofig figure, matplotlib figure)
+
+        Raises
+        ------------
+        * ValueError: if both `time` and `phase` or `times` and `phases` are passed.
+        * ValueError: if the resulting figure is empty.
         """
         if not _use_autofig:
             if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
@@ -3887,10 +4085,43 @@ class ParameterSet(object):
         draw_title = kwargs.pop('draw_title', False)
         subplot_grid = kwargs.pop('subplot_grid', None)
         animate = kwargs.pop('animate', False)
-        time = kwargs.get('time', None)  # don't pop since time may be used for filtering
 
         if kwargs.get('projection', '2d') == '3d' and kwargs.get('ec', None) =='face':
             raise ValueError("projection='3d' and ec='face' do not work together.  Consider ec='none' instead.")
+
+        if 'phase' in kwargs.keys():
+            if 'time' in kwargs.keys():
+                raise ValueError("cannot pass both time and phase")
+
+            t0 = kwargs.get('t0', 't0_supconj')
+            logger.info("converting from phase to time with t0={}".format(t0))
+            kwargs['time'] = self._bundle.to_time(kwargs.pop('phase'), t0=t0)
+
+        if 'phases' in kwargs.keys():
+            if 'times' in kwargs.keys():
+                raise ValueError("cannot pass both times and phases")
+
+            t0 = kwargs.get('t0', 't0_supconj')
+            logger.info("converting from phases to times with t0={}".format(t0))
+            kwargs['times'] = self._bundle.to_time(kwargs.pop('phases'), t0=t0)
+
+
+
+        if 'times' in kwargs.keys() and not animate:
+            if kwargs.get('time', None) is not None:
+                logger.warning("ignoring 'times' in favor of 'time'")
+            else:
+                logger.warning("assuming you meant 'time' instead of 'times' since animate=False")
+                kwargs['time'] = kwargs.pop('times')
+        elif 'time' in kwargs.keys() and animate:
+            if kwargs.get('times', None) is not None:
+                logger.warning("value passed for time will still be used for filtering, despite 'times' being passed.")
+            else:
+                logger.warning("value passed for time will still be used for filtering, but will also be assumed as 'times' since animate=True.")
+                kwargs['times'] = kwargs['time']
+
+        time = kwargs.get('time', None)  # don't pop since time may be used for filtering
+
 
         if twig is not None:
             kwargs['twig'] = twig
@@ -3916,7 +4147,7 @@ class ParameterSet(object):
                 conf.check_default_on()
 
         try:
-            plot_kwargss = self._unpack_plotting_kwargs(**kwargs)
+            plot_kwargss = self._unpack_plotting_kwargs(animate=animate, **kwargs)
 
             # this loop handles any of the automatically-generated
             # multiple plotting calls, passing each on to autofig
@@ -3956,6 +4187,9 @@ class ParameterSet(object):
                 raise
         else:
             afig = self.gcf()
+            if not len(afig.axes):
+                raise ValueError("Nothing could be found to plot.  Check all arguments.")
+
             fig = None
 
             return afig, fig
@@ -3983,18 +4217,23 @@ class ParameterSet(object):
                 # then let's try to get all SYNTHETIC times
                 # it would be nice to only do ENABLED, but then we have to worry about compute
                 # it would also be nice to worry about models... but then you should filter first
-                logger.info("no times were providing, so defaulting to animate over all dataset times")
-                times = []
+                times_attr = []
+                times_computed = []
                 for dataset in self.datasets:
                     ps = self.filter(dataset=dataset, context='model')
                     if len(ps.times):
                         # for the case of meshes/spectra
-                        times += [float(t) for t in ps.times]
+                        times_attr += [float(t) for t in ps.times]
                     else:
                         for param in ps.filter(qualifier='times').to_list():
-                            times += list(param.get_value())
+                            times_computed += list(param.get_value())
 
-                times = sorted(list(set(times)))
+                if len(times_attr):
+                    logger.info("no times were providing, so defaulting to animate over all tagged times")
+                    times = sorted(list(set(times_attr)))
+                else:
+                    logger.info("no times were provided, so defaulting to animate over all computed times in the model")
+                    times = sorted(list(set(times_computed)))
 
             logger.info("calling autofig.animate(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, interval={}, save={}, show={}, save_kwargs={})".format(times, draw_sidebars, draw_title, tight_layout, interval, save, show, save_kwargs))
 
@@ -4009,6 +4248,8 @@ class ParameterSet(object):
                                          save_kwargs=save_kwargs)
 
             afig = self.gcf()
+            if not len(afig.axes):
+                raise ValueError("Nothing could be found to plot.  Check all arguments.")
 
             # clear the autofig figure
             self.clf()
@@ -4021,15 +4262,20 @@ class ParameterSet(object):
             if isinstance(time, str):
                 time = self.get_value(time, context=['component', 'system'])
 
-            logger.info("calling autofig.draw(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={})".format(time, draw_sidebars, draw_title, tight_layout, save, show))
-            fig = self.gcf().draw(i=time,
-                                  draw_sidebars=draw_sidebars,
-                                  draw_title=draw_title,
-                                  tight_layout=tight_layout,
-                                  subplot_grid=subplot_grid,
-                                  save=save, show=show)
-            # clear the figure so next call will start over and future shows will work
             afig = self.gcf()
+            if not len(afig.axes):
+                raise ValueError("Nothing could be found to plot.  Check all arguments.")
+
+
+            logger.info("calling autofig.draw(i={}, draw_sidebars={}, draw_title={}, tight_layout={}, save={}, show={})".format(time, draw_sidebars, draw_title, tight_layout, save, show))
+            fig = afig.draw(i=time,
+                            draw_sidebars=draw_sidebars,
+                            draw_title=draw_title,
+                            tight_layout=tight_layout,
+                            subplot_grid=subplot_grid,
+                            save=save, show=show)
+
+            # clear the figure so next call will start over and future shows will work
             self.clf()
 
             return afig, fig
@@ -4172,6 +4418,9 @@ class Parameter(object):
 
         uniqueid = kwargs.get('uniqueid', _uniqueid())
         bundle = kwargs.get('bundle', None)
+
+        self._in_constraints = []   # labels of constraints that have this parameter in the expression
+        self._is_constraint = None  # label of the constraint that defines the value of this parameter
 
         self._description = description
         self._bundle = bundle
@@ -5167,6 +5416,147 @@ class Parameter(object):
 
         return self._bundle.filter(**metawargs)
 
+    #~ @property
+    #~ def constraint(self):
+        #~ """
+        #~ returns the label of the constraint that constrains this parameter
+        #~
+        #~ you can then access all of the parameters of the constraint via bundle.get_constraint(label)
+        #~ """
+        #~ return self.constraint_expression.uniquetwig
+
+    @property
+    def is_constraint(self):
+        """
+        Returns the <phoebe.parameters.ConstraintParameter> that constrains
+        this parameter.  If this <phoebe.parameters.Parameter>] is not
+        constrained, this will return None.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * None or <phoebe.parameters.ConstraintParameter>
+        """
+        if self._is_constraint is None:
+            return None
+        return self._bundle.get_parameter(context='constraint', uniqueid=self._is_constraint, check_visible=False)
+
+    @property
+    def constrained_by(self):
+        """
+        Returns a list of <phoebe.parameters.Parameter> objects that constrain
+        this <phoebe.parameters.FloatParameter>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * (list of <phoebe.parameters.Parameter>)
+        """
+        if self._is_constraint is None:
+            return []
+        params = []
+        uniqueids = []
+        for var in self.is_constraint._vars:
+            param = var.get_parameter()
+            if param.uniqueid != self.uniqueid and param.uniqueid not in uniqueids:
+                params.append(param)
+                uniqueids.append(param.uniqueid)
+        return params
+
+    #~ @property
+    #~ def in_constraints(self):
+        #~ """
+        #~ returns a list the labels of the constraints in which this parameter constrains another
+        #~
+        #~ you can then access all of the parameters of a given constraint via bundle.get_constraint(constraint)
+        #~ """
+        #~ return [param.uniquetwig for param in self.in_constraints_expressions]
+
+    @property
+    def in_constraints(self):
+        """
+        Returns a list of the expressions in which this
+        <phoebe.parameters.FloatParameter> constrains other Parameters.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.constrains>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+        Returns
+        -------
+        * (list of expressions)
+        """
+        expressions = []
+        for uniqueid in self._in_constraints:
+            expressions.append(self._bundle.get_parameter(context='constraint', uniqueid=uniqueid, check_visible=False))
+        return expressions
+
+    @property
+    def constrains(self):
+        """
+        Returns a list of Parameters that are constrained by this
+        <phoebe.parameters.FloatParameter>.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.related_to>
+
+         Returns
+         -------
+         * (list of Parameters)
+        """
+        params = []
+        for constraint in self.in_constraints:
+            for var in constraint._vars:
+                param = var.get_parameter()
+                if param.component == constraint.component and param.qualifier == constraint.qualifier:
+                    if param not in params and param.uniqueid != self.uniqueid:
+                        params.append(param)
+        return params
+
+    @property
+    def related_to(self):
+        """
+        Returns a list of all parameters that are either constrained by or
+        constrain this parameter.
+
+        See also:
+        * <phoebe.parameters.FloatParameter.is_constraint>
+        * <phoebe.parameters.FloatParameter.constrained_by>
+        * <phoebe.parameters.FloatParameter.in_constraints>
+        * <phoebe.parameters.FloatParameter.constrains>
+
+         Returns
+         -------
+         * (list of Parameters)
+        """
+        params = []
+        constraints = self.in_constraints
+        if self.is_constraint is not None:
+            constraints.append(self.is_constraint)
+
+        for constraint in constraints:
+            for var in constraint._vars:
+                param = var.get_parameter()
+                if param not in params and param.uniqueid != self.uniqueid:
+                    params.append(param)
+
+        return params
+
     def to_constraint(self):
         """
         Convert this <phoebe.parameters.Parameter> to a
@@ -5637,13 +6027,21 @@ class ChoiceParameter(Parameter):
         return str(self._value)
 
     @send_if_client
-    def set_value(self, value, run_checks=None, **kwargs):
+    def set_value(self, value, run_checks=None, run_constraints=None, **kwargs):
         """
         Set the current value of the <phoebe.parameters.ChoiceParameter>.
 
         Arguments
         ----------
         * `value` (string): the new value of the Parameter.
+        * `run_checks` (bool, optional): whether to call
+            <phoebe.frontend.bundle.Bundle.run_checks> after setting the value.
+            If `None`, the value in `phoebe.conf.interactive_checks` will be used.
+            This will not raise an error, but will cause a warning in the logger
+            if the new value will cause the system to fail checks.
+        * `run_constraints` whether to run any necessary constraints after setting
+            the value.  If `None`, the value in `phoebe.conf.interactive_constraints`
+            will be used.
         * `**kwargs`: IGNORED
 
         Raises
@@ -5673,11 +6071,29 @@ class ChoiceParameter(Parameter):
 
         self._value = value
 
+
+        if run_constraints is None:
+            run_constraints = conf.interactive_constraints
+
+        if run_constraints:
+            if len(self._in_constraints):
+                logger.debug("changing value of {} triggers {} constraints".format(self.twig, [c.twig for c in self.in_constraints]))
+            for constraint_id in self._in_constraints:
+                self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True, run_constraints=run_constraints)
+        else:
+            # then we want to delay running constraints... so we need to track
+            # which ones need to be run once requested
+            if len(self._in_constraints):
+                logger.debug("changing value of {} triggers delayed constraints {}".format(self.twig, [c.twig for c in self.in_constraints]))
+            for constraint_id in self._in_constraints:
+                if constraint_id not in self._bundle._delayed_constraints:
+                    self._bundle._delayed_constraints.append(constraint_id)
+
         # run_checks if requested (default)
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            passed, msg = self._bundle.run_checks()
+            passed, msg = self._bundle.run_checks(allow_skip_constraints=True)
             if not passed:
                 # passed is either False (failed) or None (raise Warning)
                 msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
@@ -5890,7 +6306,7 @@ class SelectParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            passed, msg = self._bundle.run_checks()
+            passed, msg = self._bundle.run_checks(allow_skip_constraints=True)
             if not passed:
                 # passed is either False (failed) or None (raise Warning)
                 logger.warning(msg)
@@ -6245,9 +6661,6 @@ class FloatParameter(Parameter):
         """
         super(FloatParameter, self).__init__(*args, **kwargs)
 
-        self._in_constraints = []   # labels of constraints that have this parameter in the expression
-        self._is_constraint = None  # label of the constraint that defines the value of this parameter
-
         default_unit = kwargs.get('default_unit', None)
         self.set_default_unit(default_unit)
 
@@ -6590,7 +7003,7 @@ class FloatParameter(Parameter):
         return value
 
     #@send_if_client is on the called set_quantity
-    def set_value(self, value, unit=None, force=False, run_checks=None, **kwargs):
+    def set_value(self, value, unit=None, force=False, run_checks=None, run_constraints=None, **kwargs):
         """
         Set the current value/quantity of the <phoebe.parameters.FloatParameter>.
 
@@ -6605,7 +7018,9 @@ class FloatParameter(Parameter):
         * <phoebe.parameters.FloatParameter.set_limits>
         * <phoebe.parameters.FloatParameter.within_limits>
         """
-        return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks, **kwargs)
+        return self.set_quantity(value=value, unit=unit, force=force,
+                                 run_checks=run_checks, run_constraints=run_constraints,
+                                 **kwargs)
 
     @send_if_client
     def set_quantity(self, value, unit=None, force=False, run_checks=None, run_constraints=None, **kwargs):
@@ -6722,7 +7137,7 @@ class FloatParameter(Parameter):
             if len(self._in_constraints):
                 logger.debug("changing value of {} triggers {} constraints".format(self.twig, [c.twig for c in self.in_constraints]))
             for constraint_id in self._in_constraints:
-                self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True)
+                self._bundle.run_constraint(uniqueid=constraint_id, skip_kwargs_checks=True, run_constraints=run_constraints)
         else:
             # then we want to delay running constraints... so we need to track
             # which ones need to be run once requested
@@ -6736,7 +7151,7 @@ class FloatParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            passed, msg = self._bundle.run_checks()
+            passed, msg = self._bundle.run_checks(allow_skip_constraints=True)
             if not passed:
                 # passed is either False (failed) or None (raise Warning)
                 if passed is not None:
@@ -6744,148 +7159,6 @@ class FloatParameter(Parameter):
                 logger.warning(msg)
 
         self._add_history(redo_func='set_quantity', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_quantity, 'uniqueid': self.uniqueid})
-
-
-    #~ @property
-    #~ def constraint(self):
-        #~ """
-        #~ returns the label of the constraint that constrains this parameter
-        #~
-        #~ you can then access all of the parameters of the constraint via bundle.get_constraint(label)
-        #~ """
-        #~ return self.constraint_expression.uniquetwig
-
-    @property
-    def is_constraint(self):
-        """
-        Returns the <phoebe.parameters.ConstraintParameter> that constrains
-        this parameter.  If this <phoebe.parameters.FloatParameter> is not
-        constrained, this will return None.
-
-        See also:
-        * <phoebe.parameters.FloatParameter.constrained_by>
-        * <phoebe.parameters.FloatParameter.in_constraints>
-        * <phoebe.parameters.FloatParameter.constrains>
-        * <phoebe.parameters.FloatParameter.related_to>
-
-        Returns
-        -------
-        * (None or <phoebe.parameters.ConstraintParameter)
-        """
-        if self._is_constraint is None:
-            return None
-        return self._bundle.get_parameter(context='constraint', uniqueid=self._is_constraint, check_visible=False)
-
-    @property
-    def constrained_by(self):
-        """
-        Returns a list of <phoebe.parameters.Parameter> objects that constrain
-        this <phoebe.parameters.FloatParameter>.
-
-        See also:
-        * <phoebe.parameters.FloatParameter.is_constraint>
-        * <phoebe.parameters.FloatParameter.in_constraints>
-        * <phoebe.parameters.FloatParameter.constrains>
-        * <phoebe.parameters.FloatParameter.related_to>
-
-        Returns
-        -------
-        * (list of <phoebe.parameters.Parameter>)
-        """
-        if self._is_constraint is None:
-            return []
-        params = []
-        uniqueids = []
-        for var in self.is_constraint._vars:
-            param = var.get_parameter()
-            if param.uniqueid != self.uniqueid and param.uniqueid not in uniqueids:
-                params.append(param)
-                uniqueids.append(param.uniqueid)
-        return params
-
-    #~ @property
-    #~ def in_constraints(self):
-        #~ """
-        #~ returns a list the labels of the constraints in which this parameter constrains another
-        #~
-        #~ you can then access all of the parameters of a given constraint via bundle.get_constraint(constraint)
-        #~ """
-        #~ return [param.uniquetwig for param in self.in_constraints_expressions]
-
-    @property
-    def in_constraints(self):
-        """
-        Returns a list of the expressions in which this
-        <phoebe.parameters.FloatParameter> constrains other Parameters.
-
-        See also:
-        * <phoebe.parameters.FloatParameter.is_constraint>
-        * <phoebe.parameters.FloatParameter.constrained_by>
-        * <phoebe.parameters.FloatParameter.constrains>
-        * <phoebe.parameters.FloatParameter.related_to>
-
-        Returns
-        -------
-        * (list of expressions)
-        """
-        expressions = []
-        for uniqueid in self._in_constraints:
-            expressions.append(self._bundle.get_parameter(context='constraint', uniqueid=uniqueid))
-        return expressions
-
-    @property
-    def constrains(self):
-        """
-        Returns a list of Parameters that are constrained by this
-         <phoebe.parameters.FloatParameter>.
-
-        See also:
-        * <phoebe.parameters.FloatParameter.is_constraint>
-        * <phoebe.parameters.FloatParameter.constrained_by>
-        * <phoebe.parameters.FloatParameter.in_constraints>
-        * <phoebe.parameters.FloatParameter.related_to>
-
-         Returns
-         -------
-         * (list of Parameters)
-        """
-        params = []
-        for constraint in self.in_constraints:
-            for var in constraint._vars:
-                param = var.get_parameter()
-                if param.component == constraint.component and param.qualifier == constraint.qualifier:
-                    if param not in params and param.uniqueid != self.uniqueid:
-                        params.append(param)
-        return params
-
-    @property
-    def related_to(self):
-        """
-        Returns a list of all parameters that are either constrained by or
-        constrain this parameter.
-
-        See also:
-        * <phoebe.parameters.FloatParameter.is_constraint>
-        * <phoebe.parameters.FloatParameter.constrained_by>
-        * <phoebe.parameters.FloatParameter.in_constraints>
-        * <phoebe.parameters.FloatParameter.constrains>
-
-         Returns
-         -------
-         * (list of Parameters)
-        """
-        params = []
-        constraints = self.in_constraints
-        if self.is_constraint is not None:
-            constraints.append(self.is_constraint)
-
-        for constraint in constraints:
-            for var in constraint._vars:
-                param = var.get_parameter()
-                if param not in params and param.uniqueid != self.uniqueid:
-                    params.append(param)
-
-        return params
 
 
 class FloatArrayParameter(FloatParameter):
@@ -6958,7 +7231,7 @@ class FloatArrayParameter(FloatParameter):
         np.set_printoptions(**opt)
         return str_
 
-    def interp_value(self, unit=None, **kwargs):
+    def interp_value(self, unit=None, component=None, t0='t0_supconj', **kwargs):
         """
         Interpolate to find the value in THIS array given a value from
         ANOTHER array in the SAME parent <phoebe.parameters.ParameterSet>
@@ -7009,10 +7282,12 @@ class FloatArrayParameter(FloatParameter):
             default_units of the referenced parameter.  **NOTE**: to provide
             units on the *passed* value, you must send a quantity object (see
             `**kwargs` below).
-        * `component` (string, optional): if interpolating in phases, `component`
-            will be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
-        * `t0` (string/float, optional): if interpolating in phases, `t0` will
-            be passed along to <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `component` (string, optional, default=None): if interpolating in phases,
+            `component` will be passed along to
+            <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `t0` (string/float, optional, default='t0_supconj'): if interpolating
+            in phases, `t0` will be passed along to
+             <phoebe.frontend.bundle.Bundle.to_phase>.
         * `**kwargs`: see examples above, must provide a single
             qualifier-value pair to use for interpolation.  In most cases
             this will probably be time=value or wavelength=value.  If the value
@@ -7045,6 +7320,10 @@ class FloatArrayParameter(FloatParameter):
 
         qualifier, qualifier_interp_value = list(kwargs.items())[0]
 
+        if qualifier in _singular_to_plural.keys():
+            logger.warning("assuming {} instead of {}".format(_singular_to_plural.get(qualifier), qualifier))
+            qualifier = _singular_to_plural.get(qualifier)
+
         if isinstance(qualifier_interp_value, str):
             # then assume its a twig and try to resolve
             # for example: time='t0_supconj'
@@ -7053,8 +7332,6 @@ class FloatArrayParameter(FloatParameter):
         parent_ps = self.get_parent_ps()
 
         if qualifier not in parent_ps.qualifiers and not (qualifier=='phases' and 'times' in parent_ps.qualifiers):
-            # TODO: handle plural to singular (having to say
-            # interp_value(times=5) is awkward)
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
 
         if isinstance(qualifier_interp_value, u.Quantity):
@@ -7067,8 +7344,11 @@ class FloatArrayParameter(FloatParameter):
             if np.any(qualifier_interp_value < times.min()) or np.any(qualifier_interp_value > times.max()):
                 qualifier_interp_value_time = qualifier_interp_value
                 qualifier = 'phases'
-                qualifier_interp_value = self._bundle.to_phase(qualifier_interp_value_time, **{k:v for k,v in kwargs.items() if k in ['component', 't0']})
-                logger.warning("times={} outside of interpolation limits ({} -> {})... attempting to interpolate at phases={}".format(qualifier_interp_value_time, times.min(), times.max(), qualifier_interp_value))
+                qualifier_interp_value = self._bundle.to_phase(qualifier_interp_value_time, component=component, t0=t0)
+
+                qualifier_interp_value_time_str = "({} -> {})".format(min(qualifier_interp_value_time), max(qualifier_interp_value_time)) if hasattr(qualifier_interp_value_time, '__iter__') else qualifier_interp_value_time
+                qualifier_interp_value_str = "({} -> {})".format(min(qualifier_interp_value), max(qualifier_interp_value)) if hasattr(qualifier_interp_value, '__iter__') else qualifier_interp_value
+                logger.warning("times={} outside of interpolation limits ({} -> {}), attempting to interpolate at phases={}".format(qualifier_interp_value_time_str, times.min(), times.max(), qualifier_interp_value_str))
 
 
         if qualifier=='phases':
@@ -7076,7 +7356,7 @@ class FloatArrayParameter(FloatParameter):
                 raise ValueError("cannot interpolate in phase for time-dependent systems")
 
             times = parent_ps.get_value(qualifier='times')
-            phases = self._bundle.to_phase(times, **{k:v for k,v in kwargs.items() if k in ['component', 't0']})
+            phases = self._bundle.to_phase(times, component=component, t0=t0)
 
             sort = phases.argsort()
 
@@ -7192,14 +7472,14 @@ class FloatArrayParameter(FloatParameter):
 
     def __add__(self, other):
         if not (isinstance(other, list) or isinstance(other, np.ndarray)):
-            return super(FloatArrayParameter, self).__add__(self, other)
+            return super(FloatArrayParameter, self).__add__(other)
 
         # then we have a list, so we want to append to the existing value
         return np.append(self.get_value(), np.asarray(other))
 
     def __sub__(self, other):
         if not (isinstance(other, list) or isinstance(other, np.ndarray)):
-            return super(FloatArrayParameter, self).__add__(self, other)
+            return super(FloatArrayParameter, self).__add__(other)
 
         # then we have a list, so we want to append to the existing value
         return np.array([v for v in self.get_value() if v not in other])
@@ -7228,10 +7508,13 @@ class FloatArrayParameter(FloatParameter):
 
         elif isinstance(value, u.Quantity):
             if isinstance(value.value, float) or isinstance(value.value, int):
-                value = np.array([value])
+                value = np.array([value.value])*value.unit
 
         # if isinstance(value, str):
             # value = np.fromstring(value)
+
+        elif isinstance(value, list) or isinstance(value, tuple):
+            value = np.asarray(value)
 
         elif isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
@@ -8193,7 +8476,7 @@ class HierarchyParameter(StringParameter):
 
     def is_binary(self, component):
         """
-        Return whether a given component is part of a contact binary,
+        Return whether a given component is part of a binary system,
         according to the <phoebe.parameters.HierarchyPararameter>.
         This is especially useful for <phoebe.parameters.ConstraintParameter>.
 
@@ -8634,7 +8917,7 @@ class ConstraintParameter(Parameter):
         # logger.debug("ConstraintParameter {} _remove_bookkepping".format(self.twig))
         vars = self.vars + self.addl_vars
         for param in vars.to_list():
-            if param._is_constraint == self.uniqueid:
+            if hasattr(param, '_is_constraint') and param._is_constraint == self.uniqueid:
                 param._is_constraint = None
             if self.uniqueid in param._in_constraints:
                 logger.debug("removing {} from {}.in_constraints".format(self.twig, param.twig))
@@ -8810,16 +9093,31 @@ class ConstraintParameter(Parameter):
                     return True
             return False
 
-        def get_values(vars, safe_label=True):
+        def get_values(vars, safe_label=True, string_safe_arrays=False):
             # use np.float64 so that dividing by zero will result in a
             # np.inf
-            def _single_value(quantity):
-                if self.in_solar_units:
-                    return np.float64(u.to_solar(quantity).value)
-                else:
-                    return np.float64(quantity.si.value)
+            def _single_value(quantity, string_safe_arrays=False):
+                if isinstance(quantity, u.Quantity):
+                    if self.in_solar_units:
+                        v = np.float64(u.to_solar(quantity).value)
+                    else:
+                        v = np.float64(quantity.si.value)
 
-            return {var.safe_label if safe_label else var.user_label: _single_value(var.get_quantity(t=t)) if var.get_parameter()!=self.constrained_parameter else _single_value(var.get_quantity()) for var in vars}
+                    if isinstance(v, np.ndarray) and string_safe_arrays:
+                        v = v.tolist()
+                    return v
+                elif isinstance(quantity, str):
+                    return '\'{}\''.format(quantity)
+                else:
+                    return quantity
+
+            def _value(var, string_safe_arrays=False):
+                if var.get_parameter() != self.constrained_parameter:
+                    return _single_value(var.get_quantity(t=t), string_safe_arrays)
+                else:
+                    return _single_value(var.get_quantity(), string_safe_arrays)
+
+            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays) for var in vars}
 
         eq = self.get_value()
 
@@ -8845,9 +9143,7 @@ class ConstraintParameter(Parameter):
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
 
-                values = get_values(self._vars+self._addl_vars, safe_label=False)
-
-                values = get_values(self._vars+self._addl_vars, safe_label=False)
+                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True)
 
                 # cannot do from builtin import *
                 for func in _constraint_builtin_funcs:
@@ -8859,20 +9155,37 @@ class ConstraintParameter(Parameter):
                     # to the locals dictionary.
                     locals()[func] = getattr(builtin, func)
 
-                try:
-                # if True:
-                    value = float(eval(eq.format(**values)))
-                except ValueError as err:
+                # if eq.split('(')[0] in ['times_to_phases', 'phases_to_times']:
+                    # these require passing the bundle
+                    # values['b'] = self._bundle
+
+                value = eval(eq.format(**values))
+
+                if value is None:
                     if suppress_error:
                         value = np.nan
-                        logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
+                        logger.error("{} constraint returned None".format(self.twig))
                     else:
-                        raise
-                except:
-                    if suppress_error:
-                        value = np.nan
-                    else:
-                        raise
+                        raise ValueError("constraint returned None")
+                else:
+                    try:
+                        value = float(value)
+                    except TypeError as err:
+                        try:
+                            value = np.asarray(value)
+                        except:
+                            if suppress_error:
+                                value = np.nan
+                                logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
+                            else:
+                                raise
+                    except ValueError as err:
+                        if suppress_error:
+                            value = np.nan
+                            logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
+                        else:
+                            raise
+
 
 
             else:

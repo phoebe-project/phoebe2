@@ -2721,7 +2721,7 @@ def list_online_passbands(refresh=False, full_dict=False):
 def get_passband(passband):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.get_passbands> as well as
+    <phoebe.get_passband> as well as
     <phoebe.atmospheres.passbands.get_passband>.
 
     Access a passband object by name.  If the passband isn't installed, it`
