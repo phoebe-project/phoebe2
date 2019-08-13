@@ -6093,9 +6093,10 @@ class ChoiceParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            passed, msg = self._bundle.run_checks(allow_skip_constraints=True)
-            if not passed:
-                # passed is either False (failed) or None (raise Warning)
+            report = self._bundle.run_checks(allow_skip_constraints=True)
+            # passed is either False (failed) or None (raise Warning)
+            for item in report.items:
+                msg = item.message
                 msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                 logger.warning(msg)
 
@@ -6306,10 +6307,10 @@ class SelectParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            passed, msg = self._bundle.run_checks(allow_skip_constraints=True)
-            if not passed:
+            report = self._bundle.run_checks(allow_skip_constraints=True)
+            for item in report.items:
                 # passed is either False (failed) or None (raise Warning)
-                logger.warning(msg)
+                logger.warning(item.message)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
@@ -7151,10 +7152,11 @@ class FloatParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            passed, msg = self._bundle.run_checks(allow_skip_constraints=True)
-            if not passed:
+            report = self._bundle.run_checks(allow_skip_constraints=True)
+            for item in report.items:
                 # passed is either False (failed) or None (raise Warning)
-                if passed is not None:
+                msg = item.message
+                if item.fail:
                     msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                 logger.warning(msg)
 

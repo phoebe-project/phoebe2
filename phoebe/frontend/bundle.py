@@ -73,6 +73,214 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
                          .format(mod, func))
 
 
+class RunChecksItem(object):
+    def __init__(self, b, message, param_uniqueids=[], fail=True):
+        self._b = b
+        self._message = message
+        self._fail = fail
+        self._param_uniqueids = [uid.uniqueid if isinstance(uid, Parameter) else uid for uid in param_uniqueids]
+
+    def __repr__(self):
+        return "<RunChecksItem level={} message={} parameters: {}>".format(self.level, self.message, len(self._param_uniqueids))
+
+    def __str__(self):
+        n_affected_parameters = len(self._param_uniqueids)
+        return "{}: {} ({} affected parameter{})".format(self.level, self.message, n_affected_parameters, "s" if n_affected_parameters else "")
+
+    def to_dict(self):
+        """
+        Return a dictionary representation of the RunChecksItem.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksItem.message>
+        * <phoebe.frontend.bundle.RunChecksItem.fail>
+        * <phoebe.frontend.bundle.RunChecksItem.level>
+        * <phoebe.frontend.bundle.RunChecksItem.parameters>
+
+        Returns
+        ----------
+        * (dict) with keys: 'message', 'level', 'fail', 'parameters'.
+        """
+        return dict(message=self.message,
+                    level=self.level,
+                    fail=self.fail,
+                    parameters={p.twig: p.uniqueid for p in self.parameters.to_list()})
+
+    @property
+    def message(self):
+        """
+        Access the message of the warning/error.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksItem.to_dict>
+
+        Returns
+        ---------
+        * (str) the warning/error message.
+        """
+        return self._message
+
+    @property
+    def fail(self):
+        """
+        Access whether this item will cause the checks to fail (is an error
+        instead of a warning).
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.passed>
+        * <phoebe.frontend.bundle.RunChecksItem.level>
+        * <phoebe.frontend.bundle.RunChecksItem.to_dict>
+
+        Returns
+        ---------
+        * (bool) whether this item is an error that will cause the checks to fail.
+        """
+        return self._fail
+
+    @property
+    def level(self):
+        """
+        Access whether this item is an 'ERROR' or 'WARNING'.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.passed>
+        * <phoebe.frontend.bundle.RunChecksItem.fail>
+        * <phoebe.frontend.bundle.RunChecksItem.to_dict>
+
+        Returns
+        ---------
+        * (str) either "ERROR" or "WARNING"
+        """
+        return "ERROR" if self.fail else "WARNING"
+
+    @property
+    def parameters(self):
+        """
+        Access the parameters that are suggested by the warning/error to address
+        the underlying issue.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksItem.to_dict>
+
+        Returns
+        ----------
+        * <phoebe.parameters.ParameterSet> of parameters
+        """
+        return self._b.filter(uniqueid=self._param_uniqueids,
+                              check_visible=False,
+                              check_default=False)
+
+
+
+
+class RunChecksReport(object):
+    def __init__(self, items=[]):
+        # need to force a copy here otherwise we'll soft copy against previous
+        # instances and get duplicates
+        self._items = items[:]
+
+    def __bool__(self):
+        return self.passed
+
+    def __repr__(self):
+        return "<RunChecksReport {} items: status={}>".format(len(self.items), self.status)
+
+    def __str__(self):
+        """String representation for the ParameterSet."""
+        return "Run Checks Report: {}\n".format(self.status) + "\n".join([str(i) for i in self.items])
+
+    @property
+    def passed(self):
+        """
+        Return whether the checks are passing (as opposed to failing).
+
+        Note that warnings items will not be included when determining if the
+        checks fail.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.status>
+        * <phoebe.frontend.bundle.RunChecksItem.fail>
+        * <phoebe.frontend.bundle.RunChecksItem.level>
+        * <phoebe.frontend.bundle.RunChecksReport.get_items>
+
+        Returns
+        ----------
+        * (bool) whether any failing items are included in the report.
+        """
+        return len(self.get_items(fail=True))==0
+
+    @property
+    def status(self):
+        """
+        Return whether the report results in a status of 'PASS' or 'FAIL'.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.passed>
+
+        Returns
+        ------------
+        * (str) either 'PASS' or 'FAIL'
+        """
+        return "PASS" if self.passed else "FAIL"
+
+    @property
+    def items(self):
+        """
+        Access the underlying <phoebe.frontend.bundle.RunChecksItem> items.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.get_items>
+
+        Returns
+        ---------
+        * (list) list of <phoebe.frontend.bundle.RunChecksItem> objects.
+        """
+        return self._items
+
+    def add_item(self, b, message, param_uniqueids=[], fail=True):
+        """
+        Add a new <phoebe.frontend.bundle.RunChecksItem> to this report.
+        Generally this should not be done manually, but is handled internally
+        by <phoebe.frontend.bundle.Bundle.run_checks>.
+
+        Arguments
+        -----------
+        * `b` (Bundle): the <phoebe.frontend.bundle.Bundle> object
+        * `message` (string): the message of the new item.  See
+            <phoebe.frontend.bundle.RunChecksItem.message>.
+        * `param_uniqueids` (list): list of uniqueids of parameters.
+            See <phoebe.frontend.bundle.RunChecksItem.parameters>.
+        * `fail` (bool, optional, default=True): whether the item should cause
+            the report to have a failing status.  See
+            <phoebe.frontend.bundle.RunChecksItem.fail> and
+            <phoebe.frontend.bundle.RunChecksReport.status>.
+        """
+        self._items.append(RunChecksItem(b, message, param_uniqueids, fail))
+
+    def get_items(self, fail=None):
+        """
+        Access the underlying <phoebe.frontend.bundle.RunChecksItem> items,
+        with optional ability to filter by the `fail` argument of each item.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.items>
+
+        Arguments
+        ----------
+        * `fail` (bool or None, optional, default=None): filter for items
+            with a particular value for `fail` or None to return all.
+            See <phoebe.frontend.bundle.RunChecksItem.fail>.
+
+        Returns
+        ---------
+        * (list) list of <phoebe.frontend.bundle.RunChecksItem> objects.
+        """
+        if fail is None:
+            return self.items
+
+        return [i for i in self.items if i.fail==fail]
+
+
 class Bundle(ParameterSet):
     """Main container class for PHOEBE 2.
 
@@ -817,13 +1025,13 @@ class Bundle(ParameterSet):
         self.run_delayed_constraints()
 
         if not skip_checks:
-            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False)
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
+            report = self.run_checks(compute=compute, allow_skip_constraints=False)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
 
         filename = os.path.expanduser(filename)
         return io.pass_to_legacy(self, filename, compute=compute)
@@ -1821,8 +2029,11 @@ class Bundle(ParameterSet):
 
         Returns
         ----------
-        * (bool, str) whether the checks passed or failed and a message describing
-            the FIRST failure (if applicable).
+        * (<phoebe.frontend.bundle.RunChecksReport>) object containing all
+            errors/warnings.  Print the returned object to see all messages.
+            See also: <phoebe.frontend.bundle.RunChecksReport.passed>,
+             <phoebe.frontend.bundle.RunChecksReport.items>, and
+             <phoebe.frontend.bundle.RunChecksItem.message>.
         """
 
         # make sure all constraints have been run
@@ -1844,9 +2055,12 @@ class Bundle(ParameterSet):
         kwargs.setdefault('check_visible', False)
         kwargs.setdefault('check_default', False)
 
+
+        report = RunChecksReport()
+
         hier = self.hierarchy
         if hier is None:
-            return True, ''
+            return report
 
         hier_stars = hier.get_stars()
         hier_meshables = hier.get_meshables()
@@ -1856,7 +2070,10 @@ class Bundle(ParameterSet):
             comp_ps = self.get_component(component, **_skip_filter_checks)
 
             if not len(comp_ps):
-                return False, "component '{}' in the hierarchy is not in the bundle".format(component)
+                report.add_item(b,
+                                "component '{}' in the hierarchy is not in the bundle".format(component)
+                                [hier],
+                                True)
 
             parent = hier.get_parent_of(component)
             parent_ps = self.get_component(parent, **_skip_filter_checks)
@@ -1866,20 +2083,29 @@ class Bundle(ParameterSet):
                     # contact systems MUST by synchronous
                     if hier.is_contact_binary(component):
                         if self.get_value(qualifier='syncpar', component=component, context='component', **kwargs) != 1.0:
-                            return False,\
-                                'contact binaries must by synchronous, but syncpar@{}!=1'.format(component)
+                            report.add_item(self,
+                                            "contact binaries must be synchronous, but syncpar@{}!=1".format(component),
+                                            [self.get_parameter(qualifier='syncpar', component=component, context='component', **kwargs)],
+                                            True)
 
                         if self.get_value(qualifier='ecc', component=parent, context='component', **kwargs) != 0.0:
-                            return False,\
-                                'contact binaries must by circular, but ecc@{}!=0'.format(component)
+                            # TODO: this can result in duplicate entries in the report
+                            report.add_item(self,
+                                            "contact binaries must be circular, but ecc@{}!=0".format(parent),
+                                            [self.get_parameter(qualifier='ecc', component=parent, context='component', **kwargs)],
+                                            True)
 
                         if self.get_value(qualifier='pitch', component=component, context='component', **kwargs) != 0.0:
-                            return False,\
-                                'contact binaries must be aligned, but pitch@{}!=0.  Try b.set_value(qualifier=\'pitch\', component=\'{}\' value=0.0, check_visible=False) to align.'.format(component, component)
+                            report.add_item(self,
+                                            'contact binaries must be aligned, but pitch@{}!=0.  Try b.set_value(qualifier=\'pitch\', component=\'{}\' value=0.0, check_visible=False) to align.'.format(component, component),
+                                            [self.get_parameter(qualifier='pitch', component=component, context='component', **kwargs)],
+                                            True)
 
                         if self.get_value(qualifier='yaw', component=component, context='component', **kwargs) != 0.0:
-                            return False,\
-                                'contact binaries must be aligned, but yaw@{}!=0.  Try b.set_value(qualifier=\'yaw\', component=\'{}\', value=0.0, check_visible=False) to align.'.format(component, component)
+                            report.add_item(self,
+                                            'contact binaries must be aligned, but yaw@{}!=0.  Try b.set_value(qualifier=\'yaw\', component=\'{}\', value=0.0, check_visible=False) to align.'.format(component, component),
+                                            [self.get_parameter(qualifier='yaw', component=component, context='component', **kwargs)],
+                                            True)
 
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
@@ -1890,23 +2116,31 @@ class Bundle(ParameterSet):
 
                     if hier.is_contact_binary(component):
                         if np.isnan(requiv) or requiv > requiv_max:
-                            return False,\
-                                '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
-
+                            report.add_item(self,
+                                            '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max),
+                                            [requiv, requiv_max],
+                                            True)
 
                         requiv_min = comp_ps.get_value(qualifier='requiv_min')
 
                         if np.isnan(requiv) or requiv <= requiv_min:
-                            return False,\
-                                 '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min)
+                            report.add_item(self,
+                                            '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min),
+                                            [requiv, requiv_min],
+                                            True)
+
                         elif requiv <= requiv_min * 1.001:
-                            return False,\
-                                'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component)
+                            report.add_item(self,
+                                            'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component),
+                                            [requiv, requiv_min, hier],
+                                            True)
 
                     else:
                         if requiv > requiv_max:
-                            return False,\
-                                '{} is overflowing at periastron (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
+                            report.add_item(self,
+                                            '{} is overflowing at periastron (requiv={}, requiv_max={})'.format(component, requiv, requiv_max),
+                                            [requiv, requiv_max],
+                                            True)
 
             else:
                 raise NotImplementedError("checks not implemented for type '{}'".format(kind))
@@ -1949,8 +2183,10 @@ class Bundle(ParameterSet):
                 xrange1 = libphoebe.roche_xrange(q1, F1, 1.0-ecc, pot1+1e-6, choice=0)
 
                 if xrange0[1]+xrange1[1] > 1.0-ecc:
-                    return False,\
-                        'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1])
+                    report.add_item(self,
+                                    'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1]),
+                                    [ecc, F0, F1],
+                                    True)
 
         # run passband checks
         all_pbs = list_passbands(full_dict=True)
@@ -1964,14 +2200,19 @@ class Bundle(ParameterSet):
             for atmparam in self.filter(qualifier='atm', kind='phoebe', **_skip_filter_checks).to_list():
                 atm = atmparam.get_value(**_skip_filter_checks)
                 if atm not in pbatms:
-                    return False, "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig)
+                    report.add_item(self,
+                                    "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
+                                    [pbparam, atmparam],
+                                    True)
+
 
             # check to see if passband timestamp is recent enough for reddening, etc.
             if False: # if reddening is non-zero: and also update timestamp to the release of extinction-ready passbands
                 if installed_pbs[pb]['timestamp'] is None or _timestamp_to_dt(installed_pbs[pb]['timestamp']) < _timestamp_to_dt("Wed Jan 25 12:00:00 2019"):
-                    return False,\
-                        'installed passband "{}" does not support reddening/extinction.  Call phoebe.download_passband("{}") or phoebe.update_all_passbands() to update to the latest version.'.format(pb, pb)
-
+                    report.add_item(self,
+                                    'installed passband "{}" does not support reddening/extinction.  Call phoebe.download_passband("{}") or phoebe.update_all_passbands() to update to the latest version.'.format(pb, pb),
+                                    [pbparam],
+                                    True)
 
         # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
@@ -1992,15 +2233,29 @@ class Bundle(ParameterSet):
             ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
             check = ld_coeffs_len(ld_func, ld_coeffs)
             if not check[0]:
-                return check
+                report.add_item(self,
+                                check[1],
+                                [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                ],
+                                True)
+
 
             check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
             if not check:
-                return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
+                report.add_item(self,
+                                'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
+                                [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                ],
+                                True)
 
             for compute in computes:
                 if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
-                    return False, "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
+                    report.add_item(self,
+                                    "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs)],
+                                    True)
 
             for dataset in self.filter(context='dataset', kind=['lc', 'rv'], check_default=True).datasets:
                 if dataset=='_default':
@@ -2026,22 +2281,49 @@ class Bundle(ParameterSet):
                         else:
                             if atm not in ['ck2004', 'phoenix']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
-                                    return False, "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset)
+                                    report.add_item(self,
+                                                    "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset),
+                                                    [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
+                                                    ],
+                                                    True)
                                 else:
-                                    return False, "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
+                                    report.add_item(self,
+                                                    "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset),
+                                                    [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
+                                                    ],
+                                                    True)
+
 
                 elif ld_mode == 'lookup':
                     if ld_coeffs_source not in all_pbs[pb]['atms_ld'] and ld_coeffs_source != 'auto':
-                        return False, 'passband={} does not support ld_coeffs_source={}.  Either change ld_coeffs_source@{}@{} or ld_mode@{}@{}'.format(pb, ld_coeffs_source, component, dataset, component, dataset)
+                        report.add_item(self,
+                                        'passband={} does not support ld_coeffs_source={}.  Either change ld_coeffs_source@{}@{} or ld_mode@{}@{}'.format(pb, ld_coeffs_source, component, dataset, component, dataset),
+                                        [dataset_ps.get_parameter(qualifier='ld_coeffs_source', component=component, **kwargs),
+                                         dataset_ps.get_parameter(qualifier='ld_mode', component=component **kwargs)
+                                        ],
+                                        True)
+
 
                 elif ld_mode == 'manual':
                     check = ld_coeffs_len(ld_func, ld_coeffs)
                     if not check[0]:
-                        return check
+                        report.add_item(self,
+                                        check[1],
+                                        [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
+                                         dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
+                                        ],
+                                        True)
 
                     check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
                     if not check:
-                        return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
+                        report.add_item(self,
+                                        'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func),
+                                        [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
+                                         dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
+                                        ],
+                                        True)
 
                 else:
                     raise NotImplementedError("checks for ld_mode='{}' not implemented".format(ld_mode))
@@ -2050,9 +2332,16 @@ class Bundle(ParameterSet):
                     for compute in computes:
                         compute_kind = self.get_compute(compute, **_skip_filter_checks).kind
                         if compute_kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
-                            return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
+                            report.add_item(self,
+                                            "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs)],
+                                            True)
+
                         if compute_kind in ['jktebop'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic']:
-                            return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
+                            report.add_item(self,
+                                            "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs)],
+                                            True)
 
 
         def _get_proj_area(comp):
@@ -2075,7 +2364,10 @@ class Bundle(ParameterSet):
             mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
-                    return False, "all (or no) components must use mesh_method='wd'."
+                    report.add_item(self,
+                                    "all (or no) components must use mesh_method='wd'.",
+                                    self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list(),
+                                    True)
 
             # estimate if any body is smaller than any other body's triangles, using a spherical assumption
             if compute_kind=='phoebe' and 'wd' not in mesh_methods:
@@ -2090,12 +2382,23 @@ class Bundle(ParameterSet):
                     if max(triangle_areas.values()) > 2*min(areas.values()):
                         offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 2*min(areas.values())]
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
-                        return False, "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components)
+                        report.add_item(self,
+                                        "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
+                                        self.filter(qualifier='requiv', component=offending_components).to_list()+[
+                                        self.get_parameter(qualifier='ntriangles', compute=compute, **kwargs),
+                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs)],
+                                        True)
+
                     else:
                         # only raise a warning
                         offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 5*min(areas.values())]
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
-                        return None, "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components)
+                        report.add_item(self,
+                                        "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
+                                        self.filter(qualifier='requiv', component=offending_components).to_list()+[
+                                        self.get_parameter(qualifier='ntriangles', compute=compute, **kwargs),
+                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs)],
+                                        False)
 
         # forbid pblum_mode='dataset-coupled' if no other valid datasets
         # forbid pblum_mode='dataset-coupled' with a dataset which is scaled to data or to another that is in-turn color-coupled
@@ -2103,15 +2406,27 @@ class Bundle(ParameterSet):
             coupled_to = self.get_value(qualifier='pblum_dataset', dataset=param.dataset, check_visible=True)
             if coupled_to == '':
                 if param.is_visible:
-                    return False, "cannot set pblum_mode@{}='dataset-coupled' when there are no other valid datasets.  Change pblum_mode or add another dataset.".format(param.dataset)
+                    report.add_item(self,
+                                    "cannot set pblum_mode@{}='dataset-coupled' when there are no other valid datasets.  Change pblum_mode or add another dataset.".format(param.dataset),
+                                    [param],
+                                    True)
+
             pblum_mode = self.get_value(qualifier='pblum_mode', dataset=coupled_to, **_skip_filter_checks)
             if pblum_mode in ['dataset-scaled', 'dataset-coupled']:
-                return False, "cannot set pblum_dataset@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode)
+                report.add_item(self,
+                                "cannot set pblum_dataset@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode),
+                                [param,
+                                self.get_parameter(qualifier='pblum_mode', dataset=coupled_to, **_skip_filter_checks)],
+                                True)
 
         # require any pblum_mode == 'dataset-scaled' to have accompanying data
         for param in self.filter(qualifier='pblum_mode', value='dataset-scaled', **_skip_filter_checks).to_list():
             if not len(self.get_value(qualifier='fluxes', dataset=param.dataset, context='dataset', **_skip_filter_checks)):
-                return False, "fluxes@{} cannot be empty if pblum_mode@{}='dataset-scaled'".format(param.dataset, param.dataset)
+                report.add_item(self,
+                                "fluxes@{} cannot be empty if pblum_mode@{}='dataset-scaled'".format(param.dataset, param.dataset),
+                                [param,
+                                self.get_parameter(qualifier='fluxes', dataset=param.dataset, context='dataset', **_skip_filter_checks)],
+                                True)
 
         ### TODO: add tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
 
@@ -2119,7 +2434,11 @@ class Bundle(ParameterSet):
         try:
             self.run_failed_constraints()
         except:
-            return False, "constraints {} failed to run.  Address errors and try again.  Call run_failed_constraints to see the tracebacks.".format([p.twig for p in self.filter(uniqueid=self._failed_constraints).to_list()])
+            report.add_item(self,
+                            "constraints {} failed to run.  Address errors and try again.  Call run_failed_constraints to see the tracebacks.".format([p.twig for p in self.filter(uniqueid=self._failed_constraints).to_list()]),
+                            self.filter(uniqueid=self._failed_constraints).to_list(),
+                            True)
+
 
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol and irrad_frac_refl_bol
@@ -2128,29 +2447,53 @@ class Bundle(ParameterSet):
             gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component', **kwargs)
 
             if teff >= 8000. and gravb_bol < 0.9:
-                return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
+                report.add_item(self,
+                                "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **kwargs)],
+                                False)
             elif teff <= 6600. and gravb_bol >= 0.9:
-                return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
+                report.add_item(self,
+                                "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **kwargs)],
+                                False)
             elif gravb_bol < 0.32 or gravb_bol > 1.00:
-                return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
+                report.add_item(self,
+                                "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}.".format(component, teff, gravb_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **kwargs)],
+                                False)
 
         for component in hier_stars:
             teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
             irrad_frac_refl_bol = self.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)
 
             if teff >= 8000. and irrad_frac_refl_bol < 0.8:
-                return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which irrad_frac_refl_bol=1.00 might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol)
+                report.add_item(self,
+                                "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which irrad_frac_refl_bol=1.00 might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)],
+                                False)
             elif teff <= 6600. and irrad_frac_refl_bol >= 0.75:
-                return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which irrad_frac_refl_bol=0.6 might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol)
+                report.add_item(self,
+                                "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which irrad_frac_refl_bol=0.6 might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)],
+                                False)
             elif irrad_frac_refl_bol < 0.6:
-                return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), irrad_frac_refl_bol might be better between 0.6-1.00 than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol)
+                report.add_item(self,
+                                "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), irrad_frac_refl_bol might be better between 0.6-1.00 than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)],
+                                False)
 
         # TODO: add other checks
         # - make sure all ETV components are legal
         # - check for conflict between dynamics_method and mesh_method (?)
 
         # we've survived all tests
-        return True, ''
+        # return True, ''
+        return report
 
     def references(self, compute=None, dataset=None):
         """
@@ -4269,13 +4612,13 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
+            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
 
         ld_coeffs_ret = {}
         for ldcs_param in self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components, check_visible=False).to_list():
@@ -4431,13 +4774,13 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
+            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
 
         system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=True, compute_l3_frac=True, **kwargs))
 
@@ -4592,13 +4935,13 @@ class Bundle(ParameterSet):
 
         # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
+            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
 
         # determine datasets which need intensities computed and check to make
         # sure all passed datasets are passband-dependent
@@ -5035,13 +5378,13 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=computes, allow_skip_constraints=False, **kwargs)
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
+            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
 
         # let's first make sure that there is no duplication of enabled datasets
         datasets = []
