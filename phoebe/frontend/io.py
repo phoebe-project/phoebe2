@@ -845,6 +845,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         # disable interpolating ld coefficients
         eb.set_value_all(qualifier='ld_mode', dataset=dataid, value='manual', check_visible=False)
+        eb.set_value_all(qualifier='ld_mode_bol', value='manual', check_visible=False)
 
     #set pblum reference
 
