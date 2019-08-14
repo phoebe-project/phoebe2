@@ -23,6 +23,7 @@ def test_binary(plot=False):
     b.set_value_all('atm', 'extern_planckint')
 
     # turn off limb-darkening:
+    b.set_value_all('ld_mode_bol', 'manual')
     b.set_value_all('ld_func_bol', 'linear')
     b.set_value_all('ld_coeffs_bol', [0.0])
 

@@ -142,7 +142,9 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
                       'fillout_factor', 'pot_min', 'pot_max',
                       'syncpar', 'period', 'pitch', 'yaw', 'incl', 'long_an',
                       'gravb_bol', 'irrad_frac_refl_bol', 'irrad_frac_lost_bol',
-                      'ld_func_bol', 'ld_coeffs_bol', 'mass', 'dpdt', 'per0',
+                      'ld_mode_bol', 'ld_func_bol',
+                      'ld_coeffs_source_bol', 'ld_coeffs_bol',
+                      'mass', 'dpdt', 'per0',
                       'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
                       't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
                       ]
@@ -2218,7 +2220,7 @@ class ParameterSet(object):
                     kwargs[key] = str(kwargs[key])
 
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None) and
-                    (getattr(pi,key)==kwargs[key] or
+                    (getattr(pi,key) is kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
                     (isinstance(kwargs[key],list) and np.any([_fnmatch(getattr(pi,key),keyi) for keyi in kwargs[key]])) or
                     (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and _fnmatch(getattr(pi,key),kwargs[key])) or

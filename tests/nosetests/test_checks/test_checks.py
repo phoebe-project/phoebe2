@@ -34,6 +34,7 @@ def test_checks():
     if not report.passed:
         raise AssertionError(msg)
 
+    b.set_value_all('ld_mode_bol', 'manual')
     b.set_value('ld_coeffs_bol', component='primary', value=[0.])
     report = b.run_checks()
     if report.passed:

@@ -502,7 +502,6 @@ class Bundle(ParameterSet):
             b.remove_parameters_all(context='setting')
             b._attach_params(_setting.settings(**existing_values_settings), context='setting')
 
-
             # overwriting the datasets during migration will clear the model, so
             # let's save a copy and re-attach it after
             ps_model = b.filter(context='model', check_visible=False, check_default=False)
@@ -559,6 +558,15 @@ class Bundle(ParameterSet):
                 logger.warning("migrating '{}' {} dataset.".format(ds, ds_kind))
                 logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
                 b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
+
+            for component in b.filter(context='component', kind='star').components:
+                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component).to_list()}
+                logger.warning("migrating '{}' component".format(component))
+                logger.debug("applying existing values to {} component: {}".format(component, existing_values))
+                b.add_component(kind='star', component=component, overwrite=True, **existing_values)
+
+            # make sure constraints all attach
+            b.set_hierarchy()
 
             logger.debug("restoring previous models")
             b._attach_params(ps_model, context='model')
@@ -2372,26 +2380,39 @@ class Bundle(ParameterSet):
 
         for component in hier_stars:
             # first check ld_coeffs_bol vs ld_func_bol
+            ld_mode = self.get_value(qualifier='ld_mode_bol', component=component, context='component', **kwargs)
             ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', **kwargs))
+            ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source_bol', component=component, context='component', **kwargs)
             ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
-            check = ld_coeffs_len(ld_func, ld_coeffs)
-            if not check[0]:
-                report.add_item(self,
-                                check[1],
-                                [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
-                                 self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
-                                ],
-                                True)
+
+            if ld_mode == 'lookup':
+                if ld_coeffs_source not in all_pbs.get('Bolometric:900-40000', {}).get('atms_ld', []) and ld_coeffs_source != 'auto':
+                    report.add_item(self,
+                                    'passband={} does not support ld_coeffs_source_bol={}.  Either change ld_coeffs_source_bol@{}@component or ld_mode_bol@{}@component'.format(pb, ld_coeffs_source, component, component),
+                                    [self.get_parameter(qualifier='ld_coeffs_source_bol', component=component, context='component', **kwargs),
+                                     self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **kwargs)
+                                    ],
+                                    True)
+            elif ld_mode == 'manual':
+
+                check = ld_coeffs_len(ld_func, ld_coeffs)
+                if not check[0]:
+                    report.add_item(self,
+                                    check[1],
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                    ],
+                                    True)
 
 
-            check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
-            if not check:
-                report.add_item(self,
-                                'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
-                                [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
-                                 self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
-                                ],
-                                True)
+                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+                if not check:
+                    report.add_item(self,
+                                    'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                    ],
+                                    True)
 
             for compute in computes:
                 if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
@@ -2440,7 +2461,7 @@ class Bundle(ParameterSet):
 
 
                 elif ld_mode == 'lookup':
-                    if ld_coeffs_source not in all_pbs[pb]['atms_ld'] and ld_coeffs_source != 'auto':
+                    if ld_coeffs_source not in all_pbs.get('Bolometric:900-40000', {}).get('atms_ld', []) and ld_coeffs_source != 'auto':
                         report.add_item(self,
                                         'passband={} does not support ld_coeffs_source={}.  Either change ld_coeffs_source@{}@{} or ld_mode@{}@{}'.format(pb, ld_coeffs_source, component, dataset, component, dataset),
                                         [dataset_ps.get_parameter(qualifier='ld_coeffs_source', component=component, **kwargs),
@@ -3196,7 +3217,7 @@ class Bundle(ParameterSet):
             self.remove_component(component=kwargs['component'])
             # check the label again, just in case kwargs['component'] belongs to
             # something other than component
-            self._check_label(kwargs['component'], allow_overwrite=False)
+            self.exclude(component=kwargs['component'])._check_label(kwargs['component'], allow_overwrite=False)
 
         self._attach_params(params, **metawargs)
         # attach params called _check_copy_for, but only on it's own parameterset
@@ -3227,7 +3248,9 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, warning_only=True, ps=ret_ps)
+        self._kwargs_checks(kwargs,
+                            additional_allowed_keys=['overwrite'],
+                            warning_only=True, ps=ret_ps)
 
         return ret_ps
 
@@ -4791,9 +4814,10 @@ class Bundle(ParameterSet):
         limb-darkening coefficients **per-element**.
 
         Coefficients will only be interpolated/returned for those where `ld_mode`
-        is 'lookup'.  The values of the `ld_coeffs` parameter will be
-        returned for cases where `ld_mode` is 'manual'.  Cases where
-        `ld_mode` is 'interp' will not be included in the output.
+        (or `ld_mode_bol`)  is 'lookup'.  The values of the `ld_coeffs`
+        (or `ld_coeffs_bol`) parameter will be returned for cases where `ld_mode`
+        is 'manual'.  Cases where `ld_mode` is 'interp' will not be included in
+        the output.
 
         Note:
         * for backends without `atm` compute options, 'ck2004' will be used.
@@ -4807,10 +4831,11 @@ class Bundle(ParameterSet):
             components in the hierarchy.
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
-            datasets attached to the bundle.
+            datasets attached to the bundle.  Include 'bol' to include
+            bolometric (irradiation-only) quantities from `ld_func_bol`.
         * `set_value` (bool, optional, default=False): apply the interpolated
-            values to the respective `ld_coeffs` parameters (even if not
-            currently visible).
+            values to the respective `ld_coeffs`/`ld_coeffs_bol` parameters
+            (even if not currently visible).
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -4824,7 +4849,7 @@ class Bundle(ParameterSet):
             appropriate length given the respective value of `ld_func`).
         """
 
-        datasets = kwargs.pop('dataset', self.datasets)
+        datasets = kwargs.pop('dataset', self.datasets + ['bol'])
         components = kwargs.pop('component', self.components)
 
         # don't allow things like model='mymodel', etc
@@ -4849,45 +4874,60 @@ class Bundle(ParameterSet):
                     logger.warning(item.message)
 
         ld_coeffs_ret = {}
-        for ldcs_param in self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components, check_visible=False).to_list():
-            ld_mode = self.get_value(qualifier='ld_mode', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+        ldcs_params = self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components, check_visible=False).to_list()
+        if 'bol' in datasets:
+            ldcs_params += self.filter(qualifier='ld_coeffs_source_bol', component=components, check_visible=False).to_list()
+
+        for ldcs_param in ldcs_params:
+            is_bol = ldcs_param.context == 'component'
+            bol_suffix = '_bol' if is_bol else ''
+
+            ld_mode = self.get_value(qualifier='ld_mode{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
             if ld_mode == 'interp':
-                logger.debug("skipping computing ld_coeffs for {}@{} because ld_mode='interp'".format(ldcs_param.dataset, ldcs_param.component))
+                logger.debug("skipping computing ld_coeffs{} for {}@{} because ld_mode{}='interp'".format(bol_suffix, ldcs_param.dataset, ldcs_param.component, bol_suffix))
             elif ld_mode == 'manual':
-                ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+                ld_coeffs_ret["{}@{}@{}".format('ld_coeffs{}'.format(bol_suffix), ldcs_param.component, 'component' if is_bol else ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
                 continue
             elif ld_mode == 'lookup':
                 ldcs = ldcs_param.get_value(check_visible=False)
-                ld_func = self.get_value(qualifier='ld_func', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
-                passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, check_visible=False)
+                ld_func = self.get_value(qualifier='ld_func{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+                if is_bol:
+                    passband = 'Bolometric:900-40000'
+                else:
+                    passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, check_visible=False)
 
                 try:
                     atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, check_visible=False)
                 except ValueError:
                     # not all backends have atm as an option
-                    logger.warning("backend compute='{}' has no 'atm' option: falling back on ck2004 for ld_coeffs interpolation".format(compute))
+                    logger.warning("backend compute='{}' has no 'atm' option: falling back on ck2004 for ld_coeffs{} interpolation".format(compute, bol_suffix))
                     atm = 'ck2004'
 
-                if atm in ['extern_atmx', 'extern_planckint']:
-                    ldcs = 'ck2004'
-                else:
-                    ldcs = atm
+                if ldcs == 'auto':
+                    if atm in ['extern_atmx', 'extern_planckint', 'blackbody']:
+                        ldcs = 'ck2004'
+                    else:
+                        ldcs = atm
 
                 logger.info("interpolating {} ld_coeffs for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
                 pb = get_passband(passband)
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', check_visible=False)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', check_visible=False)
                 abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', check_visible=False)
-                photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
+                if is_bol:
+                    photon_weighted = False
+                else:
+                    photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
+
                 ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
 
-                logger.info("interpolated {} ld_coeffs={}".format(ld_func, ld_coeffs))
+                logger.info("interpolated {} ld_coeffs{}={}".format(ld_func, bol_suffix, ld_coeffs))
 
-                ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = ld_coeffs
+                ld_coeffs_ret["ld_coeffs{}@{}@{}".format(bol_suffix, ldcs_param.component, 'component' if is_bol else ldcs_param.dataset)] = ld_coeffs
                 if set_value:
-                    self.set_value(qualifier='ld_coeffs', component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
+                    self.set_value(qualifier='ld_coeffs{}'.format(bol_suffix), component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
             else:
-                raise NotImplementedError("compute_ld_coeffs not implemented for ld_mode='{}'".format(ld_mode))
+                raise NotImplementedError("compute_ld_coeffs not implemented for ld_mode{}='{}'".format(bol_suffix, ld_mode))
 
         return ld_coeffs_ret
 
@@ -5258,6 +5298,11 @@ class Bundle(ParameterSet):
 
     def _compute_necessary_values(self, computeparams):
         compute = computeparams.compute
+
+        if computeparams.kind == 'phoebe':
+            # then all we need to do is handle any ld_mode_bol=='lookup'
+            self.compute_ld_coeffs(compute, dataset=['bol'], set_value=True, skip_checks=True)
+            return
 
         enabled_datasets = computeparams.filter(qualifier='enabled', value=True).datasets
         # handle any limb-darkening interpolation
