@@ -212,16 +212,17 @@ class RunChecksReport(object):
     @property
     def status(self):
         """
-        Return whether the report results in a status of 'PASS' or 'FAIL'.
+        Return whether the report results in a status of 'PASS', 'WARNING',
+        or 'FAIL'.
 
         See also:
         * <phoebe.frontend.bundle.RunChecksReport.passed>
 
         Returns
         ------------
-        * (str) either 'PASS' or 'FAIL'
+        * (str) either 'PASS', 'WARNING', or 'FAIL'
         """
-        return "PASS" if self.passed else "FAIL"
+        return "PASS" if len(self.items)==0 else "WARNING" if self.passed else "FAIL"
 
     @property
     def items(self):
@@ -2126,7 +2127,8 @@ class Bundle(ParameterSet):
                         if np.isnan(requiv) or requiv > requiv_max:
                             report.add_item(self,
                                             '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max),
-                                            [requiv, requiv_max],
+                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
+                                             comp_ps.get_parameter(qualifier='requiv_max', **kwargs)],
                                             True)
 
                         requiv_min = comp_ps.get_value(qualifier='requiv_min')
@@ -2134,20 +2136,24 @@ class Bundle(ParameterSet):
                         if np.isnan(requiv) or requiv <= requiv_min:
                             report.add_item(self,
                                             '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min),
-                                            [requiv, requiv_min],
+                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
+                                             comp_ps.get_parameter(qualifier='requiv_min', **kwargs)],
                                             True)
 
                         elif requiv <= requiv_min * 1.001:
                             report.add_item(self,
                                             'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component),
-                                            [requiv, requiv_min, hier],
+                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
+                                             comp_ps.get_parameter(qualifier='requiv_min', **kwargs),
+                                             hier],
                                             True)
 
                     else:
                         if requiv > requiv_max:
                             report.add_item(self,
                                             '{} is overflowing at periastron (requiv={}, requiv_max={})'.format(component, requiv, requiv_max),
-                                            [requiv, requiv_max],
+                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
+                                             comp_ps.get_parameter(qualifier='requiv_max', **kwargs)],
                                             True)
 
             else:
@@ -2255,21 +2261,21 @@ class Bundle(ParameterSet):
                 check = ld_coeffs_len(ld_func, ld_coeffs)
                 if not check[0]:
                     report.add_item(self,
-                                check[1],
-                                [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
-                                 self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
-                                ],
-                                True)
+                                    check[1],
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                    ],
+                                    True)
 
 
-            check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
-            if not check:
-                report.add_item(self,
-                                'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
-                                [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
-                                 self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
-                                ],
-                                True)
+                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+                if not check:
+                    report.add_item(self,
+                                    'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                    ],
+                                    True)
 
             for compute in computes:
                 if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
