@@ -6486,7 +6486,9 @@ class SelectParameter(Parameter):
         * <phoebe.parameters.SelectParameter.set_value>
         """
         value = [v for v in self.get_value() if self.valid_selection(v)]
+        changed = value != self.get_value()
         self.set_value(value, run_checks=False)
+        return changed
 
     def __add__(self, other):
         if isinstance(other, str):

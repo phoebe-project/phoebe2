@@ -1590,15 +1590,20 @@ class Bundle(ParameterSet):
             self.enable_history()
 
     def _update_atm_choices(self):
+        # affected_params = []
         for param in self.filter(qualifier='atm', kind='phoebe',
                                  check_visible=False, check_default=False).to_list():
             param._choices = _compute._atm_choices
+            # affected_params.append(param)
 
-    def _handle_pblum_defaults(self):
+        # return affected_params
+
+    def _handle_pblum_defaults(self, return_changes=False):
         """
         """
         logger.debug("calling _handle_pblum_defaults")
 
+        affected_params = []
         changed_params = self.run_delayed_constraints()
 
         hier = self.get_hierarchy()
@@ -1616,10 +1621,14 @@ class Bundle(ParameterSet):
 
             if param.value == '' and len(param._choices):
                 param.set_value(param._choices[0])
+                if return_changes:
+                    affected_params.append(param)
 
             if not len(param._choices):
                 param._choices = ['']
                 param.set_value('')
+                if return_changes:
+                    affected_params.append(param)
 
         for param in self.filter(qualifier='pblum_component',
                                  context='dataset',
@@ -1631,11 +1640,17 @@ class Bundle(ParameterSet):
             if param.value == '':
                 param.set_value(starrefs[0])
 
-    def _handle_dataset_selectparams(self):
+            if return_changes:
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_dataset_selectparams(self, return_changes=False):
         """
         """
         logger.debug("calling _handle_dataset_selectparams")
 
+        affected_params = []
         changed_param = self.run_delayed_constraints()
 
         dss_ps = self.filter(context='dataset', check_default=False, check_visible=False)
@@ -1657,28 +1672,48 @@ class Bundle(ParameterSet):
         t0s += ["t0@system"]
 
         for param in dss_ps.filter(qualifier='columns', check_default=False, check_visible=False).to_list():
-
+            choices_changed = False
+            if return_changes and pbdep_columns != param._choices:
+                affected_params.append(param)
+                choices_changed = True
             param._choices = pbdep_columns
-            param.remove_not_valid_selections()
+            changed = param.remove_not_valid_selections()
+            if return_changes and changed and not choices_changed:
+                affected_params.append(param)
 
         for param in dss_ps.filter(qualifier='include_times', check_default=False, check_visible=False).to_list():
 
             # NOTE: existing value is updated in change_component
+            choices_changed = False
+            if return_changes and time_datasets+t0s != param._choices:
+                affected_params.append(param)
+                choices_changed = True
             param._choices = time_datasets + t0s
-            param.remove_not_valid_selections()
+            changed = param.remove_not_valid_selections()
+            if return_changes and changed and not choices_changed:
+                affected_params.append(param)
 
-    def _handle_compute_selectparams(self):
+        return affected_params
+
+    def _handle_compute_selectparams(self, return_changes=False):
         """
         """
+        affected_params = []
         changed_params = self.run_delayed_constraints()
 
         computes = self.filter(context='compute', check_default=False, check_visible=False).computes
 
         for param in self.filter(qualifier='run_checks_compute', check_default=False, check_visible=False).to_list():
+            choices_changed = False
+            if return_changes and compute != param._choices:
+                affected_params.append(param)
+                choices_changed = True
             param._choices = computes
-            param.remove_not_valid_selections()
+            changed = param.remove_not_valid_selections()
+            if return_changes and changed and not choices_changed:
+                affected_params.append(param)
 
-
+        return affected_params
 
     def set_hierarchy(self, *args, **kwargs):
         """
