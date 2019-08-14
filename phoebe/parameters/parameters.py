@@ -328,7 +328,7 @@ def _instance_in(obj, *types):
     return False
 
 def _fnmatch(to_this, expression_or_string):
-    if '*' in expression_or_string or '?' in expression_or_string:
+    if isinstance(expression_or_string, str) and ('*' in expression_or_string or '?' in expression_or_string):
         return fnmatch(to_this, expression_or_string)
     else:
         return expression_or_string == to_this
