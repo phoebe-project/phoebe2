@@ -198,7 +198,7 @@ def star(component, **kwargs):
 
     # also see constraint below
     params += [FloatParameter(qualifier='irrad_frac_refl_bol', value=kwargs.get('irrad_frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
-    params += [FloatParameter(qualifier='irrad_frac_lost_bol', value=kwargs.get('irrad_frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
+    params += [FloatParameter(qualifier='irrad_frac_lost_bol', value=kwargs.get('irrad_frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), advanced=True, description='ratio of incident bolometric light that is lost/ignored')]
 
     params += [ChoiceParameter(qualifier='ld_mode_bol',
                                value=kwargs.get('ld_mode_bol', 'lookup'), choices=['lookup', 'manual'],
