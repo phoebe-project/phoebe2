@@ -67,9 +67,9 @@ def orbit(component, **kwargs):
     """
     params = []
 
-    params += [FloatParameter(qualifier='period', timederiv='dpdt', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), advanced=True, description='Orbital period')]
+    params += [FloatParameter(qualifier='period', timederiv='dpdt', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Orbital period')]
     params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi/3.0), default_unit=u.rad/u.d, advanced=True, description='Orbital frequency')]
-    params += [FloatParameter(qualifier='dpdt', value=kwargs.get('dpdt', 0.0), default_unit=u.s/u.yr, description='Time derivative of orbital period')]
+    params += [FloatParameter(qualifier='dpdt', value=kwargs.get('dpdt', 0.0), default_unit=u.s/u.yr, advanced=True, description='Time derivative of orbital period')]
     params += [FloatParameter(qualifier='per0', timederiv='dperdt', value=kwargs.get('per0', 0.0), default_unit=u.deg, description='Argument of periastron')]
     params += [FloatParameter(qualifier='dperdt', value=kwargs.get('dperdt', 0.0), default_unit=u.deg/u.yr, advanced=True, description='Periastron change')]
     params += [FloatParameter(qualifier='ecc', timederiv='deccdt', value=kwargs.get('ecc', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,0.999999), description='Eccentricity')]
@@ -180,7 +180,7 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='logg', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')]
 
     params += [FloatParameter(qualifier='syncpar', visible_if='hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
-    params += [FloatParameter(qualifier='period', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
+    params += [FloatParameter(qualifier='period', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), advanced=True, description='Rotation period')]
     params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), advanced=True, description='Rotation frequency')]
 
     params += [FloatParameter(qualifier='pitch', visible_if='hierarchy.is_contact_binary:False,hierarchy.is_binary:True', value=kwargs.get('pitch', 0), default_unit=u.deg, advanced=True, description='Pitch of the stellar rotation axis wrt the orbital inclination')]
