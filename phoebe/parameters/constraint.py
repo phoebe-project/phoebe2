@@ -1693,7 +1693,7 @@ def comp_sma(b, component, solve_for=None, **kwargs):
 
     metawargs = component_ps.meta
     metawargs.pop('qualifier')
-    compsma_def = FloatParameter(qualifier='sma', value=4.0, default_unit=u.solRad, description='Semi major axis of the component in the orbit')
+    compsma_def = FloatParameter(qualifier='sma', value=4.0, default_unit=u.solRad, advanced=True, description='Semi major axis of the component in the orbit')
     compsma, created = b.get_or_create('sma', compsma_def, **metawargs)
 
     sma = parentorbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
