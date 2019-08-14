@@ -2124,19 +2124,19 @@ class Bundle(ParameterSet):
 
 
                     if hier.is_contact_binary(component):
+                        requiv_min = comp_ps.get_value(qualifier='requiv_min')
+
                         if np.isnan(requiv) or requiv > requiv_max:
                             report.add_item(self,
-                                            '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max),
+                                            '{} is overflowing at L2/L3 (requiv={}, requiv_min={}, requiv_max={})'.format(component, requiv, requiv_min, requiv_max),
                                             [comp_ps.get_parameter(qualifier='requiv', **kwargs),
                                              comp_ps.get_parameter(qualifier='requiv_max', **kwargs),
                                              parent_ps.get_parameter(qualifier='sma', **kwargs)],
                                             True)
 
-                        requiv_min = comp_ps.get_value(qualifier='requiv_min')
-
                         if np.isnan(requiv) or requiv <= requiv_min:
                             report.add_item(self,
-                                            '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min),
+                                            '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={}, requiv_max={})'.format(component, requiv, requiv_min, requiv_max),
                                             [comp_ps.get_parameter(qualifier='requiv', **kwargs),
                                              comp_ps.get_parameter(qualifier='requiv_min', **kwargs),
                                              parent_ps.get_parameter(qualifier='sma', **kwargs)],
@@ -2154,10 +2154,11 @@ class Bundle(ParameterSet):
                     else:
                         if requiv > requiv_max:
                             report.add_item(self,
-                                            '{} is overflowing at periastron (requiv={}, requiv_max={})'.format(component, requiv, requiv_max),
+                                            '{} is overflowing at periastron (requiv={}, requiv_max={}).  Use contact model if overflowing is desired.'.format(component, requiv, requiv_max),
                                             [comp_ps.get_parameter(qualifier='requiv', **kwargs),
                                              comp_ps.get_parameter(qualifier='requiv_max', **kwargs),
-                                             parent_ps.get_parameter(qualifier='sma', **kwargs)],
+                                             parent_ps.get_parameter(qualifier='sma', **kwargs),
+                                             hier],
                                             True)
 
             else:
