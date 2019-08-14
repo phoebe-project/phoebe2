@@ -2418,7 +2418,8 @@ class Bundle(ParameterSet):
                 if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
                     report.add_item(self,
                                     "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
-                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs)],
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
                                     True)
 
             for dataset in self.filter(context='dataset', kind=['lc', 'rv'], check_default=True).datasets:
@@ -2448,14 +2449,16 @@ class Bundle(ParameterSet):
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset),
                                                     [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
-                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs),
+                                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)
                                                     ],
                                                     True)
                                 else:
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset),
                                                     [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
-                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs),
+                                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)
                                                     ],
                                                     True)
 
@@ -2498,13 +2501,15 @@ class Bundle(ParameterSet):
                         if compute_kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
                             report.add_item(self,
                                             "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
-                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs)],
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
+                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
                                             True)
 
                         if compute_kind in ['jktebop'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic']:
                             report.add_item(self,
                                             "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
-                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs)],
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
+                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
                                             True)
 
 
@@ -2530,7 +2535,7 @@ class Bundle(ParameterSet):
                 if len(set(mesh_methods)) > 1:
                     report.add_item(self,
                                     "all (or no) components must use mesh_method='wd'.",
-                                    self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list(),
+                                    self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()+[self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
                                     True)
 
             # estimate if any body is smaller than any other body's triangles, using a spherical assumption
@@ -2550,7 +2555,8 @@ class Bundle(ParameterSet):
                                         "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
                                         self.filter(qualifier='requiv', component=offending_components).to_list()+[
                                         self.get_parameter(qualifier='ntriangles', compute=compute, **kwargs),
-                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs)],
+                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs),
+                                        self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
                                         True)
 
                     else:
@@ -2561,7 +2567,8 @@ class Bundle(ParameterSet):
                                         "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
                                         self.filter(qualifier='requiv', component=offending_components).to_list()+[
                                         self.get_parameter(qualifier='ntriangles', compute=compute, **kwargs),
-                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs)],
+                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs).
+                                        self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
                                         False)
 
         # forbid pblum_mode='dataset-coupled' if no other valid datasets
