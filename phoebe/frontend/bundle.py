@@ -2467,7 +2467,29 @@ class Bundle(ParameterSet):
                                 self.get_parameter(qualifier='fluxes', dataset=param.dataset, context='dataset', **_skip_filter_checks)],
                                 True)
 
-        ### TODO: add tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
+        # tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
+        for param in self.filter(qualifier=['times', 'fluxes', 'rvs', 'sigmas', 'wavelengths', 'flux_densities'], context='dataset', **_skip_filter_checks).to_list():
+            shape = param.get_value().shape
+            if len(shape) > 1:
+                report.add_item(self,
+                                "{}@{} must be a flat array, got shape {}".format(param.qualifier, param.dataset, shape),
+                                [param],
+                                True)
+
+            if param.qualifier in ['fluxes', 'rvs', 'sigmas'] and shape[0] > 0 and shape[0] != self.get_value(qualifier='times', dataset=param.dataset, component=param.component, **_skip_filter_checks).shape[0]:
+                tparam = self.get_parameter(qualifier='times', dataset=param.dataset, component=param.component, **_skip_filter_checks)
+                report.add_item(self,
+                                "{} must be of same length as {}".format(param.twig, tparam.twig),
+                                [param, tparam],
+                                True)
+
+            if param.qualifier in ['flux_densities'] and shape[0] > 0 and shape[0] != self.get_value(qualifier='wavelengths', dataset=param.dataset, component=param.component, time=param.time, **_skip_filter_checks).shape[0]:
+                wparam = self.get_parameter(qualifier='wavelengths', dataset=param.dataset, component=param.component, time=param.time, **_skip_filter_checks)
+                report.add_item(self,
+                                "{}@{}@{} must be of same length as {}@{}".format(param.twig, wparam.twig),
+                                [param, wparam],
+                                True)
+
 
 
         try:
