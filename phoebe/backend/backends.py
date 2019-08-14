@@ -671,6 +671,7 @@ class PhoebeBackend(BaseBackendByTime):
 
         # if ld_mode_bol is lookup, we need to pre-compute those and store
         # them in the (hidden) ld_coeffs_bol parameters
+        # TODO [optimize]: skip this if irrad_method is 'none' or albedos are 0?
         b._compute_necessary_values(computeparams)
 
         do_horizon = False #computeparams.get_value(qualifier='horizon', **kwargs)

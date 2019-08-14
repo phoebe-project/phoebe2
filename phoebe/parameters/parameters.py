@@ -2125,7 +2125,7 @@ class ParameterSet(object):
                     kwargs[key] = str(kwargs[key])
 
                 params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None) and
-                    (getattr(pi,key)==kwargs[key] or
+                    (getattr(pi,key) is kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
                     (isinstance(kwargs[key],list) and np.any([_fnmatch(getattr(pi,key),keyi) for keyi in kwargs[key]])) or
                     (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and _fnmatch(getattr(pi,key),kwargs[key])) or
