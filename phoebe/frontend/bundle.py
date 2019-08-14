@@ -2249,7 +2249,7 @@ class Bundle(ParameterSet):
             ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
 
             if ld_mode == 'lookup':
-                if ld_coeffs_source not in all_pbs['Bolometric:900-40000']['atms_ld'] and ld_coeffs_source != 'auto':
+                if ld_coeffs_source not in all_pbs.get('Bolometric:900-40000', {}).get('atms_ld', []) and ld_coeffs_source != 'auto':
                     report.add_item(self,
                                     'passband={} does not support ld_coeffs_source_bol={}.  Either change ld_coeffs_source_bol@{}@component or ld_mode_bol@{}@component'.format(pb, ld_coeffs_source, component, component),
                                     [self.get_parameter(qualifier='ld_coeffs_source_bol', component=component, context='component', **kwargs),
@@ -2324,7 +2324,7 @@ class Bundle(ParameterSet):
 
 
                 elif ld_mode == 'lookup':
-                    if ld_coeffs_source not in all_pbs[pb]['atms_ld'] and ld_coeffs_source != 'auto':
+                    if ld_coeffs_source not in all_pbs.get('Bolometric:900-40000', {}).get('atms_ld', []) and ld_coeffs_source != 'auto':
                         report.add_item(self,
                                         'passband={} does not support ld_coeffs_source={}.  Either change ld_coeffs_source@{}@{} or ld_mode@{}@{}'.format(pb, ld_coeffs_source, component, dataset, component, dataset),
                                         [dataset_ps.get_parameter(qualifier='ld_coeffs_source', component=component, **kwargs),
