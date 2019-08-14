@@ -308,7 +308,7 @@ def _param_json_overview(param):
     advanced_filter = []
     if not param.is_visible:
         advanced_filter.append('not_visible')
-    if '_default' in [param.component, param.dataset]:
+    if '_default' in [param.component, param.dataset, param.feature]:
         advanced_filter.append('is_default')
     if param.advanced:
         advanced_filter.append('is_advanced')
@@ -551,9 +551,13 @@ def bundle(bundleid):
 
     tags = {k: _sort_tags(k, v) for k,v in b.tags.items()}
 
-    failed_constraints = _get_failed_constraints(b)
+    # failed_constraints = _get_failed_constraints(b)
+    info = _run_checks(b, bundleid, do_emit=False)
+    info['success'] = True
+    info['parameters'] = param_dict
+    info['tags'] = tags
 
-    return _get_response({'success': True, 'parameters': param_dict, 'tags': tags, 'failed_constraints': failed_constraints}, api=True)
+    return _get_response(info, api=True)
 
 @app.route('/parameter/<string:bundleid>/<string:uniqueid>', methods=['GET'])
 @crossdomain(origin='*')
@@ -678,6 +682,27 @@ def deregister_client(msg):
     bundle_memory_cleanup()
 
 ########## BUNDLE METHODS
+def _run_checks(b, bundleid, do_emit=True):
+    report = b.run_checks()
+
+    if do_emit:
+        emit('{}:checks:react'.format(bundleid), {'success': True, 'checks_status': report.status, 'checks_report': [item.to_dict() for item in report.items]}, broadcast=True)
+
+    try:
+        b.run_failed_constraints()
+    except Exception as err:
+        emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': err.message}, broadcast=False)
+    # if len(b._failed_constraints):
+        # msg = 'Constraints for the following parameters failed to run: {}.  Affected values will not be updated until the constraints can succeed.'.format(', '.join([b.get_parameter(uniqueid=c, check_visible=False).constrained_parameter.uniquetwig for c in b._failed_constraints]))
+        # emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
+
+    failed_constraints = _get_failed_constraints(b)
+    if do_emit:
+        emit('{}:failed_constraints:react'.format(bundleid), {'failed_constraints': failed_constraints}, broadcast=True)
+
+    return {'checks_status': report.status, 'checks_report': [item.to_dict() for item in report.items], 'failed_constraints': failed_constraints}
+
+
 @socketio.on('set_value')
 def set_value(msg):
     if app._verbose:
@@ -739,21 +764,7 @@ def set_value(msg):
 
             emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
 
-            passed, msg = b.run_checks()
-            if not passed:
-                emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
-
-            # try:
-            #     b.run_failed_constraints()
-            # except Exception as err:
-            #     emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': err.message}, broadcast=False)
-            if len(b._failed_constraints):
-                msg = 'Constraints for the following parameters failed to run: {}.  Affected values will not be updated until the constraints can succeed.'.format(', '.join([b.get_parameter(uniqueid=c, check_visible=False).constrained_parameter.uniquetwig for c in b._failed_constraints]))
-                emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
-
-            failed_constraints = _get_failed_constraints(b)
-            emit('{}:failed_constraints:react'.format(bundleid), {'failed_constraints': failed_constraints}, broadcast=True)
-
+            _run_checks(b, bundleid)
 
         if 'python' in client_types:
             ps_dict = {p.uniqueid: {'value': p.to_json()['value']} for p in ps_list}
@@ -887,6 +898,8 @@ def bundle_method(msg):
             packet['add_filter'] = {method.split('_')[1]: getattr(ps, method.split('_')[1])}
 
         emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
+
+        _run_checks(b, bundleid)
 
     if 'python' in client_types:
         ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}

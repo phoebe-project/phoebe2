@@ -177,7 +177,9 @@ class RunChecksItem(object):
         """
         return self._b.filter(uniqueid=self._param_uniqueids,
                               check_visible=False,
-                              check_default=False)
+                              check_default=False,
+                              check_advanced=False,
+                              check_single=False)
 
 
 
