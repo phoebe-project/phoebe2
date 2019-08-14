@@ -2128,7 +2128,8 @@ class Bundle(ParameterSet):
                             report.add_item(self,
                                             '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max),
                                             [comp_ps.get_parameter(qualifier='requiv', **kwargs),
-                                             comp_ps.get_parameter(qualifier='requiv_max', **kwargs)],
+                                             comp_ps.get_parameter(qualifier='requiv_max', **kwargs),
+                                             parent_ps.get_parameter(qualifier='sma', **kwargs)],
                                             True)
 
                         requiv_min = comp_ps.get_value(qualifier='requiv_min')
@@ -2137,7 +2138,8 @@ class Bundle(ParameterSet):
                             report.add_item(self,
                                             '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min),
                                             [comp_ps.get_parameter(qualifier='requiv', **kwargs),
-                                             comp_ps.get_parameter(qualifier='requiv_min', **kwargs)],
+                                             comp_ps.get_parameter(qualifier='requiv_min', **kwargs),
+                                             parent_ps.get_parameter(qualifier='sma', **kwargs)],
                                             True)
 
                         elif requiv <= requiv_min * 1.001:
@@ -2145,6 +2147,7 @@ class Bundle(ParameterSet):
                                             'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component),
                                             [comp_ps.get_parameter(qualifier='requiv', **kwargs),
                                              comp_ps.get_parameter(qualifier='requiv_min', **kwargs),
+                                             parent_ps.get_parameter(qualifier='sma', **kwargs),
                                              hier],
                                             True)
 
@@ -2153,7 +2156,8 @@ class Bundle(ParameterSet):
                             report.add_item(self,
                                             '{} is overflowing at periastron (requiv={}, requiv_max={})'.format(component, requiv, requiv_max),
                                             [comp_ps.get_parameter(qualifier='requiv', **kwargs),
-                                             comp_ps.get_parameter(qualifier='requiv_max', **kwargs)],
+                                             comp_ps.get_parameter(qualifier='requiv_max', **kwargs),
+                                             parent_ps.get_parameter(qualifier='sma', **kwargs)],
                                             True)
 
             else:
