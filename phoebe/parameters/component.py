@@ -211,6 +211,7 @@ def star(component, **kwargs):
 
     params += [ChoiceParameter(visible_if='ld_mode_bol:lookup', qualifier='ld_coeffs_source_bol',
                                value=kwargs.get('ld_coeffs_source_bol', 'auto'), choices=_ld_coeffs_source_choices,
+                               advanced=True,
                                description='Source for bolometric limb darkening coefficients (\'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
 
 

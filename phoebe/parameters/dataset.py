@@ -177,6 +177,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [ChoiceParameter(visible_if='ld_mode:lookup', qualifier='ld_coeffs_source',
                                    copy_for={'kind': ['star'], 'component': '*'}, component='_default',
                                    value=kwargs.get('ld_coeffs_source', 'auto'), choices=_ld_coeffs_source_choices,
+                                   advanced=True,
                                    description='Source for limb darkening coefficients (\'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
         params += [FloatArrayParameter(visible_if='ld_mode:manual', qualifier='ld_coeffs',
                                        copy_for={'kind': ['star'], 'component': '*'}, component='_default',
@@ -200,7 +201,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
                                    description='Mode for scaling passband luminosities')]
 
         # pblum_mode = 'component-coupled' or 'decoupled'
-        params += [ChoiceParameter(visible_if='pblum_mode:component-coupled', qualifier='pblum_component', value=kwargs.get('pblum_component', ''), choices=kwargs.get('starrefs', ['']), description='Which component\'s pblum will be provided')]
+        params += [ChoiceParameter(visible_if='pblum_mode:component-coupled', qualifier='pblum_component', value=kwargs.get('pblum_component', ''), choices=kwargs.get('starrefs', ['']), advanced=True, description='Which component\'s pblum will be provided')]
         params += [FloatParameter(qualifier='pblum', visible_if='[component]pblum_mode:decoupled||[component]pblum_mode:component-coupled,[component]pblum_component:<component>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
 
         # pblum_mode = 'dataset-coupled'
