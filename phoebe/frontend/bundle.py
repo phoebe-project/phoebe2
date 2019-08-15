@@ -5640,6 +5640,9 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
             pass checks.
+        * `max_computations` (int, optional, default=None): maximum
+            number of computations to allow.  If more are detected, an error
+            will be raised before the backend begins computations.
         * `**kwargs`:: any values in the compute options to temporarily
             override for this single compute run (parameter values will revert
             after run_compute is finished)
@@ -5740,7 +5743,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
@@ -5785,6 +5788,18 @@ class Bundle(ParameterSet):
                 # through the script.  May need to convert to list first to
                 # avoid needing to import numpy?
                 logger.warning("overriding time is not supported within detach - ignoring")
+
+            if kwargs.get('max_computations', None) is not None:
+                # then we need to estimate computations in advance so we can
+                # raise an error immediately
+                logger.info("estimating number of computations to ensure not over max_computations={}".format(kwargs['max_computations']))
+                for compute in computes:
+                    computeparams = self.get_compute(compute=compute)
+
+                    if not computeparams.kind:
+                        raise KeyError("could not recognize backend from compute: {}".format(compute))
+                    compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
+                    out = compute_class().get_packet_and_syns(self, compute, times=times, **kwargs)
 
             # we'll track everything through the model name as well as
             # a random string, to avoid any conflicts

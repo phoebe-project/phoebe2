@@ -865,6 +865,12 @@ def bundle_method(msg):
 
     method = msg.pop('method')
 
+    if method in ['run_compute']:
+        # TODO: have this be a environment variable or flag at the top-level?
+        # forbid expensive computations on this server
+        msg['max_computations'] = 100
+        msg['detach'] = True
+
     try:
         ps = getattr(b, method)(**msg)
         ps_list = ps.to_list() if hasattr(ps, 'to_list') else [ps] if isinstance(ps, phoebe.parameters.Parameter) else []
