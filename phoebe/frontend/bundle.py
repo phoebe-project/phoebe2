@@ -2327,12 +2327,19 @@ class Bundle(ParameterSet):
 
                     else:
                         if requiv > requiv_max:
+                            params = [comp_ps.get_parameter(qualifier='requiv', **kwargs),
+                                     comp_ps.get_parameter(qualifier='requiv_max', **kwargs),
+                                     parent_ps.get_parameter(qualifier='sma', **kwargs)]
+
+                            if parent_ps.get_value(qualifier='ecc', **kwargs) > 0.0:
+                                params += [parent_ps.get_parameter(qualifier='ecc', **kwargs)]
+
+                            if len(b.filter(kind='envelope', context='component', **_skip_filter_checks)):
+                                params += [hier]
+
                             report.add_item(self,
                                             '{} is overflowing at periastron (requiv={}, requiv_max={}).  Use contact model if overflowing is desired.'.format(component, requiv, requiv_max),
-                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
-                                             comp_ps.get_parameter(qualifier='requiv_max', **kwargs),
-                                             parent_ps.get_parameter(qualifier='sma', **kwargs),
-                                             hier],
+                                            params,
                                             True)
 
             else:
