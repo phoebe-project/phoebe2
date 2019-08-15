@@ -576,7 +576,7 @@ def parameter(bundleid, uniqueid):
     app._last_access_per_bundle[bundleid] = datetime.now()
 
     try:
-        param = b.get_parameter(uniqueid=uniqueid, check_visible=False, check_advanced=False, check_default=False)
+        param = b.get_parameter(uniqueid=str(uniqueid), check_visible=False, check_advanced=False, check_default=False)
     except:
         return _get_response({'success': False, 'error': 'could not find parameter with uniqueid={}'.format(uniqueid)}, api=True)
 
@@ -872,6 +872,9 @@ def bundle_method(msg):
         # forbid expensive computations on this server
         msg['max_computations'] = 100
         msg['detach'] = True
+    elif method in ['attach_job']:
+        msg['wait'] = False
+        # msg['cleanup'] = False
 
     try:
         ps = getattr(b, method)(**msg)
@@ -902,7 +905,7 @@ def bundle_method(msg):
 
         packet = {'success': True, 'parameters': param_dict}
 
-        if method.split('_')[0] in ['add', 'remove', 'rename']:
+        if method.split('_')[0] not in []:
             # if we added new parameters, then the tags likely have changed
             packet['tags'] = {k: _sort_tags(k, v) for k,v in b.tags.items()}
 
@@ -910,6 +913,9 @@ def bundle_method(msg):
 
         if method.split('_')[0] == 'add':
             packet['add_filter'] = {method.split('_')[1]: getattr(ps, method.split('_')[1])}
+        elif method.split('_')[0] == 'run':
+            new_context = {'compute': 'model'}[method.split('_')[1]]
+            packet['add_filter'] = {new_context: getattr(ps, new_context)}
 
         emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
 
@@ -923,7 +929,7 @@ def bundle_method(msg):
 
         emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
 
-
+    app._bundles[bundleid] = b
 
 
 

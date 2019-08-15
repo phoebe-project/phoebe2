@@ -5724,7 +5724,10 @@ class Bundle(ParameterSet):
 
         # handle the ability to send multiple compute options/backends - here
         # we'll just always send a list of compute options
-        if isinstance(compute, str) or isinstance(compute, unicode):
+        if isinstance(compute, unicode):
+            compute = str(compute)
+
+        if isinstance(compute, str):
             computes = [compute]
         else:
             computes = compute

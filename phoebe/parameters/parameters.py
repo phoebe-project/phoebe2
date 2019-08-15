@@ -4528,7 +4528,7 @@ class Parameter(object):
             <phoebe.parameters.Parameter.is_visible>
         """
 
-        uniqueid = kwargs.get('uniqueid', _uniqueid())
+        uniqueid = str(kwargs.get('uniqueid', _uniqueid()))
         bundle = kwargs.get('bundle', None)
 
         self._in_constraints = []   # labels of constraints that have this parameter in the expression
@@ -9949,10 +9949,19 @@ class JobParameter(Parameter):
 
         Arguments
         ---------
+        * `wait` (bool, optional, default=True): whether to wait until the job
+            is complete.
         * `sleep` (int, optional, default=5): number of seconds to sleep between
             status checks.  See <phoebe.parameters.JobParameter.get_status>.
+            Only applicable if `wait` is True.
         * `cleanup` (bool, optional, default=True): whether to delete this
             parameter and any temporary files once the results are loaded.
+
+        Returns
+        ---------
+        * ParameterSet of newly attached parameters (if attached or already
+            loaded) or this Parameter with an updated status if `wait` is False
+            and the Job is not completed.
 
         Raises
         -----------
@@ -9967,9 +9976,10 @@ class JobParameter(Parameter):
         if not wait and status!='complete':
             if status in ['loaded']:
                 logger.info("job already loaded")
+                return self._bundle.get_model(self.model)
             else:
                 logger.info("current status: {}, check again or use wait=True".format(status))
-            return status
+                return self
 
 
         while self.get_status() not in ['complete', 'loaded']:
