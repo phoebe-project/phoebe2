@@ -6097,3 +6097,34 @@ class Bundle(ParameterSet):
 
         self._check_label(new_model)
         self._rename_label('model', old_model, new_model)
+
+    def attach_job(self, twig=None, wait=True, sleep=5, cleanup=True, **kwargs):
+        """
+        Attach the results from an existing <phoebe.parameters.JobParameter>.
+
+        Jobs are created when passing `detach=True` to
+        <phoebe.frontend.bundle.Bundle.run_compute>.
+
+        See also:
+        * <phoebe.parameters.JobParameter.attach>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `wait` (bool, optional, default=True): whether to enter a loop to wait
+            for results if the Job is not yet complete.
+        * `sleep` (int, optional, default=5): number of seconds to wait in the loop.
+            Only applicable if `wait` is True.
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files created by the Job.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (<phoebe.parameters.ParameterSet>): ParameterSet of the newly attached
+            Parameters.
+        """
+        kwargs['qualifier'] = 'detached_job'
+        return self.get_parameter(twig=twig, **kwargs).attach(wait=wait, sleep=sleep, cleanup=cleanup)
