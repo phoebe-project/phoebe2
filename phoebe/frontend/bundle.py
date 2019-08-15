@@ -2334,7 +2334,7 @@ class Bundle(ParameterSet):
                             if parent_ps.get_value(qualifier='ecc', **kwargs) > 0.0:
                                 params += [parent_ps.get_parameter(qualifier='ecc', **kwargs)]
 
-                            if len(b.filter(kind='envelope', context='component', **_skip_filter_checks)):
+                            if len(self.filter(kind='envelope', context='component', **_skip_filter_checks)):
                                 params += [hier]
 
                             report.add_item(self,
