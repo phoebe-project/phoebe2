@@ -2601,8 +2601,8 @@ class Bundle(ParameterSet):
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
                         report.add_item(self,
                                         "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
-                                        self.filter(qualifier='requiv', component=offending_components).to_list()+[
-                                        self.get_parameter(qualifier='ntriangles', compute=compute, **kwargs),
+                                        self.filter(qualifier='requiv', component=smallest_components).to_list()+
+                                        self.filter(qualifier='ntriangles', component=offending_components, compute=compute, **kwargs).to_list()+[
                                         self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs),
                                         self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
                                         True)
@@ -2613,8 +2613,8 @@ class Bundle(ParameterSet):
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
                         report.add_item(self,
                                         "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
-                                        self.filter(qualifier='requiv', component=offending_components).to_list()+[
-                                        self.get_parameter(qualifier='ntriangles', compute=compute, **kwargs),
+                                        self.filter(qualifier='requiv', component=smallest_components).to_list(),
+                                        self.get_parameter(qualifier='ntriangles', component=offending_components, compute=compute, **kwargs).to_list()+[
                                         self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs).
                                         self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
                                         False)
