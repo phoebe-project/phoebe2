@@ -312,7 +312,9 @@ def _param_json_overview(param):
         advanced_filter.append('is_default')
     if param.advanced:
         advanced_filter.append('is_advanced')
-    if hasattr(param, 'choices') and len(param.choices) <= 1:
+    if param.__class__.__name__ in ['ChoiceParameter'] and len(param.choices) <= 1:
+        # NOTE: we do not want to set is_single for SelectParameters as those
+        # allow setting 0 options
         advanced_filter.append('is_single')
         p['readonly'] = True
     if param.context=='constraint':
