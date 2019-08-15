@@ -2499,7 +2499,6 @@ class Bundle(ParameterSet):
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset),
                                                     [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
-                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs),
                                                      self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)
                                                     ],
                                                     True)
@@ -2537,7 +2536,7 @@ class Bundle(ParameterSet):
                 else:
                     raise NotImplementedError("checks for ld_mode='{}' not implemented".format(ld_mode))
 
-                if 'func' in ld_mode:
+                if ld_mode in ['lookup', 'manual']:
                     for compute in computes:
                         compute_kind = self.get_compute(compute, **_skip_filter_checks).kind
                         if compute_kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
