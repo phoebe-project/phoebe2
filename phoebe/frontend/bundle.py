@@ -5529,7 +5529,7 @@ class Bundle(ParameterSet):
             # but that would probably need to be the responsibility of the
             # jobparam to return a failed status and message.
             # Unfortunately right now an error just results in the job hanging.
-            subprocess.call(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
+            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
 
             # create model parameter and attach (and then return that instead of None)
             job_param = JobParameter(self,
