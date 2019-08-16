@@ -2802,7 +2802,7 @@ class Bundle(ParameterSet):
 
         #return params
         # NOTE: we need to call get_ in order to make sure all metawargs are applied
-        return self.get_feature(**metawargs)
+        return self.get_feature(kwargs['feature'])
 
     def get_feature(self, feature=None, **kwargs):
         """
