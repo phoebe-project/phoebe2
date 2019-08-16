@@ -1693,6 +1693,18 @@ class Bundle(ParameterSet):
             if return_changes and changed and not choices_changed:
                 affected_params.append(param)
 
+        for param in self.filter(context='figure', qualifier='datasets', check_default=False, check_visible=False).to_list():
+            ds_same_kind = self.filter(context='dataset', kind=param.kind).datasets
+
+            choices_changed = False
+            if return_changes and ds_same_kind != param._choices:
+                affected_params.append(param)
+                choices_changed = True
+            param._choices = ds_same_kind
+            changed = param.remove_not_valid_selections()
+            if return_changes and changed and not choices_changed:
+                affected_params.append(param)
+
         return affected_params
 
     def _handle_compute_selectparams(self, return_changes=False):
@@ -1709,6 +1721,26 @@ class Bundle(ParameterSet):
                 affected_params.append(param)
                 choices_changed = True
             param._choices = computes
+            changed = param.remove_not_valid_selections()
+            if return_changes and changed and not choices_changed:
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_model_selectparams(self, return_changes=False):
+        """
+        """
+        affected_params = []
+        changed_params = self.run_delayed_constraints()
+
+        for param in self.filter(context='figure', qualifier='models', check_default=False, check_visible=False).to_list():
+            ml_same_kind = self.filter(context='model', kind=param.kind).models
+
+            choices_changed = False
+            if return_changes and ml_same_kind != param._choices:
+                affected_params.append(param)
+                choices_changed = True
+            param._choices = ml_same_kind
             changed = param.remove_not_valid_selections()
             if return_changes and changed and not choices_changed:
                 affected_params.append(param)
@@ -3266,10 +3298,6 @@ class Bundle(ParameterSet):
         else:
           fname = func.__name__
 
-
-        if kwargs.get('component', False) is None:
-            # then we want to apply the default below, so let's pop for now
-            _ = kwargs.pop('component')
 
         if kwargs.get('component', False) is None:
             # then we want to apply the default below, so let's pop for now
@@ -4880,6 +4908,304 @@ class Bundle(ParameterSet):
                 changes.append(param)
         return changes
 
+
+    @send_if_client
+    def add_figure(self, kind, **kwargs):
+        """
+        Add a new figure to the bundle.  If not provided,
+        figure` (the name of the new figure) will be created for
+        you and can be accessed by the `figure` attribute of the returned
+        <phoebe.parameters.ParameterSet>.
+
+        ```py
+        b.add_figure(figure.lc)
+        ```
+
+        or
+
+        ```py
+        b.add_figure('lc', x='phases')
+        ```
+
+        Available kinds can be found in <phoebe.parameters.figure> and include:
+        * <phoebe.parameters.figure.lc>
+        * <phoebe.parameters.figure.rv>
+        * <phoebe.parameters.figure.lp>
+        * <phoebe.parameters.figure.orb>
+        * <phoebe.parameters.figure.mesh>
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_figure>
+        * <phoebe.frontend.bundle.Bundle.remove_figure>
+        * <phoebe.frontend.bundle.Bundle.rename_figure>
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+
+        Arguments
+        ----------
+        * `kind` (string): function to call that returns a
+             <phoebe.parameters.ParameterSet> or list of
+             <phoebe.parameters.Parameter> objects.  This must either be a
+             callable function that accepts the bundle and default values, or the name
+             of a function (as a string) that can be found in the
+             <phoebe.parameters.figure> module.
+        * `figure` (string, optional): name of the newly-created figure.
+        * `overwrite` (boolean, optional, default=False): whether to overwrite
+            an existing component with the same `figure` tag.  If False,
+            an error will be raised.
+        * `**kwargs`: default values for any of the newly-created parameters
+            (passed directly to the matched callabled function).
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+        """
+
+        func = _get_add_func(_figure, kind)
+
+        if sys.version_info[0] == 3:
+          fname = func.__name__
+        else:
+          fname = func.__name__
+
+
+        if kwargs.get('figure', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('figure')
+
+        kwargs.setdefault('figure',
+                          self._default_label(fname+'fig',
+                                              **{'context': 'figure',
+                                                 'kind': fname}))
+
+        if kwargs.pop('check_label', True):
+            self._check_label(kwargs['figure'], allow_overwrite=kwargs.get('overwrite', False))
+
+        params = func(self, **kwargs)
+
+
+        metawargs = {'context': 'figure',
+                     'figure': kwargs['figure'],
+                     'kind': fname}
+
+        if kwargs.get('overwrite', False):
+            self.remove_figure(figure=kwargs['figure'])
+            # check the label again, just in case kwargs['figure'] belongs to
+            # something other than component
+            self.exclude(figure=kwargs['figure'])._check_label(kwargs['figure'], allow_overwrite=False)
+
+        self._attach_params(params, **metawargs)
+        # attach params called _check_copy_for, but only on it's own parameterset
+        # self._check_copy_for()
+
+        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs['func'] = fname
+        self._add_history(redo_func='add_figure',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='remove_figure',
+                          undo_kwargs={'figure': kwargs['figure']})
+
+        # for constraint in constraints:
+            # self.add_constraint(*constraint)
+
+        # TODO: include figure params in returned PS?
+        ret_ps = self.get_figure(check_visible=False, check_default=False, **metawargs)
+
+        self._handle_dataset_selectparams()
+        self._handle_model_selectparams()
+
+        # since we've already processed (so that we can get the new qualifiers),
+        # we'll only raise a warning
+        self._kwargs_checks(kwargs,
+                            additional_allowed_keys=['overwrite'],
+                            warning_only=True, ps=ret_ps)
+
+        return ret_ps
+
+    def get_figure(self, figure=None, **kwargs):
+        """
+        Filter in the 'figure' context
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.frontend.bundle.Bundle.add_figure>
+        * <phoebe.frontend.bundle.Bundle.remove_figure>
+        * <phoebe.frontend.bundle.Bundle.rename_figure>
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+
+        Arguments
+        ----------
+        * `figure`: (string, optional, default=None): the name of the figure
+        * `**kwargs`: any other tags to do the filtering (excluding figure and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        if figure is not None:
+            kwargs['figure'] = figure
+        kwargs['context'] = 'figure'
+        return self.filter(**kwargs)
+
+    def remove_figure(self, figure, **kwargs):
+        """
+        Remove a 'figure' from the bundle.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+        * <phoebe.frontend.bundle.Bundle.add_figure>
+        * <phoebe.frontend.bundle.Bundle.get_figure>
+        * <phoebe.frontend.bundle.Bundle.rename_figure>
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+
+        Arguments
+        ----------
+        * `figure` (string): the label of the figure to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: figure, context
+        """
+        kwargs['figure'] = figure
+        kwargs['context'] = 'figure'
+        self.remove_parameters_all(**kwargs)
+
+    def rename_figure(self, old_figure, new_figure):
+        """
+        Change the label of a figure attached to the Bundle.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_figure>
+        * <phoebe.frontend.bundle.Bundle.get_figure>
+        * <phoebe.frontend.bundle.Bundle.remove_figure>
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+
+        Arguments
+        ----------
+        * `old_figure` (string): current label of the figure (must exist)
+        * `new_figure` (string): the desired new label of the figure
+            (must not yet exist)
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed figure
+
+        Raises
+        --------
+        * ValueError: if the value of `new_figure` is forbidden or already exists.
+        """
+        # TODO: raise error if old_figure not found?
+
+        self._check_label(new_figure)
+        self._rename_label('figure', old_figure, new_figure)
+
+        return self.filter(figure=new_figure)
+
+    def run_figure(self, figure=None, **kwargs):
+        """
+        Plot a figure for a set of figure options attached to the bundle.
+
+        For plotting without the help of figure options, see
+        <phoebe.parameters.ParameterSet.plot>.
+
+        In general, `run_figure` is useful for creating simple plots with
+        consistent defaults for styling across datasets/components/etc,
+        when plotting from a UI, or when wanting to save plotting options
+        along with the bundle rather than in a script.  `plot` is more
+        more flexible, allows for multiple subplots and advanced positioning,
+        and is less clumsy if plotting from the python frontend.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_figure>
+        * <phoebe.frontend.bundle.Bundle.get_figure>
+        * <phoebe.frontend.bundle.Bundle.remove_figure>
+        * <phoebe.frontend.bundle.Bundle.rename_figure>
+
+        Arguments
+        -----------
+        * `figure` (string, optional): name of the figure options to use.
+            If not provided or None, run_figure will use an existing set of
+            attached figure options if only 1 exists.  If more than 1 exist,
+            then `figure` becomes a required argument.  If no figure options,
+            and error will be raised.
+        * `time` (float, optional): time to use for plotting/animating.  This will
+            filter on time for any applicable dataset (i.e. meshes, line profiles),
+            will be used for highlighting/uncovering based on the passed value
+            to `highlight` and `uncover`.  Use `times` to set the individual
+            frames when animating with `animate=True`
+        * `times` (list/array, optional): times to use for animating.  If
+            `animate` is not True, a warning will be raised in the logger.  If
+            `animate` is True, and neither `times` nor `time` is passed,
+            then the animation will cycle over the tagged times of the model
+            datasets (i.e. if mesh or lp datasets exist), or the computed
+            times otherwise.
+        * `save` (string, optional, default=False): filename to save the
+            figure (or False to not save).
+        * `show` (bool, optional, default=False): whether to show the plot
+        * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `interval` (int, optional, default=100): time in ms between each
+            frame in the animation.  Applicable only if `animate` is True.
+        * `**kwargs`: all additional keyword arguments will be used to override
+            parameters in the figure options or passed along to
+            <phoebe.parameters.ParameterSet.plot>.  See the API docs for
+            <phoebe.parameters.ParameterSet.plot> for an exhaustive list
+            of plotting options.
+
+        Returns
+        -----------
+        * (autofig figure, matplotlib figure) - the output from the call to
+            <phoebe.parameters.ParameterSet.plot>
+
+
+        Raises
+        ----------
+        * ValueError: if `figure` is not provided but is required.
+
+        """
+        fig_ps = self.get_figure(figure)
+        if len(fig_ps.figures) == 0:
+            raise ValueError("no figure found")
+        elif len(fig_ps.figures) > 1:
+            raise ValueError("more than one figure found")
+
+        kwargs['check_default'] = False
+        kwargs['check_visible'] = False
+
+        ds_kind = fig_ps.kind
+        ds_same_kind = self.filter(context='dataset', kind=ds_kind).datasets
+        ml_same_kind = self.filter(context='model', kind=ds_kind).models
+
+        kwargs.setdefault('dataset', fig_ps.get_value(qualifier='datasets', expand=True, **_skip_filter_checks))
+        kwargs.setdefault('model', fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
+
+        for d in ['x', 'y']:
+            kwargs.setdefault(d, fig_ps.get_value(qualifier=d, **_skip_filter_checks))
+
+            if kwargs.get('{}label_mode'.format(d), fig_ps.get_value(qualifier='{}label_mode'.format(d), **_skip_filter_checks))=='manual':
+                kwargs.setdefault('{}label'.format(d), fig_ps.get_value(qualifier='{}label'.format(d), **_skip_filter_checks))
+
+            if kwargs.get('{}unit_mode'.format(d), fig_ps.get_value(qualifier='{}unit_mode'.format(d), **_skip_filter_checks))=='manual':
+                kwargs.setdefault('{}unit'.format(d), fig_ps.get_value(qualifier='{}unit'.format(d), **_skip_filter_checks))
+
+        if ds_kind in ['mesh', 'lp']:
+            kwargs.setdefault('times', fig_ps.get_value(qualifier='times', expand=True, **_skip_filter_checks))
+
+
+        if ds_kind in ['mesh']:
+            raise NotImplementedError("run_figure with kind mesh not yet implemented")
+        else:
+            for q in ['linestyle', 'marker', 'color']:
+                if 'linestyle' not in kwargs.keys():
+                    mode = kwargs.get('{}_mode'.format(q), fig_ps.get_value(qualifier='{}_mode'.format(q), **_skip_filter_checks))
+                    if mode == 'manual':
+                        kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                    elif mode == 'dataset':
+                        kwargs[q] = {ds: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
+                    elif mode == 'model':
+                        kwargs[q] = {ml: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
+                    else:
+                        raise NotImplemented
+
+        return self.plot(**kwargs)
+
+
     def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):
         """
         Compute the interpolated limb darkening coefficients.
@@ -5856,6 +6182,7 @@ class Bundle(ParameterSet):
                 logger.info("detaching from run_compute.  Call get_model('{}').attach() to re-attach".format(model))
 
             # return self.get_model(model)
+            self._handle_model_selectparams()
             return job_param
 
         # temporarily disable interactive_checks, check_default, and check_visible
@@ -6012,6 +6339,7 @@ class Bundle(ParameterSet):
         restore_conf()
 
         # TODO: should we also return the figure parameters?
+        self._handle_model_selectparams()
         return self.get_model(model)
 
     def get_model(self, model=None, **kwargs):

@@ -3940,6 +3940,18 @@ class ParameterSet(object):
         [autofig 1.0.0](https://github.com/kecnry/autofig/tree/1.0.0)
         under-the-hood for automated figure and animation production.
 
+        For an even higher-level interface allowing to interactively set and
+        save plotting options see:
+        * <phoebe.frontend.bundle.Bundle.add_figure>
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+
+        In general, `run_figure` is useful for creating simple plots with
+        consistent defaults for styling across datasets/components/etc,
+        when plotting from a UI, or when wanting to save plotting options
+        along with the bundle rather than in a script.  `plot` is more
+        more flexible, allows for multiple subplots and advanced positioning,
+        and is less clumsy if plotting from the python frontend.
+
         See also:
         * <phoebe.parameters.ParameterSet.show>
         * <phoebe.parameters.ParameterSet.savefig>
@@ -6334,6 +6346,9 @@ class SelectParameter(Parameter):
             return np.all([self.valid_selection(v) for v in value])
 
         if value in self.choices:
+            return True
+
+        if value == '*':
             return True
 
         # allow for wildcards
