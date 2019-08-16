@@ -3242,7 +3242,7 @@ class Bundle(ParameterSet):
              callable function that accepts only default values, or the name
              of a function (as a string) that can be found in the
              <phoebe.parameters.compute> module.
-        * `component` (string, optional): name of the newly-created feature.
+        * `component` (string, optional): name of the newly-created component.
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing component with the same `component` tag.  If False,
             an error will be raised.
