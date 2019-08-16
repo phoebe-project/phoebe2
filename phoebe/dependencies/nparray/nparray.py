@@ -1,6 +1,7 @@
 import numpy as np
 from collections import OrderedDict
 import json
+import sys
 
 try:
     from astropy import units
@@ -8,6 +9,9 @@ except ImportError:
     _has_astropy = False
 else:
     _has_astropy = True
+
+if sys.version_info[0] == 3:
+  unicode = str
 
 ################## VALIDATORS ###################
 
@@ -42,23 +46,51 @@ def is_unit_or_unitstring_or_none(value):
 
 def is_bool(value):
     """must be boolean"""
+    if isinstance(value, str) or isinstance(value, unicode):
+        if value.upper() == 'TRUE':
+            return True, True
+        elif value.upper() == 'FALSE':
+            return True, False
+        else:
+            return False, None
+
     return isinstance(value, bool), value
 
 def is_float(value):
     """must be a float"""
+    if isinstance(value, str) or isinstance(value, unicode):
+        try:
+            value = float(value)
+        except:
+            return False, None
+        else:
+            return True, value
     return isinstance(value, float) or isinstance(value, int) or isinstance(value, np.float64), float(value)
 
 def is_int(value):
     """must be an integer"""
+    if isinstance(value, str) or isinstance(value, unicode):
+        if "." in value:
+            return False, None
+
+        try:
+            value = int(float(value))
+        except:
+            return False, None
+        else:
+            return True, value
     return isinstance(value, int), value
 
 def is_int_positive(value):
     """must be a positive integer"""
-    return isinstance(value, int) and value > 0, value
+    _is_int, value = is_int(value)
+    return _is_int and value > 0, value
 
 def is_int_positive_or_none(value):
     """must be a postive integer or None"""
-    return is_int_positive or value is None, value
+    if value is None:
+        return True, value
+    return is_int_positive(value)
 
 def is_valid_shape(value):
     """must be a positive integer or a tuple/list of positive integers"""
