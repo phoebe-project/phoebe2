@@ -2207,6 +2207,11 @@ class ParameterSet(object):
         # TODO: replace with key,value in kwargs.items()... unless there was
         # some reason that won't work?
         for key in kwargs.keys():
+            # TODO [optimize]: this probably isn't efficient, but I'm getting
+            # sick of running into bugs caused by passing unicodes
+            if isinstance(kwargs[key], unicode):
+                kwargs[key] = str(kwargs[key])
+
             if len(params) and \
                     key in _meta_fields_filter and \
                     kwargs[key] is not None:
@@ -10013,7 +10018,7 @@ class JobParameter(Parameter):
 
             # now we need to attach result_ps to self._bundle
             # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
-            metawargs = {'compute': result_ps.compute, 'model': result_ps.model, 'context': 'model'}
+            metawargs = {'compute': str(result_ps.compute), 'model': str(result_ps.model), 'context': 'model'}
             self._bundle._attach_params(result_ps, **metawargs)
 
             if cleanup:

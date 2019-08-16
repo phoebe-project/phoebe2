@@ -5819,13 +5819,13 @@ class Bundle(ParameterSet):
             f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.to_json())))
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
-            compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', model), ('do_create_fig_params', do_create_fig_params)]
-            compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(v) if isinstance(v, str) else v) for k,v in compute_kwargs])
+            compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('do_create_fig_params', do_create_fig_params)]
+            compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
             f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
             if do_create_fig_params:
-                f.write("b.filter(model='{}').save('_{}.out', incl_uniqueid=True)\n".format(model, jobid))
+                f.write("b.filter(model='{}').save('_{}.out', incl_uniqueid=True)\n".format(str(model), jobid))
             else:
-                f.write("b.get_model(model='{}').save('_{}.out', incl_uniqueid=True)\n".format(model, jobid))
+                f.write("b.get_model(model='{}').save('_{}.out', incl_uniqueid=True)\n".format(str(model), jobid))
 
             f.close()
 

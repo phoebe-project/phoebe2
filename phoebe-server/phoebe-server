@@ -858,6 +858,10 @@ def bundle_method(msg):
 
     bundleid = msg.pop('bundleid', None)
 
+    for k,v in msg.items():
+        if isinstance(v, unicode):
+            msg[k] = str(v)
+
     if bundleid is None:
         emit('errors', {'success': False, 'error': "must provide bundleid"}, broadcast=False)
         return
@@ -905,9 +909,10 @@ def bundle_method(msg):
         ps_list += param.vars.to_list()
 
     # TODO [optimize]: can we decide when these are and aren't necessary to call?
-    ps_list += b._handle_pblum_defaults(return_changes=True)
-    ps_list += b._handle_dataset_selectparams(return_changes=True)
-    ps_list += b._handle_compute_selectparams(return_changes=True)
+    if method not in ['run_compute', 'attach_job']:
+        ps_list += b._handle_pblum_defaults(return_changes=True)
+        ps_list += b._handle_dataset_selectparams(return_changes=True)
+        ps_list += b._handle_compute_selectparams(return_changes=True)
 
 
     if 'web' in client_types or 'desktop' in client_types:
