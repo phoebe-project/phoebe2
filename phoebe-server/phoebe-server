@@ -586,24 +586,38 @@ def parameter(bundleid, uniqueid):
 
 @app.route('/nparray/<string:input>', methods=['GET'])
 @crossdomain(origin='*')
-def nparray(array):
-    # array is a json-string representation of an array or nparray helper dictionary
+def nparray(input):
+    if app._verbose:
+        print("nparray(input={}))".format(input))
+    # input is a json-string representation of an array or nparray helper dictionary
 
     # first let's load the string
     try:
         if '{' not in input:
             # then assume this is a comma-separate list to be converted to an array
-            npa = phoebe.dependencies.nparray.array([float(v) for v in input.split(',') if len(v)])
+            npa = phoebe.dependencies.nparray.array([float(v) for v in input.replace('"', '').split(',') if len(v)])
+            is_array = True
         else:
             npa = phoebe.dependencies.nparray.from_json(input)
+            is_array = False
     except Exception as err:
-        return _get_response({'success': False, 'error': 'could not convert to valid nparray object'}, api=True)
+        return _get_response({'success': False, 'error': 'could not convert to valid nparray object with err: {}'.format(str(err))}, api=True)
 
-    # now we want to return all valid conversions
-    data = {'array': npa.to_array(),
-            'arraystr': ",".join([str(v) for v in npa.array().tolist()]),
-            'linspace': npa.to_linspace() if hasattr(npa, 'to_linspace') else None,
-            'arange': npa.to_arange() if hasattr(npa, 'to_arange') else None}
+    empty_arange = {'nparray': 'arange', 'start': '', 'stop': '', 'step': ''}
+    empty_linspace = {'nparray': 'linspace', 'start': '', 'stop': '', 'num': '', 'endpoint': True}
+
+    if is_array:
+        # now we want to return all valid conversions
+        data = {'array': npa.to_array().to_dict(),
+                'arraystr': ",".join([str(v) for v in npa.to_array().tolist()]),
+                'linspace': empty_linspace,
+                'arange': empty_arange}
+    else:
+        # now we want to return all valid conversions
+        data = {'array': npa.to_array().to_dict(),
+                'arraystr': ",".join([str(v) for v in npa.to_array().tolist()]),
+                'linspace': npa.to_dict() if npa.__class__.__name__ == 'Linspace' else npa.to_linspace().to_dict() if hasattr(npa, 'to_linspace') else empty_linspace,
+                'arange': npa.to_dict() if npa.__class__.__name__ == 'Arange' else npa.to_arange().to_dict() if hasattr(npa, 'to_arange') else empty_arange}
 
     return _get_response({'success': True, 'response': data}, api=True)
 
@@ -885,6 +899,7 @@ def bundle_method(msg):
         emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
         return
 
+
     if method in ['flip_constraint']:
         param = b.get_parameter(**{k:v for k,v in msg.items() if k!='solve_for'})
         ps_list += param.vars.to_list()
@@ -912,7 +927,8 @@ def bundle_method(msg):
 
 
         if method.split('_')[0] == 'add':
-            packet['add_filter'] = {method.split('_')[1]: getattr(ps, method.split('_')[1])}
+            context = method.split('_')[1]
+            packet['add_filter'] = {context: getattr(ps, context)}
         elif method.split('_')[0] == 'run':
             new_context = {'compute': 'model'}[method.split('_')[1]]
             packet['add_filter'] = {new_context: getattr(ps, new_context)}
