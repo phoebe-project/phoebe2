@@ -386,7 +386,7 @@ class BaseBackend(object):
             packet[k] = v
 
         if kwargs.get('max_computations', None) is not None:
-            if len(packet['infolists']) > kwargs.get('max_computations'):
+            if len(packet.get('infolists', packet.get('infolist', []))) > kwargs.get('max_computations'):
                 raise ValueError("more than {} computations detected ({} estimated).".format(kwargs.get('max_computations'), len(packet['infolists'])))
 
         packet['b'] = b.to_json() if mpi.enabled else b
