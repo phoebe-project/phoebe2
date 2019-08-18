@@ -3345,12 +3345,13 @@ class ParameterSet(object):
                     # for example: color={'lc*': 'blue', 'primary@rv*': 'green'}
                     # this will likely be a little expensive, but we only do it
                     # in the case where a dictionary is passed.
+                    logger.debug("_unpack_plotting_kwargs: trying to find match for dictionary {}={} in kwargs against meta={}.  match={}".format(k,v,meta,match))
                     if np.all([np.any([_fnmatch(mv, kksplit) for mv in meta.values() if mv is not None]) for kksplit in kk.split('@')]):
                         if match is not None:
                             raise ValueError("dictionary {}={} is not unique for {}".format(k,v, meta))
                         match = vv
 
-                logger.debug("_unpack_plotting_kwargs: trying to find match for dictionary {}={} in kwargs against meta={}.  match={}".format(k,v,meta,match))
+
                 if match is not None:
                     kwargs[k] = match
                 else:
