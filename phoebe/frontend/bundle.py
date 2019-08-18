@@ -904,6 +904,10 @@ class Bundle(ParameterSet):
             if semidetached == starB or semidetached is True:
                 b.add_constraint('semidetached', component=starB)
 
+            if semidetached:
+                # then we need to run the constraint
+                b.run_delayed_constraints()
+
             b._update_atm_choices()
 
             return b
