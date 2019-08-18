@@ -156,6 +156,8 @@ def lc(b, **kwargs):
     kwargs.setdefault('linestyle', 'solid')
     params += _figure_style_modes(b, default_color='model', default_marker='manual', default_linestyle='manual', **kwargs)
 
+    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), description='Whether to draw the legend')]
+
 
     return ParameterSet(params)
 
@@ -180,6 +182,8 @@ def rv(b, **kwargs):
     kwargs.setdefault('marker', '.')
     kwargs.setdefault('linestyle', 'solid')
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
+
+    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), description='Whether to draw the legend')]
 
     return ParameterSet(params)
 
@@ -232,6 +236,8 @@ def orb(b, **kwargs):
     kwargs.setdefault('linestyle', 'solid')
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
 
+    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), description='Whether to draw the legend')]
+
 
     return ParameterSet(params)
 
@@ -253,6 +259,8 @@ def lp(b, **kwargs):
     kwargs.setdefault('marker', '.')
     kwargs.setdefault('linestyle', 'solid')
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
+
+    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), description='Whether to draw the legend')]
 
     return ParameterSet(params)
 
@@ -280,6 +288,8 @@ def mesh(b, **kwargs):
     # params += _label_units_lims('facecolor', visible_if='facecolor:loggs', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
     # params += _label_units_lims('facecolor', visible_if='facecolor:mus', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
     # params += _label_units_lims('facecolor', visible_if='facecolor:visibilities', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+
+    # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), description='Whether to draw the legend')]
 
 
     return ParameterSet(params)

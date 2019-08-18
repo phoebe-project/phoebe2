@@ -771,7 +771,14 @@ def _update_figures(b, bundleid, affected_ps):
             print("_update_figures: calling run_figure on figure: {}".format(figure))
         try:
             afig, mplfig = b.run_figure(figure=figure, save=os.path.join(_dir_tmpimages, '{}_{}.png'.format(bundleid, figure)))
-            afig.save(os.path.join(_dir_tmpimages, '{}_{}.afig'.format(bundleid, figure)), renders=[{'render': 'draw'}])
+            render_kwargs = {'render_draw'}
+            # TODO: we need to keep all things sent to draw
+            # i=time,
+            # draw_sidebars=draw_sidebars,
+            # draw_title=draw_title,
+            # tight_layout=tight_layout,
+            # subplot_grid=subplot_grid,
+            afig.save(os.path.join(_dir_tmpimages, '{}_{}.afig'.format(bundleid, figure)), renders=[render_kwargs])
         except Exception as err:
             if app._verbose:
                 print("_update_figures error: {}".format(str(err)))

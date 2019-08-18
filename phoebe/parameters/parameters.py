@@ -202,7 +202,8 @@ _forbidden_labels += ['datasets', 'models', 'components',
                       'xunit_mode', 'xunit', 'yunit_mode', 'yunit',
                       'xlim_mode', 'xlim', 'ylim_mode', 'ylim',
                       'facecolor_mode', 'facecolor',
-                      'edgecolor_mode', 'edgecolor']
+                      'edgecolor_mode', 'edgecolor',
+                      'legend']
 
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'

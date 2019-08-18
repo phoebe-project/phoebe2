@@ -5191,6 +5191,8 @@ class Bundle(ParameterSet):
 
         kwargs.setdefault('dataset', fig_ps.get_value(qualifier='datasets', expand=True, **_skip_filter_checks))
         kwargs.setdefault('model', fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
+        # kwargs.setdefault('component', fig_ps.get_value(qualifier='components', expand=True, **_skip_filter_checks))
+        kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
 
         for d in ['x', 'y']:
             kwargs.setdefault(d, fig_ps.get_value(qualifier=d, **_skip_filter_checks))
@@ -5200,6 +5202,9 @@ class Bundle(ParameterSet):
 
             if kwargs.get('{}unit_mode'.format(d), fig_ps.get_value(qualifier='{}unit_mode'.format(d), **_skip_filter_checks))=='manual':
                 kwargs.setdefault('{}unit'.format(d), fig_ps.get_value(qualifier='{}unit'.format(d), **_skip_filter_checks))
+
+            if kwargs.get('{}lim_mode'.format(d), fig_ps.get_value(qualifier='{}lim_mode'.format(d), **_skip_filter_checks))=='manual':
+                kwargs.setdefault('{}lim'.format(d), fig_ps.get_value(qualifier='{}lim'.format(d), **_skip_filter_checks))
 
         if ds_kind in ['mesh', 'lp']:
             kwargs.setdefault('times', fig_ps.get_value(qualifier='times', expand=True, **_skip_filter_checks))
