@@ -112,6 +112,9 @@ _forbidden_labels = deepcopy(_meta_fields_all)
 # forbid all "contexts", although should already be in _meta_fields_all
 _forbidden_labels += _contexts
 
+#
+_forbidden_labels += ['True', 'False', 'true', 'false', 'None', 'none', 'null']
+
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
                       'quantity',
@@ -2509,6 +2512,7 @@ class ParameterSet(object):
         """
         # TODO: check to see if protected (required by a current constraint or
         # by a backend)
+        param._bundle = None
         self._params = [p for p in self._params if p.uniqueid != param.uniqueid]
 
     def remove_parameter(self, twig=None, **kwargs):
@@ -10028,5 +10032,7 @@ class JobParameter(Parameter):
         self._value = 'loaded'
 
         # TODO: add history?
+
+        self._bundle._handle_model_selectparams()
 
         return self._bundle.filter(model=self.model)

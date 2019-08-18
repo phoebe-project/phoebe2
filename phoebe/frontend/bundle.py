@@ -3882,6 +3882,11 @@ class Bundle(ParameterSet):
                              if isinstance(kind, str)
                              else kind)
 
+
+        # remove if None
+        if kwargs.get('dataset', False) is None:
+            _ = kwargs.pop('dataset')
+
         kwargs.setdefault('dataset',
                           self._default_label(func.__name__,
                                               **{'context': 'dataset',
@@ -4169,7 +4174,7 @@ class Bundle(ParameterSet):
                           undo_kwargs={'dataset': kwargs['dataset']})
 
 
-        ret_ps = self.filter(dataset=kwargs['dataset'], check_visible=False, check_default=False)
+        ret_ps = self.filter(dataset=kwargs['dataset'], **_skip_filter_checks)
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -4244,15 +4249,6 @@ class Bundle(ParameterSet):
         if dataset is None and not len(kwargs.items()):
             raise ValueError("must provide some value to filter for datasets")
 
-        # let's handle deps if kind was passed
-        kind = kwargs.get('kind', None)
-
-        if isinstance(kind, str):
-            kind = [kind]
-
-        kwargs['kind'] = kind
-
-
         if dataset is None:
             # then let's find the list of datasets that match the filter,
             # we'll then use dataset to do the removing.  This avoids leaving
@@ -4274,7 +4270,7 @@ class Bundle(ParameterSet):
         removed_ps = self.remove_parameters_all(**kwargs)
         # not really sure why we need to call this twice, but it seems to do
         # the trick
-        # self.remove_parameters_all(**kwargs)
+        removed_ps += self.remove_parameters_all(**kwargs)
 
         self._handle_dataset_selectparams()
 
@@ -5081,8 +5077,7 @@ class Bundle(ParameterSet):
         # for constraint in constraints:
             # self.add_constraint(*constraint)
 
-        # TODO: include figure params in returned PS?
-        ret_ps = self.get_figure(check_visible=False, check_default=False, **metawargs)
+        ret_ps = self.filter(figure=kwargs['figure'], check_visible=False, check_default=False)
 
         self._handle_dataset_selectparams()
         self._handle_model_selectparams()
@@ -5117,17 +5112,16 @@ class Bundle(ParameterSet):
         Returns:
         * a <phoebe.parameters.ParameterSet> object.
         """
-        if figure is None:
-            if len(self.figures) == 0:
-                raise ValueError("no figures attached to the bundle")
-            elif len(self.figures) > 1:
-                raise ValueError("must provide figure when more than one attached to the bundle")
-            else:
-                figure = self.figures[0]
-
         kwargs['figure'] = figure
         kwargs['context'] = 'figure'
-        return self.filter(**kwargs)
+        ret_ps = self.filter(**kwargs).exclude(figure=[None])
+
+        if len(ret_ps.figures) == 0:
+            raise ValueError("no figures matched: {}".format(kwargs))
+        elif len(ret_ps.figures) > 1:
+            raise ValueError("more than one figure matched: {}".format(kwargs))
+
+        return ret_ps
 
     def remove_figure(self, figure, **kwargs):
         """
@@ -5247,7 +5241,7 @@ class Bundle(ParameterSet):
         * ValueError: if `figure` is not provided but is required.
 
         """
-        fig_ps = self.get_figure(figure)
+        fig_ps = self.get_figure(figure=figure, **kwargs)
         if len(fig_ps.figures) == 0:
             raise ValueError("no figure found")
         elif len(fig_ps.figures) > 1:
@@ -5893,6 +5887,10 @@ class Bundle(ParameterSet):
         """
         func = _get_add_func(_compute, kind)
 
+        # remove if None
+        if kwargs.get('compute', False) is None:
+            _ = kwargs.pop('compute')
+
         kwargs.setdefault('compute',
                           self._default_label(func.__name__,
                                               **{'context': 'compute',
@@ -6139,16 +6137,19 @@ class Bundle(ParameterSet):
                 logger.warning("overwriting model: {}".format(model))
             else:
                 logger.info("overwriting model: {}".format(model))
-            overwrite_ps = self.remove_model(model)
-            # check the label again, just in case model belongs to something
-            # other than model/figure
-            self._check_label(model, allow_overwrite=False)
 
             # TODO: will probably need to exclude removing the figure parameters
             # manually or re-create them here.  Merging client with the
             # overwrite option probably broke this option as remove_model
             # now removes context='figure' as well
             do_create_fig_params = kwargs.get('do_create_fig_params', False)
+
+            overwrite_ps = self.remove_model(model, remove_figure_params=do_create_fig_params)
+            # check the label again, just in case model belongs to something
+            # other than model/figure
+
+            self.exclude(context='figure')._check_label(model, allow_overwrite=False)
+
         else:
             do_create_fig_params = kwargs.get('do_create_fig_params', True)
 
@@ -6267,7 +6268,7 @@ class Bundle(ParameterSet):
             f.write("import phoebe; import json\n")
             # TODO: can we skip the history context?  And maybe even other models
             # or datasets (except times and only for run_compute but not run_fitting)
-            f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.to_json())))
+            f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['model', 'figure'], **_skip_filter_checks).to_json())))
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
             compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('do_create_fig_params', do_create_fig_params)]
@@ -6526,6 +6527,9 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `model` (string): the label of the model to be removed.
+        * `remove_figure_options` (bool, optional): whether to also remove
+            figure options tagged with `model`.  If not provided, will default
+            to false if `model` is 'latest', otherwise will default to True.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: model, context.
@@ -6534,8 +6538,10 @@ class Bundle(ParameterSet):
         -----------
         * ParameterSet of removed parameters
         """
+        remove_figure_options = kwargs.pop('remove_figure_options', model!='latest')
+
         kwargs['model'] = model
-        kwargs['context'] = ['model', 'figure']
+        kwargs['context'] = ['model', 'figure'] if remove_figure_options else 'model'
         return self.remove_parameters_all(**kwargs)
 
     def remove_models_all(self):

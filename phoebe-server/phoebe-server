@@ -987,6 +987,7 @@ def bundle_method(msg):
     # catch that and emit the necessary changes to the client(s)
     if method.split('_')[0] in ['add', 'run']:
         msg['return_overwrite'] = True
+        msg.setdefault('overwrite', True)
 
     try:
         ps = getattr(b, method)(**msg)
