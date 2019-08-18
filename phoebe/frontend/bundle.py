@@ -5930,7 +5930,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'compute'
         return self.filter(**kwargs)
 
-    def remove_compute(self, old_compute, new_compute):
+    def remove_compute(self, compute, **kwargs):
         """
         Remove a 'compute' from the bundle.
 
