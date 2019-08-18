@@ -89,6 +89,10 @@ from datetime import datetime
 phoebe.interactive_off()
 phoebe.parameters._is_server = True
 
+_dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
+
+if not os.path.exists(_dir_tmpimages):
+    os.makedirs(_dir_tmpimages)
 
 def bundle_memory_cleanup(stale_limit_seconds=600):
     # TODO: its possible to get an entry in _clients_per_bundle that isn't
@@ -621,6 +625,20 @@ def nparray(input):
 
     return _get_response({'success': True, 'response': data}, api=True)
 
+@app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET'])
+def serve_figure(bundleid, figure):
+    fname = '{}_{}.png'.format(bundleid, figure)
+    if app._verbose:
+        print("serve_figure", fname)
+    return send_from_directory(_dir_tmpimages, fname)
+
+@app.route("/<string:bundleid>/figure_afig/<string:figure>", methods=['GET'])
+def serve_figure_afig(bundleid, figure):
+    fname = '{}_{}.afig'.format(bundleid, figure)
+    if app._verbose:
+        print("serve_figure_afig", fname)
+    return send_from_directory(_dir_tmpimages, fname)
+
 
 ############################# WEBSOCKET ROUTES ################################
 
@@ -719,6 +737,52 @@ def _run_checks(b, bundleid, do_emit=True):
     return {'checks_status': report.status, 'checks_report': [item.to_dict() for item in report.items], 'failed_constraints': failed_constraints}
 
 
+def _update_figures(b, bundleid, affected_ps):
+    # we need to update any figures in which:
+    # * a parameter tagged with that filter has been changed
+    # * a parameter tagged with a dataset selected in a given figure
+    # * a parameter tagged with a model selected in a given figure
+    if app._verbose:
+        print("_update_figures: ", bundleid)
+
+
+    if len(affected_ps.filter(context='figure', figure=[None])):
+        # then we changed something like color@primary@figure.  Its not obvious
+        # how to estimate which figures need to be updated in this case without
+        # looking through all *_mode for component (in this case), so we'll
+        # just update all figures
+        figures = b.figures
+    else:
+        figures = affected_ps.figures
+        datasets = affected_ps.datasets
+        models = affected_ps.models
+        for figure in b.figures:
+            if figure in figures:
+                continue
+            figure_datasets = b.get_value(qualifier='datasets', figure=figure, check_visible=False, check_default=False, expand=True)
+            figure_models = b.get_value(qualifier='models', figure=figure, check_visible=False, check_default=False, expand=True)
+            if np.any([ds in figure_datasets for ds in datasets]) or np.any([ml in figure_models for ml in models]):
+                figures.append(figure)
+
+
+    figures_updated = []
+    for figure in figures:
+        if app._verbose:
+            print("_update_figures: calling run_figure on figure: {}".format(figure))
+        try:
+            afig, mplfig = b.run_figure(figure=figure, save=os.path.join(_dir_tmpimages, '{}_{}.png'.format(bundleid, figure)))
+            afig.save(os.path.join(_dir_tmpimages, '{}_{}.afig'.format(bundleid, figure)), renders=[{'render': 'draw'}])
+        except Exception as err:
+            if app._verbose:
+                print("_update_figures error: {}".format(str(err)))
+        else:
+            figures_updated.append(figure)
+
+    current_time = str(datetime.now())
+    emit('{}:figures_updated:react'.format(bundleid), {'figure_update_times': {f: current_time for f in figures_updated}}, broadcast=True)
+
+
+
 @socketio.on('set_value')
 def set_value(msg):
     if app._verbose:
@@ -781,6 +845,7 @@ def set_value(msg):
             emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
 
             _run_checks(b, bundleid)
+            _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
 
         if 'python' in client_types:
             ps_dict = {p.uniqueid: {'value': p.to_json()['value']} for p in ps_list}
@@ -842,6 +907,8 @@ def set_default_unit(msg):
                 print("set_default_unit success, broadcasting changes:react: {}".format(param_dict))
 
             emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
+
+            _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
 
         if 'python' in client_types:
             ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}
@@ -913,8 +980,8 @@ def bundle_method(msg):
         ps_list += b._handle_pblum_defaults(return_changes=True)
         ps_list += b._handle_dataset_selectparams(return_changes=True)
         ps_list += b._handle_compute_selectparams(return_changes=True)
-    if method not in ['attach_job']:
-        ps_list += b._handle_model_selectparams(return_changes=True)
+
+    ps_list += b._handle_model_selectparams(return_changes=True)
 
 
     if 'web' in client_types or 'desktop' in client_types:
@@ -943,6 +1010,7 @@ def bundle_method(msg):
         emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
 
         _run_checks(b, bundleid)
+        _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
 
     if 'python' in client_types:
         ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}
