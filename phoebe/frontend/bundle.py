@@ -5049,8 +5049,15 @@ class Bundle(ParameterSet):
         Returns:
         * a <phoebe.parameters.ParameterSet> object.
         """
-        if figure is not None:
-            kwargs['figure'] = figure
+        if figure is None:
+            if len(self.figures) == 0:
+                raise ValueError("no figures attached to the bundle")
+            elif len(self.figures) > 1:
+                raise ValueError("must provide figure when more than one attached to the bundle")
+            else:
+                figure = self.figures[0]
+
+        kwargs['figure'] = figure
         kwargs['context'] = 'figure'
         return self.filter(**kwargs)
 
@@ -5180,6 +5187,7 @@ class Bundle(ParameterSet):
         ds_kind = fig_ps.kind
         ds_same_kind = self.filter(context='dataset', kind=ds_kind).datasets
         ml_same_kind = self.filter(context='model', kind=ds_kind).models
+        comp_same_kind = self.filter(context=['dataset', 'model'], kind=ds_kind).components
 
         kwargs.setdefault('dataset', fig_ps.get_value(qualifier='datasets', expand=True, **_skip_filter_checks))
         kwargs.setdefault('model', fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
@@ -5201,7 +5209,7 @@ class Bundle(ParameterSet):
             raise NotImplementedError("run_figure with kind mesh not yet implemented")
         else:
             for q in ['linestyle', 'marker', 'color']:
-                if 'linestyle' not in kwargs.keys():
+                if q not in kwargs.keys():
                     mode = kwargs.get('{}_mode'.format(q), fig_ps.get_value(qualifier='{}_mode'.format(q), **_skip_filter_checks))
                     if mode == 'manual':
                         kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
@@ -5209,8 +5217,16 @@ class Bundle(ParameterSet):
                         kwargs[q] = {ds: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
                     elif mode == 'model':
                         kwargs[q] = {ml: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
+                    elif mode == 'component':
+                        kwargs[q] = {}
+                        for c in comp_same_kind:
+                            try:
+                                kwargs[q][c] = self.get_value(qualifier=q, component=c, context='figure', **_skip_filter_checks)
+                            except ValueError:
+                                # RVs will include orbits in comp_same kind, but we can safely skip those
+                                pass
                     else:
-                        raise NotImplemented
+                        raise NotImplementedError("{}_mode of {} not supported".format(q, mode))
 
         return self.plot(**kwargs)
 
