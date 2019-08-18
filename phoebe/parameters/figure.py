@@ -257,31 +257,29 @@ def lp(b, **kwargs):
     return ParameterSet(params)
 
 def mesh(b, **kwargs):
-    # raise NotImplementedError("mesh figures not yet supported")
-
     params = []
 
-    params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
-    params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
-    params += [SelectParameter(qualifier='times', value=kwargs.get('times', '*'), choices=[''], description='Times to include in the plot')]
-
-    params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'xs'), choices=['xs', 'ys', 'zs'], description='Array to plot along x-axis')]
-    params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'ys'), choices=['xs', 'ys', 'zs'], description='Array to plot along y-axis')]
-    params += [ChoiceParameter(qualifier='facecolor', value=kwargs.get('facecolor', 'teffs'), choices=['<component>', 'none', 'teffs', 'loggs', 'mus', 'visibilities']+_mplcolors, description='Array to plot as facecolor')]
-    params += [ChoiceParameter(qualifier='edgecolor', value=kwargs.get('edgecolor', 'k'), choices=['<component>', 'none', 'teffs', 'loggs', 'mus', 'visibilities']+_mplcolors, description='Array to plot as edgecolor')]
-
-    params += _label_units_lims('x', visible_if='x:xs', default_unit=u.solRad, is_default=True, **kwargs)
-    params += _label_units_lims('x', visible_if='x:ys', default_unit=u.solRad, is_default=False, **kwargs)
-    params += _label_units_lims('x', visible_if='x:zs', default_unit=u.solRad, is_default=False, **kwargs)
-
-    params += _label_units_lims('y', visible_if='y:xs', default_unit=u.solRad, is_default=False, **kwargs)
-    params += _label_units_lims('y', visible_if='y:ys', default_unit=u.solRad, is_default=True, **kwargs)
-    params += _label_units_lims('y', visible_if='y:zs', default_unit=u.solRad, is_default=False, **kwargs)
-
-    params += _label_units_lims('facecolor', visible_if='facecolor:teffs', default_unit=u.K, is_default=True, **kwargs)
-    params += _label_units_lims('facecolor', visible_if='facecolor:loggs', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
-    params += _label_units_lims('facecolor', visible_if='facecolor:mus', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
-    params += _label_units_lims('facecolor', visible_if='facecolor:visibilities', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+    # params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
+    # params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
+    # params += [SelectParameter(qualifier='times', value=kwargs.get('times', '*'), choices=[''], description='Times to include in the plot')]
+    #
+    # params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'xs'), choices=['xs', 'ys', 'zs'], description='Array to plot along x-axis')]
+    # params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'ys'), choices=['xs', 'ys', 'zs'], description='Array to plot along y-axis')]
+    # params += [ChoiceParameter(qualifier='facecolor', value=kwargs.get('facecolor', 'teffs'), choices=['<component>', 'none', 'teffs', 'loggs', 'mus', 'visibilities']+_mplcolors, description='Array to plot as facecolor')]
+    # params += [ChoiceParameter(qualifier='edgecolor', value=kwargs.get('edgecolor', 'k'), choices=['<component>', 'none', 'teffs', 'loggs', 'mus', 'visibilities']+_mplcolors, description='Array to plot as edgecolor')]
+    #
+    # params += _label_units_lims('x', visible_if='x:xs', default_unit=u.solRad, is_default=True, **kwargs)
+    # params += _label_units_lims('x', visible_if='x:ys', default_unit=u.solRad, is_default=False, **kwargs)
+    # params += _label_units_lims('x', visible_if='x:zs', default_unit=u.solRad, is_default=False, **kwargs)
+    #
+    # params += _label_units_lims('y', visible_if='y:xs', default_unit=u.solRad, is_default=False, **kwargs)
+    # params += _label_units_lims('y', visible_if='y:ys', default_unit=u.solRad, is_default=True, **kwargs)
+    # params += _label_units_lims('y', visible_if='y:zs', default_unit=u.solRad, is_default=False, **kwargs)
+    #
+    # params += _label_units_lims('facecolor', visible_if='facecolor:teffs', default_unit=u.K, is_default=True, **kwargs)
+    # params += _label_units_lims('facecolor', visible_if='facecolor:loggs', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+    # params += _label_units_lims('facecolor', visible_if='facecolor:mus', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+    # params += _label_units_lims('facecolor', visible_if='facecolor:visibilities', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
 
 
     return ParameterSet(params)
