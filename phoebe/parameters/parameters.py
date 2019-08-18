@@ -2935,47 +2935,6 @@ class ParameterSet(object):
         """
         return self.get_parameter(twig=twig, **kwargs).get_description()
 
-    def get_prior(self, twig=None, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def set_prior(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def remove_prior(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def get_posterior(self, twig=None, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def remove_posterior(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-
     def compute_residuals(self, model=None, dataset=None, component=None, as_quantity=True):
         """
         Compute residuals between the observed values in a dataset and the
