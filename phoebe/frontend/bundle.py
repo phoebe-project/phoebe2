@@ -2948,6 +2948,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing feature with the same `feature` tag.  If False,
             an error will be raised.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -2996,7 +2999,7 @@ class Bundle(ParameterSet):
                      'kind': func.__name__}
 
         if kwargs.get('overwrite', False):
-            self.remove_feature(feature=kwargs['feature'])
+            overwrite_ps = self.remove_feature(feature=kwargs['feature'])
             # check the label again, just in case kwargs['feature'] belongs to
             # something other than feature
             self._check_label(kwargs['feature'], allow_overwrite=False)
@@ -3017,7 +3020,12 @@ class Bundle(ParameterSet):
 
         #return params
         # NOTE: we need to call get_ in order to make sure all metawargs are applied
-        return self.get_feature(kwargs['feature'])
+        ret_ps = self.filter(feature=kwargs['feature'], **_skip_filter_checks)
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
+
+        return ret_ps
 
     def get_feature(self, feature=None, **kwargs):
         """
@@ -3098,7 +3106,7 @@ class Bundle(ParameterSet):
 
         # Let's also avoid the possibility of accidentally deleting system
         # parameters, etc
-        kwargs.setdefault('context', ['feature'])
+        kwargs.setdefault('context', ['feature', 'compute'])
 
         removed_ps = self.remove_parameters_all(**kwargs)
 
@@ -3297,6 +3305,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing component with the same `component` tag.  If False,
             an error will be raised.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -3338,7 +3349,7 @@ class Bundle(ParameterSet):
                      'kind': fname}
 
         if kwargs.get('overwrite', False):
-            self.remove_component(component=kwargs['component'])
+            overwrite_ps = self.remove_component(component=kwargs['component'])
             # check the label again, just in case kwargs['component'] belongs to
             # something other than component
             self.exclude(component=kwargs['component'])._check_label(kwargs['component'], allow_overwrite=False)
@@ -3373,8 +3384,11 @@ class Bundle(ParameterSet):
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
         self._kwargs_checks(kwargs,
-                            additional_allowed_keys=['overwrite'],
+                            additional_allowed_keys=['overwrite', 'return_overwrite'],
                             warning_only=True, ps=ret_ps)
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
 
         return ret_ps
 
@@ -3839,6 +3853,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing dataset with the same `dataset` tag.  If False,
             an error will be raised if a dataset already exists with the same name.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).  See examples
             above for acceptable formats.
@@ -3957,7 +3974,7 @@ class Bundle(ParameterSet):
         params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **ds_kwargs)
 
         if kwargs.get('overwrite', False):
-            self.remove_dataset(dataset=kwargs['dataset'])
+            overwrite_ps = self.remove_dataset(dataset=kwargs['dataset'])
             # check the label again, just in case kwargs['dataset'] belongs to
             # something other than dataset
             self._check_label(kwargs['dataset'], allow_overwrite=False)
@@ -4156,10 +4173,13 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
+        self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
 
         if new_fig_params is not None:
             ret_ps += new_fig_params
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
 
         return ret_ps
 
@@ -5001,6 +5021,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing component with the same `figure` tag.  If False,
             an error will be raised.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -5037,10 +5060,12 @@ class Bundle(ParameterSet):
                      'kind': fname}
 
         if kwargs.get('overwrite', False):
-            self.remove_figure(figure=kwargs['figure'])
+            overwrite_ps = self.remove_figure(figure=kwargs['figure'])
             # check the label again, just in case kwargs['figure'] belongs to
             # something other than component
             self.exclude(figure=kwargs['figure'])._check_label(kwargs['figure'], allow_overwrite=False)
+        else:
+            removed_ps = None
 
         self._attach_params(params, **metawargs)
         # attach params called _check_copy_for, but only on it's own parameterset
@@ -5065,8 +5090,11 @@ class Bundle(ParameterSet):
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
         self._kwargs_checks(kwargs,
-                            additional_allowed_keys=['overwrite'],
+                            additional_allowed_keys=['overwrite', 'return_overwrite'],
                             warning_only=True, ps=ret_ps)
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
 
         return ret_ps
 
@@ -5849,6 +5877,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing set of compute options with the same `compute` tag.  If False,
             an error will be raised.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -5879,7 +5910,7 @@ class Bundle(ParameterSet):
                      'compute': kwargs['compute']}
 
         if kwargs.get('overwrite', False):
-            self.remove_compute(compute=kwargs['compute'])
+            overwrite_ps = self.remove_compute(compute=kwargs['compute'])
             # check the label again, just in case kwargs['compute'] belongs to
             # something other than compute
             self._check_label(kwargs['compute'], allow_overwrite=False)
@@ -5904,9 +5935,12 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
+        self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
 
         self._handle_compute_selectparams()
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
 
         return ret_ps
 
@@ -6047,6 +6081,10 @@ class Bundle(ParameterSet):
             an existing model with the same `model` tag.  If False,
             an error will be raised.  This defaults to True if `model` is not provided
             or is 'latest', otherwise it will default to False.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True (or defaults to True if
+            `model` is 'latest').
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -6092,6 +6130,8 @@ class Bundle(ParameterSet):
 
         self._check_label(model, allow_overwrite=kwargs.get('overwrite', model=='latest'))
 
+        overwrite_ps = None
+
         if model in self.models and kwargs.get('overwrite', model=='latest'):
             if self.get_value(qualifier='detached_job', model=model, context='model', default='loaded') != 'loaded':
                 raise ValueError("model '{}' cannot be overwritten until it is complete and loaded.")
@@ -6099,7 +6139,7 @@ class Bundle(ParameterSet):
                 logger.warning("overwriting model: {}".format(model))
             else:
                 logger.info("overwriting model: {}".format(model))
-            self.remove_model(model)
+            overwrite_ps = self.remove_model(model)
             # check the label again, just in case model belongs to something
             # other than model/figure
             self._check_label(model, allow_overwrite=False)
@@ -6157,7 +6197,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'return_overwrite', 'max_computations']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
@@ -6270,6 +6310,10 @@ class Bundle(ParameterSet):
             # return self.get_model(model)
             self._handle_model_selectparams()
             # return self.filter(model=model, check_visible=False, check_default=False)
+
+            if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
+                return ParameterSet([job_param]) + overwrite_ps
+
             return job_param
 
         # temporarily disable interactive_checks, check_default, and check_visible
@@ -6426,7 +6470,13 @@ class Bundle(ParameterSet):
         restore_conf()
 
         self._handle_model_selectparams()
-        return self.filter(model=model, check_visible=False, check_default=False)
+
+        ret_ps = self.filter(model=model, **_skip_filter_checks)
+
+        if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
+            ret_ps += overwrite_ps
+
+        return ret_ps
 
     def get_model(self, model=None, **kwargs):
         """
