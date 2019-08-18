@@ -87,8 +87,8 @@ def _figure_style_modes(b, default_color='component', default_linestyle='dataset
     params += [ChoiceParameter(qualifier='color_mode', value=kwargs.get('color_mode', default_color), choices=['dataset', 'model', 'component', 'manual'], description='Source to use for color.  For manual, see the color parameter in the figure context.  Otherwise, see the color parameters tagged with the corresponding dataset/model/component.')]
     params += [ChoiceParameter(qualifier='color', visible_if='color_mode:manual', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Default color when plotted via run_figure')]
 
-    params += [ChoiceParameter(qualifier='marker_mode', value=kwargs.get('marker_mode', default_marker), choices=['dataset', 'component', 'manual'], description='Source to use for marker.  For manual, see the marker parameter in the figure context.  Otherwise, see the marker parameters tagged with the corresponding dataset/model/component.')]
-    params += [ChoiceParameter(qualifier='marker', visible_if='marker_mode:manual', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Default marker when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='marker_mode', value=kwargs.get('marker_mode', default_marker), choices=['dataset', 'component', 'manual'], description='Source to use for marker (datasets only, not models).  For manual, see the marker parameter in the figure context.  Otherwise, see the marker parameters tagged with the corresponding dataset/model/component.')]
+    params += [ChoiceParameter(qualifier='marker', visible_if='marker_mode:manual', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Default marker (datasets only, not models) when plotted via run_figure')]
 
     params += [ChoiceParameter(qualifier='linestyle_mode', value=kwargs.get('linestyle_mode', default_linestyle), choices=['dataset', 'model', 'component', 'manual'], description='Source to use for linestyle.  For manual, see the linestyle parameter in the figure context.  Otherwise, see the linestyle parameters tagged with the corresponding dataset/model/component.')]
     params += [ChoiceParameter(qualifier='linestyle', visible_if='linestyle_mode:manual', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.options, description='Default linestyle when plotted via run_figure')]
@@ -99,7 +99,7 @@ def _add_component(b, **kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which color_mode is set to component')]
-    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Marker to use for figures in which marker_mode is set to component')]
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Marker (datasets only, not models) to use for figures in which marker_mode is set to component')]
     params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_mode is set to component')]
 
     return ParameterSet(params)
@@ -108,7 +108,7 @@ def _add_dataset(b, **kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which linestyle_mode is set to dataset')]
-    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Marker to use for figures in which marker_mode is set to dataset')]
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Marker (datasets only, not models) to use for figures in which marker_mode is set to dataset')]
     params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', 'solid')), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_mode is set to dataset')]
 
     return ParameterSet(params)

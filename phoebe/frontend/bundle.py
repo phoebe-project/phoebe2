@@ -5281,18 +5281,24 @@ class Bundle(ParameterSet):
         else:
             for q in ['linestyle', 'marker', 'color']:
                 if q not in kwargs.keys():
+                    if q == 'marker':
+                        # don't apply markers to models
+                        qk = '{}@dataset'.format(q)
+                    else:
+                        qk = q
+
                     mode = kwargs.get('{}_mode'.format(q), fig_ps.get_value(qualifier='{}_mode'.format(q), **_skip_filter_checks))
                     if mode == 'manual':
-                        kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                        kwargs[qk] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
                     elif mode == 'dataset':
-                        kwargs[q] = {ds: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
+                        kwargs[qk] = {ds: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
                     elif mode == 'model':
-                        kwargs[q] = {ml: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
+                        kwargs[qk] = {ml: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
                     elif mode == 'component':
-                        kwargs[q] = {}
+                        kwargs[qk] = {}
                         for c in comp_same_kind:
                             try:
-                                kwargs[q][c] = self.get_value(qualifier=q, component=c, context='figure', **_skip_filter_checks)
+                                kwargs[qk][c] = self.get_value(qualifier=q, component=c, context='figure', **_skip_filter_checks)
                             except ValueError:
                                 # RVs will include orbits in comp_same kind, but we can safely skip those
                                 pass
