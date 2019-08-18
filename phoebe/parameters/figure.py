@@ -116,11 +116,24 @@ def _add_dataset(b, **kwargs):
 def _run_compute(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, advanced=True, description='Color to use for figures in which color_mode is set to model')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which color_mode is set to model')]
     # params += [ChoiceParameter(qualifier='marker', value=kwargs.get('marker', None), choices=b._mpl, description='Default marker when plotted, overrides dataset value unless set to <dataset>')]
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.options, advanced=True, description='Linestyle to use for figures in which linestyle_mode is set to model')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_mode is set to model')]
 
     return ParameterSet(params)
+
+# def subplots(b, **kwargs):
+#     # enabling this would require moving all the exiting figure stuff into a 'subplot' context so that we can copy each of these for each subplot (instead of figure)
+#     params = []
+#
+#     params += [BoolParameter(qualfier='include_subplot', copy_for={'figure', '*'}, figure='_default', value=kwargs.get('include_subplot', True))]
+#
+#     params += [ChoiceParameter(qualifier='axorder_mode', visible_if='include_subplot:True', copy_for={'figure', '*'}, figure='_default', value=kwargs.get('axorder_mode', 'auto'), choices=['auto', 'manual'])]
+#     params += [IntParameter(qualifier='axorder', visible_if='include_subplot:True,axorder_mode:manual', copy_for={'figure', '*'}, figure='_default', value=kwargs.get('axorder', 0), limits=[0,None])]
+#
+#     params += [ChoiceParameter(qualifier='axpos_mode', visible_if='include_subplot:True', copy_for={'figure', '*'}, figure='_default', value=kwargs.get('axpos_mode', 'auto'), choices=['auto', 'manual'])]
+#     params += [IntParameter(qualifier='axpos', visible_if='include_subplot:True,axpos_mode:manual', copy_for={'figure', '*'}, figure='_default', value=kwargs.get('axpos', 111), limits=[111,999])]
+
 
 def lc(b, **kwargs):
     params = []

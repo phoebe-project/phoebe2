@@ -3947,12 +3947,18 @@ class Bundle(ParameterSet):
 
 
         # Figure options for this dataset
-        fig_params = _figure._add_dataset(self, allow_per_component=kind in ['rv', 'orb', 'etv'], **kwargs)
+        fig_params = _figure._add_dataset(self, **kwargs)
 
         fig_metawargs = {'context': 'figure',
                          'kind': kind,
                          'dataset': kwargs['dataset']}
         self._attach_params(fig_params, **fig_metawargs)
+
+        if kind not in self.filter(context='figure', check_visible=False, check_default=False).exclude(figure=[None], check_visible=False, check_default=False).kinds:
+            # then we don't have a figure for this kind yet
+            new_fig_params = self.add_figure(kind=kind)
+        else:
+            new_fig_params = None
 
 
         # Now we need to apply any kwargs sent by the user.  See the API docs
@@ -4128,6 +4134,9 @@ class Bundle(ParameterSet):
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
         self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
+
+        if new_fig_params is not None:
+            ret_ps += new_fig_params
 
         return ret_ps
 
@@ -6148,10 +6157,9 @@ class Bundle(ParameterSet):
             compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('do_create_fig_params', do_create_fig_params)]
             compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
             f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
-            if do_create_fig_params:
-                f.write("b.filter(model='{}').save('_{}.out', incl_uniqueid=True)\n".format(str(model), jobid))
-            else:
-                f.write("b.get_model(model='{}').save('_{}.out', incl_uniqueid=True)\n".format(str(model), jobid))
+            # as the return from run_compute just does a filter on model=model,
+            # model_ps here should include any created figure parameters
+            f.write("model_ps.save('_{}.out', incl_uniqueid=True)\n".format(jobid))
 
             f.close()
 
@@ -6181,8 +6189,11 @@ class Bundle(ParameterSet):
             else:
                 logger.info("detaching from run_compute.  Call get_model('{}').attach() to re-attach".format(model))
 
+            # TODO: make sure the figureparams are returned when attaching
+
             # return self.get_model(model)
             self._handle_model_selectparams()
+            # return self.filter(model=model, check_visible=False, check_default=False)
             return job_param
 
         # temporarily disable interactive_checks, check_default, and check_visible
@@ -6338,9 +6349,8 @@ class Bundle(ParameterSet):
 
         restore_conf()
 
-        # TODO: should we also return the figure parameters?
         self._handle_model_selectparams()
-        return self.get_model(model)
+        return self.filter(model=model, check_visible=False, check_default=False)
 
     def get_model(self, model=None, **kwargs):
         """

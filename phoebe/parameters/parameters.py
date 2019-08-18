@@ -10044,4 +10044,4 @@ class JobParameter(Parameter):
 
         # TODO: add history?
 
-        return self._bundle.get_model(self.model)
+        return self._bundle.filter(model=self.model)
