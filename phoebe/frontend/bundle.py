@@ -1498,17 +1498,22 @@ class Bundle(ParameterSet):
             positive or negative).  If i is None or not provided, the entire list
             of history items will be removed.
 
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+
         Raises
         -------
         * ValueError: if no history items have been recorded.
         """
         if i is None:
-            self.remove_parameters_all(context='history')
+            return_ = self.remove_parameters_all(context='history')
         else:
             param = self.get_history(i=i)
-            self.remove_parameter(uniqueid=param.uniqueid)
+            return_ = self.remove_parameter(uniqueid=param.uniqueid)
 
         # let's not add_history for this one...
+        return return_
 
     @property
     def history_enabled(self):
@@ -3072,6 +3077,10 @@ class Bundle(ParameterSet):
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: feature, qualifier.
 
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+
         Raises
         --------
         * ValueError: if `feature` is not provided AND no `kwargs` are provided.
@@ -3091,22 +3100,28 @@ class Bundle(ParameterSet):
         # parameters, etc
         kwargs.setdefault('context', ['feature'])
 
-        self.remove_parameters_all(**kwargs)
+        removed_ps = self.remove_parameters_all(**kwargs)
 
         self._add_history(redo_func='remove_feature',
                           redo_kwargs=kwargs,
                           undo_func=None,
                           undo_kwargs={})
 
-        return
+        return removed_ps
 
     def remove_features_all(self):
         """
         Remove all features from the bundle.  To remove a single feature, see
         <phoebe.frontend.bundle.Bundle.remove_feature>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
+        removed_ps = ParameterSet()
         for feature in self.features:
-            self.remove_feature(feature=feature)
+            removed_ps += self.remove_feature(feature=feature)
+        return removed_ps
 
     def rename_feature(self, old_feature, new_feature):
         """
@@ -3396,12 +3411,16 @@ class Bundle(ParameterSet):
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: component, context
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
         # NOTE: run_checks will check if an entry is in the hierarchy but has no parameters
         kwargs['component'] = component
         # NOTE: we do not remove from 'model' by default
         kwargs['context'] = ['component', 'constraint', 'dataset', 'compute']
-        self.remove_parameters_all(**kwargs)
+        return self.remove_parameters_all(**kwargs)
 
     def rename_component(self, old_component, new_component):
         """
@@ -4190,6 +4209,10 @@ class Bundle(ParameterSet):
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: dataset, qualifier.
 
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+
         Raises
         --------
         * ValueError: if `dataset` is not provided AND no `kwargs` are provided.
@@ -4228,10 +4251,10 @@ class Bundle(ParameterSet):
         # parameters, etc
         kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute', 'figure'])
 
-        self.remove_parameters_all(**kwargs)
+        removed_ps = self.remove_parameters_all(**kwargs)
         # not really sure why we need to call this twice, but it seems to do
         # the trick
-        self.remove_parameters_all(**kwargs)
+        # self.remove_parameters_all(**kwargs)
 
         self._handle_dataset_selectparams()
 
@@ -4242,15 +4265,22 @@ class Bundle(ParameterSet):
                           undo_func=None,
                           undo_kwargs={})
 
-        return
+        return removed_ps
 
     def remove_datasets_all(self):
         """
         Remove all datasets from the bundle.  To remove a single dataset see
         <phoebe.frontend.bundle.Bundle.remove_dataset>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
+        removed_ps = ParameterSet()
         for dataset in self.datasets:
-            self.remove_dataset(dataset=dataset)
+            removed_ps += self.remove_dataset(dataset=dataset)
+
+        return removed_ps
 
     def rename_dataset(self, old_dataset, new_dataset):
         """
@@ -4583,6 +4613,10 @@ class Bundle(ParameterSet):
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: context, twig.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
         # let's run delayed constraints first to ensure that we get the same
         # results in interactive and non-interactive modes as well as to make
@@ -4610,7 +4644,7 @@ class Bundle(ParameterSet):
         constraint._remove_bookkeeping()
 
         # and finally remove it
-        self.remove_parameter(**kwargs)
+        removed_param = self.remove_parameter(**kwargs)
 
 
         undo_kwargs = {k: v for k, v in constraint.to_dict().items()
@@ -4621,6 +4655,8 @@ class Bundle(ParameterSet):
                           redo_kwargs=redo_kwargs,
                           undo_func='add_constraint',
                           undo_kwargs=undo_kwargs)
+
+        return removed_param
 
 
     def flip_constraint(self, twig=None, solve_for=None, **kwargs):
@@ -5082,10 +5118,14 @@ class Bundle(ParameterSet):
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: figure, context
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
         kwargs['figure'] = figure
         kwargs['context'] = 'figure'
-        self.remove_parameters_all(**kwargs)
+        return self.remove_parameters_all(**kwargs)
 
     def rename_figure(self, old_figure, new_figure):
         """
@@ -5903,19 +5943,30 @@ class Bundle(ParameterSet):
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: context, compute.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
         kwargs['compute'] = compute
         kwargs['context'] = 'compute'
-        self.remove_parameters_all(**kwargs)
+        removed_ps = self.remove_parameters_all(**kwargs)
         self._handle_compute_selectparams()
+        return removed_ps
 
     def remove_computes_all(self):
         """
         Remove all compute options from the bundle.  To remove a single set
         of compute options see <phoebe.frontend.bundle.Bundle.remove_compute>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
+        removed_ps = ParameterSet()
         for compute in self.computes:
-            self.remove_compute(compute)
+            removed_ps += self.remove_compute(compute)
+        return removed_ps
 
     def rename_compute(self, old_compute, new_compute):
         """
@@ -6428,18 +6479,28 @@ class Bundle(ParameterSet):
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: model, context.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
         kwargs['model'] = model
         kwargs['context'] = ['model', 'figure']
-        self.remove_parameters_all(**kwargs)
+        return self.remove_parameters_all(**kwargs)
 
     def remove_models_all(self):
         """
         Remove all models from the bundle.  To remove a single model see
         <phoebe.frontend.bundle.Bundle.remove_model>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
+        removed_ps = ParameterSet()
         for model in self.models:
-            self.remove_model(model=model)
+            removed_ps += self.remove_model(model=model)
+        return removed_ps
 
     def rename_model(self, old_model, new_model):
         """
