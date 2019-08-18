@@ -737,7 +737,7 @@ def _run_checks(b, bundleid, do_emit=True):
     return {'checks_status': report.status, 'checks_report': [item.to_dict() for item in report.items], 'failed_constraints': failed_constraints}
 
 
-def _update_figures(b, bundleid, affected_ps):
+def _update_figures(b, bundleid, affected_ps=None):
     # we need to update any figures in which:
     # * a parameter tagged with that filter has been changed
     # * a parameter tagged with a dataset selected in a given figure
@@ -746,9 +746,13 @@ def _update_figures(b, bundleid, affected_ps):
         print("_update_figures: ", bundleid)
 
 
-    if len(affected_ps.filter(context='figure', figure=[None])):
-        # then we changed something like color@primary@figure.  Its not obvious
-        # how to estimate which figures need to be updated in this case without
+    if affected_ps is None:
+        figures = b.figures
+
+    else:
+        if len(affected_ps.filter(context='figure', figure=[None])):
+            # then we changed something like color@primary@figure.  Its not obvious
+            # how to estimate which figures need to be updated in this case without
         # looking through all *_mode for component (in this case), so we'll
         # just update all figures
         figures = b.figures
@@ -762,16 +766,18 @@ def _update_figures(b, bundleid, affected_ps):
             figure_datasets = b.get_value(qualifier='datasets', figure=figure, check_visible=False, check_default=False, expand=True)
             figure_models = b.get_value(qualifier='models', figure=figure, check_visible=False, check_default=False, expand=True)
             if np.any([ds in figure_datasets for ds in datasets]) or np.any([ml in figure_models for ml in models]):
-                figures.append(figure)
+                    figures.append(figure)
 
 
-    figures_updated = []
+    current_time = str(datetime.now())
+    figure_update_times = {}
     for figure in figures:
         if app._verbose:
             print("_update_figures: calling run_figure on figure: {}".format(figure))
         try:
+        # if True:
             afig, mplfig = b.run_figure(figure=figure, save=os.path.join(_dir_tmpimages, '{}_{}.png'.format(bundleid, figure)))
-            render_kwargs = {'render_draw'}
+            render_kwargs = {'render': 'draw'}
             # TODO: we need to keep all things sent to draw
             # i=time,
             # draw_sidebars=draw_sidebars,
@@ -782,11 +788,20 @@ def _update_figures(b, bundleid, affected_ps):
         except Exception as err:
             if app._verbose:
                 print("_update_figures error: {}".format(str(err)))
+            # notify the client that the figure is now failing (and probably shouldn't be shown)
+            figure_update_times[figure] = 'failed'
+            # remove any existing cached file so that loading won't work
+            try:
+                os.remove(os.path.join(_dir_tmpimages, '{}_{}.png'.format(bundleid, figure)))
+                os.remove(os.path.join(_dir_tmpimages, '{}_{}.afig'.format(bundleid, figure)))
+            except:
+                pass
         else:
-            figures_updated.append(figure)
+            figure_update_times[figure] = current_time
 
-    current_time = str(datetime.now())
-    emit('{}:figures_updated:react'.format(bundleid), {'figure_update_times': {f: current_time for f in figures_updated}}, broadcast=True)
+    if app._verbose:
+        print("_update_figures: emitting figures_updated {}".format(figure_update_times))
+    emit('{}:figures_updated:react'.format(bundleid), {'figure_update_times': figure_update_times}, broadcast=True)
 
 
 
@@ -1027,8 +1042,34 @@ def bundle_method(msg):
 
         emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
 
-    app._bundles[bundleid] = b
+    # app._bundles[bundleid] = b
 
+
+
+@socketio.on('rerun_all_figures')
+def bundle_method(msg):
+    if app._verbose:
+        print("bundle_method: ", msg)
+
+    bundleid = msg.pop('bundleid', None)
+
+    if bundleid is None:
+        emit('errors', {'success': False, 'error': "must provide bundleid"}, broadcast=False)
+        return
+
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("bundle_method {} error: {}".format(msg, err))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        return
+
+
+    b = app._bundles[bundleid]
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    client_types = _client_types_for_bundle(bundleid)
+    _update_figures(b, bundleid, None)
 
 
 if __name__ == "__main__":
