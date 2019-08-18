@@ -467,6 +467,9 @@ class Call(object):
 
             return
 
+        if isinstance(axpos, list) or isinstance(axpos, np.ndarray):
+            axpos = tuple(axpos)
+
         if isinstance(axpos, tuple) and len(axpos) == 3 and np.all(isinstance(ap, int) for ap in axpos):
             self._axpos = axpos
 
@@ -474,7 +477,7 @@ class Call(object):
             self._axpos = (int(axpos/100), int(axpos/10 % 10), int(axpos % 10))
 
         else:
-            raise ValueError("axpos must be of type int or tuple between 100 and 999")
+            raise ValueError("axpos must be of type int or tuple between 100 and 999, found {} {}".format(type(axpos), axpos))
 
 
     @property
@@ -701,6 +704,34 @@ class Plot(Call):
                 dirs.append(direction)
 
         return "<Call:Plot | dims: {}>".format(", ".join(dirs))
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'classname': self.__class__.__name__,
+                'x': self.x.to_dict(),
+                'y': self.y.to_dict(),
+                'z': self.z.to_dict(),
+                'c': self.c.to_dict(),
+                's': self.s.to_dict(),
+                'i': self.i.to_dict(),
+                'axorder': self._axorder,
+                'axpos': self._axpos,
+                'title': self._title,
+                'label': self._label,
+                'marker': self._marker,
+                'linestyle': self._linestyle,
+                'linebreak': self._linebreak,
+                'highlight': self._highlight,
+                'highlight_linestyle': self._highlight_linestyle,
+                'highlight_size': self._highlight_size,
+                'highlight_color': self._highlight_color,
+                'highlight_marker': self._highlight_marker,
+                'uncover': self._uncover,
+                'trail': self._trail,
+                'consider_for_limits': self._consider_for_limits}
 
     @property
     def axes_c(self):
@@ -951,7 +982,7 @@ class Plot(Call):
             return
 
         if not isinstance(linebreak, str):
-            raise TypeError("linebreak must be of type str")
+            raise TypeError("linebreak must be of type str, found {} {}".format(type(linebreak), linebreak))
 
         if not len(linebreak)==2:
             raise ValueError("linebreak must be of length 2")
@@ -1506,6 +1537,29 @@ class Mesh(Call):
 
         return "<Call:Mesh | dims: {}>".format(", ".join(dirs))
 
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'classname': self.__class__.__name__,
+                'x': self.x.to_dict(),
+                'y': self.y.to_dict(),
+                'z': self.z.to_dict(),
+                'fc': self.c.to_dict(),
+                'ec': self.c.to_dict(),
+                'i': self.i.to_dict(),
+                'axorder': self._axorder,
+                'axpos': self._axpos,
+                'title': self._title,
+                'label': self._label,
+                'linestyle': self._linestyle,
+                'uncover': self._uncover,
+                'trail': self._trail,
+                'consider_for_limits': self._consider_for_limits,
+                'exclude_back': self._exclude_back}
+
     @property
     def axes_fc(self):
         # currently no setter as this really should be handle by axes.add_call
@@ -1905,6 +1959,13 @@ def make_calldimensiongroup(items):
 
 class CallDimension(object):
     def __init__(self, direction, call, value, error=None, unit=None, label=None, normals=None):
+        if isinstance(value, dict):
+            error = value.get('error', error)
+            unit = value.get('unit', unit)
+            label = value.get('label', label)
+            normals = value.get('normals', normals)
+            value = value.get('value')
+
         self._call = call
         self.direction = direction
         # unit must be set before value as setting value pulls the appropriate
@@ -1929,6 +1990,18 @@ class CallDimension(object):
                                        info,
                                        self.unit.physical_type,
                                        self.label)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'unit': self.unit.to_string(),
+                'value': common.arraytolistrecursive(self._value),
+                'error': common.arraytolistrecursive(self._error),
+                'label': self._label,
+                'normals': common.arraytolistrecursive(self._normals)}
 
     @property
     def call(self):
@@ -2212,6 +2285,9 @@ class CallDimension(object):
                 # axhline even with i given won't change in i
                 return self._to_unit(value, unit)
 
+        if isinstance(value, list) or isinstance(value, tuple):
+            value = np.asarray(value)
+
         # from here on we're assuming the value is an array, so let's just check
         # to be sure
         if not isinstance(value, np.ndarray):
@@ -2319,9 +2395,10 @@ class CallDimension(object):
 
         # handle casting to acceptable types
         if isinstance(value, list) or isinstance(value, tuple):
-            value = np.array(value)
-        if isinstance(value, int):
+            value = np.asarray(value)
+        elif isinstance(value, int):
             value = float(value)
+
         if isinstance(value, u.Quantity):
             if self.unit == u.dimensionless_unscaled:
                 # then take the unit from quantity and apply it
@@ -2341,13 +2418,10 @@ class CallDimension(object):
             # TODO: do we want to cast to np.array([value])??
             # this will most likely be used for axhline/axvline
             self._value = value
-        # elif isinstance(value, str):
-            # TODO: then need to pull from the bundle??? Or will this happen
-            # at a higher level
         elif self.direction=='c' and isinstance(value, str):
             self._value = common.coloralias.map(value)
         else:
-            raise TypeError("value must be of type array (or similar)")
+            raise TypeError("value must be of type array (or similar), found {} {}".format(type(value), value))
 
     value = property(_get_value, _set_value)
 
@@ -2383,6 +2457,9 @@ class CallDimension(object):
 
         if isinstance(error, u.Quantity):
             error = error.to(self.unit).value
+
+        if isinstance(error, list) or isinstance(error, tuple):
+            error = np.asarray(error)
 
         self._error = error
 
@@ -2456,8 +2533,21 @@ class CallDimension(object):
 
 class CallDimensionI(CallDimension):
     def __init__(self, call, value, unit, tol):
+        if isinstance(value, dict):
+            tol = value.get('tol', tol)
+
         self.tol = tol
         super(CallDimensionI, self).__init__('i', call, value, unit)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'unit': self.unit.to_string(),
+                'value': common.arraytolistrecursive(self._value),
+                'tol': self._tol}
 
     @property
     def tol(self):
@@ -2550,6 +2640,12 @@ class CallDimensionZ(CallDimension):
 class CallDimensionS(CallDimension):
     def __init__(self, call, value, error=None, unit=None, label=None,
                  smap=None, mode=None):
+
+        if isinstance(value, dict):
+            error = value.get('error', error)
+            smap = value.get('smap', smap)
+            mode = value.get('mode', mode)
+
         if error is not None:
             raise ValueError("error not supported for 's' dimension")
 
@@ -2558,6 +2654,19 @@ class CallDimensionS(CallDimension):
 
         super(CallDimensionS, self).__init__('s', call, value, error, unit,
                                              label)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'unit': self.unit.to_string(),
+                'value': common.arraytolistrecursive(self._value),
+                'error': common.arraytolistrecursive(self._error),
+                'label': self._label,
+                'smap': self._smap,
+                'mode': self._mode}
 
     @property
     def smap(self):
@@ -2634,12 +2743,28 @@ class CallDimensionS(CallDimension):
 
 class CallDimensionC(CallDimension):
     def __init__(self, call, value, error=None, unit=None, label=None, cmap=None):
+        if isinstance(value, dict):
+            error = value.get('error', error)
+            cmap = value.get('cmap', cmap)
+
         if error is not None:
             raise ValueError("error not supported for 'c' dimension")
 
         self.cmap = cmap
         super(CallDimensionC, self).__init__('c', call, value, error, unit,
                                              label)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'unit': self.unit.to_string(),
+                'value': common.arraytolistrecursive(self._value),
+                'error': common.arraytolistrecursive(self._error),
+                'label': self._label,
+                'cmap': self._cmap}
 
     @property
     def cmap(self):

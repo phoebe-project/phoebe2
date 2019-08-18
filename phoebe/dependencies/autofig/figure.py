@@ -48,12 +48,133 @@ class Figure(object):
             elif isinstance(ca, _call.Call):
                 self.add_call(ca)
             else:
-                raise TypeError("all arguments must be of type Call or Axes")
+                raise TypeError("all arguments must be of type Call or Axes, found {}".format(type(ca)))
 
     def __repr__(self):
         naxes = len(self.axes)
         ncalls = len(self.calls)
         return "<autofig.figure.Figure | {} axes | {} call(s)>".format(naxes, ncalls)
+
+    @classmethod
+    def from_dict(cls, dict):
+        args = []
+        for axd in dict.pop('axes', []):
+            args.append(_axes.Axes.from_dict(axd))
+        for calld in dict.pop('calls', []):
+            args.append(getattr(_call, calld.pop('classname', 'Plot')).from_dict(calld))
+
+        if len(dict.items()):
+            raise ValueError("could not recognize remaining content {}".format(dict))
+
+        return cls(*args)
+
+    def to_dict(self, renders=[]):
+        """
+        Export the current <autofig.figure.Figure> to a json-safe dictionary.
+
+        See also:
+        * <autofig.figure.Figure.save>
+
+        Arguments
+        -----------
+        * `filename` (string): path to save the figure instance.
+        * `renders` (list of dictionaries, default=[]): commands to execute
+            for rendering when opened by the command-line tool or by passing
+            `do_renders` to <autofig.figure.Figure.open>.  The format must
+            be a list of dictionaries, where each dictionary must at least have
+            'render': 'draw' or 'render': 'animate'.  Any additional key-value
+            pairs will be passed as keyword arguments to the respective
+            rendering method.
+
+
+        Returns
+        -----------
+        * (str) the path of the saved figure instance.
+        """
+        renders_json_safe = []
+        if len(renders):
+            for render in renders:
+                if render.get('render', None) not in ['draw', 'animate']:
+                    raise ValueError("invalid format for render: {}.  Must include render='draw' or render='animate'".format(render))
+
+                renders_json_safe.append({k: common._json_safe(v) for k,v in render.items()})
+
+        return {'axes': [ax.to_dict() for ax in self.axes], 'calls': [c.to_dict() for c in self.calls], 'renders': renders_json_safe}
+
+    @classmethod
+    def open(cls, filename, do_renders=False, allow_renders_save=False):
+        """
+        Open a <autofig.figure.Figure> from a saved file.
+
+        See also:
+        * <autofig.figure.Figure.save>
+
+        Arguments
+        -----------
+        * `filename` (string): path to the saved figure instance
+        * `do_renders` (bool, default=False): whether to execute any render
+            (ie. draw/animate) statements included in the file.
+        * `allow_renders_save` (bool, default=False): whether to allow render
+            statements to save images/animations to disk.  Be careful if setting
+            this to True from an untrusted source.
+
+        Returns
+        ---------
+        * the loaded <autofig.figure.Figure> instance.
+
+        Raises
+        ----------
+        * ValueError: if `do_render` is True but the render statements are invalid.
+        """
+        dict = common.load(filename)
+        renders = dict.pop('renders', [])
+        fig = cls.from_dict(dict)
+
+        if do_renders:
+            for render in renders:
+                render_cmd = render.pop('render', None)
+                if render_cmd not in  ['draw', 'animate']:
+                    raise ValueError("invalid format for renders, only accepts draw or animate.  Try passing do_renders=False to skip.")
+
+                if not allow_renders_save:
+                    save_dump = render.pop('save', None)
+
+                if 'show' not in render.keys() and 'save' not in render.keys():
+                    render['show'] = True
+
+                print("calling {} with kwargs {}".format(render_cmd, render))
+                getattr(fig, render_cmd)(**render)
+
+        return fig
+
+    def save(self, filename, renders=[]):
+        """
+        Save the current <autofig.figure.Figure>.  Note: this saves the autofig
+        figure object itself, not the image.  To save the image, call
+        <autofig.figure.Figure.draw> and pass `save`.
+
+        See also:
+        * <autofig.figure.Figure.open>
+        * <autofig.figure.Figure.to_dict>
+
+        Arguments
+        -----------
+        * `filename` (string): path to save the figure instance.
+        * `renders` (list of dictionaries, default=[]): commands to execute
+            for rendering when opened by the command-line tool or by passing
+            `do_renders` to <autofig.figure.Figure.open>.  The format must
+            be a list of dictionaries, where each dictionary must at least have
+            'render': 'draw' or 'render': 'animate'.  Any additional key-value
+            pairs will be passed as keyword arguments to the respective
+            rendering method.
+
+
+        Returns
+        -----------
+        * (str) the path of the saved figure instance.
+        """
+        common.save(self.to_dict(renders=renders), filename)
+
 
     @property
     def axes(self):
@@ -321,6 +442,7 @@ class Figure(object):
              draw_title=True,
              subplot_grid=None,
              show=False, save=False,
+             save_afig=False,
              in_animation=False):
         """
         Draw the contents of the <autofig.figure.Figure> to a matplotlib figure
@@ -360,6 +482,9 @@ class Figure(object):
             draw and show the resulting matplotlib figure.
         * `save` (False or string, optional, default=False): the filename
             to save the resulting matplotlib figure, or False to not save.
+        * `save_afig` (False or string, optional, default=False): the filename
+            to save the autofig object, along with the options for this
+            draw call.  See also <autofig.figure.Figure.save>.
         * `in_animation` (bool, optional, default=False): whether the current
             call to `draw` is a single frame in an animation.  Usually this
             should not be changed by the user.  See <autofig.figure.Figure.animate>
@@ -369,6 +494,16 @@ class Figure(object):
         ----------
         * ([matplotlib Figure](https://matplotlib.org/api/_as_gen/matplotlib.figure.Figure.html#matplotlib.figure.Figure)): the matplotlib figure object.
         """
+
+        if save_afig:
+            render = {'render': 'draw'}
+            render['i'] = i
+            render['tight_layout'] = tight_layout
+            render['draw_sidebars'] = draw_sidebars
+            render['draw_title'] = draw_title
+            render['subplot_grid'] = subplot_grid
+
+            self.save(save_afig, renders=[render])
 
         fig = self._get_backend_object(fig)
         callbacks._connect_to_autofig(self, fig)
@@ -423,7 +558,8 @@ class Figure(object):
                 draw_title=True,
                 subplot_grid=None,
                 interval=100,
-                show=False, save=False, save_kwargs={}):
+                show=False, save=False, save_kwargs={},
+                save_afig=False):
         """
         Draw the contents of the <autofig.figure.Figure> to a matplotlib animation.
 
@@ -458,11 +594,25 @@ class Figure(object):
             to save the resulting matplotlib animation, or False to not save.
         * `save_kwargs` (dict, optional, default={}): dictionary of keyword
             arguments to be passed on to [anim.save](https://matplotlib.org/api/_as_gen/matplotlib.animation.FuncAnimation.html#matplotlib.animation.FuncAnimation.save)
+        * `save_afig` (False or string, optional, default=False): the filename
+            to save the autofig object, along with the options for this
+            animate call.  See also <autofig.figure.Figure.save>.
 
         Returns
         ----------
         * ([matplotlib FuncAnimation](https://matplotlib.org/api/_as_gen/matplotlib.animation.FuncAnimation.html#matplotlib-animation-funcanimation)): the matplotlib animation object.
         """
+
+        if save_afig:
+            render = {'render': 'animate'}
+            render['i'] = i
+            render['tight_layout'] = tight_layout
+            render['draw_sidebars'] = draw_sidebars
+            render['draw_title'] = draw_title
+            render['subplot_grid'] = subplot_grid
+            render['interval'] = interval
+
+            self.save(save_afig, renders=[render])
 
         if tight_layout:
             print("WARNING: tight_layout with fixed limits may cause jittering in the animation")
