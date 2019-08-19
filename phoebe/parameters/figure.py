@@ -212,24 +212,24 @@ def orb(b, **kwargs):
     params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
     params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
 
-    params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'xs'), choices=['times', 'phases', 'xs', 'ys', 'zs', 'vxs', 'vys', 'vzs'], description='Array to plot along x-axis')]
-    params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'zs'), choices=['xs', 'ys', 'zs', 'vxs', 'vys', 'vzs'], description='Array to plot along y-axis')]
+    params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'us'), choices=['times', 'phases', 'us', 'vs', 'ws', 'vus', 'vvs', 'vws'], description='Array to plot along x-axis')]
+    params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'ws'), choices=['us', 'vs', 'ws', 'vus', 'vvs', 'vws'], description='Array to plot along y-axis')]
 
     params += _label_units_lims('x', visible_if='x:times', default_unit=u.d, is_default=False, **kwargs)
     params += _label_units_lims('x', visible_if='x:phases', default_unit=u.cycle, is_default=False, **kwargs)  # TODO: this will fail once we implement phases:*
-    params += _label_units_lims('x', visible_if='x:xs', default_unit=u.solRad, is_default=True, **kwargs)
-    params += _label_units_lims('x', visible_if='x:ys', default_unit=u.solRad, is_default=False, **kwargs)
-    params += _label_units_lims('x', visible_if='x:zs', default_unit=u.solRad, is_default=False, **kwargs)
-    params += _label_units_lims('x', visible_if='x:vxs', default_unit=u.km/u.s, is_default=False, **kwargs)
-    params += _label_units_lims('x', visible_if='x:vys', default_unit=u.km/u.s, is_default=False, **kwargs)
-    params += _label_units_lims('x', visible_if='x:vzs', default_unit=u.km/u.s, is_default=False, **kwargs)
+    params += _label_units_lims('x', visible_if='x:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
+    # params += _label_units_lims('x', visible_if='x:vs', default_unit=u.solRad, is_default=False, **kwargs)
+    # params += _label_units_lims('x', visible_if='x:ws', default_unit=u.solRad, is_default=False, **kwargs)
+    params += _label_units_lims('x', visible_if='x:vus|vvs|vws', default_unit=u.km/u.s, is_default=False, **kwargs)
+    # params += _label_units_lims('x', visible_if='x:vvs', default_unit=u.km/u.s, is_default=False, **kwargs)
+    # params += _label_units_lims('x', visible_if='x:vws', default_unit=u.km/u.s, is_default=False, **kwargs)
 
-    params += _label_units_lims('y', visible_if='y:xs', default_unit=u.solRad, is_default=False, **kwargs)
-    params += _label_units_lims('y', visible_if='y:ys', default_unit=u.solRad, is_default=False, **kwargs)
-    params += _label_units_lims('y', visible_if='y:zs', default_unit=u.solRad, is_default=True, **kwargs)
-    params += _label_units_lims('y', visible_if='y:vxs', default_unit=u.km/u.s, is_default=False, **kwargs)
-    params += _label_units_lims('y', visible_if='y:vys', default_unit=u.km/u.s, is_default=False, **kwargs)
-    params += _label_units_lims('y', visible_if='y:vzs', default_unit=u.km/u.s, is_default=False, **kwargs)
+    params += _label_units_lims('y', visible_if='y:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
+    # params += _label_units_lims('y', visible_if='y:vs', default_unit=u.solRad, is_default=False, **kwargs)
+    # params += _label_units_lims('y', visible_if='y:ws', default_unit=u.solRad, is_default=True, **kwargs)
+    params += _label_units_lims('y', visible_if='y:vus|vvs|vws', default_unit=u.km/u.s, is_default=False, **kwargs)
+    # params += _label_units_lims('y', visible_if='y:vvs', default_unit=u.km/u.s, is_default=False, **kwargs)
+    # params += _label_units_lims('y', visible_if='y:vws', default_unit=u.km/u.s, is_default=False, **kwargs)
 
     kwargs.setdefault('color', 'k')
     kwargs.setdefault('marker', '.')
