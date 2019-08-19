@@ -3433,7 +3433,7 @@ class Bundle(ParameterSet):
         # NOTE: run_checks will check if an entry is in the hierarchy but has no parameters
         kwargs['component'] = component
         # NOTE: we do not remove from 'model' by default
-        kwargs['context'] = ['component', 'constraint', 'dataset', 'compute']
+        kwargs['context'] = ['component', 'constraint', 'dataset', 'compute', 'figure']
         return self.remove_parameters_all(**kwargs)
 
     def rename_component(self, old_component, new_component):
