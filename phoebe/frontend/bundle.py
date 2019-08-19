@@ -2773,6 +2773,15 @@ class Bundle(ParameterSet):
         # - make sure all ETV components are legal
         # - check for conflict between dynamics_method and mesh_method (?)
 
+
+        for param in self.filter(context='figure', qualifier='*lim', **_skip_filter_checks).to_list():
+            if len(param.get_value()) != 2 and param.is_visible:
+                report.add_item(self,
+                                "{} does not have length of 2 - will be ignored and {}_mode will revert to 'auto'".format(param.twig, param.qualifier),
+                                [param,
+                                 param.get_parent_ps().get_parameter(qualifier='{}_mode'.format(param.qualifier))],
+                                False)
+
         # we've survived all tests
         # return True, ''
         return report
@@ -5270,7 +5279,12 @@ class Bundle(ParameterSet):
                 kwargs.setdefault('{}unit'.format(d), fig_ps.get_value(qualifier='{}unit'.format(d), **_skip_filter_checks))
 
             if kwargs.get('{}lim_mode'.format(d), fig_ps.get_value(qualifier='{}lim_mode'.format(d), **_skip_filter_checks))=='manual':
-                kwargs.setdefault('{}lim'.format(d), fig_ps.get_value(qualifier='{}lim'.format(d), **_skip_filter_checks))
+                lim = fig_ps.get_value(qualifier='{}lim'.format(d), **_skip_filter_checks)
+                if len(lim)==2:
+                    kwargs.setdefault('{}lim'.format(d), lim)
+                else:
+                    logger.warning("ignoring {}lim, must have length 2".format(lim))
+
 
         if ds_kind in ['mesh', 'lp']:
             kwargs.setdefault('times', fig_ps.get_value(qualifier='times', expand=True, **_skip_filter_checks))
