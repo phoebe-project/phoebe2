@@ -2765,7 +2765,8 @@ class Bundle(ParameterSet):
                                 False)
             elif (teff > 6600. and teff < 8000) and irrad_frac_refl_bol < 0.6:
                 report.add_item(self,
-                                "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), irrad_frac_refl_bol might be better between 0.6-1.00 than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), irrad_frac_refl_bol might be better between 0.6-1.00 than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
                                  self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)],
                                 False)
 
