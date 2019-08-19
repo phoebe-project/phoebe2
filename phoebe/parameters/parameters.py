@@ -2409,6 +2409,10 @@ class ParameterSet(object):
         * `**kwargs`: meta-tags to use when filtering, including `check_visible` and
             `check_default`.  See <phoebe.parameters.ParameterSet.get>.
 
+        Returns
+        -----------
+        * the removed <phoebe.parmaeters.Parameter>.
+
         Raises
         ------
         * ValueError: if 0 or more than 1 results are found using the
@@ -2436,12 +2440,23 @@ class ParameterSet(object):
         * `twig` (string, optional, default=None): the twig to search for the
             parameter (see <phoebe.parameters.ParameterSet.get>)
         * `**kwargs`: meta-tags to use when filtering, including `check_visible` and
-            `check_default`.  See <phoebe.parameters.ParameterSet.filter>.
+            `check_default` which will all default to False if not provided.
+            See <phoebe.parameters.ParameterSet.filter>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
-        params = self.filter(twig=twig, check_visible=False, check_default=False, **kwargs)
+        kwargs.setdefault('check_visible', False)
+        kwargs.setdefault('check_default', False)
+        kwargs.setdefault('check_single', False)
+        kwargs.setdefault('check_advanced', False)
+        params = self.filter(twig=twig, **kwargs)
 
         for param in params.to_list():
             self._remove_parameter(param)
+
+        return params
 
     def get_quantity(self, twig=None, unit=None,
                      default=None, t=None, **kwargs):
