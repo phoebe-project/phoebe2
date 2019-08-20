@@ -1361,13 +1361,16 @@ class Bundle(ParameterSet):
 
     def _rename_label(self, tag, old_value, new_value):
         self._check_label(new_value)
+        affected_params = []
 
         for param in self.filter(check_visible=False, check_default=False, **{tag: old_value}).to_list():
             setattr(param, '_{}'.format(tag), new_value)
+            affected_params.append(param)
         for param in self.filter(context='constraint', check_visible=False, check_default=False).to_list():
             for k, v in param.constraint_kwargs.items():
                 if v == old_value:
                     param._constraint_kwargs[k] = new_value
+                    affected_params.append(param)
 
 
         if tag=='dataset':
@@ -1375,14 +1378,20 @@ class Bundle(ParameterSet):
                 old_param_value = param._value
                 new_param_value = [v.replace('@{}'.format(old_value), '@{}'.format(new_value)) for v in old_param_value]
                 param._value = new_param_value
+                affected_params.append(param)
 
-        # elif tag=='component':
+            affected_params += self._handle_dataset_selectparams(rename={old_value: new_value}, return_changes=True)
+
+        elif tag=='component':
+            affected_params += self._handle_component_selectparams(rename={old_value: new_value}, return_changes=True)
 
         elif tag=='compute':
-            for param in self.filter(qualifier=['run_checks_compute'], check_visible=False, check_default=False).to_list():
-                old_param_value = param._value
-                new_param_value = [new_value if v!=old_value else v for v in old_param_value]
-                param._value = new_param_value
+            affected_params += self._handle_compute_selectparams(rename={old_value: new_value}, return_changes=True)
+
+        elif tag=='model':
+            affected_params += self._handle_model_selectparams(rename={old_value: new_value}, return_changes=True)
+
+        return affected_params
 
     def get_setting(self, twig=None, **kwargs):
         """
@@ -1654,7 +1663,7 @@ class Bundle(ParameterSet):
 
         return affected_params
 
-    def _handle_dataset_selectparams(self, return_changes=False):
+    def _handle_dataset_selectparams(self, rename={}, return_changes=False):
         """
         """
         logger.debug("calling _handle_dataset_selectparams")
@@ -1683,11 +1692,10 @@ class Bundle(ParameterSet):
         for param in dss_ps.filter(qualifier='columns', check_default=False, check_visible=False).to_list():
             choices_changed = False
             if return_changes and pbdep_columns != param._choices:
-                affected_params.append(param)
                 choices_changed = True
             param._choices = pbdep_columns
-            changed = param.remove_not_valid_selections()
-            if return_changes and changed and not choices_changed:
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
         for param in dss_ps.filter(qualifier='include_times', check_default=False, check_visible=False).to_list():
@@ -1695,11 +1703,10 @@ class Bundle(ParameterSet):
             # NOTE: existing value is updated in change_component
             choices_changed = False
             if return_changes and time_datasets+t0s != param._choices:
-                affected_params.append(param)
                 choices_changed = True
             param._choices = time_datasets + t0s
-            changed = param.remove_not_valid_selections()
-            if return_changes and changed and not choices_changed:
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
         for param in self.filter(context='figure', qualifier='datasets', check_default=False, check_visible=False).to_list():
@@ -1707,16 +1714,15 @@ class Bundle(ParameterSet):
 
             choices_changed = False
             if return_changes and ds_same_kind != param._choices:
-                affected_params.append(param)
                 choices_changed = True
             param._choices = ds_same_kind
-            changed = param.remove_not_valid_selections()
-            if return_changes and changed and not choices_changed:
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
         return affected_params
 
-    def _handle_compute_selectparams(self, return_changes=False):
+    def _handle_compute_selectparams(self, rename={}, return_changes=False):
         """
         """
         affected_params = []
@@ -1726,17 +1732,36 @@ class Bundle(ParameterSet):
 
         for param in self.filter(qualifier='run_checks_compute', check_default=False, check_visible=False).to_list():
             choices_changed = False
-            if return_changes and compute != param._choices:
-                affected_params.append(param)
+            if return_changes and computes != param._choices:
                 choices_changed = True
             param._choices = computes
-            changed = param.remove_not_valid_selections()
-            if return_changes and changed and not choices_changed:
+
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
         return affected_params
 
-    def _handle_model_selectparams(self, return_changes=False):
+    def _handle_component_selectparams(self, rename={}, return_changes=False):
+        """
+        """
+        affected_params = []
+        changed_params = self.run_delayed_constraints()
+
+        for param in self.filter(context='figure', qualifier='components', check_default=False, check_visible=False).to_list():
+            c_same_kind = self.filter(qualifier='times', context='dataset', kind=param.kind, check_visible=False).components
+
+            choices_changed = False
+            if return_changes and c_same_kind != param._choices:
+                choices_changed = True
+            param._choices = c_same_kind
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_model_selectparams(self, rename={}, return_changes=False):
         """
         """
         affected_params = []
@@ -1747,11 +1772,10 @@ class Bundle(ParameterSet):
 
             choices_changed = False
             if return_changes and ml_same_kind != param._choices:
-                affected_params.append(param)
                 choices_changed = True
             param._choices = ml_same_kind
-            changed = param.remove_not_valid_selections()
-            if return_changes and changed and not choices_changed:
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
         return affected_params
@@ -3387,6 +3411,7 @@ class Bundle(ParameterSet):
                              'component': kwargs['component']}
             self._attach_params(fig_params, **fig_metawargs)
 
+        self._handle_component_selectparams()
 
         # TODO: include figure params in returned PS?
         ret_ps = self.get_component(check_visible=False, check_default=False, **metawargs)
@@ -3476,11 +3501,15 @@ class Bundle(ParameterSet):
             logger.warning("hierarchy may not update correctly with new component")
         self.hierarchy.rename_component(old_component, new_component)
 
-        self._rename_label('component', old_component, new_component)
+        ret_params = self._rename_label('component', old_component, new_component)
+        self.hierarchy._update_cache()
 
-        self._handle_dataset_selectparams()
+        # ret_ps = self.filter(component=new_component)
 
-        return self.filter(component=new_component)
+        # ret_ps += ParameterSet(self._handle_component_selectparams(rename={old_component: new_component}))
+
+        return ParameterSet(ret_params)
+
 
     def add_orbit(self, component=None, **kwargs):
         """
@@ -4330,9 +4359,12 @@ class Bundle(ParameterSet):
 
         self._check_label(new_dataset)
         self._rename_label('dataset', old_dataset, new_dataset)
-        self._handle_dataset_selectparams()
 
-        return self.filter(dataset=new_dataset)
+        ret_ps = self.filter(dataset=new_dataset)
+
+        ret_ps += self._handle_dataset_selectparams()
+
+        return ret_ps
 
 
     def enable_dataset(self, dataset=None, **kwargs):
@@ -5091,6 +5123,7 @@ class Bundle(ParameterSet):
 
         self._handle_dataset_selectparams()
         self._handle_model_selectparams()
+        self._handle_component_selectparams()
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -5265,9 +5298,11 @@ class Bundle(ParameterSet):
         ml_same_kind = self.filter(context='model', kind=ds_kind).models
         comp_same_kind = self.filter(context=['dataset', 'model'], kind=ds_kind).components
 
+        kwargs.setdefault('context', fig_ps.get_value(qualifier='contexts', expand=True, **_skip_filter_checks))
         kwargs.setdefault('dataset', fig_ps.get_value(qualifier='datasets', expand=True, **_skip_filter_checks))
         kwargs.setdefault('model', [None] + fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
-        # kwargs.setdefault('component', fig_ps.get_value(qualifier='components', expand=True, **_skip_filter_checks))
+        if 'components' in fig_ps.qualifiers:
+            kwargs.setdefault('component', fig_ps.get_value(qualifier='components', expand=True, **_skip_filter_checks))
         kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
 
         for d in ['x', 'y']:
@@ -6605,6 +6640,12 @@ class Bundle(ParameterSet):
 
         self._check_label(new_model)
         self._rename_label('model', old_model, new_model)
+
+        ret_ps = self.filter(model=new_model)
+
+        ret_ps += self._handle_model_selectparams()
+
+        return ret_ps
 
     def attach_job(self, twig=None, wait=True, sleep=5, cleanup=True, **kwargs):
         """

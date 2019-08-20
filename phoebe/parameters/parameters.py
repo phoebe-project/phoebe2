@@ -6482,6 +6482,37 @@ class SelectParameter(Parameter):
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
+    def handle_choice_rename(self, remove_not_valid=False, **rename):
+        """
+        Update the value according to a set of renames.
+
+        Arguments
+        ---------------
+        * `remove_not_valid` (bool, optional, default=False): whether to allow
+            for invalid selections but remove them by calling
+            <phoebe.parameters.SelectParameter.remove_not_valid_selections>.
+        * `**rename`: all pairs are renamed from the keys to the values.
+
+        Raises
+        -------------
+        * ValueError: if any of the renamed items fails to pass
+            <phoebe.parameters.SelectParameter.is_valid_selection>.
+        """
+        value = [rename.get(v, v) for v in self.get_value()]
+        changed = len(rename.keys())
+
+        if remove_not_valid:
+            self.set_value(value, run_checks=False)
+            return changed or self.remove_not_valid_selections()
+
+        else:
+            if np.any([not self.is_valid_selection(v) for v in value]):
+                raise ValueError("not all are valid after renaming")
+
+            self.set_value(value, run_checks=False)
+            return changed
+
+
     def remove_not_valid_selections(self):
         """
         Update the value to remove any that are (no longer) valid.  This
@@ -6495,7 +6526,7 @@ class SelectParameter(Parameter):
         * <phoebe.parameters.SelectParameter.set_value>
         """
         value = [v for v in self.get_value() if self.valid_selection(v)]
-        changed = value != self.get_value()
+        changed = len(value) != len(self.get_value())
         self.set_value(value, run_checks=False)
         return changed
 
@@ -8091,6 +8122,9 @@ class HierarchyParameter(StringParameter):
         To change the name of a component, use
         <phoebe.frontend.bundle.Bundle.rename_component> instead.
 
+        If calling this manually, make sure to update all other tags
+        or components and update the cache of the hierarchy.
+
         Arguments
         ----------
         * `old_component` (string): the current name of the component in the
@@ -8105,6 +8139,7 @@ class HierarchyParameter(StringParameter):
         # delay updating cache until after the bundle
         # has had a chance to also change its component tags
         self.set_value(value, update_cache=False)
+
 
     def get_components(self):
         """
