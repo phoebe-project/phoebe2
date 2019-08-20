@@ -1010,6 +1010,7 @@ def bundle_method(msg):
         ps_list += b._handle_pblum_defaults(return_changes=True)
         ps_list += b._handle_dataset_selectparams(return_changes=True)
         ps_list += b._handle_compute_selectparams(return_changes=True)
+        ps_list += b._handle_component_selectparams(return_changes=True)
 
     ps_list += b._handle_model_selectparams(return_changes=True)
 
