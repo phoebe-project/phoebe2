@@ -144,7 +144,7 @@ def lc(b, **kwargs):
     params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'times'), choices=['times', 'phases'], description='Array to plot along x-axis')]
-    params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'fluxes'), choices=['fluxes'], description='Array to plot along y-axis')]
+    params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'fluxes'), choices=['fluxes', 'residuals'], description='Array to plot along y-axis')]
 
     params += _label_units_lims('x', visible_if='x:times', default_unit=u.d, is_default=True, **kwargs)
     params += _label_units_lims('x', visible_if='x:!times', default_unit=u.cycle, is_default=False, **kwargs)
@@ -171,7 +171,7 @@ def rv(b, **kwargs):
     # params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'times'), choices=['times', 'phases'], description='Array to plot along x-axis')]
-    params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'rvs'), choices=['rvs'], description='Array to plot along y-axis')]
+    params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'rvs'), choices=['rvs', 'residuals'], description='Array to plot along y-axis')]
 
     params += _label_units_lims('x', visible_if='x:times', default_unit=u.d, is_default=True, **kwargs)
     params += _label_units_lims('x', visible_if='x:!times', default_unit=u.cycle, is_default=False, **kwargs)
