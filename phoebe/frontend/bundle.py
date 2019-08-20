@@ -2697,15 +2697,15 @@ class Bundle(ParameterSet):
                                 [param],
                                 True)
 
-            if param.qualifier in ['fluxes', 'rvs', 'sigmas'] and shape[0] > 0 and shape[0] != self.get_value(qualifier='times', dataset=param.dataset, component=param.component, **_skip_filter_checks).shape[0]:
-                tparam = self.get_parameter(qualifier='times', dataset=param.dataset, component=param.component, **_skip_filter_checks)
+            if param.qualifier in ['fluxes', 'rvs', 'sigmas'] and shape[0] > 0 and shape[0] != self.get_value(qualifier='times', dataset=param.dataset, component=param.component, context='dataset', **_skip_filter_checks).shape[0]:
+                tparam = self.get_parameter(qualifier='times', dataset=param.dataset, component=param.component, context='dataset', **_skip_filter_checks)
                 report.add_item(self,
                                 "{} must be of same length as {}".format(param.twig, tparam.twig),
                                 [param, tparam],
                                 True)
 
-            if param.qualifier in ['flux_densities'] and shape[0] > 0 and shape[0] != self.get_value(qualifier='wavelengths', dataset=param.dataset, component=param.component, time=param.time, **_skip_filter_checks).shape[0]:
-                wparam = self.get_parameter(qualifier='wavelengths', dataset=param.dataset, component=param.component, time=param.time, **_skip_filter_checks)
+            if param.qualifier in ['flux_densities'] and shape[0] > 0 and shape[0] != self.get_value(qualifier='wavelengths', dataset=param.dataset, component=param.component, time=param.time, context='dataset', **_skip_filter_checks).shape[0]:
+                wparam = self.get_parameter(qualifier='wavelengths', dataset=param.dataset, component=param.component, time=param.time, context='dataset', **_skip_filter_checks)
                 report.add_item(self,
                                 "{}@{}@{} must be of same length as {}@{}".format(param.twig, wparam.twig),
                                 [param, wparam],
