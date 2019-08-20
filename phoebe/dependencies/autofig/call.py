@@ -1206,11 +1206,15 @@ class Plot(Call):
                 for loop2, (datapoint, segment, zorder) in enumerate(zip(datas, segments, zorders)):
                     return_artists_this_loop = []
                     # DRAW ERRORBARS, if applicable
+                    # NOTE: we never pass a label here to avoid duplicate entries
+                    # the actual datapoints are handled and labeled separately.
+                    # Unfortunately this means the error bar will not be included
+                    # in the styling of the legend.
                     if xerr is not None or yerr is not None or zerr is not None:
                         artists = ax.errorbar(*datapoint,
                                                fmt='', linestyle='None',
                                                zorder=zorder,
-                                               label=self.label if loop1==0 and loop2==0 else None,
+                                               label=None,
                                                **error_kwargs_loop(xerr, yerr, zerr, loop2, do_zorder))
 
                         # NOTE: these are currently not included in return_artists
