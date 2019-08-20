@@ -61,11 +61,11 @@ def _label_units_lims(axis, default_unit, visible_if=None, is_default=True, **kw
         kwargs = kwargs if (is_default or kwargs.get(visible_if.split(':')[0], None) == visible_if.split(':')[1]) else {}
 
     if is_default:
-        params += [ChoiceParameter(qualifier='{}label_mode'.format(axis), value=kwargs.get('{}label_mode'.format(axis), 'auto'), choices=['auto', 'manual'], description='Whether to automatically or manually provide label for the {}-axis'.format(axis))]
-        params += [StringParameter(qualifier='{}label'.format(axis), visible_if='{}label_mode:manual'.format(axis), value=kwargs.get('{}label'.format(axis), '{}label'.format(axis)), description='Custom label for the {}-axis'.format(axis))]
+        params += [ChoiceParameter(qualifier='{}label_mode'.format(axis), value=kwargs.get('{}label_mode'.format(axis), 'auto'), choices=['auto', 'manual'], advanced=True, description='Whether to automatically or manually provide label for the {}-axis'.format(axis))]
+        params += [StringParameter(qualifier='{}label'.format(axis), visible_if='{}label_mode:manual'.format(axis), value=kwargs.get('{}label'.format(axis), '{}label'.format(axis)), advanced=True, description='Custom label for the {}-axis'.format(axis))]
 
-        params += [ChoiceParameter(qualifier='{}unit_mode'.format(axis), value=kwargs.get('{}unit_mode'.format(axis), 'auto'), choices=['auto', 'manual'], description='Whether to automatically or manually set the {}-units.'.format(axis))]
-        params += [ChoiceParameter(qualifier='{}lim_mode'.format(axis), value=kwargs.get('{}lim_mode'.format(axis), 'auto'), choices=['auto', 'manual'], description='Whether to automatically or manually set the {}-limits.'.format(axis))]
+        params += [ChoiceParameter(qualifier='{}unit_mode'.format(axis), value=kwargs.get('{}unit_mode'.format(axis), 'auto'), choices=['auto', 'manual'], advanced=True, description='Whether to automatically or manually set the {}-units.'.format(axis))]
+        params += [ChoiceParameter(qualifier='{}lim_mode'.format(axis), value=kwargs.get('{}lim_mode'.format(axis), 'auto'), choices=['auto', 'manual'], advanced=True, description='Whether to automatically or manually set the {}-limits.'.format(axis))]
 
 
     # TODO: change this to a ChoiceParameter and move logic of available units from phoebe-server into phoebe
@@ -157,7 +157,7 @@ def lc(b, **kwargs):
     kwargs.setdefault('linestyle', 'solid')
     params += _figure_style_modes(b, default_color='model', default_marker='manual', default_linestyle='manual', **kwargs)
 
-    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), description='Whether to draw the legend')]
+    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
 
 
     return ParameterSet(params)
@@ -184,7 +184,7 @@ def rv(b, **kwargs):
     kwargs.setdefault('linestyle', 'solid')
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
 
-    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), description='Whether to draw the legend')]
+    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
 
     return ParameterSet(params)
 
@@ -210,7 +210,7 @@ def rv(b, **kwargs):
 def orb(b, **kwargs):
     params = []
 
-    params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['model'], description='Contexts to include in the plot')]
+    # params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['model'], description='Contexts to include in the plot')]
     params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
     params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
     params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
@@ -239,7 +239,7 @@ def orb(b, **kwargs):
     kwargs.setdefault('linestyle', 'solid')
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
 
-    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), description='Whether to draw the legend')]
+    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
 
 
     return ParameterSet(params)
@@ -265,7 +265,7 @@ def lp(b, **kwargs):
     kwargs.setdefault('linestyle', 'solid')
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
 
-    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), description='Whether to draw the legend')]
+    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
 
     return ParameterSet(params)
 
@@ -296,7 +296,7 @@ def mesh(b, **kwargs):
     # params += _label_units_lims('facecolor', visible_if='facecolor:mus', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
     # params += _label_units_lims('facecolor', visible_if='facecolor:visibilities', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
 
-    # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), description='Whether to draw the legend')]
+    # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
 
 
     return ParameterSet(params)

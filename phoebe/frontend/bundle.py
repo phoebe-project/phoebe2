@@ -5302,6 +5302,7 @@ class Bundle(ParameterSet):
         ml_same_kind = self.filter(context='model', kind=ds_kind).models
         comp_same_kind = self.filter(context=['dataset', 'model'], kind=ds_kind).components
 
+        kwargs.setdefault('kind', ds_kind)
         kwargs.setdefault('context', fig_ps.get_value(qualifier='contexts', expand=True, **_skip_filter_checks))
         kwargs.setdefault('dataset', fig_ps.get_value(qualifier='datasets', expand=True, **_skip_filter_checks))
         kwargs.setdefault('model', [None] + fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
@@ -6534,9 +6535,10 @@ class Bundle(ParameterSet):
 
         restore_conf()
 
-        self._handle_model_selectparams()
-
         ret_ps = self.filter(model=model, **_skip_filter_checks)
+
+        # TODO: should we add these to the output?
+        self._handle_model_selectparams()
 
         if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
             ret_ps += overwrite_ps
