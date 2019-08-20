@@ -140,6 +140,7 @@ def lc(b, **kwargs):
 
     # TODO: set hierarchy needs to update choices of any x,y,z in context='figure' to include phases:* a la pblum_ref
 
+    params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['dataset', 'model'], description='Contexts to include in the plot')]
     params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
     params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
 
@@ -165,10 +166,10 @@ def lc(b, **kwargs):
 def rv(b, **kwargs):
     params = []
 
+    params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['dataset', 'model'], description='Contexts to include in the plot')]
     params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
     params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
-    # TODO: implement this: will need _handle_component_selectparams, handling in phoebe-server to update when necessary, and respecting in run_figure
-    # params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
+    params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'times'), choices=['times', 'phases'], description='Array to plot along x-axis')]
     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'rvs'), choices=['rvs', 'residuals'], description='Array to plot along y-axis')]
@@ -209,8 +210,10 @@ def rv(b, **kwargs):
 def orb(b, **kwargs):
     params = []
 
+    params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['model'], description='Contexts to include in the plot')]
     params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
     params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
+    params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'us'), choices=['times', 'phases', 'us', 'vs', 'ws', 'vus', 'vvs', 'vws'], description='Array to plot along x-axis')]
     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'ws'), choices=['us', 'vs', 'ws', 'vus', 'vvs', 'vws'], description='Array to plot along y-axis')]
@@ -244,9 +247,11 @@ def orb(b, **kwargs):
 def lp(b, **kwargs):
     params = []
 
+    params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['dataset', 'model'], description='Contexts to include in the plot')]
     params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
     params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
     params += [SelectParameter(qualifier='times', value=kwargs.get('times', '*'), choices=[''], description='Times to include in the plot')]
+    params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'wavelengths'), choices=['wavelengths'], description='Array to plot along x-axis')]
     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'flux_densities'), choices=['flux_densities'], description='Array to plot along y-axis')]
@@ -267,9 +272,11 @@ def lp(b, **kwargs):
 def mesh(b, **kwargs):
     params = []
 
+    # params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['model'], description='Contexts to include in the plot')]
     # params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
     # params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
     # params += [SelectParameter(qualifier='times', value=kwargs.get('times', '*'), choices=[''], description='Times to include in the plot')]
+    # params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
     #
     # params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'xs'), choices=['xs', 'ys', 'zs'], description='Array to plot along x-axis')]
     # params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'ys'), choices=['xs', 'ys', 'zs'], description='Array to plot along y-axis')]

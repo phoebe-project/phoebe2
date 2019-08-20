@@ -1749,7 +1749,11 @@ class Bundle(ParameterSet):
         changed_params = self.run_delayed_constraints()
 
         for param in self.filter(context='figure', qualifier='components', check_default=False, check_visible=False).to_list():
-            c_same_kind = self.filter(qualifier='times', context='dataset', kind=param.kind, check_visible=False).components
+            if param.kind in ['mesh', 'orb']:
+                # then we won't have a times array, so we'll have to hardcode the options
+                c_same_kind = self.hierarchy.get_meshables()
+            else:
+                c_same_kind = self.filter(qualifier='times', context='dataset', kind=param.kind, check_visible=False).components
 
             choices_changed = False
             if return_changes and c_same_kind != param._choices:
