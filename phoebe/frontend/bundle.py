@@ -6167,10 +6167,6 @@ class Bundle(ParameterSet):
             else:
                 logger.info("overwriting model: {}".format(model))
 
-            # TODO: will probably need to exclude removing the figure parameters
-            # manually or re-create them here.  Merging client with the
-            # overwrite option probably broke this option as remove_model
-            # now removes context='figure' as well
             do_create_fig_params = kwargs.get('do_create_fig_params', False)
 
             overwrite_ps = self.remove_model(model, remove_figure_params=do_create_fig_params)
@@ -6556,7 +6552,7 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `model` (string): the label of the model to be removed.
-        * `remove_figure_options` (bool, optional): whether to also remove
+        * `remove_figure_params` (bool, optional): whether to also remove
             figure options tagged with `model`.  If not provided, will default
             to false if `model` is 'latest', otherwise will default to True.
         * `**kwargs`: other filter arguments to be sent to
@@ -6567,10 +6563,10 @@ class Bundle(ParameterSet):
         -----------
         * ParameterSet of removed parameters
         """
-        remove_figure_options = kwargs.pop('remove_figure_options', model!='latest')
+        remove_figure_params = kwargs.pop('remove_figure_params', model!='latest')
 
         kwargs['model'] = model
-        kwargs['context'] = ['model', 'figure'] if remove_figure_options else 'model'
+        kwargs['context'] = ['model', 'figure'] if remove_figure_params else 'model'
         return self.remove_parameters_all(**kwargs)
 
     def remove_models_all(self):
