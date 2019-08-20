@@ -5266,7 +5266,7 @@ class Bundle(ParameterSet):
         comp_same_kind = self.filter(context=['dataset', 'model'], kind=ds_kind).components
 
         kwargs.setdefault('dataset', fig_ps.get_value(qualifier='datasets', expand=True, **_skip_filter_checks))
-        kwargs.setdefault('model', fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
+        kwargs.setdefault('model', [None] + fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
         # kwargs.setdefault('component', fig_ps.get_value(qualifier='components', expand=True, **_skip_filter_checks))
         kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
 
@@ -5298,28 +5298,36 @@ class Bundle(ParameterSet):
                 if q not in kwargs.keys():
                     if q == 'marker':
                         # don't apply markers to models
-                        qk = '{}@dataset'.format(q)
+                        suff = '@dataset'
+                    elif q == 'linestyle':
+                        suff = '@model'
                     else:
-                        qk = q
+                        suff = ''
 
                     mode = kwargs.get('{}_mode'.format(q), fig_ps.get_value(qualifier='{}_mode'.format(q), **_skip_filter_checks))
                     if mode == 'manual':
-                        kwargs[qk] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                        if q == 'marker':
+                            kwargs[q] = {'dataset': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
+                        elif q == 'linestyle':
+                            kwargs[q] = {'model': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
+                        else:
+                            kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
                     elif mode == 'dataset':
-                        kwargs[qk] = {ds: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
+                        kwargs[q] = {ds+suff: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
                     elif mode == 'model':
-                        kwargs[qk] = {ml: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
+                        kwargs[q] = {ml+suff: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
                     elif mode == 'component':
-                        kwargs[qk] = {}
+                        kwargs[q] = {}
                         for c in comp_same_kind:
                             try:
-                                kwargs[qk][c] = self.get_value(qualifier=q, component=c, context='figure', **_skip_filter_checks)
+                                kwargs[q][c+suff] = self.get_value(qualifier=q, component=c, context='figure', **_skip_filter_checks)
                             except ValueError:
                                 # RVs will include orbits in comp_same kind, but we can safely skip those
                                 pass
                     else:
                         raise NotImplementedError("{}_mode of {} not supported".format(q, mode))
 
+        logger.info("calling plot(**{})".format(kwargs))
         return self.plot(**kwargs)
 
 
