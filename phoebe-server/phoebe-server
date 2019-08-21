@@ -6,7 +6,10 @@ pip install flask-socketio
 pip install gevent-websocket
 
 to launch with MPI enabled:
-PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server
+PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server [port]
+
+to set a maximum number of allowed max_computations
+PHOEBE_SERVER_MAX_COMPUTATIONS=100 phoebe-server [port]
 """
 
 try:
@@ -20,7 +23,6 @@ except ImportError:
 
 
 ################################ SERVER/APP SETUP ##############################
-
 
 app = Flask(__name__)
 CORS(app)
@@ -90,6 +92,10 @@ from datetime import datetime
 
 phoebe.interactive_off()
 phoebe.parameters._is_server = True
+
+_max_computations = os.getenv('PHOEBE_SERVER_MAX_COMPUTATIONS', None)
+if _max_computations is not None:
+    _max_computations = int(_max_computations)
 
 _dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
 
@@ -418,7 +424,8 @@ def info():
     return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent,
                           'nclients': len(app._clients), 'clients': app._clients,
                           'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle,
-                          'available_kinds': _available_kinds
+                          'available_kinds': _available_kinds,
+                          'max_computations': _max_computations
                           },
                           api=True)
 
@@ -979,7 +986,7 @@ def bundle_method(msg):
     if method in ['run_compute']:
         # TODO: have this be a environment variable or flag at the top-level?
         # forbid expensive computations on this server
-        msg['max_computations'] = 100
+        msg['max_computations'] = _max_computations
         msg['detach'] = True
     elif method in ['attach_job']:
         msg['wait'] = False
