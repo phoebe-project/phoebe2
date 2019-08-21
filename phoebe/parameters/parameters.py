@@ -196,7 +196,7 @@ _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
                       ]
 
 # from figure:
-_forbidden_labels += ['datasets', 'models', 'components',
+_forbidden_labels += ['datasets', 'models', 'components', 'contexts',
                       'x', 'y', 'z',
                       'color_mode', 'color',
                       'marker_mode', 'marker',
@@ -204,8 +204,10 @@ _forbidden_labels += ['datasets', 'models', 'components',
                       'xlabel_mode', 'xlabel', 'ylabel_mode', 'ylabel',
                       'xunit_mode', 'xunit', 'yunit_mode', 'yunit',
                       'xlim_mode', 'xlim', 'ylim_mode', 'ylim',
-                      'facecolor_mode', 'facecolor',
-                      'edgecolor_mode', 'edgecolor',
+                      'fc', 'fclim_mode', 'fclim', 'fcunit_mode', 'fcunit', 'fclabel_mode', 'fclabel',
+                      'ec', 'eclim_mode', 'eclim', 'ecunit_mode', 'ecunit', 'eclabel_mode', 'eclabel',
+                      'figure_time_source', 'figure_time', 'time_source', 'time',
+                      'uncover', 'highlight', 'draw_sidebars',
                       'legend']
 
 # ? and * used for wildcards in twigs
