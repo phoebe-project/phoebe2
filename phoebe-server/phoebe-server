@@ -875,6 +875,9 @@ def set_value(msg):
 
             emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
 
+            # flush so the changes goes through before running checks and updating figures
+            socketio.sleep(0)
+
             _run_checks(b, bundleid)
             _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
 
@@ -1021,7 +1024,13 @@ def bundle_method(msg):
         ps_list += b._handle_compute_selectparams(return_changes=True)
         ps_list += b._handle_component_selectparams(return_changes=True)
 
-    ps_list += b._handle_model_selectparams(return_changes=True)
+    if method in ['attach_job'] and b.get_value(uniqueid=msg['uniqueid'], check_visible=False) == 'loaded':
+        # we want to wait to do this until attach_job, if we do it after run_compute
+        # then overwriting an existing model will cause issues
+        if app._verbose:
+            print("bundle_method attach_job calling _handle_model_selectparams and _handle_meshcolor_choiceparams now that loaded")
+        ps_list += b._handle_model_selectparams(return_changes=True)
+        ps_list += b._handle_meshcolor_choiceparams(return_changes=True)
 
 
     if 'web' in client_types or 'desktop' in client_types:

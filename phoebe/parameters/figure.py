@@ -210,7 +210,6 @@ def rv(b, **kwargs):
 def orb(b, **kwargs):
     params = []
 
-    # params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['model'], description='Contexts to include in the plot')]
     params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
     params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
     params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
@@ -219,20 +218,13 @@ def orb(b, **kwargs):
     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'ws'), choices=['us', 'vs', 'ws', 'vus', 'vvs', 'vws'], description='Array to plot along y-axis')]
 
     params += _label_units_lims('x', visible_if='x:times', default_unit=u.d, is_default=False, **kwargs)
-    params += _label_units_lims('x', visible_if='x:phases', default_unit=u.cycle, is_default=False, **kwargs)  # TODO: this will fail once we implement phases:*
+    # TODO: this visible_if will likely fail if/once we implement phases:* for the choices for x
+    params += _label_units_lims('x', visible_if='x:phases', default_unit=u.cycle, is_default=False, **kwargs)
     params += _label_units_lims('x', visible_if='x:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
-    # params += _label_units_lims('x', visible_if='x:vs', default_unit=u.solRad, is_default=False, **kwargs)
-    # params += _label_units_lims('x', visible_if='x:ws', default_unit=u.solRad, is_default=False, **kwargs)
     params += _label_units_lims('x', visible_if='x:vus|vvs|vws', default_unit=u.km/u.s, is_default=False, **kwargs)
-    # params += _label_units_lims('x', visible_if='x:vvs', default_unit=u.km/u.s, is_default=False, **kwargs)
-    # params += _label_units_lims('x', visible_if='x:vws', default_unit=u.km/u.s, is_default=False, **kwargs)
 
     params += _label_units_lims('y', visible_if='y:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
-    # params += _label_units_lims('y', visible_if='y:vs', default_unit=u.solRad, is_default=False, **kwargs)
-    # params += _label_units_lims('y', visible_if='y:ws', default_unit=u.solRad, is_default=True, **kwargs)
     params += _label_units_lims('y', visible_if='y:vus|vvs|vws', default_unit=u.km/u.s, is_default=False, **kwargs)
-    # params += _label_units_lims('y', visible_if='y:vvs', default_unit=u.km/u.s, is_default=False, **kwargs)
-    # params += _label_units_lims('y', visible_if='y:vws', default_unit=u.km/u.s, is_default=False, **kwargs)
 
     kwargs.setdefault('color', 'k')
     kwargs.setdefault('marker', '.')
@@ -250,12 +242,11 @@ def lp(b, **kwargs):
     params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['dataset', 'model'], description='Contexts to include in the plot')]
     params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
     params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
-    params += [SelectParameter(qualifier='times', value=kwargs.get('times', '*'), choices=[''], description='Times to include in the plot')]
+    # params += [SelectParameter(qualifier='times', value=kwargs.get('times', '*'), choices=[''], description='Times to include in the plot')]
     params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'wavelengths'), choices=['wavelengths'], description='Array to plot along x-axis')]
     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'flux_densities'), choices=['flux_densities'], description='Array to plot along y-axis')]
-
 
     params += _label_units_lims('x', default_unit=u.nm, is_default=True, **kwargs)
     params += _label_units_lims('y', default_unit=u.W/(u.m**2*u.nm), is_default=True, **kwargs)
@@ -272,32 +263,46 @@ def lp(b, **kwargs):
 def mesh(b, **kwargs):
     params = []
 
-    # params += [SelectParameter(qualifier='contexts', value=kwargs.get('contexts', '*'), choices=['model'], description='Contexts to include in the plot')]
-    # params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
-    # params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
+    params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', '*'), choices=[''], description='Datasets to include in the plot')]
+    params += [SelectParameter(qualifier='models', value=kwargs.get('models', '*'), choices=[''], description='Models to include in the plot')]
     # params += [SelectParameter(qualifier='times', value=kwargs.get('times', '*'), choices=[''], description='Times to include in the plot')]
-    # params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
-    #
-    # params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'xs'), choices=['xs', 'ys', 'zs'], description='Array to plot along x-axis')]
-    # params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'ys'), choices=['xs', 'ys', 'zs'], description='Array to plot along y-axis')]
-    # params += [ChoiceParameter(qualifier='facecolor', value=kwargs.get('facecolor', 'teffs'), choices=['<component>', 'none', 'teffs', 'loggs', 'mus', 'visibilities']+_mplcolors, description='Array to plot as facecolor')]
-    # params += [ChoiceParameter(qualifier='edgecolor', value=kwargs.get('edgecolor', 'k'), choices=['<component>', 'none', 'teffs', 'loggs', 'mus', 'visibilities']+_mplcolors, description='Array to plot as edgecolor')]
-    #
-    # params += _label_units_lims('x', visible_if='x:xs', default_unit=u.solRad, is_default=True, **kwargs)
-    # params += _label_units_lims('x', visible_if='x:ys', default_unit=u.solRad, is_default=False, **kwargs)
-    # params += _label_units_lims('x', visible_if='x:zs', default_unit=u.solRad, is_default=False, **kwargs)
-    #
-    # params += _label_units_lims('y', visible_if='y:xs', default_unit=u.solRad, is_default=False, **kwargs)
-    # params += _label_units_lims('y', visible_if='y:ys', default_unit=u.solRad, is_default=True, **kwargs)
-    # params += _label_units_lims('y', visible_if='y:zs', default_unit=u.solRad, is_default=False, **kwargs)
-    #
-    # params += _label_units_lims('facecolor', visible_if='facecolor:teffs', default_unit=u.K, is_default=True, **kwargs)
-    # params += _label_units_lims('facecolor', visible_if='facecolor:loggs', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
-    # params += _label_units_lims('facecolor', visible_if='facecolor:mus', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
-    # params += _label_units_lims('facecolor', visible_if='facecolor:visibilities', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+    params += [SelectParameter(qualifier='components', value=kwargs.get('components', '*'), choices=[''], description='Components to include in the plot')]
 
-    # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
+    params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'us'), choices=['us', 'vs', 'ws', 'xs', 'ys', 'zs'], description='Array to plot along x-axis')]
+    params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'vs'), choices=['us', 'vs', 'ws', 'xs', 'ys', 'zs'], description='Array to plot along y-axis')]
 
+
+    params += _label_units_lims('x', visible_if='x:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
+    params += _label_units_lims('x', visible_if='x:xs|ys|zs', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+
+    params += _label_units_lims('y', visible_if='y:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
+    params += _label_units_lims('y', visible_if='y:xs|ys|zs', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+
+
+    params += [ChoiceParameter(qualifier='fc', value=kwargs.get('fc', 'None'), choices=['None'], description='Array to plot as facecolor')]
+    params += [ChoiceParameter(qualifier='ec', value=kwargs.get('ec', 'None'), choices=['None'], description='Array to plot as edgecolor')]
+
+
+    for q in ['fc', 'ec']:
+        # see dataset._mesh_columns
+        # even though this isn't really the default case, we'll pass is_default=True
+        # so that we get fc/eclim_mode, etc, parameters
+        params += _label_units_lims(q, visible_if=q+':vxs|vys|vzs|vus|vws|vvs|rvs', default_unit=u.km/u.s, is_default=True, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':rs|rprojs', default_unit=u.solRad, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':areas', default_unit=u.solRad**2, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':teffs', default_unit=u.K, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':pblum_ext|abs_pblum_ext', default_unit=u.W, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':ptfarea', default_unit=u.m, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':intensities|normal_intensities|abs_intensities|abs_normal_intensities', default_unit=u.W/u.m**3, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':visibilities', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':mus', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':loggs', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':boost_factors', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if=q+':ldint', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+
+    # TODO: legend=True currently fails
+    params += [BoolParameter(qualifier='draw_sidebars', value=kwargs.get('draw_sidebars', True), advanced=True, description='Whether to draw the sidebars')]
+    params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', False), advanced=True, description='Whether to draw the legend')]
 
     return ParameterSet(params)
 

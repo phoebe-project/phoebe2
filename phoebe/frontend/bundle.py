@@ -1752,6 +1752,8 @@ class Bundle(ParameterSet):
             if param.kind in ['mesh', 'orb']:
                 # then we won't have a times array, so we'll have to hardcode the options
                 c_same_kind = self.hierarchy.get_meshables()
+            elif param.kind in ['lp']:
+                c_same_kind = self.filter(qualifier='wavelengths', context='dataset', kind=param.kind, check_visible=False).components
             else:
                 c_same_kind = self.filter(qualifier='times', context='dataset', kind=param.kind, check_visible=False).components
 
@@ -1779,6 +1781,38 @@ class Bundle(ParameterSet):
                 choices_changed = True
             param._choices = ml_same_kind
             changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_meshcolor_choiceparams(self, return_changes=False):
+        """
+        """
+        affected_params = []
+        # changed_params = self.run_delayed_constraints()
+
+        ignore = ['xyz_elements', 'uvw_elements', 'xyz_normals', 'uvw_normals', 'times']
+
+        mesh_datasets = self.filter(context='model', kind='mesh').datasets
+
+        for param in self.filter(context='figure', qualifier=['fc', 'ec'], check_default=False, check_visible=False).to_list():
+            # we do this instead of passing kind='mesh' so that we also get the
+            # pb-dependent columns
+            choices = ['None'] + [q for q in self.filter(context='model', dataset=mesh_datasets).qualifiers if q not in ignore]
+            # choices += _mpl_colors
+
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                param._value = 'None'
+            else:
+                changed = False
+
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
@@ -2805,10 +2839,17 @@ class Bundle(ParameterSet):
 
         for param in self.filter(context='figure', qualifier='*lim', **_skip_filter_checks).to_list():
             if len(param.get_value()) != 2 and param.is_visible:
+                parent_ps = param.get_parent_ps()
+                if '{}_mode' in parent_ps.qualifiers:
+                    mode_param = param.get_parent_ps().get_parameter(qualifier='{}_mode'.format(param.qualifier), check_visible=True)
+                    affected_params = [param, mode_param]
+                else:
+                    # fclim_mode does not exist for fc='None'
+                    affected_params = [param]
+
                 report.add_item(self,
                                 "{} does not have length of 2 - will be ignored and {}_mode will revert to 'auto'".format(param.twig, param.qualifier),
-                                [param,
-                                 param.get_parent_ps().get_parameter(qualifier='{}_mode'.format(param.qualifier))],
+                                affected_params,
                                 False)
 
         # we've survived all tests
@@ -3467,13 +3508,15 @@ class Bundle(ParameterSet):
 
         Returns
         -----------
-        * ParameterSet of removed parameters
+        * ParameterSet of removed or changed parameters
         """
         # NOTE: run_checks will check if an entry is in the hierarchy but has no parameters
         kwargs['component'] = component
         # NOTE: we do not remove from 'model' by default
         kwargs['context'] = ['component', 'constraint', 'dataset', 'compute', 'figure']
-        return self.remove_parameters_all(**kwargs)
+        ret_ps =  self.remove_parameters_all(**kwargs)
+        ret_ps += ParameterSet(self._handle_component_selectparams(return_changes=True))
+        return ret_ps
 
     def rename_component(self, old_component, new_component):
         """
@@ -3505,12 +3548,9 @@ class Bundle(ParameterSet):
             logger.warning("hierarchy may not update correctly with new component")
         self.hierarchy.rename_component(old_component, new_component)
 
+        # NOTE: _handle_component_selectparams is handled by _rename_label
         ret_params = self._rename_label('component', old_component, new_component)
         self.hierarchy._update_cache()
-
-        # ret_ps = self.filter(component=new_component)
-
-        # ret_ps += ParameterSet(self._handle_component_selectparams(rename={old_component: new_component}))
 
         return ParameterSet(ret_params)
 
@@ -4279,7 +4319,7 @@ class Bundle(ParameterSet):
 
         Returns
         -----------
-        * ParameterSet of removed parameters
+        * ParameterSet of removed or changed parameters
 
         Raises
         --------
@@ -4310,12 +4350,12 @@ class Bundle(ParameterSet):
         # parameters, etc
         kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute', 'figure'])
 
-        removed_ps = self.remove_parameters_all(**kwargs)
+        ret_ps = self.remove_parameters_all(**kwargs)
         # not really sure why we need to call this twice, but it seems to do
         # the trick
-        removed_ps += self.remove_parameters_all(**kwargs)
+        ret_ps += self.remove_parameters_all(**kwargs)
 
-        self._handle_dataset_selectparams()
+        ret_ps += ParameterSet(self._handle_dataset_selectparams(return_changes=True))
 
         # TODO: check to make sure that trying to undo this
         # will raise an error saying this is not undo-able
@@ -4324,7 +4364,7 @@ class Bundle(ParameterSet):
                           undo_func=None,
                           undo_kwargs={})
 
-        return removed_ps
+        return ret_ps
 
     def remove_datasets_all(self):
         """
@@ -4366,7 +4406,7 @@ class Bundle(ParameterSet):
 
         ret_ps = self.filter(dataset=new_dataset)
 
-        ret_ps += self._handle_dataset_selectparams()
+        ret_ps += ParameterSet(self._handle_dataset_selectparams())
 
         return ret_ps
 
@@ -5128,6 +5168,7 @@ class Bundle(ParameterSet):
         self._handle_dataset_selectparams()
         self._handle_model_selectparams()
         self._handle_component_selectparams()
+        self._handle_meshcolor_choiceparams()
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -5303,14 +5344,20 @@ class Bundle(ParameterSet):
         comp_same_kind = self.filter(context=['dataset', 'model'], kind=ds_kind).components
 
         kwargs.setdefault('kind', ds_kind)
-        kwargs.setdefault('context', fig_ps.get_value(qualifier='contexts', expand=True, **_skip_filter_checks))
+        if 'contexts' in fig_ps.qualifiers:
+            kwargs.setdefault('context', fig_ps.get_value(qualifier='contexts', expand=True, **_skip_filter_checks))
+        else:
+            kwargs['context'] = 'model'
         kwargs.setdefault('dataset', fig_ps.get_value(qualifier='datasets', expand=True, **_skip_filter_checks))
         kwargs.setdefault('model', [None] + fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
         if 'components' in fig_ps.qualifiers:
             kwargs.setdefault('component', fig_ps.get_value(qualifier='components', expand=True, **_skip_filter_checks))
         kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
 
-        for d in ['x', 'y']:
+        if 'draw_sidebars' in fig_ps.qualifiers:
+            kwargs.setdefault('draw_sidebars', fig_ps.get_value(qualifier='draw_sidebars', **_skip_filter_checks))
+
+        for d in ['x', 'y', 'fc', 'ec'] if ds_kind == 'mesh' else ['x', 'y']:
             kwargs.setdefault(d, fig_ps.get_value(qualifier=d, **_skip_filter_checks))
 
             if kwargs.get('{}label_mode'.format(d), fig_ps.get_value(qualifier='{}label_mode'.format(d), **_skip_filter_checks))=='manual':
@@ -5327,12 +5374,19 @@ class Bundle(ParameterSet):
                     logger.warning("ignoring {}lim, must have length 2".format(lim))
 
 
-        if ds_kind in ['mesh', 'lp']:
-            kwargs.setdefault('times', fig_ps.get_value(qualifier='times', expand=True, **_skip_filter_checks))
+        # if ds_kind in ['mesh', 'lp']:
+            # kwargs.setdefault('time', fig_ps.get_value(qualifier='times', expand=True, **_skip_filter_checks))
+
+            # if 'times' in kwargs.keys():
+                # logger.warning("")
+                # kwargs['time'] = kwargs.pop('times')
 
 
         if ds_kind in ['mesh']:
-            raise NotImplementedError("run_figure with kind mesh not yet implemented")
+            for q in ['fc', 'ec']:
+                kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                if kwargs[q] == 'None':
+                    kwargs[q] = None
         else:
             for q in ['linestyle', 'marker', 'color']:
                 if q not in kwargs.keys():
@@ -6047,13 +6101,13 @@ class Bundle(ParameterSet):
 
         Returns
         -----------
-        * ParameterSet of removed parameters
+        * ParameterSet of removed or changed parameters
         """
         kwargs['compute'] = compute
         kwargs['context'] = 'compute'
-        removed_ps = self.remove_parameters_all(**kwargs)
-        self._handle_compute_selectparams()
-        return removed_ps
+        ret_ps = self.remove_parameters_all(**kwargs)
+        ret_ps += ParameterSet(self._handle_compute_selectparams(return_changes=True))
+        return ret_ps
 
     def remove_computes_all(self):
         """
@@ -6539,6 +6593,7 @@ class Bundle(ParameterSet):
 
         # TODO: should we add these to the output?
         self._handle_model_selectparams()
+        self._handle_meshcolor_choiceparams()
 
         if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
             ret_ps += overwrite_ps
@@ -6602,13 +6657,17 @@ class Bundle(ParameterSet):
 
         Returns
         -----------
-        * ParameterSet of removed parameters
+        * ParameterSet of removed or changed parameters
         """
         remove_figure_params = kwargs.pop('remove_figure_params', model!='latest')
 
         kwargs['model'] = model
         kwargs['context'] = ['model', 'figure'] if remove_figure_params else 'model'
-        return self.remove_parameters_all(**kwargs)
+        ret_ps = self.remove_parameters_all(**kwargs)
+        ret_ps += ParameterSet(self._handle_model_selectparams(return_changes=True))
+        if remove_figure_params:
+            ret_ps += ParameterSet(self._handle_meshcolor_choiceparams(return_changes=True))
+        return ret_ps
 
     def remove_models_all(self):
         """
@@ -6649,7 +6708,7 @@ class Bundle(ParameterSet):
 
         ret_ps = self.filter(model=new_model)
 
-        ret_ps += self._handle_model_selectparams()
+        ret_ps += ParameterSet(self._handle_model_selectparams())
 
         return ret_ps
 
