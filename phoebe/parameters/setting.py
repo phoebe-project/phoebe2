@@ -23,10 +23,6 @@ def settings(**kwargs):
 
     params += [SelectParameter(qualifier='run_checks_compute', value=kwargs.get('run_checks_compute', '*'), choices=[''], advanced=False, description='Compute options to use when calling run_checks or within interactive checks.')]
 
-    params += [ChoiceParameter(qualifier='figure_time_source', value=kwargs.get('figure_time_source', 'None'), choices=['None', 'manual'], description='Source to use for highlight/uncover time for any figure in which time_source is set to setting.')]
-    params += [FloatParameter(qualifier='figure_time', visible_if='figure_time_source:manual', value=kwargs.get('figure_time', 0.0), default_unit=u.d, description='Times to use for highlighting/uncovering if figure_time_source=manual.')]
-
-
     # params += [ChoiceParameter(qualifier='plotting_backend', value=kwargs.get('plotting_backend', 'mpl'), choices=['mpl', 'mpld3', 'mpl2bokeh', 'bokeh'] if conf.devel else ['mpl'], description='Default backend to use for plotting')]
 
     # problem with try_sympy parameter: it can't be used during initialization... so this may need to be a phoebe-level setting

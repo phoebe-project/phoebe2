@@ -403,6 +403,9 @@ class Bundle(ParameterSet):
             # set a blank hierarchy to start
             self.set_hierarchy(_hierarchy.blank)
 
+            # add necessary figure options
+            self._attach_params(_figure._new_bundle(), context='figure')
+
         else:
             for param in self._params:
                 param._bundle = self
@@ -1732,13 +1735,13 @@ class Bundle(ParameterSet):
         mesh_lp_times = []
         for t in self.filter(context='model').times:
             mesh_lp_times.append('{} ({})'.format(t, ', '.join(self.filter(context='model', time=t).datasets)))
-        for param in self.filter(context=['figure', 'setting'], qualifier=['figure_time_source', 'time_source'], check_default=False, check_visible=False).to_list():
+        for param in self.filter(context='figure', qualifier=['default_time_source', 'time_source'], check_default=False, check_visible=False).to_list():
 
 
-            if param.context == 'setting':
+            if param.qualifier == 'default_time_source':
                 choices = ['None', 'manual'] + t0s + mesh_lp_times
             else:
-                choices = ['None', 'setting', 'manual'] + t0s + mesh_lp_times
+                choices = ['None', 'default', 'manual'] + t0s + mesh_lp_times
 
             choices_changed = False
             if return_changes and choices != param._choices:
@@ -1756,10 +1759,10 @@ class Bundle(ParameterSet):
                             break
                     else:
                         # no match found
-                        param._value = 'None' if param.context=='setting' else 'setting'
+                        param._value = 'None' if param.qualifier=='default_time_source' else 'default'
 
                 else:
-                    param._value = 'None' if param.context=='setting' else 'setting'
+                    param._value = 'None' if param.qualifier=='default_time_source' else 'default'
             else:
                 changed = False
 
@@ -5411,10 +5414,10 @@ class Bundle(ParameterSet):
                 kwargs.setdefault(q, fig_ps.get_value(qualifier=q, **_skip_filter_checks))
 
         time_source = fig_ps.get_value(qualifier='time_source', **_skip_filter_checks)
-        if time_source == 'setting':
-            time_source = self.get_value(qualifier='figure_time_source', context='setting', **_skip_filter_checks)
+        if time_source == 'default':
+            time_source = self.get_value(qualifier='default_time_source', context='figure', **_skip_filter_checks)
             if time_source == 'manual':
-                kwargs.setdefault('time', self.get_value(qualifier='figure_time', context='setting', **_skip_filter_checks))
+                kwargs.setdefault('time', self.get_value(qualifier='default_time', context='figure', **_skip_filter_checks))
             elif time_source == 'None':
                 # then we don't do anything
                 pass

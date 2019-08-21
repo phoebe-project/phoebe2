@@ -100,8 +100,16 @@ def _figure_uncover_highlight_animate(b, **kwargs):
 
     params += [BoolParameter(qualifier='uncover', value=kwargs.get('uncover', False), advanced=True, description='Whether to uncover up to the current time(s) (see times_mode and times parameters).')]
     params += [BoolParameter(qualifier='highlight', value=kwargs.get('highlight', True), advanced=True, description='Whether to higlight the current time(s) (see times_mode and times parameters).')]
-    params += [ChoiceParameter(qualifier='time_source', value=kwargs.get('time_source', 'setting'), choices=['None', 'setting', 'manual'], description='Source to use for highlight/uncover time for this individual figure (or set to setting respect the figure_time_source parameter in the setting context).')]
+    params += [ChoiceParameter(qualifier='time_source', value=kwargs.get('time_source', 'default'), choices=['None', 'default', 'manual'], description='Source to use for highlight/uncover time for this individual figure (or set to default to respect the default_time_source parameter).')]
     params += [FloatParameter(qualifier='time', visible_if='time_source:manual', value=kwargs.get('time', 0.0), default_unit=u.d, description='Times to use for highlighting/uncovering if time_source=manual.')]
+
+    return params
+
+def _new_bundle(**kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='default_time_source', value=kwargs.get('default_time_source', 'None'), choices=['None', 'manual'], description='Source to use for highlight/uncover time for any figure in which time_source is set to default.')]
+    params += [FloatParameter(qualifier='default_time', visible_if='default_time_source:manual', value=kwargs.get('default_time', 0.0), default_unit=u.d, description='Times to use for highlighting/uncovering if default_time_source=manual.')]
 
     return params
 
