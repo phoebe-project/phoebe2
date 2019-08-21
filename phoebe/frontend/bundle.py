@@ -1381,6 +1381,7 @@ class Bundle(ParameterSet):
                 affected_params.append(param)
 
             affected_params += self._handle_dataset_selectparams(rename={old_value: new_value}, return_changes=True)
+            affected_params += self._handle_figure_time_source_params(rename={old_value: new_value}, return_changes=True)
 
         elif tag=='component':
             affected_params += self._handle_component_selectparams(rename={old_value: new_value}, return_changes=True)
@@ -1717,6 +1718,51 @@ class Bundle(ParameterSet):
                 choices_changed = True
             param._choices = ds_same_kind
             changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_figure_time_source_params(self, rename={}, return_changes=False):
+        affected_params = []
+
+        t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component']).to_list()]
+        t0s += ["t0@system"]
+
+        mesh_lp_times = []
+        for t in self.filter(context='model').times:
+            mesh_lp_times.append('{} ({})'.format(t, ', '.join(self.filter(context='model', time=t).datasets)))
+        for param in self.filter(context=['figure', 'setting'], qualifier=['figure_time_source', 'time_source'], check_default=False, check_visible=False).to_list():
+
+
+            if param.context == 'setting':
+                choices = ['None', 'manual'] + t0s + mesh_lp_times
+            else:
+                choices = ['None', 'setting', 'manual'] + t0s + mesh_lp_times
+
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                if '(' in param._value:
+                    # then its likely just the () part changed, so let's find the
+                    # matching item
+                    for choice in choices:
+                        if choice.split(' (')[0] == param._value.split(' (')[0]:
+                            param._value = choice
+                            break
+                    else:
+                        # no match found
+                        param._value = 'None' if param.context=='setting' else 'setting'
+
+                else:
+                    param._value = 'None' if param.context=='setting' else 'setting'
+            else:
+                changed = False
+
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
@@ -4356,6 +4402,9 @@ class Bundle(ParameterSet):
         ret_ps += self.remove_parameters_all(**kwargs)
 
         ret_ps += ParameterSet(self._handle_dataset_selectparams(return_changes=True))
+        # the dataset could have been removed from an existing model which changes options
+        # for time_source params if it was a mesh or lp
+        ret_ps += ParameterSet(self._handle_figure_time_source_params(return_changes=True))
 
         # TODO: check to make sure that trying to undo this
         # will raise an error saying this is not undo-able
@@ -4406,7 +4455,9 @@ class Bundle(ParameterSet):
 
         ret_ps = self.filter(dataset=new_dataset)
 
-        ret_ps += ParameterSet(self._handle_dataset_selectparams())
+        ret_ps += ParameterSet(self._handle_dataset_selectparams(return_changes=True))
+        # Only needed if it was a mesh or lp
+        ret_ps += ParameterSet(self._handle_figure_time_source_params(return_changes=True))
 
         return ret_ps
 
@@ -5169,6 +5220,7 @@ class Bundle(ParameterSet):
         self._handle_model_selectparams()
         self._handle_component_selectparams()
         self._handle_meshcolor_choiceparams()
+        self._handle_figure_time_source_params()
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -5354,8 +5406,34 @@ class Bundle(ParameterSet):
             kwargs.setdefault('component', fig_ps.get_value(qualifier='components', expand=True, **_skip_filter_checks))
         kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
 
-        if 'draw_sidebars' in fig_ps.qualifiers:
-            kwargs.setdefault('draw_sidebars', fig_ps.get_value(qualifier='draw_sidebars', **_skip_filter_checks))
+        for q in ['draw_sidebars', 'uncover', 'highlight']:
+            if q in fig_ps.qualifiers:
+                kwargs.setdefault(q, fig_ps.get_value(qualifier=q, **_skip_filter_checks))
+
+        time_source = fig_ps.get_value(qualifier='time_source', **_skip_filter_checks)
+        if time_source == 'setting':
+            time_source = self.get_value(qualifier='figure_time_source', context='setting', **_skip_filter_checks)
+            if time_source == 'manual':
+                kwargs.setdefault('time', self.get_value(qualifier='figure_time', context='setting', **_skip_filter_checks))
+            elif time_source == 'None':
+                # then we don't do anything
+                pass
+            elif ' (' in time_source:
+                kwargs.setdefault('time', float(time_source.split(' ')[0]))
+            else:
+                # probably a t0 of some sort, which we can pass directly as the string
+                kwargs.setdefault('time', time_source)
+
+        elif time_source == 'manual':
+            kwargs.setdefault('time', fig_ps.get_value(qualifier='time', **_skip_filter_checks))
+        elif time_source == 'None':
+            # then we don't do anything
+            pass
+        elif ' (' in time_source:
+            kwargs.setdefault('time', float(time_source.split(' ')[0]))
+        else:
+            # probably a t0 of some sort, which we can pass directly as the string
+            kwargs.setdefault('time', time_source)
 
         for d in ['x', 'y', 'fc', 'ec'] if ds_kind == 'mesh' else ['x', 'y']:
             kwargs.setdefault(d, fig_ps.get_value(qualifier=d, **_skip_filter_checks))
@@ -5420,6 +5498,8 @@ class Bundle(ParameterSet):
                                 pass
                     else:
                         raise NotImplementedError("{}_mode of {} not supported".format(q, mode))
+
+
 
         logger.info("calling plot(**{})".format(kwargs))
         return self.plot(**kwargs)
@@ -6594,6 +6674,7 @@ class Bundle(ParameterSet):
         # TODO: should we add these to the output?
         self._handle_model_selectparams()
         self._handle_meshcolor_choiceparams()
+        self._handle_figure_time_source_params()
 
         if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
             ret_ps += overwrite_ps

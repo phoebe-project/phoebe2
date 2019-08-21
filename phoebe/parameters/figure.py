@@ -95,6 +95,16 @@ def _figure_style_modes(b, default_color='component', default_linestyle='dataset
 
     return params
 
+def _figure_uncover_highlight_animate(b, **kwargs):
+    params = []
+
+    params += [BoolParameter(qualifier='uncover', value=kwargs.get('uncover', False), advanced=True, description='Whether to uncover up to the current time(s) (see times_mode and times parameters).')]
+    params += [BoolParameter(qualifier='highlight', value=kwargs.get('highlight', True), advanced=True, description='Whether to higlight the current time(s) (see times_mode and times parameters).')]
+    params += [ChoiceParameter(qualifier='time_source', value=kwargs.get('time_source', 'setting'), choices=['None', 'setting', 'manual'], description='Source to use for highlight/uncover time for this individual figure (or set to setting respect the figure_time_source parameter in the setting context).')]
+    params += [FloatParameter(qualifier='time', visible_if='time_source:manual', value=kwargs.get('time', 0.0), default_unit=u.d, description='Times to use for highlighting/uncovering if time_source=manual.')]
+
+    return params
+
 def _add_component(b, **kwargs):
     params = []
 
@@ -159,6 +169,7 @@ def lc(b, **kwargs):
 
     params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
 
+    params += _figure_uncover_highlight_animate(b, **kwargs)
 
     return ParameterSet(params)
 
@@ -185,6 +196,8 @@ def rv(b, **kwargs):
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
 
     params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
+
+    params += _figure_uncover_highlight_animate(b, **kwargs)
 
     return ParameterSet(params)
 
@@ -233,6 +246,7 @@ def orb(b, **kwargs):
 
     params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
 
+    params += _figure_uncover_highlight_animate(b, **kwargs)
 
     return ParameterSet(params)
 
@@ -257,6 +271,8 @@ def lp(b, **kwargs):
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
 
     params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
+
+    params += _figure_uncover_highlight_animate(b, **kwargs)
 
     return ParameterSet(params)
 
@@ -303,6 +319,8 @@ def mesh(b, **kwargs):
     # TODO: legend=True currently fails
     params += [BoolParameter(qualifier='draw_sidebars', value=kwargs.get('draw_sidebars', True), advanced=True, description='Whether to draw the sidebars')]
     params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', False), advanced=True, description='Whether to draw the legend')]
+
+    params += _figure_uncover_highlight_animate(b, **kwargs)
 
     return ParameterSet(params)
 

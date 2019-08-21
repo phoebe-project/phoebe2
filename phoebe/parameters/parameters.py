@@ -4378,7 +4378,23 @@ class ParameterSet(object):
             time = kwargs.get('time', None)
 
             if isinstance(time, str):
-                time = self.get_value(time, context=['component', 'system'])
+                # TODO: need to expand this whole logic to be the same as include_times in backends.py
+                time = self.get_value(time, context=['component', 'system'], check_visible=False)
+
+            # plotting doesn't currently support highlighting at multiple times
+            # if isinstance(time, list) or isinstance(time, tuple):
+            #     user_time = time
+            #     time = []
+            #     for t in user_time:
+            #         if isinstance(t, str):
+            #             new_time = self.get_value(t, context=['component', 'system'], check_visible=False)
+            #             if isinstance(new_time, np.ndarray):
+            #                 for nt in new_time:
+            #                     time.append(nt)
+            #             else:
+            #                 time.append(new_time)
+            #         else:
+            #             time.append(t)
 
             afig = self.gcf()
             if not len(afig.axes):

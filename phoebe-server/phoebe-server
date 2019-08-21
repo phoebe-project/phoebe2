@@ -777,6 +777,14 @@ def _update_figures(b, bundleid, affected_ps=None):
                 if np.any([ds in figure_datasets for ds in datasets]) or np.any([ml in figure_models for ml in models]):
                     figures.append(figure)
 
+        if len(affected_ps.filter(qualifier=['figure_time_source', 'figure_time'], check_visible=False)):
+            # then we need to add any figures which have time_source == 'setting'
+            for figure in b.figures:
+                if figure in figures:
+                    continue
+                if b.get_value(qualifier='time_source', figure=figure, context='figure', check_visible=False) == 'setting':
+                    figures.append(figure)
+
 
     current_time = str(datetime.now())
     figure_update_times = {}
@@ -1031,6 +1039,7 @@ def bundle_method(msg):
             print("bundle_method attach_job calling _handle_model_selectparams and _handle_meshcolor_choiceparams now that loaded")
         ps_list += b._handle_model_selectparams(return_changes=True)
         ps_list += b._handle_meshcolor_choiceparams(return_changes=True)
+        ps_list += b._handle_figure_time_source_params(return_changes=True)
 
 
     if 'web' in client_types or 'desktop' in client_types:
