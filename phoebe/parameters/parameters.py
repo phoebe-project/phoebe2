@@ -30,12 +30,15 @@ import readline
 import numpy as np
 
 import json
-try:
-    import ujson
-except ImportError:
-    _can_ujson = False
-else:
-    _can_ujson = True
+# try:
+#     import ujson
+# except ImportError:
+#     _can_ujson = False
+# else:
+#     _can_ujson = True
+
+# ujson is currently causing issues loading in mesh data (and/or large files)
+_can_ujson = False
 
 import webbrowser
 from datetime import datetime
