@@ -4131,12 +4131,18 @@ class Bundle(ParameterSet):
 
 
         # Figure options for this dataset
-        fig_params = _figure._add_dataset(self, **kwargs)
+        if kind not in ['mesh']:
+            fig_params = _figure._add_dataset(self, **kwargs)
 
-        fig_metawargs = {'context': 'figure',
-                         'kind': kind,
-                         'dataset': kwargs['dataset']}
-        self._attach_params(fig_params, **fig_metawargs)
+            fig_metawargs = {'context': 'figure',
+                             'kind': kind,
+                             'dataset': kwargs['dataset']}
+            self._attach_params(fig_params, **fig_metawargs)
+
+        else:
+            fig_params = None
+
+
 
         if kind not in self.filter(context='figure', check_visible=False, check_default=False).exclude(figure=[None], check_visible=False, check_default=False).kinds:
             # then we don't have a figure for this kind yet
