@@ -206,7 +206,7 @@ _forbidden_labels += ['datasets', 'models', 'components', 'contexts',
                       'xlim_mode', 'xlim', 'ylim_mode', 'ylim',
                       'fc', 'fclim_mode', 'fclim', 'fcunit_mode', 'fcunit', 'fclabel_mode', 'fclabel',
                       'ec', 'eclim_mode', 'eclim', 'ecunit_mode', 'ecunit', 'eclabel_mode', 'eclabel',
-                      'figure_time_source', 'figure_time', 'time_source', 'time',
+                      'default_time_source', 'default_time', 'time_source', 'time',
                       'uncover', 'highlight', 'draw_sidebars',
                       'legend']
 
