@@ -31,6 +31,7 @@ app._clients = []
 app._clients_per_bundle = {}
 app._last_access_per_bundle = {}
 app._verbose = True
+app._debug = True
 app._killable = False
 
 # we'll disable sorting the responses by keys so that we can control the sorting
@@ -1015,8 +1016,17 @@ def bundle_method(msg):
     except Exception as err:
         if app._verbose:
             print("bundle_method {} error: {}".format(msg, err.message))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
-        return
+        if app._debug:
+            raise
+
+        if method=='attach_job' and 'Expecting object' in err.message:
+            # then its likely the object just hasn't been completely written to
+            # disk yet, this error is expected.
+            # TODO: catch this within PHOEBE instead and return a reasonable status
+            pass
+        else:
+            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            return
 
 
     if method in ['flip_constraint']:
