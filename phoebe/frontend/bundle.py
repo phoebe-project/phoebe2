@@ -1732,9 +1732,13 @@ class Bundle(ParameterSet):
         t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component']).to_list()]
         t0s += ["t0@system"]
 
+        # here we have to use context='dataset' otherwise pb-dependent parameters
+        # with context='model', kind='mesh' will show up
+        valid_datasets = self.filter(context='dataset', kind=['mesh', 'lp'], check_visible=False).datasets
+
         mesh_lp_times = []
         for t in self.filter(context='model').times:
-            mesh_lp_times.append('{} ({})'.format(t, ', '.join(self.filter(context='model', time=t).datasets)))
+            mesh_lp_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t).datasets if ds in valid_datasets)))
         for param in self.filter(context='figure', qualifier=['default_time_source', 'time_source'], check_default=False, check_visible=False).to_list():
 
 
@@ -1843,14 +1847,17 @@ class Bundle(ParameterSet):
 
         ignore = ['xyz_elements', 'uvw_elements', 'xyz_normals', 'uvw_normals', 'times']
 
-        mesh_datasets = self.filter(context='model', kind='mesh').datasets
+        # we'll cheat by checking in the dataset context to avoid getting the
+        # pb-dependent entries with kind='mesh'
+        mesh_datasets = self.filter(context='dataset', kind='mesh').datasets
+
+        choices = ['None']
+        for p in self.filter(context='model', kind='mesh', check_visible=False).exclude(qualifier=ignore, check_visible=False).to_list():
+            item = p.qualifier if p.dataset in mesh_datasets else '{}@{}'.format(p.qualifier, p.dataset)
+            if item not in choices:
+                choices.append(item)
 
         for param in self.filter(context='figure', qualifier=['fc_column', 'ec_column'], check_default=False, check_visible=False).to_list():
-            # we do this instead of passing kind='mesh' so that we also get the
-            # pb-dependent columns
-            choices = ['None'] + [q for q in self.filter(context='model', dataset=mesh_datasets).qualifiers if q not in ignore]
-            # choices += _mpl_colors
-
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
