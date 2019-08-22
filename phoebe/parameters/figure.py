@@ -310,7 +310,7 @@ def mesh(b, **kwargs):
 
     params += [ChoiceParameter(qualifier='ec_mode', value=kwargs.get('ec_mode', 'manual'), choices=['column', 'manual', 'component', 'model', 'face'], description='Source to use for edgecolor.  For column, see the ec_column parameter.  For manual, see the ec parameter.  Otherwise, see the color parameter tagged with the corresponding component/model')]
     params += [ChoiceParameter(qualifier='ec_column', visible_if='ec_mode:column', value=kwargs.get('ec_column', 'None'), choices=['None'], description='Column from the mesh to plot as edgecolor if ec_mode is column.')]
-    params += [ChoiceParameter(qualifier='ec', visible_if='ec_mode:manual', value=kwargs.get('ec', 'k'), choices=['None', 'face']+_mplcolors, description='Color to use as edgecolor if ec_mode is manual.')]
+    params += [ChoiceParameter(qualifier='ec', visible_if='ec_mode:manual', value=kwargs.get('ec', 'k'), choices=['face']+_mplcolors, description='Color to use as edgecolor if ec_mode is manual.')]
 
 
 
