@@ -1573,14 +1573,13 @@ class ParameterSet(object):
         * an instantiated <phoebe.parameters.ParameterSet> object
         """
         filename = os.path.expanduser(filename)
-        f = open(filename, 'r')
-        if _can_ujson:
-            # NOTE: this will not parse the unicode.  Bundle.open always calls
-            # json instead of ujson for this reason.
-            data = ujson.load(f)
-        else:
-            data = json.load(f, object_pairs_hook=parse_json)
-        f.close()
+        with open(filename, 'r') as f:
+            if _can_ujson:
+                # NOTE: this will not parse the unicode.  Bundle.open always calls
+                # json instead of ujson for this reason.
+                data = ujson.load(f)
+            else:
+                data = json.load(f, object_pairs_hook=parse_json)
         return cls(data)
 
     def save(self, filename, incl_uniqueid=False, compact=False):
