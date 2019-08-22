@@ -117,8 +117,8 @@ def bundle_memory_cleanup(stale_limit_seconds=600):
         # we'll delete if any of the following
         # * no active clients and past the stale limit
         # * no clients at all and stale for 30 seconds (in the case of closing where the client sent a deregister signal)
-        # * stale for more than an hour from the webclient
-        if (len(active_clients)==0 and stale_for > stale_limit_seconds) or (len(clients)==0 and stale_for > 30) or (stale_for > 60*60 and np.all([c.split('-')[0]=='web' for c in _client_types_for_bundle(bundleid)])):
+        # * stale for more than an 1 day from the webclient (in the case where the client was closed but couldn't send a disconnect signal)
+        if (len(active_clients)==0 and stale_for > stale_limit_seconds) or (len(clients)==0 and stale_for > 30) or (stale_for > 24*60*60 and np.all([c.split('-')[0]=='web' for c in _client_types_for_bundle(bundleid)])):
             if app._verbose:
                 print("bundle_memory_cleanup: deleting {}".format(bundleid))
             if bundleid in app._bundles.keys():
