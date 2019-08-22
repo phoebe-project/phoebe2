@@ -95,11 +95,13 @@ def _figure_style_modes(b, default_color='component', default_linestyle='dataset
 
     return params
 
-def _figure_uncover_highlight_animate(b, **kwargs):
+def _figure_uncover_highlight_animate(b, uncover=True, highlight=True, **kwargs):
     params = []
 
-    params += [BoolParameter(qualifier='uncover', value=kwargs.get('uncover', False), advanced=True, description='Whether to uncover up to the current time(s) (see times_mode and times parameters).')]
-    params += [BoolParameter(qualifier='highlight', value=kwargs.get('highlight', True), advanced=True, description='Whether to higlight the current time(s) (see times_mode and times parameters).')]
+    if uncover:
+        params += [BoolParameter(qualifier='uncover', value=kwargs.get('uncover', False), advanced=True, description='Whether to uncover up to the current time(s) (see times_mode and times parameters).')]
+    if highlight:
+        params += [BoolParameter(qualifier='highlight', value=kwargs.get('highlight', True), advanced=True, description='Whether to higlight the current time(s) (see times_mode and times parameters).')]
     params += [ChoiceParameter(qualifier='time_source', value=kwargs.get('time_source', 'default'), choices=['None', 'default', 'manual'], description='Source to use for highlight/uncover time for this individual figure (or set to default to respect the default_time_source parameter).')]
     params += [FloatParameter(qualifier='time', visible_if='time_source:manual', value=kwargs.get('time', 0.0), default_unit=u.d, description='Times to use for highlighting/uncovering if time_source=manual.')]
 
@@ -302,9 +304,15 @@ def mesh(b, **kwargs):
     params += _label_units_lims('y', visible_if='y:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
     params += _label_units_lims('y', visible_if='y:xs|ys|zs', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
 
+    params += [ChoiceParameter(qualifier='fc_mode', value=kwargs.get('fc_mode', 'column'), choices=['column', 'manual', 'component', 'model'], description='Source to use for facecolor.  For column, see the ec_column parameter.  For manual, see the fc parameter.  Otherwise, see the color parameter tagged with the corresponding component/model')]
+    params += [ChoiceParameter(qualifier='fc_column', visible_if='fc_mode:column', value=kwargs.get('fc_column', 'None'), choices=['None'], description='Column from the mesh to plot as facecolor if fc_mode is column.')]
+    params += [ChoiceParameter(qualifier='fc', visible_if='fc_mode:manual', value=kwargs.get('fc', 'None'), choices=['None']+_mplcolors, description='Color to use as facecolor if fc_mode is manual.')]
 
-    params += [ChoiceParameter(qualifier='fc', value=kwargs.get('fc', 'None'), choices=['None'], description='Array to plot as facecolor')]
-    params += [ChoiceParameter(qualifier='ec', value=kwargs.get('ec', 'None'), choices=['None'], description='Array to plot as edgecolor')]
+    params += [ChoiceParameter(qualifier='ec_mode', value=kwargs.get('ec_mode', 'manual'), choices=['column', 'manual', 'component', 'model', 'face'], description='Source to use for edgecolor.  For column, see the ec_column parameter.  For manual, see the ec parameter.  Otherwise, see the color parameter tagged with the corresponding component/model')]
+    params += [ChoiceParameter(qualifier='ec_column', visible_if='ec_mode:column', value=kwargs.get('ec_column', 'None'), choices=['None'], description='Column from the mesh to plot as edgecolor if ec_mode is column.')]
+    params += [ChoiceParameter(qualifier='ec', visible_if='ec_mode:manual', value=kwargs.get('ec', 'k'), choices=['None', 'face']+_mplcolors, description='Color to use as edgecolor if ec_mode is manual.')]
+
+
 
 
     for q in ['fc', 'ec']:
@@ -328,7 +336,7 @@ def mesh(b, **kwargs):
     params += [BoolParameter(qualifier='draw_sidebars', value=kwargs.get('draw_sidebars', True), advanced=True, description='Whether to draw the sidebars')]
     params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', False), advanced=True, description='Whether to draw the legend')]
 
-    params += _figure_uncover_highlight_animate(b, **kwargs)
+    params += _figure_uncover_highlight_animate(b, uncover=False, highlight=False, **kwargs)
 
     return ParameterSet(params)
 

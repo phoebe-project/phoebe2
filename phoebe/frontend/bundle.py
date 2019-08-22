@@ -925,8 +925,8 @@ class Bundle(ParameterSet):
         else:
             orbit_defaults = {'sma': 5.3, 'period': 1.0}
             star_defaults = {'requiv': 1.0}
-        b.add_star(component=starA, **star_defaults)
-        b.add_star(component=starB, **star_defaults)
+        b.add_star(component=starA, color='b', **star_defaults)
+        b.add_star(component=starB, color='r', **star_defaults)
         b.add_orbit(component=orbit, **orbit_defaults)
         if contact_binary:
             b.add_component('envelope', component='contact_envelope')
@@ -1845,7 +1845,7 @@ class Bundle(ParameterSet):
 
         mesh_datasets = self.filter(context='model', kind='mesh').datasets
 
-        for param in self.filter(context='figure', qualifier=['fc', 'ec'], check_default=False, check_visible=False).to_list():
+        for param in self.filter(context='figure', qualifier=['fc_column', 'ec_column'], check_default=False, check_visible=False).to_list():
             # we do this instead of passing kind='mesh' so that we also get the
             # pb-dependent columns
             choices = ['None'] + [q for q in self.filter(context='model', dataset=mesh_datasets).qualifiers if q not in ignore]
@@ -5439,7 +5439,9 @@ class Bundle(ParameterSet):
             kwargs.setdefault('time', time_source)
 
         for d in ['x', 'y', 'fc', 'ec'] if ds_kind == 'mesh' else ['x', 'y']:
-            kwargs.setdefault(d, fig_ps.get_value(qualifier=d, **_skip_filter_checks))
+            if d not in ['fc', 'ec']:
+                # fc and ec are handled later because they have different options
+                kwargs.setdefault(d, fig_ps.get_value(qualifier=d, **_skip_filter_checks))
 
             if kwargs.get('{}label_mode'.format(d), fig_ps.get_value(qualifier='{}label_mode'.format(d), **_skip_filter_checks))=='manual':
                 kwargs.setdefault('{}label'.format(d), fig_ps.get_value(qualifier='{}label'.format(d), **_skip_filter_checks))
@@ -5465,7 +5467,18 @@ class Bundle(ParameterSet):
 
         if ds_kind in ['mesh']:
             for q in ['fc', 'ec']:
-                kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                mode = fig_ps.get_value(qualifier=q+'_mode', **_skip_filter_checks)
+                if mode == 'column':
+                    kwargs[q] = fig_ps.get_value(qualifier=q+'_column', **_skip_filter_checks)
+                elif mode == 'manual':
+                    kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                elif mode == 'face':
+                    kwargs[q] = 'face'
+                elif mode == 'component':
+                    kwargs[q] = {c: self.get_value(qualifier='color', component=c, context='figure', **_skip_filter_checks) for c in comp_same_kind if c in self.hierarchy.get_meshables()}
+                elif mode == 'model':
+                    kwargs[q] = {ml: self.get_value(qualifier='color', model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
+
                 if kwargs[q] == 'None':
                     kwargs[q] = None
         else:
