@@ -1736,14 +1736,25 @@ class Bundle(ParameterSet):
         # with context='model', kind='mesh' will show up
         valid_datasets = self.filter(context='dataset', kind=['mesh', 'lp'], check_visible=False).datasets
 
+        mesh_times = []
+        lp_times = []
         mesh_lp_times = []
+        for t in self.filter(context='model', kind='mesh').times:
+            mesh_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t).datasets if ds in valid_datasets)))
+        for t in self.filter(context='model', kind='lp').times:
+            lp_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t).datasets if ds in valid_datasets)))
         for t in self.filter(context='model').times:
             mesh_lp_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t).datasets if ds in valid_datasets)))
+
         for param in self.filter(context='figure', qualifier=['default_time_source', 'time_source'], check_default=False, check_visible=False).to_list():
 
 
             if param.qualifier == 'default_time_source':
                 choices = ['None', 'manual'] + t0s + mesh_lp_times
+            elif param.kind == 'mesh':
+                choices = ['default'] + mesh_times
+            elif param.kind == 'lp':
+                choices = ['default'] + lp_times
             else:
                 choices = ['None', 'default', 'manual'] + t0s + mesh_lp_times
 
