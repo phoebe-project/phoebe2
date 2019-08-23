@@ -473,9 +473,9 @@ def new_bundle(type):
     else:
         return _get_response({'success': False, 'error': 'bundle with type "{}" not implemented'.format(type)}, api=True)
 
-@app.route('/open_bundle', methods=['POST'])
+@app.route('/open_bundle/<string:type>', methods=['POST'])
 @crossdomain(origin='*')
-def open_bundle():
+def open_bundle(type):
     """
     """
     if app._verbose:
@@ -486,22 +486,36 @@ def open_bundle():
     except ValueError:
         data = {}
 
-    if 'file' in request.files:
-        if app._verbose: print("opening bundle from file")
-        file = request.files['file']
-        bundle_data = json.load(file)
-    else:
-        if app._verbose: print("opening bundle from json data")
+    if type == 'load:phoebe2':
+        if 'file' in request.files:
+            if app._verbose: print("opening bundle from file")
+            file = request.files['file']
+            try:
+                bundle_data = json.load(file)
+            except:
+                return _get_response({'success': False, 'error': "could not read bundle json data from file.  If the file is a PHOEBE 1/legacy file, try importing instead."}, api=True)
+
+        else:
+            if app._verbose: print("opening bundle from json data")
+            try:
+                bundle_data = data['json']
+            except:
+                return _get_response({'success': False, 'error': "could not read json data"}, api=True)
+
         try:
-            bundle_data = data['json']
-        except:
-            return _get_response({'success': False, 'error': "could not read json data"}, api=True)
+            b = phoebe.Bundle(bundle_data)
+        except Exception as err:
+            return _get_response({'success': False, 'error': "failed to load bundle with error: "+str(err)}, api=True)
 
+    elif type == 'load:legacy':
+        try:
+            b = phoebe.from_legacy(request.files['file'])
+        except Exception as err:
+            return _get_response({'success': False, 'error': "file not recognized as bundle or legacy phoebe file.  Error: {}".format(str(err))}, api=True)
 
-    try:
-        b = phoebe.Bundle(bundle_data)
-    except Exception as err:
-        return _get_response({'success': False, 'error': str(err)}, api=True)
+    else:
+        return _get_response({'success': False, 'error': "import with type={} not supported".format(type)}, api=True)
+
 
     bundleid = data.get('bundleid', None)
     if app._verbose:
