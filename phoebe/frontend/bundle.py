@@ -452,15 +452,22 @@ class Bundle(ParameterSet):
 
         Arguments
         ----------
-        * `filename` (string): relative or full path to the file
+        * `filename` (string or file object): relative or full path to the file
+            or an opened python file object.
 
         Returns
         ---------
         * an instantiated <phoebe.frontend.bundle.Bundle> object
         """
-        filename = os.path.expanduser(filename)
-        logger.debug("importing from {}".format(filename))
-        f = open(filename, 'r')
+        if isinstance(filename, file) or filename.__class__.__name__ in ['FileStorage']:
+            f = filename
+        elif isinstance(filename, str) or isinstance(filename, unicode):
+            filename = os.path.expanduser(filename)
+            logger.debug("importing from {}".format(filename))
+            f = open(filename, 'r')
+        else:
+            raise TypeError("filename must be string, unicode, or file object, got {}".format(type(filename)))
+
         data = json.load(f, object_pairs_hook=parse_json)
         f.close()
         b = cls(data)
@@ -770,7 +777,11 @@ class Bundle(ParameterSet):
 
         Arguments
         ------------
-        * `filename` (string): relative or full path to the file
+        * `filename` (string or file object): relative or full path to the file
+            or an opened python file object.  NOTE: if passing a file object,
+            referenced data files will be ignored.  If wanting to load referenced
+            data files, pass the location of the file so that relative paths
+            to other files can be correctly parsed.
         * `add_compute_legacy` (bool, optional, default=True): whether to add
             a set of compute options for the legacy backend.  See also
             <phoebe.frontend.bundle.Bundle.add_compute> and
@@ -785,7 +796,6 @@ class Bundle(ParameterSet):
         * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
         logger.warning("importing from legacy is experimental until official 1.0 release")
-        filename = os.path.expanduser(filename)
         return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
     @classmethod
