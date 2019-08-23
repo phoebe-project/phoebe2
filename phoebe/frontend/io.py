@@ -251,6 +251,10 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
     """
     load dictionary with lc data
     """
+    if dir is None:
+        logger.warning("to load referenced data files, pass filename as string instead of file object")
+        return {}
+
     if '/' in filename:
         path, filename = os.path.split(filename)
     else:
@@ -307,6 +311,10 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
     """
     load dictionary with rv data.
     """
+    if dir is None:
+        logger.warning("to load referenced data files, pass filename as string instead of file object")
+        return {}
+
 
     if '/' in filename:
         path, filename = os.path.split(filename)
@@ -416,7 +424,21 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     conf_interactive_checks_state = conf.interactive_checks
     conf_interactive_constraints_state = conf.interactive_constraints
     conf.interactive_off(suppress_warning=True)
-    legacy_file_dir = os.path.dirname(filename)
+
+
+    if isinstance(filename, file) or filename.__class__.__name__ in ['FileStorage']:
+        f = filename
+        legacy_file_dir = None
+
+    elif isinstance(filename, str) or isinstance(filename, unicode):
+        filename = os.path.expanduser(filename)
+        legacy_file_dir = os.path.dirname(filename)
+
+        logger.debug("importing from {}".format(filename))
+        f = open(filename, 'r')
+
+    else:
+        raise TypeError("filename must be string, unicode, or file object, got {}".format(type(filename)))
 
 # load the phoebe file
 
