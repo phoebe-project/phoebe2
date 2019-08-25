@@ -232,8 +232,14 @@ def _value_string(param):
     elif param_type in ['ConstraintParameter']:
         return "f({})".format(",".join([p.qualifier for p in param.vars.to_list() if p != param.constrained_parameter]))
     elif param_type in ['SelectParameter']:
-        v = param.expand_value()
-        return ",".join(v) if len(v) else "(empty)"
+        v = param.get_value()
+        ev = param.expand_value()
+        if len(v) == 0:
+            return "(empty)"
+        elif np.any(["*" in vi or "?" in vi for vi in v]):
+            return "[{} ({} {})]".format(",".join(v), len(ev), "match" if len(ev)==1 else "matches")
+        else:
+            return "[{}]".format(",".join(v))
     elif param_type in ['JobParameter']:
         return param.get_status()
     elif param_type in ['UnitParameter']:
@@ -364,7 +370,7 @@ def _param_json_detailed(param):
         # p['limits'] = None
 
     if param.__class__.__name__ in ['SelectParameter']:
-        p['value'] = param.expand_value()
+        p['value'] = param.get_value()
     elif param.__class__.__name__ in ['FloatArrayParameter']:
         value = param.to_json()['value']
         if isinstance(value, list):
