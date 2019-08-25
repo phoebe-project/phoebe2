@@ -5552,7 +5552,7 @@ class Bundle(ParameterSet):
 
 
         logger.info("calling plot(**{})".format(kwargs))
-        return self.plot(**kwargs)
+        return self.plot(tight_layout=True, **kwargs)
 
 
     def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):
