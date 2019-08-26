@@ -5,9 +5,9 @@ try:
     from matplotlib import colors, markers
 except (ImportError, TypeError):
     _use_mpl = False
-    _mplcolors = []
-    _mplmarkers = []
-    _mpllinestyles = []
+    _mplcolors = ['None']
+    _mplmarkers = ['None']
+    _mpllinestyles = ['None']
 else:
     _use_mpl = True
     _mplcolors = ['k', 'b', 'r', 'g', 'p']
@@ -129,7 +129,7 @@ def _add_dataset(b, **kwargs):
 
     params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which linestyle_mode is set to dataset')]
     params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Marker (datasets only, not models) to use for figures in which marker_mode is set to dataset')]
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', 'solid')), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_mode is set to dataset')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', 'solid' if _use_mpl else None)), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_mode is set to dataset')]
 
     return ParameterSet(params)
 
@@ -172,9 +172,9 @@ def lc(b, **kwargs):
 
     params += _label_units_lims('y', default_unit=u.W/u.m**2, is_default=True, **kwargs)
 
-    kwargs.setdefault('color', 'k')
-    kwargs.setdefault('marker', '.')
-    kwargs.setdefault('linestyle', 'solid')
+    kwargs.setdefault('color', 'k' if _use_mpl else None)
+    kwargs.setdefault('marker', '.' if _use_mpl else None)
+    kwargs.setdefault('linestyle', 'solid' if _use_mpl else None)
     params += _figure_style_modes(b, default_color='model', default_marker='manual', default_linestyle='manual', **kwargs)
 
     params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
@@ -200,9 +200,9 @@ def rv(b, **kwargs):
 
     params += _label_units_lims('y', default_unit=u.km/u.s, is_default=True, **kwargs)
 
-    kwargs.setdefault('color', 'k')
-    kwargs.setdefault('marker', '.')
-    kwargs.setdefault('linestyle', 'solid')
+    kwargs.setdefault('color', 'k') if _use_mpl else None
+    kwargs.setdefault('marker', '.' if _use_mpl else None)
+    kwargs.setdefault('linestyle', 'solid' if _use_mpl else None)
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
 
     params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
@@ -249,9 +249,9 @@ def orb(b, **kwargs):
     params += _label_units_lims('y', visible_if='y:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
     params += _label_units_lims('y', visible_if='y:vus|vvs|vws', default_unit=u.km/u.s, is_default=False, **kwargs)
 
-    kwargs.setdefault('color', 'k')
-    kwargs.setdefault('marker', '.')
-    kwargs.setdefault('linestyle', 'solid')
+    kwargs.setdefault('color', 'k' if _use_mpl else None)
+    kwargs.setdefault('marker', '.' if _use_mpl else None)
+    kwargs.setdefault('linestyle', 'solid' if _use_mpl else None)
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
 
     params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
@@ -275,9 +275,9 @@ def lp(b, **kwargs):
     params += _label_units_lims('x', default_unit=u.nm, is_default=True, **kwargs)
     params += _label_units_lims('y', default_unit=u.W/(u.m**2*u.nm), is_default=True, **kwargs)
 
-    kwargs.setdefault('color', 'k')
-    kwargs.setdefault('marker', '.')
-    kwargs.setdefault('linestyle', 'solid')
+    kwargs.setdefault('color', 'k' if _use_mpl else None)
+    kwargs.setdefault('marker', '.' if _use_mpl else None)
+    kwargs.setdefault('linestyle', 'solid' if _use_mpl else None)
     params += _figure_style_modes(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
 
     params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
@@ -310,7 +310,7 @@ def mesh(b, **kwargs):
 
     params += [ChoiceParameter(qualifier='ec_mode', value=kwargs.get('ec_mode', 'manual'), choices=['column', 'manual', 'component', 'model', 'face'], description='Source to use for edgecolor.  For column, see the ec_column parameter.  For manual, see the ec parameter.  Otherwise, see the color parameter tagged with the corresponding component/model')]
     params += [ChoiceParameter(qualifier='ec_column', visible_if='ec_mode:column', value=kwargs.get('ec_column', 'None'), choices=['None'], description='Column from the mesh to plot as edgecolor if ec_mode is column.')]
-    params += [ChoiceParameter(qualifier='ec', visible_if='ec_mode:manual', value=kwargs.get('ec', 'k'), choices=['face']+_mplcolors, description='Color to use as edgecolor if ec_mode is manual.')]
+    params += [ChoiceParameter(qualifier='ec', visible_if='ec_mode:manual', value=kwargs.get('ec', 'k' if _use_mpl else None), choices=['face']+_mplcolors, description='Color to use as edgecolor if ec_mode is manual.')]
 
 
 
