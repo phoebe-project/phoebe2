@@ -3,7 +3,10 @@ import phoebe as phb
 import os.path
 import sys
 import logging
-from io import IOBase as _IOBase
+
+if sys.version_info[0] >= 3:
+    from io import IOBase as _IOBase
+
 
 from phoebe import conf
 from phoebe.distortions import roche
