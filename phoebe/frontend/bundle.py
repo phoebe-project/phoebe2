@@ -47,6 +47,7 @@ logger.addHandler(logging.NullHandler())
 
 if sys.version_info[0] == 3:
   unicode = str
+  from io import IOBase
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
@@ -459,7 +460,13 @@ class Bundle(ParameterSet):
         ---------
         * an instantiated <phoebe.frontend.bundle.Bundle> object
         """
-        if isinstance(filename, file) or filename.__class__.__name__ in ['FileStorage']:
+        def _is_file(obj):
+            if sys.version_info[0] >= 3:
+                return isinstance(filename, IOBase) or filename.__class__.__name__ in ['FileStorage']
+            else:
+                return isinstance(filename, file) or filename.__class__.__name__ in ['FileStorage']
+
+        if _is_file(filename):
             f = filename
         elif isinstance(filename, str) or isinstance(filename, unicode):
             filename = os.path.expanduser(filename)
