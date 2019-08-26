@@ -3,6 +3,8 @@ import phoebe as phb
 import os.path
 import sys
 import logging
+from io import IOBase as _IOBase
+
 from phoebe import conf
 from phoebe.distortions import roche
 # from phoebe.constraints.builtin import t0_ref_to_supconj
@@ -13,7 +15,7 @@ logger.addHandler(logging.NullHandler())
 
 def _is_file(obj):
     if sys.version_info[0] >= 3:
-        return isinstance(obj, IOBase) or obj.__class__.__name__ in ['FileStorage']
+        return isinstance(obj, _IOBase) or obj.__class__.__name__ in ['FileStorage']
     else:
         return isinstance(obj, file) or obj.__class__.__name__ in ['FileStorage']
 
