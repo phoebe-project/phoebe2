@@ -13,9 +13,9 @@ logger.addHandler(logging.NullHandler())
 
 def _is_file(obj):
     if sys.version_info[0] >= 3:
-        return isinstance(filename, IOBase) or filename.__class__.__name__ in ['FileStorage']
+        return isinstance(obj, IOBase) or obj.__class__.__name__ in ['FileStorage']
     else:
-        return isinstance(filename, file) or filename.__class__.__name__ in ['FileStorage']
+        return isinstance(obj, file) or obj.__class__.__name__ in ['FileStorage']
 
 """
 Dictionaries of parameters for conversion between phoebe1 and phoebe 2
