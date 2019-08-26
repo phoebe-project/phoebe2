@@ -1,7 +1,13 @@
 import numpy as np
 import phoebe as phb
 import os.path
+import sys
 import logging
+
+if sys.version_info[0] >= 3:
+    from io import IOBase as _IOBase
+
+
 from phoebe import conf
 from phoebe.distortions import roche
 # from phoebe.constraints.builtin import t0_ref_to_supconj
@@ -9,6 +15,12 @@ from phoebe.distortions import roche
 import libphoebe
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
+
+def _is_file(obj):
+    if sys.version_info[0] >= 3:
+        return isinstance(obj, _IOBase) or obj.__class__.__name__ in ['FileStorage']
+    else:
+        return isinstance(obj, file) or obj.__class__.__name__ in ['FileStorage']
 
 """
 Dictionaries of parameters for conversion between phoebe1 and phoebe 2
@@ -426,7 +438,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     conf.interactive_off(suppress_warning=True)
 
 
-    if isinstance(filename, file) or filename.__class__.__name__ in ['FileStorage']:
+    if _is_file(filename):
         f = filename
         legacy_file_dir = None
 
