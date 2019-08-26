@@ -460,13 +460,7 @@ class Bundle(ParameterSet):
         ---------
         * an instantiated <phoebe.frontend.bundle.Bundle> object
         """
-        def _is_file(obj):
-            if sys.version_info[0] >= 3:
-                return isinstance(filename, IOBase) or filename.__class__.__name__ in ['FileStorage']
-            else:
-                return isinstance(filename, file) or filename.__class__.__name__ in ['FileStorage']
-
-        if _is_file(filename):
+        if io._is_file(filename):
             f = filename
         elif isinstance(filename, str) or isinstance(filename, unicode):
             filename = os.path.expanduser(filename)
