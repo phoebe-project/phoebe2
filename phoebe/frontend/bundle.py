@@ -2442,6 +2442,15 @@ class Bundle(ParameterSet):
             parent = hier.get_parent_of(component)
             parent_ps = self.get_component(parent, **_skip_filter_checks)
             if kind in ['star']:
+                if self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs) >= 10000 and self.get_value(qualifier='ld_mode_bol', component=component, context='component') == 'lookup':
+                    report.add_item(self,
+                                    "ld_mode_bol of 'lookup' uses a bolometric passband which is not reliable for hot stars.  Consider using ld_mode_bol of manual and providing ld_coeffs instead.",
+                                    [self.get_parameter(qualifier='teff', component=component, context='component'),
+                                     self.get_parameter(qualifier='ld_mode_bol', component=component, context='component')],
+                                    False
+                                    )
+
+
                 # ignore the single star case
                 if parent:
                     # contact systems MUST by synchronous
