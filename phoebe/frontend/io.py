@@ -1,7 +1,13 @@
 import numpy as np
 import phoebe as phb
 import os.path
+import sys
 import logging
+
+if sys.version_info[0] >= 3:
+    from io import IOBase as _IOBase
+
+
 from phoebe import conf
 from phoebe.distortions import roche
 # from phoebe.constraints.builtin import t0_ref_to_supconj
@@ -9,6 +15,12 @@ from phoebe.distortions import roche
 import libphoebe
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
+
+def _is_file(obj):
+    if sys.version_info[0] >= 3:
+        return isinstance(obj, _IOBase) or obj.__class__.__name__ in ['FileStorage']
+    else:
+        return isinstance(obj, file) or obj.__class__.__name__ in ['FileStorage']
 
 """
 Dictionaries of parameters for conversion between phoebe1 and phoebe 2
@@ -251,6 +263,10 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
     """
     load dictionary with lc data
     """
+    if dir is None:
+        logger.warning("to load referenced data files, pass filename as string instead of file object")
+        return {}
+
     if '/' in filename:
         path, filename = os.path.split(filename)
     else:
@@ -307,6 +323,10 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
     """
     load dictionary with rv data.
     """
+    if dir is None:
+        logger.warning("to load referenced data files, pass filename as string instead of file object")
+        return {}
+
 
     if '/' in filename:
         path, filename = os.path.split(filename)
@@ -416,7 +436,21 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     conf_interactive_checks_state = conf.interactive_checks
     conf_interactive_constraints_state = conf.interactive_constraints
     conf.interactive_off(suppress_warning=True)
-    legacy_file_dir = os.path.dirname(filename)
+
+
+    if _is_file(filename):
+        f = filename
+        legacy_file_dir = None
+
+    elif isinstance(filename, str) or isinstance(filename, unicode):
+        filename = os.path.expanduser(filename)
+        legacy_file_dir = os.path.dirname(filename)
+
+        logger.debug("importing from {}".format(filename))
+        f = open(filename, 'r')
+
+    else:
+        raise TypeError("filename must be string, unicode, or file object, got {}".format(type(filename)))
 
 # load the phoebe file
 
@@ -845,6 +879,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         # disable interpolating ld coefficients
         eb.set_value_all(qualifier='ld_mode', dataset=dataid, value='manual', check_visible=False)
+        eb.set_value_all(qualifier='ld_mode_bol', value='manual', check_visible=False)
 
     #set pblum reference
 

@@ -43,6 +43,7 @@ logger.addHandler(logging.NullHandler())
 
 if sys.version_info[0] == 3:
   unicode = str
+  from io import IOBase
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
@@ -71,6 +72,215 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
     else:
         raise ValueError("could not find callable function in {}.{}"
                          .format(mod, func))
+
+
+class RunChecksItem(object):
+    def __init__(self, b, message, param_uniqueids=[], fail=True):
+        self._b = b
+        self._message = message
+        self._fail = fail
+        self._param_uniqueids = [uid.uniqueid if isinstance(uid, Parameter) else uid for uid in param_uniqueids]
+
+    def __repr__(self):
+        return "<RunChecksItem level={} message={} parameters: {}>".format(self.level, self.message, len(self._param_uniqueids))
+
+    def __str__(self):
+        n_affected_parameters = len(self._param_uniqueids)
+        return "{}: {} ({} affected parameter{})".format(self.level, self.message, n_affected_parameters, "s" if n_affected_parameters else "")
+
+    def to_dict(self):
+        """
+        Return a dictionary representation of the RunChecksItem.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksItem.message>
+        * <phoebe.frontend.bundle.RunChecksItem.fail>
+        * <phoebe.frontend.bundle.RunChecksItem.level>
+        * <phoebe.frontend.bundle.RunChecksItem.parameters>
+
+        Returns
+        ----------
+        * (dict) with keys: 'message', 'level', 'fail', 'parameters'.
+        """
+        return dict(message=self.message,
+                    level=self.level,
+                    fail=self.fail,
+                    parameters={p.twig: p.uniqueid for p in self.parameters.to_list()})
+
+    @property
+    def message(self):
+        """
+        Access the message of the warning/error.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksItem.to_dict>
+
+        Returns
+        ---------
+        * (str) the warning/error message.
+        """
+        return self._message
+
+    @property
+    def fail(self):
+        """
+        Access whether this item will cause the checks to fail (is an error
+        instead of a warning).
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.passed>
+        * <phoebe.frontend.bundle.RunChecksItem.level>
+        * <phoebe.frontend.bundle.RunChecksItem.to_dict>
+
+        Returns
+        ---------
+        * (bool) whether this item is an error that will cause the checks to fail.
+        """
+        return self._fail
+
+    @property
+    def level(self):
+        """
+        Access whether this item is an 'ERROR' or 'WARNING'.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.passed>
+        * <phoebe.frontend.bundle.RunChecksItem.fail>
+        * <phoebe.frontend.bundle.RunChecksItem.to_dict>
+
+        Returns
+        ---------
+        * (str) either "ERROR" or "WARNING"
+        """
+        return "ERROR" if self.fail else "WARNING"
+
+    @property
+    def parameters(self):
+        """
+        Access the parameters that are suggested by the warning/error to address
+        the underlying issue.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksItem.to_dict>
+
+        Returns
+        ----------
+        * <phoebe.parameters.ParameterSet> of parameters
+        """
+        return self._b.filter(uniqueid=self._param_uniqueids,
+                              check_visible=False,
+                              check_default=False)
+
+
+
+
+class RunChecksReport(object):
+    def __init__(self, items=[]):
+        # need to force a copy here otherwise we'll soft copy against previous
+        # instances and get duplicates
+        self._items = items[:]
+
+    def __bool__(self):
+        return self.passed
+
+    def __repr__(self):
+        return "<RunChecksReport {} items: status={}>".format(len(self.items), self.status)
+
+    def __str__(self):
+        """String representation for the ParameterSet."""
+        return "Run Checks Report: {}\n".format(self.status) + "\n".join([str(i) for i in self.items])
+
+    @property
+    def passed(self):
+        """
+        Return whether the checks are passing (as opposed to failing).
+
+        Note that warnings items will not be included when determining if the
+        checks fail.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.status>
+        * <phoebe.frontend.bundle.RunChecksItem.fail>
+        * <phoebe.frontend.bundle.RunChecksItem.level>
+        * <phoebe.frontend.bundle.RunChecksReport.get_items>
+
+        Returns
+        ----------
+        * (bool) whether any failing items are included in the report.
+        """
+        return len(self.get_items(fail=True))==0
+
+    @property
+    def status(self):
+        """
+        Return whether the report results in a status of 'PASS', 'WARNING',
+        or 'FAIL'.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.passed>
+
+        Returns
+        ------------
+        * (str) either 'PASS', 'WARNING', or 'FAIL'
+        """
+        return "PASS" if len(self.items)==0 else "WARNING" if self.passed else "FAIL"
+
+    @property
+    def items(self):
+        """
+        Access the underlying <phoebe.frontend.bundle.RunChecksItem> items.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.get_items>
+
+        Returns
+        ---------
+        * (list) list of <phoebe.frontend.bundle.RunChecksItem> objects.
+        """
+        return self._items
+
+    def add_item(self, b, message, param_uniqueids=[], fail=True):
+        """
+        Add a new <phoebe.frontend.bundle.RunChecksItem> to this report.
+        Generally this should not be done manually, but is handled internally
+        by <phoebe.frontend.bundle.Bundle.run_checks>.
+
+        Arguments
+        -----------
+        * `b` (Bundle): the <phoebe.frontend.bundle.Bundle> object
+        * `message` (string): the message of the new item.  See
+            <phoebe.frontend.bundle.RunChecksItem.message>.
+        * `param_uniqueids` (list): list of uniqueids of parameters.
+            See <phoebe.frontend.bundle.RunChecksItem.parameters>.
+        * `fail` (bool, optional, default=True): whether the item should cause
+            the report to have a failing status.  See
+            <phoebe.frontend.bundle.RunChecksItem.fail> and
+            <phoebe.frontend.bundle.RunChecksReport.status>.
+        """
+        self._items.append(RunChecksItem(b, message, param_uniqueids, fail))
+
+    def get_items(self, fail=None):
+        """
+        Access the underlying <phoebe.frontend.bundle.RunChecksItem> items,
+        with optional ability to filter by the `fail` argument of each item.
+
+        See also:
+        * <phoebe.frontend.bundle.RunChecksReport.items>
+
+        Arguments
+        ----------
+        * `fail` (bool or None, optional, default=None): filter for items
+            with a particular value for `fail` or None to return all.
+            See <phoebe.frontend.bundle.RunChecksItem.fail>.
+
+        Returns
+        ---------
+        * (list) list of <phoebe.frontend.bundle.RunChecksItem> objects.
+        """
+        if fail is None:
+            return self.items
+
+        return [i for i in self.items if i.fail==fail]
 
 
 class Bundle(ParameterSet):
@@ -227,15 +437,22 @@ class Bundle(ParameterSet):
 
         Arguments
         ----------
-        * `filename` (string): relative or full path to the file
+        * `filename` (string or file object): relative or full path to the file
+            or an opened python file object.
 
         Returns
         ---------
         * an instantiated <phoebe.frontend.bundle.Bundle> object
         """
-        filename = os.path.expanduser(filename)
-        logger.debug("importing from {}".format(filename))
-        f = open(filename, 'r')
+        if io._is_file(filename):
+            f = filename
+        elif isinstance(filename, str) or isinstance(filename, unicode):
+            filename = os.path.expanduser(filename)
+            logger.debug("importing from {}".format(filename))
+            f = open(filename, 'r')
+        else:
+            raise TypeError("filename must be string, unicode, or file object, got {}".format(type(filename)))
+
         data = json.load(f, object_pairs_hook=parse_json)
         f.close()
         b = cls(data)
@@ -281,7 +498,6 @@ class Bundle(ParameterSet):
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
             b.remove_parameters_all(context='setting')
             b._attach_params(_setting.settings(**existing_values_settings), context='setting')
-
 
             # overwriting the datasets during migration will clear the model, so
             # let's save a copy and re-attach it after
@@ -339,6 +555,15 @@ class Bundle(ParameterSet):
                 logger.warning("migrating '{}' {} dataset.".format(ds, ds_kind))
                 logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
                 b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
+
+            for component in b.filter(context='component', kind='star').components:
+                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component).to_list()}
+                logger.warning("migrating '{}' component".format(component))
+                logger.debug("applying existing values to {} component: {}".format(component, existing_values))
+                b.add_component(kind='star', component=component, overwrite=True, **existing_values)
+
+            # make sure constraints all attach
+            b.set_hierarchy()
 
             logger.debug("restoring previous models")
             b._attach_params(ps_model, context='model')
@@ -533,7 +758,11 @@ class Bundle(ParameterSet):
 
         Arguments
         ------------
-        * `filename` (string): relative or full path to the file
+        * `filename` (string or file object): relative or full path to the file
+            or an opened python file object.  NOTE: if passing a file object,
+            referenced data files will be ignored.  If wanting to load referenced
+            data files, pass the location of the file so that relative paths
+            to other files can be correctly parsed.
         * `add_compute_legacy` (bool, optional, default=True): whether to add
             a set of compute options for the legacy backend.  See also
             <phoebe.frontend.bundle.Bundle.add_compute> and
@@ -548,7 +777,6 @@ class Bundle(ParameterSet):
         * an instantiated <phoebe.frontend.bundle.Bundle> object.
         """
         logger.warning("importing from legacy is experimental until official 1.0 release")
-        filename = os.path.expanduser(filename)
         return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
     @classmethod
@@ -817,13 +1045,13 @@ class Bundle(ParameterSet):
         self.run_delayed_constraints()
 
         if not skip_checks:
-            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False)
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
+            report = self.run_checks(compute=compute, allow_skip_constraints=False)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
 
         filename = os.path.expanduser(filename)
         return io.pass_to_legacy(self, filename, compute=compute)
@@ -1138,17 +1366,22 @@ class Bundle(ParameterSet):
             positive or negative).  If i is None or not provided, the entire list
             of history items will be removed.
 
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+
         Raises
         -------
         * ValueError: if no history items have been recorded.
         """
         if i is None:
-            self.remove_parameters_all(context='history')
+            return_ = self.remove_parameters_all(context='history')
         else:
             param = self.get_history(i=i)
-            self.remove_parameter(uniqueid=param.uniqueid)
+            return_ = self.remove_parameter(uniqueid=param.uniqueid)
 
         # let's not add_history for this one...
+        return return_
 
     @property
     def history_enabled(self):
@@ -1821,8 +2054,11 @@ class Bundle(ParameterSet):
 
         Returns
         ----------
-        * (bool, str) whether the checks passed or failed and a message describing
-            the FIRST failure (if applicable).
+        * (<phoebe.frontend.bundle.RunChecksReport>) object containing all
+            errors/warnings.  Print the returned object to see all messages.
+            See also: <phoebe.frontend.bundle.RunChecksReport.passed>,
+             <phoebe.frontend.bundle.RunChecksReport.items>, and
+             <phoebe.frontend.bundle.RunChecksItem.message>.
         """
 
         # make sure all constraints have been run
@@ -1844,9 +2080,12 @@ class Bundle(ParameterSet):
         kwargs.setdefault('check_visible', False)
         kwargs.setdefault('check_default', False)
 
+
+        report = RunChecksReport()
+
         hier = self.hierarchy
         if hier is None:
-            return True, ''
+            return report
 
         hier_stars = hier.get_stars()
         hier_meshables = hier.get_meshables()
@@ -1856,30 +2095,51 @@ class Bundle(ParameterSet):
             comp_ps = self.get_component(component, **_skip_filter_checks)
 
             if not len(comp_ps):
-                return False, "component '{}' in the hierarchy is not in the bundle".format(component)
+                report.add_item(b,
+                                "component '{}' in the hierarchy is not in the bundle".format(component)
+                                [hier],
+                                True)
 
             parent = hier.get_parent_of(component)
             parent_ps = self.get_component(parent, **_skip_filter_checks)
             if kind in ['star']:
+                if self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs) >= 10000 and self.get_value(qualifier='ld_mode_bol', component=component, context='component') == 'lookup':
+                    report.add_item(self,
+                                    "ld_mode_bol of 'lookup' uses a bolometric passband which is not reliable for hot stars.  Consider using ld_mode_bol of manual and providing ld_coeffs instead.",
+                                    [self.get_parameter(qualifier='teff', component=component, context='component'),
+                                     self.get_parameter(qualifier='ld_mode_bol', component=component, context='component')],
+                                    False
+                                    )
+
+
                 # ignore the single star case
                 if parent:
                     # contact systems MUST by synchronous
                     if hier.is_contact_binary(component):
                         if self.get_value(qualifier='syncpar', component=component, context='component', **kwargs) != 1.0:
-                            return False,\
-                                'contact binaries must by synchronous, but syncpar@{}!=1'.format(component)
+                            report.add_item(self,
+                                            "contact binaries must be synchronous, but syncpar@{}!=1".format(component),
+                                            [self.get_parameter(qualifier='syncpar', component=component, context='component', **kwargs)],
+                                            True)
 
                         if self.get_value(qualifier='ecc', component=parent, context='component', **kwargs) != 0.0:
-                            return False,\
-                                'contact binaries must by circular, but ecc@{}!=0'.format(component)
+                            # TODO: this can result in duplicate entries in the report
+                            report.add_item(self,
+                                            "contact binaries must be circular, but ecc@{}!=0".format(parent),
+                                            [self.get_parameter(qualifier='ecc', component=parent, context='component', **kwargs)],
+                                            True)
 
                         if self.get_value(qualifier='pitch', component=component, context='component', **kwargs) != 0.0:
-                            return False,\
-                                'contact binaries must be aligned, but pitch@{}!=0.  Try b.set_value(qualifier=\'pitch\', component=\'{}\' value=0.0, check_visible=False) to align.'.format(component, component)
+                            report.add_item(self,
+                                            'contact binaries must be aligned, but pitch@{}!=0.  Try b.set_value(qualifier=\'pitch\', component=\'{}\' value=0.0, check_visible=False) to align.'.format(component, component),
+                                            [self.get_parameter(qualifier='pitch', component=component, context='component', **kwargs)],
+                                            True)
 
                         if self.get_value(qualifier='yaw', component=component, context='component', **kwargs) != 0.0:
-                            return False,\
-                                'contact binaries must be aligned, but yaw@{}!=0.  Try b.set_value(qualifier=\'yaw\', component=\'{}\', value=0.0, check_visible=False) to align.'.format(component, component)
+                            report.add_item(self,
+                                            'contact binaries must be aligned, but yaw@{}!=0.  Try b.set_value(qualifier=\'yaw\', component=\'{}\', value=0.0, check_visible=False) to align.'.format(component, component),
+                                            [self.get_parameter(qualifier='yaw', component=component, context='component', **kwargs)],
+                                            True)
 
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
@@ -1889,24 +2149,49 @@ class Bundle(ParameterSet):
 
 
                     if hier.is_contact_binary(component):
-                        if np.isnan(requiv) or requiv > requiv_max:
-                            return False,\
-                                '{} is overflowing at L2/L3 (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
-
-
                         requiv_min = comp_ps.get_value(qualifier='requiv_min')
 
+                        if np.isnan(requiv) or requiv > requiv_max:
+                            report.add_item(self,
+                                            '{} is overflowing at L2/L3 (requiv={}, requiv_min={}, requiv_max={})'.format(component, requiv, requiv_min, requiv_max),
+                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
+                                             comp_ps.get_parameter(qualifier='requiv_max', **kwargs),
+                                             parent_ps.get_parameter(qualifier='sma', **kwargs)],
+                                            True)
+
                         if np.isnan(requiv) or requiv <= requiv_min:
-                            return False,\
-                                 '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={})'.format(component, requiv, requiv_min)
+                            report.add_item(self,
+                                            '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={}, requiv_max={})'.format(component, requiv, requiv_min, requiv_max),
+                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
+                                             comp_ps.get_parameter(qualifier='requiv_min', **kwargs),
+                                             parent_ps.get_parameter(qualifier='sma', **kwargs)],
+                                            True)
+
                         elif requiv <= requiv_min * 1.001:
-                            return False,\
-                                'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component)
+                            report.add_item(self,
+                                            'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component),
+                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
+                                             comp_ps.get_parameter(qualifier='requiv_min', **kwargs),
+                                             parent_ps.get_parameter(qualifier='sma', **kwargs),
+                                             hier],
+                                            True)
 
                     else:
                         if requiv > requiv_max:
-                            return False,\
-                                '{} is overflowing at periastron (requiv={}, requiv_max={})'.format(component, requiv, requiv_max)
+                            params = [comp_ps.get_parameter(qualifier='requiv', **kwargs),
+                                     comp_ps.get_parameter(qualifier='requiv_max', **kwargs),
+                                     parent_ps.get_parameter(qualifier='sma', **kwargs)]
+
+                            if parent_ps.get_value(qualifier='ecc', **kwargs) > 0.0:
+                                params += [parent_ps.get_parameter(qualifier='ecc', **kwargs)]
+
+                            if len(self.filter(kind='envelope', context='component', **_skip_filter_checks)):
+                                params += [hier]
+
+                            report.add_item(self,
+                                            '{} is overflowing at periastron (requiv={}, requiv_max={}).  Use contact model if overflowing is desired.'.format(component, requiv, requiv_max),
+                                            params,
+                                            True)
 
             else:
                 raise NotImplementedError("checks not implemented for type '{}'".format(kind))
@@ -1949,8 +2234,10 @@ class Bundle(ParameterSet):
                 xrange1 = libphoebe.roche_xrange(q1, F1, 1.0-ecc, pot1+1e-6, choice=0)
 
                 if xrange0[1]+xrange1[1] > 1.0-ecc:
-                    return False,\
-                        'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1])
+                    report.add_item(self,
+                                    'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1]),
+                                    [ecc, F0, F1],
+                                    True)
 
         # run passband checks
         all_pbs = list_passbands(full_dict=True)
@@ -1964,14 +2251,19 @@ class Bundle(ParameterSet):
             for atmparam in self.filter(qualifier='atm', kind='phoebe', **_skip_filter_checks).to_list():
                 atm = atmparam.get_value(**_skip_filter_checks)
                 if atm not in pbatms:
-                    return False, "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig)
+                    report.add_item(self,
+                                    "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
+                                    [pbparam, atmparam],
+                                    True)
+
 
             # check to see if passband timestamp is recent enough for reddening, etc.
             if False: # if reddening is non-zero: and also update timestamp to the release of extinction-ready passbands
                 if installed_pbs[pb]['timestamp'] is None or _timestamp_to_dt(installed_pbs[pb]['timestamp']) < _timestamp_to_dt("Wed Jan 25 12:00:00 2019"):
-                    return False,\
-                        'installed passband "{}" does not support reddening/extinction.  Call phoebe.download_passband("{}") or phoebe.update_all_passbands() to update to the latest version.'.format(pb, pb)
-
+                    report.add_item(self,
+                                    'installed passband "{}" does not support reddening/extinction.  Call phoebe.download_passband("{}") or phoebe.update_all_passbands() to update to the latest version.'.format(pb, pb),
+                                    [pbparam],
+                                    True)
 
         # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
@@ -1988,19 +2280,47 @@ class Bundle(ParameterSet):
 
         for component in hier_stars:
             # first check ld_coeffs_bol vs ld_func_bol
+            ld_mode = self.get_value(qualifier='ld_mode_bol', component=component, context='component', **kwargs)
             ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', **kwargs))
+            ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source_bol', component=component, context='component', **kwargs)
             ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
-            check = ld_coeffs_len(ld_func, ld_coeffs)
-            if not check[0]:
-                return check
 
-            check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
-            if not check:
-                return False, 'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func)
+            if ld_mode == 'lookup':
+                if ld_coeffs_source != 'auto' and ld_coeffs_source not in all_pbs.get('Bolometric:900-40000', {}).get('atms_ld', []):
+                    report.add_item(self,
+                                    'Bolometric:900-40000 does not support ld_coeffs_source_bol={}.  Either change ld_coeffs_source_bol@{}@component or ld_mode_bol@{}@component'.format(pb, ld_coeffs_source, component, component),
+                                    [self.get_parameter(qualifier='ld_coeffs_source_bol', component=component, context='component', **kwargs),
+                                     self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **kwargs)
+                                    ],
+                                    True)
+            elif ld_mode == 'manual':
+
+                check = ld_coeffs_len(ld_func, ld_coeffs)
+                if not check[0]:
+                    report.add_item(self,
+                                    check[1],
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                    ],
+                                    True)
+
+
+                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+                if not check:
+                    report.add_item(self,
+                                    'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                    ],
+                                    True)
 
             for compute in computes:
                 if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
-                    return False, "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
+                    report.add_item(self,
+                                    "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                    True)
 
             for dataset in self.filter(context='dataset', kind=['lc', 'rv'], check_default=True).datasets:
                 if dataset=='_default':
@@ -2026,33 +2346,70 @@ class Bundle(ParameterSet):
                         else:
                             if atm not in ['ck2004', 'phoenix']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
-                                    return False, "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset)
+                                    report.add_item(self,
+                                                    "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset),
+                                                    [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs),
+                                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)
+                                                    ],
+                                                    True)
                                 else:
-                                    return False, "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset)
+                                    report.add_item(self,
+                                                    "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset),
+                                                    [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
+                                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)
+                                                    ],
+                                                    True)
+
 
                 elif ld_mode == 'lookup':
-                    if ld_coeffs_source not in all_pbs[pb]['atms_ld'] and ld_coeffs_source != 'auto':
-                        return False, 'passband={} does not support ld_coeffs_source={}.  Either change ld_coeffs_source@{}@{} or ld_mode@{}@{}'.format(pb, ld_coeffs_source, component, dataset, component, dataset)
+                    if ld_coeffs_source != 'auto' and ld_coeffs_source not in all_pbs.get(pb, {}).get('atms_ld', []) :
+                        report.add_item(self,
+                                        'passband={} does not support ld_coeffs_source={}.  Either change ld_coeffs_source@{}@{} or ld_mode@{}@{}'.format(pb, ld_coeffs_source, component, dataset, component, dataset),
+                                        [dataset_ps.get_parameter(qualifier='ld_coeffs_source', component=component, **kwargs),
+                                         dataset_ps.get_parameter(qualifier='ld_mode', component=component **kwargs)
+                                        ],
+                                        True)
+
 
                 elif ld_mode == 'manual':
                     check = ld_coeffs_len(ld_func, ld_coeffs)
                     if not check[0]:
-                        return check
+                        report.add_item(self,
+                                        check[1],
+                                        [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
+                                         dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
+                                        ],
+                                        True)
 
                     check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
                     if not check:
-                        return False, 'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func)
+                        report.add_item(self,
+                                        'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func),
+                                        [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
+                                         dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
+                                        ],
+                                        True)
 
                 else:
                     raise NotImplementedError("checks for ld_mode='{}' not implemented".format(ld_mode))
 
-                if 'func' in ld_mode:
+                if ld_mode in ['lookup', 'manual']:
                     for compute in computes:
                         compute_kind = self.get_compute(compute, **_skip_filter_checks).kind
                         if compute_kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
-                            return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
+                            report.add_item(self,
+                                            "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
+                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                            True)
+
                         if compute_kind in ['jktebop'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic']:
-                            return False, "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute)
+                            report.add_item(self,
+                                            "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
+                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                            True)
 
 
         def _get_proj_area(comp):
@@ -2075,7 +2432,10 @@ class Bundle(ParameterSet):
             mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
-                    return False, "all (or no) components must use mesh_method='wd'."
+                    report.add_item(self,
+                                    "all (or no) components must use mesh_method='wd'.",
+                                    self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()+[self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                    True)
 
             # estimate if any body is smaller than any other body's triangles, using a spherical assumption
             if compute_kind=='phoebe' and 'wd' not in mesh_methods:
@@ -2090,12 +2450,25 @@ class Bundle(ParameterSet):
                     if max(triangle_areas.values()) > 2*min(areas.values()):
                         offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 2*min(areas.values())]
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
-                        return False, "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components)
+                        report.add_item(self,
+                                        "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
+                                        self.filter(qualifier='requiv', component=smallest_components).to_list()+
+                                        self.filter(qualifier='ntriangles', component=offending_components, compute=compute, **kwargs).to_list()+[
+                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs),
+                                        self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                        True)
+
                     else:
                         # only raise a warning
                         offending_components = [comp for comp in triangle_areas.keys() if triangle_areas[comp] > 5*min(areas.values())]
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
-                        return None, "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components)
+                        report.add_item(self,
+                                        "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
+                                        self.filter(qualifier='requiv', component=smallest_components).to_list(),
+                                        self.get_parameter(qualifier='ntriangles', component=offending_components, compute=compute, **kwargs).to_list()+[
+                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs).
+                                        self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                        False)
 
         # forbid pblum_mode='dataset-coupled' if no other valid datasets
         # forbid pblum_mode='dataset-coupled' with a dataset which is scaled to data or to another that is in-turn color-coupled
@@ -2103,23 +2476,61 @@ class Bundle(ParameterSet):
             coupled_to = self.get_value(qualifier='pblum_dataset', dataset=param.dataset, check_visible=True)
             if coupled_to == '':
                 if param.is_visible:
-                    return False, "cannot set pblum_mode@{}='dataset-coupled' when there are no other valid datasets.  Change pblum_mode or add another dataset.".format(param.dataset)
+                    report.add_item(self,
+                                    "cannot set pblum_mode@{}='dataset-coupled' when there are no other valid datasets.  Change pblum_mode or add another dataset.".format(param.dataset),
+                                    [param],
+                                    True)
+
             pblum_mode = self.get_value(qualifier='pblum_mode', dataset=coupled_to, **_skip_filter_checks)
             if pblum_mode in ['dataset-scaled', 'dataset-coupled']:
-                return False, "cannot set pblum_dataset@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode)
+                report.add_item(self,
+                                "cannot set pblum_dataset@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode),
+                                [param,
+                                self.get_parameter(qualifier='pblum_mode', dataset=coupled_to, **_skip_filter_checks)],
+                                True)
 
         # require any pblum_mode == 'dataset-scaled' to have accompanying data
         for param in self.filter(qualifier='pblum_mode', value='dataset-scaled', **_skip_filter_checks).to_list():
             if not len(self.get_value(qualifier='fluxes', dataset=param.dataset, context='dataset', **_skip_filter_checks)):
-                return False, "fluxes@{} cannot be empty if pblum_mode@{}='dataset-scaled'".format(param.dataset, param.dataset)
+                report.add_item(self,
+                                "fluxes@{} cannot be empty if pblum_mode@{}='dataset-scaled'".format(param.dataset, param.dataset),
+                                [param,
+                                self.get_parameter(qualifier='fluxes', dataset=param.dataset, context='dataset', **_skip_filter_checks)],
+                                True)
 
-        ### TODO: add tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
+        # tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
+        for param in self.filter(qualifier=['times', 'fluxes', 'rvs', 'sigmas', 'wavelengths', 'flux_densities'], context='dataset', **_skip_filter_checks).to_list():
+            shape = param.get_value().shape
+            if len(shape) > 1:
+                report.add_item(self,
+                                "{}@{} must be a flat array, got shape {}".format(param.qualifier, param.dataset, shape),
+                                [param],
+                                True)
+
+            if param.qualifier in ['fluxes', 'rvs', 'sigmas'] and shape[0] > 0 and shape[0] != self.get_value(qualifier='times', dataset=param.dataset, component=param.component, context='dataset', **_skip_filter_checks).shape[0]:
+                tparam = self.get_parameter(qualifier='times', dataset=param.dataset, component=param.component, context='dataset', **_skip_filter_checks)
+                report.add_item(self,
+                                "{} must be of same length as {}".format(param.twig, tparam.twig),
+                                [param, tparam],
+                                True)
+
+            if param.qualifier in ['flux_densities'] and shape[0] > 0 and shape[0] != self.get_value(qualifier='wavelengths', dataset=param.dataset, component=param.component, time=param.time, context='dataset', **_skip_filter_checks).shape[0]:
+                wparam = self.get_parameter(qualifier='wavelengths', dataset=param.dataset, component=param.component, time=param.time, context='dataset', **_skip_filter_checks)
+                report.add_item(self,
+                                "{}@{}@{} must be of same length as {}@{}".format(param.twig, wparam.twig),
+                                [param, wparam],
+                                True)
+
 
 
         try:
             self.run_failed_constraints()
         except:
-            return False, "constraints {} failed to run.  Address errors and try again.  Call run_failed_constraints to see the tracebacks.".format([p.twig for p in self.filter(uniqueid=self._failed_constraints).to_list()])
+            report.add_item(self,
+                            "constraints {} failed to run.  Address errors and try again.  Call run_failed_constraints to see the tracebacks.".format([p.twig for p in self.filter(uniqueid=self._failed_constraints).to_list()]),
+                            self.filter(uniqueid=self._failed_constraints).to_list(),
+                            True)
+
 
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol and irrad_frac_refl_bol
@@ -2128,29 +2539,54 @@ class Bundle(ParameterSet):
             gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component', **kwargs)
 
             if teff >= 8000. and gravb_bol < 0.9:
-                return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
+                report.add_item(self,
+                                "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol>=0.9 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **kwargs)],
+                                False)
             elif teff <= 6600. and gravb_bol >= 0.9:
-                return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
-            elif gravb_bol < 0.32 or gravb_bol > 1.00:
-                return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
+                report.add_item(self,
+                                "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol<0.9 (suggestion: 0.32) might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **kwargs)],
+                                False)
+            elif (teff > 6600 and teff < 8000) and gravb_bol < 0.32 or gravb_bol > 1.00:
+                report.add_item(self,
+                                "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}.".format(component, teff, gravb_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **kwargs)],
+                                False)
 
         for component in hier_stars:
             teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
             irrad_frac_refl_bol = self.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)
 
             if teff >= 8000. and irrad_frac_refl_bol < 0.8:
-                return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which irrad_frac_refl_bol=1.00 might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol)
+                report.add_item(self,
+                                "'{}' probably has a radiative atm (teff={:.0f}K>=8000K), for which irrad_frac_refl_bol>0.8 (suggestion: 1.0) might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)],
+                                False)
             elif teff <= 6600. and irrad_frac_refl_bol >= 0.75:
-                return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which irrad_frac_refl_bol=0.6 might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol)
-            elif irrad_frac_refl_bol < 0.6:
-                return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), irrad_frac_refl_bol might be better between 0.6-1.00 than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol)
+                report.add_item(self,
+                                "'{}' probably has a convective atm (teff={:.0f}K<=6600K), for which irrad_frac_refl_bol<0.75 (suggestion: 0.6) might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)],
+                                False)
+            elif (teff > 6600. and teff < 8000) and irrad_frac_refl_bol < 0.6:
+                report.add_item(self,
+                                "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), irrad_frac_refl_bol might be better between 0.6-1.00 than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)],
+                                False)
 
         # TODO: add other checks
         # - make sure all ETV components are legal
         # - check for conflict between dynamics_method and mesh_method (?)
 
         # we've survived all tests
-        return True, ''
+        # return True, ''
+        return report
 
     def references(self, compute=None, dataset=None):
         """
@@ -2323,6 +2759,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing feature with the same `feature` tag.  If False,
             an error will be raised.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -2371,7 +2810,7 @@ class Bundle(ParameterSet):
                      'kind': func.__name__}
 
         if kwargs.get('overwrite', False):
-            self.remove_feature(feature=kwargs['feature'])
+            overwrite_ps = self.remove_feature(feature=kwargs['feature'])
             # check the label again, just in case kwargs['feature'] belongs to
             # something other than feature
             self._check_label(kwargs['feature'], allow_overwrite=False)
@@ -2392,7 +2831,12 @@ class Bundle(ParameterSet):
 
         #return params
         # NOTE: we need to call get_ in order to make sure all metawargs are applied
-        return self.get_feature(**metawargs)
+        ret_ps = self.filter(feature=kwargs['feature'], **_skip_filter_checks)
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
+
+        return ret_ps
 
     def get_feature(self, feature=None, **kwargs):
         """
@@ -2428,6 +2872,10 @@ class Bundle(ParameterSet):
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: feature, qualifier.
 
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+
         Raises
         --------
         * ValueError: if `feature` is not provided AND no `kwargs` are provided.
@@ -2445,24 +2893,30 @@ class Bundle(ParameterSet):
 
         # Let's also avoid the possibility of accidentally deleting system
         # parameters, etc
-        kwargs.setdefault('context', ['feature'])
+        kwargs.setdefault('context', ['feature', 'compute'])
 
-        self.remove_parameters_all(**kwargs)
+        removed_ps = self.remove_parameters_all(**kwargs)
 
         self._add_history(redo_func='remove_feature',
                           redo_kwargs=kwargs,
                           undo_func=None,
                           undo_kwargs={})
 
-        return
+        return removed_ps
 
     def remove_features_all(self):
         """
         Remove all features from the bundle.  To remove a single feature, see
         <phoebe.frontend.bundle.Bundle.remove_feature>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
+        removed_ps = ParameterSet()
         for feature in self.features:
-            self.remove_feature(feature=feature)
+            removed_ps += self.remove_feature(feature=feature)
+        return removed_ps
 
     def rename_feature(self, old_feature, new_feature):
         """
@@ -2627,10 +3081,13 @@ class Bundle(ParameterSet):
              callable function that accepts only default values, or the name
              of a function (as a string) that can be found in the
              <phoebe.parameters.compute> module.
-        * `component` (string, optional): name of the newly-created feature.
+        * `component` (string, optional): name of the newly-created component.
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing component with the same `component` tag.  If False,
             an error will be raised.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -2672,10 +3129,10 @@ class Bundle(ParameterSet):
                      'kind': fname}
 
         if kwargs.get('overwrite', False):
-            self.remove_component(component=kwargs['component'])
+            overwrite_ps = self.remove_component(component=kwargs['component'])
             # check the label again, just in case kwargs['component'] belongs to
             # something other than component
-            self._check_label(kwargs['component'], allow_overwrite=False)
+            self.exclude(component=kwargs['component'])._check_label(kwargs['component'], allow_overwrite=False)
 
         self._attach_params(params, **metawargs)
         # attach params called _check_copy_for, but only on it's own parameterset
@@ -2696,7 +3153,12 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, warning_only=True, ps=ret_ps)
+        self._kwargs_checks(kwargs,
+                            additional_allowed_keys=['overwrite', 'return_overwrite'],
+                            warning_only=True, ps=ret_ps)
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
 
         return ret_ps
 
@@ -2733,12 +3195,16 @@ class Bundle(ParameterSet):
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: component, context
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
         # NOTE: run_checks will check if an entry is in the hierarchy but has no parameters
         kwargs['component'] = component
         # NOTE: we do not remove from 'model' by default
         kwargs['context'] = ['component', 'constraint', 'dataset', 'compute']
-        self.remove_parameters_all(**kwargs)
+        return self.remove_parameters_all(**kwargs)
 
     def rename_component(self, old_component, new_component):
         """
@@ -3138,6 +3604,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing dataset with the same `dataset` tag.  If False,
             an error will be raised if a dataset already exists with the same name.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).  See examples
             above for acceptable formats.
@@ -3250,7 +3719,7 @@ class Bundle(ParameterSet):
         params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **ds_kwargs)
 
         if kwargs.get('overwrite', False):
-            self.remove_dataset(dataset=kwargs['dataset'])
+            overwrite_ps = self.remove_dataset(dataset=kwargs['dataset'])
             # check the label again, just in case kwargs['dataset'] belongs to
             # something other than dataset
             self._check_label(kwargs['dataset'], allow_overwrite=False)
@@ -3433,7 +3902,10 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
+        self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
 
         return ret_ps
 
@@ -3483,6 +3955,10 @@ class Bundle(ParameterSet):
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: dataset, qualifier.
 
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+
         Raises
         --------
         * ValueError: if `dataset` is not provided AND no `kwargs` are provided.
@@ -3521,10 +3997,10 @@ class Bundle(ParameterSet):
         # parameters, etc
         kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute'])
 
-        self.remove_parameters_all(**kwargs)
+        removed_ps = self.remove_parameters_all(**kwargs)
         # not really sure why we need to call this twice, but it seems to do
         # the trick
-        self.remove_parameters_all(**kwargs)
+        # self.remove_parameters_all(**kwargs)
 
         self._handle_dataset_selectparams()
 
@@ -3535,15 +4011,22 @@ class Bundle(ParameterSet):
                           undo_func=None,
                           undo_kwargs={})
 
-        return
+        return removed_ps
 
     def remove_datasets_all(self):
         """
         Remove all datasets from the bundle.  To remove a single dataset see
         <phoebe.frontend.bundle.Bundle.remove_dataset>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
+        removed_ps = ParameterSet()
         for dataset in self.datasets:
-            self.remove_dataset(dataset=dataset)
+            removed_ps += self.remove_dataset(dataset=dataset)
+
+        return removed_ps
 
     def rename_dataset(self, old_dataset, new_dataset):
         """
@@ -3875,6 +4358,10 @@ class Bundle(ParameterSet):
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: context, twig.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
         # let's run delayed constraints first to ensure that we get the same
         # results in interactive and non-interactive modes as well as to make
@@ -3902,7 +4389,7 @@ class Bundle(ParameterSet):
         constraint._remove_bookkeeping()
 
         # and finally remove it
-        self.remove_parameter(**kwargs)
+        removed_param = self.remove_parameter(**kwargs)
 
 
         undo_kwargs = {k: v for k, v in constraint.to_dict().items()
@@ -3913,6 +4400,8 @@ class Bundle(ParameterSet):
                           redo_kwargs=redo_kwargs,
                           undo_func='add_constraint',
                           undo_kwargs=undo_kwargs)
+
+        return removed_param
 
 
     def flip_constraint(self, twig=None, solve_for=None, **kwargs):
@@ -4224,9 +4713,10 @@ class Bundle(ParameterSet):
         limb-darkening coefficients **per-element**.
 
         Coefficients will only be interpolated/returned for those where `ld_mode`
-        is 'lookup'.  The values of the `ld_coeffs` parameter will be
-        returned for cases where `ld_mode` is 'manual'.  Cases where
-        `ld_mode` is 'interp' will not be included in the output.
+        (or `ld_mode_bol`)  is 'lookup'.  The values of the `ld_coeffs`
+        (or `ld_coeffs_bol`) parameter will be returned for cases where `ld_mode`
+        is 'manual'.  Cases where `ld_mode` is 'interp' will not be included in
+        the output.
 
         Note:
         * for backends without `atm` compute options, 'ck2004' will be used.
@@ -4240,10 +4730,11 @@ class Bundle(ParameterSet):
             components in the hierarchy.
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
-            datasets attached to the bundle.
+            datasets attached to the bundle.  Include 'bol' to include
+            bolometric (irradiation-only) quantities from `ld_func_bol`.
         * `set_value` (bool, optional, default=False): apply the interpolated
-            values to the respective `ld_coeffs` parameters (even if not
-            currently visible).
+            values to the respective `ld_coeffs`/`ld_coeffs_bol` parameters
+            (even if not currently visible).
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -4257,7 +4748,7 @@ class Bundle(ParameterSet):
             appropriate length given the respective value of `ld_func`).
         """
 
-        datasets = kwargs.pop('dataset', self.datasets)
+        datasets = kwargs.pop('dataset', self.datasets + ['bol'])
         components = kwargs.pop('component', self.components)
 
         # don't allow things like model='mymodel', etc
@@ -4273,54 +4764,69 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
+            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
 
         ld_coeffs_ret = {}
-        for ldcs_param in self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components, check_visible=False).to_list():
-            ld_mode = self.get_value(qualifier='ld_mode', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+        ldcs_params = self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components, check_visible=False).to_list()
+        if 'bol' in datasets:
+            ldcs_params += self.filter(qualifier='ld_coeffs_source_bol', component=components, check_visible=False).to_list()
+
+        for ldcs_param in ldcs_params:
+            is_bol = ldcs_param.context == 'component'
+            bol_suffix = '_bol' if is_bol else ''
+
+            ld_mode = self.get_value(qualifier='ld_mode{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
             if ld_mode == 'interp':
-                logger.debug("skipping computing ld_coeffs for {}@{} because ld_mode='interp'".format(ldcs_param.dataset, ldcs_param.component))
+                logger.debug("skipping computing ld_coeffs{} for {}@{} because ld_mode{}='interp'".format(bol_suffix, ldcs_param.dataset, ldcs_param.component, bol_suffix))
             elif ld_mode == 'manual':
-                ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+                ld_coeffs_ret["{}@{}@{}".format('ld_coeffs{}'.format(bol_suffix), ldcs_param.component, 'component' if is_bol else ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
                 continue
             elif ld_mode == 'lookup':
                 ldcs = ldcs_param.get_value(check_visible=False)
-                ld_func = self.get_value(qualifier='ld_func', dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
-                passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, check_visible=False)
+                ld_func = self.get_value(qualifier='ld_func{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+                if is_bol:
+                    passband = 'Bolometric:900-40000'
+                else:
+                    passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, check_visible=False)
 
                 try:
                     atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, check_visible=False)
                 except ValueError:
                     # not all backends have atm as an option
-                    logger.warning("backend compute='{}' has no 'atm' option: falling back on ck2004 for ld_coeffs interpolation".format(compute))
+                    logger.warning("backend compute='{}' has no 'atm' option: falling back on ck2004 for ld_coeffs{} interpolation".format(compute, bol_suffix))
                     atm = 'ck2004'
 
-                if atm in ['extern_atmx', 'extern_planckint']:
-                    ldcs = 'ck2004'
-                else:
-                    ldcs = atm
+                if ldcs == 'auto':
+                    if atm in ['extern_atmx', 'extern_planckint', 'blackbody']:
+                        ldcs = 'ck2004'
+                    else:
+                        ldcs = atm
 
                 logger.info("interpolating {} ld_coeffs for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
                 pb = get_passband(passband)
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', check_visible=False)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', check_visible=False)
                 abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', check_visible=False)
-                photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
+                if is_bol:
+                    photon_weighted = False
+                else:
+                    photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
+
                 ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
 
-                logger.info("interpolated {} ld_coeffs={}".format(ld_func, ld_coeffs))
+                logger.info("interpolated {} ld_coeffs{}={}".format(ld_func, bol_suffix, ld_coeffs))
 
-                ld_coeffs_ret["ld_coeffs@{}@{}".format(ldcs_param.component, ldcs_param.dataset)] = ld_coeffs
+                ld_coeffs_ret["ld_coeffs{}@{}@{}".format(bol_suffix, ldcs_param.component, 'component' if is_bol else ldcs_param.dataset)] = ld_coeffs
                 if set_value:
-                    self.set_value(qualifier='ld_coeffs', component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
+                    self.set_value(qualifier='ld_coeffs{}'.format(bol_suffix), component=ldcs_param.component, dataset=ldcs_param.dataset, check_visible=False, value=ld_coeffs)
             else:
-                raise NotImplementedError("compute_ld_coeffs not implemented for ld_mode='{}'".format(ld_mode))
+                raise NotImplementedError("compute_ld_coeffs not implemented for ld_mode{}='{}'".format(bol_suffix, ld_mode))
 
         return ld_coeffs_ret
 
@@ -4435,13 +4941,13 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
+            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
 
         system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=True, compute_l3_frac=True, **kwargs))
 
@@ -4596,13 +5102,13 @@ class Bundle(ParameterSet):
 
         # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
+            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
 
         # determine datasets which need intensities computed and check to make
         # sure all passed datasets are passband-dependent
@@ -4692,6 +5198,11 @@ class Bundle(ParameterSet):
     def _compute_necessary_values(self, computeparams):
         compute = computeparams.compute
 
+        if computeparams.kind == 'phoebe':
+            # then all we need to do is handle any ld_mode_bol=='lookup'
+            self.compute_ld_coeffs(compute, dataset=['bol'], set_value=True, skip_checks=True)
+            return
+
         enabled_datasets = computeparams.filter(qualifier='enabled', value=True).datasets
         # handle any limb-darkening interpolation
         dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_coeffs_source').exclude(value='none').datasets
@@ -4759,6 +5270,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing set of compute options with the same `compute` tag.  If False,
             an error will be raised.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -4789,7 +5303,7 @@ class Bundle(ParameterSet):
                      'compute': kwargs['compute']}
 
         if kwargs.get('overwrite', False):
-            self.remove_compute(compute=kwargs['compute'])
+            overwrite_ps = self.remove_compute(compute=kwargs['compute'])
             # check the label again, just in case kwargs['compute'] belongs to
             # something other than compute
             self._check_label(kwargs['compute'], allow_overwrite=False)
@@ -4814,9 +5328,12 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
+        self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
 
         self._handle_compute_selectparams()
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
 
         return ret_ps
 
@@ -4853,19 +5370,30 @@ class Bundle(ParameterSet):
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: context, compute.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
         kwargs['compute'] = compute
         kwargs['context'] = 'compute'
-        self.remove_parameters_all(**kwargs)
+        removed_ps = self.remove_parameters_all(**kwargs)
         self._handle_compute_selectparams()
+        return removed_ps
 
     def remove_computes_all(self):
         """
         Remove all compute options from the bundle.  To remove a single set
         of compute options see <phoebe.frontend.bundle.Bundle.remove_compute>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
+        removed_ps = ParameterSet()
         for compute in self.computes:
-            self.remove_compute(compute)
+            removed_ps += self.remove_compute(compute)
+        return removed_ps
 
     def rename_compute(self, old_compute, new_compute):
         """
@@ -4940,6 +5468,10 @@ class Bundle(ParameterSet):
             an existing model with the same `model` tag.  If False,
             an error will be raised.  This defaults to True if `model` is not provided
             or is 'latest', otherwise it will default to False.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True (or defaults to True if
+            `model` is 'latest').
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -4982,12 +5514,14 @@ class Bundle(ParameterSet):
 
         self._check_label(model, allow_overwrite=kwargs.get('overwrite', model=='latest'))
 
+        overwrite_ps = None
+
         if model in self.models and kwargs.get('overwrite', model=='latest'):
             if model=='latest':
                 logger.warning("overwriting model: {}".format(model))
             else:
                 logger.info("overwriting model: {}".format(model))
-            self.remove_model(model)
+            overwrite_ps = self.remove_model(model)
             # check the label again, just in case model belongs to something
             # other than model
             self._check_label(model, allow_overwrite=False)
@@ -5033,19 +5567,19 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'return_overwrite']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(compute=computes, allow_skip_constraints=False, **kwargs)
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
+            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
 
         # let's first make sure that there is no duplication of enabled datasets
         datasets = []
@@ -5106,7 +5640,7 @@ class Bundle(ParameterSet):
             # but that would probably need to be the responsibility of the
             # jobparam to return a failed status and message.
             # Unfortunately right now an error just results in the job hanging.
-            subprocess.call(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
+            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
 
             # create model parameter and attach (and then return that instead of None)
             job_param = JobParameter(self,
@@ -5127,6 +5661,10 @@ class Bundle(ParameterSet):
                 logger.info("detaching from run_compute.  Call get_model('{}').attach() to re-attach".format(model))
 
             # return self.get_model(model)
+
+            if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
+                return ParameterSet([job_param]) + overwrite_ps
+
             return job_param
 
         # temporarily disable interactive_checks, check_default, and check_visible
@@ -5274,7 +5812,12 @@ class Bundle(ParameterSet):
 
         restore_conf()
 
-        return self.get_model(model)
+        ret_ps = self.filter(model=model, **_skip_filter_checks)
+
+        if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
+            ret_ps += overwrite_ps
+
+        return ret_ps
 
     def get_model(self, model=None, **kwargs):
         """
@@ -5309,6 +5852,10 @@ class Bundle(ParameterSet):
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: model, context.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
         kwargs['model'] = model
         kwargs['context'] = 'model'
@@ -5318,9 +5865,15 @@ class Bundle(ParameterSet):
         """
         Remove all models from the bundle.  To remove a single model see
         <phoebe.frontend.bundle.Bundle.remove_model>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
+        removed_ps = ParameterSet()
         for model in self.models:
-            self.remove_model(model=model)
+            removed_ps += self.remove_model(model=model)
+        return removed_ps
 
     def rename_model(self, old_model, new_model):
         """
