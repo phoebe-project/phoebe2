@@ -343,7 +343,7 @@ def _param_json_overview(param):
 
 
     for k,v in param.meta.items():
-        if k in ['time', 'history', 'fitting', 'feedback', 'plugin']:
+        if k in ['history', 'fitting', 'feedback', 'plugin']:
             continue
         p[k] = v
 
@@ -392,7 +392,7 @@ def _param_json_detailed(param):
 def _sort_tags(group, tags):
     if group=='contexts':
         # try to order contexts in same order as shown in UI.. then fill in with the rest
-        lst = [k for k in ['constraint', 'component', 'feature', 'dataset', 'figure', 'compute', 'model'] if k in tags]
+        lst = [k for k in ['constraint', 'component', 'feature', 'dataset', 'figure', 'compute', 'model', 'time'] if k in tags]
         for k in tags:
             if k not in lst:
                 lst.append(k)
