@@ -110,14 +110,14 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
     * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
         coefficients ('auto' to interpolate from the applicable table according
         to the 'atm' parameter, or the name of a specific atmosphere table).
-        Only applicable if `ld_mode` is 'func:lookup'.  Only applicable if
+        Only applicable if `ld_mode` is 'lookup'.  Only applicable if
         `syn` is False.
     * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
         the approriate length given the value of `ld_coeffs_source` which can
         be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
         and will automtically be checked during
         <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
-       if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
+       if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy or photons.  Only applicable if `syn` is False.
@@ -161,8 +161,8 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
 
     if is_lc:
-        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='Observed times')]
-        params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), default_unit=u.W/u.m**2, description='Observed flux')]
+        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+        params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), default_unit=u.W/u.m**2, description='Model (synthetic) flux' if syn else 'Observed flux')]
 
     if not syn:
         # TODO: should we move all limb-darkening to compute options since
@@ -260,14 +260,14 @@ def rv(syn=False, as_ps=True, **kwargs):
     * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
         coefficients ('auto' to interpolate from the applicable table according
         to the 'atm' parameter, or the name of a specific atmosphere table).
-        Only applicable if `ld_mode` is 'func:lookup'.  Only applicable if
+        Only applicable if `ld_mode` is 'lookup'.  Only applicable if
         `syn` is False.
     * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
         the approriate length given the value of `ld_coeffs_source` which can
         be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
         and will automtically be checked during
         <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
-       if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
+       if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy or photons.  Only applicable if `syn` is False.
@@ -282,8 +282,8 @@ def rv(syn=False, as_ps=True, **kwargs):
 
     params, constraints = [], []
 
-    params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Observed times')]
-    params += [FloatArrayParameter(qualifier='rvs', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'rvs'), default_unit=u.km/u.s, description='Observed radial velocity')]
+    params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+    params += [FloatArrayParameter(qualifier='rvs', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'rvs'), default_unit=u.km/u.s, description='Model (synthetic) radial velocities' if syn else 'Observed radial velocity')]
 
     if not syn:
         params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
@@ -362,14 +362,14 @@ def lp(syn=False, as_ps=True, **kwargs):
     * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
         coefficients ('auto' to interpolate from the applicable table according
         to the 'atm' parameter, or the name of a specific atmosphere table).
-        Only applicable if `ld_mode` is 'func:lookup'.  Only applicable if
+        Only applicable if `ld_mode` is 'lookup'.  Only applicable if
         `syn` is False.
     * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
         the approriate length given the value of `ld_coeffs_source` which can
         be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
         and will automtically be checked during
         <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
-       if `ld_mode` is 'func:provided'.  Only applicable if `syn` is False.
+       if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy or photons.  Only applicable if `syn` is False.
@@ -395,7 +395,7 @@ def lp(syn=False, as_ps=True, **kwargs):
 
 
     # wavelengths is time-independent
-    params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
+    params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the model (synthetic)' if syn else 'Wavelengths of the observations')]
 
     for time in times:
         # but do allow per-component flux_densities and sigmas
@@ -462,7 +462,7 @@ def orb(syn=False, as_ps=True, **kwargs):
     params, constraints = [], []
 
     if syn:
-        params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+        params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
 
     if syn:
         params += [FloatArrayParameter(qualifier='us', value=_empty_array(kwargs, 'us'), default_unit=u.solRad, description='U position')]
@@ -537,7 +537,7 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
     if syn:
         # TODO: it would be nice if this wasn't copied per-component in the model... but it is also somewhat useful
-        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
 
     if not syn:
         if 'times' in kwargs.keys():

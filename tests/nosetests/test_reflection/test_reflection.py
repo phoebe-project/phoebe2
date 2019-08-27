@@ -28,6 +28,7 @@ def test_binary(plot=False):
     b.set_value_all('atm', 'extern_planckint')
 
     # set matching limb-darkening, both bolometric and passband
+    b.set_value_all('ld_mode_bol', 'manual')
     b.set_value_all('ld_func_bol', 'logarithmic')
     b.set_value_all('ld_coeffs_bol', [0.0, 0.0])
 
@@ -79,6 +80,7 @@ def test_contact(plot=False):
     b.set_value_all('atm', 'extern_planckint')
 
     # set matching limb-darkening, both bolometric and passband
+    b.set_value_all('ld_mode_bol', 'manual')
     b.set_value_all('ld_func_bol', 'logarithmic')
     b.set_value_all('ld_coeffs_bol', [0.0, 0.0])
 

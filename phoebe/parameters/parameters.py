@@ -30,12 +30,15 @@ import readline
 import numpy as np
 
 import json
-try:
-    import ujson
-except ImportError:
-    _can_ujson = False
-else:
-    _can_ujson = True
+# try:
+#     import ujson
+# except ImportError:
+#     _can_ujson = False
+# else:
+#     _can_ujson = True
+
+# ujson is currently causing issues loading in mesh data (and/or large files)
+_can_ujson = False
 
 import webbrowser
 from datetime import datetime
@@ -142,7 +145,9 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
                       'fillout_factor', 'pot_min', 'pot_max',
                       'syncpar', 'period', 'pitch', 'yaw', 'incl', 'long_an',
                       'gravb_bol', 'irrad_frac_refl_bol', 'irrad_frac_lost_bol',
-                      'ld_func_bol', 'ld_coeffs_bol', 'mass', 'dpdt', 'per0',
+                      'ld_mode_bol', 'ld_func_bol',
+                      'ld_coeffs_source_bol', 'ld_coeffs_bol',
+                      'mass', 'dpdt', 'per0',
                       'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
                       't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
                       ]
@@ -317,7 +322,7 @@ def _instance_in(obj, *types):
     return False
 
 def _fnmatch(to_this, expression_or_string):
-    if '*' in expression_or_string or '?' in expression_or_string:
+    if isinstance(expression_or_string, str) and ('*' in expression_or_string or '?' in expression_or_string):
         return fnmatch(to_this, expression_or_string)
     else:
         return expression_or_string == to_this
@@ -1516,14 +1521,13 @@ class ParameterSet(object):
         * an instantiated <phoebe.parameters.ParameterSet> object
         """
         filename = os.path.expanduser(filename)
-        f = open(filename, 'r')
-        if _can_ujson:
-            # NOTE: this will not parse the unicode.  Bundle.open always calls
-            # json instead of ujson for this reason.
-            data = ujson.load(f)
-        else:
-            data = json.load(f, object_pairs_hook=parse_json)
-        f.close()
+        with open(filename, 'r') as f:
+            if _can_ujson:
+                # NOTE: this will not parse the unicode.  Bundle.open always calls
+                # json instead of ujson for this reason.
+                data = ujson.load(f)
+            else:
+                data = json.load(f, object_pairs_hook=parse_json)
         return cls(data)
 
     def save(self, filename, incl_uniqueid=False, compact=False):
@@ -2122,8 +2126,8 @@ class ParameterSet(object):
                     # so let's just cast now and be done with it
                     kwargs[key] = str(kwargs[key])
 
-                params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None) and
-                    (getattr(pi,key)==kwargs[key] or
+                params = [pi for pi in params if (hasattr(pi,key) and getattr(pi,key) is not None or isinstance(kwargs[key], list) and None in kwargs[key]) and
+                    (getattr(pi,key) is kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
                     (isinstance(kwargs[key],list) and np.any([_fnmatch(getattr(pi,key),keyi) for keyi in kwargs[key]])) or
                     (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and _fnmatch(getattr(pi,key),kwargs[key])) or
@@ -2407,6 +2411,10 @@ class ParameterSet(object):
         * `**kwargs`: meta-tags to use when filtering, including `check_visible` and
             `check_default`.  See <phoebe.parameters.ParameterSet.get>.
 
+        Returns
+        -----------
+        * the removed <phoebe.parmaeters.Parameter>.
+
         Raises
         ------
         * ValueError: if 0 or more than 1 results are found using the
@@ -2434,12 +2442,23 @@ class ParameterSet(object):
         * `twig` (string, optional, default=None): the twig to search for the
             parameter (see <phoebe.parameters.ParameterSet.get>)
         * `**kwargs`: meta-tags to use when filtering, including `check_visible` and
-            `check_default`.  See <phoebe.parameters.ParameterSet.filter>.
+            `check_default` which will all default to False if not provided.
+            See <phoebe.parameters.ParameterSet.filter>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
         """
-        params = self.filter(twig=twig, check_visible=False, check_default=False, **kwargs)
+        kwargs.setdefault('check_visible', False)
+        kwargs.setdefault('check_default', False)
+        kwargs.setdefault('check_single', False)
+        kwargs.setdefault('check_advanced', False)
+        params = self.filter(twig=twig, **kwargs)
 
         for param in params.to_list():
             self._remove_parameter(param)
+
+        return params
 
     def get_quantity(self, twig=None, unit=None,
                      default=None, t=None, **kwargs):
@@ -2918,47 +2937,6 @@ class ParameterSet(object):
         """
         return self.get_parameter(twig=twig, **kwargs).get_description()
 
-    def get_prior(self, twig=None, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def set_prior(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def remove_prior(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def get_posterior(self, twig=None, **kwargs):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-    def remove_posterior(self):
-        """
-        [NOT IMPLEMENTED]
-
-        raises NotImplementedError: because it isn't
-        """
-        raise NotImplementedError
-
-
     def compute_residuals(self, model=None, dataset=None, component=None, as_quantity=True):
         """
         Compute residuals between the observed values in a dataset and the
@@ -3228,12 +3206,13 @@ class ParameterSet(object):
                     # for example: color={'lc*': 'blue', 'primary@rv*': 'green'}
                     # this will likely be a little expensive, but we only do it
                     # in the case where a dictionary is passed.
+                    logger.debug("_unpack_plotting_kwargs: trying to find match for dictionary {}={} in kwargs against meta={}.  match={}".format(k,v,meta,match))
                     if np.all([np.any([_fnmatch(mv, kksplit) for mv in meta.values() if mv is not None]) for kksplit in kk.split('@')]):
                         if match is not None:
                             raise ValueError("dictionary {}={} is not unique for {}".format(k,v, meta))
                         match = vv
 
-                logger.debug("_unpack_plotting_kwargs: trying to find match for dictionary {}={} in kwargs against meta={}.  match={}".format(k,v,meta,match))
+
                 if match is not None:
                     kwargs[k] = match
                 else:
@@ -6093,9 +6072,10 @@ class ChoiceParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            passed, msg = self._bundle.run_checks(allow_skip_constraints=True)
-            if not passed:
-                # passed is either False (failed) or None (raise Warning)
+            report = self._bundle.run_checks(allow_skip_constraints=True)
+            # passed is either False (failed) or None (raise Warning)
+            for item in report.items:
+                msg = item.message
                 msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                 logger.warning(msg)
 
@@ -6306,10 +6286,10 @@ class SelectParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            passed, msg = self._bundle.run_checks(allow_skip_constraints=True)
-            if not passed:
+            report = self._bundle.run_checks(allow_skip_constraints=True)
+            for item in report.items:
                 # passed is either False (failed) or None (raise Warning)
-                logger.warning(msg)
+                logger.warning(item.message)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
@@ -7151,10 +7131,11 @@ class FloatParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            passed, msg = self._bundle.run_checks(allow_skip_constraints=True)
-            if not passed:
+            report = self._bundle.run_checks(allow_skip_constraints=True)
+            for item in report.items:
                 # passed is either False (failed) or None (raise Warning)
-                if passed is not None:
+                msg = item.message
+                if item.fail:
                     msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                 logger.warning(msg)
 
