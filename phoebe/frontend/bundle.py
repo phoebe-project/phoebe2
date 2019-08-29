@@ -319,6 +319,10 @@ class Bundle(ParameterSet):
     * <phoebe.frontend.bundle.Bundle.default_binary>
     * <phoebe.frontend.bundle.Bundle.default_star>
 
+    To save or export a bundle, see:
+    * <phoebe.frontend.bundle.Bundle.save>
+    * <phoebe.frontend.bundle.Bundle.export_legacy>
+
     To filter parameters and set values, see:
     * <phoebe.parameters.ParameterSet.filter>
     * <phoebe.parameters.ParameterSet.get_value>
@@ -327,6 +331,7 @@ class Bundle(ParameterSet):
     To deal with datasets, see:
     * <phoebe.frontend.bundle.Bundle.add_dataset>
     * <phoebe.frontend.bundle.Bundle.get_dataset>
+    * <phoebe.frontend.bundle.Bundle.rename_dataset>
     * <phoebe.frontend.bundle.Bundle.remove_dataset>
     * <phoebe.frontend.bundle.Bundle.enable_dataset>
     * <phoebe.frontend.bundle.Bundle.disable_dataset>
@@ -334,11 +339,20 @@ class Bundle(ParameterSet):
     To compute forward models, see:
     * <phoebe.frontend.bundle.Bundle.add_compute>
     * <phoebe.frontend.bundle.Bundle.get_compute>
+    * <phoebe.frontend.bundle.Bundle.rename_compute>
+    * <phoebe.frontend.bundle.Bundle.remove_compute>
     * <phoebe.frontend.bundle.Bundle.run_compute>
     * <phoebe.frontend.bundle.Bundle.get_model>
+    * <phoebe.frontend.bundle.Bundle.rename_model>
+    * <phoebe.frontend.bundle.Bundle.remove_model>
 
-    To plot observations or synthetic datasets, see:
+    To deal with figures and plotting, see:
     * <phoebe.parameters.ParameterSet.plot>
+    * <phoebe.frontend.bundle.Bundle.add_figure>
+    * <phoebe.frontend.bundle.Bundle.get_figure>
+    * <phoebe.frontend.bundle.Bundle.rename_figure>
+    * <phoebe.frontend.bundle.Bundle.remove_figure>
+    * <phoebe.frontend.bundle.Bundle.run_figure>
 
     """
 
@@ -731,33 +745,6 @@ class Bundle(ParameterSet):
             logger.warning("This bundle is in client mode, meaning all computations will be handled by the server at {}.  To disable client mode, call as_client(False) or in the future pass as_client=False to from_server".format(server))
 
         return b
-
-    @classmethod
-    def from_catalog(cls, identifier):
-        """Load a new bundle from the phoebe catalog.
-
-        [NOT SUPPORTED]
-
-        Load a bundle from the online catalog.  This is a constructor
-        so should be called as:
-
-        ```py
-        b = Bundle.from_catalog(identifier)
-        ```
-
-        Arguments
-        ----------
-        * `identifier` (string): identifier of the object in the catalog
-
-        Returns
-        ----------
-        * instantiated <phoebe.frontend.bundle.Bundle> object.
-        """
-        raise NotImplementedError
-        # TODO: pull from online catalog and pass arguments needed to cls
-        # (__init__) or cls.open (defined in PS.open)
-
-        return cls()
 
     @classmethod
     def from_legacy(cls, filename, add_compute_legacy=True, add_compute_phoebe=True):
@@ -1431,7 +1418,7 @@ class Bundle(ParameterSet):
     def _add_history(self, redo_func, redo_kwargs, undo_func, undo_kwargs,
                      **kwargs):
         """
-        Add a new log (undo/redoable) to this history contextself.
+        Add a new log (undo/redoable) to this history context.
 
         Arguments
         -----------
