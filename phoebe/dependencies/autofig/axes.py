@@ -21,6 +21,9 @@ class AxesGroup(common.Group):
     def __init__(self, items):
         super(AxesGroup, self).__init__(Axes, [], items)
 
+    # from_dict defined in common.Group
+    # to_dict defined in common.Group
+
     @property
     def i(self):
         """
@@ -167,22 +170,22 @@ class Axes(object):
         self.axorder = kwargs.pop('axorder', None)
         self.axpos = kwargs.pop('axpos', None)
 
+        self.equal_aspect = kwargs.pop('equal_aspect', None)
+        self.pad_aspect = kwargs.pop('pad_aspect', None)
+
         self._i = AxDimensionI(self, **kwargs)
         self._x = AxDimensionX(self, **kwargs)
         self._y = AxDimensionY(self, **kwargs)
         self._z = AxDimensionZ(self, **kwargs)
 
-        self._elev = AxViewElev(self, **kwargs)
-        self._azim = AxViewAzim(self, **kwargs)
+        self._elev = AxViewElev(self, value=kwargs.get('elev', None))
+        self._azim = AxViewAzim(self, value=kwargs.get('azim', None))
 
         # set default padding
         self.xyz.pad = 0.1
 
         self._ss = []
         self._cs = []
-
-        self.equal_aspect = None
-        self.pad_aspect = None
 
         self.add_call(*calls)
 
@@ -197,6 +200,30 @@ class Axes(object):
 
         ncalls = len(self.calls)
         return "<Axes | {} call(s) | dims: {}>".format(ncalls, ", ".join(dirs))
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'projection': self.projection,
+                'legend': self.legend,
+                'legend_kwargs': self.legend_kwargs,
+                'title': self.title,
+                'axorder': self.axorder,
+                'axpos': self.axpos,
+                'equal_aspect': self.equal_aspect,
+                'pad_aspect': self.pad_aspect,
+                'i': self.i.to_dict(),
+                'x': self.x.to_dict(),
+                'y': self.y.to_dict(),
+                'z': self.z.to_dict(),
+                'ss': [s.to_dict() for s in self.ss],
+                'cs': [c.to_dict() for c in self.cs],
+                'elev': self._elev.to_dict(), # NOTE: need underscore to avoid projection check error
+                'azim': self._azim.to_dict()  # NOTE: need underscore to avoid projection check error
+                }
+
 
     @property
     def figure(self):
@@ -392,6 +419,9 @@ class Axes(object):
             self._axpos = axpos
 
             return
+
+        if isinstance(axpos, list) or isinstance(axpos, np.ndarray):
+            axpos = tuple(axpos)
 
         if isinstance(axpos, tuple) and len(axpos) == 3 and np.all(isinstance(ap, int) for ap in axpos):
             self._axpos = axpos
@@ -1398,10 +1428,21 @@ class AxDimension(AxArray):
 
     def __repr__(self):
 
-        return "<{} | limits: {} | type: {} | label: {}>".format(self.direction,
+        return "<{} | lim: {} | type: {} | label: {}>".format(self.direction,
                                                                  self.lim,
                                                                  self.unit.physical_type,
                                                                  self.label)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'unit': self.unit.to_string(),
+                'pad': self._pad,
+                'lim': common.arraytolistrecursive(self._lim),
+                'label': self._label}
 
     @property
     def unit(self):
@@ -2126,6 +2167,10 @@ class AxViewGroup(common.Group):
 
 class AxView(AxArray):
     def __init__(self, direction, axes, value):
+        if isinstance(value, dict):
+            direction = value.get('direction')
+            value = value.get('value')
+
         self._value = value
 
         super(AxView, self).__init__(direction, axes)
@@ -2133,6 +2178,14 @@ class AxView(AxArray):
     def __repr__(self):
 
         return "<{} | >".format(self.direction)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'value': common.arraytolistrecursive(self._value)}
 
     @property
     def value(self):

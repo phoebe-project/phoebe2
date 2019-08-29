@@ -325,9 +325,11 @@ setup (name = 'phoebe',
                      'phoebe.frontend':['default_bundles/*.bundle']
                     },
        ext_modules = ext_modules,
+       scripts=['phoebe-server/phoebe-server'],
        cmdclass = {
          'build_ext': build_check,
          'check_imports': import_check,
          'build_py': PhoebeBuildCommand
         }
       )
+       

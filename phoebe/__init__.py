@@ -319,7 +319,7 @@ conf = Settings()
 from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
 from .atmospheres.passbands import install_passband, uninstall_all_passbands, download_passband, update_passband_available, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-from .parameters import hierarchy, component, compute, constraint, dataset, feature
+from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure
 from .frontend.bundle import Bundle
 from .backend import backends as _backends
 from . import utils as _utils
@@ -419,6 +419,11 @@ def from_legacy(*args, **kwargs):
 
 from_legacy.__doc__ = Bundle.from_legacy.__doc__
 
+def from_server(*args, **kwargs):
+    return Bundle.from_server(*args, **kwargs)
+
+from_server.__doc__ = Bundle.from_server.__doc__
+
 def default_star(*args, **kwargs):
     return Bundle.default_star(*args, **kwargs)
 
@@ -428,6 +433,9 @@ def default_binary(*args, **kwargs):
     return Bundle.default_binary(*args, **kwargs)
 
 default_binary.__doc__ = Bundle.default_binary.__doc__
+
+def default_contact_binary(*args, **kwargs):
+    return Bundle.default_binary(contact_binary=True, *args, **kwargs)
 
 def default_triple(*args, **kwargs):
     return Bundle.default_triple(*args, **kwargs)
@@ -752,6 +760,26 @@ def list_available_datasets(devel=False):
     * (list of strings)
     """
     return  _get_phoebe_funcs(dataset, devel=devel)
+
+def list_available_figures(devel=False):
+    """
+    List all available 'kinds' for figure from <phoebe.parameters.figure>.
+
+    See also:
+    * <phoebe.list_available_components>
+    * <phoebe.list_available_features>
+    * <phoebe.list_available_computes>
+
+    Arguments
+    -----------
+    * `devel` (bool, default, optional=False): whether to include development-only
+        kinds.  See <phoebe.devel_on>.
+
+    Returns
+    ---------
+    * (list of strings)
+    """
+    return  _get_phoebe_funcs(figure, devel=devel)
 
 def list_available_computes(devel=False):
     """
