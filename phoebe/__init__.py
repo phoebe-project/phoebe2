@@ -761,6 +761,26 @@ def list_available_datasets(devel=False):
     """
     return  _get_phoebe_funcs(dataset, devel=devel)
 
+def list_available_figures(devel=False):
+    """
+    List all available 'kinds' for figure from <phoebe.parameters.figure>.
+
+    See also:
+    * <phoebe.list_available_components>
+    * <phoebe.list_available_features>
+    * <phoebe.list_available_computes>
+
+    Arguments
+    -----------
+    * `devel` (bool, default, optional=False): whether to include development-only
+        kinds.  See <phoebe.devel_on>.
+
+    Returns
+    ---------
+    * (list of strings)
+    """
+    return  _get_phoebe_funcs(figure, devel=devel)
+
 def list_available_computes(devel=False):
     """
     List all available 'kinds' for compute from <phoebe.parameters.compute>.
