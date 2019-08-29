@@ -197,27 +197,27 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
 
     # also see constraint below
-    params += [FloatParameter(qualifier='irrad_frac_refl_bol', value=kwargs.get('irrad_frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
+    params += [FloatParameter(qualifier='irrad_frac_refl_bol', value=kwargs.get('irrad_frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection/irradiation (heating without redistribution)')]
     params += [FloatParameter(qualifier='irrad_frac_lost_bol', value=kwargs.get('irrad_frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
     params += [ChoiceParameter(qualifier='ld_mode_bol',
                                value=kwargs.get('ld_mode_bol', 'lookup'), choices=['lookup', 'manual'],
-                               description='Mode to use for limb-darkening')]
+                               description='Mode to use for bolometric limb-darkening (used only for irradiation).')]
 
     params += [ChoiceParameter(qualifier='ld_func_bol',
                               value=kwargs.get('ld_func_bol', 'logarithmic'),
                               choices=_ld_func_choices,
-                              description='Bolometric limb darkening model')]
+                              description='Bolometric limb darkening model (used only for irradiation).')]
 
     params += [ChoiceParameter(visible_if='ld_mode_bol:lookup', qualifier='ld_coeffs_source_bol',
                                value=kwargs.get('ld_coeffs_source_bol', 'auto'), choices=_ld_coeffs_source_choices,
-                               description='Source for bolometric limb darkening coefficients (\'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
+                               description='Source for bolometric limb darkening coefficients (used only for irradiation; \'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
 
 
     params += [FloatArrayParameter(visible_if='ld_mode_bol:manual', qualifier='ld_coeffs_bol',
                                    value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]),
                                    default_unit=u.dimensionless_unscaled,
-                                   description='Bolometric limb darkening coefficients')]
+                                   description='Bolometric limb darkening coefficients (used only for irradiation).')]
 
     params += [FloatParameter(qualifier='mass', value=kwargs.get('mass', 1.0), default_unit=u.solMass, description='Mass')]
 
