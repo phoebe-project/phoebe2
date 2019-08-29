@@ -1235,6 +1235,9 @@ class Bundle(ParameterSet):
         * ValueError: if the server at `server` is not running or reachable.
         * ValueError: if the server returns an error.
         """
+        if not conf.devel:
+            raise NotImplementedError("'as_client' not officially supported for this release.  Enable developer mode to test.")
+
         if as_client:
             if not _can_client:
                 raise ImportError("dependencies to support client mode not met - see docs")
@@ -1305,6 +1308,9 @@ class Bundle(ParameterSet):
         ---------
         * False if the bundle is not in client mode, otherwise the URL of the server.
         """
+        if not conf.devel:
+            raise NotImplementedError("'is_client' not officially supported for this release.  Enable developer mode to test.")
+
         return self._is_client
 
     def client_update(self):
@@ -1319,6 +1325,9 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.is_client>
 
         """
+        if not conf.devel:
+            raise NotImplementedError("'client_update' not officially supported for this release.  Enable developer mode to test.")
+
         if not self.is_client:
             raise ValueError("Bundle is not in client mode, cannot update")
 

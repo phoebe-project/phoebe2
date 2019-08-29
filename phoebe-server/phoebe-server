@@ -91,6 +91,7 @@ from collections import OrderedDict
 from datetime import datetime
 
 
+phoebe.devel_on() # currently needed for client mode, remove for actual release
 phoebe.interactive_off()
 phoebe.parameters._is_server = True
 

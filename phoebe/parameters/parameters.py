@@ -1558,6 +1558,9 @@ class ParameterSet(object):
         * `url` (string): the opened URL (will attempt to launch in the system
             webbrowser)
         """
+        if not conf.devel:
+            raise NotImplementedError("'ui' not officially supported for this release.  Enable developer mode to test.")
+
         if self._bundle is None or not self._bundle.is_client:
             raise ValueError("bundle must be in client mode.  Call bundle.as_client()")
 
