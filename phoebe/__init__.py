@@ -14,14 +14,14 @@ Available environment variables:
 
 __version__ = 'devel'
 
-import os
+import os as _os
 import sys as _sys
 import inspect as _inspect
 import atexit
 
 # People shouldn't import Phoebe from the installation directory (inspired upon
 # pymc warning message).
-if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]))>-1:
+if _os.getcwd().find(_os.path.abspath(_os.path.split(_os.path.split(__file__)[0])[0]))>-1:
     # We have a clash of package name with the standard library: we implement an
     # "io" module and also they do. This means that you can import Phoebe from its
     # main source tree; then there is no difference between io from here and io
@@ -42,11 +42,11 @@ else:
     raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
 
 def _env_variable_int(key, default):
-    value = os.getenv(key, default)
+    value = _os.getenv(key, default)
     return int(value)
 
 def _env_variable_bool(key, default):
-    value = os.getenv(key, default)
+    value = _os.getenv(key, default)
     if isinstance(value, bool):
         return value
     elif value.upper()=='TRUE':
@@ -65,7 +65,7 @@ if _env_variable_bool('PHOEBE_ENABLE_PLOTTING', True):
         pass
         # we'll catch this later in plotting and throw warnings as necessary
     else:
-        if 'DISPLAY' not in os.environ.keys() and _sys.platform not in ['win32','cygwin']:
+        if 'DISPLAY' not in _os.environ.keys() and _sys.platform not in ['win32','cygwin']:
             matplotlib.use('Agg')
         elif hasattr(_sys, 'real_prefix'):
             # then we're likely in a virtualenv.  Our best bet is to use the 'TkAgg'
@@ -91,7 +91,7 @@ class MPI(object):
         # this is a bit of a hack and will only work with openmpi, but environment
         # variables seem to be the only way to detect whether the script was run
         # via mpirun or not
-        evars = os.environ.keys()
+        evars = _os.environ.keys()
         if 'OMPI_COMM_WORLD_SIZE' in evars or 'MV2_COMM_WORLD_SIZE' in evars or 'PMI_SIZE' in evars:
             from mpi4py import MPI as mpi4py
             self._within_mpirun = True
@@ -807,7 +807,6 @@ def list_available_computes(devel=False):
 
 # delete things we don't want exposed to the user at the top-level
 # NOTE: we need _sys for reset_settings, that's why its __sys
-del os
 del atexit
 try:
     del matplotlib
