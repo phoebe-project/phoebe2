@@ -128,20 +128,11 @@ def bundle_memory_cleanup(stale_limit_seconds=600):
             if bundleid in app._last_access_per_bundle.keys():
                 del app._last_access_per_bundle[bundleid]
 
-def _get_phoebe_funcs(module):
-    ignore = ['_empty_array', 'deepcopy', 'fnmatch',
-              'download_passband', 'list_installed_passbands', 'list_online_passbands', 'list_passbands', 'parameter_from_json', 'parse_json',
-              'send_if_client', 'update_if_client',
-              '_add_component', '_add_dataset', '_label_units_lims', '_run_compute', '_component_allowed_for_feature', '_figure_style_modes']
-
-
-    return [o[0] for o in inspect.getmembers(module) if inspect.isfunction(o[1]) and o[0] not in ignore and o[0][0]!='_']
-
-_available_kinds = {'component': _get_phoebe_funcs(phoebe.parameters.component),
-                    'feature': _get_phoebe_funcs(phoebe.parameters.feature),
-                    'dataset': _get_phoebe_funcs(phoebe.parameters.dataset),
-                    'figure': _get_phoebe_funcs(phoebe.parameters.figure),
-                    'compute': _get_phoebe_funcs(phoebe.parameters.compute)}
+_available_kinds = {'component': phoebe.list_available_components(),
+                    'feature': phoebe.list_available_features(),
+                    'dataset': phoebe.list_available_datasets(),
+                    'figure': phoebe.list_available_figures(),
+                    'compute': phoebe.list_available_computes()}
 
 # logger = phoebe.logger('INFO')
 _dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
