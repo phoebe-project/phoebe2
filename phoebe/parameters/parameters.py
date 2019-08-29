@@ -95,16 +95,14 @@ _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
                                         'ConstraintParameter', 'JobParameter']
 
 _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
-                     'dataset', 'constraint', 'compute', 'model', 'fitting',
-                     'feedback', 'plugin', 'figure', 'kind',
+                     'dataset', 'constraint', 'compute', 'model', 'figure', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
 _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['history', 'system', 'component', 'feature',
-             'dataset', 'constraint', 'compute', 'model', 'fitting',
-             'feedback', 'plugin', 'figure', 'setting']
+             'dataset', 'constraint', 'compute', 'model', 'figure', 'setting']
 
 # define a list of default_forbidden labels
 # an individual ParameterSet may build on this list with components, datasets,
@@ -434,13 +432,13 @@ class ParameterSet(object):
         self._history = None
         self._component = None
         self._dataset = None
+        self._figure = None
         self._constraint = None
         self._compute = None
         self._model = None
-        self._fitting = None
-        self._feedback = None
-        self._plugin = None
-        self._figure = None
+        # self._fitting = None
+        # self._feedback = None
+        # self._plugin = None
         self._kind = None
         self._context = None
 
@@ -648,7 +646,7 @@ class ParameterSet(object):
         """
         ret = {}
         for typ in _meta_fields_twig:
-            if typ in ['uniqueid', 'plugin', 'feedback', 'fitting', 'history', 'twig', 'uniquetwig']:
+            if typ in ['uniqueid', 'history', 'twig', 'uniquetwig']:
                 continue
 
             k = '{}s'.format(typ)
@@ -1043,109 +1041,6 @@ class ParameterSet(object):
             in this <phoebe.parmaeters.ParameterSet>
         """
         return self._options_for_tag('model')
-
-    @property
-    def fitting(self):
-        """Return the value for fitting if shared by ALL Parameters.
-
-        If the value is not shared by ALL, then None will be returned.  To see
-        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.fittings>.
-
-        To see the value of a single <phoebe.parameters.Parameter> object, see
-        <phoebe.parameters.Parameter.fitting>.
-
-        Returns
-        --------
-        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
-            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
-        """
-        return self._fitting
-
-    @property
-    def fittings(self):
-        """Return a list of all the fittings of the Parameters.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.tags>
-
-        For the singular version, see:
-        * <phoebe.parameters.ParameterSet.fitting>
-
-        Returns
-        --------
-        * (list) a list of all fittings for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
-        """
-        return self._options_for_tag('fitting')
-
-    @property
-    def feedback(self):
-        """Return the value for feedback if shared by ALL Parameters.
-
-        If the value is not shared by ALL, then None will be returned.  To see
-        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.feedbacks>.
-
-        To see the value of a single <phoebe.parameters.Parameter> object, see
-        <phoebe.parameters.Parameter.feedback>.
-
-        Returns
-        --------
-        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
-            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
-        """
-        return self._feedback
-
-    @property
-    def feedbacks(self):
-        """Return a list of all the feedbacks of the Parameters.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.tags>
-
-        For the singular version, see:
-        * <phoebe.parameters.ParameterSet.feedback>
-
-        Returns
-        --------
-        * (list) a list of all feedbacks for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
-        """
-        return self._options_for_tag('feedback')
-
-    @property
-    def plugin(self):
-        """Return the value for plugin if shared by ALL Parameters.
-
-        If the value is not shared by ALL, then None will be returned.  To see
-        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.plugins>.
-
-        To see the value of a single <phoebe.parameters.Parameter> object, see
-        <phoebe.parameters.Parameter.plugin>.
-
-        Returns
-        --------
-        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
-            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
-        """
-        return self._plugin
-
-    @property
-    def plugins(self):
-        """Return a list of all the plugins of the Parameters.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.tags>
-
-        For the singular version, see:
-        * <phoebe.parameters.ParameterSet.plugin>
-
-        Returns
-        --------
-        * (list) a list of all plugins for each <phoebe.parameters.Parameter>
-            in this <phoebe.parmaeters.ParameterSet>
-        """
-        return self._options_for_tag('plugin')
-
 
     @property
     def figure(self):
@@ -4552,12 +4447,10 @@ class Parameter(object):
         * `feature` (string, optional): label for the feature tag
         * `component` (string, optional): label for the component tag
         * `dataset` (string, optional): label for the dataset tag
+        * `figure` (string, optional): label for the figure tag
         * `constraint` (string, optional): label for the constraint tag
         * `compute` (string, optional): label for the compute tag
         * `model` (string, optional): label for the model tag
-        * `fitting` (string, optional): label for the fitting tag
-        * `feedback` (string, optional): label for the feedback tag
-        * `plugin` (string, optional): label for the plugin tag
         * `kind` (string, optional): label for the kind tag
         * `context` (string, optional): label for the context tag
         * `copy_for` (dictionary/False, optional, default=False): dictionary of
@@ -4588,13 +4481,13 @@ class Parameter(object):
         self._feature = kwargs.get('feature', None)
         self._component = kwargs.get('component', None)
         self._dataset = kwargs.get('dataset', None)
+        self._figure = kwargs.get('figure', None)
         self._constraint = kwargs.get('constraint', None)
         self._compute = kwargs.get('compute', None)
         self._model = kwargs.get('model', None)
-        self._fitting = kwargs.get('fitting', None)
-        self._feedback = kwargs.get('feedback', None)
-        self._plugin = kwargs.get('plugin', None)
-        self._figure = kwargs.get('figure', None)
+        # self._fitting = kwargs.get('fitting', None)
+        # self._feedback = kwargs.get('feedback', None)
+        # self._plugin = kwargs.get('plugin', None)
         self._kind = kwargs.get('kind', None)
         self._context = kwargs.get('context', None)
 
@@ -4996,7 +4889,7 @@ class Parameter(object):
         ----------
         * (dict) a dictionary of all singular tag attributes.
         """
-        return self.get_meta(ignore=['uniqueid', 'plugin', 'feedback', 'fitting', 'history', 'twig', 'uniquetwig'])
+        return self.get_meta(ignore=['uniqueid', 'history', 'twig', 'uniquetwig'])
 
     @property
     def advanced(self):
@@ -5141,51 +5034,6 @@ class Parameter(object):
         * (str) the model tag of this Parameter.
         """
         return self._model
-
-    @property
-    def fitting(self):
-        """
-        Return the fitting of this <phoebe.parameters.Parameter>.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.fitting>
-        * <phoebe.parameters.ParameterSet.fittings>
-
-        Returns
-        -------
-        * (str) the fitting tag of this Parameter.
-        """
-        return self._fitting
-
-    @property
-    def feedback(self):
-        """
-        Return the feedback of this <phoebe.parameters.Parameter>.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.feedback>
-        * <phoebe.parameters.ParameterSet.feedbacks>
-
-        Returns
-        -------
-        * (str) the feedback tag of this Parameter.
-        """
-        return self._feedback
-
-    @property
-    def plugin(self):
-        """
-        Return the plugin of this <phoebe.parameters.Parameter>.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.plugin>
-        * <phoebe.parameters.ParameterSet.plugins>
-
-        Returns
-        -------
-        * (str) the plugin tag of this Parameter.
-        """
-        return self._plugin
 
     @property
     def figure(self):

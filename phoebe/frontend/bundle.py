@@ -1346,8 +1346,8 @@ class Bundle(ParameterSet):
 
     def __str__(self):
         return_ = ''
-        for context in ['system', 'component', 'dataset', 'constraint',
-                        'compute', 'model', 'fitting', 'feedback', 'plugin']:
+        for context in ['system', 'component', 'dataset', 'figure', 'constraint',
+                        'compute', 'model',]:
             return_ += '{}:\n'.format(context.upper())
             return_ += "\n".join(self.filter(context=context).to_dict().keys())
             return_ += '\n\n'
