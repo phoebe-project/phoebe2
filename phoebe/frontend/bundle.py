@@ -1319,9 +1319,6 @@ class Bundle(ParameterSet):
         ---------
         * False if the bundle is not in client mode, otherwise the URL of the server.
         """
-        if not conf.devel:
-            raise NotImplementedError("'is_client' not officially supported for this release.  Enable developer mode to test.")
-
         return self._is_client
 
     def client_update(self):
