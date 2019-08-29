@@ -2978,7 +2978,7 @@ class ParameterSet(object):
         """
         return self.get_parameter(twig=twig, **kwargs).get_description()
 
-    def compute_residuals(self, model=None, dataset=None, component=None, as_quantity=True):
+    def calculate_residuals(self, model=None, dataset=None, component=None, as_quantity=True):
         """
         Compute residuals between the observed values in a dataset and the
         corresponding model.
@@ -2994,7 +2994,7 @@ class ParameterSet(object):
         <phoebe.parameters.FloatArrayParameter.interp_value>.
 
         See also:
-        * <phoebe.parameters.ParameterSet.compute_chi2>
+        * <phoebe.parameters.ParameterSet.calculate_chi2>
 
         Arguments
         -----------
@@ -3037,7 +3037,7 @@ class ParameterSet(object):
         else:
             # TODO: lp compared for a given time interpolating in wavelength?
             # NOTE: add to documentation if adding support for other datasets
-            raise NotImplementedError("compute_residuals not implemented for dataset with kind='{}' (model={}, dataset={}, component={})".format(dataset_kind, model, dataset, component))
+            raise NotImplementedError("calculate_residuals not implemented for dataset with kind='{}' (model={}, dataset={}, component={})".format(dataset_kind, model, dataset, component))
 
         dataset_param = dataset_ps.get_parameter(qualifier, component=component)
         model_param = model_ps.get_parameter(qualifier)
@@ -3067,7 +3067,7 @@ class ParameterSet(object):
         else:
             return residuals
 
-    def compute_chi2(self, model=None, dataset=None, component=None):
+    def calculate_chi2(self, model=None, dataset=None, component=None):
         """
         Compute the chi2 between a model and the observed values in the dataset(s).
 
@@ -3082,13 +3082,13 @@ class ParameterSet(object):
         <phoebe.parameters.FloatArrayParameter.interp_value>.
 
         Residuals per-dataset for the given model are computed by
-        <phoebe.parameters.ParameterSet.compute_residuals>.  The returned
+        <phoebe.parameters.ParameterSet.calculate_residuals>.  The returned
         chi2 value is then the sum over the chi2 of each dataset, where each
         dataset's chi2 value is computed as the sum of squares of residuals
         over the squares of sigmas (if available).
 
         See also:
-        * <phoebe.parameters.ParameterSet.compute_residuals>
+        * <phoebe.parameters.ParameterSet.calculate_residuals>
 
         Arguments
         -----------
@@ -3124,7 +3124,7 @@ class ParameterSet(object):
                 ds_comps = [None]
 
             for ds_comp in ds_comps:
-                residuals = self.compute_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True)
+                residuals = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True)
                 sigmas = self._bundle.get_dataset(dataset=ds).get_value('sigmas', component=ds_comp, unit=residuals.unit)
 
                 if len(sigmas):
@@ -3448,7 +3448,7 @@ class ParameterSet(object):
                         return {}
 
                     # we're currently within the MODEL context
-                    kwargs[direction] = ps.compute_residuals(model=ps.model, dataset=ps.dataset, component=ps.component, as_quantity=True)
+                    kwargs[direction] = ps.calculate_residuals(model=ps.model, dataset=ps.dataset, component=ps.component, as_quantity=True)
                     kwargs.setdefault('{}label'.format(direction), '{} residuals'.format({'lc': 'flux', 'rv': 'rv'}.get(ps.kind, '')))
                     kwargs['{}qualifier'.format(direction)] = current_value
                     kwargs.setdefault('linestyle', 'none')
@@ -3920,7 +3920,7 @@ class ParameterSet(object):
         * `y` (string/float/array, optional): qualifier/twig of the array to plot on the
             y-axis (will default based on the dataset-kind if not provided).  To
             plot residuals along the y-axis, pass `y='residuals'`.  This will
-            call <phoebe.frontend.bundle.Bundle.compute_residuals> for the given
+            call <phoebe.frontend.bundle.Bundle.calculate_residuals> for the given
             dataset/model.
         * `z` (string/float/array, optional): qualifier/twig of the array to plot on the
             z-axis.  By default, this will just order the points on a 2D plot.
