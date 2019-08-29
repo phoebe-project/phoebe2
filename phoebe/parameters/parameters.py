@@ -1152,19 +1152,34 @@ class ParameterSet(object):
         """Return the value for figure if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the figures of all parameters, see :func:`figures`.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.figures>.
 
-        :return: str or None
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.figure>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
         return self._figure
 
     @property
     def figures(self):
-        """Return a list of all the plots of the Parameters.
+        """Return a list of all the figures of the Parameters.
 
-        :return: list of strings
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.figure>
+
+        Returns
+        --------
+        * (list) a list of all figures for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
         """
-        return self.to_dict(field='figure').keys()
+        return self._options_for_tag('figure')
 
     @property
     def kind(self):
@@ -3896,7 +3911,7 @@ class ParameterSet(object):
 
     def gcf(self):
         """
-        Get the active current figure.
+        Get the active current autofig Figure.
 
         See also:
         * <phoebe.parameters.ParameterSet.plot>
@@ -3907,14 +3922,14 @@ class ParameterSet(object):
         if self._bundle is None:
             return autofig.gcf()
 
-        if self._bundle._figure is None:
-            self._bundle._figure = autofig.Figure()
+        if self._bundle._af_figure is None:
+            self._bundle._af_figure = autofig.Figure()
 
-        return self._bundle._figure
+        return self._bundle._af_figure
 
     def clf(self):
         """
-        Clear/reset the active current figure.
+        Clear/reset the active current autofig Figure.
 
         See also:
         * <phoebe.parameters.ParameterSet.plot>
@@ -3925,7 +3940,7 @@ class ParameterSet(object):
         if self._bundle is None:
             raise ValueError("could not find parent Bundle object")
 
-        self._bundle._figure = None
+        self._bundle._af_figure = None
 
     def plot(self, twig=None, **kwargs):
         """
@@ -5175,7 +5190,15 @@ class Parameter(object):
     @property
     def figure(self):
         """
-        :return: figure tag of this Parameter
+        Return the figure of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.figure>
+        * <phoebe.parameters.ParameterSet.figures>
+
+        Returns
+        -------
+        * (str) the figure tag of this Parameter.
         """
         return self._figure
 

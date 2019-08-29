@@ -383,7 +383,7 @@ class Bundle(ParameterSet):
         self._bundle = self
         self._hierarchy_param = None
 
-        self._figure = None
+        self._af_figure = None
 
         # set to be not a client by default
         self._is_client = False
