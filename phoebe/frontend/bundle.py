@@ -949,6 +949,17 @@ class Bundle(ParameterSet):
 
         return b
 
+    @classmethod
+    def default_contact_binary(*args, **kwargs):
+        """
+        For convenience, this function is available at the top-level as
+        <phoebe.default_contact_binary> as well as
+        <phoebe.frontend.bundle.Bundle.default_contact_binary>.
+
+        This is a shortcut to <phoebe.frontend.bundle.Bundle.default_binary>
+        but with `contact_binary` set to True.
+        """
+        return cls.default_binary(contact_binary=True, *args, **kwargs)
 
     @classmethod
     def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False,
