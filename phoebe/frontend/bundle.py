@@ -5491,13 +5491,13 @@ class Bundle(ParameterSet):
                 # fc and ec are handled later because they have different options
                 kwargs.setdefault(d, fig_ps.get_value(qualifier=d, **_skip_filter_checks))
 
-            if kwargs.get('{}label_mode'.format(d), fig_ps.get_value(qualifier='{}label_mode'.format(d), **_skip_filter_checks))=='manual':
+            if kwargs.get('{}label_source'.format(d), fig_ps.get_value(qualifier='{}label_source'.format(d), **_skip_filter_checks))=='manual':
                 kwargs.setdefault('{}label'.format(d), fig_ps.get_value(qualifier='{}label'.format(d), **_skip_filter_checks))
 
-            if kwargs.get('{}unit_mode'.format(d), fig_ps.get_value(qualifier='{}unit_mode'.format(d), **_skip_filter_checks))=='manual':
+            if kwargs.get('{}unit_source'.format(d), fig_ps.get_value(qualifier='{}unit_source'.format(d), **_skip_filter_checks))=='manual':
                 kwargs.setdefault('{}unit'.format(d), fig_ps.get_value(qualifier='{}unit'.format(d), **_skip_filter_checks))
 
-            if kwargs.get('{}lim_mode'.format(d), fig_ps.get_value(qualifier='{}lim_mode'.format(d), **_skip_filter_checks))=='manual':
+            if kwargs.get('{}lim_source'.format(d), fig_ps.get_value(qualifier='{}lim_source'.format(d), **_skip_filter_checks))=='manual':
                 lim = fig_ps.get_value(qualifier='{}lim'.format(d), **_skip_filter_checks)
                 if len(lim)==2:
                     kwargs.setdefault('{}lim'.format(d), lim)
@@ -5515,7 +5515,7 @@ class Bundle(ParameterSet):
 
         if ds_kind in ['mesh']:
             for q in ['fc', 'ec']:
-                mode = fig_ps.get_value(qualifier=q+'_mode', **_skip_filter_checks)
+                mode = fig_ps.get_value(qualifier=q+'_source', **_skip_filter_checks)
                 if mode == 'column':
                     kwargs[q] = fig_ps.get_value(qualifier=q+'_column', **_skip_filter_checks)
                 elif mode == 'manual':
@@ -5540,7 +5540,7 @@ class Bundle(ParameterSet):
                     else:
                         suff = ''
 
-                    mode = kwargs.get('{}_mode'.format(q), fig_ps.get_value(qualifier='{}_mode'.format(q), **_skip_filter_checks))
+                    mode = kwargs.get('{}_source'.format(q), fig_ps.get_value(qualifier='{}_source'.format(q), **_skip_filter_checks))
                     if mode == 'manual':
                         if q == 'marker':
                             kwargs[q] = {'dataset': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
@@ -5561,7 +5561,7 @@ class Bundle(ParameterSet):
                                 # RVs will include orbits in comp_same kind, but we can safely skip those
                                 pass
                     else:
-                        raise NotImplementedError("{}_mode of {} not supported".format(q, mode))
+                        raise NotImplementedError("{}_source of {} not supported".format(q, mode))
 
 
 
