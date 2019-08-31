@@ -5393,11 +5393,9 @@ class Bundle(ParameterSet):
 
         Arguments
         -----------
-        * `figure` (string, optional): name of the figure options to use.
-            If not provided or None, run_figure will use an existing set of
-            attached figure options if only 1 exists.  If more than 1 exist,
-            then `figure` becomes a required argument.  If no figure options,
-            and error will be raised.
+        * `figure` (string or list, optional): name of the figure(s) options to use.
+            If not provided or None, run_figure will run all attached figures
+            in subplots, as necessary.
         * `time` (float, optional): time to use for plotting/animating.  This will
             filter on time for any applicable dataset (i.e. meshes, line profiles),
             will be used for highlighting/uncovering based on the passed value
@@ -5419,7 +5417,11 @@ class Bundle(ParameterSet):
             parameters in the figure options or passed along to
             <phoebe.parameters.ParameterSet.plot>.  See the API docs for
             <phoebe.parameters.ParameterSet.plot> for an exhaustive list
-            of plotting options.
+            of plotting options.  If `figure` is passed as a list (or as None and
+            multiple figures exist in the bundle), then kwargs can be passed
+            as dictionaries with keys of the individual `figure` labels, which
+            will be applied to individual `run_figure` calls when matching.
+            For example: `b.run_figure(figure=['lcfig01', 'rvfig01'], axpos={'lcfig01': 121, 'rvfig01', 122}, show=True)`
 
         Returns
         -----------
@@ -5432,6 +5434,21 @@ class Bundle(ParameterSet):
         * ValueError: if `figure` is not provided but is required.
 
         """
+        if figure is None:
+            figure = self.figures
+
+
+        if isinstance(figure, list) or isinstance(figure, tuple):
+            figures = figure
+            show = kwargs.pop('show', False)
+            save = kwargs.pop('save', False)
+            animate = kwargs.pop('animate', False)
+            for figure in figures:
+                self.run_figure(figure=figure, **{k: v.get(figure) if isinstance(v, dict) and figure in v.keys() else v for k,v in kwargs.items()})
+
+            return self._show_or_save(save, show, animate)
+
+
         fig_ps = self.get_figure(figure=figure, **kwargs)
         if len(fig_ps.figures) == 0:
             raise ValueError("no figure found")
