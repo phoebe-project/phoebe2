@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import LineCollection
 from matplotlib import colorbar as mplcolorbar
+from matplotlib import gridspec as gridspec
 
 from . import common
 from . import callbacks
@@ -423,14 +424,17 @@ class Axes(object):
         if isinstance(axpos, list) or isinstance(axpos, np.ndarray):
             axpos = tuple(axpos)
 
-        if isinstance(axpos, tuple) and len(axpos) == 3 and np.all(isinstance(ap, int) for ap in axpos):
+        if isinstance(axpos, tuple) and (len(axpos) == 3 or len(axpos) == 6) and np.all(isinstance(ap, int) for ap in axpos):
             self._axpos = axpos
 
         elif isinstance(axpos, int) and axpos >= 100 and axpos < 1000:
             self._axpos = (int(axpos/100), int(axpos/10 % 10), int(axpos % 10))
 
+        elif isinstance(axpos, int) and axpos >= 110011 and axpos < 999999:
+            self._axpos = tuple([int(ap) for ap in str(axpos)])
+
         else:
-            raise ValueError("axpos must be of type int or tuple between 100 and 999")
+            raise ValueError("axpos must be of type int or tuple between 100 and 999 (subplot syntax: ncols, nrows, ind) or 110011 and 999999 (gridspec syntax: ncols, nrows, indx, indy, widthx, widthy)")
 
     @property
     def title(self):
@@ -979,15 +983,13 @@ class Axes(object):
             if not np.all([isinstance(s, int) for s in subplot_grid]):
                 raise ValueError("subplot_grid must be tuple of length 2 (nrows [int], ncols [int])")
 
-        # we'll reset the layout later anyways
-        ax_new = fig.add_subplot(1,N+1,N+1, projection=self._projection)
 
         axes = fig.axes
-        N = len(axes)
+        N = len(axes) + 1
 
-        ind = None
         if self.axpos is not None:
-            rows, cols, ind = self.axpos
+            # we'll deal with this situation in the else below
+            pass
         elif subplot_grid is None:
             rows, cols = determine_grid(N)
         elif (isinstance(subplot_grid, list) or isinstance(subplot_grid, tuple)) and len(subplot_grid)==2:
@@ -995,7 +997,11 @@ class Axes(object):
         else:
             raise TypeError("subplot_grid must be None or tuple/list of length 2 (rows/cols)")
 
-        if ind is None:
+        if self.axpos is None:
+            # we'll reset the layout later anyways
+            ax_new = fig.add_subplot(1,1,1, projection=self._projection)
+            axes = fig.axes
+
             for i,ax in enumerate(axes):
                 try:
                     ax.change_geometry(rows, cols, i+1)
@@ -1003,7 +1009,17 @@ class Axes(object):
                     # colorbars and sizebars won't be able to change geometry
                     pass
         else:
-            ax_new.change_geometry(rows, cols, ind)
+            if len(self.axpos) == 3:
+                # then axpos is nrows, ncolumn, index
+                ax_new = fig.add_subplot(*self.axpos, projection=self._projection)
+            elif len(self.axpos) == 6:
+                # then axpos is nrows, ncols, indx, indy, widthx, widthy
+                ax_new = plt.subplot2grid(self.axpos[0:2], self.axpos[2:4], colspan=self.axpos[4], rowspan=self.axpos[5])
+                fig.add_axes(ax_new)
+
+            else:
+                raise NotImplementedError
+
 
         ax = self._get_backend_object(ax_new)
         self._backend_artists = []

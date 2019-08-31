@@ -470,15 +470,17 @@ class Call(object):
         if isinstance(axpos, list) or isinstance(axpos, np.ndarray):
             axpos = tuple(axpos)
 
-        if isinstance(axpos, tuple) and len(axpos) == 3 and np.all(isinstance(ap, int) for ap in axpos):
+        if isinstance(axpos, tuple) and (len(axpos) == 3 or len(axpos) == 6) and np.all(isinstance(ap, int) for ap in axpos):
             self._axpos = axpos
 
         elif isinstance(axpos, int) and axpos >= 100 and axpos < 1000:
             self._axpos = (int(axpos/100), int(axpos/10 % 10), int(axpos % 10))
 
-        else:
-            raise ValueError("axpos must be of type int or tuple between 100 and 999, found {} {}".format(type(axpos), axpos))
+        elif isinstance(axpos, int) and axpos >= 110011 and axpos < 999999:
+            self._axpos = tuple([int(ap) for ap in str(axpos)])
 
+        else:
+            raise ValueError("axpos must be of type int or tuple between 100 and 999 (subplot syntax: ncols, nrows, ind) or 110011 and 999999 (gridspec syntax: ncols, nrows, indx, indy, widthx, widthy)")
 
     @property
     def title(self):
