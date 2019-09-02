@@ -2285,7 +2285,7 @@ class Bundle(ParameterSet):
                                     True)
 
 
-                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=False)
                 if not check:
                     report.add_item(self,
                                     'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
@@ -2293,6 +2293,17 @@ class Bundle(ParameterSet):
                                      self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
                                     ],
                                     True)
+
+                else:
+                    # only need to do the strict check if the non-strict checks passes
+                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
+                    if not check:
+                        report.add_item(self,
+                                        'ld_coeffs_bol={} result in limb-brightening.  Use with caution.'.format(ld_coeffs_bol),
+                                        [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                         self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                        ],
+                                        True)
 
             for compute in computes:
                 if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
@@ -2362,7 +2373,7 @@ class Bundle(ParameterSet):
                                         ],
                                         True)
 
-                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=False)
                     if not check:
                         report.add_item(self,
                                         'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func),
@@ -2370,6 +2381,17 @@ class Bundle(ParameterSet):
                                          dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
                                         ],
                                         True)
+
+                    else:
+                        # only need to do the strict check if the non-strict checks passes
+                        check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
+                        if not check:
+                            report.add_item(self,
+                                            'ld_coeffs={} result in limb-brightening.  Use with caution.'.format(ld_coeffs),
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
+                                             dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
+                                             ],
+                                             False)
 
                 else:
                     raise NotImplementedError("checks for ld_mode='{}' not implemented".format(ld_mode))
