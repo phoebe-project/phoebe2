@@ -5547,7 +5547,7 @@ class Bundle(ParameterSet):
                 if kwargs[q] == 'None':
                     kwargs[q] = None
         else:
-            for q in ['linestyle', 'marker', 'color']:
+            for q in ['linestyle', 'marker', 'c']:
                 if q not in kwargs.keys():
                     if q == 'marker':
                         # don't apply markers to models
