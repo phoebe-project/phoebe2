@@ -5532,20 +5532,26 @@ class Bundle(ParameterSet):
 
         if ds_kind in ['mesh']:
             for q in ['fc', 'ec']:
-                mode = fig_ps.get_value(qualifier=q+'_source', **_skip_filter_checks)
-                if mode == 'column':
+                source = fig_ps.get_value(qualifier=q+'_source', **_skip_filter_checks)
+                if source == 'column':
                     kwargs[q] = fig_ps.get_value(qualifier=q+'_column', **_skip_filter_checks)
-                elif mode == 'manual':
+
+                    cmap_source = fig_ps.get_value(qualifier=q+'map_source', **_skip_filter_checks)
+                    if cmap_source == 'manual':
+                        kwargs[q+'map'] = fig_ps.get_value(qualifier=q+'map', **_skip_filter_checks)
+
+                elif source == 'manual':
                     kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
-                elif mode == 'face':
+                elif source == 'face':
                     kwargs[q] = 'face'
-                elif mode == 'component':
+                elif source == 'component':
                     kwargs[q] = {c: self.get_value(qualifier='color', component=c, context='figure', **_skip_filter_checks) for c in comp_same_kind if c in self.hierarchy.get_meshables()}
-                elif mode == 'model':
+                elif source == 'model':
                     kwargs[q] = {ml: self.get_value(qualifier='color', model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
 
                 if kwargs[q] == 'None':
                     kwargs[q] = None
+
         else:
             for q in ['linestyle', 'marker', 'c']:
                 if q not in kwargs.keys():
@@ -5557,19 +5563,19 @@ class Bundle(ParameterSet):
                     else:
                         suff = ''
 
-                    mode = kwargs.get('{}_source'.format(q), fig_ps.get_value(qualifier='{}_source'.format(q), **_skip_filter_checks))
-                    if mode == 'manual':
+                    source = kwargs.get('{}_source'.format(q), fig_ps.get_value(qualifier='{}_source'.format(q), **_skip_filter_checks))
+                    if source == 'manual':
                         if q == 'marker':
                             kwargs[q] = {'dataset': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
                         elif q == 'linestyle':
                             kwargs[q] = {'model': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
                         else:
                             kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
-                    elif mode == 'dataset':
+                    elif source == 'dataset':
                         kwargs[q] = {ds+suff: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
-                    elif mode == 'model':
+                    elif source == 'model':
                         kwargs[q] = {ml+suff: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
-                    elif mode == 'component':
+                    elif source == 'component':
                         kwargs[q] = {}
                         for c in comp_same_kind:
                             try:
@@ -5578,7 +5584,7 @@ class Bundle(ParameterSet):
                                 # RVs will include orbits in comp_same kind, but we can safely skip those
                                 pass
                     else:
-                        raise NotImplementedError("{}_source of {} not supported".format(q, mode))
+                        raise NotImplementedError("{}_source of {} not supported".format(q, source))
 
 
 

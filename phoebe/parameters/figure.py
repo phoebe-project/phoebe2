@@ -1,21 +1,46 @@
 from phoebe.parameters import *
 import numpy as np
 
+
+
+# https://matplotlib.org/examples/color/colormaps_reference.html
+# unfortunately some colormaps have been added, but we want the nice ones
+# first.  So let's define an order based on 1.5, remove any that aren't supported
+# with the installed version of MPL and then add any that the installed version
+# has that we missed.
+_mplcmaps = ['viridis', 'plasma', 'inferno', 'magma',
+                 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+                    'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
+                    'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn',
+             'binary', 'gist_yarg', 'gist_gray', 'gray', 'bone', 'pink',
+                    'spring', 'summer', 'autumn', 'winter', 'cool', 'Wistia',
+                    'hot', 'afmhot', 'gist_heat', 'copper',
+             'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu',
+                    'RdYlBu', 'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic',
+             'Pastel1', 'Pastel2', 'Paired', 'Accent',
+                    'Dark2', 'Set1', 'Set2', 'Set3',
+                    'tab10', 'tab20', 'tab20b', 'tab20c',
+             'flag', 'prism', 'ocean', 'gist_earth', 'terrain', 'gist_stern',
+                    'gnuplot', 'gnuplot2', 'CMRmap', 'cubehelix', 'brg', 'hsv',
+                    'gist_rainbow', 'rainbow', 'jet', 'nipy_spectral', 'gist_ncar']
+
+_mplcolors = ['k', 'b', 'r', 'g', 'p']
+_mplmarkers = ['.', 'o', '+', 's', '*', 'v', '^', '<', '>', 'p', 'h', 'o', 'D']
+_mpllinestyles = ['solid', 'dashed', 'dotted', 'dashdot', 'None']
+
+
 try:
-    from matplotlib import colors, markers
+    from matplotlib import colors as _colors
+    from matplotlib import markers as _markers
+    from matplotlib.pyplot import colormaps as _colormaps
 except (ImportError, TypeError):
     _use_mpl = False
-    _mplcolors = ['None']
-    _mplmarkers = ['None']
-    _mpllinestyles = ['None']
 else:
     _use_mpl = True
-    _mplcolors = ['k', 'b', 'r', 'g', 'p']
-    _mplcolors = _mplcolors + [c for c in list(colors.ColorConverter.colors.keys()) + list(colors.cnames.keys()) if c not in _mplcolors and 'xkcd' not in c and ':' not in c]
-    _mplmarkers = ['.', 'o', '+', 's', '*', 'v', '^', '<', '>', 'p', 'h', 'o', 'D']
-    # could do matplotlib.markers.MarkerStyle.markers.keys()
-    _mpllinestyles = ['solid', 'dashed', 'dotted', 'dashdot', 'None']
-    # could also do matplotlib.lines.lineStyles.keys()
+    _mplcolors = _mplcolors + [c for c in list(_colors.ColorConverter.colors.keys()) + list(_colors.cnames.keys()) if c not in _mplcolors and 'xkcd' not in c and ':' not in c]
+
+    _mplcmaps = [cm for cm in _mplcmaps if cm in _colormaps()]
+    _mplcmaps += [cm for cm in _colormaps() if cm not in _mplcmaps]
 
 
 class MPLPropCycler(object):
@@ -84,7 +109,7 @@ def _label_units_lims(axis, default_unit, visible_if=None, is_default=True, **kw
 def _figure_style_sources(b, default_color='component', default_linestyle='dataset', default_marker='dataset', **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='c_source', value=kwargs.get('c_source', default_c), choices=['dataset', 'model', 'component', 'manual'], description='Source to use for color.  For manual, see the c parameter in the figure context.  Otherwise, see the c parameters tagged with the corresponding dataset/model/component.')]
+    params += [ChoiceParameter(qualifier='c_source', value=kwargs.get('c_source', default_color), choices=['dataset', 'model', 'component', 'manual'], description='Source to use for color.  For manual, see the c parameter in the figure context.  Otherwise, see the c parameters tagged with the corresponding dataset/model/component.')]
     params += [ChoiceParameter(qualifier='c', visible_if='c_source:manual', value=b._mplcolorcycler.get(kwargs.get('c', None)), choices=b._mplcolorcycler.options, description='Default color when plotted via run_figure')]
 
     params += [ChoiceParameter(qualifier='marker_source', value=kwargs.get('marker_source', default_marker), choices=['dataset', 'component', 'manual'], description='Source to use for marker (datasets only, not models).  For manual, see the marker parameter in the figure context.  Otherwise, see the marker parameters tagged with the corresponding dataset/model/component.')]
@@ -307,10 +332,14 @@ def mesh(b, **kwargs):
     params += [ChoiceParameter(qualifier='fc_source', value=kwargs.get('fc_source', 'column'), choices=['column', 'manual', 'component', 'model'], description='Source to use for facecolor.  For column, see the ec_column parameter.  For manual, see the fc parameter.  Otherwise, see the color parameter tagged with the corresponding component/model')]
     params += [ChoiceParameter(qualifier='fc_column', visible_if='fc_source:column', value=kwargs.get('fc_column', 'None'), choices=['None'], description='Column from the mesh to plot as facecolor if fc_source is column.')]
     params += [ChoiceParameter(qualifier='fc', visible_if='fc_source:manual', value=kwargs.get('fc', 'None'), choices=['None']+_mplcolors, description='Color to use as facecolor if fc_source is manual.')]
+    params += [ChoiceParameter(qualifier='fcmap_source', visible_if='fc_source:column', value=kwargs.get('fcmap_source', 'auto'), choices=['auto', 'manual'], description='Source to use for facecolor colormap.  To have fcmap adjust based on the value of fc, use auto.  For manual, see the fcmap parameter.')]
+    params += [ChoiceParameter(qualifier='fcmap', visible_if='fc_source:column,fcmap_source:manual', value=kwargs.get('fcmap', 'viridis'), choices=_mplcmaps, description='Colormap to use for facecolor if fcmap_source=\'manual\'.')]
 
     params += [ChoiceParameter(qualifier='ec_source', value=kwargs.get('ec_source', 'manual'), choices=['column', 'manual', 'component', 'model', 'face'], description='Source to use for edgecolor.  For column, see the ec_column parameter.  For manual, see the ec parameter.  Otherwise, see the color parameter tagged with the corresponding component/model')]
     params += [ChoiceParameter(qualifier='ec_column', visible_if='ec_source:column', value=kwargs.get('ec_column', 'None'), choices=['None'], description='Column from the mesh to plot as edgecolor if ec_source is column.')]
     params += [ChoiceParameter(qualifier='ec', visible_if='ec_source:manual', value=kwargs.get('ec', 'k' if _use_mpl else None), choices=['face']+_mplcolors, description='Color to use as edgecolor if ec_source is manual.')]
+    params += [ChoiceParameter(qualifier='ecmap_source', visible_if='ec_source:column', value=kwargs.get('ecmap_source', 'auto'), choices=['auto', 'manual'], description='Source to use for edgecolor colormap.  To have ecmap adjust based on the value of ec, use auto.  For manual, see the ecmap parameter.')]
+    params += [ChoiceParameter(qualifier='ecmap', visible_if='ec_source:column,ecmap_source:manual', value=kwargs.get('fcmap', 'viridis'), choices=_mplcmaps, description='Colormap to use for edgecolor if ecmap_source=\'manual\'.')]
 
 
 
