@@ -889,7 +889,7 @@ null
 }, 
 {
 "kind": "star", 
-"description": "Color to use for figures in which c_source is set to component", 
+"description": "Color to use for figures in which color_source is set to component", 
 "component": "starA", 
 "value": "blue", 
 "choices": [
@@ -1194,7 +1194,7 @@ null
 "copy_for": false, 
 "Class": "ChoiceParameter", 
 "advanced": false, 
-"qualifier": "c"
+"qualifier": "color"
 }, 
 {
 "kind": "star", 

@@ -114,8 +114,8 @@ def _label_units_lims(axis, default_unit, visible_if=None, is_default=True, **kw
 def _figure_style_sources(b, default_color='component', default_linestyle='dataset', default_marker='dataset', **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='c_source', value=kwargs.get('c_source', default_color), choices=['dataset', 'model', 'component', 'manual'], description='Source to use for color.  For manual, see the c parameter in the figure context.  Otherwise, see the c parameters tagged with the corresponding dataset/model/component.')]
-    params += [ChoiceParameter(qualifier='c', visible_if='c_source:manual', value=b._mplcolorcycler.get(kwargs.get('c', None)), choices=b._mplcolorcycler.options, description='Default color when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='color_source', value=kwargs.get('color_source', default_color), choices=['dataset', 'model', 'component', 'manual'], description='Source to use for color.  For manual, see the c parameter in the figure context.  Otherwise, see the c parameters tagged with the corresponding dataset/model/component.')]
+    params += [ChoiceParameter(qualifier='color', visible_if='color_source:manual', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Default color when plotted via run_figure')]
 
     params += [ChoiceParameter(qualifier='marker_source', value=kwargs.get('marker_source', default_marker), choices=['dataset', 'component', 'manual'], description='Source to use for marker (datasets only, not models).  For manual, see the marker parameter in the figure context.  Otherwise, see the marker parameters tagged with the corresponding dataset/model/component.')]
     params += [ChoiceParameter(qualifier='marker', visible_if='marker_source:manual', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Default marker (datasets only, not models) when plotted via run_figure')]
@@ -148,7 +148,7 @@ def _new_bundle(**kwargs):
 def _add_component(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='c', value=b._mplcolorcycler.get(kwargs.get('c', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which color_source is set to component')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which color_source is set to component')]
     params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Marker (datasets only, not models) to use for figures in which marker_source is set to component')]
     params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_source is set to component')]
 
@@ -157,7 +157,7 @@ def _add_component(b, **kwargs):
 def _add_dataset(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='c', value=b._mplcolorcycler.get(kwargs.get('c', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which linestyle_source is set to dataset')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which color_source is set to dataset')]
     params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Marker (datasets only, not models) to use for figures in which marker_source is set to dataset')]
     params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', 'solid' if _use_autofig else None)), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_source is set to dataset')]
 
@@ -166,7 +166,7 @@ def _add_dataset(b, **kwargs):
 def _run_compute(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='c', value=b._mplcolorcycler.get(kwargs.get('c', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which color_source is set to model')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which color_source is set to model')]
     # params += [ChoiceParameter(qualifier='marker', value=kwargs.get('marker', None), choices=b._mpl, description='Default marker when plotted, overrides dataset value unless set to <dataset>')]
     params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_source is set to model')]
 
@@ -202,7 +202,7 @@ def lc(b, **kwargs):
 
     params += _label_units_lims('y', default_unit=u.W/u.m**2, is_default=True, **kwargs)
 
-    kwargs.setdefault('c', 'black' if _use_autofig else None)
+    kwargs.setdefault('color', 'black' if _use_autofig else None)
     kwargs.setdefault('marker', '.' if _use_autofig else None)
     kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
     params += _figure_style_sources(b, default_color='model', default_marker='manual', default_linestyle='manual', **kwargs)
@@ -230,7 +230,7 @@ def rv(b, **kwargs):
 
     params += _label_units_lims('y', default_unit=u.km/u.s, is_default=True, **kwargs)
 
-    kwargs.setdefault('c', 'black') if _use_autofig else None
+    kwargs.setdefault('color', 'black') if _use_autofig else None
     kwargs.setdefault('marker', '.' if _use_autofig else None)
     kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
     params += _figure_style_sources(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
@@ -279,7 +279,7 @@ def orb(b, **kwargs):
     params += _label_units_lims('y', visible_if='y:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
     params += _label_units_lims('y', visible_if='y:vus|vvs|vws', default_unit=u.km/u.s, is_default=False, **kwargs)
 
-    kwargs.setdefault('c', 'black' if _use_autofig else None)
+    kwargs.setdefault('color', 'black' if _use_autofig else None)
     kwargs.setdefault('marker', '.' if _use_autofig else None)
     kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
     params += _figure_style_sources(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
@@ -305,7 +305,7 @@ def lp(b, **kwargs):
     params += _label_units_lims('x', default_unit=u.nm, is_default=True, **kwargs)
     params += _label_units_lims('y', default_unit=u.W/(u.m**2*u.nm), is_default=True, **kwargs)
 
-    kwargs.setdefault('c', 'black' if _use_autofig else None)
+    kwargs.setdefault('color', 'black' if _use_autofig else None)
     kwargs.setdefault('marker', '.' if _use_autofig else None)
     kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
     params += _figure_style_sources(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
@@ -334,7 +334,7 @@ def mesh(b, **kwargs):
     params += _label_units_lims('y', visible_if='y:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
     params += _label_units_lims('y', visible_if='y:xs|ys|zs', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
 
-    params += [ChoiceParameter(qualifier='fc_source', value=kwargs.get('fc_source', 'column'), choices=['column', 'manual', 'component', 'model'], description='Source to use for facecolor.  For column, see the ec_column parameter.  For manual, see the fc parameter.  Otherwise, see the color parameter tagged with the corresponding component/model')]
+    params += [ChoiceParameter(qualifier='fc_source', value=kwargs.get('fc_source', 'column'), choices=['column', 'manual', 'component', 'model'], description='Source to use for facecolor.  For column, see the fc_column parameter.  For manual, see the fc parameter.  Otherwise, see the color parameter tagged with the corresponding component/model')]
     params += [ChoiceParameter(qualifier='fc_column', visible_if='fc_source:column', value=kwargs.get('fc_column', 'None'), choices=['None'], description='Column from the mesh to plot as facecolor if fc_source is column.')]
     params += [ChoiceParameter(qualifier='fc', visible_if='fc_source:manual', value=kwargs.get('fc', 'None'), choices=['None']+_mplcolors, description='Color to use as facecolor if fc_source is manual.')]
     params += [ChoiceParameter(qualifier='fcmap_source', visible_if='fc_source:column', value=kwargs.get('fcmap_source', 'auto'), choices=['auto', 'manual'], description='Source to use for facecolor colormap.  To have fcmap adjust based on the value of fc, use auto.  For manual, see the fcmap parameter.')]

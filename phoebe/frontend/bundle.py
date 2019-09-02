@@ -828,7 +828,7 @@ class Bundle(ParameterSet):
         # IMPORTANT NOTE: if changing any of the defaults for a new release,
         # make sure to update the cached files (see frontend/default_bundles
         # directory for script to update all cached bundles)
-        b.add_star(component=starA, c='blue')
+        b.add_star(component=starA, color='blue')
         b.set_hierarchy(_hierarchy.component(b[starA]))
         b.add_compute(distortion_method='rotstar', irrad_method='none')
         return b
@@ -923,8 +923,8 @@ class Bundle(ParameterSet):
         else:
             orbit_defaults = {'sma': 5.3, 'period': 1.0}
             star_defaults = {'requiv': 1.0}
-        b.add_star(component=starA, c='blue', **star_defaults)
-        b.add_star(component=starB, c='red', **star_defaults)
+        b.add_star(component=starA, color='blue', **star_defaults)
+        b.add_star(component=starB, color='red', **star_defaults)
         b.add_orbit(component=orbit, **orbit_defaults)
         if contact_binary:
             b.add_component('envelope', component='contact_envelope')
@@ -1001,9 +1001,9 @@ class Bundle(ParameterSet):
             raise NotImplementedError("'default_triple' not officially supported for this release.  Enable developer mode to test.")
 
         b = cls()
-        b.add_star(component=starA, c='blue')
-        b.add_star(component=starB, c='red')
-        b.add_star(component=starC, c='green')
+        b.add_star(component=starA, color='blue')
+        b.add_star(component=starB, color='red')
+        b.add_star(component=starC, color='green')
         b.add_orbit(component=inner, period=1)
         b.add_orbit(component=outer, period=10)
 
@@ -5553,7 +5553,7 @@ class Bundle(ParameterSet):
                     kwargs[q] = None
 
         else:
-            for q in ['linestyle', 'marker', 'c']:
+            for q in ['linestyle', 'marker', 'color']:
                 if q not in kwargs.keys():
                     if q == 'marker':
                         # don't apply markers to models
