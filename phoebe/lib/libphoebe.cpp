@@ -9546,7 +9546,7 @@ static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {
 
   PyArrayObject *o_params;
 
-  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "O!O!O!", kwlist,
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "O!O!|O!", kwlist,
         &PyString_Type, &o_descr,
         &PyArray_Type,  &o_params,
         &PyBool_Type,   &o_strict )
