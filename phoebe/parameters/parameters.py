@@ -6163,6 +6163,36 @@ class ChoiceParameter(Parameter):
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
+    def handle_choice_rename(self, **rename):
+        """
+        Update the value according to a set of renames.
+
+        Arguments
+        ---------------
+        * `**rename`: all pairs are renamed from the keys to the values.
+
+        Returns
+        ------------
+        * bool: whether the value has been changed due to `rename`.
+
+        Raises
+        -------------
+        * ValueError: if the current value cannot be mapped to a value in
+            <phoebe.parameters.ChoiceParameter.choices>.
+        """
+        current_value = self.get_value()
+
+        value = rename.get(current_value, current_value)
+
+        if current_value == value:
+            return False
+
+        if value in self.choices:
+            self.set_value(value)
+            return True
+        else:
+            raise ValueError("could not set value to a valid entry in choices: {}".format(self.choices))
+
 class SelectParameter(Parameter):
     """
     Parameter in which the value is a list of pre-defined choices
