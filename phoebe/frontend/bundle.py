@@ -2742,7 +2742,8 @@ class Bundle(ParameterSet):
         b.add_feature('spot', 'mystar', colat=90)
         ```
 
-        Available kinds can be found in <phoebe.parameters.feature> and include:
+        Available kinds can be found in <phoebe.parameters.feature> or by calling
+        <phoebe.list_available_features> and include:
         * <phoebe.parameters.feature.spot>
 
         Arguments
@@ -3068,7 +3069,8 @@ class Bundle(ParameterSet):
         b.add_component('orbit', period=2.5)
         ```
 
-        Available kinds can be found in <phoebe.parameters.component> and include:
+        Available kinds can be found in <phoebe.parameters.component> or by calling
+        <phoebe.list_available_components> and include:
         * <phoebe.parameters.component.star>
         * <phoebe.parmaeters.component.orbit>
         * <phoebe.parameters.component.envelope>
@@ -3538,7 +3540,8 @@ class Bundle(ParameterSet):
         For radial velocities, you need to provide a list of components
         for which values should be computed.
 
-        Available kinds can be found in <phoebe.parameters.dataset> and include:
+        Available kinds can be found in <phoebe.parameters.dataset> or by calling
+        <phoebe.list_available_datasets> and include:
         * <phoebe.parameters.dataset.lc>
         * <phoebe.parameters.dataset.rv>
         * <phoebe.parameters.dataset.lp>
@@ -5250,7 +5253,8 @@ class Bundle(ParameterSet):
         accessed by the `compute` attribute of the returned
         <phoebe.parameters.ParameterSet>.
 
-        Available kinds can be found in <phoebe.parameters.compute> and include:
+        Available kinds can be found in <phoebe.parameters.compute> or by calling
+        <phoebe.list_available_computes> and include:
         * <phoebe.parameters.compute.phoebe>
         * <phoebe.parameters.compute.legacy>
 
