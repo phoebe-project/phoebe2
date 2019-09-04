@@ -1403,6 +1403,7 @@ class Bundle(ParameterSet):
 
         elif tag=='component':
             affected_params += self._handle_component_selectparams(rename={old_value: new_value}, return_changes=True)
+            affected_params += self._handle_pblum_defaults(rename={old_value: new_value}, return_changes=True)
 
         elif tag=='compute':
             affected_params += self._handle_compute_selectparams(rename={old_value: new_value}, return_changes=True)
@@ -1635,7 +1636,7 @@ class Bundle(ParameterSet):
 
         # return affected_params
 
-    def _handle_pblum_defaults(self, return_changes=False):
+    def _handle_pblum_defaults(self, rename={}, return_changes=False):
         """
         """
         logger.debug("calling _handle_pblum_defaults")
@@ -1656,16 +1657,22 @@ class Bundle(ParameterSet):
 
             param._choices = [ds for ds in datasetrefs if ds!=param.dataset]
 
-            if param.value == '' and len(param._choices):
-                param.set_value(param._choices[0])
-                if return_changes:
-                    affected_params.append(param)
-
             if not len(param._choices):
                 param._choices = ['']
                 param.set_value('')
                 if return_changes:
                     affected_params.append(param)
+
+            elif param.value == '':
+                param.set_value(param._choices[0])
+                if return_changes:
+                    affected_params.append(param)
+
+            else:
+                changed = param.handle_choice_rename(**rename)
+
+
+
 
         for param in self.filter(qualifier='pblum_component',
                                  context='dataset',
@@ -1676,6 +1683,8 @@ class Bundle(ParameterSet):
 
             if param.value == '':
                 param.set_value(starrefs[0])
+            else:
+                changed = param.handle_choice_rename(**rename)
 
             if return_changes:
                 affected_params.append(param)
@@ -3484,7 +3493,7 @@ class Bundle(ParameterSet):
         Returns
         ---------
         * <phoebe.parameters.ParameterSet> of all parameters that have been added
-
+            or changed.
 
         Raises
         ----------
@@ -3547,10 +3556,12 @@ class Bundle(ParameterSet):
                              'component': kwargs['component']}
             self._attach_params(fig_params, **fig_metawargs)
 
-        self._handle_component_selectparams()
 
         # TODO: include figure params in returned PS?
         ret_ps = self.get_component(check_visible=False, check_default=False, **metawargs)
+
+        ret_ps += ParameterSet(self._handle_component_selectparams(return_changes=True))
+        ret_ps += ParameterSet(self._handle_pblum_defaults(return_changes=True))
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -3621,7 +3632,7 @@ class Bundle(ParameterSet):
 
         Returns
         --------
-        * <phoebe.parameters.ParameterSet> the renamed component
+        * <phoebe.parameters.ParameterSet> of any parameters that were changed.
 
         Raises
         --------
@@ -3639,9 +3650,11 @@ class Bundle(ParameterSet):
             logger.warning("hierarchy may not update correctly with new component")
         self.hierarchy.rename_component(old_component, new_component)
 
-        # NOTE: _handle_component_selectparams is handled by _rename_label
+        # NOTE: _handle_component_selectparams and _handle_pblum_defaults
+        # is handled by _rename_label
         ret_params = self._rename_label('component', old_component, new_component)
         self.hierarchy._update_cache()
+        ret_params += [self.hierarchy]
 
         return ParameterSet(ret_params)
 
