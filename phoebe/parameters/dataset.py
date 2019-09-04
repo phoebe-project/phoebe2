@@ -40,7 +40,8 @@ lc_columns += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_norm
 lc_columns += ['boost_factors', 'ldint']
 lc_columns += ['pblum_ext', 'abs_pblum_ext', 'ptfarea']
 
-rv_columns = lc_columns[:]
+# rv columns have all pb-dependent columns except those that require pblum scaling
+rv_columns = [c for c in lc_columns[:] if c not in ['intensities', 'normal_intensities', 'pblum_ext']]
 rv_columns += ['rvs']
 
 lp_columns = rv_columns[:]
