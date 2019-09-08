@@ -1350,10 +1350,10 @@ class Bundle(ParameterSet):
 
     def __str__(self):
         return_ = ''
-        for context in ['system', 'component', 'dataset', 'figure', 'constraint',
-                        'compute', 'model',]:
+        for context in ['context', 'kind', 'component', 'feature', 'dataset',
+                        'figure', 'constraint', 'compute', 'model', 'qualifier']:
             return_ += '{}:\n'.format(context.upper())
-            return_ += "\n".join(self.filter(context=context).to_dict().keys())
+            return_ += "\n".join( self._options_for_tag(context, include_default=False))
             return_ += '\n\n'
 
         return return_
