@@ -1477,9 +1477,9 @@ class Passband:
         # self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
 
         for i, Imu in enumerate(ImuE):
-            self._phoenix_Imu_energy_grid[Teff[i/len(mu)] == self._phoenix_intensity_axes[0], logg[i/len(mu)] == self._phoenix_intensity_axes[1], abun[i/len(mu)] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
+            self._phoenix_Imu_energy_grid[Teff[int(i/len(mu))] == self._phoenix_intensity_axes[0], logg[int(i/len(mu))] == self._phoenix_intensity_axes[1], abun[int(i/len(mu))] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
         for i, Imu in enumerate(ImuP):
-            self._phoenix_Imu_photon_grid[Teff[i/len(mu)] == self._phoenix_intensity_axes[0], logg[i/len(mu)] == self._phoenix_intensity_axes[1], abun[i/len(mu)] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
+            self._phoenix_Imu_photon_grid[Teff[int(i/len(mu))] == self._phoenix_intensity_axes[0], logg[int(i/len(mu))] == self._phoenix_intensity_axes[1], abun[int(i/len(mu))] == self._phoenix_intensity_axes[2], mu[i%len(mu)] == self._phoenix_intensity_axes[3], 0] = Imu
         # for i, Bavg in enumerate(boostingE):
         #     self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
         # for i, Bavg in enumerate(boostingP):
