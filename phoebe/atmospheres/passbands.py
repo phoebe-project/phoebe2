@@ -899,9 +899,9 @@ class Passband:
             new_table[1:-1,1:-1,1:-1] = table
         else:
             # find an overlap between axes and new_axes:
-            Ti, Tl = new_axes[0].tostring().index(axes[0].tostring())/new_axes[0].itemsize, len(axes[0])
-            Li, Ll = new_axes[1].tostring().index(axes[1].tostring())/new_axes[1].itemsize, len(axes[1])
-            Mi, Ml = new_axes[2].tostring().index(axes[2].tostring())/new_axes[2].itemsize, len(axes[2])
+            Ti, Tl = int(new_axes[0].tostring().index(axes[0].tostring())/new_axes[0].itemsize), len(axes[0])
+            Li, Ll = int(new_axes[1].tostring().index(axes[1].tostring())/new_axes[1].itemsize), len(axes[1])
+            Mi, Ml = int(new_axes[2].tostring().index(axes[2].tostring())/new_axes[2].itemsize), len(axes[2])
 
             new_table[Ti:Ti+Tl,Li:Li+Ll,Mi:Mi+Ml] = table
 
@@ -912,7 +912,7 @@ class Passband:
                 for Mi in range(len(new_axes[2])):
                     if not np.isnan(new_table[Ti, Li, Mi, 0]):
                         continue
-                    
+
                     num_directions = 0
                     extrapolated_value = 0.0
 
@@ -978,7 +978,7 @@ class Passband:
                     for mi in range(len(new_axes[3])):
                         if not np.isnan(new_table[Ti, Li, Mi, mi, 0]):
                             continue
-                        
+
                         num_directions = 0
                         extrapolated_value = 0.0
 
