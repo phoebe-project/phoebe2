@@ -999,7 +999,7 @@ class Axes(object):
 
         if self.axpos is None:
             # we'll reset the layout later anyways
-            ax_new = fig.add_subplot(1,1,1, projection=self._projection)
+            ax_new = fig.add_subplot(rows,cols,N, projection=self._projection)
             axes = fig.axes
 
             for i,ax in enumerate(axes):
