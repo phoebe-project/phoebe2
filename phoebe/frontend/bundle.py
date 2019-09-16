@@ -5451,6 +5451,8 @@ class Bundle(ParameterSet):
             figure = self.figures
 
 
+        qmap = {'color': 'c'}
+
         if isinstance(figure, list) or isinstance(figure, tuple):
             figures = figure
             show = kwargs.pop('show', False)
@@ -5583,16 +5585,16 @@ class Bundle(ParameterSet):
                         elif q == 'linestyle':
                             kwargs[q] = {'model': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
                         else:
-                            kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                            kwargs[qmap.get(q,q)] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
                     elif source == 'dataset':
-                        kwargs[q] = {ds+suff: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
+                        kwargs[qmap.get(q,q)] = {ds+suff: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
                     elif source == 'model':
-                        kwargs[q] = {ml+suff: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
+                        kwargs[qmap.get(q,q)] = {ml+suff: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
                     elif source == 'component':
-                        kwargs[q] = {}
+                        kwargs[qmap.get(q,q)] = {}
                         for c in comp_same_kind:
                             try:
-                                kwargs[q][c+suff] = self.get_value(qualifier=q, component=c, context='figure', **_skip_filter_checks)
+                                kwargs[qmap.get(q,q)][c+suff] = self.get_value(qualifier=q, component=c, context='figure', **_skip_filter_checks)
                             except ValueError:
                                 # RVs will include orbits in comp_same kind, but we can safely skip those
                                 pass
