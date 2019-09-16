@@ -5461,7 +5461,7 @@ class Bundle(ParameterSet):
             for figure in figures:
                 self.run_figure(figure=figure, **{k: v.get(figure) if isinstance(v, dict) and figure in v.keys() else v for k,v in kwargs.items()})
 
-            return self._show_or_save(save, show, animate)
+            return self._show_or_save(save, show, animate, **kwargs)
 
 
         fig_ps = self.get_figure(figure=figure, **kwargs)
@@ -5603,8 +5603,9 @@ class Bundle(ParameterSet):
 
 
 
+        kwargs.setdefault('tight_layout', True)
         logger.info("calling plot(**{})".format(kwargs))
-        return self.plot(tight_layout=True, **kwargs)
+        return self.plot(**kwargs)
 
 
     def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):
