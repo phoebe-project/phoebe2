@@ -1,4 +1,5 @@
 from phoebe.parameters import *
+from phoebe.parameters.unit_choices import unit_choices as _unit_choices
 import numpy as np
 
 if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
@@ -98,11 +99,10 @@ def _label_units_lims(axis, default_unit, visible_if=None, is_default=True, **kw
         params += [ChoiceParameter(qualifier='{}lim_source'.format(axis), value=kwargs.get('{}lim_source'.format(axis), 'auto'), choices=['auto', 'manual'], advanced=True, description='Whether to automatically or manually set the {}-limits.'.format(axis))]
 
 
-    # TODO: change this to a ChoiceParameter and move logic of available units from phoebe-server into phoebe
     visible_if_unit = '{}unit_source:manual'.format(axis)
     if visible_if is not None:
         visible_if_unit = visible_if_unit+','+visible_if
-    params += [UnitParameter(qualifier='{}unit'.format(axis), visible_if=visible_if_unit, value=kwargs.get('{}unit'.format(axis), default_unit), description='Unit for {}-axis'.format(axis))]
+    params += [UnitParameter(qualifier='{}unit'.format(axis), visible_if=visible_if_unit, value=kwargs.get('{}unit'.format(axis), default_unit), choices=_unit_choices(default_unit), description='Unit for {}-axis'.format(axis))]
 
     visible_if_lim = '{}lim_source:manual'.format(axis)
     if visible_if is not None:
@@ -198,7 +198,7 @@ def lc(b, **kwargs):
     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'fluxes'), choices=['fluxes', 'residuals'], description='Array to plot along y-axis')]
 
     params += _label_units_lims('x', visible_if='x:times', default_unit=u.d, is_default=True, **kwargs)
-    params += _label_units_lims('x', visible_if='x:!times', default_unit=u.cycle, is_default=False, **kwargs)
+    params += _label_units_lims('x', visible_if='x:!times', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
 
     params += _label_units_lims('y', default_unit=u.W/u.m**2, is_default=True, **kwargs)
 
@@ -226,7 +226,7 @@ def rv(b, **kwargs):
     params += [ChoiceParameter(qualifier='y', value=kwargs.get('y', 'rvs'), choices=['rvs', 'residuals'], description='Array to plot along y-axis')]
 
     params += _label_units_lims('x', visible_if='x:times', default_unit=u.d, is_default=True, **kwargs)
-    params += _label_units_lims('x', visible_if='x:!times', default_unit=u.cycle, is_default=False, **kwargs)
+    params += _label_units_lims('x', visible_if='x:!times', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
 
     params += _label_units_lims('y', default_unit=u.km/u.s, is_default=True, **kwargs)
 
@@ -272,7 +272,7 @@ def orb(b, **kwargs):
 
     params += _label_units_lims('x', visible_if='x:times', default_unit=u.d, is_default=False, **kwargs)
     # TODO: this visible_if will likely fail if/once we implement phases:* for the choices for x
-    params += _label_units_lims('x', visible_if='x:phases', default_unit=u.cycle, is_default=False, **kwargs)
+    params += _label_units_lims('x', visible_if='x:phases', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
     params += _label_units_lims('x', visible_if='x:us|vs|ws', default_unit=u.solRad, is_default=True, **kwargs)
     params += _label_units_lims('x', visible_if='x:vus|vvs|vws', default_unit=u.km/u.s, is_default=False, **kwargs)
 
@@ -353,18 +353,14 @@ def mesh(b, **kwargs):
         # see dataset._mesh_columns
         # even though this isn't really the default case, we'll pass is_default=True
         # so that we get fc/eclim_source, etc, parameters
-        params += _label_units_lims(q, visible_if=q+':vxs|vys|vzs|vus|vws|vvs|rvs', default_unit=u.km/u.s, is_default=True, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':rs|rprojs', default_unit=u.solRad, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':areas', default_unit=u.solRad**2, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':teffs', default_unit=u.K, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':pblum_ext|abs_pblum_ext', default_unit=u.W, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':ptfarea', default_unit=u.m, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':intensities|normal_intensities|abs_intensities|abs_normal_intensities', default_unit=u.W/u.m**3, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':visibilities', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':mus', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':loggs', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':boost_factors', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
-        params += _label_units_lims(q, visible_if=q+':ldint', default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if='{}_source:column,{}_column:vxs|vys|vzs|vus|vws|vvs|rvs'.format(q,q), default_unit=u.km/u.s, is_default=True, **kwargs)
+        params += _label_units_lims(q, visible_if='{}_source:column,{}_column:rs|rprojs'.format(q,q), default_unit=u.solRad, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if='{}_source:column,{}_column:areas'.format(q,q), default_unit=u.solRad**2, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if='{}_source:column,{}_column:teffs'.format(q,q), default_unit=u.K, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if='{}_source:column,{}_column:pblum_ext|abs_pblum_ext'.format(q,q), default_unit=u.W, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if='{}_source:column,{}_column:ptfarea'.format(q,q), default_unit=u.m, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if='{}_source:column,{}_column:intensities|normal_intensities|abs_intensities|abs_normal_intensities'.format(q,q), default_unit=u.W/u.m**3, is_default=False, **kwargs)
+        params += _label_units_lims(q, visible_if='{}_source:column,{}_column:visibilities|mus|loggs|boost_factors|ldint'.format(q,q), default_unit=u.dimensionless_unscaled, is_default=False, **kwargs)
 
     # TODO: legend=True currently fails
     params += [BoolParameter(qualifier='draw_sidebars', value=kwargs.get('draw_sidebars', True), advanced=True, description='Whether to draw the sidebars')]

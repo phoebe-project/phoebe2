@@ -6547,7 +6547,7 @@ class BoolParameter(Parameter):
             if self.context not in ['setting', 'history']:
                 self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
-class UnitParameter(Parameter):
+class UnitParameter(ChoiceParameter):
     def __init__(self, *args, **kwargs):
         """
         see :meth:`Parameter.__init__`
@@ -6563,7 +6563,14 @@ class UnitParameter(Parameter):
 
     def _check_type(self, value):
         if isinstance(value, u.Unit) or isinstance(value, u.CompositeUnit) or isinstance(value, u.IrreducibleUnit):
-            return value
+            value = value.to_string()
+            if value == '':
+                return 'dimensionless'
+            else:
+                return value
+
+        if value in ['', 'dimensionless']:
+            return 'dimensionless'
 
         if isinstance(value, str) or isinstance(value, unicode):
             try:
@@ -6571,30 +6578,57 @@ class UnitParameter(Parameter):
             except:
                 raise ValueError("{} not supported Unit".format(value))
             else:
-                return value
+                return value.to_string()
+
+        return value
+
+    @update_if_client
+    def get_value(self, **kwargs):
+        """
+        Get the current value of the <phoebe.parameters.UnitParameter>.
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (string) the current or overridden value of the Parameter
+        """
+        return u.Unit(self._value) if self._value not in [None, '', 'dimensionless'] else u.dimensionless_unscaled
 
     @send_if_client
     def set_value(self, value, **kwargs):
         """
+        Set the current value of the <phoebe.parameters.UnitParameter>.
+
+        Arguments
+        ----------
+        * `value` (Unit or string): the new value of the Parameter.
+        * `**kwargs`: IGNORED
+
+        Raises
+        ---------
+        * ValueError: if `value` could not be converted to a unit.
+        * ValueError: if `value` cannot be mapped to one of
+            <phoebe.parameters.UnitParameter.choices>
         """
         _orig_value = deepcopy(self.get_value())
 
         value = self._check_type(value)
 
-        # the following line will raise an error if units are not compatible
-        _orig_value.to(value)
+        if value not in self.choices:
+            # TODO: see if same physical type and allow if so?
+
+            raise ValueError("value for {} must be one of {}, not '{}'".format(self.uniquetwig, self.choices, value))
 
         self._value = value
 
-        if self.context not in ['setting', 'history']:
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 
-    @update_if_client
-    def get_value(self):
-        """
-        """
-        return self._value
 
 class DictParameter(Parameter):
     def __init__(self, *args, **kwargs):
