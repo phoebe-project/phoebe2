@@ -139,7 +139,7 @@ _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarc
 
 # from setting:
 _forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter',
-                      'dict_set_all', 'run_checks_compute']
+                      'dict_set_all', 'run_checks_compute', 'auto_add_figure']
 
 # from component
 _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
@@ -1233,7 +1233,7 @@ class ParameterSet(object):
                          for k in _meta_fields_twig
                          if metawargs[k] is not None])
 
-    def _attach_params(self, params, check_copy_for=True, **kwargs):
+    def _attach_params(self, params, check_copy_for=True, override_tags=False, **kwargs):
         """Attach a list of parameters (or ParameterSet) to this ParameterSet.
 
         :parameter list params: list of parameters, or ParameterSet
@@ -1247,7 +1247,7 @@ class ParameterSet(object):
             for k, v in kwargs.items():
                 # Here we'll set the attributes (_context, _qualifier, etc)
                 if k in ['check_default', 'check_visible']: continue
-                if getattr(param, '_{}'.format(k)) is None:
+                if getattr(param, '_{}'.format(k)) is None or override_tags:
                     setattr(param, '_{}'.format(k), v)
             self._params.append(param)
 
@@ -1478,20 +1478,28 @@ class ParameterSet(object):
 
         Arguments
         ---------
-        * `filename` (string): relative or full path to the file
+        * `filename` (string): relative or full path to the file.  Alternatively,
+            this can be the json string itself or a list of dictionaries (the
+            unpacked json).
 
         Returns
         ---------
         * an instantiated <phoebe.parameters.ParameterSet> object
         """
-        filename = os.path.expanduser(filename)
-        with open(filename, 'r') as f:
-            if _can_ujson:
-                # NOTE: this will not parse the unicode.  Bundle.open always calls
-                # json instead of ujson for this reason.
-                data = ujson.load(f)
-            else:
-                data = json.load(f, object_pairs_hook=parse_json)
+        if isinstance(filename, list):
+            data = filename
+        elif isinstance(filename, str) and "{" in filename:
+            data = json.loads(filename)
+        else:
+            filename = os.path.expanduser(filename)
+            with open(filename, 'r') as f:
+                if _can_ujson:
+                    # NOTE: this will not parse the unicode.  Bundle.open always calls
+                    # json instead of ujson for this reason.
+                    data = ujson.load(f)
+                else:
+                    data = json.load(f, object_pairs_hook=parse_json)
+
         return cls(data)
 
     def save(self, filename, incl_uniqueid=False, compact=False):
@@ -1875,7 +1883,7 @@ class ParameterSet(object):
         """
         return iter(self.__dict__())
 
-    def to_json(self, incl_uniqueid=False):
+    def to_json(self, incl_uniqueid=False, exclude=[]):
         """
         Convert the <phoebe.parameters.ParameterSet> to a json-compatible
         object.
@@ -1894,6 +1902,7 @@ class ParameterSet(object):
         * `incl_uniqueid` (bool, optional, default=False): whether to include
             uniqueids in the file (only needed if its necessary to maintain the
             uniqueids when reloading)
+        * `exclude` (list, optional, default=[]): tags to exclude when saving.
 
         Returns
         -----------
@@ -1901,7 +1910,7 @@ class ParameterSet(object):
         """
         lst = []
         for context in _contexts:
-            lst += [v.to_json(incl_uniqueid=incl_uniqueid)
+            lst += [v.to_json(incl_uniqueid=incl_uniqueid, exclude=exclude)
                     for v in self.filter(context=context,
                                          check_visible=False,
                                          check_default=False).to_list()]
@@ -4719,16 +4728,23 @@ class Parameter(object):
 
         Arguments
         ---------
-        * `filename` (string): relative or full path to the file
+        * `filename` (string): relative or full path to the file.  Alternatively,
+            this can be the json string itself or a dictionary (the
+            unpacked json).
 
         Returns
         -------
         * (<phoebe.parameters.Parameter): the inistantiated Parameter object.
         """
-        filename = os.path.expanduser(filename)
-        f = open(filename, 'r')
-        data = json.load(f, object_pairs_hook=parse_json)
-        f.close()
+        if isinstance(filename, dict):
+            data = filename
+        elif isinstance(filename, str) and "{" in filename:
+            data = json.loads(filename)
+        else:
+            filename = os.path.expanduser(filename)
+            f = open(filename, 'r')
+            data = json.load(f, object_pairs_hook=parse_json)
+            f.close()
         return cls(data)
 
     def save(self, filename, incl_uniqueid=False):
@@ -4758,7 +4774,7 @@ class Parameter(object):
 
         return filename
 
-    def to_json(self, incl_uniqueid=False):
+    def to_json(self, incl_uniqueid=False, exclude=[]):
         """
         Convert the <phoebe.parameters.Parameter> to a json-compatible
         object.
@@ -4773,6 +4789,7 @@ class Parameter(object):
         * `incl_uniqueid` (bool, optional, default=False): whether to include
             uniqueids in the file (only needed if its necessary to maintain the
             uniqueids when reloading)
+        * `exclude` (list, optional, default=[]): tags to exclude when saving.
 
         Returns
         -----------
@@ -4812,7 +4829,7 @@ class Parameter(object):
                 except:
                     raise NotImplementedError("could not parse {} of '{}' to json".format(k, self.uniquetwig))
 
-        return {k: _parse(k, v) for k,v in self.to_dict().items() if (v is not None and k not in ['twig', 'uniquetwig', 'quantity'] and (k!='uniqueid' or incl_uniqueid or self.qualifier=='detached_job'))}
+        return {k: _parse(k, v) for k,v in self.to_dict().items() if (v is not None and k not in ['twig', 'uniquetwig', 'quantity']+exclude and (k!='uniqueid' or incl_uniqueid or self.qualifier=='detached_job'))}
 
     @property
     def attributes(self):

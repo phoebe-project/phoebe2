@@ -356,7 +356,7 @@ class Bundle(ParameterSet):
 
     """
 
-    def __init__(self, params=None):
+    def __init__(self, params=None, check_version=False):
         """Initialize a new Bundle.
 
         Initializing a new bundle without a constructor is possible, but not
@@ -386,6 +386,7 @@ class Bundle(ParameterSet):
 
         self._params = []
         super(Bundle, self).__init__(params=params)
+
 
         # flags for handling functionality not available to files imported from
         # older version of PHOEBE.
@@ -441,7 +442,7 @@ class Bundle(ParameterSet):
         self._mpllinestylecycler = _figure.MPLPropCycler(_figure._mpllinestyles)
 
     @classmethod
-    def open(cls, filename):
+    def open(cls, filename, import_from_older=True, import_from_newer=False):
         """
         For convenience, this function is available at the top-level as
         <phoebe.open> or <phoebe.load> as well as
@@ -468,11 +469,29 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `filename` (string or file object): relative or full path to the file
-            or an opened python file object.
+            or an opened python file object.  Alternatively, pass a list of
+            parameter dictionaries to be loaded directly (use carefully).
+        * `import_from_older` (bool, optional, default=True): whether to allow
+            importing bundles that were created with an older minor relase
+            of PHOEBE into the current version.  If True, enable the logger
+            (at warning level or higher) to see messages.  If False, an error will
+            be raised.  Generally, this should be a safe import operation as we
+            try to handle migrating previous versions.
+        * `import_from_newer` (bool, optional, default=False): whether to allow
+            importing bundles that were created with a newer minor release
+            of PHOEBE into the current installed version.  If True, enable the
+            logger (at warning level or higher) to see messages.  If False, an
+            error will be raised.  This is off by default as we cannot guarantee
+            support with future changes to the code.
 
         Returns
         ---------
         * an instantiated <phoebe.frontend.bundle.Bundle> object
+
+        Raises
+        ---------
+        * RuntimeError: if the version of the imported file fails to load according
+            to `import_from_older` or `import_from_newer`.
         """
         if io._is_file(filename):
             f = filename
@@ -480,11 +499,18 @@ class Bundle(ParameterSet):
             filename = os.path.expanduser(filename)
             logger.debug("importing from {}".format(filename))
             f = open(filename, 'r')
+        elif isinstance(filename, list):
+            # we'll handle later
+            pass
         else:
             raise TypeError("filename must be string, unicode, or file object, got {}".format(type(filename)))
 
-        data = json.load(f, object_pairs_hook=parse_json)
-        f.close()
+        if isinstance(filename, list):
+            data = filename
+        else:
+            data = json.load(f, object_pairs_hook=parse_json)
+            f.close()
+
         b = cls(data)
 
         version = b.get_value(qualifier='phoebe_version', check_default=False, check_visible=False)
@@ -499,10 +525,15 @@ class Bundle(ParameterSet):
         if phoebe_version_import == phoebe_version_this:
             return b
         elif phoebe_version_import > phoebe_version_this:
+            if not import_from_newer:
+                raise RuntimeError("The file/bundle is from a newer version of PHOEBE ({}) than installed ({}).  Consider updating or attempt importing by passing import_from_newer=True.".format(phoebe_version_import, phoebe_version_this))
             warning = "importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating".format(phoebe_version_import)
             print("WARNING: {}".format(warning))
             logger.warning(warning)
             return b
+        elif not import_from_older:
+            raise RuntimeError("The file/bundle is from an older version of PHOEBE ({}) than installed ({}). Attempt importing by passing import_from_older=True.".format(phoebe_version_import, phoebe_version_this))
+
 
         if phoebe_version_import < StrictVersion("2.2.0"):
             warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
@@ -6332,6 +6363,204 @@ class Bundle(ParameterSet):
 
         return self.filter(compute=new_compute)
 
+    def _prepare_compute(self, compute, model, **kwargs):
+        """
+        """
+        # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
+        # so let's raise an error if they're passed here
+        if 'protomesh' in kwargs.keys():
+            raise ValueError("protomesh is no longer a valid option")
+        if 'pbmesh' in kwargs.keys():
+            raise ValueError("pbmesh is no longer a valid option")
+
+        if model is None:
+            model = 'latest'
+
+        self._check_label(model, allow_overwrite=kwargs.get('overwrite', model=='latest'))
+
+        overwrite_ps = None
+
+        if model in self.models and kwargs.get('overwrite', model=='latest'):
+            if self.get_value(qualifier='detached_job', model=model, context='model', default='loaded') != 'loaded':
+                raise ValueError("model '{}' cannot be overwritten until it is complete and loaded.")
+            if model=='latest':
+                logger.warning("overwriting model: {}".format(model))
+            else:
+                logger.info("overwriting model: {}".format(model))
+
+            do_create_fig_params = kwargs.get('do_create_fig_params', False)
+
+            overwrite_ps = self.remove_model(model, remove_figure_params=do_create_fig_params)
+            # check the label again, just in case model belongs to something
+            # other than model/figure
+
+            self.exclude(context='figure')._check_label(model, allow_overwrite=False)
+
+        else:
+            do_create_fig_params = kwargs.get('do_create_fig_params', True)
+
+
+        # handle case where compute is not provided
+        if compute is None:
+            computes = self.get_compute(check_default=False, check_visible=False, **kwargs).computes
+            if len(computes)==0:
+                # NOTE: this doesn't take **kwargs since we want those to be
+                # temporarily overriden as is the case when the compute options
+                # are already attached
+                self.add_compute()
+                computes = self.computes
+                # now len(computes) should be 1 and will trigger the next
+                # if statement
+
+            if len(computes)==1:
+                compute = computes[0]
+            elif len(computes)>1:
+                raise ValueError("must provide label of compute options since more than one are attached.  The following were found: {}".format(self.computes))
+
+        # handle the ability to send multiple compute options/backends - here
+        # we'll just always send a list of compute options
+        if isinstance(compute, unicode):
+            compute = str(compute)
+
+        if isinstance(compute, str):
+            computes = [compute]
+        else:
+            computes = compute
+
+        # if interactive mode was ever off, let's make sure all constraints
+        # have been run before running system checks or computing the model
+        changed_params = self.run_delayed_constraints()
+
+        # any kwargs that were used just to filter for get_compute should  be
+        # removed so that they aren't passed on to all future get_value(...
+        # **kwargs) calls
+        computes_ps = self.get_compute(compute=compute, **kwargs)
+        for k in parameters._meta_fields_filter:
+            if k in kwargs.keys():
+                dump = kwargs.pop(k)
+
+        # we'll wait to here to run kwargs and system checks so that
+        # add_compute is already called if necessary
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'return_overwrite', 'max_computations']
+        if conf.devel:
+            allowed_kwargs += ['mesh_init_phi']
+        self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
+
+        if not kwargs.get('skip_checks', False):
+            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
+
+        # let's first make sure that there is no duplication of enabled datasets
+        datasets = []
+        # compute_ so we don't write over compute which we need if detach=True
+        for compute_ in computes:
+            # TODO: filter by value instead of if statement once implemented
+            for enabled_param in self.filter(qualifier='enabled',
+                                             compute=compute_,
+                                             context='compute',
+                                             check_visible=False).to_list():
+                if enabled_param.feature is None and enabled_param.get_value():
+                    item = (enabled_param.dataset, enabled_param.component)
+                    if item in datasets:
+                        raise ValueError("dataset {}@{} is enabled in multiple compute options".format(item[0], item[1]))
+                    datasets.append(item)
+
+
+        return model, computes, datasets, do_create_fig_params, changed_params
+
+
+    def _write_export_compute_script(self, script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs):
+        """
+        """
+        f = open(script_fname, 'w')
+        f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE'; os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE';\n")
+        f.write("import phoebe; import json\n")
+        # TODO: can we skip the history context?  And maybe even other models
+        # or datasets (except times and only for run_compute but not run_fitting)
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['model', 'figure', 'constraint'], **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
+        f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
+        # TODO: make sure this works with multiple computes
+        compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('do_create_fig_params', do_create_fig_params)]
+        compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
+        f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
+        # as the return from run_compute just does a filter on model=model,
+        # model_ps here should include any created figure parameters
+        if out_fname is not None:
+            f.write("model_ps.save('{}', incl_uniqueid=True)\n".format(out_fname))
+        else:
+            f.write("import sys\n")
+            f.write("model_ps.save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+
+        f.close()
+
+        return script_fname, out_fname
+
+    def export_compute(self, script_fname, out_fname=None,
+                       compute=None, model=None,
+                       import_from_older=False, **kwargs):
+        """
+        NEW in PHOEBE 2.2
+
+        Export a script to call run_compute externally (in a different thread
+        or on a different machine).  To automatically detach to a different
+        thread and load the results, see <phoebe.frontend.bundle.Bundle.run_compute>
+        with `detach=True`.
+
+        After running the resulting `script_fname`, `out_fname` will be created,
+        which will contain a ParameterSet of the model parameters.  To attach
+        that model to this bundle, see <phoebe.frontend.bundle.Bundle.import_model>.
+
+        Arguments
+        ------------
+        * `script_fname` (string): the filename of the python script to be generated.
+        * `out_fname` (string, optional): the filename of the output file that `script_fname`
+            will write when executed.  Once executed, pass this filename to
+            <phoebe.frontend.bundle.Bundle.import_model> to load the resulting
+            model.  If not provided, the script will automatically export
+            to `script_fname`.out (where the filename is determined at runtime,
+            so if you rename the script exported here, the resulting filename
+            will reflect that change and be appended with '.out').
+        * `compute` (string, optional): name of the compute options to use.
+            If not provided or None, run_compute will use an existing set of
+            attached compute options if only 1 exists.  If more than 1 exist,
+            then compute becomes a required argument.  If no compute options
+            exist, then this will use default options and create and attach
+            a new set of compute options with a default label.
+        * `model` (string, optional): name of the resulting model.  If not
+            provided this will default to 'latest'.  NOTE: existing models
+            with the same name will be overwritten depending on the value
+            of `overwrite` (see below).   See also
+            <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
+            creation.
+        * `import_from_older` (boolean, optional, default=False): whether to allow
+            the script to run on a newer version of PHOEBE.  If True and executing
+            the outputed script (`script_fname`) on a newer version of PHOEBE,
+            the bundle will attempt to migrate to the newer version.  If False,
+            an error will be raised when attempting to run the script.  See
+            also: <phoebe.frontend.bundle.Bundle.open>.
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
+        * `**kwargs`:: any values in the compute options to temporarily
+            override for this single compute run (parameter values will revert
+            after run_compute is finished).
+
+        Returns
+        -----------
+        * `script_fname`, `out_fname`.  Where running `script_fname` will result
+          in the model being written to `out_fname`.
+
+        """
+        model, computes, datasets, do_create_fig_params, changed_params = self._prepare_compute(compute, model, **kwargs)
+        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs)
+        return script_fname, out_fname
+
 
     @send_if_client
     def run_compute(self, compute=None, model=None, detach=False,
@@ -6423,112 +6652,10 @@ class Bundle(ParameterSet):
             self.as_client(False)
             return self.get_model(model)
 
-        # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
-        # so let's raise an error if they're passed here
-        if 'protomesh' in kwargs.keys():
-            raise ValueError("protomesh is no longer a valid option")
-        if 'pbmesh' in kwargs.keys():
-            raise ValueError("pbmesh is no longer a valid option")
-
-        if model is None:
-            model = 'latest'
-
-        self._check_label(model, allow_overwrite=kwargs.get('overwrite', model=='latest'))
-
-        overwrite_ps = None
-
-        if model in self.models and kwargs.get('overwrite', model=='latest'):
-            if self.get_value(qualifier='detached_job', model=model, context='model', default='loaded') != 'loaded':
-                raise ValueError("model '{}' cannot be overwritten until it is complete and loaded.")
-            if model=='latest':
-                logger.warning("overwriting model: {}".format(model))
-            else:
-                logger.info("overwriting model: {}".format(model))
-
-            do_create_fig_params = kwargs.get('do_create_fig_params', False)
-
-            overwrite_ps = self.remove_model(model, remove_figure_params=do_create_fig_params)
-            # check the label again, just in case model belongs to something
-            # other than model/figure
-
-            self.exclude(context='figure')._check_label(model, allow_overwrite=False)
-
-        else:
-            do_create_fig_params = kwargs.get('do_create_fig_params', True)
-
-
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
 
-        # handle case where compute is not provided
-        if compute is None:
-            computes = self.get_compute(check_default=False, check_visible=False, **kwargs).computes
-            if len(computes)==0:
-                # NOTE: this doesn't take **kwargs since we want those to be
-                # temporarily overriden as is the case when the compute options
-                # are already attached
-                self.add_compute()
-                computes = self.computes
-                # now len(computes) should be 1 and will trigger the next
-                # if statement
-
-            if len(computes)==1:
-                compute = computes[0]
-            elif len(computes)>1:
-                raise ValueError("must provide label of compute options since more than one are attached.  The following were found: {}".format(self.computes))
-
-        # handle the ability to send multiple compute options/backends - here
-        # we'll just always send a list of compute options
-        if isinstance(compute, unicode):
-            compute = str(compute)
-
-        if isinstance(compute, str):
-            computes = [compute]
-        else:
-            computes = compute
-
-        # if interactive mode was ever off, let's make sure all constraints
-        # have been run before running system checks or computing the model
-        changed_params = self.run_delayed_constraints()
-
-        # any kwargs that were used just to filter for get_compute should  be
-        # removed so that they aren't passed on to all future get_value(...
-        # **kwargs) calls
-        computes_ps = self.get_compute(compute=compute, **kwargs)
-        for k in parameters._meta_fields_filter:
-            if k in kwargs.keys():
-                dump = kwargs.pop(k)
-
-        # we'll wait to here to run kwargs and system checks so that
-        # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'return_overwrite', 'max_computations']
-        if conf.devel:
-            allowed_kwargs += ['mesh_init_phi']
-        self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
-
-        if not kwargs.get('skip_checks', False):
-            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
-
-        # let's first make sure that there is no duplication of enabled datasets
-        datasets = []
-        # compute_ so we don't write over compute which we need if detach=True
-        for compute_ in computes:
-            # TODO: filter by value instead of if statement once implemented
-            for enabled_param in self.filter(qualifier='enabled',
-                                             compute=compute_,
-                                             context='compute',
-                                             check_visible=False).to_list():
-                if enabled_param.feature is None and enabled_param.get_value():
-                    item = (enabled_param.dataset, enabled_param.component)
-                    if item in datasets:
-                        raise ValueError("dataset {}@{} is enabled in multiple compute options".format(item[0], item[1]))
-                    datasets.append(item)
+        model, computes, datasets, do_create_fig_params, changed_params = self._prepare_compute(compute, model, **kwargs)
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
@@ -6566,22 +6693,8 @@ class Bundle(ParameterSet):
             # we'll build a python script that can replicate this bundle as it
             # is now, run compute, and then save the resulting model
             script_fname = "_{}.py".format(jobid)
-            f = open(script_fname, 'w')
-            f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE'; os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE';\n")
-            f.write("import phoebe; import json\n")
-            # TODO: can we skip the history context?  And maybe even other models
-            # or datasets (except times and only for run_compute but not run_fitting)
-            f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['model', 'figure'], **_skip_filter_checks).to_json())))
-            f.write("b = phoebe.Bundle(bdict)\n")
-            # TODO: make sure this works with multiple computes
-            compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('do_create_fig_params', do_create_fig_params)]
-            compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
-            f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
-            # as the return from run_compute just does a filter on model=model,
-            # model_ps here should include any created figure parameters
-            f.write("model_ps.save('_{}.out', incl_uniqueid=True)\n".format(jobid))
-
-            f.close()
+            out_fname = "_{}.out".format(jobid)
+            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, False, kwargs)
 
             script_fname = os.path.abspath(script_fname)
             cmd = mpi.detach_cmd.format(script_fname)
@@ -6812,9 +6925,18 @@ class Bundle(ParameterSet):
         model.  This does not, therefore, necessarily ensure that the exact
         same compute options are used.
 
-        :parameter model: label of the model (will be overwritten)
-        :return: :class:`phoebe.parameters.parameters.ParameterSet` of the
-            newly-created model containing the synthetic data.
+        See also:
+        * <phoebe.frontend.bundle.Bundle.run_compute>
+
+        Arguments
+        ------------
+        * `model` (string, optional): label of the model (will be overwritten)
+        * `**kwargs`: all keyword arguments are passed directly to
+            <phoebe.frontend.bundle.Bundle.run_compute>
+
+        Returns
+        ------------
+        * the output from <phoebe.frontend.bundle.Bundle.run_compute>
         """
         model_ps = self.get_model(model=model)
 
@@ -6822,6 +6944,41 @@ class Bundle(ParameterSet):
         kwargs.setdefault('compute', compute)
 
         return self.run_compute(model=model, **kwargs)
+
+    def import_model(self, fname, model=None):
+        """
+        Import and attach a model from a file.  Generally this file will be the
+        output after running a script generated by
+        <phoebe.frontend.bundle.Bundle.export_compute>.  This is NOT necessary
+        to be called if generating a model directly from
+        <phoebe.frontend.bundle.Bundle.run_compute>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.export_compute>
+
+        Arguments
+        ------------
+        * `fname` (string): the path to the file containing the model.  Likely
+            `out_fname` from <phoebe.frontend.bundle.Bundle.export_compute>.
+            Alternatively, this can be the json of the model.  Must be
+            able to be parsed by <phoebe.parameters.ParameterSet.open>.
+        * `model` (string, optional): the name of the model to be attached
+            to the Bundle.  If not provided, the model will be adopted from
+            the tags in the file.
+
+        Returns
+        -----------
+        * ParameterSet of added and changed parameters
+        """
+        result_ps = ParameterSet.open(fname)
+        metawargs = {}
+        if model is not None:
+            metawargs['model'] = model
+        self._attach_params(result_ps, override_tags=True, **metawargs)
+
+        changed_params = self._handle_model_selectparams(return_changes=True)
+
+        return ParameterSet(changed_params) + self.get_model(model=model if model is not None else result_ps.models)
 
     def remove_model(self, model, **kwargs):
         """
