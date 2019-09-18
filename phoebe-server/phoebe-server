@@ -402,6 +402,7 @@ def new_bundle(type):
         except Exception as err:
             return _get_response({'success': False, 'error': str(err)}, api=True)
         else:
+            b.set_value(qualifier='auto_add_figure', context='setting', value=True)
             bundleid = _new_bundleid()
             app._bundles[bundleid] = b
             return _get_response({'success': True, 'bundleid': bundleid}, api=True)

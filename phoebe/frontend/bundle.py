@@ -4192,8 +4192,9 @@ class Bundle(ParameterSet):
 
 
 
-        if kind not in self.filter(context='figure', check_visible=False, check_default=False).exclude(figure=[None], check_visible=False, check_default=False).kinds:
+        if self.get_value(qualifier='auto_add_figure', context='setting') and kind not in self.filter(context='figure', check_visible=False, check_default=False).exclude(figure=[None], check_visible=False, check_default=False).kinds:
             # then we don't have a figure for this kind yet
+            logger.info("calling add_figure(kind='{}') since auto_add_figure@setting=True".format(kind))
             new_fig_params = self.add_figure(kind=kind)
         else:
             new_fig_params = None

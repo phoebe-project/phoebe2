@@ -2753,5 +2753,14 @@ null
 "copy_for": false, 
 "Class": "SelectParameter", 
 "qualifier": "run_checks_compute"
+}, 
+{
+"description": "Whether to automatically add figure parameters when a dataset is added with a new dataset type.", 
+"value": false, 
+"context": "setting", 
+"copy_for": false, 
+"Class": "BoolParameter", 
+"advanced": true, 
+"qualifier": "auto_add_figure"
 }
 ]
