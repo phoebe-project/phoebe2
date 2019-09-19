@@ -2732,6 +2732,12 @@ class ParameterSet(object):
                                   **kwargs).set_value(value=value,
                                                       **kwargs)
 
+    def set_values_all(self, *args, **kwargs):
+        """
+        Alias to <phoebe.parameters.ParameterSet.set_value_all>
+        """
+        return self.set_value_all(*args, **kwargs)
+
     def set_value_all(self, twig=None, value=None, check_default=False, **kwargs):
         """
         Set the value of all returned <phoebe.parameters.Parameter> objects
@@ -2870,6 +2876,12 @@ class ParameterSet(object):
                 twig = None
 
         return self.get_parameter(twig=twig, **kwargs).set_default_unit(unit)
+
+    def set_default_units_all(self, *args, **kwargs):
+        """
+        Alias to <phoebe.parameters.ParameterSet.set_default_unit_all>
+        """
+        return self.set_default_unit_all(*args, **kwargs)
 
     def set_default_unit_all(self, twig=None, unit=None, **kwargs):
         """
