@@ -44,6 +44,8 @@ logger.addHandler(logging.NullHandler())
 # the following list is for backends that use numerical meshes
 _backends_that_require_meshing = ['phoebe', 'legacy']
 
+_skip_filter_checks = {'check_default': False, 'check_visible': False}
+
 def _needs_mesh(b, dataset, kind, component, compute):
     """
     """
@@ -605,7 +607,7 @@ class PhoebeBackend(BaseBackendByTime):
             starrefs  = hier.get_stars()
             meshablerefs = hier.get_meshables()
 
-        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
+        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, t0=kwargs.get('t0', None), **_skip_filter_checks)
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: computing dynamics at t0".format(mpi.myrank, mpi.nprocs))
@@ -679,11 +681,9 @@ class PhoebeBackend(BaseBackendByTime):
         b._compute_necessary_values(computeparams)
 
         do_horizon = False #computeparams.get_value(qualifier='horizon', **kwargs)
-        dynamics_method = computeparams.get_value(qualifier='dynamics_method', **kwargs)
-        dump_ = kwargs.pop('dynamics_method', None)
-        ltte = computeparams.get_value(qualifier='ltte', **kwargs)
-        distance = b.get_value(qualifier='distance', context='system', unit=u.m, **kwargs)
-        dump_ = kwargs.pop('distance', None)
+        dynamics_method = computeparams.get_value(qualifier='dynamics_method', dynamics_method=kwargs.pop('dynamics_method', None), **_skip_filter_checks)
+        ltte = computeparams.get_value(qualifier='ltte', ltte=kwargs.pop('ltte', None), **_skip_filter_checks)
+        distance = b.get_value(qualifier='distance', context='system', unit=u.m, distance=kwargs.pop('distance', None), **_skip_filter_checks)
 
         # TODO: skip initializing system if we NEVER need meshes
         system = self._create_system_and_compute_pblums(b, compute,
