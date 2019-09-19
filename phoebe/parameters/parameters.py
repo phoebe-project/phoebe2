@@ -5143,7 +5143,7 @@ class Parameter(object):
         to this single <phoebe.parameters.Parameter> in the parent
         <phoebe.frontend.bundle.Bundle>.
 
-        See <phoebe.parameters.Parameter.get_uniquetwig> (introduced in 2.1.1)
+        See <phoebe.parameters.Parameter.get_uniquetwig>
         for the ability to pass a <phoebe.parameters.ParameterSet>.
 
         See also:

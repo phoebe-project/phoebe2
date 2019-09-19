@@ -23,7 +23,7 @@ else:
 
 try:
     import reboundx
-except ImportError:
+except (ImportError, OSError):
     _can_reboundx = False
 else:
     _can_reboundx = True
