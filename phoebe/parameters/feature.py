@@ -56,41 +56,8 @@ def spot(feature, **kwargs):
 
     return ParameterSet(params), constraints
 
-def pulsation(feature, **kwargs):
-    """
-    Create a <phoebe.parameters.ParameterSet> for a pulsation feature.
 
-    Generally, this will be used as an input to the kind argument in
-    <phoebe.frontend.bundle.Bundle.add_feature>.  If attaching through
-    <phoebe.frontend.bundle.Bundle.add_feature>, all `**kwargs` will be
-    passed on to set the values as described in the arguments below.  Alternatively,
-    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
-    after creating the Parameters.
-
-    Arguments
-    ----------
-
-
-
-    Returns
-    --------
-    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
-        <phoebe.parameters.Parameter> objects and a list of all necessary
-        constraints.
-    """
-    if not conf.devel:
-        raise NotImplementedError("'pulsation' feature not officially supported for this release.  Enable developer mode to test.")
-
-
-    params = []
-
-    params += [FloatParameter(qualifier='radamp', value=kwargs.get('radamp', 0.1), default_unit=u.dimensionless_unscaled, description='Relative radial amplitude of the pulsations')]
-    params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 1.0), default_unit=u.d**-1, description='Frequency of the pulsations')]
-    params += [IntParameter(qualifier='l', value=kwargs.get('l', 0), default_unit=u.dimensionless_unscaled, description='Non-radial degree l')]
-    params += [IntParameter(qualifier='m', value=kwargs.get('m', 0), default_unit=u.dimensionless_unscaled, description='Azimuthal order m')]
-    params += [BoolParameter(qualifier='teffext', value=kwargs.get('teffext', False), description='Switch to denote whether Teffs are provided by the external code')]
-
-
-    constraints = []
-
-    return ParameterSet(params), constraints
+# del deepcopy
+# del _component_allowed_for_feature
+# del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
+# del fnmatch

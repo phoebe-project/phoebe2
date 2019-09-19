@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import LineCollection
 from matplotlib import colorbar as mplcolorbar
+from matplotlib import gridspec as gridspec
 
 from . import common
 from . import callbacks
@@ -20,6 +21,9 @@ def _consistent_allow_none(thing1, thing2):
 class AxesGroup(common.Group):
     def __init__(self, items):
         super(AxesGroup, self).__init__(Axes, [], items)
+
+    # from_dict defined in common.Group
+    # to_dict defined in common.Group
 
     @property
     def i(self):
@@ -167,22 +171,22 @@ class Axes(object):
         self.axorder = kwargs.pop('axorder', None)
         self.axpos = kwargs.pop('axpos', None)
 
+        self.equal_aspect = kwargs.pop('equal_aspect', None)
+        self.pad_aspect = kwargs.pop('pad_aspect', None)
+
         self._i = AxDimensionI(self, **kwargs)
         self._x = AxDimensionX(self, **kwargs)
         self._y = AxDimensionY(self, **kwargs)
         self._z = AxDimensionZ(self, **kwargs)
 
-        self._elev = AxViewElev(self, **kwargs)
-        self._azim = AxViewAzim(self, **kwargs)
+        self._elev = AxViewElev(self, value=kwargs.get('elev', None))
+        self._azim = AxViewAzim(self, value=kwargs.get('azim', None))
 
         # set default padding
         self.xyz.pad = 0.1
 
         self._ss = []
         self._cs = []
-
-        self.equal_aspect = None
-        self.pad_aspect = None
 
         self.add_call(*calls)
 
@@ -197,6 +201,30 @@ class Axes(object):
 
         ncalls = len(self.calls)
         return "<Axes | {} call(s) | dims: {}>".format(ncalls, ", ".join(dirs))
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'projection': self.projection,
+                'legend': self.legend,
+                'legend_kwargs': self.legend_kwargs,
+                'title': self.title,
+                'axorder': self.axorder,
+                'axpos': self.axpos,
+                'equal_aspect': self.equal_aspect,
+                'pad_aspect': self.pad_aspect,
+                'i': self.i.to_dict(),
+                'x': self.x.to_dict(),
+                'y': self.y.to_dict(),
+                'z': self.z.to_dict(),
+                'ss': [s.to_dict() for s in self.ss],
+                'cs': [c.to_dict() for c in self.cs],
+                'elev': self._elev.to_dict(), # NOTE: need underscore to avoid projection check error
+                'azim': self._azim.to_dict()  # NOTE: need underscore to avoid projection check error
+                }
+
 
     @property
     def figure(self):
@@ -393,14 +421,20 @@ class Axes(object):
 
             return
 
-        if isinstance(axpos, tuple) and len(axpos) == 3 and np.all(isinstance(ap, int) for ap in axpos):
+        if isinstance(axpos, list) or isinstance(axpos, np.ndarray):
+            axpos = tuple(axpos)
+
+        if isinstance(axpos, tuple) and (len(axpos) == 3 or len(axpos) == 6) and np.all(isinstance(ap, int) for ap in axpos):
             self._axpos = axpos
 
         elif isinstance(axpos, int) and axpos >= 100 and axpos < 1000:
             self._axpos = (int(axpos/100), int(axpos/10 % 10), int(axpos % 10))
 
+        elif isinstance(axpos, int) and axpos >= 110011 and axpos < 999999:
+            self._axpos = tuple([int(ap) for ap in str(axpos)])
+
         else:
-            raise ValueError("axpos must be of type int or tuple between 100 and 999")
+            raise ValueError("axpos must be of type int or tuple between 100 and 999 (subplot syntax: ncols, nrows, ind) or 110011 and 999999 (gridspec syntax: ncols, nrows, indx, indy, widthx, widthy)")
 
     @property
     def title(self):
@@ -949,15 +983,13 @@ class Axes(object):
             if not np.all([isinstance(s, int) for s in subplot_grid]):
                 raise ValueError("subplot_grid must be tuple of length 2 (nrows [int], ncols [int])")
 
-        # we'll reset the layout later anyways
-        ax_new = fig.add_subplot(1,N+1,N+1, projection=self._projection)
 
         axes = fig.axes
-        N = len(axes)
+        N = len(axes) + 1
 
-        ind = None
         if self.axpos is not None:
-            rows, cols, ind = self.axpos
+            # we'll deal with this situation in the else below
+            pass
         elif subplot_grid is None:
             rows, cols = determine_grid(N)
         elif (isinstance(subplot_grid, list) or isinstance(subplot_grid, tuple)) and len(subplot_grid)==2:
@@ -965,7 +997,11 @@ class Axes(object):
         else:
             raise TypeError("subplot_grid must be None or tuple/list of length 2 (rows/cols)")
 
-        if ind is None:
+        if self.axpos is None:
+            # we'll reset the layout later anyways
+            ax_new = fig.add_subplot(rows,cols,N, projection=self._projection)
+            axes = fig.axes
+
             for i,ax in enumerate(axes):
                 try:
                     ax.change_geometry(rows, cols, i+1)
@@ -973,7 +1009,17 @@ class Axes(object):
                     # colorbars and sizebars won't be able to change geometry
                     pass
         else:
-            ax_new.change_geometry(rows, cols, ind)
+            if len(self.axpos) == 3:
+                # then axpos is nrows, ncolumn, index
+                ax_new = fig.add_subplot(*self.axpos, projection=self._projection)
+            elif len(self.axpos) == 6:
+                # then axpos is nrows, ncols, indx, indy, widthx, widthy
+                ax_new = plt.subplot2grid(self.axpos[0:2], self.axpos[2:4], colspan=self.axpos[4], rowspan=self.axpos[5])
+                fig.add_axes(ax_new)
+
+            else:
+                raise NotImplementedError
+
 
         ax = self._get_backend_object(ax_new)
         self._backend_artists = []
@@ -1398,10 +1444,21 @@ class AxDimension(AxArray):
 
     def __repr__(self):
 
-        return "<{} | limits: {} | type: {} | label: {}>".format(self.direction,
+        return "<{} | lim: {} | type: {} | label: {}>".format(self.direction,
                                                                  self.lim,
                                                                  self.unit.physical_type,
                                                                  self.label)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'unit': self.unit.to_string(),
+                'pad': self._pad,
+                'lim': common.arraytolistrecursive(self._lim),
+                'label': self._label}
 
     @property
     def unit(self):
@@ -2126,6 +2183,10 @@ class AxViewGroup(common.Group):
 
 class AxView(AxArray):
     def __init__(self, direction, axes, value):
+        if isinstance(value, dict):
+            direction = value.get('direction')
+            value = value.get('value')
+
         self._value = value
 
         super(AxView, self).__init__(direction, axes)
@@ -2133,6 +2194,14 @@ class AxView(AxArray):
     def __repr__(self):
 
         return "<{} | >".format(self.direction)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'value': common.arraytolistrecursive(self._value)}
 
     @property
     def value(self):

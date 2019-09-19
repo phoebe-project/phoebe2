@@ -40,7 +40,8 @@ lc_columns += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_norm
 lc_columns += ['boost_factors', 'ldint']
 lc_columns += ['pblum_ext', 'abs_pblum_ext', 'ptfarea']
 
-rv_columns = lc_columns[:]
+# rv columns have all pb-dependent columns except those that require pblum scaling
+rv_columns = [c for c in lc_columns[:] if c not in ['intensities', 'normal_intensities', 'pblum_ext']]
 rv_columns += ['rvs']
 
 lp_columns = rv_columns[:]
@@ -177,6 +178,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [ChoiceParameter(visible_if='ld_mode:lookup', qualifier='ld_coeffs_source',
                                    copy_for={'kind': ['star'], 'component': '*'}, component='_default',
                                    value=kwargs.get('ld_coeffs_source', 'auto'), choices=_ld_coeffs_source_choices,
+                                   advanced=True,
                                    description='Source for limb darkening coefficients (\'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
         params += [FloatArrayParameter(visible_if='ld_mode:manual', qualifier='ld_coeffs',
                                        copy_for={'kind': ['star'], 'component': '*'}, component='_default',
@@ -185,12 +187,12 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
         passbands._init_passbands()  # NOTE: this only actually does something on the first call
         params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
-        params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy or photons')]
+        params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], advanced=True, description='Whether passband intensities are weighted by energy or photons')]
 
     if is_lc and not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
-        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
@@ -200,7 +202,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
                                    description='Mode for scaling passband luminosities')]
 
         # pblum_mode = 'component-coupled' or 'decoupled'
-        params += [ChoiceParameter(visible_if='pblum_mode:component-coupled', qualifier='pblum_component', value=kwargs.get('pblum_component', ''), choices=kwargs.get('starrefs', ['']), description='Which component\'s pblum will be provided')]
+        params += [ChoiceParameter(visible_if='pblum_mode:component-coupled', qualifier='pblum_component', value=kwargs.get('pblum_component', ''), choices=kwargs.get('starrefs', ['']), advanced=True, description='Which component\'s pblum will be provided')]
         params += [FloatParameter(qualifier='pblum', visible_if='[component]pblum_mode:decoupled||[component]pblum_mode:component-coupled,[component]pblum_component:<component>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
 
         # pblum_mode = 'dataset-coupled'
@@ -290,7 +292,7 @@ def rv(syn=False, as_ps=True, **kwargs):
 
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
-        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
@@ -409,7 +411,7 @@ def lp(syn=False, as_ps=True, **kwargs):
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times of individual entries.  Note that interpolation is not currently supported for lp datasets.')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
-        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
@@ -475,7 +477,7 @@ def orb(syn=False, as_ps=True, **kwargs):
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
-        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(params) if as_ps else params, constraints
@@ -552,11 +554,11 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
         params += [FloatArrayParameter(qualifier='compute_times', value=compute_times, default_unit=u.d, description='Times to use during run_compute.')]
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
-        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], description='t0 to use when converting between compute_times and compute_phases.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
-        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), description='append to compute_times from the following datasets/time standards', choices=['t0@system'])]
-        params += [SelectParameter(qualifier='coordinates', value=kwargs.get('coordinates', ['xyz', 'uvw']), choices=['xyz', 'uvw'], description='coordinates to expose the mesh.  uvw (plane of sky) and/or xyz (roche)')]
+        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), advanced=True, description='append to compute_times from the following datasets/time standards', choices=['t0@system'])]
+        params += [SelectParameter(qualifier='coordinates', value=kwargs.get('coordinates', ['xyz', 'uvw']), choices=['xyz', 'uvw'], advanced=True, description='coordinates to expose the mesh.  uvw (plane of sky) and/or xyz (roche)')]
         params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', []), description='columns to expose within the mesh', choices=_mesh_columns)]
 
     # the following will all be arrays (value per triangle) per time
@@ -572,12 +574,12 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
             # basic geometric columns
             if 'uvw' in coordinates:
-                params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), default_unit=u.solRad, description='Vertices of triangles in the plane-of-sky')]
-                params += [FloatArrayParameter(qualifier='uvw_normals', time=t, value=kwargs.get('uvw_normals', []), default_unit=u.solRad, description='Normals of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), default_unit=u.solRad, advanced=True, description='Vertices of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='uvw_normals', time=t, value=kwargs.get('uvw_normals', []), default_unit=u.solRad, advanced=True, description='Normals of triangles in the plane-of-sky')]
 
             if 'xyz' in coordinates:
-                params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), default_unit=u.dimensionless_unscaled, description='Vertices of triangles in Roche coordinates')]
-                params += [FloatArrayParameter(qualifier='xyz_normals', time=t, value=kwargs.get('xyz_normals ', []), default_unit=u.dimensionless_unscaled, description='Normals of triangles in Roche coordinates')]
+                params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), default_unit=u.dimensionless_unscaled, advanced=True, description='Vertices of triangles in Roche coordinates')]
+                params += [FloatArrayParameter(qualifier='xyz_normals', time=t, value=kwargs.get('xyz_normals ', []), default_unit=u.dimensionless_unscaled, advanced=True, description='Normals of triangles in Roche coordinates')]
 
             # NOTE: if changing the parameters which are optional, changes must
             # be made here, in the choices for the columns Parameter, and in
@@ -695,3 +697,9 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
 
     return ParameterSet(params) if as_ps else params, constraints
+
+
+# del _empty_array
+# del deepcopy
+# del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
+# del fnmatch

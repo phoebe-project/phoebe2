@@ -312,6 +312,15 @@ ext_modules = [
 #
 # Main setup
 #
+def _env_variable_bool(key, default):
+    value = os.getenv(key, default)
+    if isinstance(value, bool):
+        return value
+    elif value.upper()=='TRUE':
+        return True
+    else:
+        return False
+
 setup (name = 'phoebe',
        version = 'devel',
        description = 'PHOEBE devel version',
@@ -325,6 +334,7 @@ setup (name = 'phoebe',
                      'phoebe.frontend':['default_bundles/*.bundle']
                     },
        ext_modules = ext_modules,
+       scripts=['phoebe-server/phoebe-server'] if _env_variable_bool('PHOEBE_DEVEL', False) else None,
        cmdclass = {
          'build_ext': build_check,
          'check_imports': import_check,
