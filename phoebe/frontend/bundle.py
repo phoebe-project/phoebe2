@@ -10,6 +10,7 @@ except ImportError:
 
 import re
 import json
+import atexit
 from datetime import datetime
 from distutils.version import StrictVersion
 
@@ -21,11 +22,14 @@ from scipy.optimize import curve_fit as cfit
 from phoebe.parameters import *
 from phoebe.parameters import hierarchy as _hierarchy
 from phoebe.parameters import system as _system
+from phoebe.parameters import component as _component
 from phoebe.parameters import setting as _setting
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import compute as _compute
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
+from phoebe.parameters import figure as _figure
+from phoebe.parameters.parameters import _uniqueid
 from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
@@ -47,6 +51,8 @@ if sys.version_info[0] == 3:
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
+_clientid = 'python-'+_uniqueid(5)
+
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 # Attempt imports for client requirements
@@ -62,6 +68,9 @@ else:
 
 
 def _get_add_func(mod, func, return_none_if_not_found=False):
+    if isinstance(func, unicode):
+        func = str(func)
+
     if isinstance(func, str) and hasattr(mod, func):
         func = getattr(mod, func)
 
@@ -169,7 +178,9 @@ class RunChecksItem(object):
         """
         return self._b.filter(uniqueid=self._param_uniqueids,
                               check_visible=False,
-                              check_default=False)
+                              check_default=False,
+                              check_advanced=False,
+                              check_single=False)
 
 
 
@@ -308,6 +319,10 @@ class Bundle(ParameterSet):
     * <phoebe.frontend.bundle.Bundle.default_binary>
     * <phoebe.frontend.bundle.Bundle.default_star>
 
+    To save or export a bundle, see:
+    * <phoebe.frontend.bundle.Bundle.save>
+    * <phoebe.frontend.bundle.Bundle.export_legacy>
+
     To filter parameters and set values, see:
     * <phoebe.parameters.ParameterSet.filter>
     * <phoebe.parameters.ParameterSet.get_value>
@@ -316,6 +331,7 @@ class Bundle(ParameterSet):
     To deal with datasets, see:
     * <phoebe.frontend.bundle.Bundle.add_dataset>
     * <phoebe.frontend.bundle.Bundle.get_dataset>
+    * <phoebe.frontend.bundle.Bundle.rename_dataset>
     * <phoebe.frontend.bundle.Bundle.remove_dataset>
     * <phoebe.frontend.bundle.Bundle.enable_dataset>
     * <phoebe.frontend.bundle.Bundle.disable_dataset>
@@ -323,15 +339,24 @@ class Bundle(ParameterSet):
     To compute forward models, see:
     * <phoebe.frontend.bundle.Bundle.add_compute>
     * <phoebe.frontend.bundle.Bundle.get_compute>
+    * <phoebe.frontend.bundle.Bundle.rename_compute>
+    * <phoebe.frontend.bundle.Bundle.remove_compute>
     * <phoebe.frontend.bundle.Bundle.run_compute>
     * <phoebe.frontend.bundle.Bundle.get_model>
+    * <phoebe.frontend.bundle.Bundle.rename_model>
+    * <phoebe.frontend.bundle.Bundle.remove_model>
 
-    To plot observations or synthetic datasets, see:
+    To deal with figures and plotting, see:
     * <phoebe.parameters.ParameterSet.plot>
+    * <phoebe.frontend.bundle.Bundle.add_figure>
+    * <phoebe.frontend.bundle.Bundle.get_figure>
+    * <phoebe.frontend.bundle.Bundle.rename_figure>
+    * <phoebe.frontend.bundle.Bundle.remove_figure>
+    * <phoebe.frontend.bundle.Bundle.run_figure>
 
     """
 
-    def __init__(self, params=None):
+    def __init__(self, params=None, check_version=False):
         """Initialize a new Bundle.
 
         Initializing a new bundle without a constructor is possible, but not
@@ -362,6 +387,7 @@ class Bundle(ParameterSet):
         self._params = []
         super(Bundle, self).__init__(params=params)
 
+
         # flags for handling functionality not available to files imported from
         # older version of PHOEBE.
         self._import_before_v211 = False
@@ -372,11 +398,12 @@ class Bundle(ParameterSet):
         self._bundle = self
         self._hierarchy_param = None
 
-        self._figure = None
+        self._af_figure = None
 
         # set to be not a client by default
         self._is_client = False
         self._last_client_update = None
+        self._lock = False
 
         # handle delayed constraints when interactive mode is off
         self._delayed_constraints = []
@@ -391,6 +418,9 @@ class Bundle(ParameterSet):
 
             # set a blank hierarchy to start
             self.set_hierarchy(_hierarchy.blank)
+
+            # add necessary figure options
+            self._attach_params(_figure._new_bundle(), context='figure')
 
         else:
             for param in self._params:
@@ -407,11 +437,12 @@ class Bundle(ParameterSet):
         for constraint in self.filter(context='constraint', check_visible=False, check_default=False).to_list():
             constraint._update_bookkeeping()
 
-        # TODO: is this the correct place to do this? is blank hierarchy still
-        # ok for loading from file??
+        self._mplcolorcycler = _figure.MPLPropCycler(_figure._mplcolors)
+        self._mplmarkercycler = _figure.MPLPropCycler(_figure._mplmarkers)
+        self._mpllinestylecycler = _figure.MPLPropCycler(_figure._mpllinestyles)
 
     @classmethod
-    def open(cls, filename):
+    def open(cls, filename, import_from_older=True, import_from_newer=False):
         """
         For convenience, this function is available at the top-level as
         <phoebe.open> or <phoebe.load> as well as
@@ -438,11 +469,29 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `filename` (string or file object): relative or full path to the file
-            or an opened python file object.
+            or an opened python file object.  Alternatively, pass a list of
+            parameter dictionaries to be loaded directly (use carefully).
+        * `import_from_older` (bool, optional, default=True): whether to allow
+            importing bundles that were created with an older minor relase
+            of PHOEBE into the current version.  If True, enable the logger
+            (at warning level or higher) to see messages.  If False, an error will
+            be raised.  Generally, this should be a safe import operation as we
+            try to handle migrating previous versions.
+        * `import_from_newer` (bool, optional, default=False): whether to allow
+            importing bundles that were created with a newer minor release
+            of PHOEBE into the current installed version.  If True, enable the
+            logger (at warning level or higher) to see messages.  If False, an
+            error will be raised.  This is off by default as we cannot guarantee
+            support with future changes to the code.
 
         Returns
         ---------
         * an instantiated <phoebe.frontend.bundle.Bundle> object
+
+        Raises
+        ---------
+        * RuntimeError: if the version of the imported file fails to load according
+            to `import_from_older` or `import_from_newer`.
         """
         if io._is_file(filename):
             f = filename
@@ -450,11 +499,18 @@ class Bundle(ParameterSet):
             filename = os.path.expanduser(filename)
             logger.debug("importing from {}".format(filename))
             f = open(filename, 'r')
+        elif isinstance(filename, list):
+            # we'll handle later
+            pass
         else:
             raise TypeError("filename must be string, unicode, or file object, got {}".format(type(filename)))
 
-        data = json.load(f, object_pairs_hook=parse_json)
-        f.close()
+        if isinstance(filename, list):
+            data = filename
+        else:
+            data = json.load(f, object_pairs_hook=parse_json)
+            f.close()
+
         b = cls(data)
 
         version = b.get_value(qualifier='phoebe_version', check_default=False, check_visible=False)
@@ -469,10 +525,15 @@ class Bundle(ParameterSet):
         if phoebe_version_import == phoebe_version_this:
             return b
         elif phoebe_version_import > phoebe_version_this:
+            if not import_from_newer:
+                raise RuntimeError("The file/bundle is from a newer version of PHOEBE ({}) than installed ({}).  Consider updating or attempt importing by passing import_from_newer=True.".format(phoebe_version_import, phoebe_version_this))
             warning = "importing from a newer version ({}) of PHOEBE, this may or may not work, consider updating".format(phoebe_version_import)
             print("WARNING: {}".format(warning))
             logger.warning(warning)
             return b
+        elif not import_from_older:
+            raise RuntimeError("The file/bundle is from an older version of PHOEBE ({}) than installed ({}). Attempt importing by passing import_from_older=True.".format(phoebe_version_import, phoebe_version_this))
+
 
         if phoebe_version_import < StrictVersion("2.2.0"):
             warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
@@ -670,10 +731,7 @@ class Bundle(ParameterSet):
     @classmethod
     def from_server(cls, bundleid, server='http://localhost:5555',
                     as_client=True):
-        """Load a new bundle from a server.
-
-        [NOT SUPPORTED]
-
+        """
         Load a bundle from a phoebe server.  This is a constructor so should be
         called as:
 
@@ -681,63 +739,43 @@ class Bundle(ParameterSet):
         b = Bundle.from_server('asdf', as_client=False)
         ```
 
+        See also:
+        * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+        * <phoebe.frontend.bundle.Bundle.client_update>
+
         Arguments
         ----------
         * `bundleid` (string): the identifier given to the bundle by the
-            server
-        * `server` (string): the host (and port) of the server
+            server.
+        * `server` (string, optional, default='http://localhost:5555'): the
+            host (and port) of the server.
         * `as_client` (bool, optional, default=True):  whether to attach in
-            client mode
+            client mode.  See <phoebe.frontend.bundle.Bundle.as_client>.
         """
-        if not conf.devel:
-            raise NotImplementedError("'from_server' not officially supported for this release.  Enable developer mode to test.")
+        # TODO: support default cases from server?
 
-        # TODO: run test message on server, if localhost and fails, attempt to
-        # launch?
-        url = "{}/{}/json".format(server, bundleid)
+        if server[:4] != "http":
+            server = "http://"+server
+        url = "{}/json_bundle/{}".format(server, bundleid)
         logger.info("downloading bundle from {}".format(url))
         r = requests.get(url, timeout=5)
         rjson = r.json()
 
-        b = cls(rjson['data'])
+        if not rjson['data']['success']:
+            raise ValueError("server error: {}".format(rjson['data'].get('error', 'unknown error')))
+
+        b = cls(rjson['data']['bundle'])
 
         if as_client:
             b.as_client(as_client, server=server,
-                        bundleid=rjson['meta']['bundleid'])
+                        bundleid=rjson['meta']['bundleid'],
+                        start_if_fail=False)
 
-            logger.warning("This bundle is in client mode, meaning all\
-            computations will be handled by the server at {}.  To disable\
-            client mode, call as_client(False) or in the future pass\
-            as_client=False to from_server".format(server))
+            logger.warning("This bundle is in client mode, meaning all computations will be handled by the server at {}.  To disable client mode, call as_client(False) or in the future pass as_client=False to from_server".format(server))
 
         return b
-
-    @classmethod
-    def from_catalog(cls, identifier):
-        """Load a new bundle from the phoebe catalog.
-
-        [NOT SUPPORTED]
-
-        Load a bundle from the online catalog.  This is a constructor
-        so should be called as:
-
-        ```py
-        b = Bundle.from_catalog(identifier)
-        ```
-
-        Arguments
-        ----------
-        * `identifier` (string): identifier of the object in the catalog
-
-        Returns
-        ----------
-        * instantiated <phoebe.frontend.bundle.Bundle> object.
-        """
-        raise NotImplementedError
-        # TODO: pull from online catalog and pass arguments needed to cls
-        # (__init__) or cls.open (defined in PS.open)
-
-        return cls()
 
     @classmethod
     def from_legacy(cls, filename, add_compute_legacy=True, add_compute_phoebe=True):
@@ -821,13 +859,14 @@ class Bundle(ParameterSet):
         # IMPORTANT NOTE: if changing any of the defaults for a new release,
         # make sure to update the cached files (see frontend/default_bundles
         # directory for script to update all cached bundles)
-        b.add_star(component=starA)
+        b.add_star(component=starA, color='blue')
         b.set_hierarchy(_hierarchy.component(b[starA]))
         b.add_compute(distortion_method='rotstar', irrad_method='none')
         return b
 
     @classmethod
     def default_binary(cls, starA='primary', starB='secondary', orbit='binary',
+                       semidetached=False,
                        contact_binary=False, force_build=False):
         """
         For convenience, this function is available at the top-level as
@@ -852,9 +891,13 @@ class Bundle(ParameterSet):
             the secondary component.
         * `orbit` (string, optional, default='binary'): the label to be set for
             the binary component.
+        * `semidetached` (string or bool, optional, default=False): component
+            to apply a semidetached constraint.  If False, system will be detached.
+            If True, both components will have semidetached constraints (a
+            double-contact system).  `contact_binary` must be False.
         * `contact_binary` (bool, optional, default=False): whether to also
             add an envelope (with component='contact_envelope') and set the
-            hierarchy to a contact binary system.
+            hierarchy to a contact binary system.  `semidetached` must be False.
         * `force_build` (bool, optional, default=False): whether to force building
             the bundle from scratch.  If False, pre-cached files will be loaded
             whenever possible to save time.
@@ -862,7 +905,15 @@ class Bundle(ParameterSet):
         Returns
         -----------
         * an instantiated <phoebe.frontend.bundle.Bundle> object.
+
+        Raises
+        -----------
+        * ValueError: if at least one of `semidetached` and `contact_binary` are
+            not False.
         """
+        if semidetached and contact_binary:
+            raise ValueError("at least one of semidetached or binary must be False")
+
         if not force_build and not conf.devel:
             if contact_binary:
                 b = cls.open(os.path.join(_bundle_cache_dir, 'default_contact_binary.bundle'))
@@ -880,6 +931,15 @@ class Bundle(ParameterSet):
             if orbit != 'binary':
                 b.rename_component('binary', 'orbit')
 
+            if semidetached == starA or semidetached is True:
+                b.add_constraint('semidetached', component=starA)
+            if semidetached == starB or semidetached is True:
+                b.add_constraint('semidetached', component=starB)
+
+            if semidetached:
+                # then we need to run the constraint
+                b.run_delayed_constraints()
+
             b._update_atm_choices()
 
             return b
@@ -894,8 +954,8 @@ class Bundle(ParameterSet):
         else:
             orbit_defaults = {'sma': 5.3, 'period': 1.0}
             star_defaults = {'requiv': 1.0}
-        b.add_star(component=starA, **star_defaults)
-        b.add_star(component=starB, **star_defaults)
+        b.add_star(component=starA, color='blue', **star_defaults)
+        b.add_star(component=starB, color='red', **star_defaults)
         b.add_orbit(component=orbit, **orbit_defaults)
         if contact_binary:
             b.add_component('envelope', component='contact_envelope')
@@ -910,10 +970,27 @@ class Bundle(ParameterSet):
                             b[starA],
                             b[starB])
 
+            if semidetached == starA or semidetached is True:
+                b.add_constraint('semidetached', component=starA)
+            if semidetached == starB or semidetached is True:
+                b.add_constraint('semidetached', component=starB)
+
+
         b.add_compute()
 
         return b
 
+    @classmethod
+    def default_contact_binary(*args, **kwargs):
+        """
+        For convenience, this function is available at the top-level as
+        <phoebe.default_contact_binary> as well as
+        <phoebe.frontend.bundle.Bundle.default_contact_binary>.
+
+        This is a shortcut to <phoebe.frontend.bundle.Bundle.default_binary>
+        but with `contact_binary` set to True.
+        """
+        return cls.default_binary(contact_binary=True, *args, **kwargs)
 
     @classmethod
     def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False,
@@ -955,9 +1032,9 @@ class Bundle(ParameterSet):
             raise NotImplementedError("'default_triple' not officially supported for this release.  Enable developer mode to test.")
 
         b = cls()
-        b.add_star(component=starA)
-        b.add_star(component=starB)
-        b.add_star(component=starC)
+        b.add_star(component=starA, color='blue')
+        b.add_star(component=starB, color='red')
+        b.add_star(component=starC, color='green')
         b.add_orbit(component=inner, period=1)
         b.add_orbit(component=outer, period=10)
 
@@ -1062,7 +1139,7 @@ class Bundle(ParameterSet):
         [NOT IMPLEMENTED]
         """
         try:
-            resp = urllib2.urlopen("{}/test".format(server))
+            resp = urllib2.urlopen("{}/info".format(server))
         except urllib2.URLError:
             test_passed = False
         else:
@@ -1098,17 +1175,35 @@ class Bundle(ParameterSet):
         # TODO: handle added parameters
         # TODO: handle removed (isDeleted) parameters
 
-        for item in resp['data']:
-            if item['id'] in self.uniqueids:
-                # then we're updating something in the parameter (or deleting)
-                param = self.get_parameter(uniqueid=item['id'])
-                for attr, value in item['attributes'].items():
+        # resp['data'] = {'success': True/False, 'parameters': {uniqueid: {context: 'blah', value: 'blah', ...}}}
+        # print("*** _on_socket_push_updates resp={}".format(resp))
+        for uniqueid, paramdict in resp['parameters'].items():
+            # print("*** _on_socket_push_updates uniquide in uniqueids={}, paramdict={}".format(uniqueid in self.uniqueids, paramdict))
+            if uniqueid in self.uniqueids:
+                param = self.get_parameter(uniqueid=uniqueid, check_visible=False, check_default=False, check_advanced=False)
+                for attr, value in paramdict.items():
                     if hasattr(param, "_{}".format(attr)):
                         logger.info("updates from server: setting {}@{}={}".
                                     format(attr, param.twig, value))
+
+                        # we cannot call param.set_value because that will
+                        # emit another signal to the server.  So we do need
+                        # to hardcode some special cases here
+                        if isinstance(value, dict):
+                            if 'nparray' in value.keys():
+                                value = nparray.from_json(value)
+
+                        if attr == 'value' and hasattr(param, 'default_unit'):
+                            if 'default_unit' in paramdict.keys():
+                                unit = u.Unit(paramdict.get('default_unit'))
+                            else:
+                                unit = param.default_unit
+                            value = value * unit
+
                         setattr(param, "_{}".format(attr), value)
             else:
-                self._attach_param_from_server(item)
+                self._attach_param_from_server(paramdict)
+
 
     def _attach_param_from_server(self, item):
         """
@@ -1119,80 +1214,166 @@ class Bundle(ParameterSet):
                 self._attach_param_from_server(itemi)
         else:
             # then we need to add a new parameter
-            d = item['attributes']
-            d['uniqueid'] = item['id']
+            d = item
+
+            print("*** _attach_param_from_server d={}".format(d))
+
+            d['Class'] = d.pop('type')
+            for attr, value in d.pop('attributes', {}).items():
+                d[attr] = value
+            for tag, value in d.pop('meta', {}).items():
+                d[tag] = value
+
+            _dump = d.pop('readonly', None)
+            _dump = d.pop('valuestr', None)
+            _dump = d.pop('twig', None)
+            _dump = d.pop('valueunit', None)  # TODO: may need to account for unit?
+
+            # print "*** _attach_param_from_server", d
             param = parameters.parameter_from_json(d, bundle=self)
 
             metawargs = {}
             self._attach_params([param], **metawargs)
 
+    def _deregister_client(self, bundleid=None):
+        if self._socketio is None:
+            return
+
+        logger.info("deregistering {} client from {}".format(_clientid, self.is_client))
+        self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': None})
+        if bundleid is not None:
+            self._socketio.emit('deregister client', {'clientid': _clientid, 'bundleid': bundleid})
+        self._socketio.disconnect()
+        self._socketio = None
+
     def as_client(self, as_client=True, server='http://localhost:5555',
-                  bundleid=None):
+                  bundleid=None, start_if_fail=True):
         """
-        [NOT IMPLEMENTED]
+        Enter (or exit) client mode.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.from_server>
+        * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+        * <phoebe.frontend.bundle.Bundle.client_update>
+
+        Arguments
+        -----------
+        * `as_client` (bool, optional, default=True): whether to enter (True)
+            or exit (False) client mode.
+        * `server` (string, optional, default='http://localhost:5555'): the URL
+            location (including port, if necessary) to find the phoebe-server.
+        * `bundleid` (string, optional, default=None): if provided and the
+            bundleid is available from the given server, that bundle will be
+            downloaded and attached.  If provided but bundleid is not available
+            from the server, the current bundle will be uploaded and assigned
+            the given bundleid.  If not provided, the current bundle will be
+            uploaded and assigned a random bundleid.
+        * `start_if_fail` (bool, optional, default=True): NOT CURRENTLY IMPLEMENTED
+
+        Raises
+        ---------
+        * ImportError: if required dependencies for client mode are not met.
+        * ValueError: if the server at `server` is not running or reachable.
+        * ValueError: if the server returns an error.
         """
+        if not conf.devel:
+            raise NotImplementedError("'as_client' not officially supported for this release.  Enable developer mode to test.")
+
         if as_client:
             if not _can_client:
                 raise ImportError("dependencies to support client mode not met - see docs")
 
             server_running = self._test_server(server=server,
-                                               start_if_fail=True)
+                                               start_if_fail=start_if_fail)
             if not server_running:
                 raise ValueError("server {} is not running".format(server))
 
-            server_split = server.split(':')
-            host = ':'.join(server_split[:-1])
-            port = int(float(server_split[-1] if len(server_split) else 8000))
+            server_split = server.split('://')[-1].split(':')
+            host = ':'.join(server_split[:-1]) if len(server_split) > 1 else server_split[0]
+            port = int(float(server_split[-1])) if len(server_split) > 1 else None
             self._socketio = SocketIO(host, port, BaseNamespace)
             self._socketio.on('connect', self._on_socket_connect)
             self._socketio.on('disconnect', self._on_socket_disconnect)
 
-            self._socketio.on('push updates', self._on_socket_push_updates)
+            if bundleid is not None:
+                rj = requests.get("{}/info".format(server)).json()
+                if bundleid in rj['data']['clients_per_bundle'].keys():
+                    upload = False
+                else:
+                    upload = True
+            else:
+                upload = True
 
-            if not bundleid:
-                upload_url = "{}/upload".format(server)
+            if upload:
+                upload_url = "{}/open_bundle".format(server)
                 logger.info("uploading bundle to server {}".format(upload_url))
-                data = json.dumps(self.to_json(incl_uniqueid=True))
-                r = requests.post(upload_url, data=data, timeout=5)
-                bundleid = r.json()['meta']['bundleid']
+                data = json.dumps({'json': self.to_json(incl_uniqueid=True), 'bundleid': bundleid})
+                rj = requests.post(upload_url, data=data, timeout=5).json()
+                if rj['data']['success']:
+                    bundleid = rj['data']['bundleid']
+                else:
+                    raise ValueError("server error: {}".format(rj['data'].get('error', 'unknown error')))
 
-            self._socketio.emit('subscribe bundle', {'bundleid': bundleid})
+            self._socketio.emit('register client', {'clientid': _clientid, 'bundleid': bundleid})
+
+            self._socketio.on('{}:changes:python'.format(bundleid), self._on_socket_push_updates)
 
             self._bundleid = bundleid
 
             self._is_client = server
-            logger.info("connected as client to server at {}:{}".
-                        format(host, port))
+
+            atexit.register(self._deregister_client)
+
+            logger.info("connected as client {} to server at {}:{}".
+                        format(_clientid, host, port))
 
         else:
-            logger.warning("This bundle is now permanently detached from the instance\
-                on the server and will not receive future updates.  To start a client\
-                in sync with the version on the server or other clients currently \
-                subscribed, you must instantiate a new bundle with Bundle.from_server.")
+            logger.warning("This bundle is now permanently detached from the instance on the server and will not receive future updates.  To start a client in sync with the version on the server or other clients currently subscribed, you must instantiate a new bundle with Bundle.from_server.")
 
-            if hasattr(self, '_socketIO') and self._socketIO is not None:
-                self._socketio.emit('unsubscribe bundle', {'bundleid': bundleid})
-                self._socketIO.disconnect()
-                self._socketIO = None
+            if hasattr(self, '_socketio') and self._socketio is not None:
+                self._deregister_client(bundleid=self._bundleid)
 
             self._bundleid = None
             self._is_client = False
 
     @property
     def is_client(self):
+        """
+        See also:
+        * <phoebe.frontend.bundle.Bundle.from_server>
+        * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.client_update>
+
+        Returns
+        ---------
+        * False if the bundle is not in client mode, otherwise the URL of the server.
+        """
         return self._is_client
 
     def client_update(self):
         """
-        [NOT IMPLEMENTED]
+        Check for updates from the server and update the client.  In general,
+        it should not be necessary to call this manually.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.from_server>
+        * <phoebe.parameters.ParameterSet.ui>
+        * <phoebe.frontend.bundle.Bundle.as_client>
+        * <phoebe.frontend.bundle.Bundle.is_client>
+
         """
+        if not conf.devel:
+            raise NotImplementedError("'client_update' not officially supported for this release.  Enable developer mode to test.")
+
         if not self.is_client:
             raise ValueError("Bundle is not in client mode, cannot update")
 
         logger.info("updating client...")
         # wait briefly to pickup any missed messages, which should then fire
         # the corresponding callbacks and update the bundle
-        self._socketio.wait(seconds=1)
+        self._socketio.wait(seconds=0.1)
         self._last_client_update = datetime.now()
 
     def __repr__(self):
@@ -1229,13 +1410,16 @@ class Bundle(ParameterSet):
 
     def _rename_label(self, tag, old_value, new_value):
         self._check_label(new_value)
+        affected_params = []
 
         for param in self.filter(check_visible=False, check_default=False, **{tag: old_value}).to_list():
             setattr(param, '_{}'.format(tag), new_value)
+            affected_params.append(param)
         for param in self.filter(context='constraint', check_visible=False, check_default=False).to_list():
             for k, v in param.constraint_kwargs.items():
                 if v == old_value:
                     param._constraint_kwargs[k] = new_value
+                    affected_params.append(param)
 
 
         if tag=='dataset':
@@ -1243,14 +1427,22 @@ class Bundle(ParameterSet):
                 old_param_value = param._value
                 new_param_value = [v.replace('@{}'.format(old_value), '@{}'.format(new_value)) for v in old_param_value]
                 param._value = new_param_value
+                affected_params.append(param)
 
-        # elif tag=='component':
+            affected_params += self._handle_dataset_selectparams(rename={old_value: new_value}, return_changes=True)
+            affected_params += self._handle_figure_time_source_params(rename={old_value: new_value}, return_changes=True)
+
+        elif tag=='component':
+            affected_params += self._handle_component_selectparams(rename={old_value: new_value}, return_changes=True)
+            affected_params += self._handle_pblum_defaults(rename={old_value: new_value}, return_changes=True)
 
         elif tag=='compute':
-            for param in self.filter(qualifier=['run_checks_compute'], check_visible=False, check_default=False).to_list():
-                old_param_value = param._value
-                new_param_value = [new_value if v!=old_value else v for v in old_param_value]
-                param._value = new_param_value
+            affected_params += self._handle_compute_selectparams(rename={old_value: new_value}, return_changes=True)
+
+        elif tag=='model':
+            affected_params += self._handle_model_selectparams(rename={old_value: new_value}, return_changes=True)
+
+        return affected_params
 
     def get_setting(self, twig=None, **kwargs):
         """
@@ -1275,7 +1467,7 @@ class Bundle(ParameterSet):
     def _add_history(self, redo_func, redo_kwargs, undo_func, undo_kwargs,
                      **kwargs):
         """
-        Add a new log (undo/redoable) to this history contextself.
+        Add a new log (undo/redoable) to this history context.
 
         Arguments
         -----------
@@ -1467,15 +1659,20 @@ class Bundle(ParameterSet):
             self.enable_history()
 
     def _update_atm_choices(self):
+        # affected_params = []
         for param in self.filter(qualifier='atm', kind='phoebe',
                                  check_visible=False, check_default=False).to_list():
             param._choices = _compute._atm_choices
+            # affected_params.append(param)
 
-    def _handle_pblum_defaults(self):
+        # return affected_params
+
+    def _handle_pblum_defaults(self, rename={}, return_changes=False):
         """
         """
         logger.debug("calling _handle_pblum_defaults")
 
+        affected_params = []
         changed_params = self.run_delayed_constraints()
 
         hier = self.get_hierarchy()
@@ -1491,12 +1688,22 @@ class Bundle(ParameterSet):
 
             param._choices = [ds for ds in datasetrefs if ds!=param.dataset]
 
-            if param.value == '' and len(param._choices):
-                param.set_value(param._choices[0])
-
             if not len(param._choices):
                 param._choices = ['']
                 param.set_value('')
+                if return_changes:
+                    affected_params.append(param)
+
+            elif param.value == '':
+                param.set_value(param._choices[0])
+                if return_changes:
+                    affected_params.append(param)
+
+            else:
+                changed = param.handle_choice_rename(**rename)
+
+
+
 
         for param in self.filter(qualifier='pblum_component',
                                  context='dataset',
@@ -1507,12 +1714,20 @@ class Bundle(ParameterSet):
 
             if param.value == '':
                 param.set_value(starrefs[0])
+            else:
+                changed = param.handle_choice_rename(**rename)
 
-    def _handle_dataset_selectparams(self):
+            if return_changes:
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_dataset_selectparams(self, rename={}, return_changes=False):
         """
         """
         logger.debug("calling _handle_dataset_selectparams")
 
+        affected_params = []
         changed_param = self.run_delayed_constraints()
 
         dss_ps = self.filter(context='dataset', check_default=False, check_visible=False)
@@ -1534,28 +1749,196 @@ class Bundle(ParameterSet):
         t0s += ["t0@system"]
 
         for param in dss_ps.filter(qualifier='columns', check_default=False, check_visible=False).to_list():
-
+            choices_changed = False
+            if return_changes and pbdep_columns != param._choices:
+                choices_changed = True
             param._choices = pbdep_columns
-            param.remove_not_valid_selections()
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
 
         for param in dss_ps.filter(qualifier='include_times', check_default=False, check_visible=False).to_list():
 
             # NOTE: existing value is updated in change_component
+            choices_changed = False
+            if return_changes and time_datasets+t0s != param._choices:
+                choices_changed = True
             param._choices = time_datasets + t0s
-            param.remove_not_valid_selections()
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
 
-    def _handle_compute_selectparams(self):
+        for param in self.filter(context='figure', qualifier='datasets', check_default=False, check_visible=False).to_list():
+            ds_same_kind = self.filter(context='dataset', kind=param.kind).datasets
+
+            choices_changed = False
+            if return_changes and ds_same_kind != param._choices:
+                choices_changed = True
+            param._choices = ds_same_kind
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_figure_time_source_params(self, rename={}, return_changes=False):
+        affected_params = []
+
+        t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component']).to_list()]
+        t0s += ["t0@system"]
+
+        # here we have to use context='dataset' otherwise pb-dependent parameters
+        # with context='model', kind='mesh' will show up
+        valid_datasets = self.filter(context='dataset', kind=['mesh', 'lp'], check_visible=False).datasets
+
+        mesh_times = []
+        lp_times = []
+        mesh_lp_times = []
+        for t in self.filter(context='model', kind='mesh').times:
+            mesh_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t).datasets if ds in valid_datasets)))
+        for t in self.filter(context='model', kind='lp').times:
+            lp_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t).datasets if ds in valid_datasets)))
+        for t in self.filter(context='model').times:
+            mesh_lp_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t).datasets if ds in valid_datasets)))
+
+        for param in self.filter(context='figure', qualifier=['default_time_source', 'time_source'], check_default=False, check_visible=False).to_list():
+
+
+            if param.qualifier == 'default_time_source':
+                choices = ['None', 'manual'] + t0s + mesh_lp_times
+            elif param.kind == 'mesh':
+                choices = ['default'] + mesh_times
+            elif param.kind == 'lp':
+                choices = ['default'] + lp_times
+            else:
+                choices = ['None', 'default', 'manual'] + t0s + mesh_lp_times
+
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                if '(' in param._value:
+                    # then its likely just the () part changed, so let's find the
+                    # matching item
+                    for choice in choices:
+                        if choice.split(' (')[0] == param._value.split(' (')[0]:
+                            param._value = choice
+                            break
+                    else:
+                        # no match found
+                        param._value = 'None' if param.qualifier=='default_time_source' else 'default'
+
+                else:
+                    param._value = 'None' if param.qualifier=='default_time_source' else 'default'
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_compute_selectparams(self, rename={}, return_changes=False):
         """
         """
+        affected_params = []
         changed_params = self.run_delayed_constraints()
 
         computes = self.filter(context='compute', check_default=False, check_visible=False).computes
 
         for param in self.filter(qualifier='run_checks_compute', check_default=False, check_visible=False).to_list():
+            choices_changed = False
+            if return_changes and computes != param._choices:
+                choices_changed = True
             param._choices = computes
-            param.remove_not_valid_selections()
 
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
 
+        return affected_params
+
+    def _handle_component_selectparams(self, rename={}, return_changes=False):
+        """
+        """
+        affected_params = []
+        changed_params = self.run_delayed_constraints()
+
+        for param in self.filter(context='figure', qualifier='components', check_default=False, check_visible=False).to_list():
+            if param.kind in ['mesh', 'orb']:
+                # then we won't have a times array, so we'll have to hardcode the options
+                c_same_kind = self.hierarchy.get_meshables()
+            elif param.kind in ['lp']:
+                c_same_kind = self.filter(qualifier='wavelengths', context='dataset', kind=param.kind, check_visible=False).components
+            else:
+                c_same_kind = self.filter(qualifier='times', context='dataset', kind=param.kind, check_visible=False).components
+
+            choices_changed = False
+            if return_changes and c_same_kind != param._choices:
+                choices_changed = True
+            param._choices = c_same_kind
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_model_selectparams(self, rename={}, return_changes=False):
+        """
+        """
+        affected_params = []
+        changed_params = self.run_delayed_constraints()
+
+        for param in self.filter(context='figure', qualifier='models', check_default=False, check_visible=False).to_list():
+            ml_same_kind = self.filter(context='model', kind=param.kind).models
+
+            choices_changed = False
+            if return_changes and ml_same_kind != param._choices:
+                choices_changed = True
+            param._choices = ml_same_kind
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_meshcolor_choiceparams(self, return_changes=False):
+        """
+        """
+        affected_params = []
+        # changed_params = self.run_delayed_constraints()
+
+        ignore = ['xyz_elements', 'uvw_elements', 'xyz_normals', 'uvw_normals', 'times']
+
+        # we'll cheat by checking in the dataset context to avoid getting the
+        # pb-dependent entries with kind='mesh'
+        mesh_datasets = self.filter(context='dataset', kind='mesh').datasets
+
+        choices = ['None']
+        for p in self.filter(context='model', kind='mesh', check_visible=False).exclude(qualifier=ignore, check_visible=False).to_list():
+            item = p.qualifier if p.dataset in mesh_datasets else '{}@{}'.format(p.qualifier, p.dataset)
+            if item not in choices:
+                choices.append(item)
+
+        for param in self.filter(context='figure', qualifier=['fc_column', 'ec_column'], check_default=False, check_visible=False).to_list():
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                param._value = 'None'
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
 
     def set_hierarchy(self, *args, **kwargs):
         """
@@ -1968,7 +2351,7 @@ class Bundle(ParameterSet):
 
         allowed_keys = self.qualifiers +\
                         parameters._meta_fields_filter +\
-                        ['skip_checks', 'check_default', 'check_visible'] +\
+                        ['skip_checks', 'check_default', 'check_visible', 'do_create_fig_params'] +\
                         additional_allowed_keys
 
         for k in additional_forbidden_keys:
@@ -2584,6 +2967,22 @@ class Bundle(ParameterSet):
         # - make sure all ETV components are legal
         # - check for conflict between dynamics_method and mesh_method (?)
 
+
+        for param in self.filter(context='figure', qualifier='*lim', **_skip_filter_checks).to_list():
+            if len(param.get_value()) != 2 and param.is_visible:
+                parent_ps = param.get_parent_ps()
+                if '{}_mode' in parent_ps.qualifiers:
+                    mode_param = param.get_parent_ps().get_parameter(qualifier='{}_mode'.format(param.qualifier), check_visible=True)
+                    affected_params = [param, mode_param]
+                else:
+                    # fclim_mode does not exist for fc='None'
+                    affected_params = [param]
+
+                report.add_item(self,
+                                "{} does not have length of 2 - will be ignored and {}_mode will revert to 'auto'".format(param.twig, param.qualifier),
+                                affected_params,
+                                False)
+
         # we've survived all tests
         # return True, ''
         return report
@@ -2859,6 +3258,30 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
 
+    def rename_feature(self, old_feature, new_feature):
+        """
+        Rename a 'feature' in the bundle
+
+        :parameter old_feature: current label for the feature
+        :parameter new_feature: new label for the feature
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed feature
+        """
+        for param in self.filter(feature=old_feature).to_list():
+            param._feature = new_feature
+
+        redo_kwargs = {'old_feature': old_feature, 'new_feature': new_feature}
+        undo_kwargs = {'old_feature': new_feature, 'new_feature': old_feature}
+
+        self._add_history(redo_func='rename_feature',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='rename_feature',
+                          undo_kwargs=undo_kwargs)
+
+        return self.filter(feature=new_feature)
+
     def remove_feature(self, feature=None, **kwargs):
         """
         Remove a 'feature' from the bundle.
@@ -2929,6 +3352,10 @@ class Bundle(ParameterSet):
         * `new_feature` (string): the desired new label of the feature
             (must not yet exist)
 
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed dataset
+
         Raises
         --------
         * ValueError: if the value of `new_feature` is forbidden or already exists.
@@ -2937,6 +3364,8 @@ class Bundle(ParameterSet):
 
         self._check_label(new_feature)
         self._rename_label('feature', old_feature, new_feature)
+
+        return self.filter(feature=new_feature)
 
 
     def enable_feature(self, feature=None, **kwargs):
@@ -3045,13 +3474,14 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'spot')
         return self.get_feature(feature, **kwargs)
 
-    def remove_spot(self, feature=None, **kwargs):
+    def rename_spot(self, old_feature, new_feature):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.remove_feature> but with kind='spot'.
         """
         kwargs.setdefault('kind', 'spot')
         return self.remove_feature(feature, **kwargs)
 
+    @send_if_client
     def add_component(self, kind, **kwargs):
         """
         Add a new component (star or orbit) to the system.  If not provided,
@@ -3096,14 +3526,14 @@ class Bundle(ParameterSet):
         Returns
         ---------
         * <phoebe.parameters.ParameterSet> of all parameters that have been added
-
+            or changed.
 
         Raises
         ----------
         * NotImplementedError: if a required constraint is not implemented.
         """
 
-        func = _get_add_func(component, kind)
+        func = _get_add_func(_component, kind)
 
         if sys.version_info[0] == 3:
           fname = func.__name__
@@ -3150,8 +3580,21 @@ class Bundle(ParameterSet):
         for constraint in constraints:
             self.add_constraint(*constraint)
 
+        # Figure options for this dataset
+        if kind in ['star']:
+            fig_params = _figure._add_component(self, **kwargs)
 
+            fig_metawargs = {'context': 'figure',
+                             'kind': kind,
+                             'component': kwargs['component']}
+            self._attach_params(fig_params, **fig_metawargs)
+
+
+        # TODO: include figure params in returned PS?
         ret_ps = self.get_component(check_visible=False, check_default=False, **metawargs)
+
+        ret_ps += ParameterSet(self._handle_component_selectparams(return_changes=True))
+        ret_ps += ParameterSet(self._handle_pblum_defaults(return_changes=True))
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -3200,13 +3643,15 @@ class Bundle(ParameterSet):
 
         Returns
         -----------
-        * ParameterSet of removed parameters
+        * ParameterSet of removed or changed parameters
         """
         # NOTE: run_checks will check if an entry is in the hierarchy but has no parameters
         kwargs['component'] = component
         # NOTE: we do not remove from 'model' by default
-        kwargs['context'] = ['component', 'constraint', 'dataset', 'compute']
-        return self.remove_parameters_all(**kwargs)
+        kwargs['context'] = ['component', 'constraint', 'dataset', 'compute', 'figure']
+        ret_ps =  self.remove_parameters_all(**kwargs)
+        ret_ps += ParameterSet(self._handle_component_selectparams(return_changes=True))
+        return ret_ps
 
     def rename_component(self, old_component, new_component):
         """
@@ -3217,6 +3662,10 @@ class Bundle(ParameterSet):
         * `old_component` (string): current label of the component (must exist)
         * `new_component` (string): the desired new label of the component
             (must not yet exist)
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> of any parameters that were changed.
 
         Raises
         --------
@@ -3234,9 +3683,14 @@ class Bundle(ParameterSet):
             logger.warning("hierarchy may not update correctly with new component")
         self.hierarchy.rename_component(old_component, new_component)
 
-        self._rename_label('component', old_component, new_component)
+        # NOTE: _handle_component_selectparams and _handle_pblum_defaults
+        # is handled by _rename_label
+        ret_params = self._rename_label('component', old_component, new_component)
+        self.hierarchy._update_cache()
+        ret_params += [self.hierarchy]
 
-        self._handle_dataset_selectparams()
+        return ParameterSet(ret_params)
+
 
     def add_orbit(self, component=None, **kwargs):
         """
@@ -3263,7 +3717,7 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'orbit')
         return self.get_component(component, **kwargs)
 
-    def remove_orbit(self, component=None, **kwargs):
+    def rename_orbit(self, old_orbit, new_orbit):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.remove_component> but with kind='star'.
         """
@@ -3294,6 +3748,12 @@ class Bundle(ParameterSet):
         """
         kwargs.setdefault('kind', 'star')
         return self.get_component(component, **kwargs)
+
+    def rename_star(self, old_star, new_star):
+        """
+        Shortcut to :meth:`rename_component`
+        """
+        return self.rename_component(old_star, new_star)
 
     def remove_star(self, component=None, **kwargs):
         """
@@ -3327,6 +3787,12 @@ class Bundle(ParameterSet):
         """
         kwargs.setdefault('kind', 'envelope')
         return self.get_component(component, **kwargs)
+
+    def rename_envelope(self, old_envelope, new_envelope):
+        """
+        Shortcut to :meth:`rename_component`
+        """
+        return self.rename_component(old_envelope, new_envelope)
 
     def remove_envelope(self, component=None, **kwargs):
         """
@@ -3528,6 +3994,7 @@ class Bundle(ParameterSet):
         """
         return self.to_time(*args, **kwargs)
 
+    @send_if_client
     def add_dataset(self, kind, component=None, **kwargs):
         """
         Add a new dataset to the bundle.  If not provided,
@@ -3636,10 +4103,21 @@ class Bundle(ParameterSet):
                              if isinstance(kind, str)
                              else kind)
 
+
+        # remove if None
+        if kwargs.get('dataset', False) is None:
+            _ = kwargs.pop('dataset')
+
         kwargs.setdefault('dataset',
                           self._default_label(func.__name__,
                                               **{'context': 'dataset',
                                                  'kind': func.__name__}))
+
+        if not isinstance(kwargs['dataset'], str):
+            # if dataset is a unicode, that conflicts with copy-for
+            # TODO: this really should be replaced with a more elegant handling
+            # of unicode within parameters.ParameterSet._check_copy_for
+            kwargs['dataset'] = str(kwargs['dataset'])
 
         if kwargs.pop('check_label', True):
             self._check_label(kwargs['dataset'], allow_overwrite=kwargs.get('overwrite', False))
@@ -3732,6 +4210,28 @@ class Bundle(ParameterSet):
         for constraint in constraints:
             # TODO: tricky thing here will be copying the constraints
             self.add_constraint(*constraint)
+
+
+        # Figure options for this dataset
+        if kind not in ['mesh']:
+            fig_params = _figure._add_dataset(self, **kwargs)
+
+            fig_metawargs = {'context': 'figure',
+                             'kind': kind,
+                             'dataset': kwargs['dataset']}
+            self._attach_params(fig_params, **fig_metawargs)
+
+        else:
+            fig_params = None
+
+
+
+        if self.get_value(qualifier='auto_add_figure', context='setting') and kind not in self.filter(context='figure', check_visible=False, check_default=False).exclude(figure=[None], check_visible=False, check_default=False).kinds:
+            # then we don't have a figure for this kind yet
+            logger.info("calling add_figure(kind='{}') since auto_add_figure@setting=True".format(kind))
+            new_fig_params = self.add_figure(kind=kind)
+        else:
+            new_fig_params = None
 
 
         # Now we need to apply any kwargs sent by the user.  See the API docs
@@ -3902,11 +4402,14 @@ class Bundle(ParameterSet):
                           undo_kwargs={'dataset': kwargs['dataset']})
 
 
-        ret_ps = self.filter(dataset=kwargs['dataset'], check_visible=False, check_default=False)
+        ret_ps = self.filter(dataset=kwargs['dataset'], **_skip_filter_checks)
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
         self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
+
+        if new_fig_params is not None:
+            ret_ps += new_fig_params
 
         if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
             ret_ps += overwrite_ps
@@ -3961,7 +4464,7 @@ class Bundle(ParameterSet):
 
         Returns
         -----------
-        * ParameterSet of removed parameters
+        * ParameterSet of removed or changed parameters
 
         Raises
         --------
@@ -3973,15 +4476,6 @@ class Bundle(ParameterSet):
         # Let's avoid deleting ALL parameters from the matching contexts
         if dataset is None and not len(kwargs.items()):
             raise ValueError("must provide some value to filter for datasets")
-
-        # let's handle deps if kind was passed
-        kind = kwargs.get('kind', None)
-
-        if isinstance(kind, str):
-            kind = [kind]
-
-        kwargs['kind'] = kind
-
 
         if dataset is None:
             # then let's find the list of datasets that match the filter,
@@ -3999,14 +4493,17 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = None
         # Let's also avoid the possibility of accidentally deleting system
         # parameters, etc
-        kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute'])
+        kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute', 'figure'])
 
-        removed_ps = self.remove_parameters_all(**kwargs)
+        ret_ps = self.remove_parameters_all(**kwargs)
         # not really sure why we need to call this twice, but it seems to do
         # the trick
-        # self.remove_parameters_all(**kwargs)
+        ret_ps += self.remove_parameters_all(**kwargs)
 
-        self._handle_dataset_selectparams()
+        ret_ps += ParameterSet(self._handle_dataset_selectparams(return_changes=True))
+        # the dataset could have been removed from an existing model which changes options
+        # for time_source params if it was a mesh or lp
+        ret_ps += ParameterSet(self._handle_figure_time_source_params(return_changes=True))
 
         # TODO: check to make sure that trying to undo this
         # will raise an error saying this is not undo-able
@@ -4015,7 +4512,7 @@ class Bundle(ParameterSet):
                           undo_func=None,
                           undo_kwargs={})
 
-        return removed_ps
+        return ret_ps
 
     def remove_datasets_all(self):
         """
@@ -4042,6 +4539,10 @@ class Bundle(ParameterSet):
         * `new_dataset` (string): the desired new label of the dataset
             (must not yet exist)
 
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed dataset
+
         Raises
         --------
         * ValueError: if the value of `new_dataset` is forbidden or already exists.
@@ -4050,7 +4551,14 @@ class Bundle(ParameterSet):
 
         self._check_label(new_dataset)
         self._rename_label('dataset', old_dataset, new_dataset)
-        self._handle_dataset_selectparams()
+
+        ret_ps = self.filter(dataset=new_dataset)
+
+        ret_ps += ParameterSet(self._handle_dataset_selectparams(return_changes=True))
+        # Only needed if it was a mesh or lp
+        ret_ps += ParameterSet(self._handle_figure_time_source_params(return_changes=True))
+
+        return ret_ps
 
 
     def enable_dataset(self, dataset=None, **kwargs):
@@ -4701,6 +5209,440 @@ class Bundle(ParameterSet):
                 changes.append(param)
         return changes
 
+
+    @send_if_client
+    def add_figure(self, kind, **kwargs):
+        """
+        Add a new figure to the bundle.  If not provided,
+        figure` (the name of the new figure) will be created for
+        you and can be accessed by the `figure` attribute of the returned
+        <phoebe.parameters.ParameterSet>.
+
+        ```py
+        b.add_figure(figure.lc)
+        ```
+
+        or
+
+        ```py
+        b.add_figure('lc', x='phases')
+        ```
+
+        Available kinds can be found in <phoebe.parameters.figure> and include:
+        * <phoebe.parameters.figure.lc>
+        * <phoebe.parameters.figure.rv>
+        * <phoebe.parameters.figure.lp>
+        * <phoebe.parameters.figure.orb>
+        * <phoebe.parameters.figure.mesh>
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_figure>
+        * <phoebe.frontend.bundle.Bundle.remove_figure>
+        * <phoebe.frontend.bundle.Bundle.rename_figure>
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+
+        Arguments
+        ----------
+        * `kind` (string): function to call that returns a
+             <phoebe.parameters.ParameterSet> or list of
+             <phoebe.parameters.Parameter> objects.  This must either be a
+             callable function that accepts the bundle and default values, or the name
+             of a function (as a string) that can be found in the
+             <phoebe.parameters.figure> module.
+        * `figure` (string, optional): name of the newly-created figure.
+        * `overwrite` (boolean, optional, default=False): whether to overwrite
+            an existing component with the same `figure` tag.  If False,
+            an error will be raised.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
+        * `**kwargs`: default values for any of the newly-created parameters
+            (passed directly to the matched callabled function).
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+        """
+
+        func = _get_add_func(_figure, kind)
+
+        if sys.version_info[0] == 3:
+          fname = func.__name__
+        else:
+          fname = func.__name__
+
+
+        if kwargs.get('figure', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('figure')
+
+        kwargs.setdefault('figure',
+                          self._default_label(fname+'fig',
+                                              **{'context': 'figure',
+                                                 'kind': fname}))
+
+        if kwargs.pop('check_label', True):
+            self._check_label(kwargs['figure'], allow_overwrite=kwargs.get('overwrite', False))
+
+        params = func(self, **kwargs)
+
+
+        metawargs = {'context': 'figure',
+                     'figure': kwargs['figure'],
+                     'kind': fname}
+
+        if kwargs.get('overwrite', False):
+            overwrite_ps = self.remove_figure(figure=kwargs['figure'])
+            # check the label again, just in case kwargs['figure'] belongs to
+            # something other than component
+            self.exclude(figure=kwargs['figure'])._check_label(kwargs['figure'], allow_overwrite=False)
+        else:
+            removed_ps = None
+
+        self._attach_params(params, **metawargs)
+        # attach params called _check_copy_for, but only on it's own parameterset
+        # self._check_copy_for()
+
+        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs['func'] = fname
+        self._add_history(redo_func='add_figure',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='remove_figure',
+                          undo_kwargs={'figure': kwargs['figure']})
+
+        # for constraint in constraints:
+            # self.add_constraint(*constraint)
+
+        ret_ps = self.filter(figure=kwargs['figure'], check_visible=False, check_default=False)
+
+        self._handle_dataset_selectparams()
+        self._handle_model_selectparams()
+        self._handle_component_selectparams()
+        self._handle_meshcolor_choiceparams()
+        self._handle_figure_time_source_params()
+
+        # since we've already processed (so that we can get the new qualifiers),
+        # we'll only raise a warning
+        self._kwargs_checks(kwargs,
+                            additional_allowed_keys=['overwrite', 'return_overwrite'],
+                            warning_only=True, ps=ret_ps)
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
+
+        return ret_ps
+
+    def get_figure(self, figure=None, **kwargs):
+        """
+        Filter in the 'figure' context
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.frontend.bundle.Bundle.add_figure>
+        * <phoebe.frontend.bundle.Bundle.remove_figure>
+        * <phoebe.frontend.bundle.Bundle.rename_figure>
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+
+        Arguments
+        ----------
+        * `figure`: (string, optional, default=None): the name of the figure
+        * `**kwargs`: any other tags to do the filtering (excluding figure and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        kwargs['figure'] = figure
+        kwargs['context'] = 'figure'
+        ret_ps = self.filter(**kwargs).exclude(figure=[None])
+
+        if len(ret_ps.figures) == 0:
+            raise ValueError("no figures matched: {}".format(kwargs))
+        elif len(ret_ps.figures) > 1:
+            raise ValueError("more than one figure matched: {}".format(kwargs))
+
+        return ret_ps
+
+    def remove_figure(self, figure, **kwargs):
+        """
+        Remove a 'figure' from the bundle.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+        * <phoebe.frontend.bundle.Bundle.add_figure>
+        * <phoebe.frontend.bundle.Bundle.get_figure>
+        * <phoebe.frontend.bundle.Bundle.rename_figure>
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+
+        Arguments
+        ----------
+        * `figure` (string): the label of the figure to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: figure, context
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+        """
+        kwargs['figure'] = figure
+        kwargs['context'] = 'figure'
+        return self.remove_parameters_all(**kwargs)
+
+    def rename_figure(self, old_figure, new_figure):
+        """
+        Change the label of a figure attached to the Bundle.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_figure>
+        * <phoebe.frontend.bundle.Bundle.get_figure>
+        * <phoebe.frontend.bundle.Bundle.remove_figure>
+        * <phoebe.frontend.bundle.Bundle.run_figure>
+
+        Arguments
+        ----------
+        * `old_figure` (string): current label of the figure (must exist)
+        * `new_figure` (string): the desired new label of the figure
+            (must not yet exist)
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed figure
+
+        Raises
+        --------
+        * ValueError: if the value of `new_figure` is forbidden or already exists.
+        """
+        # TODO: raise error if old_figure not found?
+
+        self._check_label(new_figure)
+        self._rename_label('figure', old_figure, new_figure)
+
+        return self.filter(figure=new_figure)
+
+    def run_figure(self, figure=None, **kwargs):
+        """
+        Plot a figure for a set of figure options attached to the bundle.
+
+        For plotting without the help of figure options, see
+        <phoebe.parameters.ParameterSet.plot>.
+
+        In general, `run_figure` is useful for creating simple plots with
+        consistent defaults for styling across datasets/components/etc,
+        when plotting from a UI, or when wanting to save plotting options
+        along with the bundle rather than in a script.  `plot` is more
+        more flexible, allows for multiple subplots and advanced positioning,
+        and is less clumsy if plotting from the python frontend.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_figure>
+        * <phoebe.frontend.bundle.Bundle.get_figure>
+        * <phoebe.frontend.bundle.Bundle.remove_figure>
+        * <phoebe.frontend.bundle.Bundle.rename_figure>
+
+        Arguments
+        -----------
+        * `figure` (string or list, optional): name of the figure(s) options to use.
+            If not provided or None, run_figure will run all attached figures
+            in subplots, as necessary.
+        * `time` (float, optional): time to use for plotting/animating.  This will
+            filter on time for any applicable dataset (i.e. meshes, line profiles),
+            will be used for highlighting/uncovering based on the passed value
+            to `highlight` and `uncover`.  Use `times` to set the individual
+            frames when animating with `animate=True`
+        * `times` (list/array, optional): times to use for animating.  If
+            `animate` is not True, a warning will be raised in the logger.  If
+            `animate` is True, and neither `times` nor `time` is passed,
+            then the animation will cycle over the tagged times of the model
+            datasets (i.e. if mesh or lp datasets exist), or the computed
+            times otherwise.
+        * `save` (string, optional, default=False): filename to save the
+            figure (or False to not save).
+        * `show` (bool, optional, default=False): whether to show the plot
+        * `animate` (bool, optional, default=False): whether to animate the figure.
+        * `interval` (int, optional, default=100): time in ms between each
+            frame in the animation.  Applicable only if `animate` is True.
+        * `**kwargs`: all additional keyword arguments will be used to override
+            parameters in the figure options or passed along to
+            <phoebe.parameters.ParameterSet.plot>.  See the API docs for
+            <phoebe.parameters.ParameterSet.plot> for an exhaustive list
+            of plotting options.  If `figure` is passed as a list (or as None and
+            multiple figures exist in the bundle), then kwargs can be passed
+            as dictionaries with keys of the individual `figure` labels, which
+            will be applied to individual `run_figure` calls when matching.
+            For example: `b.run_figure(figure=['lcfig01', 'rvfig01'], axpos={'lcfig01': 121, 'rvfig01', 122}, show=True)`
+
+        Returns
+        -----------
+        * (autofig figure, matplotlib figure) - the output from the call to
+            <phoebe.parameters.ParameterSet.plot>
+
+
+        Raises
+        ----------
+        * ValueError: if `figure` is not provided but is required.
+
+        """
+        if figure is None:
+            figure = self.figures
+
+
+        qmap = {'color': 'c'}
+
+        if isinstance(figure, list) or isinstance(figure, tuple):
+            figures = figure
+            show = kwargs.pop('show', False)
+            save = kwargs.pop('save', False)
+            animate = kwargs.pop('animate', False)
+            for figure in figures:
+                self.run_figure(figure=figure, **{k: v.get(figure) if isinstance(v, dict) and figure in v.keys() else v for k,v in kwargs.items()})
+
+            return self._show_or_save(save, show, animate, **kwargs)
+
+
+        fig_ps = self.get_figure(figure=figure, **kwargs)
+        if len(fig_ps.figures) == 0:
+            raise ValueError("no figure found")
+        elif len(fig_ps.figures) > 1:
+            raise ValueError("more than one figure found")
+
+        kwargs['check_default'] = False
+        kwargs['check_visible'] = False
+
+        ds_kind = fig_ps.kind
+        ds_same_kind = self.filter(context='dataset', kind=ds_kind).datasets
+        ml_same_kind = self.filter(context='model', kind=ds_kind).models
+        comp_same_kind = self.filter(context=['dataset', 'model'], kind=ds_kind).components
+
+        kwargs.setdefault('kind', ds_kind)
+        if 'contexts' in fig_ps.qualifiers:
+            kwargs.setdefault('context', fig_ps.get_value(qualifier='contexts', expand=True, **_skip_filter_checks))
+        else:
+            kwargs['context'] = 'model'
+        kwargs.setdefault('dataset', fig_ps.get_value(qualifier='datasets', expand=True, **_skip_filter_checks))
+        kwargs.setdefault('model', [None] + fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
+        if 'components' in fig_ps.qualifiers:
+            kwargs.setdefault('component', fig_ps.get_value(qualifier='components', expand=True, **_skip_filter_checks))
+        kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
+
+        for q in ['draw_sidebars', 'uncover', 'highlight']:
+            if q in fig_ps.qualifiers:
+                kwargs.setdefault(q, fig_ps.get_value(qualifier=q, **_skip_filter_checks))
+
+        time_source = fig_ps.get_value(qualifier='time_source', **_skip_filter_checks)
+        if time_source == 'default':
+            time_source = self.get_value(qualifier='default_time_source', context='figure', **_skip_filter_checks)
+            if time_source == 'manual':
+                kwargs.setdefault('time', self.get_value(qualifier='default_time', context='figure', **_skip_filter_checks))
+            elif time_source == 'None':
+                # then we don't do anything
+                pass
+            elif ' (' in time_source:
+                kwargs.setdefault('time', float(time_source.split(' ')[0]))
+            else:
+                # probably a t0 of some sort, which we can pass directly as the string
+                kwargs.setdefault('time', time_source)
+
+        elif time_source == 'manual':
+            kwargs.setdefault('time', fig_ps.get_value(qualifier='time', **_skip_filter_checks))
+        elif time_source == 'None':
+            # then we don't do anything
+            pass
+        elif ' (' in time_source:
+            kwargs.setdefault('time', float(time_source.split(' ')[0]))
+        else:
+            # probably a t0 of some sort, which we can pass directly as the string
+            kwargs.setdefault('time', time_source)
+
+        for d in ['x', 'y', 'fc', 'ec'] if ds_kind == 'mesh' else ['x', 'y']:
+            if d not in ['fc', 'ec']:
+                # fc and ec are handled later because they have different options
+                kwargs.setdefault(d, fig_ps.get_value(qualifier=d, **_skip_filter_checks))
+
+            if kwargs.get('{}label_source'.format(d), fig_ps.get_value(qualifier='{}label_source'.format(d), **_skip_filter_checks))=='manual':
+                kwargs.setdefault('{}label'.format(d), fig_ps.get_value(qualifier='{}label'.format(d), **_skip_filter_checks))
+
+            if kwargs.get('{}unit_source'.format(d), fig_ps.get_value(qualifier='{}unit_source'.format(d), **_skip_filter_checks))=='manual':
+                kwargs.setdefault('{}unit'.format(d), fig_ps.get_value(qualifier='{}unit'.format(d), **_skip_filter_checks))
+
+            if kwargs.get('{}lim_source'.format(d), fig_ps.get_value(qualifier='{}lim_source'.format(d), **_skip_filter_checks))=='manual':
+                lim = fig_ps.get_value(qualifier='{}lim'.format(d), **_skip_filter_checks)
+                if len(lim)==2:
+                    kwargs.setdefault('{}lim'.format(d), lim)
+                else:
+                    logger.warning("ignoring {}lim, must have length 2".format(lim))
+
+
+        # if ds_kind in ['mesh', 'lp']:
+            # kwargs.setdefault('time', fig_ps.get_value(qualifier='times', expand=True, **_skip_filter_checks))
+
+            # if 'times' in kwargs.keys():
+                # logger.warning("")
+                # kwargs['time'] = kwargs.pop('times')
+
+
+        if ds_kind in ['mesh']:
+            for q in ['fc', 'ec']:
+                source = fig_ps.get_value(qualifier=q+'_source', **_skip_filter_checks)
+                if source == 'column':
+                    kwargs[q] = fig_ps.get_value(qualifier=q+'_column', **_skip_filter_checks)
+
+                    cmap_source = fig_ps.get_value(qualifier=q+'map_source', **_skip_filter_checks)
+                    if cmap_source == 'manual':
+                        kwargs[q+'map'] = fig_ps.get_value(qualifier=q+'map', **_skip_filter_checks)
+
+                elif source == 'manual':
+                    kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                elif source == 'face':
+                    kwargs[q] = 'face'
+                elif source == 'component':
+                    kwargs[q] = {c: self.get_value(qualifier='color', component=c, context='figure', **_skip_filter_checks) for c in comp_same_kind if c in self.hierarchy.get_meshables()}
+                elif source == 'model':
+                    kwargs[q] = {ml: self.get_value(qualifier='color', model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
+
+                if kwargs[q] == 'None':
+                    kwargs[q] = None
+
+        else:
+            for q in ['linestyle', 'marker', 'color']:
+                if q not in kwargs.keys():
+                    if q == 'marker':
+                        # don't apply markers to models
+                        suff = '@dataset'
+                    elif q == 'linestyle':
+                        suff = '@model'
+                    else:
+                        suff = ''
+
+                    source = kwargs.get('{}_source'.format(q), fig_ps.get_value(qualifier='{}_source'.format(q), **_skip_filter_checks))
+                    if source == 'manual':
+                        if q == 'marker':
+                            kwargs[q] = {'dataset': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
+                        elif q == 'linestyle':
+                            kwargs[q] = {'model': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
+                        else:
+                            kwargs[qmap.get(q,q)] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                    elif source == 'dataset':
+                        kwargs[qmap.get(q,q)] = {ds+suff: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
+                    elif source == 'model':
+                        kwargs[qmap.get(q,q)] = {ml+suff: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
+                    elif source == 'component':
+                        kwargs[qmap.get(q,q)] = {}
+                        for c in comp_same_kind:
+                            try:
+                                kwargs[qmap.get(q,q)][c+suff] = self.get_value(qualifier=q, component=c, context='figure', **_skip_filter_checks)
+                            except ValueError:
+                                # RVs will include orbits in comp_same kind, but we can safely skip those
+                                pass
+                    else:
+                        raise NotImplementedError("{}_source of {} not supported".format(q, source))
+
+
+
+        kwargs.setdefault('tight_layout', True)
+        logger.info("calling plot(**{})".format(kwargs))
+        return self.plot(**kwargs)
+
+
     def compute_ld_coeffs(self, compute=None, set_value=False, **kwargs):
         """
         Compute the interpolated limb darkening coefficients.
@@ -5244,6 +6186,7 @@ class Bundle(ParameterSet):
             self.compute_l3s(compute, dataset=dataset_compute_l3s, set_value=True, skip_checks=True)
 
 
+    @send_if_client
     def add_compute(self, kind='phoebe', **kwargs):
         """
         Add a set of computeoptions for a given backend to the bundle.
@@ -5285,6 +6228,10 @@ class Bundle(ParameterSet):
         * NotImplementedError: if a required constraint is not implemented
         """
         func = _get_add_func(_compute, kind)
+
+        # remove if None
+        if kwargs.get('compute', False) is None:
+            _ = kwargs.pop('compute')
 
         kwargs.setdefault('compute',
                           self._default_label(func.__name__,
@@ -5373,13 +6320,13 @@ class Bundle(ParameterSet):
 
         Returns
         -----------
-        * ParameterSet of removed parameters
+        * ParameterSet of removed or changed parameters
         """
         kwargs['compute'] = compute
         kwargs['context'] = 'compute'
-        removed_ps = self.remove_parameters_all(**kwargs)
-        self._handle_compute_selectparams()
-        return removed_ps
+        ret_ps = self.remove_parameters_all(**kwargs)
+        ret_ps += ParameterSet(self._handle_compute_selectparams(return_changes=True))
+        return ret_ps
 
     def remove_computes_all(self):
         """
@@ -5405,6 +6352,10 @@ class Bundle(ParameterSet):
         * `new_compute` (string): the desired new label of the compute options
             (must not yet exist)
 
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed dataset
+
         Raises
         --------
         * ValueError: if the value of `new_compute` is forbidden or already exists.
@@ -5413,6 +6364,206 @@ class Bundle(ParameterSet):
 
         self._check_label(new_compute)
         self._rename_label('compute', old_compute, new_compute)
+
+        return self.filter(compute=new_compute)
+
+    def _prepare_compute(self, compute, model, **kwargs):
+        """
+        """
+        # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
+        # so let's raise an error if they're passed here
+        if 'protomesh' in kwargs.keys():
+            raise ValueError("protomesh is no longer a valid option")
+        if 'pbmesh' in kwargs.keys():
+            raise ValueError("pbmesh is no longer a valid option")
+
+        if model is None:
+            model = 'latest'
+
+        self._check_label(model, allow_overwrite=kwargs.get('overwrite', model=='latest'))
+
+        overwrite_ps = None
+
+        if model in self.models and kwargs.get('overwrite', model=='latest'):
+            if self.get_value(qualifier='detached_job', model=model, context='model', default='loaded') != 'loaded':
+                raise ValueError("model '{}' cannot be overwritten until it is complete and loaded.")
+            if model=='latest':
+                logger.warning("overwriting model: {}".format(model))
+            else:
+                logger.info("overwriting model: {}".format(model))
+
+            do_create_fig_params = kwargs.get('do_create_fig_params', False)
+
+            overwrite_ps = self.remove_model(model, remove_figure_params=do_create_fig_params)
+            # check the label again, just in case model belongs to something
+            # other than model/figure
+
+            self.exclude(context='figure')._check_label(model, allow_overwrite=False)
+
+        else:
+            do_create_fig_params = kwargs.get('do_create_fig_params', True)
+
+
+        # handle case where compute is not provided
+        if compute is None:
+            computes = self.get_compute(check_default=False, check_visible=False, **kwargs).computes
+            if len(computes)==0:
+                # NOTE: this doesn't take **kwargs since we want those to be
+                # temporarily overriden as is the case when the compute options
+                # are already attached
+                self.add_compute()
+                computes = self.computes
+                # now len(computes) should be 1 and will trigger the next
+                # if statement
+
+            if len(computes)==1:
+                compute = computes[0]
+            elif len(computes)>1:
+                raise ValueError("must provide label of compute options since more than one are attached.  The following were found: {}".format(self.computes))
+
+        # handle the ability to send multiple compute options/backends - here
+        # we'll just always send a list of compute options
+        if isinstance(compute, unicode):
+            compute = str(compute)
+
+        if isinstance(compute, str):
+            computes = [compute]
+        else:
+            computes = compute
+
+        # if interactive mode was ever off, let's make sure all constraints
+        # have been run before running system checks or computing the model
+        changed_params = self.run_delayed_constraints()
+
+        # any kwargs that were used just to filter for get_compute should  be
+        # removed so that they aren't passed on to all future get_value(...
+        # **kwargs) calls
+        computes_ps = self.get_compute(compute=compute, **kwargs)
+        for k in parameters._meta_fields_filter:
+            if k in kwargs.keys():
+                dump = kwargs.pop(k)
+
+        # we'll wait to here to run kwargs and system checks so that
+        # add_compute is already called if necessary
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'return_overwrite', 'max_computations']
+        if conf.devel:
+            allowed_kwargs += ['mesh_init_phi']
+        self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
+
+        if not kwargs.get('skip_checks', False):
+            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+            else:
+                # just warnings
+                for item in report.items:
+                    logger.warning(item.message)
+
+        # let's first make sure that there is no duplication of enabled datasets
+        datasets = []
+        # compute_ so we don't write over compute which we need if detach=True
+        for compute_ in computes:
+            # TODO: filter by value instead of if statement once implemented
+            for enabled_param in self.filter(qualifier='enabled',
+                                             compute=compute_,
+                                             context='compute',
+                                             check_visible=False).to_list():
+                if enabled_param.feature is None and enabled_param.get_value():
+                    item = (enabled_param.dataset, enabled_param.component)
+                    if item in datasets:
+                        raise ValueError("dataset {}@{} is enabled in multiple compute options".format(item[0], item[1]))
+                    datasets.append(item)
+
+
+        return model, computes, datasets, do_create_fig_params, changed_params
+
+
+    def _write_export_compute_script(self, script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs):
+        """
+        """
+        f = open(script_fname, 'w')
+        f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE'; os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE';\n")
+        f.write("import phoebe; import json\n")
+        # TODO: can we skip the history context?  And maybe even other models
+        # or datasets (except times and only for run_compute but not run_fitting)
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['model', 'figure', 'constraint'], **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
+        f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
+        # TODO: make sure this works with multiple computes
+        compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('do_create_fig_params', do_create_fig_params)]
+        compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
+        f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
+        # as the return from run_compute just does a filter on model=model,
+        # model_ps here should include any created figure parameters
+        if out_fname is not None:
+            f.write("model_ps.save('{}', incl_uniqueid=True)\n".format(out_fname))
+        else:
+            f.write("import sys\n")
+            f.write("model_ps.save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+
+        f.close()
+
+        return script_fname, out_fname
+
+    def export_compute(self, script_fname, out_fname=None,
+                       compute=None, model=None,
+                       import_from_older=False, **kwargs):
+        """
+        NEW in PHOEBE 2.2
+
+        Export a script to call run_compute externally (in a different thread
+        or on a different machine).  To automatically detach to a different
+        thread and load the results, see <phoebe.frontend.bundle.Bundle.run_compute>
+        with `detach=True`.
+
+        After running the resulting `script_fname`, `out_fname` will be created,
+        which will contain a ParameterSet of the model parameters.  To attach
+        that model to this bundle, see <phoebe.frontend.bundle.Bundle.import_model>.
+
+        Arguments
+        ------------
+        * `script_fname` (string): the filename of the python script to be generated.
+        * `out_fname` (string, optional): the filename of the output file that `script_fname`
+            will write when executed.  Once executed, pass this filename to
+            <phoebe.frontend.bundle.Bundle.import_model> to load the resulting
+            model.  If not provided, the script will automatically export
+            to `script_fname`.out (where the filename is determined at runtime,
+            so if you rename the script exported here, the resulting filename
+            will reflect that change and be appended with '.out').
+        * `compute` (string, optional): name of the compute options to use.
+            If not provided or None, run_compute will use an existing set of
+            attached compute options if only 1 exists.  If more than 1 exist,
+            then compute becomes a required argument.  If no compute options
+            exist, then this will use default options and create and attach
+            a new set of compute options with a default label.
+        * `model` (string, optional): name of the resulting model.  If not
+            provided this will default to 'latest'.  NOTE: existing models
+            with the same name will be overwritten depending on the value
+            of `overwrite` (see below).   See also
+            <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
+            creation.
+        * `import_from_older` (boolean, optional, default=False): whether to allow
+            the script to run on a newer version of PHOEBE.  If True and executing
+            the outputed script (`script_fname`) on a newer version of PHOEBE,
+            the bundle will attempt to migrate to the newer version.  If False,
+            an error will be raised when attempting to run the script.  See
+            also: <phoebe.frontend.bundle.Bundle.open>.
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
+        * `**kwargs`:: any values in the compute options to temporarily
+            override for this single compute run (parameter values will revert
+            after run_compute is finished).
+
+        Returns
+        -----------
+        * `script_fname`, `out_fname`.  Where running `script_fname` will result
+          in the model being written to `out_fname`.
+
+        """
+        model, computes, datasets, do_create_fig_params, changed_params = self._prepare_compute(compute, model, **kwargs)
+        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs)
+        return script_fname, out_fname
 
 
     @send_if_client
@@ -5476,6 +6627,9 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
             pass checks.
+        * `max_computations` (int, optional, default=None): maximum
+            number of computations to allow.  If more are detected, an error
+            will be raised before the backend begins computations.
         * `**kwargs`:: any values in the compute options to temporarily
             override for this single compute run (parameter values will revert
             after run_compute is finished)
@@ -5494,107 +6648,18 @@ class Bundle(ParameterSet):
         * ValueError: if any given dataset is enabled in more than one set of
             compute options sent to run_compute.
         """
-        if isinstance(detach, str):
-            raise ValueError("detach must be a boolean")
+        if isinstance(detach, str) or isinstance(detach, unicode):
             # then we want to temporarily go in to client mode
+            raise NotImplementedError("detach currently must be a bool")
             self.as_client(server=detach)
-            self.run_compute(compute=compute, model=model, time=time, **kwargs)
+            self.run_compute(compute=compute, model=model, times=times, **kwargs)
             self.as_client(False)
             return self.get_model(model)
-
-        # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
-        # so let's raise an error if they're passed here
-        if 'protomesh' in kwargs.keys():
-            raise ValueError("protomesh is no longer a valid option")
-        if 'pbmesh' in kwargs.keys():
-            raise ValueError("pbmesh is no longer a valid option")
-
-        if model is None:
-            model = 'latest'
-
-        self._check_label(model, allow_overwrite=kwargs.get('overwrite', model=='latest'))
-
-        overwrite_ps = None
-
-        if model in self.models and kwargs.get('overwrite', model=='latest'):
-            if model=='latest':
-                logger.warning("overwriting model: {}".format(model))
-            else:
-                logger.info("overwriting model: {}".format(model))
-            overwrite_ps = self.remove_model(model)
-            # check the label again, just in case model belongs to something
-            # other than model
-            self._check_label(model, allow_overwrite=False)
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
 
-        # handle case where compute is not provided
-        if compute is None:
-            computes = self.get_compute(check_default=False, check_visible=False, **kwargs).computes
-            if len(computes)==0:
-                # NOTE: this doesn't take **kwargs since we want those to be
-                # temporarily overriden as is the case when the compute options
-                # are already attached
-                self.add_compute()
-                computes = self.computes
-                # now len(computes) should be 1 and will trigger the next
-                # if statement
-
-            if len(computes)==1:
-                compute = computes[0]
-            elif len(computes)>1:
-                raise ValueError("must provide label of compute options since more than one are attached.  The following were found: {}".format(self.computes))
-
-        # handle the ability to send multiple compute options/backends - here
-        # we'll just always send a list of compute options
-        if isinstance(compute, str):
-            computes = [compute]
-        else:
-            computes = compute
-
-        # if interactive mode was ever off, let's make sure all constraints
-        # have been run before running system checks or computing the model
-        changed_params = self.run_delayed_constraints()
-
-        # any kwargs that were used just to filter for get_compute should  be
-        # removed so that they aren't passed on to all future get_value(...
-        # **kwargs) calls
-        computes_ps = self.get_compute(compute=compute, **kwargs)
-        for k in parameters._meta_fields_filter:
-            if k in kwargs.keys():
-                dump = kwargs.pop(k)
-
-        # we'll wait to here to run kwargs and system checks so that
-        # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'return_overwrite']
-        if conf.devel:
-            allowed_kwargs += ['mesh_init_phi']
-        self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
-
-        if not kwargs.get('skip_checks', False):
-            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
-
-        # let's first make sure that there is no duplication of enabled datasets
-        datasets = []
-        # compute_ so we don't write over compute which we need if detach=True
-        for compute_ in computes:
-            # TODO: filter by value instead of if statement once implemented
-            for enabled_param in self.filter(qualifier='enabled',
-                                             compute=compute_,
-                                             context='compute',
-                                             check_visible=False).to_list():
-                if enabled_param.feature is None and enabled_param.get_value():
-                    item = (enabled_param.dataset, enabled_param.component)
-                    if item in datasets:
-                        raise ValueError("dataset {}@{} is enabled in multiple compute options".format(item[0], item[1]))
-                    datasets.append(item)
+        model, computes, datasets, do_create_fig_params, changed_params = self._prepare_compute(compute, model, **kwargs)
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
@@ -5613,6 +6678,18 @@ class Bundle(ParameterSet):
                 # avoid needing to import numpy?
                 logger.warning("overriding time is not supported within detach - ignoring")
 
+            if kwargs.get('max_computations', None) is not None:
+                # then we need to estimate computations in advance so we can
+                # raise an error immediately
+                logger.info("estimating number of computations to ensure not over max_computations={}".format(kwargs['max_computations']))
+                for compute in computes:
+                    computeparams = self.get_compute(compute=compute)
+
+                    if not computeparams.kind:
+                        raise KeyError("could not recognize backend from compute: {}".format(compute))
+                    compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
+                    out = compute_class().get_packet_and_syns(self, compute, times=times, **kwargs)
+
             # we'll track everything through the model name as well as
             # a random string, to avoid any conflicts
             jobid = kwargs.get('jobid', parameters._uniqueid())
@@ -5620,19 +6697,8 @@ class Bundle(ParameterSet):
             # we'll build a python script that can replicate this bundle as it
             # is now, run compute, and then save the resulting model
             script_fname = "_{}.py".format(jobid)
-            f = open(script_fname, 'w')
-            f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE'; os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE';\n")
-            f.write("import phoebe; import json\n")
-            # TODO: can we skip the history context?  And maybe even other models
-            # or datasets (except times and only for run_compute but not run_fitting)
-            f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.to_json())))
-            f.write("b = phoebe.Bundle(bdict)\n")
-            # TODO: make sure this works with multiple computes
-            compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', model)]
-            compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(v) if isinstance(v, str) else v) for k,v in compute_kwargs])
-            f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
-            f.write("model_ps.save('_{}.out', incl_uniqueid=True)\n".format(jobid))
-            f.close()
+            out_fname = "_{}.out".format(jobid)
+            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, False, kwargs)
 
             script_fname = os.path.abspath(script_fname)
             cmd = mpi.detach_cmd.format(script_fname)
@@ -5660,7 +6726,11 @@ class Bundle(ParameterSet):
             else:
                 logger.info("detaching from run_compute.  Call get_model('{}').attach() to re-attach".format(model))
 
+            # TODO: make sure the figureparams are returned when attaching
+
             # return self.get_model(model)
+            self._handle_model_selectparams()
+            # return self.filter(model=model, check_visible=False, check_default=False)
 
             if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
                 return ParameterSet([job_param]) + overwrite_ps
@@ -5797,6 +6867,14 @@ class Bundle(ParameterSet):
                             logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
                             param.set_value(param.get_value() * scale_factor)
 
+            # Figure options for this model
+            if do_create_fig_params:
+                fig_params = _figure._run_compute(self, **kwargs)
+
+                fig_metawargs = {'context': 'figure',
+                                 'model': model}
+                self._attach_params(fig_params, **fig_metawargs)
+
             redo_kwargs = deepcopy(kwargs)
             redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
             redo_kwargs['model'] = model
@@ -5813,6 +6891,11 @@ class Bundle(ParameterSet):
         restore_conf()
 
         ret_ps = self.filter(model=model, **_skip_filter_checks)
+
+        # TODO: should we add these to the output?
+        self._handle_model_selectparams()
+        self._handle_meshcolor_choiceparams()
+        self._handle_figure_time_source_params()
 
         if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
             ret_ps += overwrite_ps
@@ -5839,6 +6922,68 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'model'
         return self.filter(**kwargs)
 
+    def rerun_model(self, model=None, **kwargs):
+        """
+        Rerun run_compute for a given model.  This simply retrieves the current
+        compute parameters given the same compute label used to create the original
+        model.  This does not, therefore, necessarily ensure that the exact
+        same compute options are used.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.run_compute>
+
+        Arguments
+        ------------
+        * `model` (string, optional): label of the model (will be overwritten)
+        * `**kwargs`: all keyword arguments are passed directly to
+            <phoebe.frontend.bundle.Bundle.run_compute>
+
+        Returns
+        ------------
+        * the output from <phoebe.frontend.bundle.Bundle.run_compute>
+        """
+        model_ps = self.get_model(model=model)
+
+        compute = model_ps.compute
+        kwargs.setdefault('compute', compute)
+
+        return self.run_compute(model=model, **kwargs)
+
+    def import_model(self, fname, model=None):
+        """
+        Import and attach a model from a file.  Generally this file will be the
+        output after running a script generated by
+        <phoebe.frontend.bundle.Bundle.export_compute>.  This is NOT necessary
+        to be called if generating a model directly from
+        <phoebe.frontend.bundle.Bundle.run_compute>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.export_compute>
+
+        Arguments
+        ------------
+        * `fname` (string): the path to the file containing the model.  Likely
+            `out_fname` from <phoebe.frontend.bundle.Bundle.export_compute>.
+            Alternatively, this can be the json of the model.  Must be
+            able to be parsed by <phoebe.parameters.ParameterSet.open>.
+        * `model` (string, optional): the name of the model to be attached
+            to the Bundle.  If not provided, the model will be adopted from
+            the tags in the file.
+
+        Returns
+        -----------
+        * ParameterSet of added and changed parameters
+        """
+        result_ps = ParameterSet.open(fname)
+        metawargs = {}
+        if model is not None:
+            metawargs['model'] = model
+        self._attach_params(result_ps, override_tags=True, **metawargs)
+
+        changed_params = self._handle_model_selectparams(return_changes=True)
+
+        return ParameterSet(changed_params) + self.get_model(model=model if model is not None else result_ps.models)
+
     def remove_model(self, model, **kwargs):
         """
         Remove a 'model' from the bundle.
@@ -5849,17 +6994,26 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `model` (string): the label of the model to be removed.
+        * `remove_figure_params` (bool, optional): whether to also remove
+            figure options tagged with `model`.  If not provided, will default
+            to false if `model` is 'latest', otherwise will default to True.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: model, context.
 
         Returns
         -----------
-        * ParameterSet of removed parameters
+        * ParameterSet of removed or changed parameters
         """
+        remove_figure_params = kwargs.pop('remove_figure_params', model!='latest')
+
         kwargs['model'] = model
-        kwargs['context'] = 'model'
-        self.remove_parameters_all(**kwargs)
+        kwargs['context'] = ['model', 'figure'] if remove_figure_params else 'model'
+        ret_ps = self.remove_parameters_all(**kwargs)
+        ret_ps += ParameterSet(self._handle_model_selectparams(return_changes=True))
+        if remove_figure_params:
+            ret_ps += ParameterSet(self._handle_meshcolor_choiceparams(return_changes=True))
+        return ret_ps
 
     def remove_models_all(self):
         """
@@ -5885,6 +7039,10 @@ class Bundle(ParameterSet):
         * `new_model` (string): the desired new label of the model
             (must not yet exist)
 
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed model
+
         Raises
         --------
         * ValueError: if the value of `new_model` is forbidden or already exists.
@@ -5893,3 +7051,40 @@ class Bundle(ParameterSet):
 
         self._check_label(new_model)
         self._rename_label('model', old_model, new_model)
+
+        ret_ps = self.filter(model=new_model)
+
+        ret_ps += ParameterSet(self._handle_model_selectparams())
+
+        return ret_ps
+
+    def attach_job(self, twig=None, wait=True, sleep=5, cleanup=True, **kwargs):
+        """
+        Attach the results from an existing <phoebe.parameters.JobParameter>.
+
+        Jobs are created when passing `detach=True` to
+        <phoebe.frontend.bundle.Bundle.run_compute>.
+
+        See also:
+        * <phoebe.parameters.JobParameter.attach>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `wait` (bool, optional, default=True): whether to enter a loop to wait
+            for results if the Job is not yet complete.
+        * `sleep` (int, optional, default=5): number of seconds to wait in the loop.
+            Only applicable if `wait` is True.
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files created by the Job.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (<phoebe.parameters.ParameterSet>): ParameterSet of the newly attached
+            Parameters.
+        """
+        kwargs['qualifier'] = 'detached_job'
+        return self.get_parameter(twig=twig, **kwargs).attach(wait=wait, sleep=sleep, cleanup=cleanup)

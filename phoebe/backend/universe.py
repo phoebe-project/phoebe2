@@ -155,7 +155,7 @@ class System(object):
 
         # now pull general compute options
         if compute is not None:
-            if isinstance(compute, str):
+            if isinstance(compute, str) or isinstance(compute, unicode):
                 compute_ps = b.get_compute(compute)
             else:
                 # then hopefully compute is the parameterset
@@ -1372,7 +1372,7 @@ class Star(Body):
 
         ind_self = starrefs.index(label_self)
         # for the sibling, we may need to handle a list of stars (ie in the case of a hierarchical triple)
-        ind_sibling = starrefs.index(label_sibling) if isinstance(label_sibling, str) else [starrefs.index(l) for l in label_sibling]
+        ind_sibling = starrefs.index(label_sibling) if (isinstance(label_sibling, str) or isinstance(label_sibling, unicode)) else [starrefs.index(l) for l in label_sibling]
         comp_no = ['primary', 'secondary'].index(hier.get_primary_or_secondary(component))+1
 
         self_ps = b.filter(component=component, context='component')

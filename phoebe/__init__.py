@@ -8,20 +8,20 @@ Available environment variables:
 * PHOEBE_ENABLE_MPI=TRUE/FALSE (whether to use internal parallelization: defaults to True if within mpirun, otherwise False, can override in python with phoebe.mpi.on() and phoebe.mpi.off())
 * PHOEBE_MPI_NPROCS=INT (number of procs to spawn in mpi is enabled but not running within mpirun: defaults to 4, only applicable if not within mpirun and PHOEBE_ENABLE_MPI=TRUE or phoebe.mpi.on() called, can override in python by passing nprocs to phoebe.mpi.on() or by setting phoebe.mpi.nprocs)
 * PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
-
+* PHOEBE_DEVEL=TRUE/FALSE enable developer mode by default
 
 """
 
 __version__ = 'devel'
 
-import os
+import os as _os
 import sys as _sys
 import inspect as _inspect
 import atexit
 
 # People shouldn't import Phoebe from the installation directory (inspired upon
 # pymc warning message).
-if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]))>-1:
+if _os.getcwd().find(_os.path.abspath(_os.path.split(_os.path.split(__file__)[0])[0]))>-1:
     # We have a clash of package name with the standard library: we implement an
     # "io" module and also they do. This means that you can import Phoebe from its
     # main source tree; then there is no difference between io from here and io
@@ -42,11 +42,11 @@ else:
     raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
 
 def _env_variable_int(key, default):
-    value = os.getenv(key, default)
+    value = _os.getenv(key, default)
     return int(value)
 
 def _env_variable_bool(key, default):
-    value = os.getenv(key, default)
+    value = _os.getenv(key, default)
     if isinstance(value, bool):
         return value
     elif value.upper()=='TRUE':
@@ -65,7 +65,7 @@ if _env_variable_bool('PHOEBE_ENABLE_PLOTTING', True):
         pass
         # we'll catch this later in plotting and throw warnings as necessary
     else:
-        if 'DISPLAY' not in os.environ.keys() and _sys.platform not in ['win32','cygwin']:
+        if 'DISPLAY' not in _os.environ.keys() and _sys.platform not in ['win32','cygwin']:
             matplotlib.use('Agg')
         elif hasattr(_sys, 'real_prefix'):
             # then we're likely in a virtualenv.  Our best bet is to use the 'TkAgg'
@@ -91,7 +91,7 @@ class MPI(object):
         # this is a bit of a hack and will only work with openmpi, but environment
         # variables seem to be the only way to detect whether the script was run
         # via mpirun or not
-        evars = os.environ.keys()
+        evars = _os.environ.keys()
         if 'OMPI_COMM_WORLD_SIZE' in evars or 'MV2_COMM_WORLD_SIZE' in evars or 'PMI_SIZE' in evars:
             from mpi4py import MPI as mpi4py
             self._within_mpirun = True
@@ -237,7 +237,7 @@ class Settings(object):
         self._check_default = True
 
         # And we'll require explicitly setting developer mode on
-        self._devel = False
+        self._devel = _env_variable_bool('PHOEBE_DEVEL', False)
 
     def __repr__(self):
         return "<Settings interactive_checks={} interactive_constraints={}>".format(self.interactive_checks, self.interactive_constraints)
@@ -319,7 +319,7 @@ conf = Settings()
 from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
 from .atmospheres.passbands import install_passband, uninstall_all_passbands, download_passband, update_passband_available, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-from .parameters import hierarchy, component, compute, constraint, dataset, feature
+from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure
 from .frontend.bundle import Bundle
 from .backend import backends as _backends
 from . import utils as _utils
@@ -419,6 +419,11 @@ def from_legacy(*args, **kwargs):
 
 from_legacy.__doc__ = Bundle.from_legacy.__doc__
 
+def from_server(*args, **kwargs):
+    return Bundle.from_server(*args, **kwargs)
+
+from_server.__doc__ = Bundle.from_server.__doc__
+
 def default_star(*args, **kwargs):
     return Bundle.default_star(*args, **kwargs)
 
@@ -428,6 +433,11 @@ def default_binary(*args, **kwargs):
     return Bundle.default_binary(*args, **kwargs)
 
 default_binary.__doc__ = Bundle.default_binary.__doc__
+
+def default_contact_binary(*args, **kwargs):
+    return Bundle.default_contact_binary(*args, **kwargs)
+
+default_contact_binary.__doc__ = Bundle.default_contact_binary.__doc__
 
 def default_triple(*args, **kwargs):
     return Bundle.default_triple(*args, **kwargs)
@@ -753,6 +763,26 @@ def list_available_datasets(devel=False):
     """
     return  _get_phoebe_funcs(dataset, devel=devel)
 
+def list_available_figures(devel=False):
+    """
+    List all available 'kinds' for figure from <phoebe.parameters.figure>.
+
+    See also:
+    * <phoebe.list_available_components>
+    * <phoebe.list_available_features>
+    * <phoebe.list_available_computes>
+
+    Arguments
+    -----------
+    * `devel` (bool, default, optional=False): whether to include development-only
+        kinds.  See <phoebe.devel_on>.
+
+    Returns
+    ---------
+    * (list of strings)
+    """
+    return  _get_phoebe_funcs(figure, devel=devel)
+
 def list_available_computes(devel=False):
     """
     List all available 'kinds' for compute from <phoebe.parameters.compute>.
@@ -777,7 +807,6 @@ def list_available_computes(devel=False):
 
 # delete things we don't want exposed to the user at the top-level
 # NOTE: we need _sys for reset_settings, that's why its __sys
-del os
 del atexit
 try:
     del matplotlib

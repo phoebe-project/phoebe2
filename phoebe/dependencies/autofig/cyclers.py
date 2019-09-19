@@ -2,8 +2,8 @@ from matplotlib import colors, markers, cm
 import matplotlib.pyplot as plt
 from . import common
 
-_mplcolors = ['black', 'blue', 'red', 'green', 'purple']
-_mplcolors = _mplcolors + [common.coloralias.map(c) for c in list(colors.ColorConverter.colors.keys()) + list(colors.cnames.keys()) if common.coloralias.map(c) not in _mplcolors]
+_mplcolors = ['black', 'blue', 'red', 'green']
+_mplcolors += [common.coloralias.map(c) for c in list(colors.ColorConverter.colors.keys()) + list(colors.cnames.keys()) if common.coloralias.map(c) not in _mplcolors and 'xkcd' not in c and ':' not in c]
 _mplmarkers = ['.', 'o', '+', 's', '*', 'x', 'v', '^', '<', '>', 'p', 'h', 'o', 'D']
 # could do matplotlib.markers.MarkerStyle.markers.keys()
 _mpllinestyles = ['solid', 'dashed', 'dotted', 'dashdot'] #, 'None']
@@ -104,7 +104,8 @@ class MPLPropCycler(object):
         if option in [None, 'None', 'none', 'face']:
             return
         if option not in self._options_orig:
-            raise ValueError("{} not one of {}".format(option, self._options_orig))
+            return
+            # raise ValueError("{} not one of {}".format(option, self._options_orig))
         if option not in self._used:
             self._used.append(option)
 
