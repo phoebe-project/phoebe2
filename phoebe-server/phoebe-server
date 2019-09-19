@@ -13,7 +13,7 @@ PHOEBE_SERVER_MAX_COMPUTATIONS=100 phoebe-server [port]
 """
 
 try:
-    from flask import Flask, jsonify, request, redirect, Response, make_response, send_from_directory
+    from flask import Flask, jsonify, request, redirect, Response, make_response, send_from_directory, send_file
     from flask_socketio import SocketIO, emit, join_room, leave_room
     from flask_cors import CORS
 except ImportError:
@@ -515,6 +515,31 @@ def save_bundle(bundleid):
     resp.headers.set('Content-Disposition', 'attachment', filename='{}.bundle'.format(bundleid))
 
     return resp
+
+@app.route('/export_compute/<string:bundleid>/<string:compute>', defaults={'model': None}, methods=['GET'])
+@app.route('/export_compute/<string:bundleid>/<string:compute>/<string:model>', methods=['GET'])
+@crossdomain(origin='*')
+def export_compute(bundleid, compute, model=None):
+    """
+    """
+    if app._verbose:
+        print("export_compute(bundleid={}, compute={})".format(bundleid, compute))
+
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    ef = tempfile.NamedTemporaryFile(prefix="export_compute", suffix=".py")
+
+    script_fname=ef.name
+    b.export_compute(script_fname, out_fname=None, compute=compute, model=model)
+
+    return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_compute_{}.py'.format(bundleid,compute))
+
+
 
 @app.route('/bundle/<string:bundleid>', methods=['GET'])
 @crossdomain(origin='*')
@@ -1044,6 +1069,9 @@ def bundle_method(msg):
         elif method.split('_')[0] == 'run':
             new_context = {'compute': 'model'}[method.split('_')[1]]
             packet['add_filter'] = {new_context: getattr(ps, new_context)}
+        elif method == 'import_model':
+            new_context = 'model'
+            packet['add_filter'] = {'model': ps.model}
 
         emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
         # flush so the changes goes through before running checks and updating figures
