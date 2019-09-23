@@ -711,8 +711,11 @@ class Passband:
         self._bb_func_photon = interpolate.splrep(Teffs, log10ints_photon, s=0)
         self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
-        self.content.append('blackbody')
-        self.atmlist.append('blackbody')
+        if 'blackbody' not in self.content:
+            self.content.append('blackbody')
+
+        if 'blackbody' not in self.atmlist:
+            self.atmlist.append('blackbody')
 
     def compute_ck2004_response(self, path, verbose=False):
         """
@@ -772,8 +775,11 @@ class Passband:
 
         # Tried radial basis functions but they were just terrible.
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
-        self.content.append('ck2004')
-        self.atmlist.append('ck2004')
+        if 'ck2004' not in self.content:
+            self.content.append('ck2004')
+
+        if 'ck2004' not in self.atmlist:
+            self.atmlist.append('ck2004')
 
     def compute_phoenix_response(self, path, verbose=False):
         """
@@ -837,8 +843,11 @@ class Passband:
 
         # Tried radial basis functions but they were just terrible.
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
-        self.content.append('phoenix')
-        self.atmlist.append('phoenix')
+
+        if 'phoenix' not in self.content:
+            self.content.append('phoenix')
+        if 'phoenix' not in self.atmlist:
+            self.atmlist.append('phoenix')
 
     def _blender_find_edge(self, new_axes, new_table):
         edge = np.nan*np.ones_like(new_table)
@@ -1130,7 +1139,8 @@ class Passband:
         self._blended_energy_grid = blended_energy_grid
         self._blended_photon_grid = blended_photon_grid
 
-        self.content.append('blended')
+        if 'blended' not in self.content:
+            self.content.append('blended')
 
         # blended_intensity_axes, blended_Imu_energy_grid = self._blend_4d(photon_weighted=False)
         # blended_intensity_axes, blended_Imu_photon_grid = self._blend_4d(photon_weighted=True)
@@ -1139,7 +1149,8 @@ class Passband:
         # self._blended_Imu_energy_grid = blended_Imu_energy_grid
         # self._blended_Imu_photon_grid = blended_Imu_photon_grid
 
-        # self.content.append('blended_all')
+        # if 'blended_all' not in self.content:
+        #   self.content.append('blended_all')
 
     def _rescale_phoenix_intensities(self, mu_interp, mu_phoenix, intensity_phoenix):
         '''
@@ -1335,7 +1346,8 @@ class Passband:
         for i, Bavg in enumerate(boostingP):
             self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
 
-        self.content.append('ck2004_all')
+        if 'ck2004_all' not in self.content:
+            self.content.append('ck2004_all')
 
     def compute_phoenix_intensities(self, path, particular=None, verbose=False):
         """
@@ -1485,7 +1497,8 @@ class Passband:
         # for i, Bavg in enumerate(boostingP):
         #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
 
-        self.content.append('phoenix_all')
+        if 'phoenix_all' not in self.content:
+            self.content.append('phoenix_all')
 
     def _ldlaw_lin(self, mu, xl):
         return 1.0-xl*(1-mu)
@@ -1571,7 +1584,8 @@ class Passband:
                             plt.plot(mus[fEmask], self._ldlaw_nonlin(mus[fEmask], *cEnlin), 'k-')
                             plt.show()
 
-        self.content.append('ck2004_ld')
+        if 'ck2004_ld' not in self.content:
+            self.content.append('ck2004_ld')
 
     def compute_phoenix_ldcoeffs(self, weighting='uniform', plot_diagnostics=False):
         """
@@ -1642,7 +1656,8 @@ class Passband:
                             plt.plot(mus[fEmask], self._ldlaw_nonlin(mus[fEmask], *cEnlin), 'k-')
                             plt.show()
 
-        self.content.append('phoenix_ld')
+        if 'phoenix_ld' not in self.content:
+            self.content.append('phoenix_ld')
 
     def export_phoenix_atmtab(self):
         """
@@ -1768,7 +1783,8 @@ class Passband:
                     self._ck2004_ldint_energy_grid[a,b,c] = 2*ldint
                     self._ck2004_ldint_photon_grid[a,b,c] = 2*pldint
 
-        self.content.append('ck2004_ldint')
+        if 'ck2004_ldint' not in self.content:
+            self.content.append('ck2004_ldint')
 
     def compute_phoenix_ldints(self):
         """
@@ -1814,7 +1830,8 @@ class Passband:
                     self._phoenix_ldint_energy_grid[a,b,c] = 2*ldint
                     self._phoenix_ldint_photon_grid[a,b,c] = 2*pldint
 
-        self.content.append('phoenix_ldint')
+        if 'phoenix_ldint' not in self.content:
+            self.content.append('phoenix_ldint')
 
     def interpolate_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0,
                                     ldatm='ck2004', ld_func='power',
