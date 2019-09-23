@@ -80,6 +80,18 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.15 - spots hotfix
+
+* Fixes 'long' location of spots on single stars.
+* Fixes treatment of spots on secondary 'half' of contact systems.
+* Fixes loading legacy files with a spot that has source of 0 due to a bug in legacy.
+* Fixes overriding 'ntriangles' by passing keyword argument to run_compute.
+
+### 2.1.14 - contacts inclination RVs hotfix
+
+* Fixes the polar rotation axis for RVs in contact systems with non-90 inclinations
+  by re-enabling the alignment (pitch, yaw) constraints and enforcing them to be 0.
+
 ### 2.1.13 - constraint flip loop hotfix
 
 * Fixes infinite loop when trying to flip esinw AND ecosw

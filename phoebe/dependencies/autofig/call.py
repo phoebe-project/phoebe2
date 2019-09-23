@@ -467,15 +467,20 @@ class Call(object):
 
             return
 
-        if isinstance(axpos, tuple) and len(axpos) == 3 and np.all(isinstance(ap, int) for ap in axpos):
+        if isinstance(axpos, list) or isinstance(axpos, np.ndarray):
+            axpos = tuple(axpos)
+
+        if isinstance(axpos, tuple) and (len(axpos) == 3 or len(axpos) == 6) and np.all(isinstance(ap, int) for ap in axpos):
             self._axpos = axpos
 
         elif isinstance(axpos, int) and axpos >= 100 and axpos < 1000:
             self._axpos = (int(axpos/100), int(axpos/10 % 10), int(axpos % 10))
 
-        else:
-            raise ValueError("axpos must be of type int or tuple between 100 and 999")
+        elif isinstance(axpos, int) and axpos >= 110011 and axpos < 999999:
+            self._axpos = tuple([int(ap) for ap in str(axpos)])
 
+        else:
+            raise ValueError("axpos must be of type int or tuple between 100 and 999 (subplot syntax: ncols, nrows, ind) or 110011 and 999999 (gridspec syntax: ncols, nrows, indx, indy, widthx, widthy)")
 
     @property
     def title(self):
@@ -701,6 +706,34 @@ class Plot(Call):
                 dirs.append(direction)
 
         return "<Call:Plot | dims: {}>".format(", ".join(dirs))
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'classname': self.__class__.__name__,
+                'x': self.x.to_dict(),
+                'y': self.y.to_dict(),
+                'z': self.z.to_dict(),
+                'c': self.c.to_dict(),
+                's': self.s.to_dict(),
+                'i': self.i.to_dict(),
+                'axorder': self._axorder,
+                'axpos': self._axpos,
+                'title': self._title,
+                'label': self._label,
+                'marker': self._marker,
+                'linestyle': self._linestyle,
+                'linebreak': self._linebreak,
+                'highlight': self._highlight,
+                'highlight_linestyle': self._highlight_linestyle,
+                'highlight_size': self._highlight_size,
+                'highlight_color': self._highlight_color,
+                'highlight_marker': self._highlight_marker,
+                'uncover': self._uncover,
+                'trail': self._trail,
+                'consider_for_limits': self._consider_for_limits}
 
     @property
     def axes_c(self):
@@ -951,7 +984,7 @@ class Plot(Call):
             return
 
         if not isinstance(linebreak, str):
-            raise TypeError("linebreak must be of type str")
+            raise TypeError("linebreak must be of type str, found {} {}".format(type(linebreak), linebreak))
 
         if not len(linebreak)==2:
             raise ValueError("linebreak must be of length 2")
@@ -1056,7 +1089,7 @@ class Plot(Call):
         cs = _to_linebreak_list(c, linebreak_n)
         ss = _to_linebreak_list(s, linebreak_n)
 
-        for x,xerr,y,yerr,z,c,s in zip(xs, xerrs, ys, yerrs, zs, cs, ss):
+        for loop1,(x,xerr,y,yerr,z,c,s) in enumerate(zip(xs, xerrs, ys, yerrs, zs, cs, ss)):
             if axes_3d:
                 data = np.array([x, y, z])
                 points = np.array([x, y, z]).T.reshape(-1, 1, 3)
@@ -1203,15 +1236,19 @@ class Plot(Call):
                     zorders = [zorders]
                     segments = [segments]
 
-                for loop, (datapoint, segment, zorder) in enumerate(zip(datas, segments, zorders)):
+                for loop2, (datapoint, segment, zorder) in enumerate(zip(datas, segments, zorders)):
                     return_artists_this_loop = []
                     # DRAW ERRORBARS, if applicable
+                    # NOTE: we never pass a label here to avoid duplicate entries
+                    # the actual datapoints are handled and labeled separately.
+                    # Unfortunately this means the error bar will not be included
+                    # in the styling of the legend.
                     if xerr is not None or yerr is not None or zerr is not None:
                         artists = ax.errorbar(*datapoint,
                                                fmt='', linestyle='None',
                                                zorder=zorder,
-                                               label=self.label if loop==0 else None,
-                                               **error_kwargs_loop(xerr, yerr, zerr, loop, do_zorder))
+                                               label=None,
+                                               **error_kwargs_loop(xerr, yerr, zerr, loop2, do_zorder))
 
                         # NOTE: these are currently not included in return_artists
                         # so they don't scale according to per-element sizes.
@@ -1249,12 +1286,12 @@ class Plot(Call):
                             # marker and linestyle are present
                             lc = lccall(segments,
                                         zorder=zorder,
-                                        label=self.label if loop==0 and marker.lower()=='none' else None,
-                                        **lc_kwargs_loop(lc_kwargs_const, loop, do_zorder))
+                                        label=self.label if loop1==0 and loop2==0 and marker.lower()=='none' else None,
+                                        **lc_kwargs_loop(lc_kwargs_const, loop2, do_zorder))
 
                             if do_colorscale:
                                 if do_zorder:
-                                    lc.set_array(np.array([c[loop]]))
+                                    lc.set_array(np.array([c[loop2]]))
                                 else:
                                     lc.set_array(c)
 
@@ -1267,8 +1304,8 @@ class Plot(Call):
                         if marker.lower() != 'none':
                             artist = ax.scatter(*datapoint,
                                                 zorder=zorder,
-                                                label=self.label if loop==0 else None,
-                                                **sc_kwargs_loop(sc_kwargs_const, loop, do_zorder))
+                                                label=self.label if loop1==0 and loop2==0 else None,
+                                                **sc_kwargs_loop(sc_kwargs_const, loop2, do_zorder))
 
                             return_artists_this_loop.append(artist)
 
@@ -1281,11 +1318,11 @@ class Plot(Call):
                                           ls=ls,
                                           mec='none',
                                           color=color,
-                                          label=self.label if loop==0 else None)
+                                          label=self.label if loop1==0 and loop2==0 else None)
 
                         return_artists_this_loop += artists
 
-                    size_this_loop = sizes_loop(loop, do_zorder)
+                    size_this_loop = sizes_loop(loop2, do_zorder)
                     for artist in return_artists_this_loop:
                         # store the sizes so they can be rescaled appropriately by
                         # the callback
@@ -1505,6 +1542,28 @@ class Mesh(Call):
                 dirs.append(direction)
 
         return "<Call:Mesh | dims: {}>".format(", ".join(dirs))
+
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'classname': self.__class__.__name__,
+                'x': self.x.to_dict(),
+                'y': self.y.to_dict(),
+                'z': self.z.to_dict(),
+                'fc': self.fc.to_dict(),
+                'ec': self.ec.to_dict(),
+                'i': self.i.to_dict(),
+                'axorder': self._axorder,
+                'axpos': self._axpos,
+                'title': self._title,
+                'label': self._label,
+                'uncover': self._uncover,
+                'trail': self._trail,
+                'consider_for_limits': self._consider_for_limits,
+                'exclude_back': self._exclude_back}
 
     @property
     def axes_fc(self):
@@ -1805,13 +1864,13 @@ class Mesh(Call):
             if isinstance(facecolors, str):
                 facecolors = [facecolors] * len(zorders)
 
-            for polygon, zorder, edgecolor, facecolor in zip(polygons, zorders, edgecolors, facecolors):
+            for loop, (polygon, zorder, edgecolor, facecolor) in enumerate(zip(polygons, zorders, edgecolors, facecolors)):
                 pc = pccall((polygon,),
                             linestyle=self.linestyle,
                             edgecolors=edgecolor,
                             facecolors=facecolor,
                             zorder=zorder,
-                            label=self.label)
+                            label=self.label if loop==0 else None)
                 ax.add_collection(pc)
 
                 return_artists += [pc]
@@ -1905,6 +1964,13 @@ def make_calldimensiongroup(items):
 
 class CallDimension(object):
     def __init__(self, direction, call, value, error=None, unit=None, label=None, normals=None):
+        if isinstance(value, dict):
+            error = value.get('error', error)
+            unit = value.get('unit', unit)
+            label = value.get('label', label)
+            normals = value.get('normals', normals)
+            value = value.get('value')
+
         self._call = call
         self.direction = direction
         # unit must be set before value as setting value pulls the appropriate
@@ -1929,6 +1995,18 @@ class CallDimension(object):
                                        info,
                                        self.unit.physical_type,
                                        self.label)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'unit': self.unit.to_string(),
+                'value': common.arraytolistrecursive(self._value),
+                'error': common.arraytolistrecursive(self._error),
+                'label': self._label,
+                'normals': common.arraytolistrecursive(self._normals)}
 
     @property
     def call(self):
@@ -2212,6 +2290,9 @@ class CallDimension(object):
                 # axhline even with i given won't change in i
                 return self._to_unit(value, unit)
 
+        if isinstance(value, list) or isinstance(value, tuple):
+            value = np.asarray(value)
+
         # from here on we're assuming the value is an array, so let's just check
         # to be sure
         if not isinstance(value, np.ndarray):
@@ -2319,9 +2400,10 @@ class CallDimension(object):
 
         # handle casting to acceptable types
         if isinstance(value, list) or isinstance(value, tuple):
-            value = np.array(value)
-        if isinstance(value, int):
+            value = np.asarray(value)
+        elif isinstance(value, int):
             value = float(value)
+
         if isinstance(value, u.Quantity):
             if self.unit == u.dimensionless_unscaled:
                 # then take the unit from quantity and apply it
@@ -2341,13 +2423,10 @@ class CallDimension(object):
             # TODO: do we want to cast to np.array([value])??
             # this will most likely be used for axhline/axvline
             self._value = value
-        # elif isinstance(value, str):
-            # TODO: then need to pull from the bundle??? Or will this happen
-            # at a higher level
         elif self.direction=='c' and isinstance(value, str):
             self._value = common.coloralias.map(value)
         else:
-            raise TypeError("value must be of type array (or similar)")
+            raise TypeError("value must be of type array (or similar), found {} {}".format(type(value), value))
 
     value = property(_get_value, _set_value)
 
@@ -2383,6 +2462,9 @@ class CallDimension(object):
 
         if isinstance(error, u.Quantity):
             error = error.to(self.unit).value
+
+        if isinstance(error, list) or isinstance(error, tuple):
+            error = np.asarray(error)
 
         self._error = error
 
@@ -2456,8 +2538,21 @@ class CallDimension(object):
 
 class CallDimensionI(CallDimension):
     def __init__(self, call, value, unit, tol):
+        if isinstance(value, dict):
+            tol = value.get('tol', tol)
+
         self.tol = tol
         super(CallDimensionI, self).__init__('i', call, value, unit)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'unit': self.unit.to_string(),
+                'value': common.arraytolistrecursive(self._value),
+                'tol': self._tol}
 
     @property
     def tol(self):
@@ -2550,6 +2645,12 @@ class CallDimensionZ(CallDimension):
 class CallDimensionS(CallDimension):
     def __init__(self, call, value, error=None, unit=None, label=None,
                  smap=None, mode=None):
+
+        if isinstance(value, dict):
+            error = value.get('error', error)
+            smap = value.get('smap', smap)
+            mode = value.get('mode', mode)
+
         if error is not None:
             raise ValueError("error not supported for 's' dimension")
 
@@ -2558,6 +2659,19 @@ class CallDimensionS(CallDimension):
 
         super(CallDimensionS, self).__init__('s', call, value, error, unit,
                                              label)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'unit': self.unit.to_string(),
+                'value': common.arraytolistrecursive(self._value),
+                'error': common.arraytolistrecursive(self._error),
+                'label': self._label,
+                'smap': self._smap,
+                'mode': self._mode}
 
     @property
     def smap(self):
@@ -2634,12 +2748,28 @@ class CallDimensionS(CallDimension):
 
 class CallDimensionC(CallDimension):
     def __init__(self, call, value, error=None, unit=None, label=None, cmap=None):
+        if isinstance(value, dict):
+            error = value.get('error', error)
+            cmap = value.get('cmap', cmap)
+
         if error is not None:
             raise ValueError("error not supported for 'c' dimension")
 
         self.cmap = cmap
         super(CallDimensionC, self).__init__('c', call, value, error, unit,
                                              label)
+
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(**dict)
+
+    def to_dict(self):
+        return {'direction': self.direction,
+                'unit': self.unit.to_string(),
+                'value': common.arraytolistrecursive(self._value),
+                'error': common.arraytolistrecursive(self._error),
+                'label': self._label,
+                'cmap': self._cmap}
 
     @property
     def cmap(self):

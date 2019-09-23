@@ -20,6 +20,7 @@ def test_binary(plot=False):
     b.set_value_all('atm', 'extern_planckint')
 
     # set matching limb-darkening, both bolometric and passband
+    b.set_value_all('ld_mode_bol', 'manual')
     b.set_value_all('ld_func_bol', 'logarithmic')
     b.set_value_all('ld_coeffs_bol', [0.0, 0.0])
 
@@ -41,12 +42,13 @@ def test_binary(plot=False):
 
     if plot:
         print("rel: ", ((phoebe2_val-phoebe1_val)/phoebe2_val).max())
+        print("abs: ", (phoebe2_val-phoebe1_val).max())
 
         # b.plot(dataset='mesh01', show=True)
 
-        b.plot(dataset='lc01', show=True)
+        b.plot(dataset='lc01', legend=True, show=True)
 
-    # assert(np.allclose(phoebe2_val, phoebe1_val, rtol=2e-3, atol=0.))
+    assert(np.allclose(phoebe2_val, phoebe1_val, rtol=2e-3, atol=5e-4))
 
     return b
 

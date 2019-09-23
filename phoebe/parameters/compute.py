@@ -86,6 +86,7 @@ def phoebe(**kwargs):
     params = []
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
 
     # DYNAMICS
     params += [ChoiceParameter(qualifier='dynamics_method', value=kwargs.get('dynamics_method', 'keplerian'), choices=['keplerian', 'nbody', 'rebound', 'bs'] if conf.devel else ['keplerian'], description='Which method to use to determine the dynamics of components')]
@@ -103,7 +104,7 @@ def phoebe(**kwargs):
     # PHYSICS
     # TODO: should either of these be per-dataset... if so: copy_for={'kind': ['rv_dep', 'lc_dep'], 'dataset': '*'}, dataset='_default' and then edit universe.py to pull for the correct dataset (will need to become dataset-dependent dictionary a la ld_func)
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'wilson'), choices=['none', 'wilson', 'horvat'], description='Which method to use to handle all irradiation effects (reflection, redistribution)')]
-    params += [ChoiceParameter(qualifier='boosting_method', value=kwargs.get('boosting_method', 'none'), choices=['none', 'linear'], description='Type of boosting method')]
+    params += [ChoiceParameter(qualifier='boosting_method', value=kwargs.get('boosting_method', 'none'), choices=['none', 'linear'], advanced=True, description='Type of boosting method')]
 
     # TODO: include scattering here? (used to be in lcdep)
 
@@ -146,8 +147,8 @@ def phoebe(**kwargs):
 
 
     # ECLIPSE DETECTION
-    params += [ChoiceParameter(qualifier='eclipse_method', value=kwargs.get('eclipse_method', 'native'), choices=['only_horizon', 'graham', 'none', 'visible_partial', 'native', 'wd_horizon'] if conf.devel else ['native', 'only_horizon'], description='Type of eclipse algorithm')]
-    params += [ChoiceParameter(visible_if='eclipse_method:native', qualifier='horizon_method', value=kwargs.get('horizon_method', 'boolean'), choices=['boolean', 'linear'] if conf.devel else ['boolean'], description='Type of horizon method')]
+    params += [ChoiceParameter(qualifier='eclipse_method', value=kwargs.get('eclipse_method', 'native'), choices=['only_horizon', 'graham', 'none', 'visible_partial', 'native', 'wd_horizon'] if conf.devel else ['native', 'only_horizon'], advanced=True, description='Type of eclipse algorithm')]
+    params += [ChoiceParameter(visible_if='eclipse_method:native', qualifier='horizon_method', value=kwargs.get('horizon_method', 'boolean'), choices=['boolean', 'linear'] if conf.devel else ['boolean'], advanced=True, description='Type of horizon method')]
 
 
 
@@ -160,7 +161,7 @@ def phoebe(**kwargs):
     # copy_for = {'kind': ['rv_dep'], 'component': '*', 'dataset': '*'}
     # means that this should exist for each component/dataset pair with the
     # rv_dep kind
-    params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], description='Method to use for computing LC fluxes')]
+    params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], advanced=True, description='Method to use for computing LC fluxes')]
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1,None), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
 
@@ -241,6 +242,7 @@ def legacy(**kwargs):
     params = []
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'mesh'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
 
     # TODO: the kwargs need to match the qualifier names!
     # TODO: include MORE meshing options
@@ -373,6 +375,7 @@ def photodynam(**kwargs):
     params = []
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
 
     params += [FloatParameter(qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='Stepsize to use for dynamics integration')]
     params += [FloatParameter(qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='Error to use for dynamics integraton')]
@@ -480,6 +483,7 @@ def jktebop(**kwargs):
     params = []
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
 
     params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integration ring size')]
 
@@ -608,6 +612,7 @@ def ellc(**kwargs):
     params = []
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
 
     params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=["roche", "roche_v", "sphere", "poly1p5", "poly3p0", "love"], description='Method to use for distorting stars')]
     params += [FloatParameter(visible_if='distortion_method:love', copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='hf', value=kwargs.get('hf', 1.5), limits=(0,None), default_unit=u.dimensionless_unscaled, description='fluid second love number for radial displacement')]
@@ -628,3 +633,7 @@ def ellc(**kwargs):
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'none'), choices=['none'], description='Which method to use to handle all irradiation effects (ellc does not support irradiation)')]
 
     return ParameterSet(params)
+
+# del deepcopy
+# del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
+# del fnmatch

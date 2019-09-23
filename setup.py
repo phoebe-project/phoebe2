@@ -312,19 +312,29 @@ ext_modules = [
 #
 # Main setup
 #
+def _env_variable_bool(key, default):
+    value = os.getenv(key, default)
+    if isinstance(value, bool):
+        return value
+    elif value.upper()=='TRUE':
+        return True
+    else:
+        return False
+
 setup (name = 'phoebe',
        version = 'devel',
        description = 'PHOEBE devel version',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.13',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.15',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.utils', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.unitsiau2015'],
        install_requires=['numpy>=1.10','scipy>=0.17','astropy>=1.0,<3.0' if sys.version_info[0] < 3 else 'astropy>=1.0'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                      'phoebe.frontend':['default_bundles/*.bundle']
                     },
        ext_modules = ext_modules,
+       scripts=['phoebe-server/phoebe-server'] if _env_variable_bool('PHOEBE_DEVEL', False) else None,
        cmdclass = {
          'build_ext': build_check,
          'check_imports': import_check,

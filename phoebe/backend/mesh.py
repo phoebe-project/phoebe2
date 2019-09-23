@@ -670,9 +670,13 @@ class ProtoMesh(object):
                             nv += 1
 
                     # now we need to apply this to all indices after filtering
-                    for it,triangle in enumerate(copy[k]):
-                        for iv,vertex in enumerate(triangle):
-                            copy[k][it][iv] = index_mapping[vertex]
+                    try:
+                        for it,triangle in enumerate(copy[k]):
+                            for iv,vertex in enumerate(triangle):
+                                copy[k][it][iv] = index_mapping[vertex]
+                    except KeyError:
+                        raise TypeError('Mesh failed or incomplete. Try increasing the number of triangles!')
+
 
             elif len(current_value) == len(bool_per_vertex):
                 copy[k] = current_value[bool_per_vertex]
