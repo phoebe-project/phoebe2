@@ -1284,6 +1284,7 @@ class Star(Body):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
@@ -1325,6 +1326,8 @@ class Star(Body):
         # DATSET-DEPENDENT DICTS
         self.passband = passband
         self.intens_weighting = intens_weighting
+        self.extinct = extinct
+        self.Rv = Rv
         self.ld_mode = ld_mode
         self.ld_func = ld_func
         self.ld_coeffs = ld_coeffs
@@ -1467,6 +1470,10 @@ class Star(Body):
         passband = {ds: b.get_value(qualifier='passband', dataset=ds, passband=passband_override) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)
         intens_weighting = {ds: b.get_value(qualifier='intens_weighting', dataset=ds, intens_weighting=intens_weighting_override) for ds in datasets_intens}
+        ebv_override = kwargs.pop('ebv', None)
+        extinct = {ds: b.get_value('ebv', dataset=ds, context='dataset', ebv=ebv_override) for ds in datasets_intens}
+        Rv_override = kwargs.pop('Rv', None)
+        Rv = {ds: b.get_value('Rv', dataset=ds, context='dataset', Rv=Rv_override) for ds in datasets_intens}
         ld_mode_override = kwargs.pop('ld_mode', None)
         ld_mode = {ds: b.get_value(qualifier='ld_mode', dataset=ds, component=component, ld_mode=ld_mode_override) for ds in datasets_intens}
         ld_func_override = kwargs.pop('ld_func', None)
@@ -1482,6 +1489,7 @@ class Star(Body):
         profile_rest_override = kwargs.pop('profile_rest', None)
         lp_profile_rest = {ds: b.get_value(qualifier='profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override) for ds in datasets_lp}
 
+
         # we'll pass kwargs on here so they can be overridden by the classmethod
         # of any subclass and then intercepted again by the __init__ by the
         # same subclass.  Note: kwargs also hold meshing kwargs which are used
@@ -1496,6 +1504,7 @@ class Star(Body):
                    datasets,
                    passband,
                    intens_weighting,
+                   extinct, Rv,
                    ld_mode,
                    ld_func,
                    ld_coeffs,
@@ -1965,6 +1974,8 @@ class Star(Body):
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
         atm = kwargs.get('atm', self.atm)
+        extinct = kwargs.get('extinct', self.extinct.get(dataset, None))
+        Rv = kwargs.get('Rv', self.Rv.get(dataset, None))
         ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'manual' else None
@@ -2089,6 +2100,22 @@ class Star(Body):
             # normal intensities
             abs_intensities *= boost_factors
 
+            if extinct == 0.0:
+                extinct_factors = 1.0
+            else:
+                extinct_factors = pb.interpolate_extinct(Teff=self.mesh.teffs.for_computations,
+                                                         logg=self.mesh.loggs.for_computations,
+                                                         abun=self.mesh.abuns.for_computations,
+                                                         extinct=extinct,
+                                                         Rv=Rv,
+                                                         atm=atm,
+                                                         photon_weighted=intens_weighting=='photon')
+
+                # extinction is NOT aspect dependent, so we'll correct both
+                # normal and directional intensities
+                abs_intensities *= extinct_factors
+                abs_normal_intensities *= extinct_factors
+
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
@@ -2122,6 +2149,7 @@ class Star_roche(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
@@ -2145,6 +2173,7 @@ class Star_roche(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
+                                         extinct, Rv,
                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
                                          requiv, sma,
@@ -2339,6 +2368,7 @@ class Star_roche_envelope_half(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
@@ -2366,6 +2396,7 @@ class Star_roche_envelope_half(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
+                                         extinct, Rv,
                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
                                          requiv, sma,
@@ -2538,6 +2569,7 @@ class Star_rotstar(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
@@ -2560,6 +2592,7 @@ class Star_rotstar(Star):
                                            do_mesh_offset, mesh_init_phi,
 
                                            atm, datasets, passband, intens_weighting,
+                                           extinct, Rv,
                                            ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                            lp_profile_rest,
                                            requiv, sma,
@@ -2710,6 +2743,7 @@ class Star_sphere(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
+                 extinct, Rv,
                  ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
@@ -2733,6 +2767,7 @@ class Star_sphere(Star):
                                           do_mesh_offset, mesh_init_phi,
 
                                           atm, datasets, passband, intens_weighting,
+                                          extinct, Rv,
                                           ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                           lp_profile_rest,
                                           requiv, sma,

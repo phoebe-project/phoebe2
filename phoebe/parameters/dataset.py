@@ -122,6 +122,12 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy or photons.  Only applicable if `syn` is False.
+    * `ebv` (float, optional, default=0): extinction E(B-V).  Only applicable
+        if `syn` is False.
+    * `Av` (float, optional, default=0): extinction Av.  Only applicable if
+        `syn` is False.
+    * `Rv` (float, optional, default=3.1): extinction law parameter.  Only
+       applicable if `syn` is False.
     * `pblum_mode` (string, optional, default='manual'): mode for scaling
         passband luminosities.  Only applicable if `syn` is False and `is_lc`
         is True.
@@ -188,6 +194,11 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         passbands._init_passbands()  # NOTE: this only actually does something on the first call
         params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
         params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], advanced=True, description='Whether passband intensities are weighted by energy or photons')]
+
+        params += [FloatParameter(qualifier='ebv', value=kwargs.get('ebv', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Passband extinction E(B-V)')]
+        params += [FloatParameter(qualifier='Av', value=kwargs.get('Av', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Passband extinction Av')]
+        params += [FloatParameter(qualifier='Rv', value=kwargs.get('Rv', 3.1), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Extinction law parameter')]
+        constraints +=[(constraint.extinction, kwargs.get('dataset', None))]
 
     if is_lc and not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
@@ -273,6 +284,12 @@ def rv(syn=False, as_ps=True, **kwargs):
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy or photons.  Only applicable if `syn` is False.
+    * `ebv` (float, optional, default=0): extinction E(B-V).  Only applicable
+        if `syn` is False.
+    * `Av` (float, optional, default=0): extinction Av.  Only applicable if
+        `syn` is False.
+    * `Rv` (float, optional, default=3.1): extinction law parameter.  Only
+       applicable if `syn` is False.
 
     Returns
     --------
@@ -375,6 +392,12 @@ def lp(syn=False, as_ps=True, **kwargs):
     * `passband` (string, optional): passband.  Only applicable if `syn` is False.
     * `intens_weighting` (string, optional): whether passband intensities are
         weighted by energy or photons.  Only applicable if `syn` is False.
+    * `ebv` (float, optional, default=0): extinction E(B-V).  Only applicable
+        if `syn` is False.
+    * `Av` (float, optional, default=0): extinction Av.  Only applicable if
+        `syn` is False.
+    * `Rv` (float, optional, default=3.1): extinction law parameter.  Only
+       applicable if `syn` is False.
 
     Returns
     --------

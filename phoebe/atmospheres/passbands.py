@@ -61,6 +61,12 @@ if not os.path.exists(_pbdir_local):
     logger.info("creating directory {}".format(_pbdir_local))
     os.makedirs(_pbdir_local)
 
+if not os.getenv('PHOEBE_PBDIR','False')=='False':
+    _pbdir_env = os.getenv('PHOEBE_PBDIR')
+else:
+    _pbdir_env = None
+
+
 _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
 class Passband:
@@ -241,6 +247,10 @@ class Passband:
         if 'blackbody' in self.content:
             struct['_bb_func_energy'] = self._bb_func_energy
             struct['_bb_func_photon'] = self._bb_func_photon
+        if 'bb_ext' in self.content:
+            struct['_bb_extinct_axes']= self._bb_extinct_axes
+            struct['_bb_extinct_energy_grid'] = self._bb_extinct_energy_grid
+            struct['_bb_extinct_photon_grid'] = self._bb_extinct_energy_grid
         if 'ck2004' in self.content:
             struct['_ck2004_axes'] = self._ck2004_axes
             struct['_ck2004_energy_grid'] = self._ck2004_energy_grid
@@ -283,6 +293,18 @@ class Passband:
         if 'ck2004_ldint' in self.content:
             struct['_ck2004_ldint_energy_grid'] = self._ck2004_ldint_energy_grid
             struct['_ck2004_ldint_photon_grid'] = self._ck2004_ldint_photon_grid
+        if 'ck2004_ext' in self.content:
+            struct['_ck2004_extinct_axes']= self._ck2004_extinct_axes
+            struct['_ck2004_extinct_energy_grid'] = self._ck2004_extinct_energy_grid
+            struct['_ck2004_extinct_photon_grid'] = self._ck2004_extinct_photon_grid
+        if 'phoenix_ext' in self.content:
+            struct['_phoenix_extinct_axes']= self._phoenix_extinct_axes
+            struct['_phoenix_extinct_energy_grid'] = self._phoenix_extinct_energy_grid
+            struct['_phoenix_extinct_photon_grid'] = self._phoenix_extinct_photon_grid
+        if 'blended_ext' in self.content:
+            struct['_blended_extinct_axes']= self._blended_extinct_axes
+            struct['_blended_extinct_energy_grid'] = self._blended_extinct_energy_grid
+            struct['_blended_extinct_photon_grid'] = self._blended_extinct_photon_grid
         if 'phoenix_ldint' in self.content:
             struct['_phoenix_ldint_energy_grid'] = self._phoenix_ldint_energy_grid
             struct['_phoenix_ldint_photon_grid'] = self._phoenix_ldint_photon_grid
@@ -397,6 +419,34 @@ class Passband:
                 self._bb_func_photon = struct['_bb_func_photon']
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
+        if 'bb_ext' in self.content:
+            self._bb_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_bb_extinct_axes']))
+            self._bb_extinct_energy_grid = np.fromstring(struct['_bb_extinct_energy_grid'], dtype='float64')
+            self._bb_extinct_energy_grid = self._bb_extinct_energy_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
+            self._bb_extinct_photon_grid = np.fromstring(struct['_bb_extinct_photon_grid'], dtype='float64')
+            self._bb_extinct_photon_grid = self._bb_extinct_photon_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
+
+        if 'ck2004_ext' in self.content:
+            self._ck2004_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_extinct_axes']))
+            self._ck2004_extinct_energy_grid = np.fromstring(struct['_ck2004_extinct_energy_grid'], dtype='float64')
+            self._ck2004_extinct_energy_grid = self._ck2004_extinct_energy_grid.reshape(len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1)
+            self._ck2004_extinct_photon_grid = np.fromstring(struct['_ck2004_extinct_photon_grid'], dtype='float64')
+            self._ck2004_extinct_photon_grid = self._ck2004_extinct_photon_grid.reshape(len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1)
+
+        if 'phoenix_ext' in self.content:
+            self._phoenix_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_phoenix_extinct_axes']))
+            self._phoenix_extinct_energy_grid = np.fromstring(struct['_phoenix_extinct_energy_grid'], dtype='float64')
+            self._phoenix_extinct_energy_grid = self._phoenix_extinct_energy_grid.reshape(len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1)
+            self._phoenix_extinct_photon_grid = np.fromstring(struct['_phoenix_extinct_photon_grid'], dtype='float64')
+            self._phoenix_extinct_photon_grid = self._phoenix_extinct_photon_grid.reshape(len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1)
+
+        if 'blended_ext' in self.content:
+            self._blended_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_blended_extinct_axes']))
+            self._blended_extinct_energy_grid = np.fromstring(struct['_blended_extinct_energy_grid'], dtype='float64')
+            self._blended_extinct_energy_grid = self._blended_extinct_energy_grid.reshape(len(self._blended_extinct_axes[0]), len(self._blended_extinct_axes[1]), len(self._blended_extinct_axes[2]), len(self._blended_extinct_axes[3]), len(self._blended_extinct_axes[4]), 1)
+            self._blended_extinct_photon_grid = np.fromstring(struct['_blended_extinct_photon_grid'], dtype='float64')
+            self._blended_extinct_photon_grid = self._blended_extinct_photon_grid.reshape(len(self._blended_extinct_axes[0]), len(self._blended_extinct_axes[1]), len(self._blended_extinct_axes[2]), len(self._blended_extinct_axes[3]), len(self._blended_extinct_axes[4]), 1)
+
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
 
@@ -447,7 +497,7 @@ class Passband:
                 self._blended_axes = struct['_blended_axes']
                 self._blended_energy_grid = struct['_blended_energy_grid']
                 self._blended_photon_grid = struct['_blended_photon_grid']
-        
+
         if 'ck2004_all' in self.content:
             # CASTELLI & KURUCZ (2004) all intensities:
             if marshaled:
@@ -717,6 +767,272 @@ class Passband:
         if 'blackbody' not in self.atmlist:
             self.atmlist.append('blackbody')
 
+    def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
+        """
+        Computes mean effect of reddening (a weighted average) on passband using blackbody atmosphere and CCM89 prescription of extinction
+
+        @Teffs: an array of effective temperatures. If None, a default
+        array from ~300K to ~500000K with 97 steps is used. The default
+        array is uniform in log10 scale.
+        @Ebv: colour discrepancies E(B-V)
+        @Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+        @verbose: switch to determine whether computing progress should
+        be printed on screen
+        Returns: n/a
+        """
+
+        if Teffs is None:
+            log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
+            Teffs = 10**log10Teffs
+
+        if Ebv is None:
+            Ebv=np.linspace(0.,3.,90)
+
+        if Rv is None:
+            Rv=np.linspace(2.,6.,40)
+
+        #Make it so that Teffs and Ebv step through a la the CK2004 models
+        NTeffs=len(Teffs)
+        NEbv=len(Ebv)
+        NRv=len(Rv)
+        combos=NTeffs*NEbv*NRv
+        Teffs=np.repeat(Teffs,combos/NTeffs)
+        Ebv=np.tile(np.repeat(Ebv,NRv),NTeffs)
+        Rv=np.tile(Rv,combos/NRv)
+
+        extinctE, extinctP = np.empty(combos), np.empty(combos)
+
+        if verbose:
+            print('Computing reddening corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+
+        # a = libphoebe.CCM89_extinction(self.wl)
+        a = libphoebe.gordon_extinction(self.wl)
+
+        for j in range(0,combos):
+
+            pbE = self.ptf(self.wl)*libphoebe.planck_function(self.wl, Teffs[j])
+            pbP = self.wl*pbE
+
+            flux_frac = np.exp(-0.9210340371976184*np.dot(a, [Ebv[j]*Rv[j], Ebv[j]]))
+
+            if verbose:
+                if 100*j % combos == 0:
+                    print('%d%% done.' % (100*j/(combos-1)))
+
+            extinctE[j], extinctP[j] = np.dot([pbE/pbE.sum(), pbP/pbP.sum()], flux_frac)
+
+        self._bb_extinct_axes = (np.unique(Teffs), np.unique(Ebv), np.unique(Rv))
+
+        self._bb_extinct_photon_grid = np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
+        self._bb_extinct_energy_grid = np.copy(self._bb_extinct_photon_grid)
+
+        for i in xrange(combos):
+            t=(Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0)
+            self._bb_extinct_energy_grid[t] = extinctE[i]
+            self._bb_extinct_photon_grid[t] = extinctP[i]
+
+        self.content.append('bb_ext')
+
+    def compute_ck2004_reddening(self, path, Ebv=None, Rv=None, verbose=False):
+        """
+        Computes mean effect of reddening (a weighted average) on passband using ck2004 atmospheres and CCM89 prescription of extinction
+
+        @path: path to the directory containing ck2004 SEDs
+        @verbose: switch to determine whether computing progress should
+        be printed on screen
+        @Ebv: colour discrepancies E(B-V)
+        @Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+
+        Returns: n/a
+        """
+
+        if Ebv is None:
+            Ebv = np.linspace(0.,3.,90)
+
+        if Rv is None:
+            Rv = np.linspace(2.,6.,40)
+
+        models = glob.glob(path+'/*M1.000*')
+        Nmodels = len(models)
+
+        NEbv = len(Ebv)
+        NRv = len(Rv)
+
+        Ns = NEbv*NRv
+        combos = Nmodels*Ns
+
+        Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
+        Rv1 = np.tile(Rv, combos/NRv)
+
+        # auxilary matrix for storing Ebv and Rv per model
+        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]),1)
+        M = np.ascontiguousarray(M)
+
+        # Store the length of the filename extensions for parsing:
+        offset = len(models[0])-models[0].rfind('.')
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+
+        # extinctE , extinctP per model
+        extinctE , extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
+
+        if verbose:
+            print('Computing Castelli & Kurucz (2004) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+
+        for i, model in enumerate(models):
+
+            spc = np.fromfile(model, sep=' ').reshape(-1,2).T
+
+            Teff[i] = float(model[-17-offset:-12-offset])
+            logg[i] = float(model[-11-offset:-9-offset])/10
+            sign = 1. if model[-9-offset]=='P' else -1.
+            abun[i] = sign*float(model[-8-offset:-6-offset])/10
+
+            spc[0] /= 1e10 # AA -> m
+            spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
+
+            sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
+
+            #wl, fl = spc[:,sel]
+            wl = spc[0][sel]
+            fl = spc[1][sel]
+
+            fl *= self.ptf(wl)
+            flP = fl*wl
+
+            # Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
+            Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
+            flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
+
+            extinctE[i], extinctP[i]= np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
+
+            if verbose:
+                if 100*i % (len(models)) == 0:
+                    print('%d%% done.' % (100*i/(Nmodels-1)))
+
+        # Store axes (Teff, logg, abun) and the full grid of Inorm, with
+        # nans where the grid isn't complete.
+        self._ck2004_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
+
+        Teff=np.repeat(Teff, Ns)
+        logg=np.repeat(logg, Ns)
+        abun=np.repeat(abun, Ns)
+
+        self._ck2004_extinct_energy_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
+        self._ck2004_extinct_photon_grid = np.copy(self._ck2004_extinct_energy_grid)
+
+        flatE = extinctE.flat
+        flatP = extinctP.flat
+
+        for i in xrange(combos):
+            t = (Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv1[i] == self._ck2004_extinct_axes[3], Rv1[i] == self._ck2004_extinct_axes[4], 0)
+            self._ck2004_extinct_energy_grid[t] = flatE[i]
+            self._ck2004_extinct_photon_grid[t] = flatP[i]
+
+        self.content.append('ck2004_ext')
+        self.atmlist.append('ck2004_ext')
+
+    def compute_phoenix_reddening(self, path, Ebv=None, Rv=None, verbose=False):
+        """
+        Computes mean effect of reddening (a weighted average) on passband using phoenix atmospheres and CCM89 prescription of extinction
+
+        @path: path to the directory containing phoenix SEDs
+        @verbose: switch to determine whether computing progress should
+        be printed on screen
+        @Ebv: colour discrepancies E(B-V)
+        @Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+
+        Returns: n/a
+        """
+
+        # PHOENIX uses fits files to store the tables.
+        from astropy.io import fits
+
+        if Ebv is None:
+            Ebv = np.linspace(0.,3.,90)
+
+        if Rv is None:
+            Rv = np.linspace(2.,6.,40)
+
+        models = glob.glob(path+'/*fits')
+        Nmodels = len(models)
+
+        NEbv = len(Ebv)
+        NRv = len(Rv)
+
+        Ns = NEbv*NRv
+        combos = Nmodels*Ns
+
+        Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
+        Rv1 = np.tile(Rv, combos/NRv)
+
+        # auxilary matrix for storing Ebv and Rv per model
+        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]),1)
+        M = np.ascontiguousarray(M)
+
+        # Store the length of the filename extensions for parsing:
+        offset = len(models[0])-models[0].rfind('.')
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+
+        # extinctE , extinctP per model
+        extinctE , extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
+
+        if verbose:
+            print('Computing PHOENIX (Husser et al. 2013) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+
+
+        wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
+
+        for i, model in enumerate(models):
+            with fits.open(model) as hdu:
+                intensities = hdu[0].data[-1,:]*1e-1
+            spc = np.vstack((wavelengths, intensities))
+
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[3:8])
+            logg[i] = float(model[9:13])
+            abun[i] = float(model[13:17])
+
+            wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            fl *= self.ptf(wl)
+            flP = fl*wl
+
+            # Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
+            Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
+            flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
+
+            extinctE[i], extinctP[i]= np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
+
+            if verbose:
+                if 100*i % (len(models)) == 0:
+                    print('%d%% done.' % (100*i/(Nmodels-1)))
+
+
+
+        # Store axes (Teff, logg, abun) and the full grid of Inorm, with
+        # nans where the grid isn't complete.
+        self._phoenix_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
+
+        Teff=np.repeat(Teff, Ns)
+        logg=np.repeat(logg, Ns)
+        abun=np.repeat(abun, Ns)
+
+        self._phoenix_extinct_energy_grid = np.nan*np.ones((len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1))
+        self._phoenix_extinct_photon_grid = np.copy(self._phoenix_extinct_energy_grid)
+
+        flatE = extinctE.flat
+        flatP = extinctP.flat
+
+        for i in xrange(combos):
+            t = (Teff[i] == self._phoenix_extinct_axes[0], logg[i] == self._phoenix_extinct_axes[1], abun[i] == self._phoenix_extinct_axes[2], Ebv1[i] == self._phoenix_extinct_axes[3], Rv1[i] == self._phoenix_extinct_axes[4], 0)
+            self._phoenix_extinct_energy_grid[t] = flatE[i]
+            self._phoenix_extinct_photon_grid[t] = flatP[i]
+
+        self.content.append('phoenix_ext')
+        self.atmlist.append('phoenix_ext')
+
     def compute_ck2004_response(self, path, verbose=False):
         """
         Computes Castelli & Kurucz (2004) intensities across the entire
@@ -849,6 +1165,21 @@ class Passband:
         if 'phoenix' not in self.atmlist:
             self.atmlist.append('phoenix')
 
+    def _blender_plot(self, axes, table, fname=None, show=False):
+        import matplotlib.pyplot as plt
+        nx, ny = axes[0], axes[1]
+        plt.figure(figsize=(15, 15))
+        for zi in range(len(axes[2])):
+            plt.subplot(3, 3, zi+1)
+            plt.imshow(table[:,:,zi,0].T, aspect='auto')
+            for xi, xv in enumerate(nx):
+                for yi, yv in enumerate(ny):
+                    plt.annotate('%1.1f' % table[xi,yi,zi,0], xy=(xv-0.3, yv), color='red', size=6)
+        if fname:
+            plt.savefig(fname)
+        if show:
+            plt.show()
+
     def _blender_find_edge(self, new_axes, new_table):
         edge = np.nan*np.ones_like(new_table)
 
@@ -857,7 +1188,7 @@ class Passband:
                 for Mi in range(len(new_axes[2])):
                     if np.isnan(new_table[Ti, Li, Mi, 0]):
                         continue
-                    
+
                     if (Mi+1 < len(new_axes[2]) and np.isnan(new_table[Ti, Li, Mi+1, 0])) or (Mi > 1 and np.isnan(new_table[Ti, Li, Mi-1, 0])):
                         edge[Ti, Li, Mi, 0] = new_table[Ti, Li, Mi, 0]
                     if (Li+1 < len(new_axes[1]) and np.isnan(new_table[Ti, Li+1, Mi, 0])) or (Li > 1 and np.isnan(new_table[Ti, Li-1, Mi, 0])):
@@ -876,7 +1207,7 @@ class Passband:
                     for mui in range(new_table.shape[3]):
                         if np.isnan(new_table[Ti, Li, Mi, mui, 0]):
                             continue
-                        
+
                         if (mui+1 < len(new_axes[3]) and np.isnan(new_table[Ti, Li, Mi, mui+1, 0])) or (mui > 1 and np.isnan(new_table[Ti, Li, Mi, mui-1, 0])):
                             edge[Ti, Li, Mi, mui, 0] = new_table[Ti, Li, Mi, mui, 0]
                         if (Mi+1 < len(new_axes[2]) and np.isnan(new_table[Ti, Li, Mi+1, mui, 0])) or (Mi > 1 and np.isnan(new_table[Ti, Li, Mi-1, mui, 0])):
@@ -885,6 +1216,30 @@ class Passband:
                             edge[Ti, Li, Mi, mui, 0] = new_table[Ti, Li, Mi, mui, 0]
                         if (Ti+1 < len(new_axes[0]) and np.isnan(new_table[Ti+1, Li, Mi, mui, 0])) or (Ti > 1 and np.isnan(new_table[Ti-1, Li, Mi, mui, 0])):
                             edge[Ti, Li, Mi, mui, 0] = new_table[Ti, Li, Mi, mui, 0]
+
+        return edge
+
+    def _blender_find_edge_5d(self, new_axes, new_table):
+        edge = np.nan*np.ones_like(new_table)
+
+        for Ti in range(len(new_axes[0])):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    for Ai in range(len(new_axes[3])):
+                        for Bi in range(len(new_axes[4])):
+                            if np.isnan(new_table[Ti, Li, Mi, Ai, Bi, 0]):
+                                continue
+
+                            if (Bi+1 < len(new_axes[4]) and np.isnan(new_table[Ti, Li, Mi, Ai, Bi+1, 0])) or (Bi > 1 and np.isnan(new_table[Ti, Li, Mi, Ai, Bi-1, 0])):
+                                edge[Ti, Li, Mi, Ai, Bi, 0] = new_table[Ti, Li, Mi, Ai, Bi, 0]
+                            if (Ai+1 < len(new_axes[3]) and np.isnan(new_table[Ti, Li, Mi, Ai+1, Bi, 0])) or (Ai > 1 and np.isnan(new_table[Ti, Li, Mi, Ai-1, Bi, 0])):
+                                edge[Ti, Li, Mi, Ai, Bi, 0] = new_table[Ti, Li, Mi, Ai, Bi, 0]
+                            if (Mi+1 < len(new_axes[2]) and np.isnan(new_table[Ti, Li, Mi+1, Ai, Bi, 0])) or (Mi > 1 and np.isnan(new_table[Ti, Li, Mi-1, Ai, Bi, 0])):
+                                edge[Ti, Li, Mi, Ai, Bi, 0] = new_table[Ti, Li, Mi, Ai, Bi, 0]
+                            if (Li+1 < len(new_axes[1]) and np.isnan(new_table[Ti, Li+1, Mi, Ai, Bi, 0])) or (Li > 1 and np.isnan(new_table[Ti, Li-1, Mi, Ai, Bi, 0])):
+                                edge[Ti, Li, Mi, Ai, Bi, 0] = new_table[Ti, Li, Mi, Ai, Bi, 0]
+                            if (Ti+1 < len(new_axes[0]) and np.isnan(new_table[Ti+1, Li, Mi, Ai, Bi, 0])) or (Ti > 1 and np.isnan(new_table[Ti-1, Li, Mi, Ai, Bi, 0])):
+                                edge[Ti, Li, Mi, Ai, Bi, 0] = new_table[Ti, Li, Mi, Ai, Bi, 0]
 
         return edge
 
@@ -900,7 +1255,7 @@ class Passband:
         for i in range(len(axes)):
             if axes[i].tostring() not in new_axes[i].tostring():
                 print('axes must be contained in new_axes; aborting.')
-                return None
+                return (None, None)
 
         new_table = np.nan*np.ones((len(new_axes[0]), len(new_axes[1]), len(new_axes[2]), 1))
 
@@ -912,7 +1267,8 @@ class Passband:
             Li, Ll = int(new_axes[1].tostring().index(axes[1].tostring())/new_axes[1].itemsize), len(axes[1])
             Mi, Ml = int(new_axes[2].tostring().index(axes[2].tostring())/new_axes[2].itemsize), len(axes[2])
 
-            new_table[Ti:Ti+Tl,Li:Li+Ll,Mi:Mi+Ml] = table
+        # copy the contents from the original table to the subset of the new table:
+        new_table[Ti:Ti+Tl,Li:Li+Ll,Mi:Mi+Ml] = table
 
         extrapolant = np.nan*np.ones_like(new_table)
 
@@ -1030,6 +1386,84 @@ class Passband:
 
         return (new_table, extrapolant)
 
+    def _blender_extrapolate_5d(self, new_axes, axes, table):
+        # make sure that new_axes contain axes:
+        for i in range(len(axes)):
+            if axes[i].tostring() not in new_axes[i].tostring():
+                print('axes must be contained in new_axes; aborting.')
+                return (None, None)
+
+        new_table = np.nan*np.ones((len(new_axes[0]), len(new_axes[1]), len(new_axes[2]), len(new_axes[3]), len(new_axes[4]), 1))
+
+        # find an overlap between axes and new_axes:
+        Ti, Tl = new_axes[0].tostring().index(axes[0].tostring())/new_axes[0].itemsize, len(axes[0])
+        Li, Ll = new_axes[1].tostring().index(axes[1].tostring())/new_axes[1].itemsize, len(axes[1])
+        Mi, Ml = new_axes[2].tostring().index(axes[2].tostring())/new_axes[2].itemsize, len(axes[2])
+        Ai, Al = new_axes[3].tostring().index(axes[3].tostring())/new_axes[3].itemsize, len(axes[3])
+        Bi, Bl = new_axes[4].tostring().index(axes[4].tostring())/new_axes[4].itemsize, len(axes[4])
+
+        new_table[Ti:Ti+Tl,Li:Li+Ll,Mi:Mi+Ml,Ai:Ai+Al,Bi:Bi+Bl] = table
+
+        extrapolant = np.nan*np.ones_like(new_table)
+
+        for Ti in range(len(new_axes[0])):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    for Ai in range(len(new_axes[3])):
+                        for Bi in range(len(new_axes[4])):
+                            if not np.isnan(new_table[Ti, Li, Mi, Ai, Bi, 0]):
+                                continue
+
+                            num_directions = 0
+                            extrapolated_value = 0.0
+
+                            if Bi+2 < len(new_axes[4]) and not np.isnan(new_table[Ti, Li, Mi, Ai, Bi+1, 0]) and not np.isnan(new_table[Ti, Li, Mi, Ai, Bi+2, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi, Ai, Bi+1, 0]-new_table[Ti, Li, Mi, Ai, Bi+2, 0]
+                                num_directions += 1
+
+                            if Bi > 2 and not np.isnan(new_table[Ti, Li, Mi, Ai, Bi-1, 0]) and not np.isnan(new_table[Ti, Li, Mi, Ai, Bi-2, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi, Ai, Bi-1, 0]-new_table[Ti, Li, Mi, Ai, Bi-2, 0]
+                                num_directions += 1
+
+                            if Ai+2 < len(new_axes[3]) and not np.isnan(new_table[Ti, Li, Mi, Ai+1, Bi, 0]) and not np.isnan(new_table[Ti, Li, Mi, Ai+2, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi, Ai+1, Bi, 0]-new_table[Ti, Li, Mi, Ai+2, Bi, 0]
+                                num_directions += 1
+
+                            if Ai > 2 and not np.isnan(new_table[Ti, Li, Mi, Ai-1, Bi, 0]) and not np.isnan(new_table[Ti, Li, Mi, Ai-2, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi, Ai-1, Bi, 0]-new_table[Ti, Li, Mi, Ai-2, Bi, 0]
+                                num_directions += 1
+
+                            if Mi+2 < len(new_axes[2]) and not np.isnan(new_table[Ti, Li, Mi+1, Ai, Bi, 0]) and not np.isnan(new_table[Ti, Li, Mi+2, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi+1, Ai, Bi, 0]-new_table[Ti, Li, Mi+2, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if Mi > 2 and not np.isnan(new_table[Ti, Li, Mi-1, Ai, Bi, 0]) and not np.isnan(new_table[Ti, Li, Mi-2, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li, Mi-1, Ai, Bi, 0]-new_table[Ti, Li, Mi-2, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if Li+2 < len(new_axes[1]) and not np.isnan(new_table[Ti, Li+1, Mi, Ai, Bi, 0]) and not np.isnan(new_table[Ti, Li+2, Mi, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li+1, Mi, Ai, Bi, 0]-new_table[Ti, Li+2, Mi, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if Li > 2 and not np.isnan(new_table[Ti, Li-1, Mi, Ai, Bi, 0]) and not np.isnan(new_table[Ti, Li-2, Mi, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti, Li-1, Mi, Ai, Bi, 0]-new_table[Ti, Li-2, Mi, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if Ti+2 < len(new_axes[0]) and not np.isnan(new_table[Ti+1, Li, Mi, Ai, Bi, 0]) and not np.isnan(new_table[Ti+2, Li, Mi, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti+1, Li, Mi, Ai, Bi, 0]-new_table[Ti+2, Li, Mi, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if Ti > 2 and not np.isnan(new_table[Ti-1, Li, Mi, Ai, Bi, 0]) and not np.isnan(new_table[Ti-2, Li, Mi, Ai, Bi, 0]):
+                                extrapolated_value += 2*new_table[Ti-1, Li, Mi, Ai, Bi, 0]-new_table[Ti-2, Li, Mi, Ai, Bi, 0]
+                                num_directions += 1
+
+                            if num_directions == 0:
+                                continue
+
+                            extrapolant[Ti, Li, Mi, Ai, Bi, 0] = extrapolated_value/num_directions
+
+        return (new_table, extrapolant)
+
     def _blend(self, layers=['ck2004', 'blackbody'], photon_weighted=False):
         """
         """
@@ -1055,8 +1489,13 @@ class Passband:
             axes[2]
         )
 
+        # Extrapolate to the adjacent nans throughout the table:
         new_table, extrapolant = self._blender_extrapolate(new_axes, axes, table)
 
+        self._blender_plot(new_axes, new_table, fname='01_new_table.png')
+        self._blender_plot(new_axes, extrapolant, fname='02_extrapolant.png')
+
+        # Calculate the blackbody response for the entire new table:
         bb_table = np.empty_like(new_table)
         for Ti, T in enumerate(new_axes[0]):
             for Li in range(len(new_axes[1])):
@@ -1071,26 +1510,39 @@ class Passband:
 
         # blend the edge:
         edge = self._blender_find_edge(new_axes, new_table)
-        blend = edge * 0.5 + bb_table * 0.5
+        blend = 0.5*edge + 0.5*bb_table
 
-        # blend the extrapolated edge:
-        blend_e = extrapolant * 0.25 + bb_table * 0.75
+        self._blender_plot(new_axes, blend, fname='04_blended_edge.png')
+
+        # blend the extrapolated edge at 25-75:
+        blend_e = 0.25*extrapolant + 0.75*bb_table
+
+        self._blender_plot(new_axes, blend_e, fname='05_blended_outer_edge.png')
 
         # peal the edge:
         np.nan_to_num(edge, copy=False)
         pealed_table = new_table - edge
         pealed_table[pealed_table == 0] = np.nan
 
-        # blend the pealed edge:
+        self._blender_plot(new_axes, pealed_table, fname='06_pealed_table.png')
+
+        # blend the pealed edge at 75-25:
         pealed_edge = self._blender_find_edge(new_axes, pealed_table)
-        blend_p = pealed_edge * 0.75 + bb_table * 0.25
+        blend_p = 0.75*pealed_edge + 0.25*bb_table
+
+        self._blender_plot(new_axes, pealed_edge, fname='07_pealed_edge.png')
+        self._blender_plot(new_axes, blend_p, fname='08_blended_inner_edge.png')
 
         new_table[~np.isnan(blend)] = blend[~np.isnan(blend)]
         new_table[~np.isnan(blend_p)] = blend_p[~np.isnan(blend_p)]
         new_table[~np.isnan(blend_e)] = blend_e[~np.isnan(blend_e)]
 
+        self._blender_plot(new_axes, new_table, fname='09_blended_table.png')
+
         # finally, adopt blackbody everywhere else:
         new_table[np.isnan(new_table)] = bb_table[np.isnan(new_table)]
+
+        self._blender_plot(new_axes, new_table, fname='10_final_table.png')
 
         return (new_axes, new_table)
 
@@ -1145,6 +1597,60 @@ class Passband:
 
         return (new_axes, new_table)
 
+    def _blend_5d(self, photon_weighted=False):
+        """
+        """
+
+        axes = self._phoenix_extinct_axes
+        if photon_weighted:
+            table = self._phoenix_extinct_photon_grid
+        else:
+            table = self._phoenix_extinct_energy_grid
+
+        new_axes = (
+            np.concatenate((np.arange(300., 2201, 100), axes[0], np.arange(13000., 50001, 1000), np.arange(55000., 500001, 5000))),
+            np.concatenate((axes[1], np.arange(6.5, 10.1, 0.5))),
+            axes[2],
+            axes[3],
+            axes[4],
+        )
+
+        new_table, extrapolant = self._blender_extrapolate_5d(new_axes, axes, table)
+
+        bb_table = np.empty_like(new_table)
+        for Ti, T in enumerate(new_axes[0]):
+            for Li in range(len(new_axes[1])):
+                for Mi in range(len(new_axes[2])):
+                    for Ai in range(len(new_axes[3])):
+                        for Bi in range(len(new_axes[4])):
+                            bb_table[Ti, Li, Mi, Ai, Bi, 0] = self._log10_Inorm_bb_energy(T)
+                            # bb_table[Ti, Li, Mi, Ai, Bi, 0] = np.log10(self._bb_intensity(T, photon_weighted=False))
+
+        # blend the edge:
+        edge = self._blender_find_edge_5d(new_axes, new_table)
+        blend = edge * 0.5 + bb_table * 0.5
+
+        # blend the extrapolated edge:
+        blend_e = extrapolant * 0.25 + bb_table * 0.75
+
+        # peal the edge:
+        np.nan_to_num(edge, copy=False)
+        pealed_table = new_table - edge
+        pealed_table[pealed_table == 0] = np.nan
+
+        # blend the pealed edge:
+        pealed_edge = self._blender_find_edge_5d(new_axes, pealed_table)
+        blend_p = pealed_edge * 0.75 + bb_table * 0.25
+
+        new_table[~np.isnan(blend)] = blend[~np.isnan(blend)]
+        new_table[~np.isnan(blend_p)] = blend_p[~np.isnan(blend_p)]
+        new_table[~np.isnan(blend_e)] = blend_e[~np.isnan(blend_e)]
+
+        # finally, adopt blackbody everywhere else:
+        new_table[np.isnan(new_table)] = bb_table[np.isnan(new_table)]
+
+        return (new_axes, new_table)
+
     def compute_blended_response(self, layers=['ck2004', 'blackbody']):
         blended_axes, blended_energy_grid = self._blend(layers=layers, photon_weighted=False)
         blended_axes, blended_photon_grid = self._blend(layers=layers, photon_weighted=True)
@@ -1155,6 +1661,15 @@ class Passband:
 
         if 'blended' not in self.content:
             self.content.append('blended')
+
+        blended_extinct_axes, blended_extinct_energy_grid = self._blend_5d(photon_weighted=False)
+        blended_extinct_axes, blended_extinct_photon_grid = self._blend_5d(photon_weighted=True)
+
+        self._blended_extinct_axes = blended_extinct_axes
+        self._blended_extinct_energy_grid = blended_extinct_energy_grid
+        self._blended_extinct_photon_grid = blended_extinct_photon_grid
+
+        self.content.append('blended_ext')
 
         # blended_intensity_axes, blended_Imu_energy_grid = self._blend_4d(photon_weighted=False)
         # blended_intensity_axes, blended_Imu_photon_grid = self._blend_4d(photon_weighted=True)
@@ -1918,8 +2433,93 @@ class Passband:
             print('ld_func=%s is invalid; please choose from [linear, logarithmic, square_root, quadratic, power, all].' % ld_func)
             return None
 
-    def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11,
-                        Npb=25, Nints=4):
+    def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody',  extinct=0.0, Rv=3.1, photon_weighted=False):
+        """
+        Interpolates the passband-stored tables of extinction corrections
+        Returns not implemented error for ck2004 atmospheres
+        """
+
+        if atm == 'ck2004':
+            if 'ck2004_ext' not in self.content:
+                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
+
+            if photon_weighted:
+                table = self._ck2004_extinct_photon_grid
+            else:
+                table = self._ck2004_extinct_energy_grid
+
+            if not hasattr(Teff, '__iter__'):
+                req = np.array(((Teff, logg, abun, extinct, Rv),))
+                extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table)[0][0]
+            else:
+                extinct=extinct*np.ones(len(Teff))
+                Rv=Rv*np.ones(len(Teff))
+                req = np.vstack((Teff, logg, abun, extinct, Rv)).T
+                extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table).T[0]
+            return extinct_factor
+
+        if atm == 'phoenix':
+            if 'phoenix_ext' not in self.content:
+                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
+
+            if photon_weighted:
+                table = self._phoenix_extinct_photon_grid
+            else:
+                table = self._phoenix_extinct_energy_grid
+
+            if not hasattr(Teff, '__iter__'):
+                req = np.array(((Teff, logg, abun, extinct, Rv),))
+                extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes, table)[0][0]
+            else:
+                extinct=extinct*np.ones_like(Teff)
+                Rv=Rv*np.ones_like(Teff)
+                req = np.vstack((Teff, logg, abun, extinct, Rv)).T
+                extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes, table).T[0]
+            return extinct_factor
+
+        if atm == 'blended':
+            if 'blended_ext' not in self.content:
+                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
+
+            if photon_weighted:
+                table = self._blended_extinct_photon_grid
+            else:
+                table = self._blended_extinct_energy_grid
+
+            if not hasattr(Teff, '__iter__'):
+                req = np.array(((Teff, logg, abun, extinct, Rv),))
+                extinct_factor = libphoebe.interp(req, self._blended_extinct_axes, table)[0][0]
+            else:
+                extinct=extinct*np.ones_like(Teff)
+                Rv=Rv*np.ones_like(Teff)
+                req = np.vstack((Teff, logg, abun, extinct, Rv)).T
+                extinct_factor = libphoebe.interp(req, self._blended_extinct_axes, table).T[0]
+            return extinct_factor
+
+        elif atm != 'blackbody':
+            raise  NotImplementedError("atm='{}' not currently supported".format(atm))
+        else :
+            if 'bb_ext' not in self.content:
+                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
+
+            if photon_weighted:
+                table = self._bb_extinct_photon_grid
+            else:
+                table = self._bb_extinct_energy_grid
+
+            if not hasattr(Teff, '__iter__'):
+                req = np.array(((Teff, extinct, Rv),))
+                extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table)[0][0]
+            else:
+                extinct=extinct*np.ones(len(Teff))
+                Rv=Rv*np.ones(len(Teff))
+                req = np.vstack((Teff, extinct, Rv)).T
+                extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0]
+
+
+            return extinct_factor
+
+    def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
         """
         Parses WD's atmcof and reads in all Legendre polynomials for the
         given passband.

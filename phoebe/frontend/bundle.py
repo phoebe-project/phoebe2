@@ -4208,7 +4208,6 @@ class Bundle(ParameterSet):
         self._attach_params(params, **ds_metawargs)
 
         for constraint in constraints:
-            # TODO: tricky thing here will be copying the constraints
             self.add_constraint(*constraint)
 
 
@@ -4681,6 +4680,11 @@ class Bundle(ParameterSet):
         * <phoebe.parameters.constraint.freq>
         * <phoebe.parameters.constraint.irrad_frac>
         * <phoebe.parameters.constraint.logg>
+
+        The following are automatically included for all applicable datasets,
+        during <phoebe.frontend.bundle.Bundle.add_dataset>:
+        * <phoebe.parameters.constraint.compute_times>
+        * <phoebe.parameters.constraint.extinction>
 
         Additionally, some constraints are automatically handled by the hierarchy in
         <phoebe.frontend.bundle.Bundle.set_hierarchy> or when loading a default
