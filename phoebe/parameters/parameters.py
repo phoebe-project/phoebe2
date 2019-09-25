@@ -1917,6 +1917,82 @@ class ParameterSet(object):
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
+    def export_arrays(self, fname,
+                      delimiter=' ', newline='\n', header='', footer='',
+                      comments='# ', encoding=None,
+                      **kwargs):
+        """
+        Export arrays from <phoebe.parameters.Parameter.FloatArrayParameter>
+        parameters to a file via `np.savetxt`.
+
+        Each parameter will have its array values as a column in the output
+        file in a format that can be reloaded manually with `np.loadtxt`.
+
+        Note: all parameters must be FloatArrayParameters and have the same
+        shape.
+
+
+        Arguments
+        ------------
+        `fname` (string or file object): passed to np.savetxt.
+            If the filename ends in .gz, the file is automatically saved in
+            compressed gzip format. loadtxt understands gzipped files
+            transparently.
+        `delimiter` (string, optional, default=' '): passed to np.savetxt.
+            String or character separating columns.
+        `newline` (string, optional, default='\n'): passed to np.savetxt.
+            String or character separating lines.
+        `header` (string, optional): The header will automatically be appended
+            with the twigs of the parameters making up the columns and then
+            passed to np.savetxt.
+            String that will be written at the beginning of the file.
+        `footer` (string, optional): passed to np.savetxt.
+            String that will be written at the end of the file.
+        `comments` (string, optional, default='#'): passed to np.savetxt.
+            String that will be prepended to the `header` and `footer` strings,
+            to mark them as comments.
+        `encoding` (None or string, optional, default=None): passed to np.savetxt.
+            Encoding used to encode the outputfile. Does not apply to output
+            streams. If the encoding is something other than ‘bytes’ or ‘latin1’
+            you will not be able to load the file in NumPy versions < 1.14.
+            Default is ‘latin1’.
+        `**kwargs`: all additional keyword arguments will be sent to
+            <phoebe.parameters.ParameterSet.filter>.  The filter must result
+            in all <phoebe.parameters.Parameter.FloatArrayParameter> objects
+            with the same length, otherwise an error will be raised.
+
+
+        Returns
+        -----------
+        * (string or file object) `fname`
+
+        Raises
+        -----------
+        * TypeError: if not all parameters are of type
+            <phoebe.parameters.Parameter.FloatArrayParameter> or no parameters
+            are included in the filter.
+        """
+        if len(kwargs):
+            return self.filter(**kwargs).export_arrays(fname)
+
+        if not len(self.to_list()):
+            raise TypeError("no parameters to be exported")
+
+        for param in self.to_list():
+            if param.__class__.__name__ != 'FloatArrayParameter':
+                raise TypeError("all parameters must be of type FloatArrayParameter")
+
+        X = np.array([param.get_value() for param in self.to_list()]).T
+
+        header += delimiter.join([param.uniquetwig for param in self.to_list()])
+
+        np.savetxt(fname, X, delimiter=delimiter, newline=newline,
+                   header=header, footer=footer, comments=comments,
+                   encoding=encoding)
+
+        return fname
+
+
     def filter(self, twig=None, check_visible=True, check_default=True,
                check_advanced=False, check_single=False, **kwargs):
         """
