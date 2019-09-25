@@ -1030,19 +1030,28 @@ class Passband:
 
         return (new_table, extrapolant)
 
-    def _blend(self, photon_weighted=False):
+    def _blend(self, layers=['ck2004', 'blackbody'], photon_weighted=False):
         """
         """
 
-        axes = self._phoenix_axes
-        if photon_weighted:
-            table = self._phoenix_photon_grid
+        if layers[0] == 'ck2004':
+            axes = self._ck2004_axes
+            if photon_weighted:
+                table = self._ck2004_photon_grid
+            else:
+                table = self._ck2004_energy_grid
+        elif layers[0] == 'phoenix':
+            axes = self._phoenix_axes
+            if photon_weighted:
+                table = self._phoenix_photon_grid
+            else:
+                table = self._phoenix_energy_grid
         else:
-            table = self._phoenix_energy_grid
+            raise ValueError('atmosphere %s is not a valid top layer, aborting.')
 
         new_axes = (
-            np.concatenate((np.arange(250., 3251, 250), axes[0], np.arange(55000., 500001, 5000))),
-            np.concatenate((axes[1], np.arange(5.5, 10.1, 0.5))),
+            np.concatenate((np.arange(250., axes[0][0]-1, 250), axes[0], np.arange(axes[0][-1]+1000, 50001, 1000), np.arange(55000, 500001, 5000))),
+            np.concatenate((axes[1], np.arange(axes[1][-1]+0.5, 10.1, 0.5))),
             axes[2]
         )
 
@@ -1054,6 +1063,11 @@ class Passband:
                 for Mi in range(len(new_axes[2])):
                     bb_table[Ti, Li, Mi, 0] = self._log10_Inorm_bb_energy(T)
                     # bb_table[Ti, Li, Mi, 0] = np.log10(self._bb_intensity(T, photon_weighted=False))
+
+        # import matplotlib.pyplot as plt
+        # print(bb_table.shape)
+        # plt.imshow(bb_table[:,:,5,0].T)
+        # plt.show()
 
         # blend the edge:
         edge = self._blender_find_edge(new_axes, new_table)
@@ -1131,9 +1145,9 @@ class Passband:
 
         return (new_axes, new_table)
 
-    def compute_blended_response(self):
-        blended_axes, blended_energy_grid = self._blend(photon_weighted=False)
-        blended_axes, blended_photon_grid = self._blend(photon_weighted=True)
+    def compute_blended_response(self, layers=['ck2004', 'blackbody']):
+        blended_axes, blended_energy_grid = self._blend(layers=layers, photon_weighted=False)
+        blended_axes, blended_photon_grid = self._blend(layers=layers, photon_weighted=True)
         
         self._blended_axes = blended_axes
         self._blended_energy_grid = blended_energy_grid
@@ -2012,7 +2026,7 @@ class Passband:
 
     def _Inorm_blended(self, Teff, logg, abun, photon_weighted=False):
         req = np.vstack((Teff, logg, abun)).T
-        Inorm = libphoebe.interp(req, self._blended_axes, 10**self._blended_photon_grid if photon_weighted else 10**self._blended_energy_grid).T[0]
+        Inorm = 10**libphoebe.interp(req, self._blended_axes, self._blended_photon_grid if photon_weighted else self._blended_energy_grid).T[0]
 
         return Inorm
 
