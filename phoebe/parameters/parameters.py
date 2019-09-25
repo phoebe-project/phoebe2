@@ -1918,7 +1918,7 @@ class ParameterSet(object):
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
     def export_arrays(self, fname,
-                      delimiter=' ', newline='\n', header='', footer='',
+                      delimiter=' ',header='', footer='',
                       comments='# ', encoding=None,
                       **kwargs):
         """
@@ -1942,8 +1942,6 @@ class ParameterSet(object):
             transparently.
         `delimiter` (string, optional, default=' '): passed to np.savetxt.
             String or character separating columns.
-        `newline` (string, optional, default='\n'): passed to np.savetxt.
-            String or character separating lines.
         `header` (string, optional): The header will automatically be appended
             with the twigs of the parameters making up the columns and then
             passed to np.savetxt.
@@ -1988,7 +1986,7 @@ class ParameterSet(object):
 
         header += delimiter.join([param.uniquetwig for param in self.to_list()])
 
-        np.savetxt(fname, X, delimiter=delimiter, newline=newline,
+        np.savetxt(fname, X, delimiter=delimiter,
                    header=header, footer=footer, comments=comments,
                    encoding=encoding)
 
