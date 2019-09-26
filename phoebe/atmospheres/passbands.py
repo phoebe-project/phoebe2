@@ -943,8 +943,10 @@ class Passband:
             self._ck2004_extinct_energy_grid[t] = flatE[i]
             self._ck2004_extinct_photon_grid[t] = flatP[i]
 
-        self.content.append('ck2004_ext')
-        self.atmlist.append('ck2004_ext')
+        if 'ck2004_ext' not in self.content:
+            self.content.append('ck2004_ext')
+        if 'ck2004_ext' not in self.atmlist:
+            self.atmlist.append('ck2004_ext')
 
     def compute_phoenix_reddening(self, path, Ebv=None, Rv=None, verbose=False):
         """
@@ -1044,8 +1046,10 @@ class Passband:
             self._phoenix_extinct_energy_grid[t] = flatE[i]
             self._phoenix_extinct_photon_grid[t] = flatP[i]
 
-        self.content.append('phoenix_ext')
-        self.atmlist.append('phoenix_ext')
+        if 'phoenix_ext' not in self.content:
+            self.content.append('phoenix_ext')
+        if 'phoenix_ext' not in self.atmlist:
+            self.atmlist.append('phoenix_ext')
 
     def compute_ck2004_response(self, path, verbose=False):
         """
