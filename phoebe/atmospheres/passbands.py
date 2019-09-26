@@ -845,7 +845,10 @@ class Passband:
             self._bb_extinct_energy_grid[t] = extinctE[i]
             self._bb_extinct_photon_grid[t] = extinctP[i]
 
-        self.content.append('bb_ext')
+        if 'bb_ext' not in self.content:
+            self.content.append('bb_ext')
+        if 'bb_ext' not in self.atmlist:
+            self.atmlist.append('bb_ext')
 
     def compute_ck2004_reddening(self, path, Ebv=None, Rv=None, verbose=False):
         """
