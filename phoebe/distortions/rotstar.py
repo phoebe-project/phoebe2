@@ -7,9 +7,20 @@ import libphoebe
 
 def rotfreq_to_omega(rotfreq, scale=c.R_sun.si.value, solar_units=False):
     """
-    TODO: add documentation
+    Translate from rotation frequency `rotfreq` to `omega`.
 
-    NOTE: everything MUST be in consistent units according to solar_units bool
+    NOTE: everything MUST be in consistent units according to `solar_units` bool
+
+    Arguments
+    ----------
+    * `rotfreq`
+    * `scale` (float, optional, default=c.R_sun.si.value)
+    * `solar_units` (bool, optional, default=False): whether to return in solar
+        units.
+
+    Returns
+    ---------
+    * float
     """
     if solar_units:
         omega = rotfreq / (2*np.pi) / np.sqrt(c.GM_sun.to(u.solRad**3/u.d**2).value/scale**3)
