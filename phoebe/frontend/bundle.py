@@ -5993,9 +5993,7 @@ class Bundle(ParameterSet):
         Note about boosting: as boosting is an aspect-dependent effect that
         does not affect normal intensities, boosting will not be included
         in any of the returned values, including `pbflux_ext` due to the
-        approximation of flux explained above.  This also means that boosting
-        will be ignored in any scaling if providing `pbflux` (by setting
-        `pblum_mode = 'pbflux'`).
+        approximation of flux explained above.
 
         This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute> as needed.
@@ -6037,9 +6035,10 @@ class Bundle(ParameterSet):
             a pblum_mode parameter (eg. rv or lp datasets) will be computed
             in absolute luminosities.
         * `set_value` (bool, optional, default=False): apply the computed
-            values to the respective `pblum` or `pbflux` parameters (even if not
+            values to the respective `pblum` parameters (even if not
             currently visible).  Note that extrinsic values (`pblum_ext` and
-            `pbflux_ext`) are not input parameters to the model, so are not set.
+            `pbflux_ext`) are not input parameters to the
+            model, so are not set.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
