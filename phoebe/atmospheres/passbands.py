@@ -840,7 +840,7 @@ class Passband:
         self._bb_extinct_photon_grid = np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
         self._bb_extinct_energy_grid = np.copy(self._bb_extinct_photon_grid)
 
-        for i in xrange(combos):
+        for i in range(combos):
             t=(Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0)
             self._bb_extinct_energy_grid[t] = extinctE[i]
             self._bb_extinct_photon_grid[t] = extinctP[i]
@@ -938,7 +938,7 @@ class Passband:
         flatE = extinctE.flat
         flatP = extinctP.flat
 
-        for i in xrange(combos):
+        for i in range(combos):
             t = (Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv1[i] == self._ck2004_extinct_axes[3], Rv1[i] == self._ck2004_extinct_axes[4], 0)
             self._ck2004_extinct_energy_grid[t] = flatE[i]
             self._ck2004_extinct_photon_grid[t] = flatP[i]
@@ -1039,7 +1039,7 @@ class Passband:
         flatE = extinctE.flat
         flatP = extinctP.flat
 
-        for i in xrange(combos):
+        for i in range(combos):
             t = (Teff[i] == self._phoenix_extinct_axes[0], logg[i] == self._phoenix_extinct_axes[1], abun[i] == self._phoenix_extinct_axes[2], Ebv1[i] == self._phoenix_extinct_axes[3], Rv1[i] == self._phoenix_extinct_axes[4], 0)
             self._phoenix_extinct_energy_grid[t] = flatE[i]
             self._phoenix_extinct_photon_grid[t] = flatP[i]
