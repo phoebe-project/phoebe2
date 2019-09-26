@@ -1124,13 +1124,8 @@ class Bundle(ParameterSet):
         self.run_delayed_constraints()
 
         if not skip_checks:
-            report = self.run_checks(compute=compute, allow_skip_constraints=False)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
+            report = self.run_checks(compute=compute, allow_skip_constraints=False,
+                                     raise_logger_warning=True, raise_error=True)
 
         filename = os.path.expanduser(filename)
         return io.pass_to_legacy(self, filename, compute=compute)
@@ -2415,7 +2410,7 @@ class Bundle(ParameterSet):
                         else:
                             raise TypeError(msg)
 
-    def run_checks(self, **kwargs):
+    def run_checks(self, raise_logger_warning=False, raise_error=False, **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
@@ -2435,6 +2430,10 @@ class Bundle(ParameterSet):
         * `allow_skip_constraints` (bool, optional, default=False): whether
             to allow skipping running delayed constraints if interactive
             constraints are disabled.  See <phoebe.interactive_constraints_off>.
+        * `raise_logger_warning` (bool, optional, default=False): whether to
+            raise any errors/warnings in the logger (with level of warning).
+        * `raise_error` (bool, optional, default=False): whether to raise an
+            error if the report has a status of failed.
         * `**kwargs`: overrides for any parameter (given as qualifier=value pairs)
 
         Returns
@@ -3023,8 +3022,18 @@ class Bundle(ParameterSet):
                                 affected_params,
                                 False)
 
-        # we've survived all tests
-        # return True, ''
+        if raise_logger_warning:
+            for item in report.items:
+                # passed is either False (failed) or None (raise Warning)
+                msg = item.message
+                if item.fail:
+                    msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
+                logger.warning(msg)
+
+        if raise_error:
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+
         return report
 
     def references(self, compute=None, dataset=None):
@@ -4237,6 +4246,12 @@ class Bundle(ParameterSet):
         else:
             ds_kwargs = {}
 
+        # temporarily disable interactive_checks, check_default, and check_visible
+        conf_interactive_checks = conf.interactive_checks
+        if conf_interactive_checks:
+            logger.debug("temporarily disabling interactive_checks")
+            conf._interactive_checks = False
+
         params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **ds_kwargs)
 
         if kwargs.get('overwrite', False):
@@ -4423,6 +4438,11 @@ class Bundle(ParameterSet):
                                        ignore_none=True)
                 except Exception as err:
                     self.remove_dataset(dataset=kwargs['dataset'])
+                    if conf_interactive_checks:
+                        logger.debug("reenabling interactive_checks")
+                        conf._interactive_checks = True
+                        self.run_checks(raise_logger_warning=True)
+
                     raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added.".format(k, v, str(err)))
 
 
@@ -4433,6 +4453,11 @@ class Bundle(ParameterSet):
                 return {k: _to_safe_value(v) for k,v in v.items()}
             else:
                 return v
+
+        if conf_interactive_checks:
+            logger.debug("reenabling interactive_checks")
+            conf._interactive_checks = True
+            self.run_checks(raise_logger_warning=True)
 
         redo_kwargs = deepcopy({k:_to_safe_value(v) for k,v in kwargs.items()})
         redo_kwargs['func'] = func.__name__
@@ -5745,13 +5770,9 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
+            report = self.run_checks(compute=compute, allow_skip_constraints=False,
+                                     raise_logger_warning=True, raise_error=True,
+                                     **kwargs)
 
         ld_coeffs_ret = {}
         ldcs_params = self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components, check_visible=False).to_list()
@@ -5924,13 +5945,9 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
+            report = self.run_checks(compute=compute, allow_skip_constraints=False,
+                                     raise_logger_warning=True, raise_error=True,
+                                     **kwargs)
 
         system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=True, compute_l3_frac=True, **kwargs))
 
@@ -6084,13 +6101,9 @@ class Bundle(ParameterSet):
 
         # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
+            report = self.run_checks(compute=compute, allow_skip_constraints=False,
+                                     raise_logger_warning=True, raise_error=True,
+                                     **kwargs)
 
         # determine datasets which need intensities computed and check to make
         # sure all passed datasets are passband-dependent
@@ -6496,13 +6509,9 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
+            report = self.run_checks(compute=compute, allow_skip_constraints=False,
+                                     raise_logger_warning=True, raise_error=True,
+                                     **kwargs)
 
         # let's first make sure that there is no duplication of enabled datasets
         datasets = []

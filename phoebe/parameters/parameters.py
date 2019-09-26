@@ -6259,12 +6259,7 @@ class ChoiceParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            report = self._bundle.run_checks(allow_skip_constraints=True)
-            # passed is either False (failed) or None (raise Warning)
-            for item in report.items:
-                msg = item.message
-                msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
-                logger.warning(msg)
+            report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
@@ -6506,10 +6501,7 @@ class SelectParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            report = self._bundle.run_checks(allow_skip_constraints=True)
-            for item in report.items:
-                # passed is either False (failed) or None (raise Warning)
-                logger.warning(item.message)
+            report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
@@ -7481,13 +7473,7 @@ class FloatParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            report = self._bundle.run_checks(allow_skip_constraints=True)
-            for item in report.items:
-                # passed is either False (failed) or None (raise Warning)
-                msg = item.message
-                if item.fail:
-                    msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
-                logger.warning(msg)
+            report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
         self._add_history(redo_func='set_quantity', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_quantity, 'uniqueid': self.uniqueid})
 
