@@ -80,11 +80,9 @@ def test_binary_ecc(plot=False):
     b.set_value_all('atm', 'extern_planckint')
 
     # set matching limb-darkening, both bolometric and passband
-    b.set_value_all('ld_mode_bol', 'manual')
     b.set_value_all('ld_func_bol', 'logarithmic')
     b.set_value_all('ld_coeffs_bol', [0.0, 0.0])
 
-    b.set_value_all('ld_mode', 'manual')
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
@@ -93,9 +91,9 @@ def test_binary_ecc(plot=False):
         b.set_value_all('irrad_frac_refl_bol', alb)
 
         if plot:print("running phoebe2 model...")
-        b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model', overwrite=True)
+        b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model')
         if plot:print("running phoebe1 model...")
-        b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model', overwrite=True)
+        b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
