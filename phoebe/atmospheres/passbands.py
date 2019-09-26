@@ -767,6 +767,20 @@ class Passband:
         if 'blackbody' not in self.atmlist:
             self.atmlist.append('blackbody')
 
+    def impute_atmosphere_grid(self, grid):
+        """
+        This function imputes the passed atmosphere grid by linear N-D interpolation.
+        """
+
+        valid_mask = ~np.isnan(grid[...,0])
+        coords = np.array(np.nonzero(valid_mask)).T
+        values = grid[valid_mask][:,0]
+        it = interpolate.LinearNDInterpolator(coords, values, fill_value=0)
+        filled = it(list(np.ndindex(grid[...,0].shape))).reshape(grid[...,0].shape)
+        filled[filled==0] = np.nan
+        grid[...,0] = filled
+        return grid
+
     def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
         """
         Computes mean effect of reddening (a weighted average) on passband using blackbody atmosphere and CCM89 prescription of extinction
@@ -1492,8 +1506,8 @@ class Passband:
         # Extrapolate to the adjacent nans throughout the table:
         new_table, extrapolant = self._blender_extrapolate(new_axes, axes, table)
 
-        self._blender_plot(new_axes, new_table, fname='01_new_table.png')
-        self._blender_plot(new_axes, extrapolant, fname='02_extrapolant.png')
+        # self._blender_plot(new_axes, new_table, fname='01_new_table.png')
+        # self._blender_plot(new_axes, extrapolant, fname='02_extrapolant.png')
 
         # Calculate the blackbody response for the entire new table:
         bb_table = np.empty_like(new_table)
@@ -1597,19 +1611,28 @@ class Passband:
 
         return (new_axes, new_table)
 
-    def _blend_5d(self, photon_weighted=False):
+    def _blend_5d(self, layers=['ck2004', 'blackbody'], photon_weighted=False):
         """
         """
 
-        axes = self._phoenix_extinct_axes
-        if photon_weighted:
-            table = self._phoenix_extinct_photon_grid
+        if layers[0] == 'ck2004':
+            axes = self._ck2004_extinct_axes
+            if photon_weighted:
+                table = self._ck2004_extinct_photon_grid
+            else:
+                table = self._ck2004_extinct_energy_grid
+        elif layers[0] == 'phoenix':
+            axes = self._phoenix_extinct_axes
+            if photon_weighted:
+                table = self._phoenix_extinct_photon_grid
+            else:
+                table = self._phoenix_extinct_energy_grid
         else:
-            table = self._phoenix_extinct_energy_grid
+            raise ValueError('atmosphere %s is not a valid top layer, aborting.')
 
         new_axes = (
-            np.concatenate((np.arange(300., 2201, 100), axes[0], np.arange(13000., 50001, 1000), np.arange(55000., 500001, 5000))),
-            np.concatenate((axes[1], np.arange(6.5, 10.1, 0.5))),
+            np.concatenate((np.arange(250., axes[0][0]-1, 250), axes[0], np.arange(axes[0][-1]+1000, 50001, 1000), np.arange(55000, 500001, 5000))),
+            np.concatenate((axes[1], np.arange(axes[1][-1]+0.5, 10.1, 0.5))),
             axes[2],
             axes[3],
             axes[4],
