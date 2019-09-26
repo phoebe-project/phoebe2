@@ -2670,6 +2670,25 @@ class Bundle(ParameterSet):
             ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source_bol', component=component, context='component', **kwargs)
             ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
 
+            if np.any(np.isnan(ld_coeffs)):
+                if ld_mode == 'lookup':
+                    report.add_item(self,
+                                    'ld_mode_bol=\'lookup\' resulted in nans for ld_coeffs_bol.  Check system parameters to be within grids or change ld_mode_bol to \'manual\' and provide ld_coeffs_bol',
+                                    [self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **kwargs),
+                                    self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                    self.get_parameter(qualifier='logg', component=component, context='component', **kwargs),
+                                    self.get_parameter(qualifier='abun', component=component, context='component', **kwargs)
+                                    ],
+                                    True)
+                elif ld_mode == 'manual':
+                    report.add_item(self,
+                                    'nans in ld_coeffs_bol are forbidden',
+                                    [self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)],
+                                    True)
+                else:
+                    # if interp, then the previously set value won't be used anyways, so we'll ignore nans
+                    pass
+
             if ld_mode == 'lookup':
                 if ld_coeffs_source != 'auto' and ld_coeffs_source not in all_pbs.get('Bolometric:900-40000', {}).get('atms_ld', []):
                     report.add_item(self,
@@ -2719,6 +2738,25 @@ class Bundle(ParameterSet):
                 ld_coeffs_source = dataset_ps.get_value(qualifier='ld_coeffs_source', component=component, **kwargs)
                 ld_coeffs = dataset_ps.get_value(qualifier='ld_coeffs', component=component, **kwargs)
                 pb = dataset_ps.get_value(qualifier='passband', **kwargs)
+
+                if np.any(np.isnan(ld_coeffs)):
+                    if ld_mode == 'lookup':
+                        report.add_item(self,
+                                        'ld_mode=\'lookup\' resulted in nans for ld_coeffs.  Check system parameters to be within grids or change ld_mode to \'manual\' and provide ld_coeffs',
+                                        [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
+                                        self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                        self.get_parameter(qualifier='logg', component=component, context='component', **kwargs),
+                                        self.get_parameter(qualifier='abun', component=component, context='component', **kwargs)
+                                        ],
+                                        True)
+                    elif ld_mode == 'manual':
+                        report.add_item(self,
+                                        'nans in ld_coeffs are forbidden',
+                                        [dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)],
+                                        True)
+                    else:
+                        # if interp, then the previously set value won't be used anyways, so we'll ignore nans
+                        pass
 
                 if ld_mode == 'interp':
                     for compute in computes:
@@ -5763,6 +5801,8 @@ class Bundle(ParameterSet):
 
                 ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
 
+                # NOTE: these may return nans... if so, run_checks will handle the error
+
                 logger.info("interpolated {} ld_coeffs{}={}".format(ld_func, bol_suffix, ld_coeffs))
 
                 ld_coeffs_ret["ld_coeffs{}@{}@{}".format(bol_suffix, ldcs_param.component, 'component' if is_bol else ldcs_param.dataset)] = ld_coeffs
@@ -6072,6 +6112,10 @@ class Bundle(ParameterSet):
                 pblum_datasets.remove(dataset)
 
         t0 = self.get_value(qualifier='t0', context='system', unit=u.d)
+
+        # we'll need to make sure we've done any necessary interpolation if
+        # any ld_bol or ld_mode_bol are set to 'lookup'.
+        self.compute_ld_coeffs(set_value=True)
 
         ret = {}
         l3s = None
