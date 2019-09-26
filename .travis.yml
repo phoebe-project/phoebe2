@@ -40,7 +40,7 @@ matrix:
     # Try with various versions of numpy/astropy with default compiler
     - os: linux
       compiler: g++-5
-      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=2.0 NOSETESTS=1'
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.16 ASTROPY_VERSION=2.0 NOSETESTS=1'
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]
@@ -48,7 +48,7 @@ matrix:
 
     - os: linux
       compiler: g++-5
-      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1'
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.16 ASTROPY_VERSION=stable NOSETESTS=1'
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]
@@ -68,7 +68,7 @@ matrix:
 
     - os: linux
       compiler: g++-5
-      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1'
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.16 ASTROPY_VERSION=stable NOSETESTS=1'
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]

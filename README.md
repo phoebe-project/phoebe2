@@ -80,6 +80,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.16 - eccentric/misaligned irradiation hotfix
+
+* Fixes bug where irradiation was over-optimized and not recomputed as needed for
+  eccentric or misaligned orbits.  Introduced in the optimizations in 2.1.6.
+
 ### 2.1.15 - spots hotfix
 
 * Fixes 'long' location of spots on single stars.

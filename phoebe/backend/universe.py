@@ -372,10 +372,8 @@ class System(object):
         if self.irrad_method == 'none':
             return
 
-        # if 'teffs_post_reflection' in self.inst_vals.keys():
-        if not self.needs_recompute_instantaneous and not self.is_first_refl_iteration: # and 'teffs_post_reflection' in self.inst_vals.keys():
+        if not self.needs_recompute_instantaneous and not self.is_first_refl_iteration:
             logger.debug("reflection: using teffs from previous iteration")
-            # meshes.set_column_flat('teffs', self.inst_vals['teffs_post_reflection'])
             return
 
         if 'wd' in [body.mesh_method for body in self.bodies]:
@@ -1931,7 +1929,7 @@ class Star_roche(Star):
 
     @property
     def needs_recompute_instantaneous(self):
-        return len(self.features) > 0
+        return self.needs_remesh
 
     @property
     def needs_remesh(self):
