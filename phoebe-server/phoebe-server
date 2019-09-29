@@ -268,6 +268,7 @@ def _param_json_overview(param):
     p = {'uniqueid': param.uniqueid,
          'class': param.__class__.__name__,
          'valuestr': _value_string(param),
+         'len': len(param.get_value()) if param.__class__.__name__ in ['SelectParameter', 'FloatArrayParameter'] else None,
          'unitstr': param.default_unit.to_string() if hasattr(param, 'default_unit') else '',
          'readonly': param.context in ['model'] or param.qualifier in ['phoebe_version'] or (hasattr(param, 'is_constraint') and param.is_constraint is not None),
          }
@@ -538,6 +539,27 @@ def export_compute(bundleid, compute, model=None):
     b.export_compute(script_fname, out_fname=None, compute=compute, model=model)
 
     return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_compute_{}.py'.format(bundleid,compute))
+
+@app.route('/export_arrays/<string:bundleid>/<string:params>', methods=['GET'])
+@crossdomain(origin='*')
+def export_params(bundleid, params):
+    """
+    """
+    if app._verbose:
+        print("export_arrays(bundleid={}, params={})".format(bundleid, params))
+
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    ef = tempfile.NamedTemporaryFile(prefix="export_params", suffix=".csv")
+
+    b.export_arrays(ef.name, delimiter=',', uniqueid=params.split(","))
+
+    return send_file(ef.name, as_attachment=True, attachment_filename='{}_export_arrays.csv'.format(bundleid))
 
 
 
