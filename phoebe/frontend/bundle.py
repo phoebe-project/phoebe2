@@ -6563,7 +6563,7 @@ class Bundle(ParameterSet):
                     datasets.append(item)
 
 
-        return model, computes, datasets, do_create_fig_params, changed_params
+        return model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps
 
 
     def _write_export_compute_script(self, script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs):
@@ -6649,7 +6649,7 @@ class Bundle(ParameterSet):
           in the model being written to `out_fname`.
 
         """
-        model, computes, datasets, do_create_fig_params, changed_params = self._prepare_compute(compute, model, **kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
         script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs)
         return script_fname, out_fname
 
@@ -6747,7 +6747,7 @@ class Bundle(ParameterSet):
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
 
-        model, computes, datasets, do_create_fig_params, changed_params = self._prepare_compute(compute, model, **kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
