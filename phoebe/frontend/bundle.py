@@ -3044,6 +3044,18 @@ class Bundle(ParameterSet):
                                 affected_params,
                                 False)
 
+
+        for figure in self.figures:
+            x = self.get_value(qualifier='x', figure=figure, context='figure')
+            y = self.get_value(qualifier='y', figure=figure, context='figure')
+            if (x in ['xs', 'ys', 'zs'] and y in ['us', 'vs', 'ws']) or (x in ['us', 'vs', 'ws'] and y in ['xs', 'ys', 'zs']):
+                report.add_item(self,
+                                "cannot mix xyz and uvw coordinates in {} figure".format(figure),
+                                [self.get_parameter(qualifier='x', figure=figure, context='figure'),
+                                 self.get_parameter(qualifier='y', figure=figure, context='figure')
+                                ],
+                                False)
+
         if raise_logger_warning:
             for item in report.items:
                 # passed is either False (failed) or None (raise Warning)

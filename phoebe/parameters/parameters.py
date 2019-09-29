@@ -4282,7 +4282,6 @@ class ParameterSet(object):
 
         try:
             plot_kwargss = self._unpack_plotting_kwargs(animate=animate, **kwargs)
-
             # this loop handles any of the automatically-generated
             # multiple plotting calls, passing each on to autofig
             for plot_kwargs in plot_kwargss:
@@ -4322,6 +4321,10 @@ class ParameterSet(object):
         else:
             afig = self.gcf()
             if not len(afig.axes):
+                # try to detect common causes and provide useful messages
+                if (kwargs.get('x', None) in ['xs', 'ys', 'zs'] and kwargs.get('y', None) in ['us', 'vs', 'ws']) or (kwargs.get('x', None) in ['us', 'vs', 'ws'] and kwargs.get('y', None) in ['xs', 'ys', 'zs']):
+                    raise ValueError("cannot mix xyz and uvw coordinates when plotting")
+
                 raise ValueError("Nothing could be found to plot.  Check all arguments.")
 
             fig = None
