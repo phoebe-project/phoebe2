@@ -2449,7 +2449,10 @@ class Bundle(ParameterSet):
         if conf.interactive_constraints or not kwargs.pop('allow_skip_constraints', False):
             changed_params = self.run_delayed_constraints()
 
-        computes = kwargs.pop('compute', self.get_value(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False, expand=True))
+        report = RunChecksReport()
+
+        run_checks_compute = self.get_value(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False, expand=True)
+        computes = kwargs.pop('compute', run_checks_compute)
         if computes is None:
             computes = self.computes
         else:
@@ -2460,12 +2463,15 @@ class Bundle(ParameterSet):
                 if compute not in self.computes:
                     raise ValueError("compute='{}' not found".format(compute))
 
+                if compute not in run_checks_compute:
+                    report.add_item(self,
+                                    "compute='{}' is not included in run_checks_compute@setting, so will not raise interactive warnings".format(compute),
+                                    [self.get_parameter(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False)],
+                                    False
+                                    )
 
         kwargs.setdefault('check_visible', False)
         kwargs.setdefault('check_default', False)
-
-
-        report = RunChecksReport()
 
         hier = self.hierarchy
         if hier is None:
