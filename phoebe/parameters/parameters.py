@@ -9796,6 +9796,7 @@ class JobParameter(Parameter):
         # TODO: may need to be more clever once remote servers are supported
         self._script_fname = os.path.join(location, '_{}.py'.format(self.uniqueid))
         self._results_fname = os.path.join(location, '_{}.out'.format(self.uniqueid))
+        self._err_fname = os.path.join(location, '_{}.err'.format(self.uniqueid))
 
         # TODO: add a description?
 
@@ -9939,9 +9940,13 @@ class JobParameter(Parameter):
         else:
 
             if self.status_method == 'exists':
-                output_exists = os.path.isfile("_{}.out".format(self.uniqueid))
-                if output_exists:
+                if self._value == 'error':
+                    # then error was already detected and we've already done cleanup
+                    status = 'error'
+                elif os.path.isfile(self._results_fname):
                     status = 'complete'
+                elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
+                    status = 'error'
                 else:
                     status = 'unknown'
             else:
@@ -9993,7 +9998,7 @@ class JobParameter(Parameter):
         #if self._value == 'loaded':
         #    raise ValueError("results have already been loaded")
         status = self.get_status()
-        if not wait and status!='complete':
+        if not wait and status not in ['complete', 'error']:
             if status in ['loaded']:
                 logger.info("job already loaded")
                 return self._bundle.get_model(self.model)
@@ -10002,7 +10007,7 @@ class JobParameter(Parameter):
                 return self
 
 
-        while self.get_status() not in ['complete', 'loaded']:
+        while self.get_status() not in ['complete', 'loaded', 'error']:
             # TODO: any way we can not make 2 calls to self.status here?
             logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
             time.sleep(sleep)
@@ -10026,7 +10031,18 @@ class JobParameter(Parameter):
             newparams = rjson['included']
             self._bundle._attach_param_from_server(newparams)
 
+        elif self.status == 'error':
+            ferr = open(self._err_fname, 'r')
+            msg = ferr.readlines()[-1]
+            ferr.close()
 
+            if cleanup:
+                os.remove(self._script_fname)
+                os.remove(self._err_fname)
+
+            self._value = 'error'
+
+            raise RuntimeError("compute job failed with error: {}".format(msg))
         else:
             logger.info("current status: {}, pulling job results".format(self.status))
             result_ps = self._retrieve_results()
@@ -10039,11 +10055,12 @@ class JobParameter(Parameter):
             if cleanup:
                 os.remove(self._script_fname)
                 os.remove(self._results_fname)
+                os.remove(self._err_fname)
 
-        self._value = 'loaded'
+            self._value = 'loaded'
 
-        # TODO: add history?
+            # TODO: add history?
 
-        self._bundle._handle_model_selectparams()
+            self._bundle._handle_model_selectparams()
 
-        return self._bundle.filter(model=self.model)
+            return self._bundle.filter(model=self.model)

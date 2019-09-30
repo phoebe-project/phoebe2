@@ -6792,6 +6792,7 @@ class Bundle(ParameterSet):
             # is now, run compute, and then save the resulting model
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
+            err_fname = "_{}.err".format(jobid)
             script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, False, kwargs)
 
             script_fname = os.path.abspath(script_fname)
@@ -6800,7 +6801,8 @@ class Bundle(ParameterSet):
             # but that would probably need to be the responsibility of the
             # jobparam to return a failed status and message.
             # Unfortunately right now an error just results in the job hanging.
-            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
+            f = open(err_fname, 'w')
+            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
 
             # create model parameter and attach (and then return that instead of None)
             job_param = JobParameter(self,
