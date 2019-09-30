@@ -92,6 +92,13 @@ def phoebe(**kwargs):
     params += [ChoiceParameter(qualifier='dynamics_method', value=kwargs.get('dynamics_method', 'keplerian'), choices=['keplerian'], description='Which method to use to determine the dynamics of components')]
     params += [BoolParameter(qualifier='ltte', value=kwargs.get('ltte', False), description='Correct for light travel time effects')]
 
+    if conf.devel:
+        # note: even though bs isn't an option, its manually added as an option in test_dynamics and test_dynamics_grid
+        params += [BoolParameter(visible_if='dynamics_method:bs', qualifier='gr', value=kwargs.get('gr', False), description='Whether to account for general relativity effects')]
+        params += [FloatParameter(visible_if='dynamics_method:bs', qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='stepsize for the N-body integrator')]         # TODO: improve description (and units??)
+        params += [ChoiceParameter(visible_if='dynamics_method:bs', qualifier='integrator', value=kwargs.get('integrator', 'ias15'), choices=['ias15', 'whfast', 'sei', 'leapfrog', 'hermes'], description='Which integrator to use within rebound')]
+
+
     # PHYSICS
     # TODO: should either of these be per-dataset... if so: copy_for={'kind': ['rv_dep', 'lc_dep'], 'dataset': '*'}, dataset='_default' and then edit universe.py to pull for the correct dataset (will need to become dataset-dependent dictionary a la ld_func)
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'horvat'), choices=['none', 'wilson', 'horvat'], description='Which method to use to handle all irradiation effects (reflection, redistribution)')]

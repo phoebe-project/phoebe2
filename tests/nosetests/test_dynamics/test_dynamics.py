@@ -53,10 +53,11 @@ def _phoebe_v_photodynam(b, plot=False):
     # photodynam backend ONLY works with ltte=True, so we will run the phoebe backend with that as well
     # TODO: remove distortion_method='nbody' once that is supported
     # NOTE: bs is the exact same as that used in photodynam.  Nbody and rebound are slightly different.
-    b.add_compute('phoebe', dynamics_method='bs', ltte=True, compute='phoebecompute')
+    b.set_value('dynamics_method', 'bs')
+    b.set_value('ltte', True)
 
     b.run_compute('pdcompute', model='pdresults')
-    b.run_compute('phoebecompute', model='phoeberesults')
+    b.run_compute('phoebe01', model='phoeberesults')
 
     for comp in b.hierarchy.get_stars():
         # TODO: check to see how low we can make atol (or change to rtol?)
@@ -92,9 +93,10 @@ def _frontend_v_backend(b, plot=False):
 
     times = np.linspace(0, 100, 21)
     b.add_dataset('orb', times=times, dataset='orb01', component=b.hierarchy.get_stars())
-    b.add_compute('phoebe', dynamics_method='keplerian', compute='keplerian')
-    b.add_compute('phoebe', dynamics_method='bs', compute='nbody')
+    b.rename_compute('phoebe01', 'nbody')
+    b.set_value('dynamics_method', 'bs')
 
+    b.add_compute('phoebe', dynamics_method='keplerian', compute='keplerian')
 
     # NBODY
     # do backend Nbody
@@ -148,12 +150,15 @@ def test_binary(plot=False):
     # TODO: once ps.copy is implemented, just send b.copy() to each of these
 
     b = phoebe.default_binary()
+    b.get_parameter('dynamics_method')._choices = ['keplerian', 'bs']
     _keplerian_v_nbody(b, plot=plot)
 
     b = phoebe.default_binary()
+    b.get_parameter('dynamics_method')._choices = ['keplerian', 'bs']
     _phoebe_v_photodynam(b, plot=plot)
 
     b = phoebe.default_binary()
+    b.get_parameter('dynamics_method')._choices = ['keplerian', 'bs']
     _frontend_v_backend(b, plot=plot)
 
     phoebe.devel_off() # reset for future tests

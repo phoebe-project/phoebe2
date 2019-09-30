@@ -46,10 +46,11 @@ def _phoebe_v_photodynam(b, period, plot=False):
     b.add_compute('photodynam', compute='pdcompute')
     # photodynam backend ONLY works with ltte=True, so we will run the phoebe backend with that as well
     # TODO: remove distortion_method='nbody' once that is supported
-    b.add_compute('phoebe', dynamics_method='nbody', ltte=True, compute='phoebecompute')
+    b.set_value('dynamics_method', 'bs')
+    b.set_value('ltte', True)
 
     b.run_compute('pdcompute', model='pdresults')
-    b.run_compute('phoebecompute', model='phoeberesults')
+    b.run_compute('phoebe01', model='phoeberesults')
 
     for comp in b.hierarchy.get_stars():
         # TODO: check to see how low we can make atol (or change to rtol?)
@@ -85,8 +86,12 @@ def _frontend_v_backend(b, ltte, period, plot=False):
 
     times = np.linspace(0, 5*period, 101)
     b.add_dataset('orb', times=times, dataset='orb01', component=b.hierarchy.get_stars())
+    b.rename_compute('phoebe01', 'nbody')
+    b.set_value('dynamics_method', 'bs')
+    b.set_value('ltte', ltte)
+
     b.add_compute('phoebe', dynamics_method='keplerian', compute='keplerian', ltte=ltte)
-    b.add_compute('phoebe', dynamics_method='bs', compute='nbody', ltte=ltte)
+
 
 
     # NBODY
@@ -144,6 +149,8 @@ def test_binary(plot=False):
             for ltte in [True, False]:
                 print("test_dynamics_grid: sma={}, period={}, q={}, ltte={}".format(system[0], system[1], q, ltte))
                 b = phoebe.default_binary()
+                b.get_parameter('dynamics_method')._choices = ['keplerian', 'bs']
+
                 b.set_default_unit_all('sma', u.AU)
                 b.set_default_unit_all('period', u.d)
 
