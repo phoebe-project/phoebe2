@@ -9946,7 +9946,16 @@ class JobParameter(Parameter):
                 elif os.path.isfile(self._results_fname):
                     status = 'complete'
                 elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
-                    status = 'error'
+                    # some warnings from other packages can be set to stderr
+                    # so we need to make sure the last line is actually from
+                    # raising an error.
+                    ferr = open(self._err_fname, 'r')
+                    msg = ferr.readlines()[-1]
+                    ferr.close()
+                    if 'Error' in msg.split()[0]:
+                        status = 'error'
+                    else:
+                        status = 'unknown'
                 else:
                     status = 'unknown'
             else:
