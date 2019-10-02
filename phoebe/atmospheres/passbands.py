@@ -3161,6 +3161,10 @@ def _init_passband(fullpath, check_for_update=True):
     passband = pb.pbset+':'+pb.pbname
     _pbtable[passband] = {'fname': fullpath, 'atms': pb.atmlist, 'atms_ld': [atm for atm in pb.atmlist if '{}_ld'.format(atm) in pb.content], 'timestamp': pb.timestamp, 'pb': None}
 
+    # data = asdf.open(fullpath)
+    # passband = data['pbset'] + data['pbname']
+    # _pbtable[passband] = {'fname': fullpath, 'atms': data['atmlist'], 'atms_ld': [atm for atm in data['atmlist'] if '{}_ld'.format(atm) in data['content']], 'timestamp': data['timestamp'], 'pb': None}
+
     if check_for_update and update_passband_available(passband):
         msg = 'passband "{}" has a newer version available.  Run phoebe.download_passband("{}") or phoebe.update_all_passbands() to update.'.format(passband, passband)
         # NOTE: logger probably not available yet, so we'll also use a print statement
