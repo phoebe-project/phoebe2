@@ -22,6 +22,8 @@ import glob
 import shutil
 import json
 import time
+# FIXME: add asdf to hard dependencies
+import asdf
 
 try:
     # For Python 3.0 and later
@@ -217,6 +219,87 @@ class Passband:
             self.version = 1.0
         return 'Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content)
 
+    def save_asdf(self, archive):
+        data = {
+            'originating_phoebe_version': phoebe_version,
+            'timestamp': time.ctime(),
+            'content': self.content,
+            'atmlist': self.atmlist,
+            'pbset': self.pbset,
+            'pbname': self.pbname,
+            'effwl': self.effwl,
+            'calibrated': self.calibrated,
+            'version': self.version,
+            'comments': self.comments,
+            'reference': self.reference,
+            'ptf_table': self.ptf_table,
+            'ptf_wl': self.wl,
+            'ptf_func': self.ptf_func,
+            'ptf_area': self.ptf_area,
+            'ptf_photon_func': self.ptf_photon_func,
+            'ptf_photon_area': self.ptf_photon_area,
+        }
+        if 'blackbody' in self.content:
+            data.update({
+                '_bb_func_energy': self._bb_func_energy,
+                '_bb_func_photon': self._bb_func_photon,
+            })
+        if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
+            data.update({
+                'extern_wd_idx': self.extern_wd_idx,
+            })
+        if 'ck2004' in self.content:
+            data.update({
+                '_ck2004_axes': self._ck2004_axes,
+                '_ck2004_energy_grid': self._ck2004_energy_grid,
+                '_ck2004_photon_grid': self._ck2004_photon_grid,
+            })
+        if 'ck2004_all' in self.content:
+            data.update({
+                '_ck2004_intensity_axes': self._ck2004_intensity_axes,
+                '_ck2004_Imu_energy_grid': self._ck2004_Imu_energy_grid,
+                '_ck2004_Imu_photon_grid': self._ck2004_Imu_photon_grid,
+                # '_ck2004_boosting_energy_grid': self._ck2004_boosting_energy_grid,
+                # '_ck2004_boosting_photon_grid': self._ck2004_boosting_photon_grid,
+            })
+        if 'ck2004_ld' in self.content:
+            data.update({
+                '_ck2004_ld_energy_grid': self._ck2004_ld_energy_grid,
+                '_ck2004_ld_photon_grid': self._ck2004_ld_photon_grid,
+            })
+        if 'ck2004_ldint' in self.content:
+            data.update({
+                '_ck2004_ldint_energy_grid': self._ck2004_ldint_energy_grid,
+                '_ck2004_ldint_photon_grid': self._ck2004_ldint_photon_grid,
+            })
+        if 'phoenix' in self.content:
+            data.update({
+                '_phoenix_axes': self._phoenix_axes,
+                '_phoenix_energy_grid': self._phoenix_energy_grid,
+                '_phoenix_photon_grid': self._phoenix_photon_grid,
+            })
+        if 'phoenix_all' in self.content:
+            data.update({
+                '_phoenix_intensity_axes': self._phoenix_intensity_axes,
+                '_phoenix_Imu_energy_grid': self._phoenix_Imu_energy_grid,
+                '_phoenix_Imu_photon_grid': self._phoenix_Imu_photon_grid,
+                # '_phoenix_boosting_energy_grid': self._phoenix_boosting_energy_grid,
+                # '_phoenix_boosting_photon_grid': self._phoenix_boosting_photon_grid,
+            })
+        if 'phoenix_ld' in self.content:
+            data.update({
+                '_phoenix_ld_energy_grid': self._phoenix_ld_energy_grid,
+                '_phoenix_ld_photon_grid': self._phoenix_ld_photon_grid,
+            })
+        if 'phoenix_ldint' in self.content:
+            data.update({
+                '_phoenix_ldint_energy_grid': self._phoenix_ldint_energy_grid,
+                '_phoenix_ldint_photon_grid': self._phoenix_ldint_photon_grid,
+            })
+
+        af = asdf.AsdfFile(data)
+        af.write_to(archive, all_array_compression='bzp2')
+
     def save(self, archive):
         """
         Save the <phoebe.atmospheres.passbands.Passband> to a file.
@@ -324,11 +407,100 @@ class Passband:
                 pickle.dump(struct, f, protocol=4)
 
     @classmethod
+    def load_asdf(cls, archive):
+        logger.debug("loading passband from {}".format(archive))
+
+        data = asdf.open(archive)
+
+        self = cls(from_file=True)
+
+        self.content = data['content']
+        self.atmlist = data['atmlist']
+
+        self.pbset = data['pbset']
+        self.pbname = data['pbname']
+        self.effwl = data['effwl']
+        self.calibrated = data['calibrated']
+
+        self.opv = data['originating_phoebe_version']
+        self.version = data['version']
+        self.comments = data['comments']
+        self.reference = data['reference'] if 'reference' in data.keys() else None
+        self.timestamp = data['timestamp']
+
+        self.ptf_table = data['ptf_table']
+        self.wl = data['ptf_wl']
+        self.ptf_area = data['ptf_area']
+        self.ptf_photon_area = data['ptf_photon_area']
+        self.ptf_func = data['ptf_func']
+        self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
+        self.ptf_photon_func = data['ptf_photon_func']
+        self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
+
+        if 'blackbody' in self.content:
+            # TODO: check the interpolation in linear vs. log space
+            self._bb_func_energy = data['_bb_func_energy']
+            self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
+            self._bb_func_photon = data['_bb_func_photon']
+            self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
+
+        if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
+            atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
+
+            planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
+            atm = (atmdir+'/atmcof.dat').encode('utf8')
+
+            self.wd_data = libphoebe.wd_readdata(planck, atm)
+            self.extern_wd_idx = data['extern_wd_idx']
+
+        if 'ck2004' in self.content:
+            self._ck2004_axes = data['_ck2004_axes']
+            self._ck2004_energy_grid = data['_ck2004_energy_grid']
+            self._ck2004_photon_grid = data['_ck2004_photon_grid']
+
+        if 'ck2004_all' in self.content:
+            self._ck2004_intensity_axes = data['_ck2004_intensity_axes']
+            self._ck2004_Imu_energy_grid = data['_ck2004_Imu_energy_grid']
+            self._ck2004_Imu_photon_grid = data['_ck2004_Imu_photon_grid']
+            # self._ck2004_boosting_energy_grid = data['_ck2004_boosting_energy_grid']
+            # self._ck2004_boosting_photon_grid = data['_ck2004_boosting_photon_grid']
+
+        if 'ck2004_ld' in self.content:
+            self._ck2004_ld_energy_grid = data['_ck2004_ld_energy_grid']
+            self._ck2004_ld_photon_grid = data['_ck2004_ld_photon_grid']
+
+        if 'ck2004_ldint' in self.content:
+            self._ck2004_ldint_energy_grid = data['_ck2004_ldint_energy_grid']
+            self._ck2004_ldint_photon_grid = data['_ck2004_ldint_photon_grid']
+
+        if 'phoenix' in self.content:
+            self._phoenix_axes = data['_phoenix_axes']
+            self._phoenix_energy_grid = data['_phoenix_energy_grid']
+            self._phoenix_photon_grid = data['_phoenix_photon_grid']
+
+        if 'phoenix_all' in self.content:
+            self._phoenix_intensity_axes = data['_phoenix_intensity_axes']
+            self._phoenix_Imu_energy_grid = data['_phoenix_Imu_energy_grid']
+            self._phoenix_Imu_photon_grid = data['_phoenix_Imu_photon_grid']
+            # self._phoenix_boosting_energy_grid = struct['_phoenix_boosting_energy_grid']
+            # self._phoenix_boosting_photon_grid = struct['_phoenix_boosting_photon_grid']
+
+        if 'phoenix_ld' in self.content:
+            self._phoenix_ld_energy_grid = data['_phoenix_ld_energy_grid']
+            self._phoenix_ld_photon_grid = data['_phoenix_ld_photon_grid']
+
+        if 'phoenix_ldint' in self.content:
+            self._phoenix_ldint_energy_grid = data['_phoenix_ldint_energy_grid']
+            self._phoenix_ldint_photon_grid = data['_phoenix_ldint_photon_grid']
+
+        return self
+
+    @classmethod
     def load(cls, archive):
         """
         Load the <phoebe.atmospheres.passbands.Passband> from a file.
 
-        This is a constructor so should be called as:
+        This is a condataor so should be called as:
 
         ```py
         pb = Passband.load(filename)
@@ -770,6 +942,9 @@ class Passband:
     def impute_atmosphere_grid(self, grid):
         """
         This function imputes the passed atmosphere grid by linear N-D interpolation.
+        As grid is passed by reference, it is not necessary to re-assign the table to
+        the return value of this function; the return value is provided for convenience
+        only, but the grid is changed in place.
         """
 
         valid_mask = ~np.isnan(grid[...,0])
