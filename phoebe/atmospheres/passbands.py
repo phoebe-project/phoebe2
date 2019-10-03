@@ -22,8 +22,10 @@ import glob
 import shutil
 import json
 import time
-# FIXME: add asdf to hard dependencies
-import asdf
+
+if sys.version_info[0] >= 3:
+    # don't import otherwise as can conflict with numpy on Python 2
+    import asdf
 
 try:
     # For Python 3.0 and later
