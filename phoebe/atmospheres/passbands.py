@@ -272,6 +272,12 @@ class Passband:
                 '_ck2004_ldint_energy_grid': self._ck2004_ldint_energy_grid,
                 '_ck2004_ldint_photon_grid': self._ck2004_ldint_photon_grid,
             })
+        if 'ck2004_ext' in self.content:
+            data.update({
+                '_ck2004_extinct_axes': self._ck2004_extinct_axes,
+                '_ck2004_extinct_energy_grid': self._ck2004_extinct_energy_grid,
+                '_ck2004_extinct_photon_grid': self._ck2004_extinct_photon_grid,
+            })
         if 'phoenix' in self.content:
             data.update({
                 '_phoenix_axes': self._phoenix_axes,
@@ -295,6 +301,42 @@ class Passband:
             data.update({
                 '_phoenix_ldint_energy_grid': self._phoenix_ldint_energy_grid,
                 '_phoenix_ldint_photon_grid': self._phoenix_ldint_photon_grid,
+            })
+        if 'phoenix_ext' in self.content:
+            data.update({
+                '_phoenix_extinct_axes': self._phoenix_extinct_axes,
+                '_phoenix_extinct_energy_grid': self._phoenix_extinct_energy_grid,
+                '_phoenix_extinct_photon_grid': self._phoenix_extinct_photon_grid,
+            })
+        if 'blended' in self.content:
+            data.update({
+                '_blended_axes': self._blended_axes,
+                '_blended_energy_grid': self._blended_energy_grid,
+                '_blended_photon_grid': self._blended_photon_grid,
+            })
+        if 'blended_all' in self.content:
+            data.update({
+                '_blended_intensity_axes': self._blended_intensity_axes,
+                '_blended_Imu_energy_grid': self._blended_Imu_energy_grid,
+                '_blended_Imu_photon_grid': self._blended_Imu_photon_grid,
+                # '_blended_boosting_energy_grid': self._blended_boosting_energy_grid,
+                # '_blended_boosting_photon_grid': self._blended_boosting_photon_grid,
+            })
+        if 'blended_ld' in self.content:
+            data.update({
+                '_blended_ld_energy_grid': self._blended_ld_energy_grid,
+                '_blended_ld_photon_grid': self._blended_ld_photon_grid,
+            })
+        if 'blended_ldint' in self.content:
+            data.update({
+                '_blended_ldint_energy_grid': self._blended_ldint_energy_grid,
+                '_blended_ldint_photon_grid': self._blended_ldint_photon_grid,
+            })
+        if 'blended_ext' in self.content:
+            data.update({
+                '_blended_extinct_axes': self._blended_extinct_axes,
+                '_blended_extinct_energy_grid': self._blended_extinct_energy_grid,
+                '_blended_extinct_photon_grid': self._blended_extinct_photon_grid,
             })
 
         af = asdf.AsdfFile(data)
@@ -473,6 +515,11 @@ class Passband:
             self._ck2004_ldint_energy_grid = data['_ck2004_ldint_energy_grid']
             self._ck2004_ldint_photon_grid = data['_ck2004_ldint_photon_grid']
 
+        if 'ck2004_ext' in self.content:
+            self._ck2004_extinct_axes = data['_ck2004_extinct_axes']
+            self._ck2004_extinct_energy_grid = data['_ck2004_extinct_energy_grid']
+            self._ck2004_extinct_photon_grid = data['_ck2004_extinct_photon_grid']
+
         if 'phoenix' in self.content:
             self._phoenix_axes = data['_phoenix_axes']
             self._phoenix_energy_grid = data['_phoenix_energy_grid']
@@ -492,6 +539,36 @@ class Passband:
         if 'phoenix_ldint' in self.content:
             self._phoenix_ldint_energy_grid = data['_phoenix_ldint_energy_grid']
             self._phoenix_ldint_photon_grid = data['_phoenix_ldint_photon_grid']
+
+        if 'phoenix_ext' in self.content:
+            self._phoenix_extinct_axes = data['_phoenix_extinct_axes']
+            self._phoenix_extinct_energy_grid = data['_phoenix_extinct_energy_grid']
+            self._phoenix_extinct_photon_grid = data['_phoenix_extinct_photon_grid']
+
+        if 'blended' in self.content:
+            self._blended_axes = data['_blended_axes']
+            self._blended_energy_grid = data['_blended_energy_grid']
+            self._blended_photon_grid = data['_blended_photon_grid']
+
+        if 'blended_all' in self.content:
+            self._blended_intensity_axes = data['_blended_intensity_axes']
+            self._blended_Imu_energy_grid = data['_blended_Imu_energy_grid']
+            self._blended_Imu_photon_grid = data['_blended_Imu_photon_grid']
+            # self._blended_boosting_energy_grid = struct['_blended_boosting_energy_grid']
+            # self._blended_boosting_photon_grid = struct['_blended_boosting_photon_grid']
+
+        if 'blended_ld' in self.content:
+            self._blended_ld_energy_grid = data['_blended_ld_energy_grid']
+            self._blended_ld_photon_grid = data['_blended_ld_photon_grid']
+
+        if 'blended_ldint' in self.content:
+            self._blended_ldint_energy_grid = data['_blended_ldint_energy_grid']
+            self._blended_ldint_photon_grid = data['_blended_ldint_photon_grid']
+
+        if 'blended_ext' in self.content:
+            self._blended_extinct_axes = data['_blended_extinct_axes']
+            self._blended_extinct_energy_grid = data['_blended_extinct_energy_grid']
+            self._blended_extinct_photon_grid = data['_blended_extinct_photon_grid']
 
         return self
 
