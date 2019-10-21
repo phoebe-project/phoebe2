@@ -1054,10 +1054,10 @@ class Passband:
             Teffs = 10**log10Teffs
 
         if Ebv is None:
-            Ebv=np.linspace(0.,3.,90)
+            Ebv = np.linspace(0.,3.,30)
 
         if Rv is None:
-            Rv=np.linspace(2.,6.,40)
+            Rv = np.linspace(2.,6.,16)
 
         #Make it so that Teffs and Ebv step through a la the CK2004 models
         NTeffs=len(Teffs)
@@ -1118,10 +1118,10 @@ class Passband:
         """
 
         if Ebv is None:
-            Ebv = np.linspace(0.,3.,90)
+            Ebv = np.linspace(0.,3.,30)
 
         if Rv is None:
-            Rv = np.linspace(2.,6.,40)
+            Rv = np.linspace(2.,6.,16)
 
         models = glob.glob(path+'/*M1.000*')
         Nmodels = len(models)
@@ -1222,10 +1222,10 @@ class Passband:
         from astropy.io import fits
 
         if Ebv is None:
-            Ebv = np.linspace(0.,3.,90)
+            Ebv = np.linspace(0.,3.,30)
 
         if Rv is None:
-            Rv = np.linspace(2.,6.,40)
+            Rv = np.linspace(2.,6.,16)
 
         models = glob.glob(path+'/*fits')
         Nmodels = len(models)
@@ -1938,7 +1938,7 @@ class Passband:
     def compute_blended_response(self, layers=['ck2004', 'blackbody']):
         blended_axes, blended_energy_grid = self._blend(layers=layers, photon_weighted=False)
         blended_axes, blended_photon_grid = self._blend(layers=layers, photon_weighted=True)
-        
+
         self._blended_axes = blended_axes
         self._blended_energy_grid = blended_energy_grid
         self._blended_photon_grid = blended_photon_grid
