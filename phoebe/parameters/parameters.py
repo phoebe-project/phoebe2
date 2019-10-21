@@ -3230,7 +3230,7 @@ class ParameterSet(object):
                 sigmas = self._bundle.get_dataset(dataset=ds).get_value('sigmas', component=ds_comp, unit=residuals.unit)
 
                 if len(sigmas):
-                    chi2 += np.sum(residuals.value**2 / sigmas.value**2)
+                    chi2 += np.sum(residuals.value**2 / sigmas**2)
                 else:
                     chi2 += np.sum(residuals.value**2)
 
