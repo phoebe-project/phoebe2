@@ -9555,7 +9555,7 @@ static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {
     return NULL;
   }
 
-  if (o_strict) strict = PyBool_Check(o_strict);
+  if (o_strict) strict = PyObject_IsTrue(o_strict);
 
   TLDmodel_type type = LD::type(PyString_AsString(o_descr));
 
@@ -9566,10 +9566,10 @@ static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {
 
   if (strict)
     return PyBool_FromLong(LD::check_strict(type, (double*)PyArray_DATA(o_params)));
-
+ 
   return PyBool_FromLong(LD::check(type, (double*)PyArray_DATA(o_params)));
-}
 
+}
 
 /*
   C++ wrapper for Python code:
