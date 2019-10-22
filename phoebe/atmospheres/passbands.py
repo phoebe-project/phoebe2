@@ -1222,10 +1222,10 @@ class Passband:
         from astropy.io import fits
 
         if Ebv is None:
-            Ebv = np.linspace(0.,3.,30)
+            Ebv = np.linspace(0., 3., 30)
 
         if Rv is None:
-            Rv = np.linspace(2.,6.,16)
+            Rv = np.linspace(2., 6., 16)
 
         models = glob.glob(path+'/*fits')
         Nmodels = len(models)
@@ -1237,10 +1237,10 @@ class Passband:
         combos = Nmodels*Ns
 
         Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
-        Rv1 = np.tile(Rv, combos/NRv)
+        Rv1 = np.tile(Rv, int(combos/NRv))
 
         # auxilary matrix for storing Ebv and Rv per model
-        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]),1)
+        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]), 1)
         M = np.ascontiguousarray(M)
 
         # Store the length of the filename extensions for parsing:
@@ -1249,7 +1249,7 @@ class Passband:
         Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
 
         # extinctE , extinctP per model
-        extinctE , extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
+        extinctE, extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
 
         if verbose:
             print('Computing PHOENIX (Husser et al. 2013) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
