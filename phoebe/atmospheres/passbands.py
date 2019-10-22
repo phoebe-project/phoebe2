@@ -458,9 +458,19 @@ class Passband:
 
     @classmethod
     def load_asdf(cls, archive):
+        """
+        Loads atmosphere tables from asdf format. This is the default format for python 3.
+
+        Note that asdf arrays are not np.ndarray but asdf.tags.core.ndarray, which means
+        that we need to cast them before libphoebe functions can process them.
+
+        Also note that lazy loading means we need to access array *values* and not just
+        arrays for the data to be loaded. That is why lazy loading is turned off until
+        a better solution is found.
+        """
         logger.debug("loading passband from {}".format(archive))
 
-        data = asdf.open(archive)
+        data = asdf.open(archive, lazy_load=False)
 
         self = cls(from_file=True)
 
@@ -479,7 +489,7 @@ class Passband:
         self.timestamp = data['timestamp']
 
         self.ptf_table = data['ptf_table']
-        self.wl = data['ptf_wl']
+        self.wl = np.array(data['ptf_wl'])
         self.ptf_area = data['ptf_area']
         self.ptf_photon_area = data['ptf_photon_area']
         self.ptf_func = data['ptf_func']
@@ -489,9 +499,9 @@ class Passband:
 
         if 'blackbody' in self.content:
             # TODO: check the interpolation in linear vs. log space
-            self._bb_func_energy = data['_bb_func_energy']
+            self._bb_func_energy = np.array(data['_bb_func_energy'])
             self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
-            self._bb_func_photon = data['_bb_func_photon']
+            self._bb_func_photon = np.array(data['_bb_func_photon'])
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
         if 'bb_ext' in self.content:
@@ -510,78 +520,96 @@ class Passband:
 
         if 'ck2004' in self.content:
             self._ck2004_axes = data['_ck2004_axes']
-            self._ck2004_energy_grid = data['_ck2004_energy_grid']
-            self._ck2004_photon_grid = data['_ck2004_photon_grid']
+            for i in range(len(self._ck2004_axes)):
+                self._ck2004_axes[i] = np.array(self._ck2004_axes[i])
+            self._ck2004_energy_grid = np.array(data['_ck2004_energy_grid'])
+            self._ck2004_photon_grid = np.array(data['_ck2004_photon_grid'])
 
         if 'ck2004_all' in self.content:
             self._ck2004_intensity_axes = data['_ck2004_intensity_axes']
-            self._ck2004_Imu_energy_grid = data['_ck2004_Imu_energy_grid']
-            self._ck2004_Imu_photon_grid = data['_ck2004_Imu_photon_grid']
+            for i in range(len(self._ck2004_intensity_axes)):
+                self._ck2004_intensity_axes[i] = np.array(self._ck2004_intensity_axes[i])
+            self._ck2004_Imu_energy_grid = np.array(data['_ck2004_Imu_energy_grid'])
+            self._ck2004_Imu_photon_grid = np.array(data['_ck2004_Imu_photon_grid'])
             # self._ck2004_boosting_energy_grid = data['_ck2004_boosting_energy_grid']
             # self._ck2004_boosting_photon_grid = data['_ck2004_boosting_photon_grid']
 
         if 'ck2004_ld' in self.content:
-            self._ck2004_ld_energy_grid = data['_ck2004_ld_energy_grid']
-            self._ck2004_ld_photon_grid = data['_ck2004_ld_photon_grid']
+            self._ck2004_ld_energy_grid = np.array(data['_ck2004_ld_energy_grid'])
+            self._ck2004_ld_photon_grid = np.array(data['_ck2004_ld_photon_grid'])
 
         if 'ck2004_ldint' in self.content:
-            self._ck2004_ldint_energy_grid = data['_ck2004_ldint_energy_grid']
-            self._ck2004_ldint_photon_grid = data['_ck2004_ldint_photon_grid']
+            self._ck2004_ldint_energy_grid = np.array(data['_ck2004_ldint_energy_grid'])
+            self._ck2004_ldint_photon_grid = np.array(data['_ck2004_ldint_photon_grid'])
 
         if 'ck2004_ext' in self.content:
             self._ck2004_extinct_axes = data['_ck2004_extinct_axes']
-            self._ck2004_extinct_energy_grid = data['_ck2004_extinct_energy_grid']
-            self._ck2004_extinct_photon_grid = data['_ck2004_extinct_photon_grid']
+            for i in range(len(self._ck2004_extinct_axes)):
+                self._ck2004_extinct_axes[i] = np.array(self._ck2004_extinct_axes[i])
+            self._ck2004_extinct_energy_grid = np.array(data['_ck2004_extinct_energy_grid'])
+            self._ck2004_extinct_photon_grid = np.array(data['_ck2004_extinct_photon_grid'])
 
         if 'phoenix' in self.content:
             self._phoenix_axes = data['_phoenix_axes']
-            self._phoenix_energy_grid = data['_phoenix_energy_grid']
-            self._phoenix_photon_grid = data['_phoenix_photon_grid']
+            for i in range(len(self._phoenix_axes)):
+                self._phoenix_axes[i] = np.array(self._phoenix_axes[i])
+            self._phoenix_energy_grid = np.array(data['_phoenix_energy_grid'])
+            self._phoenix_photon_grid = np.array(data['_phoenix_photon_grid'])
 
         if 'phoenix_all' in self.content:
             self._phoenix_intensity_axes = data['_phoenix_intensity_axes']
-            self._phoenix_Imu_energy_grid = data['_phoenix_Imu_energy_grid']
-            self._phoenix_Imu_photon_grid = data['_phoenix_Imu_photon_grid']
+            for i in range(len(self._phoenix_intensity_axes)):
+                self._phoenix_intensity_axes[i] = np.array(self._phoenix_intensity_axes[i])
+            self._phoenix_Imu_energy_grid = np.array(data['_phoenix_Imu_energy_grid'])
+            self._phoenix_Imu_photon_grid = np.array(data['_phoenix_Imu_photon_grid'])
             # self._phoenix_boosting_energy_grid = struct['_phoenix_boosting_energy_grid']
             # self._phoenix_boosting_photon_grid = struct['_phoenix_boosting_photon_grid']
 
         if 'phoenix_ld' in self.content:
-            self._phoenix_ld_energy_grid = data['_phoenix_ld_energy_grid']
-            self._phoenix_ld_photon_grid = data['_phoenix_ld_photon_grid']
+            self._phoenix_ld_energy_grid = np.array(data['_phoenix_ld_energy_grid'])
+            self._phoenix_ld_photon_grid = np.array(data['_phoenix_ld_photon_grid'])
 
         if 'phoenix_ldint' in self.content:
-            self._phoenix_ldint_energy_grid = data['_phoenix_ldint_energy_grid']
-            self._phoenix_ldint_photon_grid = data['_phoenix_ldint_photon_grid']
+            self._phoenix_ldint_energy_grid = np.array(data['_phoenix_ldint_energy_grid'])
+            self._phoenix_ldint_photon_grid = np.array(data['_phoenix_ldint_photon_grid'])
 
         if 'phoenix_ext' in self.content:
             self._phoenix_extinct_axes = data['_phoenix_extinct_axes']
-            self._phoenix_extinct_energy_grid = data['_phoenix_extinct_energy_grid']
-            self._phoenix_extinct_photon_grid = data['_phoenix_extinct_photon_grid']
+            for i in range(len(self._phoenix_extinct_axes)):
+                self._phoenix_extinct_axes[i] = np.array(self._phoenix_extinct_axes[i])
+            self._phoenix_extinct_energy_grid = np.array(data['_phoenix_extinct_energy_grid'])
+            self._phoenix_extinct_photon_grid = np.array(data['_phoenix_extinct_photon_grid'])
 
         if 'blended' in self.content:
             self._blended_axes = data['_blended_axes']
-            self._blended_energy_grid = data['_blended_energy_grid']
-            self._blended_photon_grid = data['_blended_photon_grid']
+            for i in range(len(self._blended_axes)):
+                self._blended_axes[i] = np.array(self._blended_axes[i])
+            self._blended_energy_grid = np.array(data['_blended_energy_grid'])
+            self._blended_photon_grid = np.array(data['_blended_photon_grid'])
 
         if 'blended_all' in self.content:
             self._blended_intensity_axes = data['_blended_intensity_axes']
-            self._blended_Imu_energy_grid = data['_blended_Imu_energy_grid']
-            self._blended_Imu_photon_grid = data['_blended_Imu_photon_grid']
+            for i in range(len(self._blended_intensity_axes)):
+                self._blended_intensity_axes[i] = np.array(self._blended_intensity_axes[i])
+            self._blended_Imu_energy_grid = np.array(data['_blended_Imu_energy_grid'])
+            self._blended_Imu_photon_grid = np.array(data['_blended_Imu_photon_grid'])
             # self._blended_boosting_energy_grid = struct['_blended_boosting_energy_grid']
             # self._blended_boosting_photon_grid = struct['_blended_boosting_photon_grid']
 
         if 'blended_ld' in self.content:
-            self._blended_ld_energy_grid = data['_blended_ld_energy_grid']
-            self._blended_ld_photon_grid = data['_blended_ld_photon_grid']
+            self._blended_ld_energy_grid = np.array(data['_blended_ld_energy_grid'])
+            self._blended_ld_photon_grid = np.array(data['_blended_ld_photon_grid'])
 
         if 'blended_ldint' in self.content:
-            self._blended_ldint_energy_grid = data['_blended_ldint_energy_grid']
-            self._blended_ldint_photon_grid = data['_blended_ldint_photon_grid']
+            self._blended_ldint_energy_grid = np.array(data['_blended_ldint_energy_grid'])
+            self._blended_ldint_photon_grid = np.array(data['_blended_ldint_photon_grid'])
 
         if 'blended_ext' in self.content:
             self._blended_extinct_axes = data['_blended_extinct_axes']
-            self._blended_extinct_energy_grid = data['_blended_extinct_energy_grid']
-            self._blended_extinct_photon_grid = data['_blended_extinct_photon_grid']
+            for i in range(len(self._blended_extinct_axes)):
+                self._blended_extinct_axes[i] = np.array(self._blended_extinct_axes[i])
+            self._blended_extinct_energy_grid = np.array(data['_blended_extinct_energy_grid'])
+            self._blended_extinct_photon_grid = np.array(data['_blended_extinct_photon_grid'])
 
         return self
 
