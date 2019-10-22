@@ -1133,10 +1133,10 @@ class Passband:
         combos = Nmodels*Ns
 
         Ebv1 = np.tile(np.repeat(Ebv, NRv), Nmodels)
-        Rv1 = np.tile(Rv, combos/NRv)
+        Rv1 = np.tile(Rv, int(combos/NRv))
 
         # auxilary matrix for storing Ebv and Rv per model
-        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]),1)
+        M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]), 1)
         M = np.ascontiguousarray(M)
 
         # Store the length of the filename extensions for parsing:
@@ -1175,7 +1175,7 @@ class Passband:
             Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
             flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
 
-            extinctE[i], extinctP[i]= np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
+            extinctE[i], extinctP[i] = np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
 
             if verbose:
                 if 100*i % (len(models)) == 0:
@@ -1185,9 +1185,9 @@ class Passband:
         # nans where the grid isn't complete.
         self._ck2004_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
 
-        Teff=np.repeat(Teff, Ns)
-        logg=np.repeat(logg, Ns)
-        abun=np.repeat(abun, Ns)
+        Teff = np.repeat(Teff, Ns)
+        logg = np.repeat(logg, Ns)
+        abun = np.repeat(abun, Ns)
 
         self._ck2004_extinct_energy_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
         self._ck2004_extinct_photon_grid = np.copy(self._ck2004_extinct_energy_grid)
