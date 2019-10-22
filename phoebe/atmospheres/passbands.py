@@ -1060,13 +1060,13 @@ class Passband:
             Rv = np.linspace(2.,6.,16)
 
         #Make it so that Teffs and Ebv step through a la the CK2004 models
-        NTeffs=len(Teffs)
-        NEbv=len(Ebv)
-        NRv=len(Rv)
-        combos=NTeffs*NEbv*NRv
-        Teffs=np.repeat(Teffs,combos/NTeffs)
-        Ebv=np.tile(np.repeat(Ebv,NRv),NTeffs)
-        Rv=np.tile(Rv,combos/NRv)
+        NTeffs = len(Teffs)
+        NEbv = len(Ebv)
+        NRv = len(Rv)
+        combos = NTeffs*NEbv*NRv
+        Teffs = np.repeat(Teffs, int(combos/NTeffs))
+        Ebv = np.tile(np.repeat(Ebv, NRv), NTeffs)
+        Rv = np.tile(Rv, int(combos/NRv))
 
         extinctE, extinctP = np.empty(combos), np.empty(combos)
 
