@@ -246,6 +246,12 @@ class Passband:
                 '_bb_func_energy': self._bb_func_energy,
                 '_bb_func_photon': self._bb_func_photon,
             })
+        if 'bb_ext' in self.content:
+            data.update({
+                '_bb_extinct_axes': self._bb_extinct_axes,
+                '_bb_extinct_photon_grid': self._bb_extinct_photon_grid,
+                '_bb_extinct_energy_grid': self._bb_extinct_energy_grid,
+            })
         if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             data.update({
                 'extern_wd_idx': self.extern_wd_idx,
@@ -487,6 +493,11 @@ class Passband:
             self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
             self._bb_func_photon = data['_bb_func_photon']
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
+
+        if 'bb_ext' in self.content:
+            self._bb_extinct_axes = data['_bb_extinct_axes']
+            self._bb_extinct_energy_grid = data['_bb_extinct_energy_grid']
+            self._bb_extinct_photon_grid = data['_bb_extinct_photon_grid']
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
@@ -1254,7 +1265,6 @@ class Passband:
         if verbose:
             print('Computing PHOENIX (Husser et al. 2013) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
-
         wavelengths = np.arange(500., 26000.)/1e10 # AA -> m
 
         for i, model in enumerate(models):
@@ -1281,8 +1291,6 @@ class Passband:
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(Nmodels-1)))
-
-
 
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
