@@ -1377,14 +1377,7 @@ class Bundle(ParameterSet):
         return super(Bundle, self).__repr__().replace('ParameterSet', 'PHOEBE Bundle')
 
     def __str__(self):
-        return_ = ''
-        for context in ['context', 'kind', 'component', 'feature', 'dataset',
-                        'figure', 'constraint', 'compute', 'model', 'qualifier']:
-            return_ += '{}:\n'.format(context.upper())
-            return_ += "\n".join( self._options_for_tag(context, include_default=False))
-            return_ += '\n\n'
-
-        return return_
+        return super(Bundle, self).__str__().replace('ParameterSet', 'PHOEBE Bundle')
 
     def _default_label(self, base, context, **kwargs):
         """
