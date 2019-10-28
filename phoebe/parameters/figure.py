@@ -50,21 +50,51 @@ if not _use_autofig:
     _mpllinestyles = ['solid', 'dashed', 'dotted', 'dashdot', 'None']
 
 class MPLPropCycler(object):
-    def __init__(self, options=[]):
+    def __init__(self, prop, options=[]):
+        self._prop = prop
+        self._options_orig = options
         self._options = options
         self._used = []
-        self._index = 0
+        self._used_tmp = []
+
+    def __repr__(self):
+        return '<{}cycler | cycle: {} | used: {}>'.format(self._prop,
+                                                          self.cycle,
+                                                          self.used)
+
 
     @property
-    def options(self):
+    def cycle(self):
         return self._options
+
+    @cycle.setter
+    def cycle(self, cycle):
+        for option in cycle:
+            if option not in self._options_orig:
+                raise ValueError("invalid option: {}".format(option))
+        self._options = cycle
+
+    @property
+    def used(self):
+        return list(set(self._used + self._used_tmp))
 
     @property
     def next(self):
-        for option in self._options:
-            if option not in self._used:
+        for option in self.cycle:
+            if option not in self.used:
                 self.add_to_used(option)
                 return option
+        else:
+            return self.cycle[-1]
+
+    @property
+    def next_tmp(self):
+        for option in self.cycle:
+            if option not in self.used:
+                self.add_to_used_tmp(option)
+                return option
+        else:
+            return self.cycle[-1]
 
     def get(self, option=None):
         if option is not None:
@@ -73,14 +103,57 @@ class MPLPropCycler(object):
         else:
             return self.next
 
+    def get_tmp(self, option=None):
+        if option is not None:
+            self.add_to_used_tmp(option)
+            return option
+        else:
+            return self.next_tmp
+
+    def check_validity(self, option):
+        if option not in self._options_orig:
+            raise ValueError("{} not one of {}".format(option, self._options_orig))
 
     def add_to_used(self, option):
-        if option not in self._used and option not in ['<dataset>', '<component>']:
+        if option in [None, 'None', 'none', 'face']:
+            return
+        if option not in self._options_orig:
+            return
+            # raise ValueError("{} not one of {}".format(option, self._options_orig))
+        if option not in self._used:
             self._used.append(option)
 
-        if len(self._used) == len(self._options):
-            # then start cycle over
-            self._used = []
+    def replace_used(self, oldoption, newoption):
+        if newoption in [None, 'None', 'none']:
+            return
+        if newoption not in self._options_orig:
+            raise ValueError("{} not one of {}".format(newoption, self._options_orig))
+
+        if oldoption in self._used:
+            ind = self._used.index(oldoption)
+            self._used[ind] = newoption
+        elif oldoption in self._used_tmp:
+            # in many cases the old option may actually be in _used_tmp but
+            # None will be passed because we don't have access to the previous
+            # state of the color cycler.  But _used_tmp will be reset on the
+            # next draw anyways, so this doesn't really hurt anything.
+            self._used_tmp.remove(oldoption)
+            self.add_to_used(newoption)
+        else:
+            self.add_to_used(newoption)
+
+
+    def add_to_used_tmp(self, option):
+        if option in [None, 'None', 'none']:
+            return
+        if option not in self._options_orig:
+            raise ValueError("{} not one of {}".format(option, self._options_orig))
+        if option not in self._used_tmp:
+            self._used_tmp.append(option)
+
+    def clear_tmp(self):
+        self._used_tmp = []
+        return
 
 
 
@@ -115,13 +188,13 @@ def _figure_style_sources(b, default_color='component', default_linestyle='datas
     params = []
 
     params += [ChoiceParameter(qualifier='color_source', value=kwargs.get('color_source', default_color), choices=['dataset', 'model', 'component', 'manual'], description='Source to use for color.  For manual, see the c parameter in the figure context.  Otherwise, see the c parameters tagged with the corresponding dataset/model/component.')]
-    params += [ChoiceParameter(qualifier='color', visible_if='color_source:manual', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Default color when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='color', visible_if='color_source:manual', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.cycle, description='Default color when plotted via run_figure')]
 
     params += [ChoiceParameter(qualifier='marker_source', value=kwargs.get('marker_source', default_marker), choices=['dataset', 'component', 'manual'], description='Source to use for marker (datasets only, not models).  For manual, see the marker parameter in the figure context.  Otherwise, see the marker parameters tagged with the corresponding dataset/model/component.')]
-    params += [ChoiceParameter(qualifier='marker', visible_if='marker_source:manual', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Default marker (datasets only, not models) when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='marker', visible_if='marker_source:manual', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.cycle, description='Default marker (datasets only, not models) when plotted via run_figure')]
 
     params += [ChoiceParameter(qualifier='linestyle_source', value=kwargs.get('linestyle_source', default_linestyle), choices=['dataset', 'model', 'component', 'manual'], description='Source to use for linestyle.  For manual, see the linestyle parameter in the figure context.  Otherwise, see the linestyle parameters tagged with the corresponding dataset/model/component.')]
-    params += [ChoiceParameter(qualifier='linestyle', visible_if='linestyle_source:manual', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.options, description='Default linestyle when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='linestyle', visible_if='linestyle_source:manual', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.cycle, description='Default linestyle when plotted via run_figure')]
 
     return params
 
@@ -148,27 +221,27 @@ def _new_bundle(**kwargs):
 def _add_component(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which color_source is set to component')]
-    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Marker (datasets only, not models) to use for figures in which marker_source is set to component')]
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_source is set to component')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.cycle, description='Color to use for figures in which color_source is set to component')]
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.cycle, description='Marker (datasets only, not models) to use for figures in which marker_source is set to component')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.cycle, description='Linestyle to use for figures in which linestyle_source is set to component')]
 
     return ParameterSet(params)
 
 def _add_dataset(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which color_source is set to dataset')]
-    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Marker (datasets only, not models) to use for figures in which marker_source is set to dataset')]
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', 'solid' if _use_autofig else None)), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_source is set to dataset')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.cycle, description='Color to use for figures in which color_source is set to dataset')]
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.cycle, description='Marker (datasets only, not models) to use for figures in which marker_source is set to dataset')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', 'solid' if _use_autofig else None)), choices=b._mpllinestylecycler.cycle, description='Linestyle to use for figures in which linestyle_source is set to dataset')]
 
     return ParameterSet(params)
 
 def _run_compute(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Color to use for figures in which color_source is set to model')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.cycle, description='Color to use for figures in which color_source is set to model')]
     # params += [ChoiceParameter(qualifier='marker', value=kwargs.get('marker', None), choices=b._mpl, description='Default marker when plotted, overrides dataset value unless set to <dataset>')]
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.options, description='Linestyle to use for figures in which linestyle_source is set to model')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.cycle, description='Linestyle to use for figures in which linestyle_source is set to model')]
 
     return ParameterSet(params)
 

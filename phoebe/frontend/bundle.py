@@ -437,9 +437,9 @@ class Bundle(ParameterSet):
         for constraint in self.filter(context='constraint', check_visible=False, check_default=False).to_list():
             constraint._update_bookkeeping()
 
-        self._mplcolorcycler = _figure.MPLPropCycler(_figure._mplcolors)
-        self._mplmarkercycler = _figure.MPLPropCycler(_figure._mplmarkers)
-        self._mpllinestylecycler = _figure.MPLPropCycler(_figure._mpllinestyles)
+        self._mplcolorcycler = _figure.MPLPropCycler('color', _figure._mplcolors)
+        self._mplmarkercycler = _figure.MPLPropCycler('marker', _figure._mplmarkers)
+        self._mpllinestylecycler = _figure.MPLPropCycler('linestyle', _figure._mpllinestyles)
 
     @classmethod
     def open(cls, filename, import_from_older=True, import_from_newer=False):
