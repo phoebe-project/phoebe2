@@ -1,6 +1,7 @@
 #from phoebe.c import h, c, k_B
 #from phoebe import u
 from phoebe import __version__ as phoebe_version
+from phoebe.utils import _bytes
 
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
@@ -515,7 +516,7 @@ class Passband:
             planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
             atm = (atmdir+'/atmcof.dat').encode('utf8')
 
-            self.wd_data = libphoebe.wd_readdata(planck, atm)
+            self.wd_data = libphoebe.wd_readdata(_bytes(planck), _bytes(atm))
             self.extern_wd_idx = data['extern_wd_idx']
 
         if 'ck2004' in self.content:
@@ -2863,7 +2864,7 @@ class Passband:
 
         # Initialize the external atmcof module if necessary:
         # PERHAPS WD_DATA SHOULD BE GLOBAL??
-        self.wd_data = libphoebe.wd_readdata(plfile, atmfile)
+        self.wd_data = libphoebe.wd_readdata(_bytes(plfile), _bytes(atmfile))
 
         # That is all that was necessary for *_extern_planckint() and
         # *_extern_atmx() functions. However, we also want to support
