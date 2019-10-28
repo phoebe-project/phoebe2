@@ -2941,6 +2941,27 @@ class Bundle(ParameterSet):
                                 self.get_parameter(qualifier='fluxes', dataset=param.dataset, context='dataset', **_skip_filter_checks)],
                                 True)
 
+            # also check to make sure that we'll be able to handle the interpolation in time if the system is time-dependent
+            if self.hierarchy.is_time_dependent():
+                compute_times = self.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
+                times = self.get_value(qualifier='times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
+                if min(times) < min(compute_times) or max(times) > max(compute_times):
+
+                    params = [self.get_parameter(qualifier='pblum_mode', dataset=param.dataset, **_skip_filter_checks),
+                              self.get_parameter(qualifier='times', dataset=param.dataset, context='dataset', **_skip_filter_checks),
+                              self.get_parameter(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)]
+
+                    msg = "'compute_times@{}' must cover full range of 'times@{}', for time-dependent systems with pblum_mode@{}='dataset-scaled'.".format(param.dataset, param.dataset, param.dataset)
+                    if len(self.get_parameter(qualifier='compute_phases', dataset=param.dataset, context='dataset', **_skip_filter_checks).constrains):
+                        msg += " Consider flipping the 'compute_phases' constraint and providing 'compute_times' instead."
+                        params += [self.get_parameter(qualifier='compute_phases', dataset=param.dataset, context='dataset', **_skip_filter_checks),
+                                   self.get_constraint(qualifier='compute_times', dataset=param.dataset, **_skip_filter_checks)]
+
+                    report.add_item(self,
+                                    msg,
+                                    params,
+                                    True)
+
         # tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
         for param in self.filter(qualifier=['times', 'fluxes', 'rvs', 'sigmas', 'wavelengths', 'flux_densities'], context='dataset', **_skip_filter_checks).to_list():
             shape = param.get_value().shape
