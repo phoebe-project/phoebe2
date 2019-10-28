@@ -236,17 +236,17 @@ def ecosw2ecc(ecosw, per0):
     """
     return ConstraintParameter(ecosw._bundle, "ecosw2ecc({}, {})".format(_get_expr(ecosw), _get_expr(per0)))
 
-def t0_perpass_to_supconj(t0_perpass, period, ecc, per0):
-    return ConstraintParameter(t0_perpass._bundle, "t0_perpass_to_supconj({}, {}, {}, {})".format(_get_expr(t0_perpass), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
+def t0_perpass_to_supconj(t0_perpass, period, ecc, per0, dpdt, dperdt, t0):
+    return ConstraintParameter(t0_perpass._bundle, "t0_perpass_to_supconj({}, {}, {}, {}, {}, {}, {})".format(_get_expr(t0_perpass), _get_expr(period), _get_expr(ecc), _get_expr(per0), _get_expr(dpdt), _get_expr(dperdt), _get_expr(t0)))
 
-def t0_supconj_to_perpass(t0_supconj, period, ecc, per0):
-    return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_perpass({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
+def t0_supconj_to_perpass(t0_supconj, period, ecc, per0, dpdt, dperdt, t0):
+    return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_perpass({}, {}, {}, {}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0), _get_expr(dpdt), _get_expr(dperdt), _get_expr(t0)))
 
-def t0_ref_to_supconj(t0_ref, period, ecc, per0):
-    return ConstraintParameter(t0_ref._bundle, "t0_ref_to_supconj({}, {}, {}, {})".format(_get_expr(t0_ref), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
+def t0_ref_to_supconj(t0_ref, period, ecc, per0, dpdt, dperdt, t0):
+    return ConstraintParameter(t0_ref._bundle, "t0_ref_to_supconj({}, {}, {}, {}, {}, {}, {})".format(_get_expr(t0_ref), _get_expr(period), _get_expr(ecc), _get_expr(per0), _get_expr(dpdt), _get_expr(dperdt), _get_expr(t0)))
 
-def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
-    return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
+def t0_supconj_to_ref(t0_supconj, period, ecc, per0, dpdt, dperdt, t0):
+    return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0), _get_expr(dpdt), _get_expr(dperdt), _get_expr(t0)))
 
 def _times_to_phases(times, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
     return ConstraintParameter(times._bundle, "times_to_phases({}, {}, {}, {}, {}, {}, {})".format(_get_expr(times), _get_expr(period), _get_expr(dpdt), _get_expr(t0), _get_expr(t0_supconj), _get_expr(t0_perpass), _get_expr(t0_ref)))
@@ -588,16 +588,19 @@ def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     t0_perpass = orbit_ps.get_parameter(qualifier='t0_perpass', **_skip_filter_checks)
     t0_supconj = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
     period = orbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
+    dpdt = orbit_ps.get_parameter(qualifier='dpdt', **_skip_filter_checks)
     ecc = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
     per0 = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
+    dperdt = orbit_ps.get_parameter(qualifier='dperdt', **_skip_filter_checks)
+    t0 = b.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)
 
     if solve_for in [None, t0_perpass]:
         lhs = t0_perpass
-        rhs = t0_supconj_to_perpass(t0_supconj, period, ecc, per0)
+        rhs = t0_supconj_to_perpass(t0_supconj, period, ecc, per0, dpdt, dperdt, t0)
 
     elif solve_for == t0_supconj:
         lhs = t0_supconj
-        rhs = t0_perpass_to_supconj(t0_perpass, period, ecc, per0)
+        rhs = t0_perpass_to_supconj(t0_perpass, period, ecc, per0, dpdt, dperdt, t0)
 
 
 
@@ -654,16 +657,19 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
     t0_ref = orbit_ps.get_parameter(qualifier='t0_ref', **_skip_filter_checks)
     t0_supconj = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
     period = orbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
+    dpdt = orbit_ps.get_parameter(qualifier='dpdt', **_skip_filter_checks)
     ecc = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
     per0 = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
+    dperdt = orbit_ps.get_parameter(qualifier='dperdt', **_skip_filter_checks)
+    t0 = b.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)
 
     if solve_for in [None, t0_ref]:
         lhs = t0_ref
-        rhs = t0_supconj_to_ref(t0_supconj, period, ecc, per0)
+        rhs = t0_supconj_to_ref(t0_supconj, period, ecc, per0, dpdt, dperdt, t0)
 
     elif solve_for == t0_supconj:
         lhs = t0_supconj
-        rhs = t0_ref_to_supconj(t0_ref, period, ecc, per0)
+        rhs = t0_ref_to_supconj(t0_ref, period, ecc, per0, dpdt, dperdt, t0)
 
     else:
         raise NotImplementedError
@@ -682,6 +688,9 @@ def mean_anom(b, orbit, solve_for=None, **kwargs):
      <phoebe.frontend.bundle.Bundle.add_constraint> as
      `b.add_constraint('mean_anom', orbit='binary')`, where `orbit` is
      one of <phoebe.parameters.HierarchyParameter.get_orbits>.
+
+     **NOTE**: this constraint does not account for any time derivatives in
+     orbital elements (dpdt, dperdt, etc).
 
     Arguments
     -----------
@@ -709,14 +718,15 @@ def mean_anom(b, orbit, solve_for=None, **kwargs):
     mean_anom = orbit_ps.get_parameter(qualifier='mean_anom', **_skip_filter_checks)
     t0_perpass = orbit_ps.get_parameter(qualifier='t0_perpass', **_skip_filter_checks)
     period = orbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
-    time0 = b.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)
+    dpdt = orbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
+    t0 = b.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)
 
     if solve_for in [None, mean_anom]:
         lhs = mean_anom
-        rhs = 2 * np.pi * (time0 - t0_perpass) / period
+        rhs = 2 * np.pi * (t0 - t0_perpass) / period
     elif solve_for in [t0_perpass]:
         lhs = t0_perpass
-        rhs = time0 - (mean_anom*period)/(2*np.pi*u.rad)
+        rhs = t0 - (mean_anom*period)/(2*np.pi*u.rad)
     else:
         raise NotImplementedError
 
