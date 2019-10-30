@@ -3273,7 +3273,11 @@ def _init_passband(fullpath, check_for_update=True):
     """
     """
     logger.info("initializing passband at {}".format(fullpath))
-    pb = Passband.load(fullpath)
+    if sys.version_info[0] >= 3 and fullpath[-4:] == 'asdf':
+        pb=Passband.load_asdf(fullpath)
+    else:
+        print(fullpath)
+        pb = Passband.load(fullpath)
     passband = pb.pbset+':'+pb.pbname
     _pbtable[passband] = {'fname': fullpath, 'atms': pb.atmlist, 'atms_ld': [atm for atm in pb.atmlist if '{}_ld'.format(atm) in pb.content], 'timestamp': pb.timestamp, 'pb': None}
 
@@ -3310,7 +3314,7 @@ def _init_passbands(refresh=False):
             for f in os.listdir(path):
                 if f=='README':
                     continue
-                if sys.version_info[0] < 3 and f.split('.')[-1] == 'pb3':
+                if sys.version_info[0] < 3 and f.split('.')[-1] == 'asdf':
                     # then this is a python3 passband but we're in python 2
                     continue
                 elif sys.version_info[0] >=3 and f.split('.')[-1] == 'pb':
@@ -3645,7 +3649,7 @@ def list_online_passbands(refresh=False, full_dict=False):
         branch = 'master'
         url = 'http://github.com/phoebe-project/phoebe2-tables/raw/{}/passbands/list_online_passbands_full'.format(branch)
         if sys.version_info[0] >= 3:
-            url += "_pb3"
+            url += "_asdf"
 
         try:
             resp = urlopen(url)
