@@ -2945,7 +2945,7 @@ class Bundle(ParameterSet):
             if self.hierarchy.is_time_dependent():
                 compute_times = self.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
                 times = self.get_value(qualifier='times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
-                if min(times) < min(compute_times) or max(times) > max(compute_times):
+                if len(times) and len(compute_times) and (min(times) < min(compute_times) or max(times) > max(compute_times)):
 
                     params = [self.get_parameter(qualifier='pblum_mode', dataset=param.dataset, **_skip_filter_checks),
                               self.get_parameter(qualifier='times', dataset=param.dataset, context='dataset', **_skip_filter_checks),
