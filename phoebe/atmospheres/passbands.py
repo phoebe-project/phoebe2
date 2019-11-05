@@ -516,7 +516,7 @@ class Passband:
             planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
             atm = (atmdir+'/atmcof.dat').encode('utf8')
 
-            self.wd_data = libphoebe.wd_readdata(_bytes(planck), _bytes(atm))
+            self.wd_data = libphoebe.wd_readdata(planck, atm)
             self.extern_wd_idx = data['extern_wd_idx']
 
         if 'ck2004' in self.content:
