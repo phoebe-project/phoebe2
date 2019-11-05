@@ -1985,7 +1985,7 @@ class Star(Body):
                                  logg=self.mesh.loggs.for_computations,
                                  abun=self.mesh.abuns.for_computations,
                                  ldatm=ldatm,
-                                 ld_func=ld_func,
+                                 ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                                  ld_coeffs=ld_coeffs,
                                  photon_weighted=intens_weighting=='photon')
             except ValueError as err:
