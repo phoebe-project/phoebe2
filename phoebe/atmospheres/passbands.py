@@ -640,6 +640,8 @@ class Passband:
                     struct = marshal.load(f)
                     marshaled = True
                 else:
+                    if archive[-4:] == 'asdf':
+                        return cls.load_asdf(archive)
                     struct = pickle.load(f)
                     marshaled = False
             except Exception as e:
@@ -3273,11 +3275,7 @@ def _init_passband(fullpath, check_for_update=True):
     """
     """
     logger.info("initializing passband at {}".format(fullpath))
-    if sys.version_info[0] >= 3 and fullpath[-4:] == 'asdf':
-        pb=Passband.load_asdf(fullpath)
-    else:
-        print(fullpath)
-        pb = Passband.load(fullpath)
+    pb = Passband.load(fullpath)
     passband = pb.pbset+':'+pb.pbname
     _pbtable[passband] = {'fname': fullpath, 'atms': pb.atmlist, 'atms_ld': [atm for atm in pb.atmlist if '{}_ld'.format(atm) in pb.content], 'timestamp': pb.timestamp, 'pb': None}
 
