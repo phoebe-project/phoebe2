@@ -3205,7 +3205,6 @@ class Passband:
 
         if ld_coeffs is None:
             ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted)
-            print(ld_coeffs)
 
         if ld_func == 'linear':
             retval = 1-ld_coeffs[0]/3
