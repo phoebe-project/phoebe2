@@ -10248,43 +10248,43 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
 
     PyObject *o_axes;
 
-    PyObject *o_req, *o_grid;
-    // PyArrayObject *o_req, *o_grid;
+    // PyObject *o_req, *o_grid;
+    PyArrayObject *o_req, *o_grid;
 
-    // if (!PyArg_ParseTupleAndKeywords(
-    //       args, keywds, "O!O!O!", kwlist,
-    //       &PyArray_Type, &o_req,
-    //       &PyTuple_Type, &o_axes,
-    //       &PyArray_Type, &o_grid))
-    //     {
-    //       raise_exception("interp::argument type mismatch: req and grid need to be numpy arrays and axes a tuple of numpy arrays.");
-    //       return NULL;
-    //     }
+    if (!PyArg_ParseTupleAndKeywords(
+          args, keywds, "O!O!O!", kwlist,
+          &PyArray_Type, &o_req,
+          &PyTuple_Type, &o_axes,
+          &PyArray_Type, &o_grid))
+        {
+          raise_exception("interp::argument type mismatch: req and grid need to be numpy arrays and axes a tuple of numpy arrays.");
+          return NULL;
+        }
 
-    if (!PyArg_ParseTuple(args, "OOO", &o_req, &o_axes, &o_grid)) {
-        raise_exception("arguments for interp(req, axes, grid) could not be parsed.");
-        return NULL;
-    }
+    // if (!PyArg_ParseTuple(args, "OOO", &o_req, &o_axes, &o_grid)) {
+    //     raise_exception("arguments for interp(req, axes, grid) could not be parsed.");
+    //     return NULL;
+    // }
 
-    if (!PyArray_Check(o_req)) {
-        raise_exception("argument `req` should be a numpy array.");
-    }
+    // if (!PyArray_Check(o_req)) {
+    //     raise_exception("argument `req` should be a numpy array.");
+    // }
 
-    if (!PyArray_Check(o_grid)) {
-        raise_exception("argument `grid` should be a numpy array.");
-    }
+    // if (!PyArray_Check(o_grid)) {
+    //     raise_exception("argument `grid` should be a numpy array.");
+    // }
 
-    if (!PyArray_Check(o_axes) && !PyList_Check(o_axes) && !PyTuple_Check(o_axes)) {
-        raise_exception("argument `axes` should be a numpy array, a list or a tuple.");
-    }
+    // if (!PyArray_Check(o_axes) && !PyList_Check(o_axes) && !PyTuple_Check(o_axes)) {
+    //     raise_exception("argument `axes` should be a numpy array, a list or a tuple.");
+    // }
 
-    //  PyArrayObject
-    //   *o_req1 = (PyArrayObject *)PyArray_FROM_OTF((PyObject *)o_req, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY),
-    //   *o_grid1 = (PyArrayObject *)PyArray_FROM_OTF((PyObject *)o_grid, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
+     PyArrayObject
+      *o_req1 = (PyArrayObject *)PyArray_FROM_OTF((PyObject *)o_req, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY),
+      *o_grid1 = (PyArrayObject *)PyArray_FROM_OTF((PyObject *)o_grid, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
 
-    PyArrayObject
-        *o_req1 = (PyArrayObject *) PyArray_FromObject((PyObject *) o_req, NPY_DOUBLE, 0, 0),
-        *o_grid1 = (PyArrayObject *) PyArray_FromObject((PyObject *) o_grid, NPY_DOUBLE, 0, 0);
+    // PyArrayObject
+    //     *o_req1 = (PyArrayObject *) PyArray_FromObject((PyObject *) o_req, NPY_DOUBLE, 0, 0),
+    //     *o_grid1 = (PyArrayObject *) PyArray_FromObject((PyObject *) o_grid, NPY_DOUBLE, 0, 0);
 
     if (!o_req1 ||!o_grid1) {
         if (!o_req1) raise_exception("argument `req` is not a correctly shaped numpy array.");

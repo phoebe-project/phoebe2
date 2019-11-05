@@ -520,14 +520,14 @@ class Passband:
             self.extern_wd_idx = data['extern_wd_idx']
 
         if 'ck2004' in self.content:
-            self._ck2004_axes = data['_ck2004_axes']
+            self._ck2004_axes = tuple(data['_ck2004_axes'])
             for i in range(len(self._ck2004_axes)):
                 self._ck2004_axes[i] = np.array(self._ck2004_axes[i])
             self._ck2004_energy_grid = np.array(data['_ck2004_energy_grid'])
             self._ck2004_photon_grid = np.array(data['_ck2004_photon_grid'])
 
         if 'ck2004_all' in self.content:
-            self._ck2004_intensity_axes = data['_ck2004_intensity_axes']
+            self._ck2004_intensity_axes = tuple(data['_ck2004_intensity_axes'])
             for i in range(len(self._ck2004_intensity_axes)):
                 self._ck2004_intensity_axes[i] = np.array(self._ck2004_intensity_axes[i])
             self._ck2004_Imu_energy_grid = np.array(data['_ck2004_Imu_energy_grid'])
@@ -3189,6 +3189,8 @@ class Passband:
         * NotImplementedError: if `ld_func` is not supported.
         """
         # TODO: improve docstring
+
+        print('entering, ld_func=%s, ldatm=%s, ld_coeffs=%s, photon=%s' % (ld_func, ldatm, ld_coeffs, photon_weighted))
         if ld_func == 'interp':
             if ldatm == 'ck2004':
                 retval = self._ldint_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
@@ -3203,6 +3205,7 @@ class Passband:
 
         if ld_coeffs is None:
             ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted)
+            print(ld_coeffs)
 
         if ld_func == 'linear':
             retval = 1-ld_coeffs[0]/3
