@@ -10239,69 +10239,98 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
 */
 
 static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
+    char *kwlist[] = {
+        (char*)"req",
+        (char*)"axes",
+        (char*)"grid",
+        NULL
+    };
 
-  //
-  // Reading arguments
-  //
+    PyObject *o_axes;
 
-  char *kwlist[] = {
-    (char*)"req",
-    (char*)"axes",
-    (char*)"grid",
-    NULL
-  };
+    PyObject *o_req, *o_grid;
+    // PyArrayObject *o_req, *o_grid;
 
-  PyObject *o_axes;
+    // if (!PyArg_ParseTupleAndKeywords(
+    //       args, keywds, "O!O!O!", kwlist,
+    //       &PyArray_Type, &o_req,
+    //       &PyTuple_Type, &o_axes,
+    //       &PyArray_Type, &o_grid))
+    //     {
+    //       raise_exception("interp::argument type mismatch: req and grid need to be numpy arrays and axes a tuple of numpy arrays.");
+    //       return NULL;
+    //     }
 
-  PyArrayObject *o_req, *o_grid;
-
-  if (!PyArg_ParseTupleAndKeywords(
-      args, keywds, "O!O!O!", kwlist,
-      &PyArray_Type, &o_req,
-      &PyTuple_Type, &o_axes,
-      &PyArray_Type, &o_grid)) {
-
-    raise_exception("interp::argument type mismatch: req and grid need to be numpy arrays and axes a tuple of numpy arrays.");
-
-    return NULL;
-  }
-
-   PyArrayObject
-    *o_req1 = (PyArrayObject *)PyArray_FROM_OTF((PyObject *)o_req, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY),
-    *o_grid1 = (PyArrayObject *)PyArray_FROM_OTF((PyObject *)o_grid, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
-
-  if (!o_req1 ||!o_grid1) {
-
-    if (!o_req1) raise_exception("interp::req failed transformation to IN_ARRAY");
-    if (!o_grid1) raise_exception("interp::grid failed transformation to IN_ARRAY");
-
-    Py_DECREF(o_req1);
-    Py_DECREF(o_grid1);
-    return NULL;
-  }
-
-  int Na = PyTuple_Size(o_axes),      // number of axes
-      Np = PyArray_DIM(o_req1, 0),     // number of points
-      Nv = PyArray_DIM(o_grid1, Na),   // number of values interpolated
-      Nr = Np*Nv;                     // number of returned values
-
-  double
-    *Q = (double *) PyArray_DATA(o_req1),  // requested values
-    *G = (double *) PyArray_DATA(o_grid1); // grid of values
-
-
-  // Unpack the axes
-  int *L = new int [Na];      // number of values in axes
-  double **A = new double* [Na]; // pointers to tuples in axes
-
-  {
-    PyArrayObject *p;
-    for (int i = 0; i < Na; ++i) {
-      p = (PyArrayObject*)PyTuple_GET_ITEM(o_axes, i); // no checks, borrows reference
-      L[i] = (int) PyArray_DIM(p, 0);
-      A[i] = (double *) PyArray_DATA(p);
+    if (!PyArg_ParseTuple(args, "OOO", &o_req, &o_axes, &o_grid)) {
+        raise_exception("arguments for interp(req, axes, grid) could not be parsed.");
+        return NULL;
     }
-  }
+
+    if (!PyArray_Check(o_req)) {
+        raise_exception("argument `req` should be a numpy array.");
+    }
+
+    if (!PyArray_Check(o_grid)) {
+        raise_exception("argument `grid` should be a numpy array.");
+    }
+
+    if (!PyArray_Check(o_axes) && !PyList_Check(o_axes) && !PyTuple_Check(o_axes)) {
+        raise_exception("argument `axes` should be a numpy array, a list or a tuple.");
+    }
+
+    //  PyArrayObject
+    //   *o_req1 = (PyArrayObject *)PyArray_FROM_OTF((PyObject *)o_req, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY),
+    //   *o_grid1 = (PyArrayObject *)PyArray_FROM_OTF((PyObject *)o_grid, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
+
+    PyArrayObject
+        *o_req1 = (PyArrayObject *) PyArray_FromObject((PyObject *) o_req, NPY_DOUBLE, 0, 0),
+        *o_grid1 = (PyArrayObject *) PyArray_FromObject((PyObject *) o_grid, NPY_DOUBLE, 0, 0);
+
+    if (!o_req1 ||!o_grid1) {
+        if (!o_req1) raise_exception("argument `req` is not a correctly shaped numpy array.");
+        if (!o_grid1) raise_exception("argument `grid` is not a correctly shaped numpy array.");
+
+        Py_DECREF(o_req1);
+        Py_DECREF(o_grid1);
+        return NULL;
+    }
+
+    /* number of axes: */
+    int Na;
+    if (PyList_Check(o_axes))
+        Na = PyList_Size(o_axes);
+    else if (PyTuple_Check(o_axes))
+        Na = PyTuple_Size(o_axes);
+    else /* if (PyArray_Check(o_axes)) */
+        Na = PyArray_DIM((PyArrayObject *) o_axes, 0);
+    
+    int Np = PyArray_DIM(o_req1, 0),     /* number of points */
+        Nv = PyArray_DIM(o_grid1, Na),   /* number of values interpolated */
+        Nr = Np*Nv;                      /* number of returned values */
+
+    double
+        *Q = (double *) PyArray_DATA(o_req1),  // requested values
+        *G = (double *) PyArray_DATA(o_grid1); // grid of values
+
+    // Unpack the axes
+    int *L = new int [Na];      // number of values in axes
+    double **A = new double* [Na]; // pointers to tuples in axes
+
+    {
+        PyArrayObject *p;
+        for (int i = 0; i < Na; ++i) {
+            if (PyList_Check(o_axes))
+                p = (PyArrayObject *) PyList_GET_ITEM(o_axes, i); // no checks, borrows reference
+            else if (PyTuple_Check(o_axes))
+                p = (PyArrayObject *) PyTuple_GET_ITEM(o_axes, i); // no checks, borrows reference
+            else /* if (PyArray_Check(o_axes)) */
+                /* handle me */
+                p = (PyArrayObject *) o_axes;
+            
+            L[i] = (int) PyArray_DIM(p, 0);
+            A[i] = (double *) PyArray_DATA(p);
+        }
+    }
 
   //
   // Prepare for returned values
