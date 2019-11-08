@@ -8,6 +8,7 @@ from phoebe.utils import _bytes
 # inside phoebe will be ignored within passbands
 from astropy.constants import h, c, k_B, sigma_sb
 from astropy import units as u
+from astropy.io import fits
 
 import numpy as np
 from scipy import interpolate, integrate
@@ -24,9 +25,9 @@ import shutil
 import json
 import time
 
-if sys.version_info[0] >= 3:
-    # don't import otherwise as can conflict with numpy on Python 2
-    import asdf
+# if sys.version_info[0] >= 3:
+#     # don't import otherwise as can conflict with numpy on Python 2
+#     import asdf
 
 try:
     # For Python 3.0 and later
@@ -204,6 +205,7 @@ class Passband:
         self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
 
         # Spline fit to the energy-weighted passband transmission function table:
+        self.spl_order = spl_order
         self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=spl_order)
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
         self.ptf_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_func, 0)
@@ -223,6 +225,12 @@ class Passband:
         return 'Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content)
 
     def save_asdf(self, archive):
+        """
+        Saves the passband file in asdf format. The asdf format has been considered but
+        subsequently dropped because of the many problems and required workarounds. The
+        code can still be used should we decide to switch once asdf becomes more stable
+        and we drop python 2 support.
+        """
         data = {
             'originating_phoebe_version': phoebe_version,
             'timestamp': time.ctime(),
@@ -237,9 +245,10 @@ class Passband:
             'reference': self.reference,
             'ptf_table': self.ptf_table,
             'ptf_wl': self.wl,
-            'ptf_func': self.ptf_func,
+            'spl_order': self.spl_order,
+            # 'ptf_func': self.ptf_func,
             'ptf_area': self.ptf_area,
-            'ptf_photon_func': self.ptf_photon_func,
+            # 'ptf_photon_func': self.ptf_photon_func,
             'ptf_photon_area': self.ptf_photon_area,
         }
         if 'blackbody' in self.content:
@@ -347,6 +356,9 @@ class Passband:
                 '_blended_extinct_energy_grid': self._blended_extinct_energy_grid,
                 '_blended_extinct_photon_grid': self._blended_extinct_photon_grid,
             })
+
+        for d in data.keys():
+            print('%s: %s' % (d, type(data[d])))
 
         af = asdf.AsdfFile(data)
         af.write_to(archive, all_array_compression='bzp2')
@@ -460,7 +472,10 @@ class Passband:
     @classmethod
     def load_asdf(cls, archive):
         """
-        Loads atmosphere tables from asdf format. This is the default format for python 3.
+        Loads the passband file in asdf format. The asdf format has been considered but
+        subsequently dropped because of the many problems and required workarounds. The
+        code can still be used should we decide to switch once asdf becomes more stable
+        and we drop python 2 support.
 
         Note that asdf arrays are not np.ndarray but asdf.tags.core.ndarray, which means
         that we need to cast them before libphoebe functions can process them.
@@ -491,11 +506,14 @@ class Passband:
 
         self.ptf_table = data['ptf_table']
         self.wl = np.array(data['ptf_wl'])
+        self.ptf_table['wl'] = np.array(self.ptf_table['wl'])
+        self.ptf_table['fl'] = np.array(self.ptf_table['fl'])
         self.ptf_area = data['ptf_area']
         self.ptf_photon_area = data['ptf_photon_area']
-        self.ptf_func = data['ptf_func']
+        self.spl_order = data['spl_order']
+        self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=self.spl_order)
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
-        self.ptf_photon_func = data['ptf_photon_func']
+        self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0, k=self.spl_order)
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
 
         if 'blackbody' in self.content:
@@ -520,16 +538,18 @@ class Passband:
             self.extern_wd_idx = data['extern_wd_idx']
 
         if 'ck2004' in self.content:
-            self._ck2004_axes = tuple(data['_ck2004_axes'])
+            self._ck2004_axes = data['_ck2004_axes']
             for i in range(len(self._ck2004_axes)):
                 self._ck2004_axes[i] = np.array(self._ck2004_axes[i])
+            self._ck2004_axes = tuple(self._ck2004_axes)
             self._ck2004_energy_grid = np.array(data['_ck2004_energy_grid'])
             self._ck2004_photon_grid = np.array(data['_ck2004_photon_grid'])
 
         if 'ck2004_all' in self.content:
-            self._ck2004_intensity_axes = tuple(data['_ck2004_intensity_axes'])
+            self._ck2004_intensity_axes = data['_ck2004_intensity_axes']
             for i in range(len(self._ck2004_intensity_axes)):
                 self._ck2004_intensity_axes[i] = np.array(self._ck2004_intensity_axes[i])
+            self._ck2004_intensity_axes = tuple(self._ck2004_intensity_axes)
             self._ck2004_Imu_energy_grid = np.array(data['_ck2004_Imu_energy_grid'])
             self._ck2004_Imu_photon_grid = np.array(data['_ck2004_Imu_photon_grid'])
             # self._ck2004_boosting_energy_grid = data['_ck2004_boosting_energy_grid']
@@ -547,6 +567,7 @@ class Passband:
             self._ck2004_extinct_axes = data['_ck2004_extinct_axes']
             for i in range(len(self._ck2004_extinct_axes)):
                 self._ck2004_extinct_axes[i] = np.array(self._ck2004_extinct_axes[i])
+            self._ck2004_extinct_axes = tuple(self._ck2004_extinct_axes)
             self._ck2004_extinct_energy_grid = np.array(data['_ck2004_extinct_energy_grid'])
             self._ck2004_extinct_photon_grid = np.array(data['_ck2004_extinct_photon_grid'])
 
@@ -554,6 +575,7 @@ class Passband:
             self._phoenix_axes = data['_phoenix_axes']
             for i in range(len(self._phoenix_axes)):
                 self._phoenix_axes[i] = np.array(self._phoenix_axes[i])
+            self._phoenix_axes = tuple(self._phoenix_axes)
             self._phoenix_energy_grid = np.array(data['_phoenix_energy_grid'])
             self._phoenix_photon_grid = np.array(data['_phoenix_photon_grid'])
 
@@ -561,6 +583,7 @@ class Passband:
             self._phoenix_intensity_axes = data['_phoenix_intensity_axes']
             for i in range(len(self._phoenix_intensity_axes)):
                 self._phoenix_intensity_axes[i] = np.array(self._phoenix_intensity_axes[i])
+            self._phoenix_intensity_axes = tuple(self._phoenix_intensity_axes)
             self._phoenix_Imu_energy_grid = np.array(data['_phoenix_Imu_energy_grid'])
             self._phoenix_Imu_photon_grid = np.array(data['_phoenix_Imu_photon_grid'])
             # self._phoenix_boosting_energy_grid = struct['_phoenix_boosting_energy_grid']
@@ -578,6 +601,7 @@ class Passband:
             self._phoenix_extinct_axes = data['_phoenix_extinct_axes']
             for i in range(len(self._phoenix_extinct_axes)):
                 self._phoenix_extinct_axes[i] = np.array(self._phoenix_extinct_axes[i])
+            self._phoenix_extinct_axes = tuple(self._phoenix_extinct_axes)
             self._phoenix_extinct_energy_grid = np.array(data['_phoenix_extinct_energy_grid'])
             self._phoenix_extinct_photon_grid = np.array(data['_phoenix_extinct_photon_grid'])
 
@@ -585,6 +609,7 @@ class Passband:
             self._blended_axes = data['_blended_axes']
             for i in range(len(self._blended_axes)):
                 self._blended_axes[i] = np.array(self._blended_axes[i])
+            self._blended_axes = tuple(self._blended_axes)
             self._blended_energy_grid = np.array(data['_blended_energy_grid'])
             self._blended_photon_grid = np.array(data['_blended_photon_grid'])
 
@@ -592,6 +617,7 @@ class Passband:
             self._blended_intensity_axes = data['_blended_intensity_axes']
             for i in range(len(self._blended_intensity_axes)):
                 self._blended_intensity_axes[i] = np.array(self._blended_intensity_axes[i])
+            self._blended_intensity_axes = tuple(self._blended_intensity_axes)
             self._blended_Imu_energy_grid = np.array(data['_blended_Imu_energy_grid'])
             self._blended_Imu_photon_grid = np.array(data['_blended_Imu_photon_grid'])
             # self._blended_boosting_energy_grid = struct['_blended_boosting_energy_grid']
@@ -609,6 +635,7 @@ class Passband:
             self._blended_extinct_axes = data['_blended_extinct_axes']
             for i in range(len(self._blended_extinct_axes)):
                 self._blended_extinct_axes[i] = np.array(self._blended_extinct_axes[i])
+            self._blended_extinct_axes = tuple(self._blended_extinct_axes)
             self._blended_extinct_energy_grid = np.array(data['_blended_extinct_energy_grid'])
             self._blended_extinct_photon_grid = np.array(data['_blended_extinct_photon_grid'])
 
@@ -640,8 +667,8 @@ class Passband:
                     struct = marshal.load(f)
                     marshaled = True
                 else:
-                    if archive[-4:] == 'asdf':
-                        return cls.load_asdf(archive)
+                    # if archive[-4:] == 'asdf':
+                    #     return cls.load_asdf(archive)
                     struct = pickle.load(f)
                     marshaled = False
             except Exception as e:
@@ -1260,9 +1287,6 @@ class Passband:
         Returns: n/a
         """
 
-        # PHOENIX uses fits files to store the tables.
-        from astropy.io import fits
-
         if Ebv is None:
             Ebv = np.linspace(0., 3., 30)
 
@@ -1359,29 +1383,27 @@ class Passband:
             computing progress should be printed on screen.
         """
 
-        models = glob.glob(path+'/*M1.000*')
+        models = glob.glob(path+'/*fits')
         Nmodels = len(models)
-
-        # Store the length of the filename extensions for parsing:
-        offset = len(models[0])-models[0].rfind('.')
 
         Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
         InormE, InormP = np.empty(Nmodels), np.empty(Nmodels)
 
         if verbose:
-            print('Computing Castelli & Kurucz (2004) passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+            print('Computing Castelli & Kurucz (2004) normal passband intensities for %s:%s.' % (self.pbset, self.pbname))
+
+        wavelengths = np.arange(900., 39999.501, 0.5)/1e10 # AA -> m
 
         for i, model in enumerate(models):
-            #~ spc = np.loadtxt(model).T -- waaay slower
-            spc = np.fromfile(model, sep=' ').reshape(-1,2).T
+            with fits.open(model) as hdu:
+                intensities = hdu[0].data[-1,:]*1e7  # erg/s/cm^2/A -> W/m^3
+            spc = np.vstack((wavelengths, intensities))
 
-            Teff[i] = float(model[-17-offset:-12-offset])
-            logg[i] = float(model[-11-offset:-9-offset])/10
-            sign = 1. if model[-9-offset]=='P' else -1.
-            abun[i] = sign*float(model[-8-offset:-6-offset])/10
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[1:6])
+            logg[i] = float(model[7:9])/10
+            abun[i] = float(model[10:12])/10 * (-1 if model[9] == 'M' else 1)
 
-            spc[0] /= 1e10 # AA -> m
-            spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
             wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl *= self.ptf(wl)
@@ -1389,15 +1411,18 @@ class Passband:
             InormE[i] = np.log10(fl.sum()/self.ptf_area*(wl[1]-wl[0]))             # energy-weighted intensity
             InormP[i] = np.log10(flP.sum()/self.ptf_photon_area*(wl[1]-wl[0]))     # photon-weighted intensity
             if verbose:
-                if 100*i % (len(models)) == 0:
-                    print('%d%% done.' % (100*i/(len(models)-1)))
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
+                sys.stdout.flush()
+
+        if verbose:
+            print('')
 
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
         self._ck2004_axes = (np.unique(Teff), np.unique(logg), np.unique(abun))
 
-        self._ck2004_energy_grid = np.nan*np.ones((len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1))
         self._ck2004_photon_grid = np.nan*np.ones((len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1))
+        self._ck2004_energy_grid = np.nan*np.ones((len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1))
         for i, I0 in enumerate(InormE):
             self._ck2004_energy_grid[Teff[i] == self._ck2004_axes[0], logg[i] == self._ck2004_axes[1], abun[i] == self._ck2004_axes[2], 0] = I0
         for i, I0 in enumerate(InormP):
@@ -1405,9 +1430,9 @@ class Passband:
 
         # Tried radial basis functions but they were just terrible.
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
+
         if 'ck2004' not in self.content:
             self.content.append('ck2004')
-
         if 'ck2004' not in self.atmlist:
             self.atmlist.append('ck2004')
 
@@ -1422,9 +1447,6 @@ class Passband:
         * `verbose` (bool, optional, default=False): switch to determine whether
             computing progress should be printed on screen.
         """
-
-        # PHOENIX uses fits files to store the tables.
-        from astropy.io import fits
 
         models = glob.glob(path+'/*fits')
         Nmodels = len(models)
@@ -2067,136 +2089,140 @@ class Passband:
 
     def compute_ck2004_intensities(self, path, particular=None, verbose=False):
         """
-        Computes direction-dependent passband intensities using Castelli
-        & Kurucz (2004) model atmospheres.
+        Computes direction-dependent passband intensities using Castelli & Kurucz (2004)
+        model atmospheres.
 
         Arguments
         -----------
-        * `path` (string): path to the directory with SEDs.
+        * `path` (string): path to the directory with SEDs in FITS format.
         * `particular` (string, optional, default=None): particular file in
             `path` to be processed; if None, all files in the directory are
             processed.
         * `verbose` (bool, optional, default=False): set to True to display
             progress in the terminal.
         """
-        models = os.listdir(path)
-        if particular != None:
-            models = [particular]
-        Nmodels = len(models)
-
-        # Store the length of the filename extensions for parsing:
-        offset = len(models[0])-models[0].rfind('.')
-
-        Teff, logg, abun, mu = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
-        ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels)
-        boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
 
         if verbose:
-            print('Computing Castelli-Kurucz intensities for %s:%s. This will take a long while.' % (self.pbset, self.pbname))
+            print('Computing Castelli & Kurucz (2004) specific passband intensities for %s:%s.' % (self.pbset, self.pbname))
+
+        models = glob.glob(path+'/*fits')
+        Nmodels = len(models)
+
+        mus = np.array([0., 0.001, 0.002, 0.003, 0.005, 0.01 , 0.015, 0.02 , 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.])
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+
+        ImuE, ImuP = np.empty(Nmodels*len(mus)), np.empty(Nmodels*len(mus))
+        # boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
+
+        wavelengths = np.arange(900., 39999.501, 0.5)/1e10 # AA -> m
+
+        keep = (wavelengths >= self.ptf_table['wl'][0]) & (wavelengths <= self.ptf_table['wl'][-1])
+        wl = wavelengths[keep]
+        dwl = wl[1]-wl[0]
 
         for i, model in enumerate(models):
-            #spc = np.loadtxt(path+'/'+model).T -- waaay slower
-            spc = np.fromfile(path+'/'+model, sep=' ').reshape(-1,2).T
-            spc[0] /= 1e10 # AA -> m
-            spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
+            with fits.open(model) as hdu:
+                intensities = hdu[0].data*1e7 # erg/s/cm^2/A -> W/m^3
+                # FIXME: the line below is not needed when atm gets updated:
+                intensities[0,:] = np.ones(len(wavelengths))
 
-            Teff[i] = float(model[-17-offset:-12-offset])
-            logg[i] = float(model[-11-offset:-9-offset])/10
-            sign = 1. if model[-9-offset]=='P' else -1.
-            abun[i] = sign*float(model[-8-offset:-6-offset])/10
-            mu[i] = float(model[-5-offset:-offset])
+                # trim the spectrum at passband limits:
+                intensities = intensities[:,keep]
 
-            # trim the spectrum at passband limits:
-            keep = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
-            wl = spc[0][keep]
-            fl = spc[1][keep]
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[1:6])
+            logg[i] = float(model[7:9])/10
+            abun[i] = float(model[10:12])/10 * (-1 if model[9] == 'M' else 1)
 
-            # make a log-scale copy for boosting and fit a Legendre
-            # polynomial to the Imu envelope by way of sigma clipping;
-            # then compute a Legendre series derivative to get the
-            # boosting index; we only take positive fluxes to keep the
-            # log well defined.
+            flE = self.ptf(wl)*intensities
+            flEint = flE.sum(axis=1)
 
-            lnwl = np.log(wl[fl > 0])
-            lnfl = np.log(fl[fl > 0]) + 5*lnwl
-
-            # First Legendre fit to the data:
-            envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
-            continuum = np.polynomial.legendre.legval(lnwl, envelope)
-            diff = lnfl-continuum
-            sigma = np.std(diff)
-            clipped = (diff > -sigma)
-
-            # Sigma clip to get the continuum:
-            while True:
-                Npts = clipped.sum()
-                envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
-                continuum = np.polynomial.legendre.legval(lnwl, envelope)
-                diff = lnfl-continuum
-
-                # clipping will sometimes unclip already clipped points
-                # because the fit is slightly different, which can lead
-                # to infinite loops. To prevent that, we never allow
-                # clipped points to be resurrected, which is achieved
-                # by the following bitwise condition (array comparison):
-                clipped = clipped & (diff > -sigma)
-
-                if clipped.sum() == Npts:
-                    break
-
-            derivative = np.polynomial.legendre.legder(envelope, 1)
-            boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
-
-            # calculate energy (E) and photon (P) weighted fluxes and
-            # their integrals.
-
-            flE = self.ptf(wl)*fl
             flP = wl*flE
-            flEint = flE.sum()
-            flPint = flP.sum()
+            flPint = flP.sum(axis=1)
 
-            # calculate mean boosting coefficient and use it to get
-            # boosting factors for energy (E) and photon (P) weighted
-            # fluxes.
-
-            boostE = (flE[fl > 0]*boosting_index).sum()/flEint
-            boostP = (flP[fl > 0]*boosting_index).sum()/flPint
-            boostingE[i] = boostE
-            boostingP[i] = boostP
-
-            ImuE[i] = np.log10(flEint/self.ptf_area*(wl[1]-wl[0]))        # energy-weighted intensity
-            ImuP[i] = np.log10(flPint/self.ptf_photon_area*(wl[1]-wl[0])) # photon-weighted intensity
+            ImuE[i*len(mus):(i+1)*len(mus)] = np.log10(flEint/self.ptf_area*dwl)        # energy-weighted intensity
+            ImuP[i*len(mus):(i+1)*len(mus)] = np.log10(flPint/self.ptf_photon_area*dwl) # photon-weighted intensity
 
             if verbose:
-                if 100*i % (len(models)) == 0:
-                    print('%d%% done.' % (100*i/(len(models)-1)))
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*float(i+1)/len(models)))
+                sys.stdout.flush()
 
-        # Store axes (Teff, logg, abun, mu) and the full grid of Imu,
-        # with nans where the grid isn't complete. Imu-s come in two
-        # flavors: energy-weighted intensities and photon-weighted
-        # intensities, based on the detector used.
+        if verbose:
+            print('')
 
-        self._ck2004_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.append(np.array(0.0,), np.unique(mu)))
+            # for cmi, cmu in enumerate(mus):
+            #     fl = intensities[cmi,:]
+
+                # make a log-scale copy for boosting and fit a Legendre
+                # polynomial to the Imu envelope by way of sigma clipping;
+                # then compute a Legendre series derivative to get the
+                # boosting index; we only take positive fluxes to keep the
+                # log well defined.
+
+                # lnwl = np.log(wl[fl > 0])
+                # lnfl = np.log(fl[fl > 0]) + 5*lnwl
+
+                # First Legendre fit to the data:
+                # envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
+                # continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                # diff = lnfl-continuum
+                # sigma = np.std(diff)
+                # clipped = (diff > -sigma)
+
+                # Sigma clip to get the continuum:
+                # while True:
+                #     Npts = clipped.sum()
+                #     envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
+                #     continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                #     diff = lnfl-continuum
+
+                    # clipping will sometimes unclip already clipped points
+                    # because the fit is slightly different, which can lead
+                    # to infinite loops. To prevent that, we never allow
+                    # clipped points to be resurrected, which is achieved
+                    # by the following bitwise condition (array comparison):
+                #     clipped = clipped & (diff > -sigma)
+
+                #     if clipped.sum() == Npts:
+                #         break
+
+                # derivative = np.polynomial.legendre.legder(envelope, 1)
+                # boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
+
+                # calculate energy (E) and photon (P) weighted fluxes and
+                # their integrals.
+
+                # calculate mean boosting coefficient and use it to get
+                # boosting factors for energy (E) and photon (P) weighted
+                # fluxes.
+
+                # boostE = (flE[fl > 0]*boosting_index).sum()/flEint
+                # boostP = (flP[fl > 0]*boosting_index).sum()/flPint
+                # boostingE[i] = boostE
+                # boostingP[i] = boostP
+
+        self._ck2004_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mus))
         self._ck2004_Imu_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
         self._ck2004_Imu_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
-        self._ck2004_boosting_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
-        self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+        # self._ck2004_boosting_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+        # self._ck2004_boosting_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
 
         # Set the limb (mu=0) to 0; in log this actually means
         # flux=1W/m2, but for all practical purposes that is still 0.
         self._ck2004_Imu_energy_grid[:,:,:,0,:] = 0.0
         self._ck2004_Imu_photon_grid[:,:,:,0,:] = 0.0
-        self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
-        self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
+        # self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
+        # self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
 
         for i, Imu in enumerate(ImuE):
-            self._ck2004_Imu_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
+            self._ck2004_Imu_energy_grid[Teff[int(i/len(mus))] == self._ck2004_intensity_axes[0], logg[int(i/len(mus))] == self._ck2004_intensity_axes[1], abun[int(i/len(mus))] == self._ck2004_intensity_axes[2], mus[i%len(mus)] == self._ck2004_intensity_axes[3], 0] = Imu
         for i, Imu in enumerate(ImuP):
-            self._ck2004_Imu_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
-        for i, Bavg in enumerate(boostingE):
-            self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
-        for i, Bavg in enumerate(boostingP):
-            self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+            self._ck2004_Imu_photon_grid[Teff[int(i/len(mus))] == self._ck2004_intensity_axes[0], logg[int(i/len(mus))] == self._ck2004_intensity_axes[1], abun[int(i/len(mus))] == self._ck2004_intensity_axes[2], mus[i%len(mus)] == self._ck2004_intensity_axes[3], 0] = Imu
+        # for i, Bavg in enumerate(boostingE):
+        #     self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+        # for i, Bavg in enumerate(boostingP):
+        #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
 
         if 'ck2004_all' not in self.content:
             self.content.append('ck2004_all')
@@ -2215,9 +2241,6 @@ class Passband:
         * `verbose` (bool, optional, default=False): set to True to display
             progress in the terminal.
         """
-
-        # PHOENIX uses fits files to store the tables.
-        from astropy.io import fits
 
         if verbose:
             print('Computing PHOENIX (Husser et al. 2013) specific passband intensities for %s:%s.' % (self.pbset, self.pbname))
@@ -3190,7 +3213,6 @@ class Passband:
         """
         # TODO: improve docstring
 
-        print('entering, ld_func=%s, ldatm=%s, ld_coeffs=%s, photon=%s' % (ld_func, ldatm, ld_coeffs, photon_weighted))
         if ld_func == 'interp':
             if ldatm == 'ck2004':
                 retval = self._ldint_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
@@ -3205,7 +3227,6 @@ class Passband:
 
         if ld_coeffs is None:
             ld_coeffs = self.interpolate_ldcoeffs(Teff, logg, abun, ldatm, ld_func, photon_weighted)
-            print(ld_coeffs)
 
         if ld_func == 'linear':
             retval = 1-ld_coeffs[0]/3
@@ -3313,12 +3334,12 @@ def _init_passbands(refresh=False):
         # global passbands whenever there is a name conflict
         for path in list_passband_directories():
             for f in os.listdir(path):
-                if f=='README':
+                if f == 'README':
                     continue
-                if sys.version_info[0] < 3 and f.split('.')[-1] == 'asdf':
-                    # then this is a python3 passband but we're in python 2
+                if sys.version_info[0] < 3 and f.split('.')[-1] != 'pb':
+                    # then this is a python 3 passband but we're in python 2
                     continue
-                elif sys.version_info[0] >=3 and f.split('.')[-1] == 'pb':
+                elif sys.version_info[0] >= 3 and f.split('.')[-1] != 'pb3':
                     # then this is a python 2 passband but we're in python 3
                     continue
                 _init_passband(path+f)
@@ -3650,7 +3671,7 @@ def list_online_passbands(refresh=False, full_dict=False):
         branch = 'master'
         url = 'http://github.com/phoebe-project/phoebe2-tables/raw/{}/passbands/list_online_passbands_full'.format(branch)
         if sys.version_info[0] >= 3:
-            url += "_asdf"
+            url += "_pb3"
 
         try:
             resp = urlopen(url)
