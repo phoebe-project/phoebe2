@@ -3556,6 +3556,20 @@ class ParameterSet(object):
                     kwargs.setdefault('linestyle', 'none')
                     kwargs.setdefault('marker', '+')
 
+                    # now let's see if there are errors
+                    errorkey = '{}error'.format(direction)
+                    errors = kwargs.get(errorkey, None)
+                    if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
+                        kwargs[errorkey] = errors
+                    elif isinstance(errors, str):
+                        errors = self._bundle.get_quantity(qualifier=kwargs.get(errorkey), dataset=ps.dataset, context='dataset', check_visible=False)
+                        kwargs[errorkey] = errors
+                    else:
+                        sigmas = self._bundle.get_quantity(qualifier='sigmas', dataset=ps.dataset, context='dataset', check_visible=False)
+                        if len(sigmas):
+                            kwargs.setdefault(errorkey, sigmas)
+
+
                     return kwargs
 
                 elif direction in ['c', 'fc', 'ec']:
@@ -4057,11 +4071,14 @@ class ParameterSet(object):
             See also the [autofig tutorial on a looping independent variable](https://autofig.readthedocs.io/en/latest/gallery/looping_indep/).
 
         * `xerror` (string/float/array, optional): qualifier/twig of the array to plot as
-            x-errors (will default based on `x` if not provided).
+            x-errors (will default based on `x` if not provided).  Pass None to
+            disable plotting xerrors.
         * `yerror` (string/float/array, optional): qualifier/twig of the array to plot as
-            y-errors (will default based on `y` if not provided).
+            y-errors (will default based on `y` if not provided).  Pass None to
+            disable plotting yerrors.
         * `zerror` (string/float/array, optional): qualifier/twig of the array to plot as
-            z-errors (will default based on `z` if not provided).
+            z-errors (will default based on `z` if not provided).  Pass None to
+            disable plotting zerrors.
 
         * `xunit` (string/unit, optional): unit to plot on the x-axis (will
             default on `x` if not provided).
