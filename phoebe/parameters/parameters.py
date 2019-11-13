@@ -4030,6 +4030,9 @@ class ParameterSet(object):
         * `s` (strong/float/array, optional): qualifier/twig of the array to use
             for size.  See the [autofig tutorial on size](https://autofig.readthedocs.io/en/latest/tutorials/size_modes/)
             for more information.
+        * `smode` (string, optional): mode for handling size (`s`).  See the
+            [autofig tutorial on size mode](https://autofig.readthedocs.io/en/latest/tutorials/size_modes/)
+            for more information.
         * `c` (string/float/array, optional): qualifier/twig of the array to use
             for color.
         * `fc` (string/float/array, optional): qualifier/twig of the array to use
