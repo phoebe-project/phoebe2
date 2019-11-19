@@ -6181,7 +6181,7 @@ class Bundle(ParameterSet):
 
         # we'll need to make sure we've done any necessary interpolation if
         # any ld_bol or ld_mode_bol are set to 'lookup'.
-        self.compute_ld_coeffs(set_value=True)
+        self.compute_ld_coeffs(compute=compute, set_value=True)
 
         ret = {}
         l3s = None
