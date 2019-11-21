@@ -30,9 +30,8 @@ def test_mpi(verbose=False, plot=False, npoints=8, turn_mpi_off_after=True):
 
     return b
 
-
-if sys.version_info[0] >= 3:
-    test_mpi.__test__ = False
+# disable testing within nosetests/Travis
+test_mpi.__test__ = False
 
 if __name__ == '__main__':
     # for fair timing comparisons, let's disable checking for online passbands
