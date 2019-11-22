@@ -3979,8 +3979,8 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
         compatibility only.
     * `atm` (string, optional, default='blackbody'): atmosphere model, must be
         `'blackbody'`, otherwise exception is raised.
-    * `photon_weighted` (bool, optional, default=False): must be `False`,
-        otherwise exception is raised.
+    * `photon_weighted` (bool, optional, default=False): photon-weighted or
+        energy-weighted mode.
 
     Returns
     ---------
@@ -3991,8 +3991,6 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
     --------
     * ValueError: if `atm` is anything other than `'blackbody'`.
     """
-    # TODO: the docs say errors will be raised if photon_weighted is not False
-    # but this doesn't seem to be the case.
 
     if atm != 'blackbody':
         raise ValueError('atmosphere must be set to blackbody for Inorm_bol_bb.')
