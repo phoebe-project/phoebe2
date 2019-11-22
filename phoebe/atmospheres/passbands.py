@@ -3202,22 +3202,22 @@ class Passband:
     def _Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
-            Imu = libphoebe.interp(req, self._ck2004_intensity_axes, 10**self._ck2004_Imu_photon_grid if photon_weighted else 10**self._ck2004_Imu_energy_grid)[0][0]
+            Imu = libphoebe.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid)[0][0]
         else:
             req = np.vstack((Teff, logg, abun, mu)).T
-            Imu = libphoebe.interp(req, self._ck2004_intensity_axes, 10**self._ck2004_Imu_photon_grid if photon_weighted else 10**self._ck2004_Imu_energy_grid).T[0]
+            Imu = libphoebe.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid).T[0]
 
-        return Imu
+        return 10**Imu
 
     def _Imu_phoenix(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
-            Imu = libphoebe.interp(req, self._phoenix_intensity_axes, 10**self._phoenix_Imu_photon_grid if photon_weighted else 10**self._phoenix_Imu_energy_grid)[0][0]
+            Imu = libphoebe.interp(req, self._phoenix_intensity_axes, self._phoenix_Imu_photon_grid if photon_weighted else self._phoenix_Imu_energy_grid)[0][0]
         else:
             req = np.vstack((Teff, logg, abun, mu)).T
-            Imu = libphoebe.interp(req, self._phoenix_intensity_axes, 10**self._phoenix_Imu_photon_grid if photon_weighted else 10**self._phoenix_Imu_energy_grid).T[0]
+            Imu = libphoebe.interp(req, self._phoenix_intensity_axes, self._phoenix_Imu_photon_grid if photon_weighted else self._phoenix_Imu_energy_grid).T[0]
 
-        return Imu
+        return 10**Imu
 
     def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldatm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
         """
