@@ -9,6 +9,7 @@ from phoebe.utils import _bytes
 from astropy.constants import h, c, k_B, sigma_sb
 from astropy import units as u
 from astropy.io import fits
+from astropy.table import Table
 
 import numpy as np
 from scipy import interpolate, integrate
@@ -224,6 +225,125 @@ class Passband:
             self.version = 1.0
         return 'Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content)
 
+    def save_fits(self, archive, overwrite=True):
+        """
+        Saves the passband file in fits (default) format.
+        """
+
+        header = fits.Header()
+        header['PHOEBEVN'] = phoebe_version
+        header['TIMESTMP'] = time.ctime()
+        header['PBSET'] = self.pbset
+        header['PBNAME'] = self.pbname
+        header['EFFWL'] = self.effwl
+        header['CALIBRTD'] = self.calibrated
+        header['VERSION'] = self.version
+        header['COMMENTS'] = self.comments
+        header['REFERENC'] = self.reference
+        header['PTFEAREA'] = self.ptf_area
+        header['PTFPAREA'] = self.ptf_photon_area
+
+        header['CONTENT'] = str(self.content)
+        header['ATMLIST'] = str(self.atmlist)
+
+        if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
+            header['WD_IDX'] = self.extern_wd_idx
+
+        data = []
+
+        # Header:
+        primary_hdu = fits.PrimaryHDU(header=header)
+        data.append(primary_hdu)
+
+        # Tables:
+        ptf_table = Table(self.ptf_table)
+        data.append(fits.table_to_hdu(Table(self.ptf_table, meta={'extname': 'PTFTABLE'})))
+
+        if 'blackbody' in self.content:
+            bb_func = Table({'teff': self._bb_func_energy[0], 'logi_e': self._bb_func_energy[1], 'logi_p': self._bb_func_photon[1]}, meta={'extname': 'BB_FUNC'})
+            data.append(fits.table_to_hdu(bb_func))
+
+        if 'bb_ext' in self.content:
+            data.append(fits.table_to_hdu(Table({'teff': self._bb_extinct_axes[0]}, meta={'extname': 'BB_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'ebv': self._bb_extinct_axes[1]}, meta={'extname': 'BB_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': self._bb_extinct_axes[2]}, meta={'extname': 'BB_RVS'})))
+
+        if 'ck2004' in self.content:
+            ck_teffs, ck_loggs, ck_abuns = self._ck2004_axes
+            data.append(fits.table_to_hdu(Table({'teff': ck_teffs}, meta={'extname': 'CK_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': ck_loggs}, meta={'extname': 'CK_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': ck_abuns}, meta={'extname': 'CK_ABUNS'})))
+        
+        if 'ck2004_all' in self.content:
+            ck_mus = self._ck2004_intensity_axes[-1]
+            data.append(fits.table_to_hdu(Table({'mu': ck_mus}, meta={'extname': 'CK_MUS'})))
+
+        if 'ck2004_ext' in self.content:
+            ck_ebvs = self._ck2004_extinct_axes[-2]
+            ck_rvs = self._ck2004_extinct_axes[-1]
+            data.append(fits.table_to_hdu(Table({'ebv': ck_ebvs}, meta={'extname': 'CK_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': ck_rvs}, meta={'extname': 'CK_RVS'})))
+
+        if 'phoenix' in self.content:
+            ph_teffs, ph_loggs, ph_abuns = self._phoenix_axes
+            data.append(fits.table_to_hdu(Table({'teff': ph_teffs}, meta={'extname': 'PH_TEFFS'})))
+            data.append(fits.table_to_hdu(Table({'logg': ph_loggs}, meta={'extname': 'PH_LOGGS'})))
+            data.append(fits.table_to_hdu(Table({'abun': ph_abuns}, meta={'extname': 'PH_ABUNS'})))
+
+        if 'phoenix_all' in self.content:
+            ph_mus = self._phoenix_intensity_axes[-1]
+            data.append(fits.table_to_hdu(Table({'mu': ph_mus}, meta={'extname': 'PH_MUS'})))
+
+        if 'phoenix_ext' in self.content:
+            ph_ebvs = self._phoenix_extinct_axes[-2]
+            ph_rvs = self._phoenix_extinct_axes[-1]
+            data.append(fits.table_to_hdu(Table({'ebv': ph_ebvs}, meta={'extname': 'PH_EBVS'})))
+            data.append(fits.table_to_hdu(Table({'rv': ph_rvs}, meta={'extname': 'PH_RVS'})))
+
+        # Data:
+        if 'bb_ext' in self.content:
+            data.append(fits.ImageHDU(self._bb_extinct_energy_grid, name='BBEGRID'))
+            data.append(fits.ImageHDU(self._bb_extinct_photon_grid, name='BBPGRID'))
+
+        if 'ck2004' in self.content:
+            data.append(fits.ImageHDU(self._ck2004_energy_grid, name='CKNEGRID'))
+            data.append(fits.ImageHDU(self._ck2004_photon_grid, name='CKNPGRID'))
+
+        if 'ck2004_all' in self.content:
+            data.append(fits.ImageHDU(self._ck2004_Imu_energy_grid, name='CKFEGRID'))
+            data.append(fits.ImageHDU(self._ck2004_Imu_photon_grid, name='CKFPGRID'))
+
+        if 'ck2004_ld' in self.content:
+            data.append(fits.ImageHDU(self._ck2004_ld_energy_grid, name='CKLEGRID'))
+            data.append(fits.ImageHDU(self._ck2004_ld_photon_grid, name='CKLPGRID'))
+
+        if 'ck2004_ldint' in self.content:
+            data.append(fits.ImageHDU(self._ck2004_ldint_energy_grid, name='CKIEGRID'))
+            data.append(fits.ImageHDU(self._ck2004_ldint_photon_grid, name='CKIPGRID'))
+
+        if 'ck2004_ext' in self.content:
+            data.append(fits.ImageHDU(self._ck2004_extinct_energy_grid, name='CKXEGRID'))
+            data.append(fits.ImageHDU(self._ck2004_extinct_photon_grid, name='CKXPGRID'))
+
+        if 'phoenix' in self.content:
+            data.append(fits.ImageHDU(self._phoenix_energy_grid, name='PHNEGRID'))
+            data.append(fits.ImageHDU(self._phoenix_photon_grid, name='PHNPGRID'))
+
+        if 'phoenix_all' in self.content:
+            data.append(fits.ImageHDU(self._phoenix_Imu_energy_grid, name='PHFEGRID'))
+            data.append(fits.ImageHDU(self._phoenix_Imu_photon_grid, name='PHFPGRID'))
+
+        if 'phoenix_ld' in self.content:
+            data.append(fits.ImageHDU(self._phoenix_ld_energy_grid, name='PHLEGRID'))
+            data.append(fits.ImageHDU(self._phoenix_ld_photon_grid, name='PHLPGRID'))
+
+        if 'phoenix_ldint' in self.content:
+            data.append(fits.ImageHDU(self._phoenix_ldint_energy_grid, name='PHIEGRID'))
+            data.append(fits.ImageHDU(self._phoenix_ldint_photon_grid, name='PHIPGRID'))
+
+        pb = fits.HDUList(data)
+        pb.writeto(archive, overwrite=overwrite)
+
     def save_asdf(self, archive):
         """
         Saves the passband file in asdf format. The asdf format has been considered but
@@ -363,7 +483,7 @@ class Passband:
         af = asdf.AsdfFile(data)
         af.write_to(archive, all_array_compression='bzp2')
 
-    def save(self, archive):
+    def save_pickle(self, archive):
         """
         Save the <phoebe.atmospheres.passbands.Passband> to a file.
 
@@ -468,6 +588,9 @@ class Passband:
                 marshal.dump(struct, f)
             else:
                 pickle.dump(struct, f, protocol=4)
+
+    def save(self, archive, overwrite=True):
+        self.save_fits(archive, overwrite=overwrite)
 
     @classmethod
     def load_asdf(cls, archive):
@@ -643,6 +766,99 @@ class Passband:
 
     @classmethod
     def load(cls, archive):
+        """
+        @archive: filename of the passband
+
+        Loads the passband contents from a fits file. 
+        """
+
+        logger.debug("loading passband from {}".format(archive))
+
+        self = cls(from_file=True)
+        with fits.open(archive) as hdul:
+            header = hdul['primary'].header
+
+            self.phoebe_version = header['phoebevn']
+            self.version = header['version']
+            self.timestamp = header['timestmp']
+
+            self.pbset = header['pbset']
+            self.pbname = header['pbname']
+            self.effwl = header['effwl']
+            self.calibrated = header['calibrtd']
+            self.comments = header['comments']
+            self.reference = header['referenc']
+            self.ptf_area = header['ptfearea']
+            self.ptf_photon_area = header['ptfparea']
+
+            self.content = eval(header['content'], {'__builtins__':None}, {})
+            self.atmlist = eval(header['atmlist'], {'__builtins__':None}, {})
+
+            self.ptf_table = hdul['ptftable'].data
+
+            if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
+                atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
+                planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
+                atm = (atmdir+'/atmcof.dat').encode('utf8')
+
+                self.wd_data = libphoebe.wd_readdata(planck, atm)
+                self.extern_wd_idx = header['wd_idx']
+
+            if 'blackbody' in self.content:
+                self._bb_func_energy = (hdul['bb_func'].data['teff'], hdul['bb_func'].data['logi_e'], 3)
+                self._bb_func_photon = (hdul['bb_func'].data['teff'], hdul['bb_func'].data['logi_p'], 3)
+                self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
+                self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
+
+            if 'bb_ext' in self.content:
+                self._bb_extinct_axes = (np.array(list(hdul['bb_teffs'].data['teff'])), np.array(list(hdul['bb_ebvs'].data['ebv'])), np.array(list(hdul['bb_rvs'].data['rv'])))
+                self._bb_extinct_energy_grid = hdul['bbegrid'].data
+                self._bb_extinct_photon_grid = hdul['bbpgrid'].data
+
+            if 'ck2004' in self.content:
+                self._ck2004_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])))
+                self._ck2004_energy_grid = hdul['cknegrid'].data
+                self._ck2004_photon_grid = hdul['cknpgrid'].data
+
+            if 'ck2004_all' in self.content:
+                self._ck2004_intensity_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_mus'].data['mu'])))
+                self._ck2004_Imu_energy_grid = hdul['ckfegrid'].data
+                self._ck2004_Imu_photon_grid = hdul['ckfpgrid'].data
+
+            if 'ck2004_ld' in self.content:
+                self._ck2004_ld_energy_grid = hdul['cklegrid'].data
+                self._ck2004_ld_photon_grid = hdul['cklpgrid'].data
+
+            if 'ck2004_ldint' in self.content:
+                self._ck2004_ldint_energy_grid = hdul['ckiegrid'].data
+                self._ck2004_ldint_photon_grid = hdul['ckipgrid'].data
+
+            if 'ck2004_ext' in self.content:
+                self._ck2004_extinct_energy_grid = hdul['ckxegrid'].data
+                self._ck2004_extinct_photon_grid = hdul['ckxpgrid'].data
+
+            if 'phoenix' in self.content:
+                self._phoenix_axes = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])))
+                self._phoenix_energy_grid = hdul['phnegrid'].data
+                self._phoenix_photon_grid = hdul['phnpgrid'].data
+
+            if 'phoenix_all' in self.content:
+                self._phoenix_intensity_axes = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_mus'].data['mu'])))
+                self._phoenix_Imu_energy_grid = hdul['phfegrid'].data
+                self._phoenix_Imu_photon_grid = hdul['phfpgrid'].data
+
+            if 'phoenix_ld' in self.content:
+                self._phoenix_ld_energy_grid = hdul['phlegrid'].data
+                self._phoenix_ld_photon_grid = hdul['phlpgrid'].data
+
+            if 'phoenix_ldint' in self.content:
+                self._phoenix_ldint_energy_grid = hdul['phiegrid'].data
+                self._phoenix_ldint_photon_grid = hdul['phipgrid'].data
+
+        return self
+
+    @classmethod
+    def load_pickle(cls, archive):
         """
         Load the <phoebe.atmospheres.passbands.Passband> from a file.
 
@@ -1392,6 +1608,7 @@ class Passband:
         if verbose:
             print('Computing Castelli & Kurucz (2004) normal passband intensities for %s:%s.' % (self.pbset, self.pbname))
 
+        # Covered wavelengths in the fits tables:
         wavelengths = np.arange(900., 39999.501, 0.5)/1e10 # AA -> m
 
         for i, model in enumerate(models):
@@ -2955,20 +3172,16 @@ class Passband:
         return log10_Inorm
 
     def _Inorm_ck2004(self, Teff, logg, abun, photon_weighted=False):
-        #~ if not hasattr(Teff, '__iter__'):
-            #~ req = np.array(((Teff, logg, abun),))
-            #~ log10_Inorm = libphoebe.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid)[0][0]
-        #~ else:
         req = np.vstack((Teff, logg, abun)).T
-        Inorm = libphoebe.interp(req, self._ck2004_axes, 10**self._ck2004_photon_grid if photon_weighted else 10**self._ck2004_energy_grid).T[0]
+        Inorm = libphoebe.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid).T[0]
 
-        return Inorm
+        return 10**Inorm
 
     def _Inorm_phoenix(self, Teff, logg, abun, photon_weighted=False):
         req = np.vstack((Teff, logg, abun)).T
-        Inorm = libphoebe.interp(req, self._phoenix_axes, 10**self._phoenix_photon_grid if photon_weighted else 10**self._phoenix_energy_grid).T[0]
+        Inorm = libphoebe.interp(req, self._phoenix_axes, self._phoenix_photon_grid if photon_weighted else self._phoenix_energy_grid).T[0]
 
-        return Inorm
+        return 10**Inorm
 
     def _Inorm_blended(self, Teff, logg, abun, photon_weighted=False):
         req = np.vstack((Teff, logg, abun)).T
@@ -3336,12 +3549,15 @@ def _init_passbands(refresh=False):
             for f in os.listdir(path):
                 if f == 'README':
                     continue
-                if sys.version_info[0] < 3 and f.split('.')[-1] != 'pb':
-                    # then this is a python 3 passband but we're in python 2
+                if f.split('.')[-1] == 'pb' or f.split('.')[-1] == 'pb3':
+                    # ignore old passband versions
                     continue
-                elif sys.version_info[0] >= 3 and f.split('.')[-1] != 'pb3':
-                    # then this is a python 2 passband but we're in python 3
-                    continue
+                # if sys.version_info[0] < 3 and f.split('.')[-1] != 'pb':
+                #     # then this is a python 3 passband but we're in python 2
+                #     continue
+                # elif sys.version_info[0] >= 3 and f.split('.')[-1] != 'pb3':
+                #     # then this is a python 2 passband but we're in python 3
+                #     continue
                 _init_passband(path+f)
 
         _initialized = True
