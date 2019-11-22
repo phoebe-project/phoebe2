@@ -4009,57 +4009,64 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
     return factor * sigma_sb.value * Teff**4 / np.pi
 
 if __name__ == '__main__':
+    # This will generate bolometric and Johnson V passband files. Note that
+    # extinction for the bolometric band cannot be computed because it falls
+    # off the extinction formula validity range in wavelength, and shouldn't
+    # be computed anyway because it is only used for reflection purposes.
 
-    # Testing LD stuff:
-    #~ jV = Passband.load('tables/passbands/johnson_v.pb')
-    #~ jV.compute_ck2004_ldcoeffs()
-    #~ jV.save('johnson_V.new.pb')
-    #~ exit()
+    pb = phoebe.atmospheres.passbands.Passband(
+        ptf='bolometric.ptf',
+        pbset='Bolometric',
+        pbname='900-40000',
+        effwl=1.955e-6,
+        wlunits=u.m,
+        calibrated=True,
+        reference='Flat response to simulate bolometric throughput',
+        version=2.0,
+        comments=''
+    )
 
-    # Constructing a passband:
-
-    #atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-    #wd_data = libphoebe.wd_readdata(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
-
-    jV = Passband('tables/ptf/JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, calibrated=True, wlunits=u.AA, reference='ADPS', version=1.0, comments='')
-    jV.compute_blackbody_response()
-    jV.compute_ck2004_response('tables/ck2004')
-    jV.compute_ck2004_intensities('tables/ck2004i')
-    jV.import_wd_atmcof(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat', 7)
-    jV.save('tables/passbands/JOHNSON.V')
-
-    pb = Passband('tables/ptf/KEPLER.PTF', pbset='Kepler', pbname='mean', effwl=5920.0, calibrated=True, wlunits=u.AA, reference='Bachtell & Peters (2008)', version=1.0, comments='')
     pb.compute_blackbody_response()
-    pb.compute_ck2004_response('tables/ck2004')
-    pb.save('tables/passbands/KEPLER.PTF')
 
-    #~ jV = Passband.load('tables/passbands/johnson_v.pb')
+    pb.compute_ck2004_response(path='tables/ck2004fits', verbose=True)
+    pb.compute_ck2004_intensities(path='tables/ck2004fits', verbose=True)
+    pb.compute_ck2004_ldcoeffs()
+    pb.compute_ck2004_ldints()
 
-    #~ teffs = np.arange(5000, 10001, 25)
-    #~ req = np.vstack((teffs, 4.43*np.ones(len(teffs)), np.zeros(len(teffs)))).T
+    pb.compute_phoenix_response(path='tables/phoenix', verbose=True)
+    pb.compute_phoenix_intensities(path='tables/phoenix', verbose=True)
+    pb.compute_phoenix_ldcoeffs()
+    pb.compute_phoenix_ldints()
 
-    #~ Teff_verts = axes[0][(axes[0] > 4999)&(axes[0]<10001)]
-    #~ Inorm_verts1 = grid[(axes[0] >= 4999) & (axes[0] < 10001), axes[1] == 4.5, axes[2] == 0.0, 0]
-    #~ Inorm_verts2 = grid[(axes[0] >= 4999) & (axes[0] < 10001), axes[1] == 4.0, axes[2] == 0.0, 0]
+    pb.save('bolometric.fits')
 
-    #~ res = libphoebe.interp(req, axes, grid)
-    #~ print res.shape
+    pb = phoebe.atmospheres.passbands.Passband(
+        ptf='johnson_v.ptf',
+        pbset='Johnson',
+        pbname='V',
+        effwl=5500.,
+        wlunits=u.AA,
+        calibrated=True,
+        reference='Maiz Apellaniz (2006), AJ 131, 1184',
+        version=2.0,
+        comments=''
+    )
 
-    #~ import matplotlib.pyplot as plt
-    #~ plt.plot(teffs, res, 'b-')
-    #~ plt.plot(Teff_verts, Inorm_verts1, 'ro')
-    #~ plt.plot(Teff_verts, Inorm_verts2, 'go')
-    #~ plt.show()
-    #~ exit()
+    pb.compute_blackbody_response()
+    pb.compute_bb_reddening(verbose=True)
 
-    print('blackbody:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='blackbody', ld_func='linear', ld_coeffs=[0.0,]))
-    print('planckint:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_planckint'))
-    print('atmx:     ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_atmx'))
-    print('kurucz:   ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='ck2004'))
+    pb.compute_ck2004_response(path='tables/ck2004', verbose=True)
+    pb.compute_ck2004_intensities(path='tables/ck2004', verbose=True)
+    pb.compute_ck2004_ldcoeffs()
+    pb.compute_ck2004_ldints()
+    pb.compute_ck2004_reddening(path='tables/ck2004', verbose=True)
 
-    # Testing arrays:
+    pb.compute_phoenix_response(path='tables/phoenix', verbose=True)
+    pb.compute_phoenix_intensities(path='tables/phoenix', verbose=True)
+    pb.compute_phoenix_ldcoeffs()
+    pb.compute_phoenix_ldints()
+    pb.compute_phoenix_reddening(path='tables/phoenix', verbose=True)
 
-    print('blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody', ld_func='linear', ld_coeffs=[0.0,]))
-    print('planckint:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='extern_planckint'))
-    print('atmx:     ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='extern_atmx'))
-    print('kurucz:   ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='kurucz'))
+    pb.import_wd_atmcof('tables/wd/atmcofplanck.dat', 'tables/wd/atmcof.dat', 7)
+
+    pb.save('johnson_v.fits')
