@@ -7708,7 +7708,10 @@ class FloatArrayParameter(FloatParameter):
             if not isinstance(qualifier_parameter, FloatArrayParameter):
                 raise KeyError("'{}' does not point to a FloatArrayParameter".format(qualifier))
 
-            value = np.interp(qualifier_interp_value, qualifier_parameter.get_value(), self.get_value())
+            qualifier_value = qualifier_parameter.get_value()
+            sort = qualifier_value.argsort()
+
+            value = np.interp(qualifier_interp_value, qualifier_value[sort], self.get_value()[sort])
 
         if unit is not None:
             if return_quantity:
