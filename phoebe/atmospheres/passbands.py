@@ -1320,6 +1320,17 @@ class Passband:
         grid[...,0] = filled
         return grid
 
+    def impute_regular_atmosphere_grid(self, axes, grid):
+        """
+        This function imputes the passed atmosphere grid by gridded N-D interpolation.
+        As grid is passed by reference, it is not necessary to re-assign the table to
+        the return value of this function; the return value is provided for convenience
+        only, but the grid is changed in place.
+        """
+
+        valid_mask = ~np.isnan(grid)
+        interp = interpolate.RegularGridInterpolator(axes, grid[valid_mask])
+
     def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
         """
         Computes mean effect of reddening (a weighted average) on passband using blackbody atmosphere and CCM89 prescription of extinction
@@ -1356,7 +1367,7 @@ class Passband:
         extinctE, extinctP = np.empty(combos), np.empty(combos)
 
         if verbose:
-            print('Computing reddening corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+            print('Computing blackbody reddening corrections for %s:%s.' % (self.pbset, self.pbname))
 
         # a = libphoebe.CCM89_extinction(self.wl)
         a = libphoebe.gordon_extinction(self.wl)
@@ -1367,12 +1378,14 @@ class Passband:
             pbP = self.wl*pbE
 
             flux_frac = np.exp(-0.9210340371976184*np.dot(a, [Ebv[j]*Rv[j], Ebv[j]]))
+            extinctE[j], extinctP[j] = np.dot([pbE/pbE.sum(), pbP/pbP.sum()], flux_frac)
 
             if verbose:
-                if 100*j % combos == 0:
-                    print('%d%% done.' % (100*j/(combos-1)))
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*j/(combos-1)))
+                sys.stdout.flush()
 
-            extinctE[j], extinctP[j] = np.dot([pbE/pbE.sum(), pbP/pbP.sum()], flux_frac)
+        if verbose:
+            print('')
 
         self._bb_extinct_axes = (np.unique(Teffs), np.unique(Ebv), np.unique(Rv))
 
@@ -1408,7 +1421,7 @@ class Passband:
         if Rv is None:
             Rv = np.linspace(2.,6.,16)
 
-        models = glob.glob(path+'/*M1.000*')
+        models = glob.glob(path+'/*fits')
         Nmodels = len(models)
 
         NEbv = len(Ebv)
@@ -1463,8 +1476,11 @@ class Passband:
             extinctE[i], extinctP[i] = np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
 
             if verbose:
-                if 100*i % (len(models)) == 0:
-                    print('%d%% done.' % (100*i/(Nmodels-1)))
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*j/(Nmodels-1)))
+                sys.stdout.flush()
+
+        if verbose:
+            print('')
 
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
@@ -1560,8 +1576,11 @@ class Passband:
             extinctE[i], extinctP[i]= np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
 
             if verbose:
-                if 100*i % (len(models)) == 0:
-                    print('%d%% done.' % (100*i/(Nmodels-1)))
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*i/(Nmodels-1)))
+                sys.stdout.flush()
+
+        if verbose:
+            print('')
 
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
