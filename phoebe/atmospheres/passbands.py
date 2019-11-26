@@ -4039,7 +4039,7 @@ if __name__ == '__main__':
     # off the extinction formula validity range in wavelength, and shouldn't
     # be computed anyway because it is only used for reflection purposes.
 
-    pb = phoebe.atmospheres.passbands.Passband(
+    pb = Passband(
         ptf='bolometric.ptf',
         pbset='Bolometric',
         pbname='900-40000',
@@ -4065,7 +4065,7 @@ if __name__ == '__main__':
 
     pb.save('bolometric.fits')
 
-    pb = phoebe.atmospheres.passbands.Passband(
+    pb = Passband(
         ptf='johnson_v.ptf',
         pbset='Johnson',
         pbname='V',
