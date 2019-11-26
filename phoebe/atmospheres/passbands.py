@@ -273,7 +273,7 @@ class Passband:
             data.append(fits.table_to_hdu(Table({'teff': ck_teffs}, meta={'extname': 'CK_TEFFS'})))
             data.append(fits.table_to_hdu(Table({'logg': ck_loggs}, meta={'extname': 'CK_LOGGS'})))
             data.append(fits.table_to_hdu(Table({'abun': ck_abuns}, meta={'extname': 'CK_ABUNS'})))
-        
+
         if 'ck2004_all' in self.content:
             ck_mus = self._ck2004_intensity_axes[-1]
             data.append(fits.table_to_hdu(Table({'mu': ck_mus}, meta={'extname': 'CK_MUS'})))
@@ -769,7 +769,7 @@ class Passband:
         """
         @archive: filename of the passband
 
-        Loads the passband contents from a fits file. 
+        Loads the passband contents from a fits file.
         """
 
         logger.debug("loading passband from {}".format(archive))
@@ -3414,7 +3414,7 @@ class Passband:
             ldint = libphoebe.interp(req, self._phoenix_axes, self._phoenix_ldint_photon_grid if photon_weighted else self._phoenix_ldint_energy_grid)[0][0]
         else:
             req = np.vstack((Teff, logg, abun)).T
-            ldint = libphoebe.interp(req, self._phoenix_axes, self._ck2004_phoenix_photon_grid if photon_weighted else self._phoenix_ldint_energy_grid).T[0]
+            ldint = libphoebe.interp(req, self._phoenix_axes, self._phoenix_ldint_photon_grid if photon_weighted else self._phoenix_ldint_energy_grid).T[0]
 
         return ldint
 
