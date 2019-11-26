@@ -341,6 +341,10 @@ class Passband:
             data.append(fits.ImageHDU(self._phoenix_ldint_energy_grid, name='PHIEGRID'))
             data.append(fits.ImageHDU(self._phoenix_ldint_photon_grid, name='PHIPGRID'))
 
+        if 'phoenix_ext' in self.content:
+            data.append(fits.ImageHDU(self._phoenix_extinct_energy_grid, name='PHXEGRID'))
+            data.append(fits.ImageHDU(self._phoenix_extinct_photon_grid, name='PHXPGRID'))
+
         pb = fits.HDUList(data)
         pb.writeto(archive, overwrite=overwrite)
 
@@ -854,6 +858,10 @@ class Passband:
             if 'phoenix_ldint' in self.content:
                 self._phoenix_ldint_energy_grid = hdul['phiegrid'].data
                 self._phoenix_ldint_photon_grid = hdul['phipgrid'].data
+
+            if 'phoenix_ext' in self.content:
+                self._phoenix_extinct_energy_grid = hdul['phxegrid'].data
+                self._phoenix_extinct_photon_grid = hdul['phxpgrid'].data
 
         return self
 
