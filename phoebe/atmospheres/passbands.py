@@ -1448,21 +1448,21 @@ class Passband:
         if verbose:
             print('Computing Castelli & Kurucz (2004) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
+        # Covered wavelengths in the fits tables:
+        wavelengths = np.arange(900., 39999.501, 0.5)/1e10 # AA -> m
+
         for i, model in enumerate(models):
+            with fits.open(model) as hdu:
+                intensities = hdu[0].data[-1,:]*1e7  # erg/s/cm^2/A -> W/m^3
+            spc = np.vstack((wavelengths, intensities))
 
-            spc = np.fromfile(model, sep=' ').reshape(-1,2).T
-
-            Teff[i] = float(model[-17-offset:-12-offset])
-            logg[i] = float(model[-11-offset:-9-offset])/10
-            sign = 1. if model[-9-offset]=='P' else -1.
-            abun[i] = sign*float(model[-8-offset:-6-offset])/10
-
-            spc[0] /= 1e10 # AA -> m
-            spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
+            model = model[model.rfind('/')+1:] # get relative pathname
+            Teff[i] = float(model[1:6])
+            logg[i] = float(model[7:9])/10
+            abun[i] = float(model[10:12])/10 * (-1 if model[9] == 'M' else 1)
 
             sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
 
-            #wl, fl = spc[:,sel]
             wl = spc[0][sel]
             fl = spc[1][sel]
 
@@ -1476,7 +1476,7 @@ class Passband:
             extinctE[i], extinctP[i] = np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
 
             if verbose:
-                sys.stdout.write('\r' + '%0.0f%% done.' % (100*j/(Nmodels-1)))
+                sys.stdout.write('\r' + '%0.0f%% done.' % (100*i/(Nmodels-1)))
                 sys.stdout.flush()
 
         if verbose:
