@@ -838,7 +838,7 @@ class Passband:
                 self._ck2004_ldint_photon_grid = hdul['ckipgrid'].data
 
             if 'ck2004_ext' in self.content:
-                self._ck2004_extinct_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_ebvs'].data['ebv'])), np.array(list(hdul['ck_rvs'].data['rv'])))
+                self._ck2004_extinct_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_ebvs'].data['ebv'])), np.array(list(hdul['ck_rvs'].data['rv'])))
                 self._ck2004_extinct_energy_grid = hdul['ckxegrid'].data
                 self._ck2004_extinct_photon_grid = hdul['ckxpgrid'].data
 
@@ -861,7 +861,7 @@ class Passband:
                 self._phoenix_ldint_photon_grid = hdul['phipgrid'].data
 
             if 'phoenix_ext' in self.content:
-                self._phoenix_extinct_axes = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
+                self._phoenix_extinct_axes = (np.array(list(hdul['ph_teffs'].data['teff'])),np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
                 self._phoenix_extinct_energy_grid = hdul['phxegrid'].data
                 self._phoenix_extinct_photon_grid = hdul['phxpgrid'].data
 
