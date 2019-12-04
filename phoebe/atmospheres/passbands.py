@@ -3658,7 +3658,7 @@ def uninstall_all_passbands(local=True):
         logger.warning("deleting file: {}".format(pbpath))
         os.remove(pbpath)
 
-def download_passband(passband, local=True):
+def download_passband(passband, contents='all', local=True):
     """
     For convenience, this function is available at the top-level as
     <phoebe.download_passband> as well as
@@ -3678,6 +3678,12 @@ def download_passband(passband, local=True):
     * `passband` (string): name of the passband.  Must be one of the available
         passbands in the repository (see
         <phoebe.atmospheres.passbands.list_online_passbands>).
+    * `contents` (string or list, optional, default='all'): contents to fetch
+        from the server.  Options include: 'all' (to fetch all available)
+        or any of the available atmosphere tables for that passband.  To
+        see available options for a given passband, see
+        <phoebe.atmospheres.passbands.list_online_passbands>
+        with `full_dict=True`.
     * `local` (bool, optional, default=True): whether to install to the local/user
         directory or the PHOEBE installation directory.  If `local=False`, you
         must have the necessary permissions to write to the installation
@@ -3694,9 +3700,19 @@ def download_passband(passband, local=True):
 
     pbdir = _pbdir_local if local else _pbdir_global
 
-    passband_fname = _online_passbands[passband]['fname']
+    if isinstance(contents, str):
+        contents_str = contents
+    elif isinstance(contents, unicode):
+        contents_str = str(contents)
+    elif isinstance(contents, list) or isinstance(contents, tuple):
+        contents_str = ",".join(contents)
+    else:
+        raise TypeError("contents must be of type string or list")
+
+
+    passband_fname = os.path.basename(_online_passbands[passband]['fname'])
     passband_fname_local = os.path.join(pbdir, passband_fname)
-    url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
+    url = 'http://tables.phoebe-project.org/pbs/{}/{}/{}'.format(passband, contents_str, phoebe_version)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
         urlretrieve(url, passband_fname_local)
@@ -3712,8 +3728,12 @@ def update_passband_available(passband):
     <phoebe.atmospheres.passbands.update_passband_available>.
 
     Check if a newer version of a given passband is available from the online repository.
+    Note that this does not check to see if more atmosphere tables are available
+    but were not fetched.  To see that, compare the output of
+    <phoebe.atmospheres.passbands.list_installed_passbands> and
+    <phoebe.atmospheres.passbands.list_online_passbands> with `full_dict=True`.
 
-    If so, you can update by calling <phoebe.atmospheres.passbands.download_passband>.
+    If a new version is available, you can update by calling <phoebe.atmospheres.passbands.download_passband>.
 
     See also:
     * <phoebe.atmospheres.passbands.list_all_update_passbands_available>
@@ -3928,15 +3948,12 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
     global _online_passbands
     if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
 
-        branch = 'master'
-        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/{}/passbands/list_online_passbands_full'.format(branch)
-        if sys.version_info[0] >= 3:
-            url += "_pb3"
+        url = 'http://tables.phoebe-project.org/pbs/list/{}'.format(phoebe_version)
 
         try:
             resp = urlopen(url)
         except Exception as err:
-            url_repo = 'http://github.com/phoebe-project/phoebe2-tables'
+            url_repo = 'http://tables.phoebe-project.org'
             msg = "connection to online passbands at {} could not be established.  Check your internet connection or try again later.  If the problem persists and you're using a Mac, you may need to update openssl (see http://phoebe-project.org/help/faq).".format(url_repo)
             msg += " Original error from urlopen: {} {}".format(err.__class__.__name__, str(err))
 
@@ -3953,7 +3970,7 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
                 else:
                     return []
         else:
-            _online_passbands = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json)
+            _online_passbands = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json)['passbands_list']
 
     if full_dict:
         return {k:_dict_without_keys(v, skip_keys) for k,v in _online_passbands.items()}
