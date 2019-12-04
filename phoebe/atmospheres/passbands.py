@@ -3555,7 +3555,7 @@ def _init_passband(fullpath, check_for_update=True):
         print('PHOEBE: {}'.format(msg))
         logger.warning(msg)
 
-def _init_passbands(refresh=False):
+def _init_passbands(refresh=False, query_online=True, passband_directories=None):
     """
     This function should be called only once, at import time. It
     traverses the passbands directory and builds a lookup table of
@@ -3564,30 +3564,32 @@ def _init_passbands(refresh=False):
     """
     global _initialized
 
+    if passband_directories is None:
+        passband_directories = list_passband_directories()
+
+    if isinstance(passband_directories, str):
+        passband_directories = [passband_directories]
+
     if not _initialized or refresh:
         # load information from online passbands first so that any that are
         # available locally will override
-        online_passbands = list_online_passbands(full_dict=True, refresh=refresh)
-        for pb, info in online_passbands.items():
-            _pbtable[pb] = {'fname': None, 'atms': info['atms'], 'atms_ld': info.get('atms_ld', ['ck2004']), 'pb': None}
+        if query_online:
+            online_passbands = list_online_passbands(full_dict=True, refresh=refresh)
+            for pb, info in online_passbands.items():
+                _pbtable[pb] = {'fname': None, 'atms': info['atms'], 'atms_ld': info.get('atms_ld', ['ck2004']), 'pb': None}
 
         # load global passbands (in install directory) next and then local
         # (in .phoebe directory) second so that local passbands override
         # global passbands whenever there is a name conflict
-        for path in list_passband_directories():
+        for path in passband_directories:
             for f in os.listdir(path):
                 if f == 'README':
                     continue
-                if f.split('.')[-1] == 'pb' or f.split('.')[-1] == 'pb3':
+                if f.split('.')[-1] != 'fits':
                     # ignore old passband versions
                     continue
-                # if sys.version_info[0] < 3 and f.split('.')[-1] != 'pb':
-                #     # then this is a python 3 passband but we're in python 2
-                #     continue
-                # elif sys.version_info[0] >= 3 and f.split('.')[-1] != 'pb3':
-                #     # then this is a python 2 passband but we're in python 3
-                #     continue
-                _init_passband(path+f)
+
+                _init_passband(os.path.join(path, f))
 
         _initialized = True
 
@@ -3659,8 +3661,8 @@ def download_passband(passband, local=True):
     <phoebe.download_passband> as well as
     <phoebe.atmospheres.passbands.download_passband>.
 
-    Download and install a given passband from the
-    [phoebe2-tables](https://github.com/phoebe-project/phoebe2-tables) repository.
+    Download and install a given passband from
+    [tables.phoebe-project.org](http://tables.phoebe-project.org).
 
     The local and global installation directories can be listed by calling
     <phoebe.atmospheres.passbands.list_passband_directories>.  The local
@@ -3765,8 +3767,9 @@ def update_all_passbands(local=True):
     <phoebe.update_all_passbands> as well as
     <phoebe.atmospheres.passbands.update_all_passbands>.
 
-    Download and install updates for all passbands from the
-    [phoebe2-tables](https://github.com/phoebe-project/phoebe2-tables) repository.
+    Download and install updates for all passbands from
+    [tables.phoebe-project.org](http://tables.phoebe-project.org).
+
 
     This will install into the directory dictated by `local`, regardless of the
     location of the original file.  `local`=True passbands always override
@@ -3893,8 +3896,8 @@ def list_online_passbands(refresh=False, full_dict=False):
     <phoebe.list_online_passbands> as well as
     <phoebe.atmospheres.passbands.list_online_passbands>.
 
-    List all passbands available for download from the
-    [phoebe2-tables](https://github.com/phoebe-project/phoebe2-tables) repository.
+    List all passbands available for download from
+    [tables.phoebe-project.org](http://tables.phoebe-project.org).
 
     Arguments
     ---------
