@@ -76,6 +76,9 @@ else:
 
 _pbdir_env = os.getenv('PHOEBE_PBDIR', None)
 
+def _dict_without_keys(d, skip_keys=[]):
+    return {k:v for k,v in d.items() if k not in skip_keys}
+
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
                  wlunits=u.AA, calibrated=False, reference='', version=1.0,
@@ -3819,7 +3822,7 @@ def list_passband_directories():
     """
     return [p for p in [_pbdir_global, _pbdir_local, _pbdir_env] if p is not None]
 
-def list_passbands(refresh=False, full_dict=False):
+def list_passbands(refresh=False, full_dict=False, skip_keys=[]):
     """
     For convenience, this function is available at the top-level as
     <phoebe.list_passbands> as well as
@@ -3840,24 +3843,28 @@ def list_passbands(refresh=False, full_dict=False):
     * `full_dict` (bool, optional, default=False): whether to return the full
         dictionary of information about each passband or just the list
         of names.
+    * `skip_keys` (list, optional, default=[]): keys to exclude from the returned
+        dictionary.  Only applicable if `full_dict` is True.
 
     Returns
     --------
     * (list of strings or dictionary)
     """
     if full_dict:
-        d = list_online_passbands(refresh, True)
+        d = list_online_passbands(refresh, True, skip_keys=skip_keys)
         for k in d.keys():
-            d[k]['installed'] = False
+            if 'installed' not in skip_keys:
+                d[k]['installed'] = False
         # installed passband always overrides online
-        for k,v in list_installed_passbands(refresh, True).items():
+        for k,v in list_installed_passbands(refresh, True, skip_keys=skip_keys).items():
             d[k] = v
-            d[k]['installed'] = True
+            if 'installed' not in skip_keys:
+                d[k]['installed'] = True
         return d
     else:
         return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
 
-def list_installed_passbands(refresh=False, full_dict=False):
+def list_installed_passbands(refresh=False, full_dict=False, skip_keys=[]):
     """
     For convenience, this function is available at the top-level as
     <phoebe.list_installed_passbands> as well as
@@ -3877,20 +3884,23 @@ def list_installed_passbands(refresh=False, full_dict=False):
     * `full_dict` (bool, optional, default=False): whether to return the full
         dictionary of information about each passband or just the list
         of names.
+    * `skip_keys` (list, optional, default=[]): keys to exclude from the returned
+        dictionary.  Only applicable if `full_dict` is True.
 
     Returns
     --------
     * (list of strings or dictionary)
     """
+
     if refresh:
         _init_passbands(True)
 
     if full_dict:
-        return {k:v for k,v in _pbtable.items() if v['fname'] is not None}
+        return {k:_dict_without_keys(v, skip_keys) for k,v in _pbtable.items() if v['fname'] is not None}
     else:
         return [k for k,v in _pbtable.items() if v['fname'] is not None]
 
-def list_online_passbands(refresh=False, full_dict=False):
+def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
     """
     For convenience, this function is available at the top-level as
     <phoebe.list_online_passbands> as well as
@@ -3908,6 +3918,8 @@ def list_online_passbands(refresh=False, full_dict=False):
     * `full_dict` (bool, optional, default=False): whether to return the full
         dictionary of information about each passband or just the list
         of names.
+    * `skip_keys` (list, optional, default=[]): keys to exclude from the returned
+        dictionary.  Only applicable if `full_dict` is True.
 
     Returns
     --------
@@ -3932,7 +3944,7 @@ def list_online_passbands(refresh=False, full_dict=False):
 
             if _online_passbands is not None:
                 if full_dict:
-                    return _online_passbands
+                    return {k:_dict_without_keys(v, skip_keys) for k,v in _online_passbands.items()}
                 else:
                     return list(_online_passbands.keys())
             else:
@@ -3944,7 +3956,7 @@ def list_online_passbands(refresh=False, full_dict=False):
             _online_passbands = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json)
 
     if full_dict:
-        return _online_passbands
+        return {k:_dict_without_keys(v, skip_keys) for k,v in _online_passbands.items()}
     else:
         return list(_online_passbands.keys())
 
