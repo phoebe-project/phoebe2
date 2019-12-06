@@ -74,7 +74,7 @@ def orbit(component, **kwargs):
     params += [FloatParameter(qualifier='dperdt', value=kwargs.get('dperdt', 0.0), default_unit=u.deg/u.yr, advanced=True, description='Periastron change')]
     params += [FloatParameter(qualifier='ecc', timederiv='deccdt', value=kwargs.get('ecc', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,0.999999), description='Eccentricity')]
     # if conf.devel:
-        # NOTE: if adding this back in, will need to update the t0_* constraints in builtin.py
+        # NOTE: if adding this back in, will need to update the t0_* constraints in builtin.py and re-enable in parameters.HierarchyParameter.is_time_dependent
         # params += [FloatParameter(qualifier='deccdt', value=kwargs.get('deccdt', 0.0), default_unit=u.dimensionless_unscaled/u.d, advanced=True, description='Eccentricity change')]
     params += [FloatParameter(qualifier='t0_perpass', value=kwargs.get('t0_perpass', 0.0), default_unit=u.d, description='Zeropoint date at periastron passage of the primary component')]  # TODO: d vs JD
     params += [FloatParameter(qualifier='t0_supconj', value=kwargs.get('t0_supconj', 0.0), default_unit=u.d, description='Zeropoint date at superior conjunction of the primary component')]  # TODO: d vs JD

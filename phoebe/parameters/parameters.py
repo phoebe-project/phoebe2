@@ -8793,7 +8793,6 @@ class HierarchyParameter(StringParameter):
         This will return True if any of the following conditions are met:
         * `dpdt` is non-zero
         * `dperdt` is non-zero
-        * `deccdt` (devel-only) is none-zero
         * a feature (eg. spot) is attached to an asynchronous star (with
             non-unity value for `syncpar`).
 
@@ -8806,8 +8805,8 @@ class HierarchyParameter(StringParameter):
                 return True
             if self._bundle.get_value(qualifier='dperdt', component=orbit, context='component') != 0:
                 return True
-            if conf.devel and self._bundle.get_value(qualifier='deccdt', component=orbit, context='component') != 0:
-                return True
+            # if conf.devel and self._bundle.get_value(qualifier='deccdt', component=orbit, context='component') != 0:
+            #     return True
 
         for component in self.get_stars():
             if self._bundle.get_value('syncpar', component=component, context='component') != 1 and len(self._bundle.filter(context='feature', component=component)):
