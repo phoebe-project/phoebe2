@@ -31,7 +31,7 @@ app._clients = []
 app._clients_per_bundle = {}
 app._last_access_per_bundle = {}
 app._verbose = True
-app._debug = True
+app._debug = False
 app._killable = False
 
 # we'll disable sorting the responses by keys so that we can control the sorting
@@ -234,7 +234,7 @@ def _value_string(param):
         else:
             return "[{}]".format(",".join(v))
     elif param_type in ['JobParameter']:
-        return param.get_status()
+        return param._value
     elif param_type in ['UnitParameter']:
         return str(param.get_value().to_string())
     elif param_type in ['IntParameter', 'DictParameter', 'BoolParameter']:
@@ -268,6 +268,7 @@ def _param_json_overview(param):
     p = {'uniqueid': param.uniqueid,
          'class': param.__class__.__name__,
          'valuestr': _value_string(param),
+         'len': len(param.get_value()) if param.__class__.__name__ in ['SelectParameter', 'FloatArrayParameter'] else None,
          'unitstr': param.default_unit.to_string() if hasattr(param, 'default_unit') else '',
          'readonly': param.context in ['model'] or param.qualifier in ['phoebe_version'] or (hasattr(param, 'is_constraint') and param.is_constraint is not None),
          }
@@ -538,6 +539,27 @@ def export_compute(bundleid, compute, model=None):
     b.export_compute(script_fname, out_fname=None, compute=compute, model=model)
 
     return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_compute_{}.py'.format(bundleid,compute))
+
+@app.route('/export_arrays/<string:bundleid>/<string:params>', methods=['GET'])
+@crossdomain(origin='*')
+def export_params(bundleid, params):
+    """
+    """
+    if app._verbose:
+        print("export_arrays(bundleid={}, params={})".format(bundleid, params))
+
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    ef = tempfile.NamedTemporaryFile(prefix="export_params", suffix=".csv")
+
+    b.export_arrays(ef.name, delimiter=',', uniqueid=params.split(","))
+
+    return send_file(ef.name, as_attachment=True, attachment_filename='{}_export_arrays.csv'.format(bundleid))
 
 
 
@@ -1009,7 +1031,7 @@ def bundle_method(msg):
         ps_list = ps.to_list() if hasattr(ps, 'to_list') else [ps] if isinstance(ps, phoebe.parameters.Parameter) else []
     except Exception as err:
         if app._verbose:
-            print("bundle_method {} error: {}".format(msg, err.message))
+            print("bundle_method ERROR ({}): {}".format(msg, err.message))
         if app._debug:
             raise
 
@@ -1020,6 +1042,20 @@ def bundle_method(msg):
             pass
         else:
             emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+
+
+            if method=='attach_job' and ('web' in client_types or 'desktop' in client_types):
+                # then we still need to emit the change the the status of the job parameter so the client stops polling
+                # param_list = [_param_json_overview(b.get_parameter(uniqueid=msg.get('uniqueid'), check_visible=False, check_default=False))]
+                # param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+                # jp =
+                pjo = _param_json_overview(b.get_parameter(uniqueid=msg.get('uniqueid'), check_visible=False, check_default=False))
+                # pjo['valuestr'] = 'failed'
+                param_dict = {pjo.pop('uniqueid'): pjo}
+                packet = {'success': True, 'parameters': param_dict}
+
+                emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
+
             return
 
 
@@ -1094,7 +1130,7 @@ def bundle_method(msg):
 
 
 @socketio.on('rerun_all_figures')
-def bundle_method(msg):
+def rerun_all_figures(msg):
     if app._verbose:
         print("bundle_method: ", msg)
 

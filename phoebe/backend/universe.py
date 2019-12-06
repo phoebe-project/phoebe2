@@ -361,10 +361,9 @@ class System(object):
                 # RVs etc don't have pblum_mode, but may still want luminosities
                 pblum_mode = 'absolute'
 
-            ignore_effects = pblum_mode not in ['pbflux']
-            logger.debug("system.compute_pblum_scalings: populating observables for dataset={} with ignore_effects={} for pblum_mode={}".format(dataset, ignore_effects, pblum_mode))
+            logger.debug("system.compute_pblum_scalings: populating observables for dataset={} with for pblum_mode={}".format(dataset, pblum_mode))
             self.populate_observables(t0, [kind], [dataset],
-                                        ignore_effects=ignore_effects)
+                                        ignore_effects=True)
 
             ds_components = hier_stars
             #ds_components = ds.filter(qualifier='pblum_ref', check_visible=False).components
@@ -414,34 +413,6 @@ class System(object):
             elif pblum_mode == 'dataset-coupled':
                 pblum_ref = ds.get_value(qualifier='pblum_dataset')
                 pblum_scale_copy_ds[dataset] = pblum_ref
-
-            elif pblum_mode == 'pbflux':
-                distance = b.get_value(qualifier='distance', context='system', unit=u.m)
-                pbflux = ds.get_value(qualifier='pbflux', unit=u.W/u.m**2) * distance**2
-
-                # TODO: add ld_func and ld_coeffs?
-                system_flux = np.sum([self.get_body(comp).compute_luminosity(dataset)/(4*np.pi) for comp in ds_components])
-
-                l3_mode = ds.get_value(qualifier='l3_mode')
-                # note that pbflux here is the flux requested in RELATIVE UNITS
-
-                # flux_sys = sum(L_star/4pi for star in stars)
-                # flux_tot = flux_sys/dist**2 + l3_flux
-                # l3_frac = l3_flux / flux_tot
-                # pblum_scale = pbflux / flux_tot
-
-                if l3_mode == 'flux':
-                    l3_flux = ds.get_value(qualifier='l3', unit=u.W/u.m**2)
-                    pblum_scale = (pbflux - l3_flux) / system_flux
-                elif l3_mode == 'fraction':
-                    l3_frac = ds.get_value(qualifier='l3_frac')
-                    l3_flux = l3_frac * pbflux
-                    pblum_scale = (pbflux - l3_flux) / system_flux
-                else:
-                    raise NotImplementedError("l3_mode={} not implemented for pblum scaling".format(l3_mode))
-
-                for comp in ds_components:
-                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
             elif pblum_mode == 'dataset-scaled':
                 # for now we'll allow the scaling to fallback on 1.0, but not
@@ -528,10 +499,8 @@ class System(object):
         if self.irrad_method == 'none':
             return
 
-        # if 'teffs_post_reflection' in self.inst_vals.keys():
-        if not self.needs_recompute_instantaneous and not self.is_first_refl_iteration: # and 'teffs_post_reflection' in self.inst_vals.keys():
+        if not self.needs_recompute_instantaneous and not self.is_first_refl_iteration:
             logger.debug("reflection: using teffs from previous iteration")
-            # meshes.set_column_flat('teffs', self.inst_vals['teffs_post_reflection'])
             return
 
         if 'wd' in [body.mesh_method for body in self.bodies]:
@@ -2204,7 +2173,7 @@ class Star_roche(Star):
 
     @property
     def needs_recompute_instantaneous(self):
-        return len(self.features) > 0
+        return self.needs_remesh
 
     @property
     def needs_remesh(self):

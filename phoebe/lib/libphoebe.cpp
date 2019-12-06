@@ -9482,7 +9482,7 @@ static PyObject *ld_nrpar(PyObject *self, PyObject *args, PyObject *keywds) {
 
   Python:
 
-    value = ld_check(descr, params)
+    value = ld_check(descr, params, strict=False)
 
   with arguments
 
@@ -9497,6 +9497,13 @@ static PyObject *ld_nrpar(PyObject *self, PyObject *args, PyObject *keywds) {
             "power"       4 parameters
 
     params: 1-rank numpy array of float
+
+  optional
+
+    strict: Boolean, default False
+
+    strict checking: if D(mu) in [0,1] for all mu in [0,1]
+    loose (non-strict): if D(mu) >=0 for all mu in [0,1]
 
   Return:
     true: if parameters pass the checks, false otherwise
@@ -9529,20 +9536,26 @@ static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {
   char *kwlist[] = {
     (char*)"descr",
     (char*)"params",
+    (char*)"strict",
     NULL
   };
 
-  PyObject *o_descr;
+  bool strict = false;
+
+  PyObject *o_descr, *o_strict = 0;
 
   PyArrayObject *o_params;
 
-  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "O!O!", kwlist,
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "O!O!|O!", kwlist,
         &PyString_Type, &o_descr,
-        &PyArray_Type,  &o_params)
+        &PyArray_Type,  &o_params,
+        &PyBool_Type,   &o_strict )
       ){
     raise_exception(fname + "::Problem reading arguments");
     return NULL;
   }
+
+  if (o_strict) strict = PyObject_IsTrue(o_strict);
 
   TLDmodel_type type = LD::type(PyString_AsString(o_descr));
 
@@ -9551,9 +9564,12 @@ static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {
     return NULL;
   }
 
+  if (strict)
+    return PyBool_FromLong(LD::check_strict(type, (double*)PyArray_DATA(o_params)));
+ 
   return PyBool_FromLong(LD::check(type, (double*)PyArray_DATA(o_params)));
-}
 
+}
 
 /*
   C++ wrapper for Python code:

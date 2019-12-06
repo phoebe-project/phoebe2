@@ -1918,6 +1918,82 @@ class ParameterSet(object):
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
+    def export_arrays(self, fname,
+                      delimiter=' ',header='', footer='',
+                      comments='# ', encoding=None,
+                      **kwargs):
+        """
+        Export arrays from <phoebe.parameters.Parameter.FloatArrayParameter>
+        parameters to a file via `np.savetxt`.
+
+        NEW IN PHOEBE 2.2
+
+        Each parameter will have its array values as a column in the output
+        file in a format that can be reloaded manually with `np.loadtxt`.
+
+        Note: all parameters must be FloatArrayParameters and have the same
+        shape.
+
+
+        Arguments
+        ------------
+        * `fname` (string or file object): passed to np.savetxt.
+            If the filename ends in .gz, the file is automatically saved in
+            compressed gzip format. loadtxt understands gzipped files
+            transparently.
+        * `delimiter` (string, optional, default=' '): passed to np.savetxt.
+            String or character separating columns.
+        * `header` (string, optional): The header will automatically be appended
+            with the twigs of the parameters making up the columns and then
+            passed to np.savetxt.
+            String that will be written at the beginning of the file.
+        * `footer` (string, optional): passed to np.savetxt.
+            String that will be written at the end of the file.
+        * `comments` (string, optional, default='#'): passed to np.savetxt.
+            String that will be prepended to the `header` and `footer` strings,
+            to mark them as comments.
+        * `encoding` (None or string, optional, default=None): passed to np.savetxt.
+            Encoding used to encode the outputfile. Does not apply to output
+            streams. If the encoding is something other than ‘bytes’ or ‘latin1’
+            you will not be able to load the file in NumPy versions < 1.14.
+            Default is ‘latin1’.
+        * `**kwargs`: all additional keyword arguments will be sent to
+            <phoebe.parameters.ParameterSet.filter>.  The filter must result
+            in all <phoebe.parameters.Parameter.FloatArrayParameter> objects
+            with the same length, otherwise an error will be raised.
+
+
+        Returns
+        -----------
+        * (string or file object) `fname`
+
+        Raises
+        -----------
+        * TypeError: if not all parameters are of type
+            <phoebe.parameters.Parameter.FloatArrayParameter> or no parameters
+            are included in the filter.
+        """
+        if len(kwargs):
+            return self.filter(**kwargs).export_arrays(fname)
+
+        if not len(self.to_list()):
+            raise TypeError("no parameters to be exported")
+
+        for param in self.to_list():
+            if param.__class__.__name__ != 'FloatArrayParameter':
+                raise TypeError("all parameters must be of type FloatArrayParameter")
+
+        X = np.array([param.get_value() for param in self.to_list()]).T
+
+        header += delimiter.join([param.uniquetwig for param in self.to_list()])
+
+        np.savetxt(fname, X, delimiter=delimiter,
+                   header=header, footer=footer, comments=comments,
+                   encoding=encoding)
+
+        return fname
+
+
     def filter(self, twig=None, check_visible=True, check_default=True,
                check_advanced=False, check_single=False, **kwargs):
         """
@@ -3155,7 +3231,7 @@ class ParameterSet(object):
                 sigmas = self._bundle.get_dataset(dataset=ds).get_value('sigmas', component=ds_comp, unit=residuals.unit)
 
                 if len(sigmas):
-                    chi2 += np.sum(residuals.value**2 / sigmas.value**2)
+                    chi2 += np.sum(residuals.value**2 / sigmas**2)
                 else:
                     chi2 += np.sum(residuals.value**2)
 
@@ -3480,6 +3556,20 @@ class ParameterSet(object):
                     kwargs['{}qualifier'.format(direction)] = current_value
                     kwargs.setdefault('linestyle', 'none')
                     kwargs.setdefault('marker', '+')
+
+                    # now let's see if there are errors
+                    errorkey = '{}error'.format(direction)
+                    errors = kwargs.get(errorkey, None)
+                    if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
+                        kwargs[errorkey] = errors
+                    elif isinstance(errors, str):
+                        errors = self._bundle.get_quantity(qualifier=kwargs.get(errorkey), dataset=ps.dataset, context='dataset', check_visible=False)
+                        kwargs[errorkey] = errors
+                    else:
+                        sigmas = self._bundle.get_quantity(qualifier='sigmas', dataset=ps.dataset, context='dataset', check_visible=False)
+                        if len(sigmas):
+                            kwargs.setdefault(errorkey, sigmas)
+
 
                     return kwargs
 
@@ -3955,6 +4045,9 @@ class ParameterSet(object):
         * `s` (strong/float/array, optional): qualifier/twig of the array to use
             for size.  See the [autofig tutorial on size](https://autofig.readthedocs.io/en/latest/tutorials/size_modes/)
             for more information.
+        * `smode` (string, optional): mode for handling size (`s`).  See the
+            [autofig tutorial on size mode](https://autofig.readthedocs.io/en/latest/tutorials/size_modes/)
+            for more information.
         * `c` (string/float/array, optional): qualifier/twig of the array to use
             for color.
         * `fc` (string/float/array, optional): qualifier/twig of the array to use
@@ -3979,11 +4072,14 @@ class ParameterSet(object):
             See also the [autofig tutorial on a looping independent variable](https://autofig.readthedocs.io/en/latest/gallery/looping_indep/).
 
         * `xerror` (string/float/array, optional): qualifier/twig of the array to plot as
-            x-errors (will default based on `x` if not provided).
+            x-errors (will default based on `x` if not provided).  Pass None to
+            disable plotting xerrors.
         * `yerror` (string/float/array, optional): qualifier/twig of the array to plot as
-            y-errors (will default based on `y` if not provided).
+            y-errors (will default based on `y` if not provided).  Pass None to
+            disable plotting yerrors.
         * `zerror` (string/float/array, optional): qualifier/twig of the array to plot as
-            z-errors (will default based on `z` if not provided).
+            z-errors (will default based on `z` if not provided).  Pass None to
+            disable plotting zerrors.
 
         * `xunit` (string/unit, optional): unit to plot on the x-axis (will
             default on `x` if not provided).
@@ -4207,7 +4303,6 @@ class ParameterSet(object):
 
         try:
             plot_kwargss = self._unpack_plotting_kwargs(animate=animate, **kwargs)
-
             # this loop handles any of the automatically-generated
             # multiple plotting calls, passing each on to autofig
             for plot_kwargs in plot_kwargss:
@@ -4247,6 +4342,10 @@ class ParameterSet(object):
         else:
             afig = self.gcf()
             if not len(afig.axes):
+                # try to detect common causes and provide useful messages
+                if (kwargs.get('x', None) in ['xs', 'ys', 'zs'] and kwargs.get('y', None) in ['us', 'vs', 'ws']) or (kwargs.get('x', None) in ['us', 'vs', 'ws'] and kwargs.get('y', None) in ['xs', 'ys', 'zs']):
+                    raise ValueError("cannot mix xyz and uvw coordinates when plotting")
+
                 raise ValueError("Nothing could be found to plot.  Check all arguments.")
 
             fig = None
@@ -6184,12 +6283,7 @@ class ChoiceParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            report = self._bundle.run_checks(allow_skip_constraints=True)
-            # passed is either False (failed) or None (raise Warning)
-            for item in report.items:
-                msg = item.message
-                msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
-                logger.warning(msg)
+            report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
@@ -6431,10 +6525,7 @@ class SelectParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            report = self._bundle.run_checks(allow_skip_constraints=True)
-            for item in report.items:
-                # passed is either False (failed) or None (raise Warning)
-                logger.warning(item.message)
+            report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
@@ -7406,13 +7497,7 @@ class FloatParameter(Parameter):
         if run_checks is None:
             run_checks = conf.interactive_checks
         if run_checks and self._bundle:
-            report = self._bundle.run_checks(allow_skip_constraints=True)
-            for item in report.items:
-                # passed is either False (failed) or None (raise Warning)
-                msg = item.message
-                if item.fail:
-                    msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
-                logger.warning(msg)
+            report = self._bundle.run_checks(allow_skip_constraints=True, raise_logger_warning=True)
 
         self._add_history(redo_func='set_quantity', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_quantity, 'uniqueid': self.uniqueid})
 
@@ -7624,7 +7709,10 @@ class FloatArrayParameter(FloatParameter):
             if not isinstance(qualifier_parameter, FloatArrayParameter):
                 raise KeyError("'{}' does not point to a FloatArrayParameter".format(qualifier))
 
-            value = np.interp(qualifier_interp_value, qualifier_parameter.get_value(), self.get_value())
+            qualifier_value = qualifier_parameter.get_value()
+            sort = qualifier_value.argsort()
+
+            value = np.interp(qualifier_interp_value, qualifier_value[sort], self.get_value()[sort])
 
         if unit is not None:
             if return_quantity:
@@ -9732,6 +9820,7 @@ class JobParameter(Parameter):
         # TODO: may need to be more clever once remote servers are supported
         self._script_fname = os.path.join(location, '_{}.py'.format(self.uniqueid))
         self._results_fname = os.path.join(location, '_{}.out'.format(self.uniqueid))
+        self._err_fname = os.path.join(location, '_{}.err'.format(self.uniqueid))
 
         # TODO: add a description?
 
@@ -9875,9 +9964,22 @@ class JobParameter(Parameter):
         else:
 
             if self.status_method == 'exists':
-                output_exists = os.path.isfile("_{}.out".format(self.uniqueid))
-                if output_exists:
+                if self._value == 'error':
+                    # then error was already detected and we've already done cleanup
+                    status = 'error'
+                elif os.path.isfile(self._results_fname):
                     status = 'complete'
+                elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
+                    # some warnings from other packages can be set to stderr
+                    # so we need to make sure the last line is actually from
+                    # raising an error.
+                    ferr = open(self._err_fname, 'r')
+                    msg = ferr.readlines()[-1]
+                    ferr.close()
+                    if 'Error' in msg.split()[0]:
+                        status = 'error'
+                    else:
+                        status = 'unknown'
                 else:
                     status = 'unknown'
             else:
@@ -9929,7 +10031,7 @@ class JobParameter(Parameter):
         #if self._value == 'loaded':
         #    raise ValueError("results have already been loaded")
         status = self.get_status()
-        if not wait and status!='complete':
+        if not wait and status not in ['complete', 'error']:
             if status in ['loaded']:
                 logger.info("job already loaded")
                 return self._bundle.get_model(self.model)
@@ -9938,7 +10040,7 @@ class JobParameter(Parameter):
                 return self
 
 
-        while self.get_status() not in ['complete', 'loaded']:
+        while self.get_status() not in ['complete', 'loaded', 'error']:
             # TODO: any way we can not make 2 calls to self.status here?
             logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
             time.sleep(sleep)
@@ -9962,7 +10064,18 @@ class JobParameter(Parameter):
             newparams = rjson['included']
             self._bundle._attach_param_from_server(newparams)
 
+        elif self.status == 'error':
+            ferr = open(self._err_fname, 'r')
+            msg = ferr.readlines()[-1]
+            ferr.close()
 
+            if cleanup:
+                os.remove(self._script_fname)
+                os.remove(self._err_fname)
+
+            self._value = 'error'
+
+            raise RuntimeError("compute job failed with error: {}".format(msg))
         else:
             logger.info("current status: {}, pulling job results".format(self.status))
             result_ps = self._retrieve_results()
@@ -9975,11 +10088,12 @@ class JobParameter(Parameter):
             if cleanup:
                 os.remove(self._script_fname)
                 os.remove(self._results_fname)
+                os.remove(self._err_fname)
 
-        self._value = 'loaded'
+            self._value = 'loaded'
 
-        # TODO: add history?
+            # TODO: add history?
 
-        self._bundle._handle_model_selectparams()
+            self._bundle._handle_model_selectparams()
 
-        return self._bundle.filter(model=self.model)
+            return self._bundle.filter(model=self.model)

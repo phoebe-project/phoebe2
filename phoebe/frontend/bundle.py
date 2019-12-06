@@ -437,9 +437,9 @@ class Bundle(ParameterSet):
         for constraint in self.filter(context='constraint', check_visible=False, check_default=False).to_list():
             constraint._update_bookkeeping()
 
-        self._mplcolorcycler = _figure.MPLPropCycler(_figure._mplcolors)
-        self._mplmarkercycler = _figure.MPLPropCycler(_figure._mplmarkers)
-        self._mpllinestylecycler = _figure.MPLPropCycler(_figure._mpllinestyles)
+        self._mplcolorcycler = _figure.MPLPropCycler('color', _figure._mplcolors)
+        self._mplmarkercycler = _figure.MPLPropCycler('marker', _figure._mplmarkers)
+        self._mpllinestylecycler = _figure.MPLPropCycler('linestyle', _figure._mpllinestyles)
 
     @classmethod
     def open(cls, filename, import_from_older=True, import_from_newer=False):
@@ -1101,6 +1101,8 @@ class Bundle(ParameterSet):
         """
         Export the Bundle to a file readable by PHOEBE legacy.
 
+        NEW IN PHOEBE 2.2.
+
         See also:
         * <phoebe.parameters.compute.legacy>
 
@@ -1122,13 +1124,8 @@ class Bundle(ParameterSet):
         self.run_delayed_constraints()
 
         if not skip_checks:
-            report = self.run_checks(compute=compute, allow_skip_constraints=False)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
+            report = self.run_checks(compute=compute, allow_skip_constraints=False,
+                                     raise_logger_warning=True, raise_error=True)
 
         filename = os.path.expanduser(filename)
         return io.pass_to_legacy(self, filename, compute=compute)
@@ -1380,14 +1377,7 @@ class Bundle(ParameterSet):
         return super(Bundle, self).__repr__().replace('ParameterSet', 'PHOEBE Bundle')
 
     def __str__(self):
-        return_ = ''
-        for context in ['context', 'kind', 'component', 'feature', 'dataset',
-                        'figure', 'constraint', 'compute', 'model', 'qualifier']:
-            return_ += '{}:\n'.format(context.upper())
-            return_ += "\n".join( self._options_for_tag(context, include_default=False))
-            return_ += '\n\n'
-
-        return return_
+        return super(Bundle, self).__str__().replace('ParameterSet', 'PHOEBE Bundle')
 
     def _default_label(self, base, context, **kwargs):
         """
@@ -2413,7 +2403,7 @@ class Bundle(ParameterSet):
                         else:
                             raise TypeError(msg)
 
-    def run_checks(self, **kwargs):
+    def run_checks(self, raise_logger_warning=False, raise_error=False, **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
@@ -2433,6 +2423,10 @@ class Bundle(ParameterSet):
         * `allow_skip_constraints` (bool, optional, default=False): whether
             to allow skipping running delayed constraints if interactive
             constraints are disabled.  See <phoebe.interactive_constraints_off>.
+        * `raise_logger_warning` (bool, optional, default=False): whether to
+            raise any errors/warnings in the logger (with level of warning).
+        * `raise_error` (bool, optional, default=False): whether to raise an
+            error if the report has a status of failed.
         * `**kwargs`: overrides for any parameter (given as qualifier=value pairs)
 
         Returns
@@ -2448,7 +2442,10 @@ class Bundle(ParameterSet):
         if conf.interactive_constraints or not kwargs.pop('allow_skip_constraints', False):
             changed_params = self.run_delayed_constraints()
 
-        computes = kwargs.pop('compute', self.get_value(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False, expand=True))
+        report = RunChecksReport()
+
+        run_checks_compute = self.get_value(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False, expand=True)
+        computes = kwargs.pop('compute', run_checks_compute)
         if computes is None:
             computes = self.computes
         else:
@@ -2459,12 +2456,15 @@ class Bundle(ParameterSet):
                 if compute not in self.computes:
                     raise ValueError("compute='{}' not found".format(compute))
 
+                if compute not in run_checks_compute:
+                    report.add_item(self,
+                                    "compute='{}' is not included in run_checks_compute@setting, so will not raise interactive warnings".format(compute),
+                                    [self.get_parameter(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False)],
+                                    False
+                                    )
 
         kwargs.setdefault('check_visible', False)
         kwargs.setdefault('check_default', False)
-
-
-        report = RunChecksReport()
 
         hier = self.hierarchy
         if hier is None:
@@ -2668,6 +2668,25 @@ class Bundle(ParameterSet):
             ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source_bol', component=component, context='component', **kwargs)
             ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
 
+            if np.any(np.isnan(ld_coeffs)):
+                if ld_mode == 'lookup':
+                    report.add_item(self,
+                                    'ld_mode_bol=\'lookup\' resulted in nans for ld_coeffs_bol.  Check system parameters to be within grids or change ld_mode_bol to \'manual\' and provide ld_coeffs_bol',
+                                    [self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **kwargs),
+                                    self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                    self.get_parameter(qualifier='logg', component=component, context='component', **kwargs),
+                                    self.get_parameter(qualifier='abun', component=component, context='component', **kwargs)
+                                    ],
+                                    True)
+                elif ld_mode == 'manual':
+                    report.add_item(self,
+                                    'nans in ld_coeffs_bol are forbidden',
+                                    [self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)],
+                                    True)
+                else:
+                    # if interp, then the previously set value won't be used anyways, so we'll ignore nans
+                    pass
+
             if ld_mode == 'lookup':
                 if ld_coeffs_source != 'auto' and ld_coeffs_source not in all_pbs.get('Bolometric:900-40000', {}).get('atms_ld', []):
                     report.add_item(self,
@@ -2688,7 +2707,7 @@ class Bundle(ParameterSet):
                                     True)
 
 
-                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=False)
                 if not check:
                     report.add_item(self,
                                     'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
@@ -2696,6 +2715,17 @@ class Bundle(ParameterSet):
                                      self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
                                     ],
                                     True)
+
+                else:
+                    # only need to do the strict check if the non-strict checks passes
+                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
+                    if not check:
+                        report.add_item(self,
+                                        'ld_coeffs_bol={} result in limb-brightening.  Use with caution.'.format(ld_coeffs),
+                                        [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
+                                         self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                        ],
+                                        True)
 
             for compute in computes:
                 if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
@@ -2717,6 +2747,25 @@ class Bundle(ParameterSet):
                 ld_coeffs_source = dataset_ps.get_value(qualifier='ld_coeffs_source', component=component, **kwargs)
                 ld_coeffs = dataset_ps.get_value(qualifier='ld_coeffs', component=component, **kwargs)
                 pb = dataset_ps.get_value(qualifier='passband', **kwargs)
+
+                if np.any(np.isnan(ld_coeffs)):
+                    if ld_mode == 'lookup':
+                        report.add_item(self,
+                                        'ld_mode=\'lookup\' resulted in nans for ld_coeffs.  Check system parameters to be within grids or change ld_mode to \'manual\' and provide ld_coeffs',
+                                        [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
+                                        self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
+                                        self.get_parameter(qualifier='logg', component=component, context='component', **kwargs),
+                                        self.get_parameter(qualifier='abun', component=component, context='component', **kwargs)
+                                        ],
+                                        True)
+                    elif ld_mode == 'manual':
+                        report.add_item(self,
+                                        'nans in ld_coeffs are forbidden',
+                                        [dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)],
+                                        True)
+                    else:
+                        # if interp, then the previously set value won't be used anyways, so we'll ignore nans
+                        pass
 
                 if ld_mode == 'interp':
                     for compute in computes:
@@ -2765,7 +2814,7 @@ class Bundle(ParameterSet):
                                         ],
                                         True)
 
-                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs))
+                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=False)
                     if not check:
                         report.add_item(self,
                                         'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func),
@@ -2773,6 +2822,17 @@ class Bundle(ParameterSet):
                                          dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
                                         ],
                                         True)
+
+                    else:
+                        # only need to do the strict check if the non-strict checks passes
+                        check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
+                        if not check:
+                            report.add_item(self,
+                                            'ld_coeffs={} result in limb-brightening.  Use with caution.'.format(ld_coeffs),
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
+                                             dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
+                                             ],
+                                             False)
 
                 else:
                     raise NotImplementedError("checks for ld_mode='{}' not implemented".format(ld_mode))
@@ -2881,6 +2941,27 @@ class Bundle(ParameterSet):
                                 self.get_parameter(qualifier='fluxes', dataset=param.dataset, context='dataset', **_skip_filter_checks)],
                                 True)
 
+            # also check to make sure that we'll be able to handle the interpolation in time if the system is time-dependent
+            if self.hierarchy.is_time_dependent():
+                compute_times = self.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
+                times = self.get_value(qualifier='times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
+                if len(times) and len(compute_times) and (min(times) < min(compute_times) or max(times) > max(compute_times)):
+
+                    params = [self.get_parameter(qualifier='pblum_mode', dataset=param.dataset, **_skip_filter_checks),
+                              self.get_parameter(qualifier='times', dataset=param.dataset, context='dataset', **_skip_filter_checks),
+                              self.get_parameter(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)]
+
+                    msg = "'compute_times@{}' must cover full range of 'times@{}', for time-dependent systems with pblum_mode@{}='dataset-scaled'.".format(param.dataset, param.dataset, param.dataset)
+                    if len(self.get_parameter(qualifier='compute_phases', dataset=param.dataset, context='dataset', **_skip_filter_checks).constrains):
+                        msg += " Consider flipping the 'compute_phases' constraint and providing 'compute_times' instead."
+                        params += [self.get_parameter(qualifier='compute_phases', dataset=param.dataset, context='dataset', **_skip_filter_checks),
+                                   self.get_constraint(qualifier='compute_times', dataset=param.dataset, **_skip_filter_checks)]
+
+                    report.add_item(self,
+                                    msg,
+                                    params,
+                                    True)
+
         # tests for lengths of fluxes, rvs, etc vs times (and fluxes vs wavelengths for spectral datasets)
         for param in self.filter(qualifier=['times', 'fluxes', 'rvs', 'sigmas', 'wavelengths', 'flux_densities'], context='dataset', **_skip_filter_checks).to_list():
             shape = param.get_value().shape
@@ -2983,8 +3064,30 @@ class Bundle(ParameterSet):
                                 affected_params,
                                 False)
 
-        # we've survived all tests
-        # return True, ''
+
+        for figure in self.figures:
+            x = self.get_value(qualifier='x', figure=figure, context='figure')
+            y = self.get_value(qualifier='y', figure=figure, context='figure')
+            if (x in ['xs', 'ys', 'zs'] and y in ['us', 'vs', 'ws']) or (x in ['us', 'vs', 'ws'] and y in ['xs', 'ys', 'zs']):
+                report.add_item(self,
+                                "cannot mix xyz and uvw coordinates in {} figure".format(figure),
+                                [self.get_parameter(qualifier='x', figure=figure, context='figure'),
+                                 self.get_parameter(qualifier='y', figure=figure, context='figure')
+                                ],
+                                False)
+
+        if raise_logger_warning:
+            for item in report.items:
+                # passed is either False (failed) or None (raise Warning)
+                msg = item.message
+                if item.fail:
+                    msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
+                logger.warning(msg)
+
+        if raise_error:
+            if not report.passed:
+                raise ValueError("system failed to pass checks\n{}".format(report))
+
         return report
 
     def references(self, compute=None, dataset=None):
@@ -4197,6 +4300,12 @@ class Bundle(ParameterSet):
         else:
             ds_kwargs = {}
 
+        # temporarily disable interactive_checks, check_default, and check_visible
+        conf_interactive_checks = conf.interactive_checks
+        if conf_interactive_checks:
+            logger.debug("temporarily disabling interactive_checks")
+            conf._interactive_checks = False
+
         params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **ds_kwargs)
 
         if kwargs.get('overwrite', False):
@@ -4382,6 +4491,11 @@ class Bundle(ParameterSet):
                                        ignore_none=True)
                 except Exception as err:
                     self.remove_dataset(dataset=kwargs['dataset'])
+                    if conf_interactive_checks:
+                        logger.debug("reenabling interactive_checks")
+                        conf._interactive_checks = True
+                        self.run_checks(raise_logger_warning=True)
+
                     raise ValueError("could not set value for {}={} with error: '{}'. Dataset has not been added.".format(k, v, str(err)))
 
 
@@ -4392,6 +4506,11 @@ class Bundle(ParameterSet):
                 return {k: _to_safe_value(v) for k,v in v.items()}
             else:
                 return v
+
+        if conf_interactive_checks:
+            logger.debug("reenabling interactive_checks")
+            conf._interactive_checks = True
+            self.run_checks(raise_logger_warning=True)
 
         redo_kwargs = deepcopy({k:_to_safe_value(v) for k,v in kwargs.items()})
         redo_kwargs['func'] = func.__name__
@@ -5709,13 +5828,9 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
+            report = self.run_checks(compute=compute, allow_skip_constraints=False,
+                                     raise_logger_warning=True, raise_error=True,
+                                     **kwargs)
 
         ld_coeffs_ret = {}
         ldcs_params = self.filter(qualifier='ld_coeffs_source', dataset=datasets, component=components, check_visible=False).to_list()
@@ -5764,6 +5879,8 @@ class Bundle(ParameterSet):
                     photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
 
                 ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
+
+                # NOTE: these may return nans... if so, run_checks will handle the error
 
                 logger.info("interpolated {} ld_coeffs{}={}".format(ld_func, bol_suffix, ld_coeffs))
 
@@ -5886,13 +6003,9 @@ class Bundle(ParameterSet):
             raise TypeError("compute must be a single value (string)")
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
+            report = self.run_checks(compute=compute, allow_skip_constraints=False,
+                                     raise_logger_warning=True, raise_error=True,
+                                     **kwargs)
 
         system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=True, compute_l3_frac=True, **kwargs))
 
@@ -5955,9 +6068,7 @@ class Bundle(ParameterSet):
         Note about boosting: as boosting is an aspect-dependent effect that
         does not affect normal intensities, boosting will not be included
         in any of the returned values, including `pbflux_ext` due to the
-        approximation of flux explained above.  This also means that boosting
-        will be ignored in any scaling if providing `pbflux` (by setting
-        `pblum_mode = 'pbflux'`).
+        approximation of flux explained above.
 
         This method is only for convenience and will be recomputed internally
         within <phoebe.frontend.bundle.Bundle.run_compute> as needed.
@@ -5999,9 +6110,10 @@ class Bundle(ParameterSet):
             a pblum_mode parameter (eg. rv or lp datasets) will be computed
             in absolute luminosities.
         * `set_value` (bool, optional, default=False): apply the computed
-            values to the respective `pblum` or `pbflux` parameters (even if not
+            values to the respective `pblum` parameters (even if not
             currently visible).  Note that extrinsic values (`pblum_ext` and
-            `pbflux_ext`) are not input parameters to the model, so are not set.
+            `pbflux_ext`) are not input parameters to the
+            model, so are not set.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -6047,13 +6159,9 @@ class Bundle(ParameterSet):
 
         # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
+            report = self.run_checks(compute=compute, allow_skip_constraints=False,
+                                     raise_logger_warning=True, raise_error=True,
+                                     **kwargs)
 
         # determine datasets which need intensities computed and check to make
         # sure all passed datasets are passband-dependent
@@ -6074,6 +6182,10 @@ class Bundle(ParameterSet):
                 pblum_datasets.remove(dataset)
 
         t0 = self.get_value(qualifier='t0', context='system', unit=u.d)
+
+        # we'll need to make sure we've done any necessary interpolation if
+        # any ld_bol or ld_mode_bol are set to 'lookup'.
+        self.compute_ld_coeffs(compute=compute, set_value=True)
 
         ret = {}
         l3s = None
@@ -6455,13 +6567,9 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks(compute=compute, allow_skip_constraints=False, **kwargs)
-            if not report.passed:
-                raise ValueError("system failed to pass checks\n{}".format(report))
-            else:
-                # just warnings
-                for item in report.items:
-                    logger.warning(item.message)
+            report = self.run_checks(compute=compute, allow_skip_constraints=False,
+                                     raise_logger_warning=True, raise_error=True,
+                                     **kwargs)
 
         # let's first make sure that there is no duplication of enabled datasets
         datasets = []
@@ -6479,7 +6587,7 @@ class Bundle(ParameterSet):
                     datasets.append(item)
 
 
-        return model, computes, datasets, do_create_fig_params, changed_params
+        return model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps
 
 
     def _write_export_compute_script(self, script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs):
@@ -6565,7 +6673,7 @@ class Bundle(ParameterSet):
           in the model being written to `out_fname`.
 
         """
-        model, computes, datasets, do_create_fig_params, changed_params = self._prepare_compute(compute, model, **kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
         script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs)
         return script_fname, out_fname
 
@@ -6663,7 +6771,7 @@ class Bundle(ParameterSet):
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
 
-        model, computes, datasets, do_create_fig_params, changed_params = self._prepare_compute(compute, model, **kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
@@ -6702,6 +6810,7 @@ class Bundle(ParameterSet):
             # is now, run compute, and then save the resulting model
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
+            err_fname = "_{}.err".format(jobid)
             script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, False, kwargs)
 
             script_fname = os.path.abspath(script_fname)
@@ -6710,7 +6819,8 @@ class Bundle(ParameterSet):
             # but that would probably need to be the responsibility of the
             # jobparam to return a failed status and message.
             # Unfortunately right now an error just results in the job hanging.
-            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
+            f = open(err_fname, 'w')
+            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
 
             # create model parameter and attach (and then return that instead of None)
             job_param = JobParameter(self,
@@ -6955,9 +7065,12 @@ class Bundle(ParameterSet):
 
     def import_model(self, fname, model=None):
         """
-        Import and attach a model from a file.  Generally this file will be the
-        output after running a script generated by
-        <phoebe.frontend.bundle.Bundle.export_compute>.  This is NOT necessary
+        Import and attach a model from a file.
+
+        NEW IN PHOEBE 2.2
+
+        Generally this file will be the output after running a script generated
+        by <phoebe.frontend.bundle.Bundle.export_compute>.  This is NOT necessary
         to be called if generating a model directly from
         <phoebe.frontend.bundle.Bundle.run_compute>.
 

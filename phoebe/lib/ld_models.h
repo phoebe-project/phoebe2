@@ -26,7 +26,26 @@
     * 'power' ~ claret:
       D(mu) = 1 - a0(1 - mu^(1/2)) - a1(1 - mu) - a2(1-mu^(3/2)) - a3(1 - mu^2)
 
-  Author: Martin Horvat, August 2016
+  Constraints:
+
+
+
+  I. In strictly autonomous systems
+
+    D(mu) in [0,1]
+
+  where lower bound D(mu)>0 means that the surface is not energy sink and
+  upper bound D(mu) < 1 means that emitted energy can not exceed generated one.
+
+  II. In irradiated stars, without properly modeling irradiation:
+
+    D(mu) >= 0 and D(mu) can be larger than 1
+
+  [Claret 2004, Fig 4]
+
+
+
+  Author: Martin Horvat, August 2016, August 2019
 
   Ref:
 
@@ -35,6 +54,8 @@
   * Claret, A., 2000, A&A, 363, 1081
 
   * Kallrath, Josef, Milone, Eugene F., Eclipsing Binary Stars: Modeling and Analysis (Spinger Verlag, 2009)
+
+  * A. Claret, On the irradiated stellar atmospheres in close binary systems: Improvements and uncertainties, A&A 422, 665–673 (2004) DOI: 10.1051/0004-6361:20047056
 */
 
 
@@ -72,7 +93,9 @@ struct TLDmodel {
 
   virtual ~TLDmodel() = default;
   virtual T D(const T & mu) const = 0;
-  virtual bool check () const = 0;            // check if D(mu) in [0,1]
+
+  virtual bool check () const = 0;                   // check if D(mu) > 0
+  virtual bool check_strict () const = 0;            // check if D(mu) in [0,1]
 
   T F(const T & mu) const { return D(mu)/D0; }
 };
@@ -95,6 +118,7 @@ struct TLDuniform: TLDmodel<T> {
   T D(const T & mu) const { return 1; }
 
   bool check() const { return true; }
+  bool check_strict() const { return true; }
 };
 
 // Linear limb darkening (1 parameter)
@@ -117,7 +141,11 @@ struct TLDlinear : TLDmodel<T> {
     return  1 - x*(1 - mu);
   }
 
-  bool check () const {
+  bool check() const {
+    return x <= 1;
+  }
+
+  bool check_strict () const {
     return x <= 1 && x >= 0;
   }
 };
@@ -128,7 +156,6 @@ template <class T>
 struct TLDquadratic: TLDmodel<T> {
 
   T x, y;
-
 
   TLDquadratic(T *p) : x(p[0]), y(p[1]) {
     setup();
@@ -150,6 +177,10 @@ struct TLDquadratic: TLDmodel<T> {
   }
 
   bool check() const {
+    return y <= (x <= 2 ? 1 - x : -0.25*x*x);
+  }
+
+  bool check_strict() const {
     return x >= 0 && y >= -x && y <= (x <= 2 ? 1 - x : -0.25*x*x);
   }
 };
@@ -181,6 +212,21 @@ struct TLDnonlinear: TLDmodel<T> {
   }
 
   bool check() const {
+    T t;
+
+    if (p > 1) {
+      return y <= (x <= (t = p/(p - 1)) ? 1 - x : std::pow(x/t,p)/(1 - p));
+    } else if (p < 1) {
+      T q = 1/p;
+      return x <= (y <= (t = q/(q-1)) ? 1 - y : std::pow(y/t,q)/(1 - q));
+    }
+
+    // p == 1 (linear case)
+    t = x + y;
+    return t <= 1;
+  }
+
+  bool check_strict() const {
     T t;
 
     if (p > 1) {
@@ -228,8 +274,14 @@ struct TLDlogarithmic: TLDmodel<T> {
 
   bool check() const {
     return
+      x <= 1 &&
+      y >= (x == 1 ? 0 : (x == 0 ? -utils::m_e : -x/utils::lambertW(x/((1 - x)*utils::m_e))));
+  }
+
+  bool check_strict() const {
+    return
       x <= 1 && x >= 0 && y <= x &&
-      y >= (x == 1 || x == 0 ? 0 : -x/utils::lambertW(x/((1 - x)*utils::m_e)));
+      y >= (x == 1 ? 0 : (x == 0 ? -utils::m_e : -x/utils::lambertW(x/((1 - x)*utils::m_e))));
   }
 };
 
@@ -260,6 +312,11 @@ struct TLDsquare_root: TLDmodel<T> {
   }
 
   bool check() const {
+    return
+      y <= (x <= 1 ? 1 - x : 2*(std::sqrt(x) -x));
+  }
+
+  bool check_strict() const {
     return
       x >= -1 && x <= 4 &&
       y >= -4 && y <= 2 &&
@@ -299,6 +356,21 @@ struct TLDpower: TLDmodel<T> {
   }
 
   bool check() const {
+
+    if (a[0] + a[1] + a[2] + a[3] > 1) return false;
+
+    // empirical check based on some points
+    T t, dmu = 0.01;
+
+    for (T mu = 0; mu <= 1; mu += dmu) {
+      t = D(mu);
+      if (t < 0) return false;
+    }
+
+    return true;
+  }
+
+  bool check_strict() const {
 
     if (a[0] + a[1] + a[2] + a[3] > 1) return false;
 
@@ -520,6 +592,86 @@ namespace LD {
 
 
   /*
+    Checking is the parameters yield D(mu) > 0 for all mu in [0,1].
+
+    Input:
+      choice - determine LD model
+      p - pointer to parameters
+
+    Output:
+      true - is everything is ok
+  */
+
+  template <class T>
+  bool check(TLDmodel_type choice, T *p) {
+
+    switch (choice) {
+
+      case UNIFORM:
+        return true;
+
+      case LINEAR:
+        return p[0] <= 1;
+
+      case QUADRATIC:
+        return
+          p[1] <= (p[0] <= 2 ? 1 - p[0] : -0.25*p[0]*p[0]);
+
+      case NONLINEAR:
+      {
+        T t;
+
+        if (p[2] > 1) {
+
+          return
+            p[1] <= (p[0] <= (t = p[2]/(p[2] - 1)) ? 1 - p[0] : std::pow(p[0]/t, p[2])/(1 - p[2]));
+
+        } else if (p[2] < 1) {
+          T q = 1/p[2];
+
+          return
+            p[0] <= (p[1] <= (t = q/(q - 1)) ? 1 - p[1] : std::pow(p[1]/t, q)/(1 - q));
+        }
+
+        // p[2] == 1, linear case
+        t = p[0] + p[1];
+        return t <= 1;
+      }
+
+      case LOGARITHMIC:
+        return
+          p[0] <= 1 &&
+          p[1] >= (p[0] == 1 ? 0 : (p[0] == 0 ? -utils::m_e : -p[0]/utils::lambertW(p[0]/((1 - p[0])*utils::m_e))));
+
+      case SQUARE_ROOT:
+        return p[1] <= (p[0] <= 1 ? 1 - p[0] : 2*(std::sqrt(p[0]) - p[0]));
+
+
+      case POWER:
+      {
+        if (p[0] + p[1] + p[2] + p[3] > 1) return false;
+
+        // empirical check based on some points
+        T q, t, dmu = 0.01;
+
+        for (T mu = 0; mu <= 1; mu += dmu) {
+
+          q = std::sqrt(mu);
+          t = 1 - p[0]*(1 - q) - p[1]*(1 - mu) - p[2]*(1 - mu*q) - p[3]*(1 - mu*mu);
+
+          if (t < 0) return false;
+        }
+
+        return true;
+      }
+
+      default:
+       std::cerr << "LD::check::This model is not supported\n";
+       return false;
+    }
+  }
+
+  /*
     Checking is the parameters yield D(mu) in [0,1] for mu in [0,1].
 
     Input:
@@ -527,11 +679,11 @@ namespace LD {
       p - pointer to parameters
 
     Output:
-      true - is eveything is ok
+      true - is everything is ok
   */
 
   template <class T>
-  bool check(TLDmodel_type choice, T *p) {
+  bool check_strict(TLDmodel_type choice, T *p) {
 
     switch (choice) {
 
@@ -572,7 +724,7 @@ namespace LD {
       case LOGARITHMIC:
         return
           p[0] <= 1 && p[0] >= 0 && p[1] <= p[0] &&
-          p[1] >= (p[0] == 1 || p[0] == 0 ? 0 : -p[0]/utils::lambertW(p[0]/((1 - p[0])*utils::m_e)));
+          p[1] >= (p[0] == 1 ? 0 : (p[0] == 0 ? -utils::m_e : -p[0]/utils::lambertW(p[0]/((1 - p[0])*utils::m_e))));
 
       case SQUARE_ROOT:
         return

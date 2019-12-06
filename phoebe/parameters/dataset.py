@@ -141,9 +141,6 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         component, according to <phoebe.parameters.HierarchyParameter> will be
         available.  To change the provided component, see `pblum_component`.
         Only applicable if `syn` is False and `is_lc` is True.
-    * `pbflux` (float/quantity, optional): passband flux (defined here as
-        `pblum/4pi`).  Only applicable if `pblum_mode` is 'pbflux', `syn` is False,
-        and `is_lc` is True.
     * `l3_mode` (string, optional, default='flux'): mode for providing third
         light (`l3`).  Only applicable if `syn` is False and `is_lc` is True.
     * `l3` (float/quantity, optional): third light in flux units (only applicable
@@ -209,7 +206,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
 
         params += [ChoiceParameter(qualifier='pblum_mode', value=kwargs.get('pblum_mode', 'component-coupled'),
-                                   choices=['decoupled', 'component-coupled', 'dataset-coupled', 'pbflux', 'dataset-scaled', 'absolute'],
+                                   choices=['decoupled', 'component-coupled', 'dataset-coupled', 'dataset-scaled', 'absolute'],
                                    description='Mode for scaling passband luminosities')]
 
         # pblum_mode = 'component-coupled' or 'decoupled'
@@ -220,7 +217,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [ChoiceParameter(visible_if='pblum_mode:dataset-coupled', qualifier='pblum_dataset', value=kwargs.get('pblum_dataset', ''), choices=['']+kwargs.get('lcrefs', []), description='Dataset with which to couple luminosities based on color')]
 
         # pblum_mode = 'pbflux'
-        params += [FloatParameter(visible_if='pblum_mode:pbflux', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total inrinsic (excluding features and irradiation) passband flux (at t0, including l3 if pblum_mode=\'flux\')')]
+        params += [FloatParameter(visible_if='false', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total inrinsic (excluding features and irradiation) passband flux (at t0, including l3 if pblum_mode=\'flux\')')]
 
         params += [ChoiceParameter(qualifier='l3_mode', value=kwargs.get('l3_mode', 'flux'), choices=['flux', 'fraction'], description='Whether third light is given in units of flux or as a fraction of total light')]
         params += [FloatParameter(visible_if='l3_mode:flux', qualifier='l3', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
