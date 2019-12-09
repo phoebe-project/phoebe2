@@ -3924,7 +3924,7 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
         url = 'http://tables.phoebe-project.org/pbs/list/{}'.format(phoebe_version)
 
         try:
-            resp = urlopen(url)
+            resp = urlopen(url, timeout=3)
         except Exception as err:
             url_repo = 'http://tables.phoebe-project.org'
             msg = "connection to online passbands at {} could not be established.  Check your internet connection or try again later.  If the problem persists and you're using a Mac, you may need to update openssl (see http://phoebe-project.org/help/faq).".format(url_repo)
