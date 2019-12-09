@@ -183,11 +183,6 @@ class Passband:
         # content list.
         self.content = []
 
-        # Initialize atmosphere list; these names match the names of the
-        # atmosphere models in the atm parameter. As above, when an atm
-        # table is added, this list is appended.
-        self.atmlist = []
-
         # Basic passband properties:
         self.pbset = pbset
         self.pbname = pbname
@@ -247,9 +242,8 @@ class Passband:
         header['PTFPAREA'] = self.ptf_photon_area
 
         header['CONTENT'] = str(self.content)
-        header['ATMLIST'] = str(self.atmlist)
 
-        if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
+        if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
             header['WD_IDX'] = self.extern_wd_idx
 
         data = []
@@ -262,89 +256,89 @@ class Passband:
         ptf_table = Table(self.ptf_table)
         data.append(fits.table_to_hdu(Table(self.ptf_table, meta={'extname': 'PTFTABLE'})))
 
-        if 'blackbody' in self.content:
+        if 'blackbody:Inorm' in self.content:
             bb_func = Table({'teff': self._bb_func_energy[0], 'logi_e': self._bb_func_energy[1], 'logi_p': self._bb_func_photon[1]}, meta={'extname': 'BB_FUNC'})
             data.append(fits.table_to_hdu(bb_func))
 
-        if 'bb_ext' in self.content:
+        if 'blackbody:ext' in self.content:
             data.append(fits.table_to_hdu(Table({'teff': self._bb_extinct_axes[0]}, meta={'extname': 'BB_TEFFS'})))
             data.append(fits.table_to_hdu(Table({'ebv': self._bb_extinct_axes[1]}, meta={'extname': 'BB_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': self._bb_extinct_axes[2]}, meta={'extname': 'BB_RVS'})))
 
-        if 'ck2004' in self.content:
+        if 'ck2004:Inorm' in self.content:
             ck_teffs, ck_loggs, ck_abuns = self._ck2004_axes
             data.append(fits.table_to_hdu(Table({'teff': ck_teffs}, meta={'extname': 'CK_TEFFS'})))
             data.append(fits.table_to_hdu(Table({'logg': ck_loggs}, meta={'extname': 'CK_LOGGS'})))
             data.append(fits.table_to_hdu(Table({'abun': ck_abuns}, meta={'extname': 'CK_ABUNS'})))
 
-        if 'ck2004_all' in self.content:
+        if 'ck2004:Imu' in self.content:
             ck_mus = self._ck2004_intensity_axes[-1]
             data.append(fits.table_to_hdu(Table({'mu': ck_mus}, meta={'extname': 'CK_MUS'})))
 
-        if 'ck2004_ext' in self.content:
+        if 'ck2004:ext' in self.content:
             ck_ebvs = self._ck2004_extinct_axes[-2]
             ck_rvs = self._ck2004_extinct_axes[-1]
             data.append(fits.table_to_hdu(Table({'ebv': ck_ebvs}, meta={'extname': 'CK_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': ck_rvs}, meta={'extname': 'CK_RVS'})))
 
-        if 'phoenix' in self.content:
+        if 'phoenix:Inorm' in self.content:
             ph_teffs, ph_loggs, ph_abuns = self._phoenix_axes
             data.append(fits.table_to_hdu(Table({'teff': ph_teffs}, meta={'extname': 'PH_TEFFS'})))
             data.append(fits.table_to_hdu(Table({'logg': ph_loggs}, meta={'extname': 'PH_LOGGS'})))
             data.append(fits.table_to_hdu(Table({'abun': ph_abuns}, meta={'extname': 'PH_ABUNS'})))
 
-        if 'phoenix_all' in self.content:
+        if 'phoenix:Imu' in self.content:
             ph_mus = self._phoenix_intensity_axes[-1]
             data.append(fits.table_to_hdu(Table({'mu': ph_mus}, meta={'extname': 'PH_MUS'})))
 
-        if 'phoenix_ext' in self.content:
+        if 'phoenix:ext' in self.content:
             ph_ebvs = self._phoenix_extinct_axes[-2]
             ph_rvs = self._phoenix_extinct_axes[-1]
             data.append(fits.table_to_hdu(Table({'ebv': ph_ebvs}, meta={'extname': 'PH_EBVS'})))
             data.append(fits.table_to_hdu(Table({'rv': ph_rvs}, meta={'extname': 'PH_RVS'})))
 
         # Data:
-        if 'bb_ext' in self.content:
+        if 'blackbody:ext' in self.content:
             data.append(fits.ImageHDU(self._bb_extinct_energy_grid, name='BBEGRID'))
             data.append(fits.ImageHDU(self._bb_extinct_photon_grid, name='BBPGRID'))
 
-        if 'ck2004' in self.content:
+        if 'ck2004:Inorm' in self.content:
             data.append(fits.ImageHDU(self._ck2004_energy_grid, name='CKNEGRID'))
             data.append(fits.ImageHDU(self._ck2004_photon_grid, name='CKNPGRID'))
 
-        if 'ck2004_all' in self.content:
+        if 'ck2004:Imu' in self.content:
             data.append(fits.ImageHDU(self._ck2004_Imu_energy_grid, name='CKFEGRID'))
             data.append(fits.ImageHDU(self._ck2004_Imu_photon_grid, name='CKFPGRID'))
 
-        if 'ck2004_ld' in self.content:
+        if 'ck2004:ld' in self.content:
             data.append(fits.ImageHDU(self._ck2004_ld_energy_grid, name='CKLEGRID'))
             data.append(fits.ImageHDU(self._ck2004_ld_photon_grid, name='CKLPGRID'))
 
-        if 'ck2004_ldint' in self.content:
+        if 'ck2004:ldint' in self.content:
             data.append(fits.ImageHDU(self._ck2004_ldint_energy_grid, name='CKIEGRID'))
             data.append(fits.ImageHDU(self._ck2004_ldint_photon_grid, name='CKIPGRID'))
 
-        if 'ck2004_ext' in self.content:
+        if 'ck2004:ext' in self.content:
             data.append(fits.ImageHDU(self._ck2004_extinct_energy_grid, name='CKXEGRID'))
             data.append(fits.ImageHDU(self._ck2004_extinct_photon_grid, name='CKXPGRID'))
 
-        if 'phoenix' in self.content:
+        if 'phoenix:Inorm' in self.content:
             data.append(fits.ImageHDU(self._phoenix_energy_grid, name='PHNEGRID'))
             data.append(fits.ImageHDU(self._phoenix_photon_grid, name='PHNPGRID'))
 
-        if 'phoenix_all' in self.content:
+        if 'phoenix:Imu' in self.content:
             data.append(fits.ImageHDU(self._phoenix_Imu_energy_grid, name='PHFEGRID'))
             data.append(fits.ImageHDU(self._phoenix_Imu_photon_grid, name='PHFPGRID'))
 
-        if 'phoenix_ld' in self.content:
+        if 'phoenix:ld' in self.content:
             data.append(fits.ImageHDU(self._phoenix_ld_energy_grid, name='PHLEGRID'))
             data.append(fits.ImageHDU(self._phoenix_ld_photon_grid, name='PHLPGRID'))
 
-        if 'phoenix_ldint' in self.content:
+        if 'phoenix:ldint' in self.content:
             data.append(fits.ImageHDU(self._phoenix_ldint_energy_grid, name='PHIEGRID'))
             data.append(fits.ImageHDU(self._phoenix_ldint_photon_grid, name='PHIPGRID'))
 
-        if 'phoenix_ext' in self.content:
+        if 'phoenix:ext' in self.content:
             data.append(fits.ImageHDU(self._phoenix_extinct_energy_grid, name='PHXEGRID'))
             data.append(fits.ImageHDU(self._phoenix_extinct_photon_grid, name='PHXPGRID'))
 
@@ -362,7 +356,6 @@ class Passband:
             'originating_phoebe_version': phoebe_version,
             'timestamp': time.ctime(),
             'content': self.content,
-            'atmlist': self.atmlist,
             'pbset': self.pbset,
             'pbname': self.pbname,
             'effwl': self.effwl,
@@ -378,28 +371,28 @@ class Passband:
             # 'ptf_photon_func': self.ptf_photon_func,
             'ptf_photon_area': self.ptf_photon_area,
         }
-        if 'blackbody' in self.content:
+        if 'blackbody:Inorm' in self.content:
             data.update({
                 '_bb_func_energy': self._bb_func_energy,
                 '_bb_func_photon': self._bb_func_photon,
             })
-        if 'bb_ext' in self.content:
+        if 'blackbody:ext' in self.content:
             data.update({
                 '_bb_extinct_axes': self._bb_extinct_axes,
                 '_bb_extinct_photon_grid': self._bb_extinct_photon_grid,
                 '_bb_extinct_energy_grid': self._bb_extinct_energy_grid,
             })
-        if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
+        if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
             data.update({
                 'extern_wd_idx': self.extern_wd_idx,
             })
-        if 'ck2004' in self.content:
+        if 'ck2004:Inorm' in self.content:
             data.update({
                 '_ck2004_axes': self._ck2004_axes,
                 '_ck2004_energy_grid': self._ck2004_energy_grid,
                 '_ck2004_photon_grid': self._ck2004_photon_grid,
             })
-        if 'ck2004_all' in self.content:
+        if 'ck2004:Imu' in self.content:
             data.update({
                 '_ck2004_intensity_axes': self._ck2004_intensity_axes,
                 '_ck2004_Imu_energy_grid': self._ck2004_Imu_energy_grid,
@@ -407,29 +400,29 @@ class Passband:
                 # '_ck2004_boosting_energy_grid': self._ck2004_boosting_energy_grid,
                 # '_ck2004_boosting_photon_grid': self._ck2004_boosting_photon_grid,
             })
-        if 'ck2004_ld' in self.content:
+        if 'ck2004:ld' in self.content:
             data.update({
                 '_ck2004_ld_energy_grid': self._ck2004_ld_energy_grid,
                 '_ck2004_ld_photon_grid': self._ck2004_ld_photon_grid,
             })
-        if 'ck2004_ldint' in self.content:
+        if 'ck2004:ldint' in self.content:
             data.update({
                 '_ck2004_ldint_energy_grid': self._ck2004_ldint_energy_grid,
                 '_ck2004_ldint_photon_grid': self._ck2004_ldint_photon_grid,
             })
-        if 'ck2004_ext' in self.content:
+        if 'ck2004:ext' in self.content:
             data.update({
                 '_ck2004_extinct_axes': self._ck2004_extinct_axes,
                 '_ck2004_extinct_energy_grid': self._ck2004_extinct_energy_grid,
                 '_ck2004_extinct_photon_grid': self._ck2004_extinct_photon_grid,
             })
-        if 'phoenix' in self.content:
+        if 'phoenix:Inorm' in self.content:
             data.update({
                 '_phoenix_axes': self._phoenix_axes,
                 '_phoenix_energy_grid': self._phoenix_energy_grid,
                 '_phoenix_photon_grid': self._phoenix_photon_grid,
             })
-        if 'phoenix_all' in self.content:
+        if 'phoenix:Imu' in self.content:
             data.update({
                 '_phoenix_intensity_axes': self._phoenix_intensity_axes,
                 '_phoenix_Imu_energy_grid': self._phoenix_Imu_energy_grid,
@@ -437,17 +430,17 @@ class Passband:
                 # '_phoenix_boosting_energy_grid': self._phoenix_boosting_energy_grid,
                 # '_phoenix_boosting_photon_grid': self._phoenix_boosting_photon_grid,
             })
-        if 'phoenix_ld' in self.content:
+        if 'phoenix:ld' in self.content:
             data.update({
                 '_phoenix_ld_energy_grid': self._phoenix_ld_energy_grid,
                 '_phoenix_ld_photon_grid': self._phoenix_ld_photon_grid,
             })
-        if 'phoenix_ldint' in self.content:
+        if 'phoenix:ldint' in self.content:
             data.update({
                 '_phoenix_ldint_energy_grid': self._phoenix_ldint_energy_grid,
                 '_phoenix_ldint_photon_grid': self._phoenix_ldint_photon_grid,
             })
-        if 'phoenix_ext' in self.content:
+        if 'phoenix:ext' in self.content:
             data.update({
                 '_phoenix_extinct_axes': self._phoenix_extinct_axes,
                 '_phoenix_extinct_energy_grid': self._phoenix_extinct_energy_grid,
@@ -503,7 +496,6 @@ class Passband:
         struct['originating_phoebe_version'] = phoebe_version
 
         struct['content']         = self.content
-        struct['atmlist']         = self.atmlist
         struct['pbset']           = self.pbset
         struct['pbname']          = self.pbname
         struct['effwl']           = self.effwl
@@ -517,18 +509,18 @@ class Passband:
         struct['ptf_area']        = self.ptf_area
         struct['ptf_photon_func'] = self.ptf_photon_func
         struct['ptf_photon_area'] = self.ptf_photon_area
-        if 'blackbody' in self.content:
+        if 'blackbody:Inorm' in self.content:
             struct['_bb_func_energy'] = self._bb_func_energy
             struct['_bb_func_photon'] = self._bb_func_photon
-        if 'bb_ext' in self.content:
+        if 'blackbody:ext' in self.content:
             struct['_bb_extinct_axes']= self._bb_extinct_axes
             struct['_bb_extinct_energy_grid'] = self._bb_extinct_energy_grid
             struct['_bb_extinct_photon_grid'] = self._bb_extinct_energy_grid
-        if 'ck2004' in self.content:
+        if 'ck2004:Inorm' in self.content:
             struct['_ck2004_axes'] = self._ck2004_axes
             struct['_ck2004_energy_grid'] = self._ck2004_energy_grid
             struct['_ck2004_photon_grid'] = self._ck2004_photon_grid
-        if 'phoenix' in self.content:
+        if 'phoenix:Inorm' in self.content:
             struct['_phoenix_axes'] = self._phoenix_axes
             struct['_phoenix_energy_grid'] = self._phoenix_energy_grid
             struct['_phoenix_photon_grid'] = self._phoenix_photon_grid
@@ -536,13 +528,13 @@ class Passband:
             struct['_blended_axes'] = self._blended_axes
             struct['_blended_energy_grid'] = self._blended_energy_grid
             struct['_blended_photon_grid'] = self._blended_photon_grid
-        if 'ck2004_all' in self.content:
+        if 'ck2004:Imu' in self.content:
             struct['_ck2004_intensity_axes'] = self._ck2004_intensity_axes
             struct['_ck2004_Imu_energy_grid'] = self._ck2004_Imu_energy_grid
             struct['_ck2004_Imu_photon_grid'] = self._ck2004_Imu_photon_grid
             struct['_ck2004_boosting_energy_grid'] = self._ck2004_boosting_energy_grid
             struct['_ck2004_boosting_photon_grid'] = self._ck2004_boosting_photon_grid
-        if 'phoenix_all' in self.content:
+        if 'phoenix:Imu' in self.content:
             struct['_phoenix_intensity_axes'] = self._phoenix_intensity_axes
             struct['_phoenix_Imu_energy_grid'] = self._phoenix_Imu_energy_grid
             struct['_phoenix_Imu_photon_grid'] = self._phoenix_Imu_photon_grid
@@ -554,23 +546,23 @@ class Passband:
             struct['_blended_Imu_photon_grid'] = self._blended_Imu_photon_grid
             # struct['_blended_boosting_energy_grid'] = self._blended_boosting_energy_grid
             # struct['_blended_boosting_photon_grid'] = self._blended_boosting_photon_grid
-        if 'ck2004_ld' in self.content:
+        if 'ck2004:ld' in self.content:
             struct['_ck2004_ld_energy_grid'] = self._ck2004_ld_energy_grid
             struct['_ck2004_ld_photon_grid'] = self._ck2004_ld_photon_grid
-        if 'phoenix_ld' in self.content:
+        if 'phoenix:ld' in self.content:
             struct['_phoenix_ld_energy_grid'] = self._phoenix_ld_energy_grid
             struct['_phoenix_ld_photon_grid'] = self._phoenix_ld_photon_grid
         if 'blended_ld' in self.content:
             struct['_blended_ld_energy_grid'] = self._blended_ld_energy_grid
             struct['_blended_ld_photon_grid'] = self._blended_ld_photon_grid
-        if 'ck2004_ldint' in self.content:
+        if 'ck2004:ldint' in self.content:
             struct['_ck2004_ldint_energy_grid'] = self._ck2004_ldint_energy_grid
             struct['_ck2004_ldint_photon_grid'] = self._ck2004_ldint_photon_grid
-        if 'ck2004_ext' in self.content:
+        if 'ck2004:ext' in self.content:
             struct['_ck2004_extinct_axes']= self._ck2004_extinct_axes
             struct['_ck2004_extinct_energy_grid'] = self._ck2004_extinct_energy_grid
             struct['_ck2004_extinct_photon_grid'] = self._ck2004_extinct_photon_grid
-        if 'phoenix_ext' in self.content:
+        if 'phoenix:ext' in self.content:
             struct['_phoenix_extinct_axes']= self._phoenix_extinct_axes
             struct['_phoenix_extinct_energy_grid'] = self._phoenix_extinct_energy_grid
             struct['_phoenix_extinct_photon_grid'] = self._phoenix_extinct_photon_grid
@@ -578,13 +570,13 @@ class Passband:
             struct['_blended_extinct_axes']= self._blended_extinct_axes
             struct['_blended_extinct_energy_grid'] = self._blended_extinct_energy_grid
             struct['_blended_extinct_photon_grid'] = self._blended_extinct_photon_grid
-        if 'phoenix_ldint' in self.content:
+        if 'phoenix:ldint' in self.content:
             struct['_phoenix_ldint_energy_grid'] = self._phoenix_ldint_energy_grid
             struct['_phoenix_ldint_photon_grid'] = self._phoenix_ldint_photon_grid
         if 'blended_ldint' in self.content:
             struct['_blended_ldint_energy_grid'] = self._blended_ldint_energy_grid
             struct['_blended_ldint_photon_grid'] = self._blended_ldint_photon_grid
-        if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
+        if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
         # Finally, timestamp the file:
@@ -621,7 +613,6 @@ class Passband:
         self = cls(from_file=True)
 
         self.content = data['content']
-        self.atmlist = data['atmlist']
 
         self.pbset = data['pbset']
         self.pbname = data['pbname']
@@ -646,19 +637,19 @@ class Passband:
         self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0, k=self.spl_order)
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
 
-        if 'blackbody' in self.content:
+        if 'blackbody:Inorm' in self.content:
             # TODO: check the interpolation in linear vs. log space
             self._bb_func_energy = np.array(data['_bb_func_energy'])
             self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
             self._bb_func_photon = np.array(data['_bb_func_photon'])
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
-        if 'bb_ext' in self.content:
+        if 'blackbody:ext' in self.content:
             self._bb_extinct_axes = data['_bb_extinct_axes']
             self._bb_extinct_energy_grid = data['_bb_extinct_energy_grid']
             self._bb_extinct_photon_grid = data['_bb_extinct_photon_grid']
 
-        if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
+        if 'atmx:Inorm' in self.content and 'planckint:Inorm' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
 
             planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
@@ -667,7 +658,7 @@ class Passband:
             self.wd_data = libphoebe.wd_readdata(planck, atm)
             self.extern_wd_idx = data['extern_wd_idx']
 
-        if 'ck2004' in self.content:
+        if 'ck2004:Inorm' in self.content:
             self._ck2004_axes = data['_ck2004_axes']
             for i in range(len(self._ck2004_axes)):
                 self._ck2004_axes[i] = np.array(self._ck2004_axes[i])
@@ -675,7 +666,7 @@ class Passband:
             self._ck2004_energy_grid = np.array(data['_ck2004_energy_grid'])
             self._ck2004_photon_grid = np.array(data['_ck2004_photon_grid'])
 
-        if 'ck2004_all' in self.content:
+        if 'ck2004:Imu' in self.content:
             self._ck2004_intensity_axes = data['_ck2004_intensity_axes']
             for i in range(len(self._ck2004_intensity_axes)):
                 self._ck2004_intensity_axes[i] = np.array(self._ck2004_intensity_axes[i])
@@ -685,15 +676,15 @@ class Passband:
             # self._ck2004_boosting_energy_grid = data['_ck2004_boosting_energy_grid']
             # self._ck2004_boosting_photon_grid = data['_ck2004_boosting_photon_grid']
 
-        if 'ck2004_ld' in self.content:
+        if 'ck2004:ld' in self.content:
             self._ck2004_ld_energy_grid = np.array(data['_ck2004_ld_energy_grid'])
             self._ck2004_ld_photon_grid = np.array(data['_ck2004_ld_photon_grid'])
 
-        if 'ck2004_ldint' in self.content:
+        if 'ck2004:ldint' in self.content:
             self._ck2004_ldint_energy_grid = np.array(data['_ck2004_ldint_energy_grid'])
             self._ck2004_ldint_photon_grid = np.array(data['_ck2004_ldint_photon_grid'])
 
-        if 'ck2004_ext' in self.content:
+        if 'ck2004:ext' in self.content:
             self._ck2004_extinct_axes = data['_ck2004_extinct_axes']
             for i in range(len(self._ck2004_extinct_axes)):
                 self._ck2004_extinct_axes[i] = np.array(self._ck2004_extinct_axes[i])
@@ -701,7 +692,7 @@ class Passband:
             self._ck2004_extinct_energy_grid = np.array(data['_ck2004_extinct_energy_grid'])
             self._ck2004_extinct_photon_grid = np.array(data['_ck2004_extinct_photon_grid'])
 
-        if 'phoenix' in self.content:
+        if 'phoenix:Inorm' in self.content:
             self._phoenix_axes = data['_phoenix_axes']
             for i in range(len(self._phoenix_axes)):
                 self._phoenix_axes[i] = np.array(self._phoenix_axes[i])
@@ -709,7 +700,7 @@ class Passband:
             self._phoenix_energy_grid = np.array(data['_phoenix_energy_grid'])
             self._phoenix_photon_grid = np.array(data['_phoenix_photon_grid'])
 
-        if 'phoenix_all' in self.content:
+        if 'phoenix:Imu' in self.content:
             self._phoenix_intensity_axes = data['_phoenix_intensity_axes']
             for i in range(len(self._phoenix_intensity_axes)):
                 self._phoenix_intensity_axes[i] = np.array(self._phoenix_intensity_axes[i])
@@ -719,15 +710,15 @@ class Passband:
             # self._phoenix_boosting_energy_grid = struct['_phoenix_boosting_energy_grid']
             # self._phoenix_boosting_photon_grid = struct['_phoenix_boosting_photon_grid']
 
-        if 'phoenix_ld' in self.content:
+        if 'phoenix:ld' in self.content:
             self._phoenix_ld_energy_grid = np.array(data['_phoenix_ld_energy_grid'])
             self._phoenix_ld_photon_grid = np.array(data['_phoenix_ld_photon_grid'])
 
-        if 'phoenix_ldint' in self.content:
+        if 'phoenix:ldint' in self.content:
             self._phoenix_ldint_energy_grid = np.array(data['_phoenix_ldint_energy_grid'])
             self._phoenix_ldint_photon_grid = np.array(data['_phoenix_ldint_photon_grid'])
 
-        if 'phoenix_ext' in self.content:
+        if 'phoenix:ext' in self.content:
             self._phoenix_extinct_axes = data['_phoenix_extinct_axes']
             for i in range(len(self._phoenix_extinct_axes)):
                 self._phoenix_extinct_axes[i] = np.array(self._phoenix_extinct_axes[i])
@@ -799,11 +790,10 @@ class Passband:
             self.ptf_photon_area = header['ptfparea']
 
             self.content = eval(header['content'], {'__builtins__':None}, {})
-            self.atmlist = eval(header['atmlist'], {'__builtins__':None}, {})
 
             self.ptf_table = hdul['ptftable'].data
 
-            if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
+            if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
                 atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
                 planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
                 atm = (atmdir+'/atmcof.dat').encode('utf8')
@@ -811,59 +801,59 @@ class Passband:
                 self.wd_data = libphoebe.wd_readdata(planck, atm)
                 self.extern_wd_idx = header['wd_idx']
 
-            if 'blackbody' in self.content:
+            if 'blackbody:Inorm' in self.content:
                 self._bb_func_energy = (hdul['bb_func'].data['teff'], hdul['bb_func'].data['logi_e'], 3)
                 self._bb_func_photon = (hdul['bb_func'].data['teff'], hdul['bb_func'].data['logi_p'], 3)
                 self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
                 self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
-            if 'bb_ext' in self.content:
+            if 'blackbody:ext' in self.content:
                 self._bb_extinct_axes = (np.array(list(hdul['bb_teffs'].data['teff'])), np.array(list(hdul['bb_ebvs'].data['ebv'])), np.array(list(hdul['bb_rvs'].data['rv'])))
                 self._bb_extinct_energy_grid = hdul['bbegrid'].data
                 self._bb_extinct_photon_grid = hdul['bbpgrid'].data
 
-            if 'ck2004' in self.content:
+            if 'ck2004:Inorm' in self.content:
                 self._ck2004_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])))
                 self._ck2004_energy_grid = hdul['cknegrid'].data
                 self._ck2004_photon_grid = hdul['cknpgrid'].data
 
-            if 'ck2004_all' in self.content:
+            if 'ck2004:Imu' in self.content:
                 self._ck2004_intensity_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_mus'].data['mu'])))
                 self._ck2004_Imu_energy_grid = hdul['ckfegrid'].data
                 self._ck2004_Imu_photon_grid = hdul['ckfpgrid'].data
 
-            if 'ck2004_ld' in self.content:
+            if 'ck2004:ld' in self.content:
                 self._ck2004_ld_energy_grid = hdul['cklegrid'].data
                 self._ck2004_ld_photon_grid = hdul['cklpgrid'].data
 
-            if 'ck2004_ldint' in self.content:
+            if 'ck2004:ldint' in self.content:
                 self._ck2004_ldint_energy_grid = hdul['ckiegrid'].data
                 self._ck2004_ldint_photon_grid = hdul['ckipgrid'].data
 
-            if 'ck2004_ext' in self.content:
+            if 'ck2004:ext' in self.content:
                 self._ck2004_extinct_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_ebvs'].data['ebv'])), np.array(list(hdul['ck_rvs'].data['rv'])))
                 self._ck2004_extinct_energy_grid = hdul['ckxegrid'].data
                 self._ck2004_extinct_photon_grid = hdul['ckxpgrid'].data
 
-            if 'phoenix' in self.content:
+            if 'phoenix:Inorm' in self.content:
                 self._phoenix_axes = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])))
                 self._phoenix_energy_grid = hdul['phnegrid'].data
                 self._phoenix_photon_grid = hdul['phnpgrid'].data
 
-            if 'phoenix_all' in self.content:
+            if 'phoenix:Imu' in self.content:
                 self._phoenix_intensity_axes = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_mus'].data['mu'])))
                 self._phoenix_Imu_energy_grid = hdul['phfegrid'].data
                 self._phoenix_Imu_photon_grid = hdul['phfpgrid'].data
 
-            if 'phoenix_ld' in self.content:
+            if 'phoenix:ld' in self.content:
                 self._phoenix_ld_energy_grid = hdul['phlegrid'].data
                 self._phoenix_ld_photon_grid = hdul['phlpgrid'].data
 
-            if 'phoenix_ldint' in self.content:
+            if 'phoenix:ldint' in self.content:
                 self._phoenix_ldint_energy_grid = hdul['phiegrid'].data
                 self._phoenix_ldint_photon_grid = hdul['phipgrid'].data
 
-            if 'phoenix_ext' in self.content:
+            if 'phoenix:ext' in self.content:
                 self._phoenix_extinct_axes = (np.array(list(hdul['ph_teffs'].data['teff'])),np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
                 self._phoenix_extinct_energy_grid = hdul['phxegrid'].data
                 self._phoenix_extinct_photon_grid = hdul['phxpgrid'].data
@@ -907,7 +897,6 @@ class Passband:
         self = cls(from_file=True)
 
         self.content = struct['content']
-        self.atmlist = struct['atmlist']
 
         self.pbset = struct['pbset']
         self.pbname = struct['pbname']
@@ -949,7 +938,7 @@ class Passband:
             self.ptf_photon_func = struct['ptf_photon_func']
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
 
-        if 'blackbody' in self.content:
+        if 'blackbody:Inorm' in self.content:
             if marshaled:
                 self._bb_func_energy = list(struct['_bb_func_energy'])
                 self._bb_func_energy[0] = np.fromstring(self._bb_func_energy[0])
@@ -968,21 +957,21 @@ class Passband:
                 self._bb_func_photon = struct['_bb_func_photon']
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
-        if 'bb_ext' in self.content:
+        if 'blackbody:ext' in self.content:
             self._bb_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_bb_extinct_axes']))
             self._bb_extinct_energy_grid = np.fromstring(struct['_bb_extinct_energy_grid'], dtype='float64')
             self._bb_extinct_energy_grid = self._bb_extinct_energy_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
             self._bb_extinct_photon_grid = np.fromstring(struct['_bb_extinct_photon_grid'], dtype='float64')
             self._bb_extinct_photon_grid = self._bb_extinct_photon_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
 
-        if 'ck2004_ext' in self.content:
+        if 'ck2004:ext' in self.content:
             self._ck2004_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_extinct_axes']))
             self._ck2004_extinct_energy_grid = np.fromstring(struct['_ck2004_extinct_energy_grid'], dtype='float64')
             self._ck2004_extinct_energy_grid = self._ck2004_extinct_energy_grid.reshape(len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1)
             self._ck2004_extinct_photon_grid = np.fromstring(struct['_ck2004_extinct_photon_grid'], dtype='float64')
             self._ck2004_extinct_photon_grid = self._ck2004_extinct_photon_grid.reshape(len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1)
 
-        if 'phoenix_ext' in self.content:
+        if 'phoenix:ext' in self.content:
             self._phoenix_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_phoenix_extinct_axes']))
             self._phoenix_extinct_energy_grid = np.fromstring(struct['_phoenix_extinct_energy_grid'], dtype='float64')
             self._phoenix_extinct_energy_grid = self._phoenix_extinct_energy_grid.reshape(len(self._phoenix_extinct_axes[0]), len(self._phoenix_extinct_axes[1]), len(self._phoenix_extinct_axes[2]), len(self._phoenix_extinct_axes[3]), len(self._phoenix_extinct_axes[4]), 1)
@@ -996,7 +985,7 @@ class Passband:
             self._blended_extinct_photon_grid = np.fromstring(struct['_blended_extinct_photon_grid'], dtype='float64')
             self._blended_extinct_photon_grid = self._blended_extinct_photon_grid.reshape(len(self._blended_extinct_axes[0]), len(self._blended_extinct_axes[1]), len(self._blended_extinct_axes[2]), len(self._blended_extinct_axes[3]), len(self._blended_extinct_axes[4]), 1)
 
-        if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
+        if 'atmx:Inorm' in self.content and 'planckint:Inorm' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
 
             planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
@@ -1005,7 +994,7 @@ class Passband:
             self.wd_data = libphoebe.wd_readdata(planck, atm)
             self.extern_wd_idx = struct['extern_wd_idx']
 
-        if 'ck2004' in self.content:
+        if 'ck2004:Inorm' in self.content:
             # CASTELLI & KURUCZ (2004):
             if marshaled:
                 # Axes needs to be a tuple of np.arrays, and grid a np.array:
@@ -1019,7 +1008,7 @@ class Passband:
                 self._ck2004_energy_grid = struct['_ck2004_energy_grid']
                 self._ck2004_photon_grid = struct['_ck2004_photon_grid']
 
-        if 'phoenix' in self.content:
+        if 'phoenix:Inorm' in self.content:
             # PHOENIX (Husser et al. 2013):
             if marshaled:
                 # Axes needs to be a tuple of np.arrays, and grid a np.array:
@@ -1047,7 +1036,7 @@ class Passband:
                 self._blended_energy_grid = struct['_blended_energy_grid']
                 self._blended_photon_grid = struct['_blended_photon_grid']
 
-        if 'ck2004_all' in self.content:
+        if 'ck2004:Imu' in self.content:
             # CASTELLI & KURUCZ (2004) all intensities:
             if marshaled:
                 # Axes needs to be a tuple of np.arrays, and grid a np.array:
@@ -1067,7 +1056,7 @@ class Passband:
                 self._ck2004_boosting_energy_grid = struct['_ck2004_boosting_energy_grid']
                 self._ck2004_boosting_photon_grid = struct['_ck2004_boosting_photon_grid']
 
-        if 'phoenix_all' in self.content:
+        if 'phoenix:Imu' in self.content:
             # PHOENIX spherical model atmohperes (Husser et al. 2013), all intensities:
             if marshaled:
                 # Axes needs to be a tuple of np.arrays, and grid a np.array:
@@ -1107,7 +1096,7 @@ class Passband:
                 # self._blended_boosting_energy_grid = struct['_blended_boosting_energy_grid']
                 # self._blended_boosting_photon_grid = struct['_blended_boosting_photon_grid']
 
-        if 'ck2004_ld' in self.content:
+        if 'ck2004:ld' in self.content:
             if marshaled:
                 self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_ld_energy_grid'], dtype='float64')
                 self._ck2004_ld_energy_grid = self._ck2004_ld_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
@@ -1117,7 +1106,7 @@ class Passband:
                 self._ck2004_ld_energy_grid = struct['_ck2004_ld_energy_grid']
                 self._ck2004_ld_photon_grid = struct['_ck2004_ld_photon_grid']
 
-        if 'phoenix_ld' in self.content:
+        if 'phoenix:ld' in self.content:
             if marshaled:
                 self._phoenix_ld_energy_grid = np.fromstring(struct['_phoenix_ld_energy_grid'], dtype='float64')
                 self._phoenix_ld_energy_grid = self._phoenix_ld_energy_grid.reshape(len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), 11)
@@ -1137,7 +1126,7 @@ class Passband:
                 self._blended_ld_energy_grid = struct['_blended_ld_energy_grid']
                 self._blended_ld_photon_grid = struct['_blended_ld_photon_grid']
 
-        if 'ck2004_ldint' in self.content:
+        if 'ck2004:ldint' in self.content:
             if marshaled:
                 self._ck2004_ldint_energy_grid = np.fromstring(struct['_ck2004_ldint_energy_grid'], dtype='float64')
                 self._ck2004_ldint_energy_grid = self._ck2004_ldint_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
@@ -1147,7 +1136,7 @@ class Passband:
                 self._ck2004_ldint_energy_grid = struct['_ck2004_ldint_energy_grid']
                 self._ck2004_ldint_photon_grid = struct['_ck2004_ldint_photon_grid']
 
-        if 'phoenix_ldint' in self.content:
+        if 'phoenix:ldint' in self.content:
             if marshaled:
                 self._phoenix_ldint_energy_grid = np.fromstring(struct['_phoenix_ldint_energy_grid'], dtype='float64')
                 self._phoenix_ldint_energy_grid = self._phoenix_ldint_energy_grid.reshape(len(self._phoenix_intensity_axes[0]), len(self._phoenix_intensity_axes[1]), len(self._phoenix_intensity_axes[2]), 1)
@@ -1310,11 +1299,8 @@ class Passband:
         self._bb_func_photon = interpolate.splrep(Teffs, log10ints_photon, s=0)
         self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
-        if 'blackbody' not in self.content:
-            self.content.append('blackbody')
-
-        if 'blackbody' not in self.atmlist:
-            self.atmlist.append('blackbody')
+        if 'blackbody:Inorm' not in self.content:
+            self.content.append('blackbody:Inorm')
 
     def impute_atmosphere_grid(self, grid):
         """
@@ -1410,10 +1396,8 @@ class Passband:
             self._bb_extinct_energy_grid[t] = extinctE[i]
             self._bb_extinct_photon_grid[t] = extinctP[i]
 
-        if 'bb_ext' not in self.content:
-            self.content.append('bb_ext')
-        if 'bb_ext' not in self.atmlist:
-            self.atmlist.append('bb_ext')
+        if 'blackbody:ext' not in self.content:
+            self.content.append('blackbody:ext')
 
     def compute_ck2004_reddening(self, path, Ebv=None, Rv=None, verbose=False):
         """
@@ -1514,10 +1498,8 @@ class Passband:
             self._ck2004_extinct_energy_grid[t] = flatE[i]
             self._ck2004_extinct_photon_grid[t] = flatP[i]
 
-        if 'ck2004_ext' not in self.content:
-            self.content.append('ck2004_ext')
-        if 'ck2004_ext' not in self.atmlist:
-            self.atmlist.append('ck2004_ext')
+        if 'ck2004:ext' not in self.content:
+            self.content.append('ck2004:ext')
 
     def compute_phoenix_reddening(self, path, Ebv=None, Rv=None, verbose=False):
         """
@@ -1614,10 +1596,8 @@ class Passband:
             self._phoenix_extinct_energy_grid[t] = flatE[i]
             self._phoenix_extinct_photon_grid[t] = flatP[i]
 
-        if 'phoenix_ext' not in self.content:
-            self.content.append('phoenix_ext')
-        if 'phoenix_ext' not in self.atmlist:
-            self.atmlist.append('phoenix_ext')
+        if 'phoenix:ext' not in self.content:
+            self.content.append('phoenix:ext')
 
     def compute_ck2004_response(self, path, verbose=False):
         """
@@ -1680,10 +1660,8 @@ class Passband:
         # Tried radial basis functions but they were just terrible.
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
 
-        if 'ck2004' not in self.content:
-            self.content.append('ck2004')
-        if 'ck2004' not in self.atmlist:
-            self.atmlist.append('ck2004')
+        if 'ck2004:Inorm' not in self.content:
+            self.content.append('ck2004:Inorm')
 
     def compute_phoenix_response(self, path, verbose=False):
         """
@@ -1745,10 +1723,8 @@ class Passband:
         # Tried radial basis functions but they were just terrible.
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
 
-        if 'phoenix' not in self.content:
-            self.content.append('phoenix')
-        if 'phoenix' not in self.atmlist:
-            self.atmlist.append('phoenix')
+        if 'phoenix:Inorm' not in self.content:
+            self.content.append('phoenix:Inorm')
 
     def _blender_plot(self, axes, table, fname=None, show=False):
         import matplotlib.pyplot as plt
@@ -2473,8 +2449,8 @@ class Passband:
         # for i, Bavg in enumerate(boostingP):
         #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
 
-        if 'ck2004_all' not in self.content:
-            self.content.append('ck2004_all')
+        if 'ck2004:Imu' not in self.content:
+            self.content.append('ck2004:Imu')
 
     def compute_phoenix_intensities(self, path, particular=None, verbose=False):
         """
@@ -2621,8 +2597,8 @@ class Passband:
         # for i, Bavg in enumerate(boostingP):
         #     self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
 
-        if 'phoenix_all' not in self.content:
-            self.content.append('phoenix_all')
+        if 'phoenix:Imu' not in self.content:
+            self.content.append('phoenix:Imu')
 
     def _ldlaw_lin(self, mu, xl):
         return 1.0-xl*(1-mu)
@@ -2651,7 +2627,7 @@ class Passband:
             * 'uniform':  do not apply any per-point weighting
             * 'interval': apply weighting based on the interval widths
         """
-        if 'ck2004_all' not in self.content:
+        if 'ck2004:Imu' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
             return None
 
@@ -2708,8 +2684,8 @@ class Passband:
                             plt.plot(mus[fEmask], self._ldlaw_nonlin(mus[fEmask], *cEnlin), 'k-')
                             plt.show()
 
-        if 'ck2004_ld' not in self.content:
-            self.content.append('ck2004_ld')
+        if 'ck2004:ld' not in self.content:
+            self.content.append('ck2004:ld')
 
     def compute_phoenix_ldcoeffs(self, weighting='uniform', plot_diagnostics=False):
         """
@@ -2723,7 +2699,7 @@ class Passband:
             * 'uniform':  do not apply any per-point weighting
             * 'interval': apply weighting based on the interval widths
         """
-        if 'phoenix_all' not in self.content:
+        if 'phoenix:Imu' not in self.content:
             print('PHOENIX (Husser et al. 2013) intensities are not computed yet. Please compute those first.')
             return None
 
@@ -2780,8 +2756,8 @@ class Passband:
                             plt.plot(mus[fEmask], self._ldlaw_nonlin(mus[fEmask], *cEnlin), 'k-')
                             plt.show()
 
-        if 'phoenix_ld' not in self.content:
-            self.content.append('phoenix_ld')
+        if 'phoenix:ld' not in self.content:
+            self.content.append('phoenix:ld')
 
     def export_phoenix_atmtab(self):
         """
@@ -2872,7 +2848,7 @@ class Passband:
         ldint = 2 \int_0^1 Imu mu dmu
         """
 
-        if 'ck2004_all' not in self.content:
+        if 'ck2004:Imu' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
             return None
 
@@ -2907,8 +2883,8 @@ class Passband:
                     self._ck2004_ldint_energy_grid[a,b,c] = 2*ldint
                     self._ck2004_ldint_photon_grid[a,b,c] = 2*pldint
 
-        if 'ck2004_ldint' not in self.content:
-            self.content.append('ck2004_ldint')
+        if 'ck2004:ldint' not in self.content:
+            self.content.append('ck2004:ldint')
 
     def compute_phoenix_ldints(self):
         """
@@ -2919,7 +2895,7 @@ class Passband:
         ldint = 2 \pi \int_0^1 Imu mu dmu
         """
 
-        if 'phoenix_all' not in self.content:
+        if 'phoenix:Imu' not in self.content:
             print('PHOENIX (Husser et al. 2013) intensities are not computed yet. Please compute those first.')
             return None
 
@@ -2954,8 +2930,8 @@ class Passband:
                     self._phoenix_ldint_energy_grid[a,b,c] = 2*ldint
                     self._phoenix_ldint_photon_grid[a,b,c] = 2*pldint
 
-        if 'phoenix_ldint' not in self.content:
-            self.content.append('phoenix_ldint')
+        if 'phoenix:ldint' not in self.content:
+            self.content.append('phoenix:ldint')
 
     def interpolate_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0,
                                     ldatm='ck2004', ld_func='power',
@@ -2975,17 +2951,17 @@ class Passband:
 
         Returns
         --------
-        * (list or None) list of limb-darkening coefficients or None if 'ck2004_ld'
+        * (list or None) list of limb-darkening coefficients or None if 'ck2004:ld'
             is not available in <phoebe.atmospheres.passbands.Passband.content>
             (see also <phoebe.atmospheres.passbands.Passband.compute_ck2004_ldcoeffs>)
             or if `ld_func` is not recognized.
         """
 
-        if ldatm == 'ck2004' and 'ck2004_ld' not in self.content:
+        if ldatm == 'ck2004' and 'ck2004:ld' not in self.content:
             print('Castelli & Kurucz (2004) limb darkening coefficients are not computed yet. Please compute those first.')
             return None
 
-        if ldatm == 'phoenix' and 'phoenix_ld' not in self.content:
+        if ldatm == 'phoenix' and 'phoenix:ld' not in self.content:
             print('PHOENIX (Husser et al. 2013) limb darkening coefficients are not computed yet. Please compute those first.')
             return None
 
@@ -3035,7 +3011,7 @@ class Passband:
         """
 
         if atm == 'ck2004':
-            if 'ck2004_ext' not in self.content:
+            if 'ck2004:ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
 
             if photon_weighted:
@@ -3054,7 +3030,7 @@ class Passband:
             return extinct_factor
 
         if atm == 'phoenix':
-            if 'phoenix_ext' not in self.content:
+            if 'phoenix:ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
 
             if photon_weighted:
@@ -3094,7 +3070,7 @@ class Passband:
         elif atm != 'blackbody':
             raise  NotImplementedError("atm='{}' not currently supported".format(atm))
         else :
-            if 'bb_ext' not in self.content:
+            if 'blackbody:ext' not in self.content:
                 raise ValueError('Extinction factors are not computed yet. Please compute those first.')
 
             if photon_weighted:
@@ -3155,8 +3131,7 @@ class Passband:
         # Finally, reverse the metallicity axis because it is sorted in
         # reverse order in atmcof:
         self.extern_wd_atmx = atmtab[::-1, :, :, :]
-        self.content += ['extern_planckint', 'extern_atmx']
-        self.atmlist += ['extern_planckint', 'extern_atmx']
+        self.content += ['planckint:Inorm', 'atmx:Inorm']
 
     def _log10_Inorm_extern_planckint(self, Teff):
         """
@@ -3297,7 +3272,7 @@ class Passband:
         if not hasattr(abun, '__iter__'):
             abun = np.array((abun,))
 
-        if atm == 'blackbody' and 'blackbody' in self.content:
+        if atm == 'blackbody' and 'blackbody:Inorm' in self.content:
             if photon_weighted:
                 retval = 10**self._log10_Inorm_bb_photon(Teff)
             else:
@@ -3306,21 +3281,21 @@ class Passband:
                 ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
 
-        elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
+        elif atm == 'planckint' and 'planckint:Inorm' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
             if ldint is None:
                 ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
 
-        elif atm == 'extern_atmx' and 'extern_atmx' in self.content:
+        elif atm == 'atmx' and 'atmx:Inorm' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
 
-        elif atm == 'ck2004' and 'ck2004' in self.content:
+        elif atm == 'ck2004' and 'ck2004:Inorm' in self.content:
             retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
 
-        elif atm == 'phoenix' and 'phoenix' in self.content:
+        elif atm == 'phoenix' and 'phoenix:Inorm' in self.content:
             retval = self._Inorm_phoenix(Teff, logg, abun, photon_weighted=photon_weighted)
 
         elif atm == 'blended' and 'blended' in self.content:
@@ -3373,13 +3348,13 @@ class Passband:
 
         if ld_func == 'interp':
             # The 'interp' LD function works only for model atmospheres:
-            if atm == 'ck2004' and 'ck2004_all' in self.content:
+            if atm == 'ck2004' and 'ck2004:Imu' in self.content:
                 retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
                 nanmask = np.isnan(retval)
                 if np.any(nanmask):
                     raise ValueError('Atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
                 return retval
-            elif atm == 'phoenix' and 'phoenix_all' in self.content:
+            elif atm == 'phoenix' and 'phoenix:Imu' in self.content:
                 retval = self._Imu_phoenix(Teff, logg, abun, mu, photon_weighted=photon_weighted)
                 nanmask = np.isnan(retval)
                 if np.any(nanmask):
@@ -3546,11 +3521,7 @@ def _init_passband(fullpath, check_for_update=True):
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
     passband = pb.pbset+':'+pb.pbname
-    _pbtable[passband] = {'fname': fullpath, 'atms': pb.atmlist, 'atms_ld': [atm for atm in pb.atmlist if '{}_ld'.format(atm) in pb.content], 'timestamp': pb.timestamp, 'pb': None}
-
-    # data = asdf.open(fullpath)
-    # passband = data['pbset'] + data['pbname']
-    # _pbtable[passband] = {'fname': fullpath, 'atms': data['atmlist'], 'atms_ld': [atm for atm in data['atmlist'] if '{}_ld'.format(atm) in data['content']], 'timestamp': data['timestamp'], 'pb': None}
+    _pbtable[passband] = {'fname': fullpath, 'timestamp': pb.timestamp, 'pb': None}
 
     if check_for_update and update_passband_available(passband):
         msg = 'passband "{}" has a newer version available.  Run phoebe.download_passband("{}") or phoebe.update_all_passbands() to update.'.format(passband, passband)
