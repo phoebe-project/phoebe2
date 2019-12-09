@@ -763,7 +763,7 @@ class Passband:
         return self
 
     @classmethod
-    def load(cls, archive):
+    def load(cls, archive, load_content=True):
         """
         @archive: filename of the passband
 
@@ -793,9 +793,10 @@ class Passband:
 
             self.ptf_table = hdul['ptftable'].data
 
-            if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
-                atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-                planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
+            if load_content:
+                if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
+                    atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
+                    planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
                 atm = (atmdir+'/atmcof.dat').encode('utf8')
 
                 self.wd_data = libphoebe.wd_readdata(planck, atm)
@@ -3519,7 +3520,7 @@ def _init_passband(fullpath, check_for_update=True):
     """
     """
     logger.info("initializing passband at {}".format(fullpath))
-    pb = Passband.load(fullpath)
+    pb = Passband.load(fullpath, load_content=False)
     passband = pb.pbset+':'+pb.pbname
     atms = list(set([c.split(':')[0] for c in pb.content]))
     atms_ld = [atm for atm in atms if '{}:ld'.format(atm) in pb.content and '{}:ldint'.format(atm) in pb.content]
