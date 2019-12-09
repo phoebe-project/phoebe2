@@ -3521,7 +3521,9 @@ def _init_passband(fullpath, check_for_update=True):
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
     passband = pb.pbset+':'+pb.pbname
-    _pbtable[passband] = {'fname': fullpath, 'timestamp': pb.timestamp, 'pb': None}
+    atms = list(set([c.split(':')[0] for c in pb.content]))
+    atms_ld = [atm for atm in atms if '{}:ld'.format(atm) in pb.content and '{}:ldint'.format(atm) in pb.content]
+    _pbtable[passband] = {'fname': fullpath, 'content': pb.content, 'atms': atms, 'atms_ld': atms_ld, 'timestamp': pb.timestamp, 'pb': None}
 
     if check_for_update and update_passband_available(passband):
         msg = 'passband "{}" has a newer version available.  Run phoebe.download_passband("{}") or phoebe.update_all_passbands() to update.'.format(passband, passband)
@@ -3559,7 +3561,7 @@ def _init_passbands(refresh=False, query_online=True, passband_directories=None)
             for f in os.listdir(path):
                 if f == 'README':
                     continue
-                if f.split('.')[-1] != 'fits':
+                if ".".join(f.split('.')[1:]) not in ['fits', 'fits.gz']:
                     # ignore old passband versions
                     continue
 
