@@ -2657,9 +2657,9 @@ class Bundle(ParameterSet):
                                         True)
 
                 for check,content in [(pb_needs_Inorm, '{}:Inorm'.format(atm)),
-                                      (pb_needs_Imu and 'extern_' not in atm, '{}:Imu'.format(atm)),
-                                      (pb_needs_ld and 'extern_' not in atm, '{}:ld'.format(atm)),
-                                      (pb_needs_ldint and 'extern_' not in atm, '{}:ldint'.format(atm)),
+                                      (pb_needs_Imu and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:Imu'.format(atm)),
+                                      (pb_needs_ld and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:ld'.format(atm)),
+                                      (pb_needs_ldint and atm not in ['extern_planckint', 'extern_atmx', 'blackbody'], '{}:ldint'.format(atm)),
                                       (pb_needs_ext, '{}:ext'.format(atm)),
                                       ]:
                     if not check: continue
