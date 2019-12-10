@@ -243,7 +243,7 @@ class Passband:
 
         header['CONTENT'] = str(self.content)
 
-        if 'extern_planckint:Inorm' in self.content and 'extern_atmx:Inorm' in self.content:
+        if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
             header['WD_IDX'] = self.extern_wd_idx
 
         data = []
@@ -814,7 +814,7 @@ class Passband:
             self.ptf_table = hdul['ptftable'].data
 
             if load_content:
-                if 'extern_planckint:Inorm' in self.content and 'extern_atmx:Inorm' in self.content:
+                if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
                     atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
                     planck = os.path.join(atmdir+'/atmcofplanck.dat').encode('utf8')
                     atm = os.path.join(atmdir+'/atmcof.dat').encode('utf8')
