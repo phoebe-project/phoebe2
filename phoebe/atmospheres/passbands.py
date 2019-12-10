@@ -243,7 +243,7 @@ class Passband:
 
         header['CONTENT'] = str(self.content)
 
-        if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
+        if 'extern_planckint:Inorm' in self.content and 'extern_atmx:Inorm' in self.content:
             header['WD_IDX'] = self.extern_wd_idx
 
         data = []
@@ -382,7 +382,7 @@ class Passband:
                 '_bb_extinct_photon_grid': self._bb_extinct_photon_grid,
                 '_bb_extinct_energy_grid': self._bb_extinct_energy_grid,
             })
-        if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
+        if 'extern_planckint:Inorm' in self.content and 'extern_atmx:Inorm' in self.content:
             data.update({
                 'extern_wd_idx': self.extern_wd_idx,
             })
@@ -576,7 +576,7 @@ class Passband:
         if 'blended_ldint' in self.content:
             struct['_blended_ldint_energy_grid'] = self._blended_ldint_energy_grid
             struct['_blended_ldint_photon_grid'] = self._blended_ldint_photon_grid
-        if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
+        if 'extern_planckint:Inorm' in self.content and 'extern_atmx:Inorm' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
         # Finally, timestamp the file:
@@ -649,7 +649,7 @@ class Passband:
             self._bb_extinct_energy_grid = data['_bb_extinct_energy_grid']
             self._bb_extinct_photon_grid = data['_bb_extinct_photon_grid']
 
-        if 'atmx:Inorm' in self.content and 'planckint:Inorm' in self.content:
+        if 'exterm_atmx:Inorm' in self.content and 'extern_planckint:Inorm' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
 
             planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
@@ -793,7 +793,7 @@ class Passband:
 
             self.ptf_table = hdul['ptftable'].data
 
-            if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
+            if 'extern_planckint:Inorm' in self.content and 'extern_atmx:Inorm' in self.content:
                 atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
                 planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
                 atm = (atmdir+'/atmcof.dat').encode('utf8')
@@ -985,7 +985,7 @@ class Passband:
             self._blended_extinct_photon_grid = np.fromstring(struct['_blended_extinct_photon_grid'], dtype='float64')
             self._blended_extinct_photon_grid = self._blended_extinct_photon_grid.reshape(len(self._blended_extinct_axes[0]), len(self._blended_extinct_axes[1]), len(self._blended_extinct_axes[2]), len(self._blended_extinct_axes[3]), len(self._blended_extinct_axes[4]), 1)
 
-        if 'atmx:Inorm' in self.content and 'planckint:Inorm' in self.content:
+        if 'extern_atmx:Inorm' in self.content and 'extern_planckint:Inorm' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
 
             planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
@@ -3131,7 +3131,7 @@ class Passband:
         # Finally, reverse the metallicity axis because it is sorted in
         # reverse order in atmcof:
         self.extern_wd_atmx = atmtab[::-1, :, :, :]
-        self.content += ['planckint:Inorm', 'atmx:Inorm']
+        self.content += ['extern_planckint:Inorm', 'extern_atmx:Inorm']
 
     def _log10_Inorm_extern_planckint(self, Teff):
         """
@@ -3281,14 +3281,14 @@ class Passband:
                 ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
 
-        elif atm == 'planckint' and 'planckint:Inorm' in self.content:
+        elif atm == 'extern_planckint' and 'extern_planckint:Inorm' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
             if ldint is None:
                 ldint = self.ldint(Teff, logg, abun, ldatm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
 
-        elif atm == 'atmx' and 'atmx:Inorm' in self.content:
+        elif atm == 'extern_atmx' and 'extern_atmx:Inorm' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
 
