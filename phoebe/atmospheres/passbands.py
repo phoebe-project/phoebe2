@@ -4084,7 +4084,7 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
     else:
         return list(_online_passbands.keys())
 
-def get_passband(passband, content=None, update_if_necessary=False):
+def get_passband(passband, content=None, reload=False, update_if_necessary=False):
     """
     For convenience, this function is available at the top-level as
     <phoebe.get_passband> as well as
@@ -4187,7 +4187,7 @@ def get_passband(passband, content=None, update_if_necessary=False):
     else:
         raise ValueError("passband {} not installed locally and online passbands is disabled.")
 
-    if _pbtable.get(passband, {}).get('pb', None) is None:
+    if reload or _pbtable.get(passband, {}).get('pb', None) is None:
         logger.info("loading {} passband (including all tables)".format(passband))
         pb = Passband.load(_pbtable[passband]['fname'], load_content=True)
         _pbtable[passband]['pb'] = pb
