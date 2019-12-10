@@ -223,14 +223,14 @@ class Passband:
             self.version = 1.0
         return 'Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content)
 
-    def save_fits(self, archive, overwrite=True):
+    def save_fits(self, archive, overwrite=True, update_timestamp=True):
         """
         Saves the passband file in fits (default) format.
         """
 
         header = fits.Header()
         header['PHOEBEVN'] = phoebe_version
-        header['TIMESTMP'] = time.ctime()
+        header['TIMESTMP'] = time.ctime() if update_timestamp else self.timestamp
         header['PBSET'] = self.pbset
         header['PBNAME'] = self.pbname
         header['EFFWL'] = self.effwl
@@ -588,8 +588,8 @@ class Passband:
             else:
                 pickle.dump(struct, f, protocol=4)
 
-    def save(self, archive, overwrite=True):
-        self.save_fits(archive, overwrite=overwrite)
+    def save(self, archive, overwrite=True, update_timestamp=True):
+        self.save_fits(archive, overwrite=overwrite, update_timestamp=update_timestamp)
 
     @classmethod
     def load_asdf(cls, archive):
