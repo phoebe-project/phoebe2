@@ -589,6 +589,17 @@ class Passband:
                 pickle.dump(struct, f, protocol=4)
 
     def save(self, archive, overwrite=True, update_timestamp=True):
+        """
+        Save the passband to FITS format.
+
+        Arguments
+        ----------
+        * `archive` (string): filename of the saved file
+        * `overwrite` (bool, optional, default=True): whether to overwrite an
+            existing file with the same filename as provided in `archive`
+        * `update_timestamp` (bool, optional, default=True): whether to update
+            the stored timestamp with the current time.
+        """
         self.save_fits(archive, overwrite=overwrite, update_timestamp=update_timestamp)
 
     @classmethod
@@ -765,9 +776,18 @@ class Passband:
     @classmethod
     def load(cls, archive, load_content=True):
         """
-        @archive: filename of the passband
-
         Loads the passband contents from a fits file.
+
+        Arguments
+        ----------
+        * `archive` (string): filename of the passband (in FITS format)
+        * `load_content` (bool, optional, default=True): whether to load all
+            table contents.  If False, only the headers will be loaded into
+            the structure.
+
+        Returns
+        --------
+        * the instantiated <phoebe.atmospheres.passbands.Passband> object.
         """
 
         logger.debug("loading passband from {}".format(archive))
@@ -1333,16 +1353,23 @@ class Passband:
 
     def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
         """
-        Computes mean effect of reddening (a weighted average) on passband using blackbody atmosphere and CCM89 prescription of extinction
+        Computes mean effect of reddening (a weighted average) on passband using
+        blackbody atmosphere and CCM89 prescription of extinction.
 
-        @Teffs: an array of effective temperatures. If None, a default
-        array from ~300K to ~500000K with 97 steps is used. The default
-        array is uniform in log10 scale.
-        @Ebv: colour discrepancies E(B-V)
-        @Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
-        @verbose: switch to determine whether computing progress should
-        be printed on screen
-        Returns: n/a
+        See also:
+        * <phoebe.atmospheres.passbands.Passband.compute_ck2004_reddening>
+        * <phoebe.atmospheres.passbands.Passband.compute_phoenix_reddening>
+
+        Arguments
+        -----------
+        * `Teffs` (array or None, optional, default=None): an array of effective
+            temperatures. If None, a default array from ~300K to ~500000K with
+            97 steps is used. The default array is uniform in log10 scale.
+        * `Ebv` (float or None, optional, default=None): color discrepancies E(B-V)
+        * `Rv` (float or None, optional, default=None): Extinction factor
+            (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+        * `verbose` (bool, optional, default=False): switch to determine whether
+            computing progress should be printed on screen
         """
 
         if Teffs is None:
@@ -1402,15 +1429,21 @@ class Passband:
 
     def compute_ck2004_reddening(self, path, Ebv=None, Rv=None, verbose=False):
         """
-        Computes mean effect of reddening (a weighted average) on passband using ck2004 atmospheres and CCM89 prescription of extinction
+        Computes mean effect of reddening (a weighted average) on passband using
+        ck2004 atmospheres and CCM89 prescription of extinction.
 
-        @path: path to the directory containing ck2004 SEDs
-        @verbose: switch to determine whether computing progress should
-        be printed on screen
-        @Ebv: colour discrepancies E(B-V)
-        @Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+        See also:
+        * <phoebe.atmospheres.passbands.Passband.compute_bb_reddening>
+        * <phoebe.atmospheres.passbands.Passband.compute_phoenix_reddening>
 
-        Returns: n/a
+        Arguments
+        ------------
+        * `path` (string): path to the directory containing ck2004 SEDs
+        * `Ebv` (float or None, optional, default=None): colour discrepancies E(B-V)
+        * `Rv` (float or None, optional, default=None): Extinction factor
+            (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+        * `verbose` (bool, optional, default=False): switch to determine whether
+            computing progress should be printed on screen
         """
 
         if Ebv is None:
@@ -1504,15 +1537,21 @@ class Passband:
 
     def compute_phoenix_reddening(self, path, Ebv=None, Rv=None, verbose=False):
         """
-        Computes mean effect of reddening (a weighted average) on passband using phoenix atmospheres and CCM89 prescription of extinction
+        Computes mean effect of reddening (a weighted average) on passband using
+        phoenix atmospheres and CCM89 prescription of extinction.
 
-        @path: path to the directory containing phoenix SEDs
-        @verbose: switch to determine whether computing progress should
-        be printed on screen
-        @Ebv: colour discrepancies E(B-V)
-        @Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+        See also:
+        * <phoebe.atmospheres.passbands.Passband.compute_bb_reddening>
+        * <phoebe.atmospheres.passbands.Passband.compute_ck2004_reddening>
 
-        Returns: n/a
+        Arguments
+        ------------
+        * `path` (string): path to the directory containing ck2004 SEDs
+        * `Ebv` (float or None, optional, default=None): colour discrepancies E(B-V)
+        * `Rv` (float or None, optional, default=None): Extinction factor
+            (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+        * `verbose` (bool, optional, default=False): switch to determine whether
+            computing progress should be printed on screen
         """
 
         if Ebv is None:
@@ -3008,7 +3047,24 @@ class Passband:
     def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody',  extinct=0.0, Rv=3.1, photon_weighted=False):
         """
         Interpolates the passband-stored tables of extinction corrections
-        Returns not implemented error for ck2004 atmospheres
+
+        Arguments
+        ----------
+        * `Teff` (float, optional, default=5772): effective temperature.
+        * `logg` (float, optional, default=4.43): log surface gravity
+        * `abun` (float, optional, default=0.0): abundance
+        * `atm` (string, optional, default='blackbody'): atmosphere model.
+        * `extinct` (float, optional, default=0.0)
+        * `Rv` (float, optional, default=3.1)
+        * `photon_weighted` (bool, optional, default=False)
+
+        Returns
+        ---------
+        * extinction factor
+
+        Raises
+        --------
+        * NotImplementedError if `atm` is not supported.
         """
 
         if atm == 'ck2004':
