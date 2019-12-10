@@ -4165,7 +4165,7 @@ def get_passband(passband, content=None, update_if_necessary=False):
         if content is not None and not np.all([c in content_installed for c in content]):
             # then we can update without prompting if the timestamps match
             timestamp_online = list_online_passbands(full_dict=True).get(passband, {}).get('timestamp', None)
-            if update_if_necessary or timestamp_installed == timestamp_online:
+            if timestamp_online is not None and (update_if_necessary or timestamp_installed == timestamp_online):
                 download_passband(passband, content=content)
             else:
                 # TODO: ValueError may not be the right choice here...
@@ -4174,7 +4174,7 @@ def get_passband(passband, content=None, update_if_necessary=False):
         else:
             # then we will just retrieve the local version and return it
             pass
-    else:
+    elif os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE':
         # then we need to download, if available online
         if content is None:
             content = 'all'
@@ -4184,8 +4184,11 @@ def get_passband(passband, content=None, update_if_necessary=False):
         else:
             raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands(), list_online_passbands()))
 
+    else:
+        raise ValueError("passband {} not installed locally and online passbands is disabled.")
+
     if _pbtable.get(passband, {}).get('pb', None) is None:
-        logger.info("loading {} passband".format(passband))
+        logger.info("loading {} passband (including all tables)".format(passband))
         pb = Passband.load(_pbtable[passband]['fname'], load_content=True)
         _pbtable[passband]['pb'] = pb
 
