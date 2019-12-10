@@ -33,7 +33,7 @@ from phoebe.parameters.parameters import _uniqueid
 from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
-from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, _timestamp_to_dt
+from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
 from phoebe.utils import _bytes, parse_json
 import libphoebe
 
@@ -2626,25 +2626,74 @@ class Bundle(ParameterSet):
         all_pbs = list_passbands(full_dict=True)
         installed_pbs = list_installed_passbands(full_dict=True)
         online_pbs = list_online_passbands(full_dict=True)
+
+
         for pbparam in self.filter(qualifier='passband', **_skip_filter_checks).to_list():
             pb = pbparam.get_value()
-            pbatms = installed_pbs[pb]['atms']
+
+            pb_needs_Inorm = True
+            pb_needs_ld = False
+            pb_needs_ext = self.get_value(qualifier='ebv', dataset=pbparam.dataset, context='dataset', **_skip_filter_checks)
+
+            missing_pb_content = []
+
             # NOTE: atms are not attached to datasets, but per-compute and per-component
             # check to make sure passband supports the selected atm
             for atmparam in self.filter(qualifier='atm', kind='phoebe', **_skip_filter_checks).to_list():
                 atm = atmparam.get_value(**_skip_filter_checks)
-                if atm not in pbatms:
-                    report.add_item(self,
-                                    "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
-                                    [pbparam, atmparam],
-                                    True)
+                if atm not in installed_pbs.get(pb, {}).get('atms', []):
+                    if atm in online_pbs.get(pb, {}).get('atms', []):
+                        missing_pb_content += ['{}:Inorm'.format(atm)]
+                    else:
+                        report.add_item(self,
+                                        "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
+                                        [pbparam, atmparam],
+                                        True)
+
+                if True:
+                    if '{}:Inorm'.format(atm) not in installed_pbs.get(pb, {}).get('content', []):
+                        if '{}:Inorm'.format(atm) in online_pbs.get(pb, {}).get('content', []):
+                            missing_pb_content += ['{}:Inorm'.format(atm)]
+                        else:
+                            report.add_item(self,
+                                            "'{}' passband ({}) does not support Inorm with atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
+                                            [pbparam, atmparam],
+                                            True)
 
 
-            # check to see if passband timestamp is recent enough for reddening, etc.
-            if False: # if reddening is non-zero: and also update timestamp to the release of extinction-ready passbands
-                if installed_pbs[pb]['timestamp'] is None or _timestamp_to_dt(installed_pbs[pb]['timestamp']) < _timestamp_to_dt("Wed Jan 25 12:00:00 2019"):
+                if pb_needs_ld:
+                    if '{}:ld'.format(atm) not in installed_pbs.get(pb, {}).get('content', []):
+                        if '{}:ld'.format(atm) in online_pbs.get(pb, {}).get('content', []):
+                            missing_pb_content += ['{}:ld'.format(atm)]
+                        else:
+                            report.add_item(self,
+                                            "'{}' passband ({}) does not support limb-darkening with atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
+                                            [pbparam, atmparam],
+                                            True)
+                if pb_needs_ext:
+                    if '{}:ext'.format(atm) not in installed_pbs.get(pb, {}).get('content', []):
+                        if '{}:ext'.format(atm) in online_pbs.get(pb, {}).get('content', []):
+                            missing_pb_content += ['{}:ext'.format(atm)]
+                        else:
+                            report.add_item(self,
+                                            "'{}' passband ({}) does not support extinction with atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
+                                            [pbparam, atmparam],
+                                            True)
+
+            # remove any duplicates
+            missing_pb_content = list(set(missing_pb_content))
+            if len(missing_pb_content):
+                installed_timestamp = installed_pbs.get(pb, {}).get('timestamp', None)
+                online_timestamp = online_pbs.get(pb, {}).get('timestamp', None)
+                if pb not in installed_pbs.keys():
+                    logger.warning("downloading and installing {} passband with content={}".format(pb, missing_pb_content))
+                    download_passband(pb, content=missing_pb_content)
+                elif _timestamp_to_dt(installed_timestamp) == _timestamp_to_dt(online_timestamp):
+                    logger.warning("updating installed {} passband (with matching online timestamp) to include content={}".format(pb, missing_pb_content))
+                    update_passband(pb, content=missing_pb_content)
+                else:
                     report.add_item(self,
-                                    'installed passband "{}" does not support reddening/extinction.  Call phoebe.download_passband("{}") or phoebe.update_all_passbands() to update to the latest version.'.format(pb, pb),
+                                    'installed passband "{}" is missing the following tables: {}. The available online version ({}) is newer than the installed version ({}), so will not be updated automatically.  Call phoebe.update_passband("{}", content={}) or phoebe.update_all_passbands() to update to the latest version.'.format(pb, missing_pb_content, installed_timestamp, online_timestamp, pb, atm, missing_pb_content),
                                     [pbparam],
                                     True)
 
@@ -5868,7 +5917,7 @@ class Bundle(ParameterSet):
                     else:
                         ldcs = atm
 
-                pb = get_passband(passband)
+                pb = get_passband(passband, content='{}:ld'.format(ldcs))
                 teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', check_visible=False)
                 logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', check_visible=False)
                 abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', check_visible=False)

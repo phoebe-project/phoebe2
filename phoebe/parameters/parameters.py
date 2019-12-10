@@ -6254,10 +6254,7 @@ class ChoiceParameter(Parameter):
         if value not in self.choices:
             raise ValueError("value for {} must be one of {}, not '{}'".format(self.uniquetwig, self.choices, value))
 
-        if self.qualifier=='passband' and value not in list_installed_passbands():
-            # then we need to download and install before setting
-            logger.info("downloading passband: {}".format(value))
-            download_passband(value)
+        # NOTE: downloading passbands from online is now handled by run_checks
 
         self._value = value
 
