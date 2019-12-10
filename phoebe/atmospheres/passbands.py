@@ -796,68 +796,68 @@ class Passband:
             if load_content:
                 if 'planckint:Inorm' in self.content and 'atmx:Inorm' in self.content:
                     atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-                    planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
-                atm = (atmdir+'/atmcof.dat').encode('utf8')
+                    planck = os.path.join(atmdir+'/atmcofplanck.dat').encode('utf8')
+                    atm = os.path.join(atmdir+'/atmcof.dat').encode('utf8')
 
-                self.wd_data = libphoebe.wd_readdata(planck, atm)
-                self.extern_wd_idx = header['wd_idx']
+                    self.wd_data = libphoebe.wd_readdata(planck, atm)
+                    self.extern_wd_idx = header['wd_idx']
 
-            if 'blackbody:Inorm' in self.content:
-                self._bb_func_energy = (hdul['bb_func'].data['teff'], hdul['bb_func'].data['logi_e'], 3)
-                self._bb_func_photon = (hdul['bb_func'].data['teff'], hdul['bb_func'].data['logi_p'], 3)
-                self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
-                self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
+                if 'blackbody:Inorm' in self.content:
+                    self._bb_func_energy = (hdul['bb_func'].data['teff'], hdul['bb_func'].data['logi_e'], 3)
+                    self._bb_func_photon = (hdul['bb_func'].data['teff'], hdul['bb_func'].data['logi_p'], 3)
+                    self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
+                    self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
-            if 'blackbody:ext' in self.content:
-                self._bb_extinct_axes = (np.array(list(hdul['bb_teffs'].data['teff'])), np.array(list(hdul['bb_ebvs'].data['ebv'])), np.array(list(hdul['bb_rvs'].data['rv'])))
-                self._bb_extinct_energy_grid = hdul['bbegrid'].data
-                self._bb_extinct_photon_grid = hdul['bbpgrid'].data
+                if 'blackbody:ext' in self.content:
+                    self._bb_extinct_axes = (np.array(list(hdul['bb_teffs'].data['teff'])), np.array(list(hdul['bb_ebvs'].data['ebv'])), np.array(list(hdul['bb_rvs'].data['rv'])))
+                    self._bb_extinct_energy_grid = hdul['bbegrid'].data
+                    self._bb_extinct_photon_grid = hdul['bbpgrid'].data
 
-            if 'ck2004:Inorm' in self.content:
-                self._ck2004_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])))
-                self._ck2004_energy_grid = hdul['cknegrid'].data
-                self._ck2004_photon_grid = hdul['cknpgrid'].data
+                if 'ck2004:Inorm' in self.content:
+                    self._ck2004_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])))
+                    self._ck2004_energy_grid = hdul['cknegrid'].data
+                    self._ck2004_photon_grid = hdul['cknpgrid'].data
 
-            if 'ck2004:Imu' in self.content:
-                self._ck2004_intensity_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_mus'].data['mu'])))
-                self._ck2004_Imu_energy_grid = hdul['ckfegrid'].data
-                self._ck2004_Imu_photon_grid = hdul['ckfpgrid'].data
+                if 'ck2004:Imu' in self.content:
+                    self._ck2004_intensity_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_mus'].data['mu'])))
+                    self._ck2004_Imu_energy_grid = hdul['ckfegrid'].data
+                    self._ck2004_Imu_photon_grid = hdul['ckfpgrid'].data
 
-            if 'ck2004:ld' in self.content:
-                self._ck2004_ld_energy_grid = hdul['cklegrid'].data
-                self._ck2004_ld_photon_grid = hdul['cklpgrid'].data
+                if 'ck2004:ld' in self.content:
+                    self._ck2004_ld_energy_grid = hdul['cklegrid'].data
+                    self._ck2004_ld_photon_grid = hdul['cklpgrid'].data
 
-            if 'ck2004:ldint' in self.content:
-                self._ck2004_ldint_energy_grid = hdul['ckiegrid'].data
-                self._ck2004_ldint_photon_grid = hdul['ckipgrid'].data
+                if 'ck2004:ldint' in self.content:
+                    self._ck2004_ldint_energy_grid = hdul['ckiegrid'].data
+                    self._ck2004_ldint_photon_grid = hdul['ckipgrid'].data
 
-            if 'ck2004:ext' in self.content:
-                self._ck2004_extinct_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_ebvs'].data['ebv'])), np.array(list(hdul['ck_rvs'].data['rv'])))
-                self._ck2004_extinct_energy_grid = hdul['ckxegrid'].data
-                self._ck2004_extinct_photon_grid = hdul['ckxpgrid'].data
+                if 'ck2004:ext' in self.content:
+                    self._ck2004_extinct_axes = (np.array(list(hdul['ck_teffs'].data['teff'])), np.array(list(hdul['ck_loggs'].data['logg'])), np.array(list(hdul['ck_abuns'].data['abun'])), np.array(list(hdul['ck_ebvs'].data['ebv'])), np.array(list(hdul['ck_rvs'].data['rv'])))
+                    self._ck2004_extinct_energy_grid = hdul['ckxegrid'].data
+                    self._ck2004_extinct_photon_grid = hdul['ckxpgrid'].data
 
-            if 'phoenix:Inorm' in self.content:
-                self._phoenix_axes = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])))
-                self._phoenix_energy_grid = hdul['phnegrid'].data
-                self._phoenix_photon_grid = hdul['phnpgrid'].data
+                if 'phoenix:Inorm' in self.content:
+                    self._phoenix_axes = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])))
+                    self._phoenix_energy_grid = hdul['phnegrid'].data
+                    self._phoenix_photon_grid = hdul['phnpgrid'].data
 
-            if 'phoenix:Imu' in self.content:
-                self._phoenix_intensity_axes = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_mus'].data['mu'])))
-                self._phoenix_Imu_energy_grid = hdul['phfegrid'].data
-                self._phoenix_Imu_photon_grid = hdul['phfpgrid'].data
+                if 'phoenix:Imu' in self.content:
+                    self._phoenix_intensity_axes = (np.array(list(hdul['ph_teffs'].data['teff'])), np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_mus'].data['mu'])))
+                    self._phoenix_Imu_energy_grid = hdul['phfegrid'].data
+                    self._phoenix_Imu_photon_grid = hdul['phfpgrid'].data
 
-            if 'phoenix:ld' in self.content:
-                self._phoenix_ld_energy_grid = hdul['phlegrid'].data
-                self._phoenix_ld_photon_grid = hdul['phlpgrid'].data
+                if 'phoenix:ld' in self.content:
+                    self._phoenix_ld_energy_grid = hdul['phlegrid'].data
+                    self._phoenix_ld_photon_grid = hdul['phlpgrid'].data
 
-            if 'phoenix:ldint' in self.content:
-                self._phoenix_ldint_energy_grid = hdul['phiegrid'].data
-                self._phoenix_ldint_photon_grid = hdul['phipgrid'].data
+                if 'phoenix:ldint' in self.content:
+                    self._phoenix_ldint_energy_grid = hdul['phiegrid'].data
+                    self._phoenix_ldint_photon_grid = hdul['phipgrid'].data
 
-            if 'phoenix:ext' in self.content:
-                self._phoenix_extinct_axes = (np.array(list(hdul['ph_teffs'].data['teff'])),np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
-                self._phoenix_extinct_energy_grid = hdul['phxegrid'].data
-                self._phoenix_extinct_photon_grid = hdul['phxpgrid'].data
+                if 'phoenix:ext' in self.content:
+                    self._phoenix_extinct_axes = (np.array(list(hdul['ph_teffs'].data['teff'])),np.array(list(hdul['ph_loggs'].data['logg'])), np.array(list(hdul['ph_abuns'].data['abun'])), np.array(list(hdul['ph_ebvs'].data['ebv'])), np.array(list(hdul['ph_rvs'].data['rv'])))
+                    self._phoenix_extinct_energy_grid = hdul['phxegrid'].data
+                    self._phoenix_extinct_photon_grid = hdul['phxpgrid'].data
 
         return self
 
@@ -3527,7 +3527,7 @@ def _init_passband(fullpath, check_for_update=True):
     _pbtable[passband] = {'fname': fullpath, 'content': pb.content, 'atms': atms, 'atms_ld': atms_ld, 'timestamp': pb.timestamp, 'pb': None}
 
     if check_for_update and update_passband_available(passband):
-        msg = 'passband "{}" has a newer version available.  Run phoebe.download_passband("{}") or phoebe.update_all_passbands() to update.'.format(passband, passband)
+        msg = 'passband "{}" has a newer version available.  Run phoebe.update_passband("{}") or phoebe.update_all_passbands() to update.'.format(passband, passband)
         # NOTE: logger probably not available yet, so we'll also use a print statement
         print('PHOEBE: {}'.format(msg))
         logger.warning(msg)
@@ -3632,7 +3632,7 @@ def uninstall_all_passbands(local=True):
         logger.warning("deleting file: {}".format(pbpath))
         os.remove(pbpath)
 
-def download_passband(passband, contents='all', local=True):
+def download_passband(passband, content='all', local=True):
     """
     For convenience, this function is available at the top-level as
     <phoebe.download_passband> as well as
@@ -3652,10 +3652,12 @@ def download_passband(passband, contents='all', local=True):
     * `passband` (string): name of the passband.  Must be one of the available
         passbands in the repository (see
         <phoebe.atmospheres.passbands.list_online_passbands>).
-    * `contents` (string or list, optional, default='all'): contents to fetch
+    * `content` (string or list, optional, default='all'): content to fetch
         from the server.  Options include: 'all' (to fetch all available)
-        or any of the available atmosphere tables for that passband.  To
-        see available options for a given passband, see
+        or any of the available contents for that passband, 'ck2004' to fetch
+        all contents for the 'ck2004' atmosphere, or any specific list of
+        available contents.  To see available options for a given passband, see
+        the 'content' entry for a given passband in the dictionary exposed by
         <phoebe.atmospheres.passbands.list_online_passbands>
         with `full_dict=True`.
     * `local` (bool, optional, default=True): whether to install to the local/user
@@ -3674,19 +3676,19 @@ def download_passband(passband, contents='all', local=True):
 
     pbdir = _pbdir_local if local else _pbdir_global
 
-    if isinstance(contents, str):
-        contents_str = contents
-    elif isinstance(contents, unicode):
-        contents_str = str(contents)
-    elif isinstance(contents, list) or isinstance(contents, tuple):
-        contents_str = ",".join(contents)
+    if isinstance(content, str):
+        content_str = content
+    elif isinstance(content, unicode):
+        content_str = str(content)
+    elif isinstance(content, list) or isinstance(content, tuple):
+        content_str = ",".join(content)
     else:
-        raise TypeError("contents must be of type string or list")
+        raise TypeError("content must be of type string or list")
 
 
     passband_fname = os.path.basename(_online_passbands[passband]['fname'])
     passband_fname_local = os.path.join(pbdir, passband_fname)
-    url = 'http://tables.phoebe-project.org/pbs/{}/{}/{}'.format(passband, contents_str, phoebe_version)
+    url = 'http://tables.phoebe-project.org/pbs/{}/{}/{}'.format(passband, content_str, phoebe_version)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
         urlretrieve(url, passband_fname_local)
@@ -3758,15 +3760,15 @@ def list_all_update_passbands_available():
 
     return [p for p in list_installed_passbands() if update_passband_available(p)]
 
-def update_all_passbands(local=True):
+def update_passband(local=True):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.update_all_passbands> as well as
-    <phoebe.atmospheres.passbands.update_all_passbands>.
+    <phoebe.update_passbands> as well as
+    <phoebe.atmospheres.passbands.update_passband>.
 
-    Download and install updates for all passbands from
-    [tables.phoebe-project.org](http://tables.phoebe-project.org).
-
+    Download and install updates for a single passband from
+    [tables.phoebe-project.org](http://tables.phoebe-project.org), retrieving
+    the same content as in the installed passband.
 
     This will install into the directory dictated by `local`, regardless of the
     location of the original file.  `local`=True passbands always override
@@ -3779,6 +3781,49 @@ def update_all_passbands(local=True):
     directory is in the PHOEBE installation directory.
 
     See also:
+    * <phoebe.atmospheres.passbands.download_passband>
+    * <phoebe.atmospheres.passbands.update_passband_available>
+    * <phoebe.atmospheres.passbands.list_all_update_passbands_available>
+    * <phoebe.atmospheres.passbands.update_all_passbands>
+
+
+    Arguments
+    ----------
+    * `local` (bool, optional, default=True): whether to install to the local/user
+        directory or the PHOEBE installation directory.  If `local=False`, you
+        must have the necessary permissions to write to the installation
+        directory.
+
+    Raises
+    --------
+    * IOError: if internet connection fails.
+    """
+    installed_content = list_installed_passbands(full_dict=True)[passband]['content']
+    download_passband(passband, content=installed_content)
+
+def update_all_passbands(local=True):
+    """
+    For convenience, this function is available at the top-level as
+    <phoebe.update_all_passbands> as well as
+    <phoebe.atmospheres.passbands.update_all_passbands>.
+
+    Download and install updates for all passbands from
+    [tables.phoebe-project.org](http://tables.phoebe-project.org), retrieving
+    the same content as in the installed passbands.
+
+    This will install into the directory dictated by `local`, regardless of the
+    location of the original file.  `local`=True passbands always override
+    `local=False`.
+
+    The local and global installation directories can be listed by calling
+    <phoebe.atmospheres.passbands.list_passband_directories>.  The local
+    (`local=True`) directory is generally at
+    `~/.phoebe/atmospheres/tables/passbands`, and the global (`local=False`)
+    directory is in the PHOEBE installation directory.
+
+    See also
+    * <phoebe.atmospheres.passbands.list_all_update_passbands_available>
+    * <phoebe.atmospheres.passbands.update_passband>
     * <phoebe.atmospheres.passbands.update_passband_available>
 
 
@@ -3794,7 +3839,7 @@ def update_all_passbands(local=True):
     * IOError: if internet connection fails.
     """
     for passband in list_all_update_passbands_available():
-        download_passband(passband, local=local)
+        update_passband(passband, local=local)
 
 def list_passband_directories():
     """
@@ -3842,7 +3887,7 @@ def list_passbands(refresh=False, full_dict=False, skip_keys=[]):
 
     Returns
     --------
-    * (list of strings or dictionary)
+    * (list of strings or dictionary, depending on `full_dict`)
     """
     if full_dict:
         d = list_online_passbands(refresh, True, skip_keys=skip_keys)
@@ -3883,7 +3928,7 @@ def list_installed_passbands(refresh=False, full_dict=False, skip_keys=[]):
 
     Returns
     --------
-    * (list of strings or dictionary)
+    * (list of strings or dictionary, depending on `full_dict`)
     """
 
     if refresh:
@@ -3917,7 +3962,7 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
 
     Returns
     --------
-    * (list of strings or dictionary)
+    * (list of strings or dictionary, depending on `full_dict`)
     """
     global _online_passbands
     if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
@@ -3951,14 +3996,22 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
     else:
         return list(_online_passbands.keys())
 
-def get_passband(passband):
+def get_passband(passband, content=None, update_if_necessary=False):
     """
     For convenience, this function is available at the top-level as
     <phoebe.get_passband> as well as
     <phoebe.atmospheres.passbands.get_passband>.
 
-    Access a passband object by name.  If the passband isn't installed, it`
-    will be downloaded and installed locally.
+    Access a passband object by name.  If the passband isn't installed, it
+    will be downloaded and installed locally.  If the installed passband does
+    not have the necessary tables to match `content` then an attempt will be
+    made to download the necessary additional tables from
+    [tables.phoebe-project.org](http://tables.phoebe-project.org)
+    as long as the timestamps match the local version.  If the online version
+    includes other version updates, then an error will be
+    raised suggesting to call <phoebe.atmospheres.passbands.update_passband>
+    unless `update_if_necessary` is passed as True, in which case the update
+    will automatically be downloaded and installed.
 
     See also:
     * <phoebe.atmospheres.passbands.list_installed_passbands>
@@ -3970,6 +4023,25 @@ def get_passband(passband):
     * `passband` (string): name of the passband.  Must be one of the available
         passbands in the repository (see
         <phoebe.atmospheres.passbands.list_online_passbands>).
+    * `content` (string or list, optional, default=None): content to require
+        to retrieve from a local passband... otherwise will download and install
+        the passband by passing `content` to
+        <phoebe.atmospheres.passbands.download_passband>.
+        Options include: None (to accept the content in the local version,
+        but to pass 'all' to <phoebe.atmospheres.passbands.download_passband>
+        if no installed version exists), 'all' (to require and fetch all
+        available content),
+        'ck2004' to require and fetch
+        all contents for the 'ck2004' atmosphere only (for example), or any specific list of
+        available contents.  To see available options for a given passband, see
+        the 'content' entry for a given passband in the dictionary exposed by
+        <phoebe.atmospheres.passbands.list_online_passbands>
+        with `full_dict=True`.
+    * `update_if_necessary` (bool, optional, default=False): if a local version
+        exists, but does not contain the necessary requirements according to
+        `content`, and the online version has a different timestamp than the
+        installed version, then an error will be raised unless `update_if_necessary`
+        is set to True.
 
     Returns
     -----------
@@ -3981,15 +4053,50 @@ def get_passband(passband):
     * IOError: if needing to download the passband but the connection fails.
     """
 
-    if passband not in list_installed_passbands():
+    if passband in list_installed_passbands():
+        # then we need to make sure all the required content are met in the local version
+        content_installed = _pbtable[passband]['content']
+        timestamp_installed = _pbtable[passband]['timestamp']
+        online_content = list_online_passbands(full_dict=True)[passband]['content']
+
+        if content == 'all':
+            content = online_content
+        elif content is not None:
+            # need to account for mixed atm/table content = ['ck2004', 'blackbody:Inorm']
+            content_expanded = []
+            for c in content:
+                if ':' in c:
+                    content_expanded.append(c)
+                else:
+                    content_expanded += [oc for oc in online_content if oc.split(':')[0]==c]
+            # and lastly remove any duplicated from expanding content = ['ck2004', 'ck2004:ld']
+            content = list(set(content_expanded))
+
+        if content is not None and not np.all([c in content_installed for c in content]):
+            # then we can update without prompting if the timestamps match
+            timestamp_online = list_online_passbands(full_dict=True)[passband].get('timestamp', None)
+            if update_if_necessary or timestamp_installed == timestamp_online:
+                download_passband(passband, content=content)
+            else:
+                # TODO: ValueError may not be the right choice here...
+                raise ValueError("installed version of {} passband does not meet content={} requirements, but online version has a different timestamp.  Call get_passband with update_if_necessary=True or call update_passband to force updating to the newer version.")
+
+        else:
+            # then we will just retrieve the local version and return it
+            pass
+    else:
+        # then we need to download, if available online
+        if content is None:
+            content = 'all'
+
         if passband in list_online_passbands():
-            download_passband(passband)
+            download_passband(passband, content=content)
         else:
             raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands(), list_online_passbands()))
 
     if _pbtable[passband]['pb'] is None:
         logger.info("loading {} passband".format(passband))
-        pb = Passband.load(_pbtable[passband]['fname'])
+        pb = Passband.load(_pbtable[passband]['fname'], load_content=True)
         _pbtable[passband]['pb'] = pb
 
     return _pbtable[passband]['pb']
