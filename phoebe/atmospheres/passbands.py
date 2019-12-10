@@ -4113,7 +4113,7 @@ def get_passband(passband, content=None, update_if_necessary=False):
         # then we need to make sure all the required content are met in the local version
         content_installed = _pbtable[passband]['content']
         timestamp_installed = _pbtable[passband]['timestamp']
-        online_content = list_online_passbands(full_dict=True)[passband]['content']
+        online_content = list_online_passbands(full_dict=True).get(passband, {}).get('content', [])
 
         if content == 'all':
             content = online_content
@@ -4130,7 +4130,7 @@ def get_passband(passband, content=None, update_if_necessary=False):
 
         if content is not None and not np.all([c in content_installed for c in content]):
             # then we can update without prompting if the timestamps match
-            timestamp_online = list_online_passbands(full_dict=True)[passband].get('timestamp', None)
+            timestamp_online = list_online_passbands(full_dict=True).get(passband, {}).get('timestamp', None)
             if update_if_necessary or timestamp_installed == timestamp_online:
                 download_passband(passband, content=content)
             else:
@@ -4150,7 +4150,7 @@ def get_passband(passband, content=None, update_if_necessary=False):
         else:
             raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands(), list_online_passbands()))
 
-    if _pbtable[passband]['pb'] is None:
+    if _pbtable.get(passband, {}).get('pb', None) is None:
         logger.info("loading {} passband".format(passband))
         pb = Passband.load(_pbtable[passband]['fname'], load_content=True)
         _pbtable[passband]['pb'] = pb
