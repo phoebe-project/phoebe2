@@ -1978,7 +1978,7 @@ class Star(Body):
 
             pb = passbands.get_passband(passband)
 
-            if ldatm != 'none' and '{}_ld'.format(ldatm) not in pb.content:
+            if ldatm != 'none' and '{}:ld'.format(ldatm) not in pb.content:
                 if ld_mode == 'lookup':
                     raise ValueError("{} not supported for limb-darkening.  Try changing the value of the ld_coeffs_source parameter".format(ldatm))
                 else:
