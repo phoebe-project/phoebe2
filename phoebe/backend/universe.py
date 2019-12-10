@@ -1978,11 +1978,11 @@ class Star(Body):
 
             pb = passbands.get_passband(passband)
 
-            if ldatm != 'none' and '{}:ld'.format(ldatm) not in pb.content:
+            if ldatm != 'none' and '{}:ldint'.format(ldatm) not in pb.content:
                 if ld_mode == 'lookup':
-                    raise ValueError("{} not supported for limb-darkening.  Try changing the value of the ld_coeffs_source parameter".format(ldatm))
+                    raise ValueError("{} not supported for limb-darkening with {}:{} passband.  Try changing the value of the ld_coeffs_source parameter".format(ldatm, pb.pbset, pb.pbname))
                 else:
-                    raise ValueError("{} not supported for limb-darkening.  Try changing the value of the atm parameter".format(ldatm))
+                    raise ValueError("{} not supported for limb-darkening with {}:{} passband.  Try changing the value of the atm parameter".format(ldatm, pb.pbset, pb.pbname))
 
             if intens_weighting=='photon':
                 ptfarea = pb.ptf_photon_area/pb.h/pb.c

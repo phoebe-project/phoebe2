@@ -2635,7 +2635,9 @@ class Bundle(ParameterSet):
             pb = pbparam.get_value()
 
             pb_needs_Inorm = True
-            pb_needs_ld = False
+            pb_needs_Imu = True
+            pb_needs_ld = True #np.any([p.get_value()!='interp' for p in self.filter(qualifier='ld_mode', dataset=pbparam.dataset, context='dataset', **_skip_filter_checks).to_list()])
+            pb_needs_ldint = True
             pb_needs_ext = self.get_value(qualifier='ebv', dataset=pbparam.dataset, context='dataset', **_skip_filter_checks)
 
             missing_pb_content = []
@@ -2654,35 +2656,23 @@ class Bundle(ParameterSet):
                                         [pbparam, atmparam],
                                         True)
 
-                if True:
-                    if '{}:Inorm'.format(atm) not in installed_pbs.get(pb, {}).get('content', []):
-                        if '{}:Inorm'.format(atm) in online_pbs.get(pb, {}).get('content', []):
-                            missing_pb_content += ['{}:Inorm'.format(atm)]
+                for check,content in [(pb_needs_Inorm, '{}:Inorm'.format(atm)),
+                                      (pb_needs_Imu, '{}:Imu'.format(atm)),
+                                      (pb_needs_ld, '{}:ld'.format(atm)),
+                                      (pb_needs_ldint, '{}:ldint'.format(atm)),
+                                      (pb_needs_ext, '{}:ext'.format(atm)),
+                                      ]:
+                    if not check: continue
+
+                    if content not in installed_pbs.get(pb, {}).get('content', []):
+                        if content in online_pbs.get(pb, {}).get('content', []):
+                            missing_pb_content += [content]
                         else:
                             report.add_item(self,
-                                            "'{}' passband ({}) does not support Inorm with atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
+                                            "'{}' passband ({}) does not support {} ({}).".format(pb, pbparam.twig, content, atmparam.twig),
                                             [pbparam, atmparam],
                                             True)
 
-
-                if pb_needs_ld:
-                    if '{}:ld'.format(atm) not in installed_pbs.get(pb, {}).get('content', []):
-                        if '{}:ld'.format(atm) in online_pbs.get(pb, {}).get('content', []):
-                            missing_pb_content += ['{}:ld'.format(atm)]
-                        else:
-                            report.add_item(self,
-                                            "'{}' passband ({}) does not support limb-darkening with atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
-                                            [pbparam, atmparam],
-                                            True)
-                if pb_needs_ext:
-                    if '{}:ext'.format(atm) not in installed_pbs.get(pb, {}).get('content', []):
-                        if '{}:ext'.format(atm) in online_pbs.get(pb, {}).get('content', []):
-                            missing_pb_content += ['{}:ext'.format(atm)]
-                        else:
-                            report.add_item(self,
-                                            "'{}' passband ({}) does not support extinction with atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig),
-                                            [pbparam, atmparam],
-                                            True)
 
             # remove any duplicates
             missing_pb_content = list(set(missing_pb_content))
