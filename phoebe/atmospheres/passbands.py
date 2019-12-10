@@ -3816,7 +3816,7 @@ def list_all_update_passbands_available():
 
     return [p for p in list_installed_passbands() if update_passband_available(p)]
 
-def update_passband(local=True):
+def update_passband(passband, local=True, content=None):
     """
     For convenience, this function is available at the top-level as
     <phoebe.update_passbands> as well as
@@ -3845,19 +3845,41 @@ def update_passband(local=True):
 
     Arguments
     ----------
+    * `passband` (string): passband to update
     * `local` (bool, optional, default=True): whether to install to the local/user
         directory or the PHOEBE installation directory.  If `local=False`, you
         must have the necessary permissions to write to the installation
         directory.
+    * `content` (string or list, optional, default=None): content to request
+        when downloading the passband, in addition to any content in the existing
+        installed passband, if applicable.
+        Options include: None (request the same contents as the installed version),
+        'all' (to update with all available content),
+        'ck2004' to require all contents for the 'ck2004' atmosphere, or any specific list of
+        available contents.  To see available options for a given passband, see
+        the 'content' entry for a given passband in the dictionary exposed by
+        <phoebe.atmospheres.passbands.list_online_passbands>
+        with `full_dict=True`.
 
     Raises
     --------
     * IOError: if internet connection fails.
     """
-    installed_content = list_installed_passbands(full_dict=True)[passband]['content']
-    download_passband(passband, content=installed_content)
+    installed_content = list_installed_passbands(full_dict=True).get(passband, {}).get('content', [])
+    if content is None:
+        content = installed_content
+    elif isinstance(content, str):
+        if content != 'all':
+            content = list(set(installed_content + [content]))
+    elif isinstance(content, list):
+        content = list(set(installed_content + content))
+    else:
+        raise TypeError("content must be of type list, string, or None")
 
-def update_all_passbands(local=True):
+    # TODO: if same timestamp online and local, only download new content and merge
+    download_passband(passband, content=content)
+
+def update_all_passbands(local=True, content=None):
     """
     For convenience, this function is available at the top-level as
     <phoebe.update_all_passbands> as well as
@@ -3889,13 +3911,23 @@ def update_all_passbands(local=True):
         directory or the PHOEBE installation directory.  If `local=False`, you
         must have the necessary permissions to write to the installation
         directory.
+    * `content` (string or list, optional, default=None): content to request
+        when downloading the passband, in addition to any content in the existing
+        installed passband, if applicable.
+        Options include: None (request the same contents as the installed version),
+        'all' (to update with all available content),
+        'ck2004' to require all contents for the 'ck2004' atmosphere, or any specific list of
+        available contents.  To see available options for a given passband, see
+        the 'content' entry for a given passband in the dictionary exposed by
+        <phoebe.atmospheres.passbands.list_online_passbands>
+        with `full_dict=True`.
 
     Raises
     --------
     * IOError: if internet connection fails.
     """
     for passband in list_all_update_passbands_available():
-        update_passband(passband, local=local)
+        update_passband(passband, local=local, content=content)
 
 def list_passband_directories():
     """
@@ -4118,6 +4150,8 @@ def get_passband(passband, content=None, update_if_necessary=False):
         if content == 'all':
             content = online_content
         elif content is not None:
+            if isinstance(content, str) or isinstance(content, unicode):
+                content = [content]
             # need to account for mixed atm/table content = ['ck2004', 'blackbody:Inorm']
             content_expanded = []
             for c in content:
