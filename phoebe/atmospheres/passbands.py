@@ -3575,7 +3575,8 @@ def _timestamp_to_dt(timestamp):
 def _init_passband(fullpath, check_for_update=True):
     """
     """
-    logger.info("initializing passband at {}".format(fullpath))
+    global _pbtable
+    logger.info("initializing passband (headers only) at {}".format(fullpath))
     pb = Passband.load(fullpath, load_content=False)
     passband = pb.pbset+':'+pb.pbname
     atms = list(set([c.split(':')[0] for c in pb.content]))
@@ -3596,6 +3597,7 @@ def _init_passbands(refresh=False, query_online=True, passband_directories=None)
     and atmosphere content within.
     """
     global _initialized
+    global _pbtable
 
     if passband_directories is None:
         passband_directories = list_passband_directories()
@@ -3687,6 +3689,9 @@ def uninstall_all_passbands(local=True):
         pbpath = os.path.join(pbdir, f)
         logger.warning("deleting file: {}".format(pbpath))
         os.remove(pbpath)
+
+    # need to update the local cache for list_installed_passbands:
+    _init_passbands(refresh=True)
 
 def download_passband(passband, content='all', local=True):
     """
@@ -4125,6 +4130,8 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
         the 'content' entry for a given passband in the dictionary exposed by
         <phoebe.atmospheres.passbands.list_online_passbands>
         with `full_dict=True`.
+    * `reload` (bool, optional, default=False): force reloading from the
+        local file even if a copy of the passband exists in memory.
     * `update_if_necessary` (bool, optional, default=False): if a local version
         exists, but does not contain the necessary requirements according to
         `content`, and the online version has a different timestamp than the
@@ -4140,6 +4147,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
     * ValueError: if the passband cannot be found installed or online.
     * IOError: if needing to download the passband but the connection fails.
     """
+    global _pbtable
 
     if passband in list_installed_passbands():
         # then we need to make sure all the required content are met in the local version

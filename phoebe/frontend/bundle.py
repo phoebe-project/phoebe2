@@ -2624,11 +2624,14 @@ class Bundle(ParameterSet):
 
         # run passband checks
         all_pbs = list_passbands(full_dict=True)
-        installed_pbs = list_installed_passbands(full_dict=True)
         online_pbs = list_online_passbands(full_dict=True)
 
-
         for pbparam in self.filter(qualifier='passband', **_skip_filter_checks).to_list():
+
+            # we include this in the loop so that we get the most recent dict
+            # if a previous passband had to be updated
+            installed_pbs = list_installed_passbands(full_dict=True)
+
             pb = pbparam.get_value()
 
             pb_needs_Inorm = True
@@ -2638,8 +2641,9 @@ class Bundle(ParameterSet):
             missing_pb_content = []
 
             # NOTE: atms are not attached to datasets, but per-compute and per-component
-            # check to make sure passband supports the selected atm
             for atmparam in self.filter(qualifier='atm', kind='phoebe', **_skip_filter_checks).to_list():
+
+                # check to make sure passband supports the selected atm
                 atm = atmparam.get_value(**_skip_filter_checks)
                 if atm not in installed_pbs.get(pb, {}).get('atms', []):
                     if atm in online_pbs.get(pb, {}).get('atms', []):
