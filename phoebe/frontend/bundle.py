@@ -2444,7 +2444,10 @@ class Bundle(ParameterSet):
 
         report = RunChecksReport()
 
-        run_checks_compute = self.get_value(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False, expand=True)
+        try:
+            run_checks_compute = self.get_value(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False, expand=True)
+        except ValueError:
+            run_checks_compute = []
         computes = kwargs.pop('compute', run_checks_compute)
         if computes is None:
             computes = self.computes
