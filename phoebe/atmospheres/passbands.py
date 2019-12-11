@@ -1340,17 +1340,6 @@ class Passband:
         grid[...,0] = filled
         return grid
 
-    def impute_regular_atmosphere_grid(self, axes, grid):
-        """
-        This function imputes the passed atmosphere grid by gridded N-D interpolation.
-        As grid is passed by reference, it is not necessary to re-assign the table to
-        the return value of this function; the return value is provided for convenience
-        only, but the grid is changed in place.
-        """
-
-        valid_mask = ~np.isnan(grid)
-        interp = interpolate.RegularGridInterpolator(axes, grid[valid_mask])
-
     def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
         """
         Computes mean effect of reddening (a weighted average) on passband using
