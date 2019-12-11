@@ -382,7 +382,8 @@ null
 "value": "auto", 
 "choices": [
 "auto", 
-"ck2004"
+"ck2004", 
+"phoenix"
 ], 
 "context": "component", 
 "copy_for": false, 
@@ -666,9 +667,10 @@ null
 "value": "ck2004", 
 "choices": [
 "blackbody", 
+"ck2004", 
+"phoenix", 
 "extern_atmx", 
-"extern_planckint", 
-"ck2004"
+"extern_planckint"
 ], 
 "context": "compute", 
 "copy_for": {
@@ -849,9 +851,10 @@ null
 "value": "ck2004", 
 "choices": [
 "blackbody", 
+"ck2004", 
+"phoenix", 
 "extern_atmx", 
-"extern_planckint", 
-"ck2004"
+"extern_planckint"
 ], 
 "context": "compute", 
 "copy_for": false, 

@@ -6462,9 +6462,9 @@ class SelectParameter(Parameter):
         selection = []
         for v in self.get_value(**kwargs):
             for choice in self.choices:
-                if v==choice and choice not in selection:
+                if v==choice and choice not in selection and len(choice):
                     selection.append(choice)
-                elif _fnmatch(choice, v) and choice not in selection:
+                elif _fnmatch(choice, v) and choice not in selection and len(choice):
                     selection.append(choice)
 
         return selection
