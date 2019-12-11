@@ -26,9 +26,8 @@ import shutil
 import json
 import time
 
-# if sys.version_info[0] >= 3:
-#     # don't import otherwise as can conflict with numpy on Python 2
-#     import asdf
+if sys.version_info[0] == 3:
+  unicode = str
 
 try:
     # For Python 3.0 and later
