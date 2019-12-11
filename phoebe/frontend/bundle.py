@@ -2979,6 +2979,7 @@ class Bundle(ParameterSet):
         for param in self.filter(qualifier='pblum_mode', value='dataset-coupled', **_skip_filter_checks).to_list():
             coupled_to = self.get_value(qualifier='pblum_dataset', dataset=param.dataset, check_visible=True)
             if coupled_to == '':
+                coupled_to = None
                 if param.is_visible:
                     report.add_item(self,
                                     "cannot set pblum_mode@{}='dataset-coupled' when there are no other valid datasets.  Change pblum_mode or add another dataset.".format(param.dataset),
