@@ -2719,7 +2719,10 @@ class Bundle(ParameterSet):
             else:
                 return False, "ld_coeffs={} wrong length for ld_func='{}'.".format(ld_coeffs, ld_func)
 
+        irrad_enabled = kwargs.get('irrad_method', True) != 'none' and np.any([p.get_value()!='none' for p in self.filter(qualifier='irrad_method', compute=computes, **kwargs).to_list()])
         for component in hier_stars:
+            if not irrad_enabled:
+                continue
             # first check ld_coeffs_bol vs ld_func_bol
             ld_mode = self.get_value(qualifier='ld_mode_bol', component=component, context='component', **kwargs)
             ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', **kwargs))
