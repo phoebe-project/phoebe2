@@ -2681,10 +2681,22 @@ class Bundle(ParameterSet):
                 online_timestamp = online_pbs.get(pb, {}).get('timestamp', None)
                 if pb not in installed_pbs.keys():
                     logger.warning("downloading and installing {} passband with content={}".format(pb, missing_pb_content))
-                    download_passband(pb, content=missing_pb_content)
+                    try:
+                        download_passband(pb, content=missing_pb_content)
+                    except IOError:
+                        report.add_item(self,
+                                        'Attempt to download {} passband failed.  Check internet connection, wait for tables.phoebe-project.org to come back online, or try another passband.'.format(pb),
+                                        [pbparam],
+                                        True)
                 elif _timestamp_to_dt(installed_timestamp) == _timestamp_to_dt(online_timestamp):
                     logger.warning("updating installed {} passband (with matching online timestamp) to include content={}".format(pb, missing_pb_content))
-                    update_passband(pb, content=missing_pb_content)
+                    try:
+                        update_passband(pb, content=missing_pb_content)
+                    except IOError:
+                        report.add_item(self,
+                                        'Attempt to update {} passband for the {} tables failed.  Check internet connection, wait for tables.phoebe-project.org to come back online, or try another passband.'.format(pb, missing_pb_content),
+                                        [pbparam],
+                                        True)
                 else:
                     report.add_item(self,
                                     'installed passband "{}" is missing the following tables: {}. The available online version ({}) is newer than the installed version ({}), so will not be updated automatically.  Call phoebe.update_passband("{}", content={}) or phoebe.update_all_passbands() to update to the latest version.'.format(pb, missing_pb_content, installed_timestamp, online_timestamp, pb, atm, missing_pb_content),
