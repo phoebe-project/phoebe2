@@ -46,6 +46,10 @@ import logging
 logger = logging.getLogger("PASSBANDS")
 logger.addHandler(logging.NullHandler())
 
+# Future atmosphere tables could exist in the passband files, but the current
+# release won't be able to handle those.
+_supported_atms = ['blackbody', 'ck2004', 'phoenix', 'extern_atmx', 'extern_planckint']
+
 # Global passband table. This dict should never be tinkered with outside
 # of the functions in this module; it might be nice to make it read-only
 # at some point.

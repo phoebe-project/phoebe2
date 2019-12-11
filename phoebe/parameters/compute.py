@@ -11,7 +11,7 @@ from phoebe import conf
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
 passbands._init_passbands()  # TODO: move to module import
-_atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms']]))
+_atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms'] if atm in passbands._supported_atms]))
 
 def phoebe(**kwargs):
     """
