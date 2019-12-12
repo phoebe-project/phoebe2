@@ -1213,7 +1213,8 @@ class Axes(object):
             aspect = 'equal'
             if self.pad_aspect:
                 if in_animation:
-                    print("WARNING: pad_aspect not supported for animations, ignoring")
+                    if in_animation <= 1:
+                        print("WARNING: pad_aspect not supported for animations, ignoring")
                     adjustable = 'box'
                 else:
                     adjustable = 'datalim'
@@ -1227,7 +1228,7 @@ class Axes(object):
         axes_3d = isinstance(ax, Axes3D)
         if not axes_3d:
             ax.set_aspect(aspect=aspect, adjustable=adjustable)
-        elif self.equal_aspect:
+        elif self.equal_aspect and (not in_animation or in_animation <= 1):
             print("WARNING: equal_aspect not supported for 3d axes, ignoring")
 
         # return_calls = []
