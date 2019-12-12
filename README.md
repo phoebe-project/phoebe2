@@ -80,6 +80,11 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.1.17 - ignore fits passbands hotfix
+
+* Future-proof to ignore for passband files with extensions other than ".pb"
+  which may be introduced in future versions of PHOEBE.
+
 ### 2.1.16 - eccentric/misaligned irradiation hotfix
 
 * Fixes bug where irradiation was over-optimized and not recomputed as needed for
