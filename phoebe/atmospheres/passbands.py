@@ -1975,10 +1975,10 @@ def _init_passbands(refresh=False):
             for f in os.listdir(path):
                 if f=='README':
                     continue
-                if sys.version_info[0] < 3 and f.split('.')[-1] == 'pb3':
+                if sys.version_info[0] < 3 and f.split('.')[-1] != 'pb':
                     # then this is a python3 passband but we're in python 2
                     continue
-                elif sys.version_info[0] >=3 and f.split('.')[-1] == 'pb':
+                elif sys.version_info[0] >=3 and f.split('.')[-1] != 'pb3':
                     # then this is a python 2 passband but we're in python 3
                     continue
                 _init_passband(path+f)
