@@ -1224,7 +1224,11 @@ class Axes(object):
             aspect = 'auto'
             adjustable = 'box'
 
-        ax.set_aspect(aspect=aspect, adjustable=adjustable)
+        axes_3d = isinstance(ax, Axes3D)
+        if not axes_3d:
+            ax.set_aspect(aspect=aspect, adjustable=adjustable)
+        elif self.equal_aspect:
+            print("WARNING: equal_aspect not supported for 3d axes, ignoring")
 
         # return_calls = []
         self._colorcycler.clear_tmp()
@@ -1245,7 +1249,6 @@ class Axes(object):
         if draw_title and self.title is not None:
             ax.set_title(self.title)
 
-        axes_3d = isinstance(ax, Axes3D)
 
         ax.set_xlabel(self.x.label_with_units)
         ax.set_ylabel(self.y.label_with_units)
