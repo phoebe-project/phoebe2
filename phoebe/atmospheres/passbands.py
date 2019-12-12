@@ -209,7 +209,7 @@ class Passband:
         # old passband files do not have versions embedded, that is why we have to do this:
         if not hasattr(self, 'version') or self.version is None:
             self.version = 1.0
-        return 'Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content)
+        return('Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content))
 
     def save(self, archive):
         """
