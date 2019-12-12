@@ -179,7 +179,7 @@ class Passband:
         if not hasattr(self, 'version'):
             self.version = 1.0
         return('Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content))
-    
+
     def save(self, archive):
         struct = dict()
 
@@ -1143,17 +1143,15 @@ def init_passbands(refresh=False):
         # global passbands whenever there is a name conflict
         for path in [_pbdir_global, _pbdir_local]:
             for f in os.listdir(path):
-                if f=='README':
-                    continue
-                init_passband(path+f)
+                if f.split('.')[-1] == 'pb':
+                    init_passband(path+f)
 
         #Check if _pbdir_env has been set and load those passbands too
         if not _pbdir_env == None:
             for path in [_pbdir_env]:
                 for f in os.listdir(path):
-                    if f=='README':
-                        continue
-                    init_passband(path+f)
+                    if f.split('.')[-1] == 'pb':
+                        init_passband(path+f)
 
 
         _initialized = True
