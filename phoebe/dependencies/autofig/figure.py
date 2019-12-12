@@ -558,6 +558,7 @@ class Figure(object):
                 draw_title=True,
                 subplot_grid=None,
                 interval=100,
+                animate_callback=None,
                 show=False, save=False, save_kwargs={},
                 save_afig=False):
         """
@@ -588,6 +589,9 @@ class Figure(object):
             for each <autofig.axes.Axes> in <autofig.figure.Figure.axes>.
         * `interval` (int, optional, default=100): time in ms between each
             frame in the animation.
+        * `animate_callback` (callable, optional, default=None): Function which
+            takes the matplotlib figure object and will be called at each frame
+            within the animation.
         * `show` (bool, optional, default=False): whether to immediately
             draw and show the resulting matplotlib animation.
         * `save` (False or string, optional, default=False): the filename
@@ -636,7 +640,8 @@ class Figure(object):
                                     tight_layout=tight_layout,
                                     draw_sidebars=draw_sidebars,
                                     draw_title=draw_title,
-                                    subplot_grid=subplot_grid)
+                                    subplot_grid=subplot_grid,
+                                    animate_callback=animate_callback)
 
         anim = animation.FuncAnimation(ao.mplfig, ao, fargs=(),\
                 init_func=ao.anim_init, frames=i, interval=interval,\

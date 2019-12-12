@@ -4173,9 +4173,13 @@ class ParameterSet(object):
         * `save` (string, optional, default=False): filename to save the
             figure (or False to not save).
         * `show` (bool, optional, default=False): whether to show the plot
+
         * `animate` (bool, optional, default=False): whether to animate the figure.
         * `interval` (int, optional, default=100): time in ms between each
             frame in the animation.  Applicable only if `animate` is True.
+        * `animate_callback` (callable, optional, default=None): Function which
+            takes the matplotlib figure object and will be called at each frame
+            within the animation.
 
         * `equal_aspect` (optional): whether to force the aspect ratio of the
             axes to be equal.  If not provided, this will default to True if
@@ -4240,6 +4244,7 @@ class ParameterSet(object):
         draw_title = kwargs.pop('draw_title', False)
         subplot_grid = kwargs.pop('subplot_grid', None)
         animate = kwargs.pop('animate', False)
+        animate_callback = kwargs.pop('animate_callback', None)
 
         if kwargs.get('projection', '2d') == '3d' and kwargs.get('ec', None) =='face':
             raise ValueError("projection='3d' and ec='face' do not work together.  Consider ec='none' instead.")
@@ -4335,6 +4340,7 @@ class ParameterSet(object):
                                           draw_title=draw_title,
                                           tight_layout=tight_layout,
                                           subplot_grid=subplot_grid,
+                                          animate_callback=animate_callback,
                                           **kwargs)
             except Exception as err:
                 self.clf()
@@ -4370,6 +4376,7 @@ class ParameterSet(object):
             times = kwargs.get('times', kwargs.get('time', None))
             save_kwargs = kwargs.get('save_kwargs', {})
             interval = kwargs.get('interval', 100)
+            animate_callback = kwargs.get('animate_callback', None)
 
             if times is None:
                 # then let's try to get all SYNTHETIC times
@@ -4400,6 +4407,7 @@ class ParameterSet(object):
                                          draw_title=draw_title,
                                          tight_layout=tight_layout,
                                          subplot_grid=subplot_grid,
+                                         animate_callback=animate_callback,
                                          interval=interval,
                                          save=save,
                                          show=show,
