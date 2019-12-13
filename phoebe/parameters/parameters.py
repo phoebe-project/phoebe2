@@ -8833,6 +8833,8 @@ class ConstraintParameter(Parameter):
         """
         see <phoebe.parameters.Parameter.__init__>
         """
+        # the super call is popping default_unit, so we'll access it first
+        default_unit_kwargs = kwargs.get('default_unit', None)
         super(ConstraintParameter, self).__init__(qualifier=kwargs.pop('qualifier', None), value=value, description=kwargs.pop('description', 'constraint'), **kwargs)
 
         # usually its the bundle's job to attach param._bundle after the
@@ -8840,7 +8842,10 @@ class ConstraintParameter(Parameter):
         # bundle is necessary in order to intialize and set the value
         self._bundle = bundle
         if isinstance(value, ConstraintParameter):
-            default_unit = kwargs.get('default_unit', value.result.unit)
+            if default_unit_kwargs is None:
+                default_unit = value.result.unit
+            else:
+                default_unit = default_unit_kwargs
             value = value.get_value()
 
         else:
