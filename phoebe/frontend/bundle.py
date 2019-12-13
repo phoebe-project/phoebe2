@@ -2014,14 +2014,16 @@ class Bundle(ParameterSet):
         for component in self.hierarchy.get_envelopes():
             # we need two of the three [comp_env] + self.hierarchy.get_siblings_of(comp_env) to have constraints
             logger.debug('re-creating requiv constraints')
-            existing_requiv_constraints = self.filter(constraint_func='requiv_to_pot', component=[component]+self.hierarchy.get_siblings_of(component))
+            existing_requiv_constraints = self.filter(constraint_func='requiv_to_pot',
+                                                      component=[component]+self.hierarchy.get_siblings_of(component),
+                                                      **_skip_filter_checks)
             if len(existing_requiv_constraints) == 2:
                 # do we need to rebuild these?
                 continue
             elif len(existing_requiv_constraints)==0:
                 for component_requiv in self.hierarchy.get_siblings_of(component):
-                    pot_parameter = self.get_parameter(qualifier='pot', component=self.hierarchy.get_envelope_of(component_requiv), context='component')
-                    requiv_parameter = self.get_parameter(qualifier='requiv', component=component_requiv, context='component')
+                    pot_parameter = self.get_parameter(qualifier='pot', component=self.hierarchy.get_envelope_of(component_requiv), context='component', **_skip_filter_checks)
+                    requiv_parameter = self.get_parameter(qualifier='requiv', component=component_requiv, context='component', **_skip_filter_checks)
                     if len(pot_parameter.constrained_by):
                         solve_for = requiv_parameter.uniquetwig
                     else:
@@ -2036,11 +2038,14 @@ class Bundle(ParameterSet):
             logger.debug('re-creating fillout_factor (contact) constraint for {}'.format(component))
             if len(self.filter(context='constraint',
                                constraint_func='fillout_factor',
-                               component=component)):
+                               component=component,
+                               **_skip_filter_checks)):
                 constraint_param = self.get_constraint(constraint_func='fillout_factor',
-                                                       component=component)
+                                                       component=component,
+                                                       **_skip_filter_checks)
                 self.remove_constraint(constraint_func='fillout_factor',
-                                       component=component)
+                                       component=component,
+                                       **_skip_filter_checks)
                 self.add_constraint(constraint.fillout_factor, component,
                                     solve_for=constraint_param.constrained_parameter.uniquetwig,
                                     constraint=constraint_param.constraint)
@@ -2051,11 +2056,14 @@ class Bundle(ParameterSet):
             logger.debug('re-creating pot_min (contact) constraint for {}'.format(component))
             if len(self.filter(context='constraint',
                                constraint_func='potential_contact_min',
-                               component=component)):
+                               component=component,
+                               **_skip_filter_checks)):
                 constraint_param = self.get_constraint(constraint_func='potential_contact_min',
-                                                       component=component)
+                                                       component=component,
+                                                       **_skip_filter_checks)
                 self.remove_constraint(constraint_func='potential_contact_min',
-                                       component=component)
+                                       component=component,
+                                       **_skip_filter_checks)
                 self.add_constraint(constraint.potential_contact_min, component,
                                     solve_for=constraint_param.constrained_parameter.uniquetwig,
                                     constraint=constraint_param.constraint)
@@ -2066,11 +2074,14 @@ class Bundle(ParameterSet):
             logger.debug('re-creating pot_max (contact) constraint for {}'.format(component))
             if len(self.filter(context='constraint',
                                constraint_func='potential_contact_max',
-                               component=component)):
+                               component=component,
+                               **_skip_filter_checks)):
                 constraint_param = self.get_constraint(constraint_func='potential_contact_max',
-                                                       component=component)
+                                                       component=component,
+                                                       **_skip_filter_checks)
                 self.remove_constraint(constraint_func='potential_contact_max',
-                                       component=component)
+                                       component=component,
+                                       **_skip_filter_checks)
                 self.add_constraint(constraint.potential_contact_max, component,
                                     solve_for=constraint_param.constrained_parameter.uniquetwig,
                                     constraint=constraint_param.constraint)
@@ -2087,11 +2098,14 @@ class Bundle(ParameterSet):
                 # TODO: will this cause problems if the constraint has been flipped?
                 if len(self.filter(context='constraint',
                                    constraint_func='mass',
-                                component=component)):
+                                   component=component,
+                                   **_skip_filter_checks)):
                     constraint_param = self.get_constraint(constraint_func='mass',
-                                                           component=component)
+                                                           component=component,
+                                                           **_skip_filter_checks)
                     self.remove_constraint(constraint_func='mass',
-                                           component=component)
+                                           component=component,
+                                           **_skip_filter_checks)
                     self.add_constraint(constraint.mass, component,
                                         solve_for=constraint_param.constrained_parameter.uniquetwig,
                                         constraint=constraint_param.constraint)
@@ -2104,11 +2118,14 @@ class Bundle(ParameterSet):
                 # TODO: will this cause problems if the constraint has been flipped?
                 if len(self.filter(context='constraint',
                                    constraint_func='comp_sma',
-                                   component=component)):
+                                   component=component,
+                                   **_skip_filter_checks)):
                     constraint_param = self.get_constraint(constraint_func='comp_sma',
-                                                           component=component)
+                                                           component=component,
+                                                           **_skip_filter_checks)
                     self.remove_constraint(constraint_func='comp_sma',
-                                           component=component)
+                                           component=component,
+                                           **_skip_filter_checks)
                     self.add_constraint(constraint.comp_sma, component,
                                         solve_for=constraint_param.constrained_parameter.uniquetwig,
                                         constraint=constraint_param.constraint)
@@ -2120,11 +2137,14 @@ class Bundle(ParameterSet):
                 # TODO: will this cause problems if the constraint has been flipped?
                 if len(self.filter(context='constraint',
                                    constraint_func='rotation_period',
-                                   component=component)):
+                                   component=component,
+                                   **_skip_filter_checks)):
                     constraint_param = self.get_constraint(constraint_func='rotation_period',
-                                                           component=component)
+                                                           component=component,
+                                                           **_skip_filter_checks)
                     self.remove_constraint(constraint_func='rotation_period',
-                                           component=component)
+                                           component=component,
+                                           **_skip_filter_checks)
                     self.add_constraint(constraint.rotation_period, component,
                                         solve_for=constraint_param.constrained_parameter.uniquetwig,
                                         constraint=constraint_param.constraint)
@@ -2137,11 +2157,14 @@ class Bundle(ParameterSet):
                 # TODO: what if the user disabled/removed this constraint?
                 if len(self.filter(context='constraint',
                                    constraint_func='pitch',
-                                   component=component)):
+                                   component=component,
+                                   **_skip_filter_checks)):
                     constraint_param = self.get_constraint(constraint_func='pitch',
-                                                           component=component)
+                                                           component=component,
+                                                           **_skip_filter_checks)
                     self.remove_constraint(constraint_func='pitch',
-                                           component=component)
+                                           component=component,
+                                           **_skip_filter_checks)
                     self.add_constraint(constraint.pitch, component,
                                         solve_for=constraint_param.constrained_parameter.uniquetwig,
                                         constraint=constraint_param.constraint)
@@ -2154,11 +2177,14 @@ class Bundle(ParameterSet):
                 # TODO: what if the user disabled/removed this constraint?
                 if len(self.filter(context='constraint',
                                    constraint_func='yaw',
-                                component=component)):
+                                   component=component,
+                                   **_skip_filter_checks)):
                     constraint_param = self.get_constraint(constraint_func='yaw',
-                                                           component=component)
+                                                           component=component,
+                                                           **_skip_filter_checks)
                     self.remove_constraint(constraint_func='yaw',
-                                           component=component)
+                                           component=component,
+                                           **_skip_filter_checks)
                     self.add_constraint(constraint.yaw, component,
                                         solve_for=constraint_param.constrained_parameter.uniquetwig,
                                         constraint=constraint_param.constraint)
@@ -2173,18 +2199,24 @@ class Bundle(ParameterSet):
                     logger.debug('re-creating requiv_detached_max (contact) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_detached_max',
-                                       component=component)):
+                                       component=component,
+                                       **_skip_filter_checks)):
                         # then we're changing from detached to contact so should remove the detached constraint first
-                        self.remove_constraint(constraint_func='requiv_detached_max', component=component)
+                        self.remove_constraint(constraint_func='requiv_detached_max',
+                                               component=component,
+                                               **_skip_filter_checks)
 
                     logger.debug('re-creating requiv_contact_max (contact) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_contact_max',
-                                       component=component)):
+                                       component=component,
+                                       **_skip_filter_checks)):
                         constraint_param = self.get_constraint(constraint_func='requiv_contact_max',
-                                                               component=component)
+                                                               component=component,
+                                                               **_skip_filter_checks)
                         self.remove_constraint(constraint_func='requiv_contact_max',
-                                               component=component)
+                                               component=component,
+                                               **_skip_filter_checks)
                         self.add_constraint(constraint.requiv_contact_max, component,
                                             solve_for=constraint_param.constrained_parameter.uniquetwig,
                                             constraint=constraint_param.constraint)
@@ -2195,11 +2227,14 @@ class Bundle(ParameterSet):
                     logger.debug('re-creating requiv_contact_min (contact) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_contact_min',
-                                       component=component)):
+                                       component=component,
+                                       **_skip_filter_checks)):
                         constraint_param = self.get_constraint(constraint_func='requiv_contact_min',
-                                                               component=component)
+                                                               component=component,
+                                                               **_skip_filter_checks)
                         self.remove_constraint(constraint_func='requiv_contact_min',
-                                               component=component)
+                                               component=component,
+                                               **_skip_filter_checks)
                         self.add_constraint(constraint.requiv_contact_min, component,
                                             solve_for=constraint_param.constrained_parameter.uniquetwig,
                                             constraint=constraint_param.constraint)
@@ -2212,24 +2247,33 @@ class Bundle(ParameterSet):
                     # let's make sure we remove any requiv_to_pot constraints
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_to_pot',
-                                       component=component)):
-                        self.remove_constraint(constraint_func='requiv_to_pot', component=component)
+                                       component=component,
+                                       **_skip_filter_checks)):
+                        self.remove_constraint(constraint_func='requiv_to_pot',
+                                               component=component,
+                                               **_skip_filter_checks)
 
                     logger.debug('re-creating requiv_max (detached) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_contact_max',
-                                       component=component)):
+                                       component=component,
+                                       **_skip_filter_checks)):
                         # then we're changing from contact to detached so should remove the detached constraint first
-                        self.remove_constraint(constraint_func='requiv_contact_max', component=component)
+                        self.remove_constraint(constraint_func='requiv_contact_max',
+                                               component=component,
+                                               **_skip_filter_checks)
 
                     logger.debug('re-creating requiv_detached_max (detached) constraint for {}'.format(component))
                     if len(self.filter(context='constraint',
                                        constraint_func='requiv_detached_max',
-                                       component=component)):
+                                       component=component,
+                                       **_skip_filter_checks)):
                         constraint_param = self.get_constraint(constraint_func='requiv_detached_max',
-                                                               component=component)
+                                                               component=component,
+                                                               **_skip_filter_checks)
                         self.remove_constraint(constraint_func='requiv_detached_max',
-                                               component=component)
+                                               component=component,
+                                               **_skip_filter_checks)
                         self.add_constraint(constraint.requiv_detached_max, component,
                                             solve_for=constraint_param.constrained_parameter.uniquetwig,
                                             constraint=constraint_param.constraint)
@@ -4978,6 +5022,7 @@ class Bundle(ParameterSet):
         check_kwargs['context'] = 'constraint'
         check_kwargs['check_visible'] = False
         if len(self._bundle.filter(**check_kwargs)):
+            logger.debug("'{}' is constrained by {}".format(newly_constrained_param.twig, self._bundle.filter(**check_kwargs).twigs))
             raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))
 
         metawargs = {'context': 'constraint',
