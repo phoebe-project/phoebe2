@@ -1,6 +1,7 @@
 #from phoebe.c import h, c, k_B
 #from phoebe import u
 from phoebe import __version__ as phoebe_version
+from phoebe import conf
 from phoebe.utils import _bytes
 
 # NOTE: we'll import directly from astropy here to avoid
@@ -3573,7 +3574,14 @@ def _init_passband(fullpath, check_for_update=True):
     passband = pb.pbset+':'+pb.pbname
     atms = list(set([c.split(':')[0] for c in pb.content]))
     atms_ld = [atm for atm in atms if '{}:ld'.format(atm) in pb.content and '{}:ldint'.format(atm) in pb.content]
-    _pbtable[passband] = {'fname': fullpath, 'content': pb.content, 'atms': atms, 'atms_ld': atms_ld, 'timestamp': pb.timestamp, 'pb': None}
+    dirname = os.path.dirname(fullpath)
+    if dirname == os.path.dirname(_pbdir_local):
+        local = True
+    elif dirname == os.path.dirname(_pbdir_global):
+        local = False
+    else:
+        local = None
+    _pbtable[passband] = {'fname': fullpath, 'content': pb.content, 'atms': atms, 'atms_ld': atms_ld, 'timestamp': pb.timestamp, 'pb': None, 'local': local}
 
 def _init_passbands(refresh=False, query_online=True, passband_directories=None):
     """
@@ -3609,8 +3617,11 @@ def _init_passbands(refresh=False, query_online=True, passband_directories=None)
                 if ".".join(f.split('.')[1:]) not in ['fits', 'fits.gz']:
                     # ignore old passband versions
                     continue
-
-                _init_passband(os.path.join(path, f))
+                try:
+                    _init_passband(os.path.join(path, f))
+                except IOError:
+                    print("PHOEBE: passband from {} failed to load, skipping".format(os.path.join(path, f)))
+                    pass
 
         _initialized = True
 
@@ -3645,14 +3656,18 @@ def install_passband(fname, local=True):
     shutil.copy(fname, pbdir)
     _init_passband(os.path.join(pbdir, fname))
 
-def uninstall_all_passbands(local=True):
+def uninstall_passband(passband, local=True):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.uninstall_all_passbands> as well as
-    <phoebe.atmospheres.passband.uninstall_all_passbands>.
+    <phoebe.uninstall_passband> as well as
+    <phoebe.atmospheres.passband.uninstall_passband>.
 
-    Uninstall all passbands, either globally or locally (need to call twice to
-    delete ALL passbands).
+    Uninstall a given passband, either globally or locally (need to call twice to
+    delete both).  This is done by deleting the file corresponding to the
+    entry in
+    <phoebe.atmospheres.passbands.list_installed_passbands>.  If there are multiple
+    files with the same `passband` name (local vs global, for example), this
+    may need to be called multiple times.
 
     The local and global installation directories can be listed by calling
     <phoebe.atmospheres.passbands.list_passband_directories>.  The local
@@ -3662,6 +3677,56 @@ def uninstall_all_passbands(local=True):
 
     See also:
     * <phoebe.atmospheres.passbands.install_passband>
+    * <phoebe.atmospheres.passbands.unininstall_all_passbands>
+
+    Arguments
+    ----------
+    * `passband` (string): name of the passband.  Must be one of the installed
+        passbands (see <phoebe.atmospheres.passbands.list_installed_passbands>).
+    * `local` (bool, optional, default=True): whether to uninstall from the local/user
+        directory or the PHOEBE installation directory.  If `local=False`, you
+        must have the necessary permissions to write to the installation
+        directory.
+
+    Raises
+    ----------
+    * `ValueError`: if `passband` not found in <phoebe.atmospheres.passbands.list_installed_passbands>
+    * `ValueError`: if the entry for `passband` in <phoebe.atmospheres.passbands.list_installed_passbands>
+        is not in the correct directory according to `local`.
+    """
+    fname = list_installed_passbands(full_dict=True).get(passband, {}).get('fname', None)
+    if fname is None:
+        raise ValueError("could not find entry for '{}' in list_installed_passbands()".format(passband))
+
+    allowed_dir = _pbdir_local if local else _pbdir_local
+    if os.path.dirname(fname) != os.path.dirname(allowed_dir):
+        raise ValueError("entry for '{}' was not found in {} (directory for local={})".format(passband, allowed_dir, local))
+
+    logger.warning("deleting file: {}".format(fname))
+    os.remove(fname)
+
+    # need to update the local cache for list_installed_passbands:
+    _init_passbands(refresh=True)
+
+def uninstall_all_passbands(local=True):
+    """
+    For convenience, this function is available at the top-level as
+    <phoebe.uninstall_all_passbands> as well as
+    <phoebe.atmospheres.passband.uninstall_all_passbands>.
+
+    Uninstall all passbands, either globally or locally (need to call twice to
+    delete ALL passbands).  This is done by deleting all files in the respective
+    directory.
+
+    The local and global installation directories can be listed by calling
+    <phoebe.atmospheres.passbands.list_passband_directories>.  The local
+    (`local=True`) directory is generally at
+    `~/.phoebe/atmospheres/tables/passbands`, and the global (`local=False`)
+    directory is in the PHOEBE installation directory.
+
+    See also:
+    * <phoebe.atmospheres.passbands.install_passband>
+    * <phoebe.atmospheres.passbands.uninstall_passband>
 
     Arguments
     ----------
@@ -3679,14 +3744,14 @@ def uninstall_all_passbands(local=True):
     # need to update the local cache for list_installed_passbands:
     _init_passbands(refresh=True)
 
-def download_passband(passband, content='all', local=True):
+def download_passband(passband, content=None, local=True, gzipped=None):
     """
     For convenience, this function is available at the top-level as
     <phoebe.download_passband> as well as
     <phoebe.atmospheres.passbands.download_passband>.
 
     Download and install a given passband from
-    [tables.phoebe-project.org](http://tables.phoebe-project.org).
+    http://tables.phoebe-project.org.
 
     The local and global installation directories can be listed by calling
     <phoebe.atmospheres.passbands.list_passband_directories>.  The local
@@ -3699,18 +3764,24 @@ def download_passband(passband, content='all', local=True):
     * `passband` (string): name of the passband.  Must be one of the available
         passbands in the repository (see
         <phoebe.atmospheres.passbands.list_online_passbands>).
-    * `content` (string or list, optional, default='all'): content to fetch
+    * `content` (string or list or None, optional, default=None): content to fetch
         from the server.  Options include: 'all' (to fetch all available)
         or any of the available contents for that passband, 'ck2004' to fetch
         all contents for the 'ck2004' atmosphere, or any specific list of
         available contents.  To see available options for a given passband, see
         the 'content' entry for a given passband in the dictionary exposed by
         <phoebe.atmospheres.passbands.list_online_passbands>
-        with `full_dict=True`.
+        with `full_dict=True`.  If None, will respect options in
+        <phoebe.set_download_passband_defaults>.
     * `local` (bool, optional, default=True): whether to install to the local/user
         directory or the PHOEBE installation directory.  If `local=False`, you
         must have the necessary permissions to write to the installation
         directory.
+    * `gzipped` (bool or None, optional, default=None): whether to download a
+        compressed version of the passband.  Compressed files take up less
+        disk-space and less time to download, but take approximately 1 second
+        to load (which will happen once per-passband per-session).  If None,
+        will respect options in <phoebe.set_download_passband_defaults>.
 
     Raises
     --------
@@ -3720,6 +3791,13 @@ def download_passband(passband, content='all', local=True):
     """
     if passband not in list_online_passbands():
         raise ValueError("passband '{}' not available".format(passband))
+
+    if content is None:
+        content = conf.download_passband_defaults.get('content', 'all')
+        logger.info("adopting content={} from phoebe.get_download_passband_defaults()".format(content))
+    if gzipped is None:
+        gzipped = conf.download_passband_defaults.get('gzipped', False)
+        logger.info("adopting gzipped={} from phoebe.get_download_passband_defaults()".format(gzipped))
 
     pbdir = _pbdir_local if local else _pbdir_global
 
@@ -3732,10 +3810,16 @@ def download_passband(passband, content='all', local=True):
     else:
         raise TypeError("content must be of type string or list")
 
+    if list_installed_passbands(full_dict=True).get(passband, {}).get('local', None) == local:
+        logger.warning("passband '{}' already exists with local={}... removing".format(passband, local))
+        uninstall_passband(passband, local=local)
 
     passband_fname = os.path.basename(_online_passbands[passband]['fname'])
     passband_fname_local = os.path.join(pbdir, passband_fname)
-    url = 'http://tables.phoebe-project.org/pbs/{}/{}/{}'.format(passband, content_str, phoebe_version)
+    if gzipped:
+        passband_fname_local += '.gz'
+    url = 'http://localhost:5555/pbs/{}/{}?phoebe_version={}&gzipped={}'.format(passband, content_str, phoebe_version, gzipped)
+    # url = 'http://tables.phoebe-project.org/pbs/{}/{}?phoebe_version={}&gzipped={}'.format(passband, content_str, phoebe_version, gzipped)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
         urlretrieve(url, passband_fname_local)
@@ -3807,14 +3891,14 @@ def list_all_update_passbands_available():
 
     return [p for p in list_installed_passbands() if update_passband_available(p)]
 
-def update_passband(passband, local=True, content=None):
+def update_passband(passband, local=True, content=None, gzipped=None):
     """
     For convenience, this function is available at the top-level as
     <phoebe.update_passbands> as well as
     <phoebe.atmospheres.passbands.update_passband>.
 
     Download and install updates for a single passband from
-    [tables.phoebe-project.org](http://tables.phoebe-project.org), retrieving
+    http://tables.phoebe-project.org, retrieving
     the same content as in the installed passband.
 
     This will install into the directory dictated by `local`, regardless of the
@@ -3851,6 +3935,11 @@ def update_passband(passband, local=True, content=None):
         the 'content' entry for a given passband in the dictionary exposed by
         <phoebe.atmospheres.passbands.list_online_passbands>
         with `full_dict=True`.
+    * `gzipped` (bool or None, optional, default=None): whether to download a
+        compressed version of the passband.  Compressed files take up less
+        disk-space and less time to download, but take approximately 1 second
+        to load (which will happen once per-passband per-session).  If None,
+        will respect options in <phoebe.set_download_passband_defaults>.
 
     Raises
     --------
@@ -3868,7 +3957,7 @@ def update_passband(passband, local=True, content=None):
         raise TypeError("content must be of type list, string, or None")
 
     # TODO: if same timestamp online and local, only download new content and merge
-    download_passband(passband, content=content)
+    download_passband(passband, content=content, local=local, gzipped=gzipped)
 
 def update_all_passbands(local=True, content=None):
     """
@@ -3877,7 +3966,7 @@ def update_all_passbands(local=True, content=None):
     <phoebe.atmospheres.passbands.update_all_passbands>.
 
     Download and install updates for all passbands from
-    [tables.phoebe-project.org](http://tables.phoebe-project.org), retrieving
+    http://tables.phoebe-project.org, retrieving
     the same content as in the installed passbands.
 
     This will install into the directory dictated by `local`, regardless of the
@@ -4025,7 +4114,7 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
     <phoebe.atmospheres.passbands.list_online_passbands>.
 
     List all passbands available for download from
-    [tables.phoebe-project.org](http://tables.phoebe-project.org).
+    http://tables.phoebe-project.org.
 
     Arguments
     ---------
@@ -4046,7 +4135,7 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
     global _online_passbands
     if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
 
-        url = 'http://tables.phoebe-project.org/pbs/list/{}'.format(phoebe_version)
+        url = 'http://tables.phoebe-project.org/pbs/list?phoebe_version={}'.format(phoebe_version)
 
         try:
             resp = urlopen(url, timeout=3)
@@ -4075,7 +4164,8 @@ def list_online_passbands(refresh=False, full_dict=False, skip_keys=[]):
     else:
         return list(_online_passbands.keys())
 
-def get_passband(passband, content=None, reload=False, update_if_necessary=False):
+def get_passband(passband, content=None, reload=False, update_if_necessary=False,
+                 download_local=True, download_gzipped=None):
     """
     For convenience, this function is available at the top-level as
     <phoebe.get_passband> as well as
@@ -4085,7 +4175,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
     will be downloaded and installed locally.  If the installed passband does
     not have the necessary tables to match `content` then an attempt will be
     made to download the necessary additional tables from
-    [tables.phoebe-project.org](http://tables.phoebe-project.org)
+    http://tables.phoebe-project.org
     as long as the timestamps match the local version.  If the online version
     includes other version updates, then an error will be
     raised suggesting to call <phoebe.atmospheres.passbands.update_passband>
@@ -4107,7 +4197,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
         the passband by passing `content` to
         <phoebe.atmospheres.passbands.download_passband>.
         Options include: None (to accept the content in the local version,
-        but to pass 'all' to <phoebe.atmospheres.passbands.download_passband>
+        but to respect options in <phoebe.set_download_passband_defaults>
         if no installed version exists), 'all' (to require and fetch all
         available content),
         'ck2004' to require and fetch
@@ -4123,6 +4213,17 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
         `content`, and the online version has a different timestamp than the
         installed version, then an error will be raised unless `update_if_necessary`
         is set to True.
+    * `download_local` (bool, optional, default=True): Only applicable if the
+        passband has to be downloaded from the server.  Whether to install to the local/user
+        directory or the PHOEBE installation directory.  If `local=False`, you
+        must have the necessary permissions to write to the installation
+        directory.
+    * `download_gzipped` (bool or None, optional, default=None): Only applicable if
+        the passband has to be downloaded from the server.  Whether to download a
+        compressed version of the passband.  Compressed files take up less
+        disk-space and less time to download, but take approximately 1 second
+        to load (which will happen once per-passband per-session).  If None,
+        will respect options in <phoebe.set_download_passband_defaults>.
 
     Returns
     -----------
@@ -4131,6 +4232,9 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
     Raises
     --------
     * ValueError: if the passband cannot be found installed or online.
+    * ValueError: if the passband cannot be found installed and online passbands
+        are unavailable (due to server being down or online passbands disabled
+        by environment variable).
     * IOError: if needing to download the passband but the connection fails.
     """
     global _pbtable
@@ -4160,7 +4264,7 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
             # then we can update without prompting if the timestamps match
             timestamp_online = list_online_passbands(full_dict=True).get(passband, {}).get('timestamp', None)
             if timestamp_online is not None and (update_if_necessary or timestamp_installed == timestamp_online):
-                download_passband(passband, content=content)
+                download_passband(passband, content=content, local=download_local, gzipped=download_gzipped)
             else:
                 # TODO: ValueError may not be the right choice here...
                 raise ValueError("installed version of {} passband does not meet content={} requirements, but online version has a different timestamp.  Call get_passband with update_if_necessary=True or call update_passband to force updating to the newer version.")
@@ -4170,19 +4274,16 @@ def get_passband(passband, content=None, reload=False, update_if_necessary=False
             pass
     elif os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE':
         # then we need to download, if available online
-        if content is None:
-            content = 'all'
-
         if passband in list_online_passbands():
-            download_passband(passband, content=content)
+            download_passband(passband, content=content, local=download_local, gzipped=download_gzipped)
         else:
             raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands(), list_online_passbands()))
 
     else:
-        raise ValueError("passband {} not installed locally and online passbands is disabled.")
+        raise ValueError("passband {} not installed locally and online passbands is disabled.".format(passband))
 
     if reload or _pbtable.get(passband, {}).get('pb', None) is None:
-        logger.info("loading {} passband (including all tables)".format(passband))
+        logger.info("loading {} passband from {} (including all tables)".format(passband, _pbtable[passband]['fname']))
         pb = Passband.load(_pbtable[passband]['fname'], load_content=True)
         _pbtable[passband]['pb'] = pb
 

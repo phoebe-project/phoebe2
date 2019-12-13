@@ -236,6 +236,8 @@ class Settings(object):
         self._check_visible = True
         self._check_default = True
 
+        self._download_passband_defaults = {'content': 'all', 'gzipped': False}
+
         # And we'll require explicitly setting developer mode on
         self._devel = _env_variable_bool('PHOEBE_DEVEL', False)
 
@@ -307,6 +309,25 @@ class Settings(object):
     def devel(self):
         return self._devel
 
+    def set_download_passband_defaults(self, **kwargs):
+        """
+        """
+        for k,v in kwargs.items():
+            if k not in self._download_passband_defaults.keys():
+                raise KeyError("{} must be one of {}".format(self._download_passband_defaults.keys()))
+            if k=='content' and not (isinstance(v, str) or isinstance(v, list)):
+                raise TypeError("content must be of type string or list")
+            if k=='gzipped' and not (isinstance(v, bool)):
+                raise TypeError("gzipped must be of type bool")
+            self._download_passband_defaults[k] = v
+
+    def get_download_passband_defaults(self):
+        return self._download_passband_defaults
+
+    @property
+    def download_passband_defaults(self):
+        return self._download_passband_defaults
+
 conf = Settings()
 
 ###############################################################################
@@ -318,7 +339,7 @@ conf = Settings()
 # make packages available at top-level
 from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
-from .atmospheres.passbands import install_passband, uninstall_all_passbands, download_passband, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
+from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
 from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure
 from .frontend.bundle import Bundle
 from .backend import backends as _backends
@@ -617,6 +638,43 @@ def devel_on():
 
 def devel_off():
     conf.devel_off()
+
+def set_download_passband_defaults(**kwargs):
+    """
+    Set default options to use for <phoebe.passbands.atmospheres.download_passband>
+
+
+    See also:
+    * <phoebe.get_download_passband_defaults>
+    * <phoebe.passbands.atmospheres.download_passband>
+    * <phoebe.passbands.atmospheres.update_passband>
+    * <phoebe.passbands.atmospheres.get_passband>
+
+    Arguments
+    ------------
+    * `content` (string or list, optional): override the current value for
+        `content` in <phoebe.get_download_passband_defaults>.
+    * `gzipped` (bool, optional): override the current value for `gzipped`
+        in <phoebe.get_download_passband_defaults>.
+
+    """
+    conf.set_download_passband_defaults(**kwargs)
+
+def get_download_passband_defaults():
+    """
+    Access default options to use for <phoebe.passbands.atmospheres.download_passband>
+
+    See also:
+    * <phoebe.set_download_passband_defaults>
+    * <phoebe.passbands.atmospheres.download_passband>
+    * <phoebe.passbands.atmospheres.update_passband>
+    * <phoebe.passbands.atmospheres.get_passband>
+
+    Returns
+    ---------
+    * dictionary of defaults, including `content` and `gzipped`.
+    """
+    return conf.get_download_passband_defaults()
 
 # Shortcuts to MPI options
 def mpi_on(nprocs=None):
