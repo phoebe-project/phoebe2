@@ -2007,11 +2007,16 @@ class Bundle(ParameterSet):
 
         # Handle inter-PS constraints
         starrefs = hier_param.get_stars()
+        hier_envelopes = hier_param.get_envelopes()
 
         # user_interactive_constraints = conf.interactive_constraints
         # conf.interactive_constraints_off()
+        for component in [env for env in self.filter(kind='envelope', **_skip_filter_checks).components if env not in hier_envelopes]:
+            for constraint_param in self.filter(context='constraint', component=component, **_skip_filter_checks).to_list():
+                logger.debug("removing {} constraint (envelope no longer in hierarchy)".format(constraint_param.twig))
+                self.remove_constraint(constraint_func=constraint_param.constraint_func, component=component, **_skip_filter_checks)
 
-        for component in self.hierarchy.get_envelopes():
+        for component in hier_envelopes:
             # we need two of the three [comp_env] + self.hierarchy.get_siblings_of(comp_env) to have constraints
             logger.debug('re-creating requiv constraints')
             existing_requiv_constraints = self.filter(constraint_func='requiv_to_pot',
