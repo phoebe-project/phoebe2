@@ -3575,12 +3575,6 @@ def _init_passband(fullpath, check_for_update=True):
     atms_ld = [atm for atm in atms if '{}:ld'.format(atm) in pb.content and '{}:ldint'.format(atm) in pb.content]
     _pbtable[passband] = {'fname': fullpath, 'content': pb.content, 'atms': atms, 'atms_ld': atms_ld, 'timestamp': pb.timestamp, 'pb': None}
 
-    if check_for_update and update_passband_available(passband):
-        msg = 'passband "{}" has a newer version available.  Run phoebe.update_passband("{}") or phoebe.update_all_passbands() to update.'.format(passband, passband)
-        # NOTE: logger probably not available yet, so we'll also use a print statement
-        print('PHOEBE: {}'.format(msg))
-        logger.warning(msg)
-
 def _init_passbands(refresh=False, query_online=True, passband_directories=None):
     """
     This function should be called only once, at import time. It

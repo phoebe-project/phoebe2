@@ -803,7 +803,10 @@ def list_available_computes(devel=False):
     """
     return _get_phoebe_funcs(compute, devel=devel)
 
-
+for pb in list_all_update_passbands_available():
+    msg = 'passband "{}" has a newer version available.  Run phoebe.update_passband("{}") or phoebe.update_all_passbands() to update.'.format(pb, pb)
+    # NOTE: we'll print since the logger hasn't been initialized yet.
+    print('PHOEBE: {}'.format(msg))
 
 # delete things we don't want exposed to the user at the top-level
 # NOTE: we need _sys for reset_settings, that's why its __sys
