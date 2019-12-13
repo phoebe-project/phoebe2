@@ -3818,8 +3818,7 @@ def download_passband(passband, content=None, local=True, gzipped=None):
     passband_fname_local = os.path.join(pbdir, passband_fname)
     if gzipped:
         passband_fname_local += '.gz'
-    url = 'http://localhost:5555/pbs/{}/{}?phoebe_version={}&gzipped={}'.format(passband, content_str, phoebe_version, gzipped)
-    # url = 'http://tables.phoebe-project.org/pbs/{}/{}?phoebe_version={}&gzipped={}'.format(passband, content_str, phoebe_version, gzipped)
+    url = 'http://tables.phoebe-project.org/pbs/{}/{}?phoebe_version={}&gzipped={}'.format(passband, content_str, phoebe_version, gzipped)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
         urlretrieve(url, passband_fname_local)
