@@ -3814,8 +3814,7 @@ def download_passband(passband, content=None, local=True, gzipped=None):
         logger.warning("passband '{}' already exists with local={}... removing".format(passband, local))
         uninstall_passband(passband, local=local)
 
-    passband_fname = os.path.basename(_online_passbands[passband]['fname'])
-    passband_fname_local = os.path.join(pbdir, passband_fname)
+    passband_fname_local = os.path.join(pbdir, passband.lower().replace(':', '_')+".fits")
     if gzipped:
         passband_fname_local += '.gz'
     url = 'http://tables.phoebe-project.org/pbs/{}/{}?phoebe_version={}&gzipped={}'.format(passband, content_str, phoebe_version, gzipped)
