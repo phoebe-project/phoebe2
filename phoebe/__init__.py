@@ -5,9 +5,11 @@ Available environment variables:
 * PHOEBE_ENABLE_PLOTTING=TRUE/FALSE (whether to import plotting libraries with phoebe: defaults to True)
 * PHOEBE_ENABLE_SYMPY=TRUE/FALSE (whether to attempt to import sympy for constraint algebra: defaults to True if sympy installed, otherwise False)
 * PHOEBE_ENABLE_ONLINE_PASSBANDS=TRUE/FALSE (whether to query for online passbands and download on-the-fly: defaults to True)
+* PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
+* PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED=TRUE/FALSE (whether to download gzipped version of passbands by default.  Defaults to False.  Note that gzipped files take longer to load and will increase time for import, but take significantly less disk-space.)
+* PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT (default content, comma separated for list.  Defaults to 'all')
 * PHOEBE_ENABLE_MPI=TRUE/FALSE (whether to use internal parallelization: defaults to True if within mpirun, otherwise False, can override in python with phoebe.mpi.on() and phoebe.mpi.off())
 * PHOEBE_MPI_NPROCS=INT (number of procs to spawn in mpi is enabled but not running within mpirun: defaults to 4, only applicable if not within mpirun and PHOEBE_ENABLE_MPI=TRUE or phoebe.mpi.on() called, can override in python by passing nprocs to phoebe.mpi.on() or by setting phoebe.mpi.nprocs)
-* PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
 * PHOEBE_DEVEL=TRUE/FALSE enable developer mode by default
 
 """
@@ -40,6 +42,13 @@ elif _sys.version_info[0] == 2:
         raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
 else:
     raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+
+def _env_variable_string_or_list(key, default):
+    value = _os.getenv(key, default)
+    if "," in value:
+        return value.split(",")
+    else:
+        return value
 
 def _env_variable_int(key, default):
     value = _os.getenv(key, default)
@@ -236,7 +245,8 @@ class Settings(object):
         self._check_visible = True
         self._check_default = True
 
-        self._download_passband_defaults = {'content': 'all', 'gzipped': False}
+        self._download_passband_defaults = {'content': _env_variable_string_or_list('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT', 'all'),
+                                            'gzipped': _env_variable_bool('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED', False)}
 
         # And we'll require explicitly setting developer mode on
         self._devel = _env_variable_bool('PHOEBE_DEVEL', False)
@@ -641,8 +651,11 @@ def devel_off():
 
 def set_download_passband_defaults(**kwargs):
     """
-    Set default options to use for <phoebe.passbands.atmospheres.download_passband>
+    Set default options to use for <phoebe.passbands.atmospheres.download_passband>.
 
+    These can also be set at import time via the following environment variables:
+    * PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT (defaults to 'all')
+    * PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED (defaults to FALSE)
 
     See also:
     * <phoebe.get_download_passband_defaults>
@@ -662,7 +675,7 @@ def set_download_passband_defaults(**kwargs):
 
 def get_download_passband_defaults():
     """
-    Access default options to use for <phoebe.passbands.atmospheres.download_passband>
+    Access default options to use for <phoebe.passbands.atmospheres.download_passband>.
 
     See also:
     * <phoebe.set_download_passband_defaults>
