@@ -748,7 +748,7 @@ array, linspace, arange, logspace, geomspace
 
 def add_nparray_docstring(obj):
 
-    nparraydocsprefix = """This is an included dependency from [nparray](https://nparray.readthedocs.io).\n\n===============================================================\n\n"""
+    nparraydocsprefix = """This is an included dependency from [nparray 1.1.0](https://nparray.readthedocs.io/en/1.1.0/).\n\n===============================================================\n\n"""
 
     obj.__doc__ = nparraydocsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
 
