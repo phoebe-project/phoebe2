@@ -86,7 +86,7 @@ def _dict_without_keys(d, skip_keys=[]):
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0,
                  wlunits=u.AA, calibrated=False, reference='', version=1.0,
-                 comments='', oversampling=1, spl_order=3, from_file=False):
+                 comments='', oversampling=1, ptf_order=3, from_file=False):
         """
         <phoebe.atmospheres.passbands.Passband> class holds data and tools for
         passband-related computations, such as blackbody intensity, model
@@ -164,7 +164,7 @@ class Passband:
             about the passband.
         * `oversampling` (int, optional, default=1): the multiplicative factor
             of PTF dispersion to attain higher integration accuracy.
-        * `spl_order` (int, optional, default=3): spline order for fitting
+        * `ptf_order` (int, optional, default=3): spline order for fitting
             the passband transmission function.
         * `from_file` (bool, optional, default=False): a switch that instructs
             the class instance to skip all calculations and load all data from
@@ -208,13 +208,13 @@ class Passband:
         self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
 
         # Spline fit to the energy-weighted passband transmission function table:
-        self.spl_order = spl_order
-        self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=spl_order)
+        self.ptf_order = ptf_order
+        self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=ptf_order)
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
         self.ptf_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_func, 0)
 
         # Spline fit to the photon-weighted passband transmission function table:
-        self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0, k=spl_order)
+        self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0, k=ptf_order)
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
@@ -249,6 +249,7 @@ class Passband:
         header['VERSION'] = self.version
         header['COMMENTS'] = self.comments
         header['REFERENC'] = self.reference
+        header['PTFORDER'] = self.ptf_order
         header['PTFEAREA'] = self.ptf_area
         header['PTFPAREA'] = self.ptf_photon_area
 
@@ -392,12 +393,19 @@ class Passband:
             self.calibrated = header['calibrtd']
             self.comments = header['comments']
             self.reference = header['referenc']
+            self.ptf_order = header['ptforder']
             self.ptf_area = header['ptfearea']
             self.ptf_photon_area = header['ptfparea']
 
             self.content = eval(header['content'], {'__builtins__':None}, {})
 
             self.ptf_table = hdul['ptftable'].data
+
+            # Rebuild ptf() and photon_ptf() functions:
+            self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0, k=self.ptf_order)
+            self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
+            self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0, k=self.ptf_order)
+            self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
 
             if load_content:
                 if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
