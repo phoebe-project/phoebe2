@@ -227,14 +227,21 @@ class Passband:
             self.version = 1.0
         return('Passband: %s:%s\nVersion:  %1.1f\nProvides: %s' % (self.pbset, self.pbname, self.version, self.content))
 
-    def save_fits(self, archive, overwrite=True, update_timestamp=True):
+    def save(self, archive, overwrite=True, update_timestamp=True, history_entry=''):
         """
-        Saves the passband file in fits (default) format.
+        Saves the passband file in the fits format.
         """
+
+        # Timestamp is used for passband versioning.
+        timestamp = time.ctime() if update_timestamp else self.timestamp
+
+        # If version is bumped, the history tag must be provided.
+        if update_timestamp and history_entry == '':
+            raise ValueError('please provide a history entry for the updated passband file version.')
 
         header = fits.Header()
         header['PHOEBEVN'] = phoebe_version
-        header['TIMESTMP'] = time.ctime() if update_timestamp else self.timestamp
+        header['TIMESTMP'] = timestamp
         header['PBSET'] = self.pbset
         header['PBNAME'] = self.pbname
         header['EFFWL'] = self.effwl
@@ -246,6 +253,9 @@ class Passband:
         header['PTFPAREA'] = self.ptf_photon_area
 
         header['CONTENT'] = str(self.content)
+
+        if history_entry:
+            header['HISTORY'] = '%s: %s' % (timestamp, history_entry)
 
         if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
             header['WD_IDX'] = self.extern_wd_idx
@@ -348,20 +358,6 @@ class Passband:
 
         pb = fits.HDUList(data)
         pb.writeto(archive, overwrite=overwrite)
-
-    def save(self, archive, overwrite=True, update_timestamp=True):
-        """
-        Save the passband to FITS format.
-
-        Arguments
-        ----------
-        * `archive` (string): filename of the saved file
-        * `overwrite` (bool, optional, default=True): whether to overwrite an
-            existing file with the same filename as provided in `archive`
-        * `update_timestamp` (bool, optional, default=True): whether to update
-            the stored timestamp with the current time.
-        """
-        self.save_fits(archive, overwrite=overwrite, update_timestamp=update_timestamp)
 
     @classmethod
     def load(cls, archive, load_content=True):
