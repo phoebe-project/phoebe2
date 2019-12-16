@@ -9080,7 +9080,7 @@ class ConstraintParameter(Parameter):
                 logger.debug("ConstraintParameter.get_parameter: reverting to filtering on bundle, could not {} find in {}".format(kwargs, vars.twigs))
                 kwargs['context'] = [c for c in self._bundle.contexts if c!='constraint']
                 return self._bundle.get_parameter(**kwargs)
-            raise KeyError("no result found for {}".format(kwargs))
+            raise ValueError("no result found for {} in bundle after checking in {}".format(kwargs, vars.twigs))
 
     @property
     def default_unit(self):
