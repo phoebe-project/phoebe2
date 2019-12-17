@@ -334,7 +334,7 @@ setup (name = 'phoebe',
                      'phoebe.frontend':['default_bundles/*.bundle']
                     },
        ext_modules = ext_modules,
-       scripts=['phoebe-server/phoebe-server'] if _env_variable_bool('PHOEBE_DEVEL', False) else None,
+       scripts=['client-server/phoebe-server'] if _env_variable_bool('PHOEBE_DEVEL', False) else None,
        cmdclass = {
          'build_ext': build_check,
          'check_imports': import_check,
