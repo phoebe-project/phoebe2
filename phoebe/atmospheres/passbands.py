@@ -2369,6 +2369,11 @@ class Passband:
                 Rv=Rv*np.ones(len(Teff))
                 req = np.vstack((Teff, logg, abun, extinct, Rv)).T
                 extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table).T[0]
+            
+            nanmask = np.isnan(extinct_factor)
+            if np.any(nanmask):
+                raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
+
             return extinct_factor
 
         if atm == 'phoenix':
@@ -2388,6 +2393,11 @@ class Passband:
                 Rv=Rv*np.ones_like(Teff)
                 req = np.vstack((Teff, logg, abun, extinct, Rv)).T
                 extinct_factor = libphoebe.interp(req, self._phoenix_extinct_axes, table).T[0]
+
+            nanmask = np.isnan(extinct_factor)
+            if np.any(nanmask):
+                raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
+
             return extinct_factor
 
         if atm == 'blended':
@@ -2407,6 +2417,11 @@ class Passband:
                 Rv=Rv*np.ones_like(Teff)
                 req = np.vstack((Teff, logg, abun, extinct, Rv)).T
                 extinct_factor = libphoebe.interp(req, self._blended_extinct_axes, table).T[0]
+
+            nanmask = np.isnan(extinct_factor)
+            if np.any(nanmask):
+                raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
+
             return extinct_factor
 
         elif atm != 'blackbody':
@@ -2429,6 +2444,9 @@ class Passband:
                 req = np.vstack((Teff, extinct, Rv)).T
                 extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0]
 
+            nanmask = np.isnan(extinct_factor)
+            if np.any(nanmask):
+                raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
 
             return extinct_factor
 
