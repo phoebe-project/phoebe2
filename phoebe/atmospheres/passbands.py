@@ -230,6 +230,17 @@ class Passband:
     def save(self, archive, overwrite=True, update_timestamp=True, history_entry=''):
         """
         Saves the passband file in the fits format.
+
+        Arguments
+        ----------
+        * `archive` (string): filename of the saved file
+        * `overwrite` (bool, optional, default=True): whether to overwrite an
+            existing file with the same filename as provided in `archive`
+        * `update_timestamp` (bool, optional, default=True): whether to update
+            the stored timestamp with the current time.
+        * `history_entry` (string, optional): history entry to append to the
+            fits file.  Note that previous entries will be maintained if
+            (and only if) overwriting an existing file with `overwrite=True`.
         """
 
         # Timestamp is used for passband versioning.
@@ -2369,7 +2380,7 @@ class Passband:
                 Rv=Rv*np.ones(len(Teff))
                 req = np.vstack((Teff, logg, abun, extinct, Rv)).T
                 extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table).T[0]
-            
+
             nanmask = np.isnan(extinct_factor)
             if np.any(nanmask):
                 raise ValueError('Atmosphere parameters out of bounds: atm=%s, extinct=%f, Rv=%f, Teff=%s, logg=%s, abun=%s' % (atm, extinct, Rv, Teff[nanmask], logg[nanmask], abun[nanmask]))
