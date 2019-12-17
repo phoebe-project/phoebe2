@@ -246,10 +246,6 @@ class Passband:
         # Timestamp is used for passband versioning.
         timestamp = time.ctime() if update_timestamp else self.timestamp
 
-        # If version is bumped, the history tag must be provided.
-        if update_timestamp and history_entry == '':
-            raise ValueError('please provide a history entry for the updated passband file version.')
-
         header = fits.Header()
         header['PHOEBEVN'] = phoebe_version
         header['TIMESTMP'] = timestamp
