@@ -3155,11 +3155,11 @@ def download_passband(passband, content=None, local=True, gzipped=None):
     else:
         _init_passband(passband_fname_local)
 
-def get_passband_online_history(passband, since_installed=False):
+def list_passband_online_history(passband, since_installed=False):
     """
     For convenience, this function is available at the top-level as
-    <phoebe.get_passband_online_history> as well as
-    <phoebe.atmospheres.passbands.get_passband_online_history>.
+    <phoebe.list_passband_online_history> as well as
+    <phoebe.atmospheres.passbands.list_passband_online_history>.
 
     Access the full changelog for the online version of a passband.
 
@@ -3192,7 +3192,7 @@ def get_passband_online_history(passband, since_installed=False):
         logger.warning(msg)
         return {str(time.ctime()): "could not retrieve history entries"}
     else:
-        all_history = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json)['passband_history']
+        all_history = json.loads(resp.read().decode('utf-8'), object_pairs_hook=parse_json).get('passband_history', {}).get(passband, {})
         if since_installed:
             installed_timestamp = _timestamp_to_dt(_pbtable.get(passband, {}).get('timestamp', None))
             return {k:v for k,v in all_history.items() if installed_timestamp < _timestamp_to_dt(k)} if installed_timestamp is not None else all_history
@@ -3215,7 +3215,7 @@ def update_passband_available(passband, history_dict=False):
 
     See also:
     * <phoebe.atmospheres.passbands.list_all_update_passbands_available>
-    * <phoebe.atmospheres.passbands.get_passband_online_history>
+    * <phoebe.atmospheres.passbands.list_passband_online_history>
     * <phoebe.atmospheres.passbands.download_passband>
     * <phoebe.atmospheres.passbands.update_all_passbands>
 
@@ -3224,7 +3224,7 @@ def update_passband_available(passband, history_dict=False):
     * `passband` (string): name of the passband
     * `history_dict` (boolean, optional, default=False): expose the changelog
         of the version online since the timestamp in the installed version.
-        See also: <phoebe.atmospheres.passbands.get_passband_online_history>.
+        See also: <phoebe.atmospheres.passbands.list_passband_online_history>.
 
     Returns
     -----------
@@ -3236,7 +3236,7 @@ def update_passband_available(passband, history_dict=False):
     def _return(passband, updates_available):
         if updates_available:
             if history_dict:
-                return get_passband_online_history(passband, since_installed=True)
+                return list_passband_online_history(passband, since_installed=True)
             else:
                 return True
         else:
@@ -3275,7 +3275,7 @@ def list_all_update_passbands_available(history_dict=False):
 
     See also:
     * <phoebe.atmospheres.passbands.update_passband_available>
-    * <phoebe.atmospheres.passbands.get_passband_online_history>
+    * <phoebe.atmospheres.passbands.list_passband_online_history>
     * <phoebe.atmospheres.passbands.download_passband>
     * <phoebe.atmospheres.passbands.update_all_passbands>
 
@@ -3283,7 +3283,7 @@ def list_all_update_passbands_available(history_dict=False):
     -----------
     * `history_dict` (boolean, optional, default=False): for each item in
         the returned list, expose the changelog.  See also:
-        <phoebe.atmospheres.passbands.get_passband_online_history>.
+        <phoebe.atmospheres.passbands.list_passband_online_history>.
 
     Returns
     ----------
@@ -3291,7 +3291,7 @@ def list_all_update_passbands_available(history_dict=False):
         online.  If `history_dict=False`, this will be a list of strings,
         where each item is the passband name.  If `history_dict=True` this will
         be a dictionary where the keys are the passband names and the values
-        are the changelog dictionary (see <phoebe.atmospheres.passbands.get_passband_online_history>).
+        are the changelog dictionary (see <phoebe.atmospheres.passbands.list_passband_online_history>).
     """
     if history_dict:
         return {p: update_passband_available(p, history_dict=True) for p in list_installed_passbands() if update_passband_available(p)}

@@ -349,7 +349,7 @@ conf = Settings()
 # make packages available at top-level
 from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
-from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, get_passband_online_history, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
+from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, list_passband_online_history, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
 from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure
 from .frontend.bundle import Bundle
 from .backend import backends as _backends
@@ -875,7 +875,7 @@ def list_available_computes(devel=False):
     return _get_phoebe_funcs(compute, devel=devel)
 
 for pb in list_all_update_passbands_available():
-    msg = 'passband "{}" has a newer version available.  Run phoebe.get_passband_online_history("{}") to get a list of available changes and phoebe.update_passband("{}") or phoebe.update_all_passbands() to update.'.format(pb, pb, pb)
+    msg = 'passband "{}" has a newer version available.  Run phoebe.list_passband_online_history("{}") to get a list of available changes and phoebe.update_passband("{}") or phoebe.update_all_passbands() to update.'.format(pb, pb, pb)
     # NOTE: we'll print since the logger hasn't been initialized yet.
     print('PHOEBE: {}'.format(msg))
 
