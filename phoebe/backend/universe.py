@@ -1950,6 +1950,10 @@ class Star(Body):
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'manual' else None
         ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none')) if ld_mode == 'lookup' else None
         if ld_mode == 'interp':
+            # calls to pb.Imu need to pass on ld_func='interp'
+            # NOTE: we'll do another check when calling pb.Imu, but we'll also
+            # change the value here for the debug logger
+            ld_func = 'interp'
             ldatm = atm
         elif ld_mode == 'lookup':
             if ld_coeffs_source == 'auto':
@@ -2044,7 +2048,7 @@ class Star(Body):
                                      atm=atm,
                                      ldatm=ldatm,
                                      ldint=ldint,
-                                     ld_func=ld_func,
+                                     ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                                      ld_coeffs=ld_coeffs,
                                      photon_weighted=intens_weighting=='photon')
 
