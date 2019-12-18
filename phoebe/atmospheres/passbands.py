@@ -269,8 +269,8 @@ class Passband:
         header['CONTENT'] = str(self.content)
 
         if history_entry:
-            # ensure history_entry ends with a newline (but has no other newlines)
-            history_entry = history_entry.strip('\n')+'\n'
+            # comment divider:
+            history_entry += '-END-'
             header['HISTORY'] = '%s: %s' % (timestamp, history_entry)
 
         if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
