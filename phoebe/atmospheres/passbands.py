@@ -2899,7 +2899,11 @@ def _init_passband(fullpath, check_for_update=True):
     """
     global _pbtable
     logger.info("initializing passband (headers only) at {}".format(fullpath))
-    pb = Passband.load(fullpath, load_content=False)
+    try:
+        pb = Passband.load(fullpath, load_content=False)
+    except:
+        print("failed to load passband at {}".format(fullpath))
+        raise
     passband = pb.pbset+':'+pb.pbname
     atms = list(set([c.split(':')[0] for c in pb.content]))
     atms_ld = [atm for atm in atms if '{}:ld'.format(atm) in pb.content and '{}:ldint'.format(atm) in pb.content]
