@@ -3120,6 +3120,9 @@ class Envelope(Body):
         for half, com in zip(self._halves, [0, 1]):
             half.update_position(component_com_x=com, *args, **kwargs)
 
+    def compute_luminosity(self, *args, **kwargs):
+        return np.sum([half.compute_luminosity(*args, **kwargs) for half in self._halves])
+
     def populate_observable(self, time, kind, dataset, **kwargs):
         """
         TODO: add documentation
