@@ -5933,13 +5933,6 @@ class Bundle(ParameterSet):
             appropriate length given the respective value of `ld_func`).
         """
 
-        datasets = kwargs.pop('dataset', self.datasets + ['bol'])
-        components = kwargs.pop('component', self.components)
-
-        # don't allow things like model='mymodel', etc
-        forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_allowed_keys=['skip_checks'], additional_forbidden_keys=forbidden_keys)
-
         if compute is None:
             if len(self.computes)==1:
                 compute = self.computes[0]
@@ -5947,6 +5940,17 @@ class Bundle(ParameterSet):
                 raise ValueError("must provide compute")
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
+
+        compute_ps = self.get_compute(compute)
+        # we'll add 'bol' to the list of default datasets... but only if bolometric is needed for irradiation
+        needs_bol = 'irrad_method' in compute_ps.qualifiers and compute_ps.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks) != 'none'
+
+        datasets = kwargs.pop('dataset', self.datasets + ['bol'] if needs_bol else self.datasets)
+        components = kwargs.pop('component', self.components)
+
+        # don't allow things like model='mymodel', etc
+        forbidden_keys = parameters._meta_fields_filter
+        self._kwargs_checks(kwargs, additional_allowed_keys=['skip_checks'], additional_forbidden_keys=forbidden_keys)
 
         if not kwargs.get('skip_checks', False):
             report = self.run_checks(compute=compute, allow_skip_constraints=False,
