@@ -2328,6 +2328,10 @@ class Passband:
             req = np.vstack((Teff, logg, abun)).T
             ld_coeffs = libphoebe.interp(req, axes[0:3], table).T
 
+        nanmask = np.isnan(ld_coeffs)
+        if np.any(nanmask):
+            raise ValueError('Atmosphere parameters out of bounds: ldatm=%s, teff=%s, logg=%s, abun=%s' % (ldatm, Teff[nanmask], logg[nanmask], abun[nanmask]))
+
         if ld_func == 'linear':
             return ld_coeffs[0:1]
         elif ld_func == 'logarithmic':
