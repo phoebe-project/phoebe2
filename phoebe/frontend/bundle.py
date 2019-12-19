@@ -2551,35 +2551,35 @@ class Bundle(ParameterSet):
                 if parent:
                     # contact systems MUST by synchronous
                     if hier.is_contact_binary(component):
-                        if self.get_value(qualifier='syncpar', component=component, context='component', **kwargs) != 1.0:
+                        if self.get_value(qualifier='syncpar', component=component, context='component', **_skip_filter_checks) != 1.0:
                             report.add_item(self,
                                             "contact binaries must be synchronous, but syncpar@{}!=1".format(component),
-                                            [self.get_parameter(qualifier='syncpar', component=component, context='component', **kwargs)],
+                                            [self.get_parameter(qualifier='syncpar', component=component, context='component', **_skip_filter_checks)],
                                             True)
 
-                        if self.get_value(qualifier='ecc', component=parent, context='component', **kwargs) != 0.0:
+                        if self.get_value(qualifier='ecc', component=parent, context='component', **_skip_filter_checks) != 0.0:
                             # TODO: this can result in duplicate entries in the report
                             report.add_item(self,
                                             "contact binaries must be circular, but ecc@{}!=0".format(parent),
-                                            [self.get_parameter(qualifier='ecc', component=parent, context='component', **kwargs)],
+                                            [self.get_parameter(qualifier='ecc', component=parent, context='component', **_skip_filter_checks)],
                                             True)
 
-                        if self.get_value(qualifier='pitch', component=component, context='component', **kwargs) != 0.0:
+                        if self.get_value(qualifier='pitch', component=component, context='component', **_skip_filter_checks) != 0.0:
                             report.add_item(self,
                                             'contact binaries must be aligned, but pitch@{}!=0.  Try b.set_value(qualifier=\'pitch\', component=\'{}\' value=0.0, check_visible=False) to align.'.format(component, component),
-                                            [self.get_parameter(qualifier='pitch', component=component, context='component', **kwargs)],
+                                            [self.get_parameter(qualifier='pitch', component=component, context='component', **_skip_filter_checks)],
                                             True)
 
-                        if self.get_value(qualifier='yaw', component=component, context='component', **kwargs) != 0.0:
+                        if self.get_value(qualifier='yaw', component=component, context='component', **_skip_filter_checks) != 0.0:
                             report.add_item(self,
                                             'contact binaries must be aligned, but yaw@{}!=0.  Try b.set_value(qualifier=\'yaw\', component=\'{}\', value=0.0, check_visible=False) to align.'.format(component, component),
-                                            [self.get_parameter(qualifier='yaw', component=component, context='component', **kwargs)],
+                                            [self.get_parameter(qualifier='yaw', component=component, context='component', **_skip_filter_checks)],
                                             True)
 
                     # MUST NOT be overflowing at PERIASTRON (d=1-ecc, etheta=0)
 
-                    requiv = comp_ps.get_value(qualifier='requiv', unit=u.solRad, **kwargs)
-                    requiv_max = comp_ps.get_value(qualifier='requiv_max', unit=u.solRad, **kwargs)
+                    requiv = comp_ps.get_value(qualifier='requiv', unit=u.solRad, **_skip_filter_checks)
+                    requiv_max = comp_ps.get_value(qualifier='requiv_max', unit=u.solRad, **_skip_filter_checks)
 
 
 
@@ -2589,36 +2589,36 @@ class Bundle(ParameterSet):
                         if np.isnan(requiv) or requiv > requiv_max:
                             report.add_item(self,
                                             '{} is overflowing at L2/L3 (requiv={}, requiv_min={}, requiv_max={})'.format(component, requiv, requiv_min, requiv_max),
-                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
-                                             comp_ps.get_parameter(qualifier='requiv_max', **kwargs),
-                                             parent_ps.get_parameter(qualifier='sma', **kwargs)],
+                                            [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
+                                             comp_ps.get_parameter(qualifier='requiv_max', **_skip_filter_checks),
+                                             parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks)],
                                             True)
 
                         if np.isnan(requiv) or requiv <= requiv_min:
                             report.add_item(self,
                                             '{} is underflowing at L1 and not a contact system (requiv={}, requiv_min={}, requiv_max={})'.format(component, requiv, requiv_min, requiv_max),
-                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
-                                             comp_ps.get_parameter(qualifier='requiv_min', **kwargs),
-                                             parent_ps.get_parameter(qualifier='sma', **kwargs)],
+                                            [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
+                                             comp_ps.get_parameter(qualifier='requiv_min', **_skip_filter_checks),
+                                             parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks)],
                                             True)
 
                         elif requiv <= requiv_min * 1.001:
                             report.add_item(self,
                                             'requiv@{} is too close to requiv_min (within 0.1% of critical).  Use detached/semidetached model instead.'.format(component),
-                                            [comp_ps.get_parameter(qualifier='requiv', **kwargs),
-                                             comp_ps.get_parameter(qualifier='requiv_min', **kwargs),
-                                             parent_ps.get_parameter(qualifier='sma', **kwargs),
+                                            [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
+                                             comp_ps.get_parameter(qualifier='requiv_min', **_skip_filter_checks),
+                                             parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks),
                                              hier],
                                             True)
 
                     else:
                         if requiv > requiv_max:
-                            params = [comp_ps.get_parameter(qualifier='requiv', **kwargs),
-                                     comp_ps.get_parameter(qualifier='requiv_max', **kwargs),
-                                     parent_ps.get_parameter(qualifier='sma', **kwargs)]
+                            params = [comp_ps.get_parameter(qualifier='requiv', **_skip_filter_checks),
+                                     comp_ps.get_parameter(qualifier='requiv_max', **_skip_filter_checks),
+                                     parent_ps.get_parameter(qualifier='sma', **_skip_filter_checks)]
 
-                            if parent_ps.get_value(qualifier='ecc', **kwargs) > 0.0:
-                                params += [parent_ps.get_parameter(qualifier='ecc', **kwargs)]
+                            if parent_ps.get_value(qualifier='ecc', **_skip_filter_checks) > 0.0:
+                                params += [parent_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)]
 
                             if len(self.filter(kind='envelope', context='component', **_skip_filter_checks)):
                                 params += [hier]
@@ -2636,8 +2636,8 @@ class Bundle(ParameterSet):
         # TODO: rewrite overlap checks
         for orbitref in []: #hier.get_orbits():
             if len(hier.get_children_of(orbitref)) == 2:
-                q = self.get_value(qualifier='q', component=orbitref, context='component', **kwargs)
-                ecc = self.get_value(qualifier='ecc', component=orbitref, context='component', **kwargs)
+                q = self.get_value(qualifier='q', component=orbitref, context='component', **_skip_filter_checks)
+                ecc = self.get_value(qualifier='ecc', component=orbitref, context='component', **_skip_filter_checks)
 
                 starrefs = hier.get_children_of(orbitref)
                 if hier.get_kind_of(starrefs[0]) != 'star' or hier.get_kind_of(starrefs[1]) != 'star':
@@ -2656,13 +2656,13 @@ class Bundle(ParameterSet):
                 q0 = roche.q_for_component(q, comp0)
                 q1 = roche.q_for_component(q, comp1)
 
-                F0 = self.get_value(qualifier='syncpar', component=starrefs[0], context='component', **kwargs)
-                F1 = self.get_value(qualifier='syncpar', component=starrefs[1], context='component', **kwargs)
+                F0 = self.get_value(qualifier='syncpar', component=starrefs[0], context='component', **_skip_filter_checks)
+                F1 = self.get_value(qualifier='syncpar', component=starrefs[1], context='component', **_skip_filter_checks)
 
-                pot0 = self.get_value(qualifier='pot', component=starrefs[0], context='component', **kwargs)
+                pot0 = self.get_value(qualifier='pot', component=starrefs[0], context='component', **_skip_filter_checks)
                 pot0 = roche.pot_for_component(pot0, q0, comp0)
 
-                pot1 = self.get_value(qualifier='pot', component=starrefs[1], context='component', **kwargs)
+                pot1 = self.get_value(qualifier='pot', component=starrefs[1], context='component', **_skip_filter_checks)
                 pot1 = roche.pot_for_component(pot1, q1, comp1)
 
                 xrange0 = libphoebe.roche_xrange(q0, F0, 1.0-ecc, pot0+1e-6, choice=0)
@@ -2773,25 +2773,25 @@ class Bundle(ParameterSet):
             if not irrad_enabled:
                 continue
             # first check ld_coeffs_bol vs ld_func_bol
-            ld_mode = self.get_value(qualifier='ld_mode_bol', component=component, context='component', **kwargs)
-            ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', **kwargs))
-            ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source_bol', component=component, context='component', **kwargs)
-            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+            ld_mode = self.get_value(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks)
+            ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks))
+            ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source_bol', component=component, context='component', **_skip_filter_checks)
+            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
 
             if np.any(np.isnan(ld_coeffs)):
                 if ld_mode == 'lookup':
                     report.add_item(self,
                                     'ld_mode_bol=\'lookup\' resulted in nans for ld_coeffs_bol.  Check system parameters to be within grids or change ld_mode_bol to \'manual\' and provide ld_coeffs_bol',
-                                    [self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **kwargs),
-                                    self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
-                                    self.get_parameter(qualifier='logg', component=component, context='component', **kwargs),
-                                    self.get_parameter(qualifier='abun', component=component, context='component', **kwargs)
+                                    [self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks),
+                                    self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                    self.get_parameter(qualifier='logg', component=component, context='component', **_skip_filter_checks),
+                                    self.get_parameter(qualifier='abun', component=component, context='component', **_skip_filter_checks)
                                     ],
                                     True)
                 elif ld_mode == 'manual':
                     report.add_item(self,
                                     'nans in ld_coeffs_bol are forbidden',
-                                    [self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)],
+                                    [self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)],
                                     True)
                 else:
                     # if interp, then the previously set value won't be used anyways, so we'll ignore nans
@@ -2801,8 +2801,8 @@ class Bundle(ParameterSet):
                 if ld_coeffs_source != 'auto' and ld_coeffs_source not in all_pbs.get('Bolometric:900-40000', {}).get('atms_ld', []):
                     report.add_item(self,
                                     'Bolometric:900-40000 does not support ld_coeffs_source_bol={}.  Either change ld_coeffs_source_bol@{}@component or ld_mode_bol@{}@component'.format(pb, ld_coeffs_source, component, component),
-                                    [self.get_parameter(qualifier='ld_coeffs_source_bol', component=component, context='component', **kwargs),
-                                     self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **kwargs)
+                                    [self.get_parameter(qualifier='ld_coeffs_source_bol', component=component, context='component', **_skip_filter_checks),
+                                     self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks)
                                     ],
                                     True)
             elif ld_mode == 'manual':
@@ -2811,8 +2811,8 @@ class Bundle(ParameterSet):
                 if not check[0]:
                     report.add_item(self,
                                     check[1],
-                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
-                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
+                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
                                     ],
                                     True)
 
@@ -2821,8 +2821,8 @@ class Bundle(ParameterSet):
                 if not check:
                     report.add_item(self,
                                     'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
-                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
-                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
+                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
                                     ],
                                     True)
 
@@ -2832,8 +2832,8 @@ class Bundle(ParameterSet):
                     if not check:
                         report.add_item(self,
                                         'ld_coeffs_bol={} result in limb-brightening.  Use with caution.'.format(ld_coeffs),
-                                        [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
-                                         self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **kwargs)
+                                        [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
+                                         self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
                                         ],
                                         True)
 
@@ -2841,8 +2841,8 @@ class Bundle(ParameterSet):
                 if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
                     report.add_item(self,
                                     "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
-                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **kwargs),
-                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
+                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                     True)
 
 
@@ -2852,11 +2852,11 @@ class Bundle(ParameterSet):
                     continue
                 dataset_ps = self.get_dataset(dataset=dataset, check_visible=False)
 
-                ld_mode = dataset_ps.get_value(qualifier='ld_mode', component=component, **kwargs)
+                ld_mode = dataset_ps.get_value(qualifier='ld_mode', component=component, **_skip_filter_checks)
                 # cast to string to ensure not a unicode since we're passing to libphoebe
-                ld_func = str(dataset_ps.get_value(qualifier='ld_func', component=component, **kwargs))
-                ld_coeffs_source = dataset_ps.get_value(qualifier='ld_coeffs_source', component=component, **kwargs)
-                ld_coeffs = dataset_ps.get_value(qualifier='ld_coeffs', component=component, **kwargs)
+                ld_func = str(dataset_ps.get_value(qualifier='ld_func', component=component, **_skip_filter_checks))
+                ld_coeffs_source = dataset_ps.get_value(qualifier='ld_coeffs_source', component=component, **_skip_filter_checks)
+                ld_coeffs = dataset_ps.get_value(qualifier='ld_coeffs', component=component, **_skip_filter_checks)
                 pb = dataset_ps.get_value(qualifier='passband', **kwargs)
 
                 if np.any(np.isnan(ld_coeffs)):
@@ -2864,15 +2864,15 @@ class Bundle(ParameterSet):
                         report.add_item(self,
                                         'ld_mode=\'lookup\' resulted in nans for ld_coeffs.  Check system parameters to be within grids or change ld_mode to \'manual\' and provide ld_coeffs',
                                         [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
-                                        self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
-                                        self.get_parameter(qualifier='logg', component=component, context='component', **kwargs),
-                                        self.get_parameter(qualifier='abun', component=component, context='component', **kwargs)
+                                        self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                        self.get_parameter(qualifier='logg', component=component, context='component', **_skip_filter_checks),
+                                        self.get_parameter(qualifier='abun', component=component, context='component', **_skip_filter_checks)
                                         ],
                                         True)
                     elif ld_mode == 'manual':
                         report.add_item(self,
                                         'nans in ld_coeffs are forbidden',
-                                        [dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)],
+                                        [dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **_skip_filter_checks)],
                                         True)
                     else:
                         # if interp, then the previously set value won't be used anyways, so we'll ignore nans
@@ -2882,25 +2882,25 @@ class Bundle(ParameterSet):
                     for compute in computes:
                         # TODO: should we ignore if the dataset is disabled?
                         try:
-                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
+                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
                         except ValueError:
                             # not all backends have atm as a parameter/option
                             continue
                         else:
                             if atm not in ['ck2004', 'phoenix']:
-                                if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs).choices:
+                                if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks).choices:
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset),
-                                                    [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
-                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **kwargs),
-                                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)
+                                                    [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)
                                                     ],
                                                     True)
                                 else:
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset),
-                                                    [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **kwargs),
-                                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)
+                                                    [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)
                                                     ],
                                                     True)
 
@@ -2909,8 +2909,8 @@ class Bundle(ParameterSet):
                     if ld_coeffs_source != 'auto' and ld_coeffs_source not in all_pbs.get(pb, {}).get('atms_ld', []) :
                         report.add_item(self,
                                         'passband={} does not support ld_coeffs_source={}.  Either change ld_coeffs_source@{}@{} or ld_mode@{}@{}'.format(pb, ld_coeffs_source, component, dataset, component, dataset),
-                                        [dataset_ps.get_parameter(qualifier='ld_coeffs_source', component=component, **kwargs),
-                                         dataset_ps.get_parameter(qualifier='ld_mode', component=component **kwargs)
+                                        [dataset_ps.get_parameter(qualifier='ld_coeffs_source', component=component, **_skip_filter_checks),
+                                         dataset_ps.get_parameter(qualifier='ld_mode', component=component **_skip_filter_checks)
                                         ],
                                         True)
 
@@ -2920,8 +2920,8 @@ class Bundle(ParameterSet):
                     if not check[0]:
                         report.add_item(self,
                                         check[1],
-                                        [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
-                                         dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
+                                        [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
+                                         dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **_skip_filter_checks)
                                         ],
                                         True)
 
@@ -2929,8 +2929,8 @@ class Bundle(ParameterSet):
                     if not check:
                         report.add_item(self,
                                         'ld_coeffs={} not compatible for ld_func=\'{}\'.'.format(ld_coeffs, ld_func),
-                                        [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
-                                         dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
+                                        [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
+                                         dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **_skip_filter_checks)
                                         ],
                                         True)
 
@@ -2940,8 +2940,8 @@ class Bundle(ParameterSet):
                         if not check:
                             report.add_item(self,
                                             'ld_coeffs={} result in limb-brightening.  Use with caution.'.format(ld_coeffs),
-                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
-                                             dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **kwargs)
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
+                                             dataset_ps.get_parameter(qualifier='ld_coeffs', component=component, **_skip_filter_checks)
                                              ],
                                              False)
 
@@ -2954,15 +2954,15 @@ class Bundle(ParameterSet):
                         if compute_kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
                             report.add_item(self,
                                             "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
-                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
-                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
+                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                             True)
 
                         if compute_kind in ['jktebop'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic']:
                             report.add_item(self,
                                             "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
-                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **kwargs),
-                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
+                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                             True)
 
 
@@ -2970,13 +2970,13 @@ class Bundle(ParameterSet):
             if self.hierarchy.get_kind_of(comp)=='envelope':
                 return np.sum([_get_proj_area(c) for c in self.hierarchy.get_siblings_of(comp)])
             else:
-                return np.pi*self.get_value(qualifier='requiv', component=comp, context='component', unit='solRad')**2
+                return np.pi*self.get_value(qualifier='requiv', component=comp, context='component', unit='solRad', **_skip_filter_checks)**2
 
         def _get_surf_area(comp):
             if self.hierarchy.get_kind_of(comp)=='envelope':
                 return np.sum([_get_surf_area(c) for c in self.hierarchy.get_siblings_of(comp)])
             else:
-                return 4*np.pi*self.get_value(qualifier='requiv', component=comp, context='component', unit='solRad')**2
+                return 4*np.pi*self.get_value(qualifier='requiv', component=comp, context='component', unit='solRad', **_skip_filter_checks)**2
 
 
         for compute in computes:
@@ -2984,24 +2984,24 @@ class Bundle(ParameterSet):
 
             # 2.2 disables support for boosting.  The boosting parameter in 2.2 only has 'none' as an option, but
             # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
-            if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, **_skip_filter_checks) != 'none':
+            if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks) != 'none':
                 report.add_item(self,
                                 "support for beaming/boosting has been removed from PHOEBE 2.2.  Set boosting_method to 'none'.",
-                                [self.get_parameter(qualifier='boosting_method', compute=compute, **kwargs)],
+                                [self.get_parameter(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)],
                                 True)
 
             # mesh-consistency checks
-            mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()]
+            mesh_methods = [p.get_value(mesh_method=kwargs.get('mesh_method', None)) for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
                     report.add_item(self,
                                     "all (or no) components must use mesh_method='wd'.",
-                                    self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()+[self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                    self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()+[self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                     True)
 
             # estimate if any body is smaller than any other body's triangles, using a spherical assumption
             if compute_kind=='phoebe' and 'wd' not in mesh_methods:
-                eclipse_method = self.get_value(qualifier='eclipse_method', compute=compute, **_skip_filter_checks)
+                eclipse_method = self.get_value(qualifier='eclipse_method', compute=compute, eclipse_method=kwargs.get('eclipse_method', None), **_skip_filter_checks)
                 if eclipse_method == 'only_horizon':
                     # no need to check triangle sizes
                     continue
@@ -3014,10 +3014,10 @@ class Bundle(ParameterSet):
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
                         report.add_item(self,
                                         "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
-                                        self.filter(qualifier='requiv', component=smallest_components).to_list()+
-                                        self.filter(qualifier='ntriangles', component=offending_components, compute=compute, **kwargs).to_list()+[
-                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs),
-                                        self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                        self.filter(qualifier='requiv', component=smallest_components, **_skip_filter_checks).to_list()+
+                                        self.filter(qualifier='ntriangles', component=offending_components, compute=compute, **_skip_filter_checks).to_list()+[
+                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **_skip_filter_checks),
+                                        self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                         True)
 
                     else:
@@ -3027,15 +3027,15 @@ class Bundle(ParameterSet):
                         report.add_item(self,
                                         "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
                                         self.filter(qualifier='requiv', component=smallest_components).to_list(),
-                                        self.get_parameter(qualifier='ntriangles', component=offending_components, compute=compute, **kwargs).to_list()+[
-                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **kwargs).
-                                        self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
+                                        self.get_parameter(qualifier='ntriangles', component=offending_components, compute=compute, **_skip_filter_checks).to_list()+[
+                                        self.get_parameter(qualifier='eclipse_method', compute=compute, eclipse_method=kwargs.get('eclipse_method', None), **_skip_filter_checks).
+                                        self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                         False)
 
         # forbid pblum_mode='dataset-coupled' if no other valid datasets
         # forbid pblum_mode='dataset-coupled' with a dataset which is scaled to data or to another that is in-turn color-coupled
         for param in self.filter(qualifier='pblum_mode', value='dataset-coupled', **_skip_filter_checks).to_list():
-            coupled_to = self.get_value(qualifier='pblum_dataset', dataset=param.dataset, check_visible=True)
+            coupled_to = self.get_value(qualifier='pblum_dataset', dataset=param.dataset, **_skip_filter_checks)
             if coupled_to == '':
                 coupled_to = None
                 if param.is_visible:
@@ -3119,49 +3119,49 @@ class Bundle(ParameterSet):
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol and irrad_frac_refl_bol
         for component in hier_stars:
-            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
-            gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component', **kwargs)
+            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **_skip_filter_checks)
+            gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component', **_skip_filter_checks)
 
             if teff >= 8000. and gravb_bol < 0.9:
                 report.add_item(self,
                                 "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol>=0.9 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol),
-                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
-                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **kwargs)],
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **_skip_filter_checks)],
                                 False)
             elif teff <= 6600. and gravb_bol >= 0.9:
                 report.add_item(self,
                                 "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol<0.9 (suggestion: 0.32) might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol),
-                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
-                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **kwargs)],
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **_skip_filter_checks)],
                                 False)
             elif (teff > 6600 and teff < 8000) and gravb_bol < 0.32 or gravb_bol > 1.00:
                 report.add_item(self,
                                 "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}.".format(component, teff, gravb_bol),
-                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
-                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **kwargs)],
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                 self.get_parameter(qualifier='gravb_bol', component=component, context='component', **_skip_filter_checks)],
                                 False)
 
         for component in hier_stars:
-            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
-            irrad_frac_refl_bol = self.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)
+            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **_skip_filter_checks)
+            irrad_frac_refl_bol = self.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks)
 
             if teff >= 8000. and irrad_frac_refl_bol < 0.8:
                 report.add_item(self,
                                 "'{}' probably has a radiative atm (teff={:.0f}K>=8000K), for which irrad_frac_refl_bol>0.8 (suggestion: 1.0) might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),
-                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
-                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)],
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks)],
                                 False)
             elif teff <= 6600. and irrad_frac_refl_bol >= 0.75:
                 report.add_item(self,
                                 "'{}' probably has a convective atm (teff={:.0f}K<=6600K), for which irrad_frac_refl_bol<0.75 (suggestion: 0.6) might be a better approx than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),
-                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
-                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)],
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks)],
                                 False)
             elif (teff > 6600. and teff < 8000) and irrad_frac_refl_bol < 0.6:
                 report.add_item(self,
                                 "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), irrad_frac_refl_bol might be better between 0.6-1.00 than irrad_frac_refl_bol={:.2f}.".format(component, teff, irrad_frac_refl_bol),
-                                [self.get_parameter(qualifier='teff', component=component, context='component', **kwargs),
-                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **kwargs)],
+                                [self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                 self.get_parameter(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks)],
                                 False)
 
         # TODO: add other checks
@@ -3186,13 +3186,13 @@ class Bundle(ParameterSet):
 
 
         for figure in self.figures:
-            x = self.get_value(qualifier='x', figure=figure, context='figure')
-            y = self.get_value(qualifier='y', figure=figure, context='figure')
+            x = self.get_value(qualifier='x', figure=figure, context='figure', **_skip_filter_checks)
+            y = self.get_value(qualifier='y', figure=figure, context='figure', **_skip_filter_checks)
             if (x in ['xs', 'ys', 'zs'] and y in ['us', 'vs', 'ws']) or (x in ['us', 'vs', 'ws'] and y in ['xs', 'ys', 'zs']):
                 report.add_item(self,
                                 "cannot mix xyz and uvw coordinates in {} figure".format(figure),
-                                [self.get_parameter(qualifier='x', figure=figure, context='figure'),
-                                 self.get_parameter(qualifier='y', figure=figure, context='figure')
+                                [self.get_parameter(qualifier='x', figure=figure, context='figure', **_skip_filter_checks),
+                                 self.get_parameter(qualifier='y', figure=figure, context='figure', **_skip_filter_checks)
                                 ],
                                 False)
 
@@ -5950,7 +5950,8 @@ class Bundle(ParameterSet):
 
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_allowed_keys=['skip_checks'], additional_forbidden_keys=forbidden_keys)
+        if not kwargs.get('skip_checks', False):
+            self._kwargs_checks(kwargs, additional_allowed_keys=['skip_checks', 'overwrite'], additional_forbidden_keys=forbidden_keys)
 
         if not kwargs.get('skip_checks', False):
             report = self.run_checks(compute=compute, allow_skip_constraints=False,
@@ -6124,8 +6125,9 @@ class Bundle(ParameterSet):
             datasets = [datasets]
 
         # don't allow things like model='mymodel', etc
-        forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks'], additional_forbidden_keys=forbidden_keys)
+        if not kwargs.get('skip_checks', False):
+            forbidden_keys = parameters._meta_fields_filter
+            self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks'], additional_forbidden_keys=forbidden_keys)
 
         if compute is None:
             if len(self.computes)==1:
@@ -6313,7 +6315,8 @@ class Bundle(ParameterSet):
 
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
-        self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks'], additional_forbidden_keys=forbidden_keys)
+        if not kwargs.get('skip_checks', False):
+            self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks', 'overwrite'], additional_forbidden_keys=forbidden_keys)
 
         # check to make sure value of passed compute is valid
         if compute is None:
@@ -6354,7 +6357,7 @@ class Bundle(ParameterSet):
 
         # we'll need to make sure we've done any necessary interpolation if
         # any ld_bol or ld_mode_bol are set to 'lookup'.
-        self.compute_ld_coeffs(compute=compute, set_value=True)
+        self.compute_ld_coeffs(compute=compute, set_value=True, **kwargs)
 
         ret = {}
         l3s = None
@@ -6430,10 +6433,13 @@ class Bundle(ParameterSet):
 
         return ret
 
-    def _compute_necessary_values(self, computeparams):
+    def _compute_necessary_values(self, computeparams, **kwargs):
+        # we'll manually disable skip_checks anyways to avoid them being done twice
+        _ = kwargs.pop('backend', None)
+        _ = kwargs.pop('skip_checks', None)
         compute = computeparams.compute
 
-        if computeparams.kind == 'phoebe':
+        if computeparams.kind == 'phoebe' and computeparams.get_value(qualifier='irrad_method', **_skip_filter_checks) !='none':
             # then all we need to do is handle any ld_mode_bol=='lookup'
             self.compute_ld_coeffs(compute, dataset=['bol'], set_value=True, skip_checks=True)
             return
@@ -6447,16 +6453,16 @@ class Bundle(ParameterSet):
 
         if len(dataset_compute_ld_coeffs):
             logger.warning("{} does not natively support interpolating ld coefficients.  These will be interpolated by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
-            logger.debug("calling compute_ld_coeffs(compute={}, dataset={}, set_value=True, skip_checks=True)".format(dataset_compute_ld_coeffs, compute))
-            self.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True, skip_checks=True)
+            logger.debug("calling compute_ld_coeffs(compute={}, dataset={}, set_value=True, skip_checks=True, **{})".format(dataset_compute_ld_coeffs, compute, kwargs))
+            self.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True, skip_checks=True, **kwargs)
 
         # handle any necessary pblum computations
         allowed_pblum_modes = ['decoupled', 'component-coupled'] if computeparams.kind == 'legacy' else ['decoupled']
         dataset_compute_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode').exclude(value=allowed_pblum_modes).datasets
         if len(dataset_compute_pblums):
             logger.warning("{} does not natively support pblum_mode={}.  pblum values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, [p.get_value() for p in self.filter(qualifier='pblum_mode').exclude(value=allowed_pblum_modes).to_list()], computeparams.kind))
-            logger.debug("calling compute_pblums(compute={}, dataset={}, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True)".format(compute, dataset_compute_pblums))
-            self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True)
+            logger.debug("calling compute_pblums(compute={}, dataset={}, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True, **{})".format(compute, dataset_compute_pblums, kwargs))
+            self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True, **kwargs)
 
         # handle any necessary l3 computations
         if computeparams.kind == 'ellc':
@@ -6476,8 +6482,8 @@ class Bundle(ParameterSet):
                 logger.warning("{} does not natively support l3_mode='flux'.  l3_frac values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
             else:
                 logger.warning("{} does not natively support l3_mode='fraction'.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
-            logger.debug("calling compute_l3s(compute={}, dataset={}, set_value=True, skip_checks=True)".format(compute, dataset_compute_l3s))
-            self.compute_l3s(compute, dataset=dataset_compute_l3s, set_value=True, skip_checks=True)
+            logger.debug("calling compute_l3s(compute={}, dataset={}, set_value=True, skip_checks=True, **{})".format(compute, dataset_compute_l3s, kwargs))
+            self.compute_l3s(compute, dataset=dataset_compute_l3s, set_value=True, skip_checks=True, **kwargs)
 
 
     @send_if_client
