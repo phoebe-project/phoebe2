@@ -6177,6 +6177,17 @@ class Bundle(ParameterSet):
         `t0`) as they are estimated directly from the luminosities under the
         spherical assumption.
 
+        Note about contact systems: `component` defaults to
+        <phoebe.parameters.HierarchyParameter.get_stars> +
+        <phoebe.parameters.HierarchyParameter.get_envelopes>.  Under-the-hood,
+        PHOEBE uses individual star luminosities to handle scaling, and the
+        expose luminosity for envelopes is just the sum of its individual components.
+        Note that these are then susceptible to the way in which the components are split in
+        the neck - so a contact system consisting of two identical "stars" may
+        return slightly different luminosities for the individual sub-components.
+        These values should converge if you increase ntriangles in the compute
+        options.
+
         Note about boosting: as boosting is an aspect-dependent effect that
         does not affect normal intensities, boosting will not be included
         in any of the returned values, including `pbflux_ext` due to the
@@ -6214,18 +6225,26 @@ class Bundle(ParameterSet):
             (from the l3 or l3_frac parameter), and are estimated based on
             extrinsic `pblum_ext`.  These will be exposed as pbflux_ext@dataset.
         * `component` (string or list of strings, optional): label of the
-            component(s) requested. If not provided, will be provided for all
-            components in the hierarchy.
+            component(s) requested. If not provided, will default to all stars
+            and envelopes in the hierarchy (see
+            <phoebe.parameters.HierarchyParameter.get_stars> and
+            <phoebe.parameters.HierarchyParameter.get_envelopes>).
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             passband-dependent datasets attached to the bundle.  Those without
             a pblum_mode parameter (eg. rv or lp datasets) will be computed
-            in absolute luminosities.
+            in absolute luminosities.  Note that any valid entries in `dataset`
+            with pblum_mode='dataset-scaled' will be ommitted from the output
+            without raising an error (but will raise a <phoebe.logger> warning,
+            if enabled).
         * `set_value` (bool, optional, default=False): apply the computed
             values to the respective `pblum` parameters (even if not
             currently visible).  Note that extrinsic values (`pblum_ext` and
             `pbflux_ext`) are not input parameters to the
-            model, so are not set.
+            model, so are not set.  This is often used internally to handle
+            various options for pblum_mode for alternate backends that require
+            passband luminosities or surface brightnesses as input, but is not
+            ever required to be called manually.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -6243,7 +6262,10 @@ class Bundle(ParameterSet):
         ----------
         * ValueError: if `compute` needs to be provided but is not.
         * ValueError: if any value in `dataset` points to a dataset that is not
-            passband-dependent (eg. a mesh or orb dataset).
+            passband-dependent (eg. a mesh or orb dataset) or is not a valid
+            dataset attached to the bundle'.
+        * ValueError: if any value in `component` is not a valid star or envelope
+            in the hierarchy.
         * ValueError: if the system fails to pass
             <phoebe.frontend.bundle.Bundle.run_checks>.
         """
@@ -6252,9 +6274,21 @@ class Bundle(ParameterSet):
         datasets = kwargs.pop('dataset', self.filter(qualifier='passband').datasets)
         if isinstance(datasets, str):
             datasets = [datasets]
-        components = kwargs.pop('component', self.components)
-        if isinstance(components, str):
-            components = [components]
+
+
+        valid_components = self.hierarchy.get_stars()+self.hierarchy.get_envelopes()
+        if 'component' in kwargs.keys():
+            components = kwargs.pop('component')
+
+            if isinstance(components, str):
+                components = [components]
+
+            not_valid = [c not in valid_components for c in components]
+            if np.any(not_valid):
+                raise ValueError("{} are not valid components.  Must be in {}".format([c for c,nv in zip(components, not_valid) if nv], valid_components))
+
+        else:
+            components = valid_components
 
         # don't allow things like model='mymodel', etc
         forbidden_keys = parameters._meta_fields_filter
@@ -6280,6 +6314,8 @@ class Bundle(ParameterSet):
         pblum_datasets = datasets
         for dataset in datasets:
             if not len(self.filter(qualifier='passband', dataset=dataset)):
+                if dataset not in self.datasets:
+                    raise ValueError("dataset '{}' is not a valid dataset attached to the bundle".format(dataset))
                 raise ValueError("dataset '{}' is not passband-dependent".format(dataset))
             for pblum_ref_param in self.filter(qualifier='pblum_dataset', dataset=dataset).to_list():
                 ref_dataset = pblum_ref_param.get_value()
@@ -6333,7 +6369,16 @@ class Bundle(ParameterSet):
                 system.populate_observables(t0, ['lc'], [dataset],
                                             ignore_effects=not compute_extrinsic)
 
-                for component, star in system.items():
+
+                system_items = {}
+                for component, item in system.items():
+                    system_items[component] = item
+                    if hasattr(item, '_halves'):
+                        # then we also want to iterate over the envelope halves
+                        for half in item._halves:
+                            system_items[half.component] = half
+
+                for component, star in system_items.items():
                     if component not in components:
                         continue
 
