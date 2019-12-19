@@ -2845,6 +2845,7 @@ class Bundle(ParameterSet):
                                      self.get_parameter(qualifier='run_checks_compute', context='setting', **kwargs)],
                                     True)
 
+
             for dataset in self.filter(context='dataset', kind=['lc', 'rv'], check_default=True).datasets:
                 if dataset=='_default':
                     # just in case conf.check_default = False
@@ -2980,6 +2981,14 @@ class Bundle(ParameterSet):
 
         for compute in computes:
             compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
+
+            # 2.2 disables support for boosting.  The boosting parameter in 2.2 only has 'none' as an option, but
+            # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
+            if self.get_value(qualifier='boosting_method', compute=compute, **_skip_filter_checks) != 'none':
+                report.add_item(self,
+                                "support for beaming/boosting has been removed from PHOEBE 2.2.  Set boosting_method to 'none'.",
+                                [self.get_parameter(qualifier='boosting_method', compute=compute, **kwargs)],
+                                True)
 
             # mesh-consistency checks
             mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()]
