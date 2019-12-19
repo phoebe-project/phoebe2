@@ -981,7 +981,7 @@ class Bundle(ParameterSet):
         return b
 
     @classmethod
-    def default_contact_binary(*args, **kwargs):
+    def default_contact_binary(cls, *args, **kwargs):
         """
         For convenience, this function is available at the top-level as
         <phoebe.default_contact_binary> as well as
