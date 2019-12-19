@@ -539,7 +539,7 @@ class System(object):
             teffs_intrins_per_body = list(meshes.get_column('teffs', computed_type='for_computations').values())
 
             ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
-
+            logger.debug("irradiation ld_func_and_coeffs: {}".format(ld_func_and_coeffs))
             fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
@@ -585,6 +585,10 @@ class System(object):
         # flux under stefan-boltzmann. These effective temperatures will
         # then be used for all passband intensities.
         teffs_intrins_and_refl_flat = teffs_intrins_flat * (fluxes_intrins_and_refl_flat / fluxes_intrins_flat) ** (1./4)
+
+        nanmask = np.isnan(teffs_intrins_and_refl_flat)
+        if np.any(nanmask):
+            raise ValueError("irradiation resulted in nans for teffs")
 
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
