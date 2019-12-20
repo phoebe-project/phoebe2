@@ -3269,6 +3269,7 @@ class Bundle(ParameterSet):
         citation_urls = {'Prsa & Zwitter (2005)': 'https://ui.adsabs.harvard.edu/?#abs/2005ApJ...628..426P',
                          'Prsa et al. (2016)': 'https://ui.adsabs.harvard.edu/?#abs/2016ApJS..227...29P',
                          'Horvat et al. (2018)': 'https://ui.adsabs.harvard.edu/?#abs/2016ApJS..227...29P',
+                         'Jones et al. (2020, submitted)': 'https://ui.adsabs.harvard.edu/abs/2019arXiv191209474J',
                          'Castelli & Kurucz (2004)': 'https://ui.adsabs.harvard.edu/#abs/2004astro.ph..5087C',
                          'Husser et al. (2013)': 'https://ui.adsabs.harvard.edu/#abs/2013A&A...553A...6H',
                          'numpy/scipy': 'https://www.scipy.org/citing.html',
@@ -3315,6 +3316,9 @@ class Bundle(ParameterSet):
         for component in self.hierarchy.get_stars():
             if self.get_value(qualifier='pitch', component=component, context='component') != 0. or self.get_value(qualifier='yaw', component=component, context='component') != 0.:
                 recs = _add_reason(recs, 'Horvat et al. (2018)', 'support for misaligned system')
+        for ebv_param in self.filter(qualifier='ebv', context='dataset'):
+            if ebv_param.get_value() > 0:
+                recs = _add_reason(recs, 'Jones et al. (2020)', 'support for interstellar extinction')
 
         # provide any references from passband tables
         for pb_param in self.filter(qualifier='passband', dataset=datasets, component=self.hierarchy.get_stars()).to_list():
