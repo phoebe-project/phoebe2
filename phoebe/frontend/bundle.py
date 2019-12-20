@@ -556,6 +556,17 @@ class Bundle(ParameterSet):
                 else:
                     return param.get_quantity() if hasattr(param, 'get_quantity') else param.get_value()
 
+            # TESS:default has been renamed to TESS:T
+            # Tycho:BT has been renamed to Tycho:B
+            # Tycho:VT has been renamed to Tycho:V
+            pb_map = {'TESS:default': 'TESS:T', 'Tycho:BT': 'Tycho:B', 'Tycho:VT': 'Tycho:V'}
+            for param in b.filter(qualifier='passband', **_skip_filter_checks).to_list():
+                old_value = param.get_value()
+                if old_value in pb_map.keys():
+                    new_value = pb_map.get(old_value)
+                    logger.warning("migrating passband='{}' to passband='{}'".format(old_value, new_value))
+                    param.set_value(new_value)
+
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
             b.remove_parameters_all(context='setting')
             b._attach_params(_setting.settings(**existing_values_settings), context='setting')
