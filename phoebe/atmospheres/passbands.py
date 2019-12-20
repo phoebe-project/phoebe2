@@ -3165,7 +3165,7 @@ def download_passband(passband, content=None, local=True, gzipped=None):
     else:
         _init_passband(passband_fname_local)
 
-def list_passband_online_history(passband, since_installed=False):
+def list_passband_online_history(passband, since_installed=True):
     """
     For convenience, this function is available at the top-level as
     <phoebe.list_passband_online_history> as well as
@@ -3180,7 +3180,7 @@ def list_passband_online_history(passband, since_installed=False):
     Arguments
     ------------
     * `passband` (string): name of the passband
-    * `since_installed` (bool, optional, default=False): whether to filter
+    * `since_installed` (bool, optional, default=True): whether to filter
         the changelog entries to only those since the timestamp of the installed
         version.
 
