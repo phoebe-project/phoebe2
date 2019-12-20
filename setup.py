@@ -322,12 +322,12 @@ def _env_variable_bool(key, default):
         return False
 
 setup (name = 'phoebe',
-       version = 'devel',
-       description = 'PHOEBE devel version',
+       version = '2.2.0',
+       description = 'PHOEBE 2.2.0',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
-       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.1.17',
+       download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.2.0',
        packages = ['phoebe', 'phoebe.parameters', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.utils', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.unitsiau2015'],
        install_requires=['numpy>=1.10','scipy>=0.17','astropy>=1.0,<3.0' if sys.version_info[0] < 3 else 'astropy>=1.0', 'asdf>=2.0', 'pytest'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
