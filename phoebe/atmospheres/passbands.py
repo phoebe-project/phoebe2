@@ -415,9 +415,11 @@ class Passband:
             self.content = eval(header['content'], {'__builtins__':None}, {})
 
             try:
-                self.history = header['HISTORY']
-            except:
-                self.history = ['']
+                history = ''.join(header['HISTORY']).split('-END-')
+            except KeyError:
+                history = []
+
+            self.history = {h.split(': ')[0]: ': '.join(h.split(': ')[1:]) for h in history if len(h.split(': ')) > 1}
 
             self.ptf_table = hdul['ptftable'].data
 
