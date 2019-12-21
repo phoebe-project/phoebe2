@@ -414,6 +414,11 @@ class Passband:
 
             self.content = eval(header['content'], {'__builtins__':None}, {})
 
+            try:
+                self.history = header['HISTORY']
+            except:
+                self.history = ['']
+
             self.ptf_table = hdul['ptftable'].data
 
             # Rebuild ptf() and photon_ptf() functions:
@@ -2480,8 +2485,8 @@ class Passband:
         -----------
         * `plfile` (string): path and filename of atmcofplanck.dat
         * `atmfile` (string): path and filename of atmcof.dat
-        * `wdidx` (int): WD index of the passed passband. This can be automated
-            but it's not a high priority.
+        * `wdidx` (int): WD index of the passed passband. Starts with 1, so
+            it is aligned with the enumeration in lc and dc sources.
         * `Nabun` (int, optional, default=19): number of metallicity nodes in
             atmcof.dat. For the 2003 version the number of nodes is 19.
         * `Nlogg` (int, optional, default=11): number of logg nodes in
@@ -2493,8 +2498,15 @@ class Passband:
             is 4.
         """
 
-        # Initialize the external atmcof module if necessary:
-        # PERHAPS WD_DATA SHOULD BE GLOBAL??
+        if wdidx <= 0 or wdidx > Npb:
+            raise ValueError('wdidx value out of bounds: 1 <= wdidx <= Npb')
+
+        # Store the passband index for use in planckint() and atmx():
+        self.extern_wd_idx = wdidx
+
+        # Store atmcof and atmcofplanck for independent lookup:
+        # FIXME: it makes no sense to store the entire table for all passbands;
+        # fix this entire logic to store only a single passband information.
         self.wd_data = libphoebe.wd_readdata(_bytes(plfile), _bytes(atmfile))
 
         # That is all that was necessary for *_extern_planckint() and
@@ -2502,16 +2514,13 @@ class Passband:
         # circumventing WD subroutines and use WD tables directly. For
         # that, we need to do a bit more work.
 
-        # Store the passband index for use in planckint() and atmx():
-        self.extern_wd_idx = wdidx
-
         # Break up the table along axes and extract a single passband data:
-        atmtab = np.reshape(self.wd_data['atm_table'], (Nabun, Npb, Nlogg, Nints, -1))
-        atmtab = atmtab[:, wdidx, :, :, :]
+        # atmtab = np.reshape(self.wd_data['atm_table'], (Nabun, Npb, Nlogg, Nints, -1))
+        # atmtab = atmtab[:,wdidx-1,:,:,:]
 
         # Finally, reverse the metallicity axis because it is sorted in
         # reverse order in atmcof:
-        self.extern_wd_atmx = atmtab[::-1, :, :, :]
+        # self.extern_wd_atmx = atmtab[::-1,:,:,:]
         self.content += ['extern_planckint:Inorm', 'extern_atmx:Inorm']
 
     def _log10_Inorm_extern_planckint(self, Teff):
