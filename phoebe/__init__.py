@@ -14,7 +14,7 @@ Available environment variables:
 
 """
 
-__version__ = 'devel'
+__version__ = '2.2.0'
 
 import os as _os
 import sys as _sys
