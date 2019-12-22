@@ -216,7 +216,8 @@ null,
 null
 ],
 "qualifier": "pitch",
-"value": 0.0
+"value": 0.0,
+"visible_if": "hierarchy.is_contact_binary:False"
 },
 {
 "Class": "FloatParameter",
@@ -231,7 +232,8 @@ null,
 null
 ],
 "qualifier": "yaw",
-"value": 0.0
+"value": 0.0,
+"visible_if": "hierarchy.is_contact_binary:False"
 },
 {
 "Class": "FloatParameter",
@@ -246,7 +248,8 @@ null,
 null
 ],
 "qualifier": "incl",
-"value": 90.0
+"value": 90.0,
+"visible_if": "hierarchy.is_contact_binary:False"
 },
 {
 "Class": "FloatParameter",
@@ -261,7 +264,8 @@ null,
 null
 ],
 "qualifier": "long_an",
-"value": 0.0
+"value": 0.0,
+"visible_if": "hierarchy.is_contact_binary:False"
 },
 {
 "Class": "FloatParameter",
@@ -491,7 +495,8 @@ null,
 null
 ],
 "qualifier": "pitch",
-"value": 0.0
+"value": 0.0,
+"visible_if": "hierarchy.is_contact_binary:False"
 },
 {
 "Class": "FloatParameter",
@@ -506,7 +511,8 @@ null,
 null
 ],
 "qualifier": "yaw",
-"value": 0.0
+"value": 0.0,
+"visible_if": "hierarchy.is_contact_binary:False"
 },
 {
 "Class": "FloatParameter",
@@ -521,7 +527,8 @@ null,
 null
 ],
 "qualifier": "incl",
-"value": 90.0
+"value": 90.0,
+"visible_if": "hierarchy.is_contact_binary:False"
 },
 {
 "Class": "FloatParameter",
@@ -536,7 +543,8 @@ null,
 null
 ],
 "qualifier": "long_an",
-"value": 0.0
+"value": 0.0,
+"visible_if": "hierarchy.is_contact_binary:False"
 },
 {
 "Class": "FloatParameter",
@@ -715,7 +723,7 @@ null
 "kind": "orbit",
 "limits": [
 0.0,
-1.0
+0.999999
 ],
 "qualifier": "ecc",
 "value": 0.0
@@ -1021,6 +1029,7 @@ null
 "Hipparcos:Hp",
 "Stromgren:u",
 "Brite:R",
+"SMEI:filterless",
 "Stromgren:y",
 "Johnson:B",
 "Gaia:RP",
@@ -1056,7 +1065,7 @@ null
 "description": "Passband",
 "kind": "lc_dep",
 "qualifier": "passband",
-"value": "Johnson:V"
+"value": "TESS:default"
 },
 {
 "Class": "ChoiceParameter",
@@ -1499,6 +1508,7 @@ null
 "Hipparcos:Hp",
 "Stromgren:u",
 "Brite:R",
+"SMEI:filterless",
 "Stromgren:y",
 "Johnson:B",
 "Gaia:RP",
@@ -2370,6 +2380,7 @@ null
 "Hipparcos:Hp",
 "Stromgren:u",
 "Brite:R",
+"SMEI:filterless",
 "Stromgren:y",
 "Johnson:B",
 "Gaia:RP",
@@ -2641,6 +2652,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "primary",
+"constraint_addl_vars": [],
 "constraint_func": "freq",
 "constraint_kwargs": {
 "component": "primary"
@@ -2656,6 +2668,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "primary",
+"constraint_addl_vars": [],
 "constraint_func": "irrad_frac",
 "constraint_kwargs": {
 "component": "primary"
@@ -2671,6 +2684,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "secondary",
+"constraint_addl_vars": [],
 "constraint_func": "freq",
 "constraint_kwargs": {
 "component": "secondary"
@@ -2686,6 +2700,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "secondary",
+"constraint_addl_vars": [],
 "constraint_func": "irrad_frac",
 "constraint_kwargs": {
 "component": "secondary"
@@ -2701,6 +2716,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "binary",
+"constraint_addl_vars": [],
 "constraint_func": "asini",
 "constraint_kwargs": {
 "orbit": "binary"
@@ -2716,6 +2732,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "binary",
+"constraint_addl_vars": [],
 "constraint_func": "t0_perpass_supconj",
 "constraint_kwargs": {
 "orbit": "binary"
@@ -2731,6 +2748,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "binary",
+"constraint_addl_vars": [],
 "constraint_func": "t0_ref_supconj",
 "constraint_kwargs": {
 "orbit": "binary"
@@ -2746,6 +2764,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "binary",
+"constraint_addl_vars": [],
 "constraint_func": "mean_anom",
 "constraint_kwargs": {
 "orbit": "binary"
@@ -2761,6 +2780,12 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "binary",
+"constraint_addl_vars": [
+"esinw@binary@orbit@component",
+"ecosw@binary@orbit@component",
+"ecc@binary@orbit@component",
+"per0@binary@orbit@component"
+],
 "constraint_func": "ecosw",
 "constraint_kwargs": {
 "orbit": "binary"
@@ -2776,6 +2801,12 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "binary",
+"constraint_addl_vars": [
+"esinw@binary@orbit@component",
+"ecosw@binary@orbit@component",
+"ecc@binary@orbit@component",
+"per0@binary@orbit@component"
+],
 "constraint_func": "esinw",
 "constraint_kwargs": {
 "orbit": "binary"
@@ -2791,6 +2822,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "binary",
+"constraint_addl_vars": [],
 "constraint_func": "freq",
 "constraint_kwargs": {
 "component": "binary"
@@ -2806,6 +2838,12 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "primary",
+"constraint_addl_vars": [
+"mass@secondary@star@component",
+"period@binary@orbit@component",
+"sma@binary@orbit@component",
+"q@binary@orbit@component"
+],
 "constraint_func": "mass",
 "constraint_kwargs": {
 "component": "primary"
@@ -2821,6 +2859,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "primary",
+"constraint_addl_vars": [],
 "constraint_func": "comp_sma",
 "constraint_kwargs": {
 "component": "primary"
@@ -2836,6 +2875,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "primary",
+"constraint_addl_vars": [],
 "constraint_func": "rotation_period",
 "constraint_kwargs": {
 "component": "primary"
@@ -2851,21 +2891,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "primary",
-"constraint_func": "requiv_detached_max",
-"constraint_kwargs": {
-"component": "primary"
-},
-"context": "constraint",
-"default_unit": "solRad",
-"description": "expression that determines the constraint",
-"in_solar_units": true,
-"kind": "star",
-"qualifier": "requiv_max",
-"value": "requiv_L1({q@binary@component}, {syncpar@primary@component}, {ecc@binary@component}, {sma@binary@component}, {incl@primary@component}, {long_an@primary@component}, {incl@binary@component}, {long_an@binary@component}, 1)"
-},
-{
-"Class": "ConstraintParameter",
-"component": "primary",
+"constraint_addl_vars": [],
 "constraint_func": "pitch",
 "constraint_kwargs": {
 "component": "primary"
@@ -2881,6 +2907,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "primary",
+"constraint_addl_vars": [],
 "constraint_func": "yaw",
 "constraint_kwargs": {
 "component": "primary"
@@ -2895,7 +2922,29 @@ null
 },
 {
 "Class": "ConstraintParameter",
+"component": "primary",
+"constraint_addl_vars": [],
+"constraint_func": "requiv_detached_max",
+"constraint_kwargs": {
+"component": "primary"
+},
+"context": "constraint",
+"default_unit": "solRad",
+"description": "expression that determines the constraint",
+"in_solar_units": true,
+"kind": "star",
+"qualifier": "requiv_max",
+"value": "requiv_L1({q@binary@component}, {syncpar@primary@component}, {ecc@binary@component}, {sma@binary@component}, {incl@primary@component}, {long_an@primary@component}, {incl@binary@component}, {long_an@binary@component}, 1)"
+},
+{
+"Class": "ConstraintParameter",
 "component": "secondary",
+"constraint_addl_vars": [
+"mass@primary@star@component",
+"period@binary@orbit@component",
+"sma@binary@orbit@component",
+"q@binary@orbit@component"
+],
 "constraint_func": "mass",
 "constraint_kwargs": {
 "component": "secondary"
@@ -2911,6 +2960,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "secondary",
+"constraint_addl_vars": [],
 "constraint_func": "comp_sma",
 "constraint_kwargs": {
 "component": "secondary"
@@ -2926,6 +2976,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "secondary",
+"constraint_addl_vars": [],
 "constraint_func": "rotation_period",
 "constraint_kwargs": {
 "component": "secondary"
@@ -2941,21 +2992,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "secondary",
-"constraint_func": "requiv_detached_max",
-"constraint_kwargs": {
-"component": "secondary"
-},
-"context": "constraint",
-"default_unit": "solRad",
-"description": "expression that determines the constraint",
-"in_solar_units": true,
-"kind": "star",
-"qualifier": "requiv_max",
-"value": "requiv_L1({q@binary@component}, {syncpar@secondary@component}, {ecc@binary@component}, {sma@binary@component}, {incl@secondary@component}, {long_an@secondary@component}, {incl@binary@component}, {long_an@binary@component}, 2)"
-},
-{
-"Class": "ConstraintParameter",
-"component": "secondary",
+"constraint_addl_vars": [],
 "constraint_func": "pitch",
 "constraint_kwargs": {
 "component": "secondary"
@@ -2971,6 +3008,7 @@ null
 {
 "Class": "ConstraintParameter",
 "component": "secondary",
+"constraint_addl_vars": [],
 "constraint_func": "yaw",
 "constraint_kwargs": {
 "component": "secondary"
@@ -2982,6 +3020,22 @@ null
 "kind": "star",
 "qualifier": "long_an",
 "value": "{long_an@binary@component} + {yaw@secondary@component}"
+},
+{
+"Class": "ConstraintParameter",
+"component": "secondary",
+"constraint_addl_vars": [],
+"constraint_func": "requiv_detached_max",
+"constraint_kwargs": {
+"component": "secondary"
+},
+"context": "constraint",
+"default_unit": "solRad",
+"description": "expression that determines the constraint",
+"in_solar_units": true,
+"kind": "star",
+"qualifier": "requiv_max",
+"value": "requiv_L1({q@binary@component}, {syncpar@secondary@component}, {ecc@binary@component}, {sma@binary@component}, {incl@secondary@component}, {long_an@secondary@component}, {incl@binary@component}, {long_an@binary@component}, 2)"
 },
 {
 "Class": "BoolParameter",
@@ -122206,17 +122260,17 @@ null
 "model": "latest",
 "qualifier": "fluxes",
 "value": [
-0.9831927925898659,
-1.9925390159534055,
-2.00632529306601,
-2.0064521656934997,
-1.9923830576481223,
-0.9831927925955045,
-1.9925390159534055,
-2.00632529306601,
-2.0064521656934997,
-1.9923830576481223,
-0.9831927925898659
+0.9854989095354845,
+1.9913228313088163,
+2.0045806488806313,
+2.004746440247508,
+1.9910362086889823,
+0.9854989095432629,
+1.9913228313088163,
+2.0045806488806317,
+2.004746440247508,
+1.9910362086889823,
+0.9854989095354845
 ]
 },
 {
@@ -122307,7 +122361,7 @@ null
 "copy_for": false,
 "description": "Version of PHOEBE - change with caution",
 "qualifier": "phoebe_version",
-"value": "2.1.10"
+"value": "2.1.17"
 },
 {
 "Class": "BoolParameter",

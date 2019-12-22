@@ -5,7 +5,7 @@ import os
 
 from distutils.version import LooseVersion
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 version = __version__
 
 # allow isinstance(obj, nparray.ndarray) to be similar to numpy

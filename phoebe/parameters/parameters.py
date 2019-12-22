@@ -158,6 +158,7 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas',
                      'compute_times', 'compute_phases', 'compute_phases_t0',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
+                     'Rv', 'Av', 'ebv',
                      'pblum_mode', 'pblum_ref', 'pblum', 'pbflux',
                      'pblum_dataset', 'pblum_component',
                      'l3_mode', 'l3', 'l3_frac',
@@ -3956,7 +3957,7 @@ class ParameterSet(object):
     def plot(self, twig=None, **kwargs):
         """
         High-level wrapper around matplotlib that uses
-        [autofig 1.0.0](https://github.com/kecnry/autofig/tree/1.0.0)
+        [autofig 1.1.0](https://autofig.readthedocs.io/en/1.1.0)
         under-the-hood for automated figure and animation production.
 
         For an even higher-level interface allowing to interactively set and
@@ -3987,7 +3988,7 @@ class ParameterSet(object):
         ```
 
         Note: not all options are listed below.  See the
-        [autofig](https://autofig.readthedocs.io/en/latest/)
+        [autofig](https://autofig.readthedocs.io/en/1.1.0/)
         tutorials and documentation for more options which are passed along
         via `**kwargs`.
 
@@ -4042,10 +4043,10 @@ class ParameterSet(object):
             z-axis.  By default, this will just order the points on a 2D plot.
             To plot in 3D, also pass `projection='3d'`.
         * `s` (strong/float/array, optional): qualifier/twig of the array to use
-            for size.  See the [autofig tutorial on size](https://autofig.readthedocs.io/en/latest/tutorials/size_modes/)
+            for size.  See the [autofig tutorial on size](https://autofig.readthedocs.io/en/1.1.0/tutorials/size_modes/)
             for more information.
         * `smode` (string, optional): mode for handling size (`s`).  See the
-            [autofig tutorial on size mode](https://autofig.readthedocs.io/en/latest/tutorials/size_modes/)
+            [autofig tutorial on size mode](https://autofig.readthedocs.io/en/1.1.0/tutorials/size_modes/)
             for more information.
         * `c` (string/float/array, optional): qualifier/twig of the array to use
             for color.
@@ -4068,7 +4069,7 @@ class ParameterSet(object):
             then setting `i` to phases will sort and connect the points in
             phase-order, whereas if set to `times` they will be sorted and connected
             in time-order, with linebreaks when needed for phase-wrapping.
-            See also the [autofig tutorial on a looping independent variable](https://autofig.readthedocs.io/en/latest/gallery/looping_indep/).
+            See also the [autofig tutorial on a looping independent variable](https://autofig.readthedocs.io/en/1.1.0/gallery/looping_indep/).
 
         * `xerror` (string/float/array, optional): qualifier/twig of the array to plot as
             x-errors (will default based on `x` if not provided).  Pass None to
@@ -4111,25 +4112,25 @@ class ParameterSet(object):
             only applicable for mesh plots).
 
         * `xlim` (tuple/string, optional): limits for the x-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
             for more information/choices.
         * `ylim` (tuple/string, optional): limits for the y-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
             for more information/choices.
         * `zlim` (tuple/string, optional): limits for the z-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
             for more information/choices.
         * `slim` (tuple/string, optional): limits for the size-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
             for more information/choices.
         * `clim` (tuple/string, optional): limits for the color-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
             for more information/choices.
         * `fclim` (tuple/string, optional): limits for the facecolor-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
             for more information/choices.
         * `eclim` (tuple/string, optional): limits for the edgecolor-axis (will default on
-            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/latest/tutorials/limits/)
+            data if not provided).  See [autofig tutorial on limits](https://autofig.readthedocs.io/en/1.1.0/tutorials/limits/)
             for more information/choices.
 
         * `fcmap` (string, optional): colormap to use for the facecolor-axis (will default on
@@ -4141,7 +4142,7 @@ class ParameterSet(object):
             See the [matplotlib colormap reference](https://matplotlib.org/3.1.0/gallery/color/colormap_reference.html)
             for a list of options (may vary based on installed version of matplotlib).
 
-        * `smode` (string, optional): size mode.  See the [autofig tutorial on sizes](https://autofig.readthedocs.io/en/latest/tutorials/size_modes/)
+        * `smode` (string, optional): size mode.  See the [autofig tutorial on sizes](https://autofig.readthedocs.io/en/1.1.0/tutorials/size_modes/)
             for more information.
 
         * `highlight` (bool, optional, default=True): whether to highlight at the
@@ -4194,13 +4195,13 @@ class ParameterSet(object):
 
         * `projection` (string, optional, default='2d'): whether to plot
             on a 2d or 3d axes.  If '3d', the orientation of the axes will
-            be provided by `azim` and `elev` (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/latest/tutorials/3d/))
+            be provided by `azim` and `elev` (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/1.1.0/tutorials/3d/))
         * `azim` (float or list, optional): azimuth to use when `projection`
             is '3d'.  If `animate` is True, then a tuple or list will allow
-            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/latest/tutorials/3d/))
+            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/1.1.0/tutorials/3d/))
         * `elev` (float or list, optional): elevation to use when `projection`
             is '3d'.  If `animate` is True, then a tuple or list will allow
-            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/latest/tutorials/3d/))
+            rotating the axes throughout the animation (see [autofig tutorial on 3d](https://autofig.readthedocs.io/en/1.1.0/tutorials/3d/))
         * `exclude_back` (bool, optional): whether to exclude plotting the back
             of meshes when in '2d' projections.  Defaults to True if `fc` is
             not 'none' (otherwise defaults to False so that you can "see through"
@@ -4211,14 +4212,14 @@ class ParameterSet(object):
         * `draw_title` (bool, optional, default=False): whether to draw axes
             titles.
         * `subplot_grid` (tuple, optional, default=None): override the subplot
-            grid used (see [autofig tutorial on subplots](https://autofig.readthedocs.io/en/latest/tutorials/subplot_positioning/)
+            grid used (see [autofig tutorial on subplots](https://autofig.readthedocs.io/en/1.1.0/tutorials/subplot_positioning/)
             for more details).
 
         * `save_kwargs` (dict, optional): any kwargs necessary to pass on to
             save (only applicable if `animate=True`).  On many systems,
             it may be necessary to pass `save_kwargs={'writer': 'imagemagick'}`.
 
-        * `**kwargs`: additional keyword arguments are sent along to [autofig](https://autofig.readthedocs.io/en/latest/).
+        * `**kwargs`: additional keyword arguments are sent along to [autofig](https://autofig.readthedocs.io/en/1.1.0/).
 
         Returns
         --------
@@ -6261,10 +6262,7 @@ class ChoiceParameter(Parameter):
         if value not in self.choices:
             raise ValueError("value for {} must be one of {}, not '{}'".format(self.uniquetwig, self.choices, value))
 
-        if self.qualifier=='passband' and value not in list_installed_passbands():
-            # then we need to download and install before setting
-            logger.info("downloading passband: {}".format(value))
-            download_passband(value)
+        # NOTE: downloading passbands from online is now handled by run_checks
 
         self._value = value
 
@@ -6472,9 +6470,9 @@ class SelectParameter(Parameter):
         selection = []
         for v in self.get_value(**kwargs):
             for choice in self.choices:
-                if v==choice and choice not in selection:
+                if v==choice and choice not in selection and len(choice):
                     selection.append(choice)
-                elif _fnmatch(choice, v) and choice not in selection:
+                elif _fnmatch(choice, v) and choice not in selection and len(choice):
                     selection.append(choice)
 
         return selection
@@ -8835,6 +8833,8 @@ class ConstraintParameter(Parameter):
         """
         see <phoebe.parameters.Parameter.__init__>
         """
+        # the super call is popping default_unit, so we'll access it first
+        default_unit_kwargs = kwargs.get('default_unit', None)
         super(ConstraintParameter, self).__init__(qualifier=kwargs.pop('qualifier', None), value=value, description=kwargs.pop('description', 'constraint'), **kwargs)
 
         # usually its the bundle's job to attach param._bundle after the
@@ -8842,7 +8842,10 @@ class ConstraintParameter(Parameter):
         # bundle is necessary in order to intialize and set the value
         self._bundle = bundle
         if isinstance(value, ConstraintParameter):
-            default_unit = kwargs.get('default_unit', value.result.unit)
+            if default_unit_kwargs is None:
+                default_unit = value.result.unit
+            else:
+                default_unit = default_unit_kwargs
             value = value.get_value()
 
         else:
@@ -9077,7 +9080,7 @@ class ConstraintParameter(Parameter):
                 logger.debug("ConstraintParameter.get_parameter: reverting to filtering on bundle, could not {} find in {}".format(kwargs, vars.twigs))
                 kwargs['context'] = [c for c in self._bundle.contexts if c!='constraint']
                 return self._bundle.get_parameter(**kwargs)
-            raise KeyError("no result found")
+            raise ValueError("no result found for {} in bundle after checking in {}".format(kwargs, vars.twigs))
 
     @property
     def default_unit(self):

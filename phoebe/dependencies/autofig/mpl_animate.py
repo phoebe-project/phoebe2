@@ -66,7 +66,7 @@ class Animation(object):
                                  draw_sidebars=self.draw_sidebars,
                                  draw_title=self.draw_title,
                                  subplot_grid=self.subplot_grid,
-                                 in_animation=True)
+                                 in_animation=i+1)
 
         if self.animate_callback is not None:
             self.animate_callback(mplfig)

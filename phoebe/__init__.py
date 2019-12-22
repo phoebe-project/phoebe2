@@ -5,6 +5,9 @@ Available environment variables:
 * PHOEBE_ENABLE_PLOTTING=TRUE/FALSE (whether to import plotting libraries with phoebe: defaults to True)
 * PHOEBE_ENABLE_SYMPY=TRUE/FALSE (whether to attempt to import sympy for constraint algebra: defaults to True if sympy installed, otherwise False)
 * PHOEBE_ENABLE_ONLINE_PASSBANDS=TRUE/FALSE (whether to query for online passbands and download on-the-fly: defaults to True)
+* PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
+* PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED=TRUE/FALSE (whether to download gzipped version of passbands by default.  Defaults to False.  Note that gzipped files take longer to load and will increase time for import, but take significantly less disk-space.)
+* PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT (default content, comma separated for list.  Defaults to 'all')
 * PHOEBE_ENABLE_MPI=TRUE/FALSE (whether to use internal parallelization: defaults to True if within mpirun, otherwise False, can override in python with phoebe.mpi.on() and phoebe.mpi.off())
 * PHOEBE_MPI_NPROCS=INT (number of procs to spawn in mpi is enabled but not running within mpirun: defaults to 4, only applicable if not within mpirun and PHOEBE_ENABLE_MPI=TRUE or phoebe.mpi.on() called, can override in python by passing nprocs to phoebe.mpi.on() or by setting phoebe.mpi.nprocs)
 * PHOEBE_PBDIR (directory to search for passbands, in addition to phoebe.list_passband_directories())
@@ -40,6 +43,13 @@ elif _sys.version_info[0] == 2:
         raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
 else:
     raise ImportError("PHOEBE supports python 2.7+ or 3.6+")
+
+def _env_variable_string_or_list(key, default):
+    value = _os.getenv(key, default)
+    if "," in value:
+        return value.split(",")
+    else:
+        return value
 
 def _env_variable_int(key, default):
     value = _os.getenv(key, default)
@@ -236,6 +246,9 @@ class Settings(object):
         self._check_visible = True
         self._check_default = True
 
+        self._download_passband_defaults = {'content': _env_variable_string_or_list('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT', 'all'),
+                                            'gzipped': _env_variable_bool('PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED', False)}
+
         # And we'll require explicitly setting developer mode on
         self._devel = _env_variable_bool('PHOEBE_DEVEL', False)
 
@@ -307,6 +320,25 @@ class Settings(object):
     def devel(self):
         return self._devel
 
+    def set_download_passband_defaults(self, **kwargs):
+        """
+        """
+        for k,v in kwargs.items():
+            if k not in self._download_passband_defaults.keys():
+                raise KeyError("{} must be one of {}".format(self._download_passband_defaults.keys()))
+            if k=='content' and not (isinstance(v, str) or isinstance(v, list)):
+                raise TypeError("content must be of type string or list")
+            if k=='gzipped' and not (isinstance(v, bool)):
+                raise TypeError("gzipped must be of type bool")
+            self._download_passband_defaults[k] = v
+
+    def get_download_passband_defaults(self):
+        return self._download_passband_defaults
+
+    @property
+    def download_passband_defaults(self):
+        return self._download_passband_defaults
+
 conf = Settings()
 
 ###############################################################################
@@ -318,7 +350,7 @@ conf = Settings()
 # make packages available at top-level
 from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
-from .atmospheres.passbands import install_passband, uninstall_all_passbands, download_passband, update_passband_available, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
+from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, list_passband_online_history, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
 from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure
 from .frontend.bundle import Bundle
 from .backend import backends as _backends
@@ -618,6 +650,46 @@ def devel_on():
 def devel_off():
     conf.devel_off()
 
+def set_download_passband_defaults(**kwargs):
+    """
+    Set default options to use for <phoebe.atmospheres.passbands.download_passband>.
+
+    These can also be set at import time via the following environment variables:
+    * PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_CONTENT (defaults to 'all')
+    * PHOEBE_DOWNLOAD_PASSBAND_DEFAULTS_GZIPPED (defaults to FALSE)
+
+    See also:
+    * <phoebe.get_download_passband_defaults>
+    * <phoebe.atmospheres.passbands.download_passband>
+    * <phoebe.atmospheres.passbands.update_passband>
+    * <phoebe.atmospheres.passbands.get_passband>
+
+    Arguments
+    ------------
+    * `content` (string or list, optional): override the current value for
+        `content` in <phoebe.get_download_passband_defaults>.
+    * `gzipped` (bool, optional): override the current value for `gzipped`
+        in <phoebe.get_download_passband_defaults>.
+
+    """
+    conf.set_download_passband_defaults(**kwargs)
+
+def get_download_passband_defaults():
+    """
+    Access default options to use for <phoebe.atmospheres.passbands.download_passband>.
+
+    See also:
+    * <phoebe.set_download_passband_defaults>
+    * <phoebe.atmospheres.passbands.download_passband>
+    * <phoebe.atmospheres.passbands.update_passband>
+    * <phoebe.atmospheres.passbands.get_passband>
+
+    Returns
+    ---------
+    * dictionary of defaults, including `content` and `gzipped`.
+    """
+    return conf.get_download_passband_defaults()
+
 # Shortcuts to MPI options
 def mpi_on(nprocs=None):
     """
@@ -677,7 +749,7 @@ array, linspace, arange, logspace, geomspace
 
 def add_nparray_docstring(obj):
 
-    nparraydocsprefix = """This is an included dependency from [nparray](https://nparray.readthedocs.io).\n\n===============================================================\n\n"""
+    nparraydocsprefix = """This is an included dependency from [nparray 1.1.0](https://nparray.readthedocs.io/en/1.1.0/).\n\n===============================================================\n\n"""
 
     obj.__doc__ = nparraydocsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
 
@@ -803,7 +875,10 @@ def list_available_computes(devel=False):
     """
     return _get_phoebe_funcs(compute, devel=devel)
 
-
+for pb in list_all_update_passbands_available():
+    msg = 'passband "{}" has a newer version available.  Run phoebe.list_passband_online_history("{}") to get a list of available changes and phoebe.update_passband("{}") or phoebe.update_all_passbands() to update.'.format(pb, pb, pb)
+    # NOTE: we'll print since the logger hasn't been initialized yet.
+    print('PHOEBE: {}'.format(msg))
 
 # delete things we don't want exposed to the user at the top-level
 # NOTE: we need _sys for reset_settings, that's why its __sys

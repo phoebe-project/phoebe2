@@ -1,0 +1,1180 @@
+#!/usr/bin/python
+
+"""
+pip install flask
+pip install flask-socketio
+pip install gevent-websocket
+
+to launch with MPI enabled:
+PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server [port]
+
+to set a maximum number of allowed max_computations
+PHOEBE_SERVER_MAX_COMPUTATIONS=100 phoebe-server [port]
+"""
+
+try:
+    from flask import Flask, jsonify, request, redirect, Response, make_response, send_from_directory, send_file
+    from flask_socketio import SocketIO, emit, join_room, leave_room
+    from flask_cors import CORS
+except ImportError:
+    raise ImportError("dependencies not met: pip install flask flask-cors flask-socketio gevent-websocket")
+
+### NOTE: tested to work with eventlet, not sure about gevent
+
+
+################################ SERVER/APP SETUP ##############################
+
+app = Flask(__name__)
+CORS(app)
+app._bundles = {}
+app._clients = []
+app._clients_per_bundle = {}
+app._last_access_per_bundle = {}
+app._verbose = True
+app._debug = False
+app._killable = False
+
+# we'll disable sorting the responses by keys so that we can control the sorting
+# by qualifier instead of uniqueid.  This will sacrifice caching ability in the
+# browser unless we set the order of all keys to be consistent.
+app.config['JSON_SORT_KEYS'] = False
+
+# Create the Flask-SQLAlchemy object and an SQLite database
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///phoebe.db'
+# db = flask.ext.sqlalchemy.SQLAlchemy(app)
+
+# Configure socket.io
+app.config['SECRET_KEY'] = 'phoebesecret'
+socketio = SocketIO(app)
+
+def _uniqueid(N=16):
+    """
+    :parameter int N: number of character in the uniqueid
+    :return: the uniqueid
+    :rtype: str
+    """
+    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.ascii_lowercase) for _ in range(N))
+
+def _new_bundleid(uniqueid=None, N=6):
+    """
+    will have 52**N uniqueids available.  But we'll check for duplicates just to
+    make sure.
+    """
+    if uniqueid is None:
+        uniqueid = _uniqueid(N=N)
+
+    if uniqueid not in app._bundles.keys():
+        return uniqueid
+    else:
+        # you should really enter the lottery, unless N is <= 3
+        return _new_bundleid(uniqueid=None, N=N)
+
+################################## ADDITIONAL IMPORTS ##########################
+
+import matplotlib.pyplot as plt
+plt.switch_backend('Agg')
+
+import phoebe
+import numpy as np
+import json
+import random
+import string
+import os
+import sys
+import tempfile
+import traceback
+import urllib2
+import StringIO
+import inspect
+from time import sleep
+from collections import OrderedDict
+from datetime import datetime
+
+from phoebe.parameters.unit_choices import unit_choices as _unit_choices
+
+phoebe.devel_on() # currently needed for client mode, remove for actual release
+phoebe.interactive_off()
+phoebe.parameters._is_server = True
+
+_max_computations = os.getenv('PHOEBE_SERVER_MAX_COMPUTATIONS', None)
+if _max_computations is not None:
+    _max_computations = int(_max_computations)
+
+_dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
+
+if not os.path.exists(_dir_tmpimages):
+    os.makedirs(_dir_tmpimages)
+
+def bundle_memory_cleanup(stale_limit_seconds=600):
+    # TODO: its possible to get an entry in _clients_per_bundle that isn't
+    # available here.  The error message is raised in the UI and redirects
+    # out... but the entry is still made here and never cleared
+
+    now = datetime.now()
+    for bundleid, last_access in app._last_access_per_bundle.items():
+        stale_for = (now-last_access).total_seconds()
+        clients = app._clients_per_bundle.get(bundleid, [])
+        active_clients = [c for c in clients if c in app._clients]
+        print("bundle_memory_cleanup: {} stale for {}/{} seconds with {} active clients and {} total clients".format(bundleid, stale_for, stale_limit_seconds, len(active_clients), len(clients)))
+        # we'll delete if any of the following
+        # * no active clients and past the stale limit
+        # * no clients at all and stale for 30 seconds (in the case of closing where the client sent a deregister signal)
+        # * stale for more than an 1 day from the webclient (in the case where the client was closed but couldn't send a disconnect signal)
+        if (len(active_clients)==0 and stale_for > stale_limit_seconds) or (len(clients)==0 and stale_for > 30) or (stale_for > 24*60*60 and np.all([c.split('-')[0]=='web' for c in _client_types_for_bundle(bundleid)])):
+            if app._verbose:
+                print("bundle_memory_cleanup: deleting {}".format(bundleid))
+            if bundleid in app._bundles.keys():
+                del app._bundles[bundleid]
+            if bundleid in app._clients_per_bundle.keys():
+                del app._clients_per_bundle[bundleid]
+            if bundleid in app._last_access_per_bundle.keys():
+                del app._last_access_per_bundle[bundleid]
+
+_available_kinds = {'component': phoebe.list_available_components(),
+                    'feature': phoebe.list_available_features(),
+                    'dataset': phoebe.list_available_datasets(),
+                    'figure': phoebe.list_available_figures(),
+                    'compute': phoebe.list_available_computes()}
+
+# logger = phoebe.logger('INFO')
+_dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
+
+if not os.path.exists(_dir_tmpimages):
+    os.makedirs(_dir_tmpimages)
+
+
+# TODO: can we also process and emit logger signals (https://docs.python.org/2/library/logging.handlers.html#sockethandler)?  Or at the least we could call b.run_checks after each command manually and broadcast those messages
+
+###############################################################################
+# We need to tell clients that its ok to accept API information from an external
+# server since this will almost always be running from a different URL/port
+# than the client.
+# The following code that accomplishes this is taken (borrowed) almost entirely
+# from http://flask.pocoo.org/snippets/56/
+from datetime import timedelta
+from flask import make_response, request, current_app
+from functools import update_wrapper
+
+
+def crossdomain(origin=None, methods=None, headers=None,
+                max_age=21600, attach_to_all=True,
+                automatic_options=True):
+    if methods is not None:
+        methods = ', '.join(sorted(x.upper() for x in methods))
+    if headers is not None and not isinstance(headers, basestring):
+        headers = ', '.join(x.upper() for x in headers)
+    if not isinstance(origin, basestring):
+        origin = ', '.join(origin)
+    if isinstance(max_age, timedelta):
+        max_age = max_age.total_seconds()
+
+    def get_methods():
+        if methods is not None:
+            return methods
+
+        options_resp = current_app.make_default_options_response()
+        return options_resp.headers['allow']
+
+    def decorator(f):
+        def wrapped_function(*args, **kwargs):
+            if automatic_options and request.method == 'OPTIONS':
+                resp = current_app.make_default_options_response()
+            else:
+                resp = make_response(f(*args, **kwargs))
+            if not attach_to_all and request.method != 'OPTIONS':
+                return resp
+
+            h = resp.headers
+
+            h['Access-Control-Allow-Origin'] = origin
+            h['Access-Control-Allow-Methods'] = get_methods()
+            h['Access-Control-Max-Age'] = str(max_age)
+            if headers is not None:
+                h['Access-Control-Allow-Headers'] = headers
+            return resp
+
+        f.provide_automatic_options = False
+        return update_wrapper(wrapped_function, f)
+    return decorator
+
+############################# CLIENT MANAGEMENT ################################
+
+def _client_types_for_bundle(bundleid):
+    return [c.split('-')[0] for c in app._clients_per_bundle.get(bundleid, [])]
+
+
+############################ BUNDLE MANIPULATION ###############################
+
+
+def _get_bundle_json(bundleid, do_jsonify=True):
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    data = b.to_json(incl_uniqueid=True)
+
+    if do_jsonify:
+        return jsonify(data)
+    else:
+        return data
+
+def _value_string(param):
+    param_type = param.__class__.__name__
+
+    if param_type in ['StringParameter', 'ChoiceParameter', 'HierarchyParameter']:
+        return param.get_value()
+    elif param_type in ['ConstraintParameter']:
+        return "f({})".format(",".join([p.qualifier for p in param.vars.to_list() if p != param.constrained_parameter]))
+    elif param_type in ['SelectParameter']:
+        v = param.get_value()
+        ev = param.expand_value()
+        if len(v) == 0:
+            return "(empty)"
+        elif np.any(["*" in vi or "?" in vi for vi in v]):
+            return "[{} ({} {})]".format(",".join(v), len(ev), "match" if len(ev)==1 else "matches")
+        else:
+            return "[{}]".format(",".join(v))
+    elif param_type in ['JobParameter']:
+        return param._value
+    elif param_type in ['UnitParameter']:
+        return str(param.get_value().to_string())
+    elif param_type in ['IntParameter', 'DictParameter', 'BoolParameter']:
+        return str(param.get_value())
+    elif param_type in ['FloatParameter']:
+        return str(param.get_value())
+    elif param_type in ['FloatArrayParameter']:
+        if isinstance(param._value, phoebe.dependencies.nparray.nparray.ArrayWrapper):
+            return param._value.__str__()
+        else:
+            arr = param.get_value()
+            # unit = str(param.get_default_unit())
+            if len(arr):
+                return "[{} ... {} ({})]".format(arr[0], arr[-1], len(arr))
+            else:
+                return "[ ] (empty)"
+    else:
+        return '({})'.format(param_type)
+
+def _choices(parameter):
+    if hasattr(parameter, 'choices'):
+        return parameter.choices
+    elif parameter.__class__.__name__ == 'BoolParameter':
+        return ['True', 'False']
+    # elif parameter.__class__.__name__ == 'UnitParameter':
+        # return _unit_choices(parameter.get_value())
+    else:
+        return None
+
+def _param_json_overview(param):
+    p = {'uniqueid': param.uniqueid,
+         'class': param.__class__.__name__,
+         'valuestr': _value_string(param),
+         'len': len(param.get_value()) if param.__class__.__name__ in ['SelectParameter', 'FloatArrayParameter'] else None,
+         'unitstr': param.default_unit.to_string() if hasattr(param, 'default_unit') else '',
+         'readonly': param.context in ['model'] or param.qualifier in ['phoebe_version'] or (hasattr(param, 'is_constraint') and param.is_constraint is not None),
+         }
+
+    advanced_filter = []
+    if not param.is_visible:
+        advanced_filter.append('not_visible')
+    if '_default' in [param.component, param.dataset, param.feature]:
+        advanced_filter.append('is_default')
+    if param.advanced:
+        advanced_filter.append('is_advanced')
+    if param.__class__.__name__ in ['ChoiceParameter'] and len(param.choices) <= 1:
+        # NOTE: we do not want to set is_single for SelectParameters as those
+        # allow setting 0 options
+        advanced_filter.append('is_single')
+        p['readonly'] = True
+    if param.context=='constraint':
+        advanced_filter.append('is_constraint')
+
+    p['advanced_filter'] = advanced_filter
+
+
+    for k,v in param.meta.items():
+        if k in ['history', 'fitting', 'feedback', 'plugin']:
+            continue
+        p[k] = v
+
+    return p
+
+def _param_json_detailed(param):
+    p  = {'description': param.description}
+
+    if param.__class__.__name__ == 'ConstraintParameter':
+        p['related_to'] = {p.uniqueid: p.twig for p in param.vars.to_list()}
+        p['constraint'] = {}
+        p['constrains'] = {p.uniqueid: p.twig for p in [param.constrained_parameter]}
+    else:
+        p['related_to'] = {p.uniqueid: p.twig for p in param.related_to} if hasattr(param, 'related_to') else {}
+        p['constraint'] = {p.uniqueid: p.twig for p in [param.is_constraint]} if hasattr(param, 'is_constraint') and param.is_constraint is not None else {}
+        p['constrains'] = {p.uniqueid: p.twig for p in param.constrains} if hasattr(param, 'constrains') else {}
+
+    if hasattr(param, 'limits'):
+        if hasattr(param, 'default_unit'):
+            p['limits'] = [l.to(param.default_unit).value if l is not None else None for l in param.limits] + [param.default_unit.to_string()]
+        else:
+            p['limits'] = param.limits + [None]
+    # else:
+        # p['limits'] = None
+
+    if param.__class__.__name__ in ['SelectParameter']:
+        p['value'] = param.get_value()
+    elif param.__class__.__name__ in ['FloatArrayParameter']:
+        value = param.to_json()['value']
+        if isinstance(value, list):
+            value = ",".join(str(vi) for vi in value)
+        p['value'] = value
+    elif param.__class__.__name__ in ['ConstraintParameter']:
+        p['value'] = param.expr
+
+    if hasattr(param, 'choices') or param.__class__.__name__ in ['BoolParameter']:
+        p['choices'] = _choices(param)
+
+    if hasattr(param, 'default_unit'):
+        p['unit_choices'] = _unit_choices(param.default_unit)
+    # else:
+        # p['unit_choices'] = None
+
+    return p
+
+def _sort_tags(group, tags):
+    if group=='contexts':
+        # try to order contexts in same order as shown in UI.. then fill in with the rest
+        lst = [k for k in ['constraint', 'component', 'feature', 'dataset', 'figure', 'compute', 'model', 'time'] if k in tags]
+        for k in tags:
+            if k not in lst:
+                lst.append(k)
+        return lst
+    else:
+        return sorted(tags)
+
+def _get_failed_constraints(b):
+    affected_params = b._failed_constraints[:]
+    for constraint_id in b._failed_constraints:
+        cp = b.get_constraint(uniqueid=constraint_id, check_visible=False).constrained_parameter
+        affected_params += [cp.uniqueid] + [cpc.uniqueid for cpc in cp.constrains_indirect]
+    return affected_params
+
+
+############################ HTTP ROUTES ######################################
+def _get_response(data, status_code=200, api=False, **metawargs):
+    d = {}
+    d['data'] = data
+    d['meta'] = metawargs
+    if api:
+        resp = jsonify(d)
+        resp.status_code = status_code
+        return resp
+    else:
+        return d
+
+@app.route("/info", methods=['GET'])
+@crossdomain(origin='*')
+def info():
+    if app._verbose:
+        print("info", phoebe.__version__, app._parent)
+
+    bundle_memory_cleanup()
+
+    return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent,
+                          'nclients': len(app._clients), 'clients': app._clients,
+                          'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle,
+                          'available_kinds': _available_kinds,
+                          'max_computations': _max_computations
+                          },
+                          api=True)
+
+@app.route('/new_bundle/<string:type>', methods=['GET'])
+@crossdomain(origin='*')
+def new_bundle(type):
+    """
+    Initiate a new bundle object, store it to local memory, and return the bundleid.
+    The client is then responsible for making an additional call to access parameters, etc.
+
+    type: 'binary:detached'
+    """
+    if app._verbose:
+        print("new_bundle(type={})".format(type))
+
+    def _new_bundle(constructor, **kwargs):
+        try:
+            b = getattr(phoebe, constructor)(**kwargs)
+        except Exception as err:
+            return _get_response({'success': False, 'error': str(err)}, api=True)
+        else:
+            b.set_value(qualifier='auto_add_figure', context='setting', value=True)
+            bundleid = _new_bundleid()
+            app._bundles[bundleid] = b
+            return _get_response({'success': True, 'bundleid': bundleid}, api=True)
+
+    if type == 'single':
+        return _new_bundle('default_star')
+    elif type == 'binary:detached':
+        return _new_bundle('default_binary')
+    elif type == 'binary:semidetached:primary':
+        return _new_bundle('default_binary', semidetached='primary')
+    elif type == 'binary:semidetached:secondary':
+        return _new_bundle('default_binary', semidetached='secondary')
+    elif type == 'binary:contact':
+        return _new_bundle('default_binary', contact_binary=True)
+    # elif type == 'triple:12:detached':
+    #     return _new_bundle('default_triple', inner_as_primary=False, inner_as_contact=False)
+    # elif type == 'triple:12:contact':
+    #     return _new_bundle('default_triple', inner_as_primary=False, inner_as_contact=True)
+    # elif type == 'triple:21:detached':
+    #     return _new_bundle('default_triple', inner_as_primary=True, inner_as_contact=False)
+    # elif type == 'triple:21:contact':
+    #     return _new_bundle('default_triple', inner_as_primary=True, inner_as_contact=True)
+    else:
+        return _get_response({'success': False, 'error': 'bundle with type "{}" not implemented'.format(type)}, api=True)
+
+@app.route('/open_bundle/<string:type>', methods=['POST'])
+@crossdomain(origin='*')
+def open_bundle(type):
+    """
+    """
+    if app._verbose:
+        print("open_bundle")
+
+    try:
+        data = json.loads(request.data)
+    except ValueError:
+        data = {}
+
+    if type == 'load:phoebe2':
+        if 'file' in request.files:
+            if app._verbose: print("opening bundle from file")
+            file = request.files['file']
+            try:
+                bundle_data = json.load(file)
+            except:
+                return _get_response({'success': False, 'error': "could not read bundle json data from file.  If the file is a PHOEBE 1/legacy file, try importing instead."}, api=True)
+
+        else:
+            if app._verbose: print("opening bundle from json data")
+            try:
+                bundle_data = data['json']
+            except:
+                return _get_response({'success': False, 'error': "could not read json data"}, api=True)
+
+        try:
+            b = phoebe.Bundle(bundle_data)
+        except Exception as err:
+            return _get_response({'success': False, 'error': "failed to load bundle with error: "+str(err)}, api=True)
+
+    elif type == 'load:legacy':
+        try:
+            b = phoebe.from_legacy(request.files['file'])
+        except Exception as err:
+            return _get_response({'success': False, 'error': "file not recognized as bundle or legacy phoebe file.  Error: {}".format(str(err))}, api=True)
+
+    else:
+        return _get_response({'success': False, 'error': "import with type={} not supported".format(type)}, api=True)
+
+
+    bundleid = data.get('bundleid', None)
+    if app._verbose:
+        print("trying bundleid={}".format(bundleid))
+    bundleid = _new_bundleid(bundleid)
+    app._bundles[bundleid] = b
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    return _get_response({'success': True, 'bundleid': bundleid}, api=True)
+
+@app.route('/json_bundle/<string:bundleid>', methods=['GET'])
+@crossdomain(origin='*')
+def json_bundle(bundleid):
+    """
+    """
+    if app._verbose:
+        print("json_bundle(bundleid={})".format(bundleid))
+
+    if bundleid not in app._bundles.keys():
+        print("json_bundle error: bundleid={}, app._bundles.keys()={}".format(bundleid, app._bundles.keys()))
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid=\'{}\''.format(bundleid)}, api=True)
+
+    bjson = _get_bundle_json(bundleid, do_jsonify=False)
+
+    return _get_response({'success': True, 'bundle': bjson, 'bundleid': bundleid}, bundleid=bundleid, api=True)
+
+@app.route('/save_bundle/<string:bundleid>', methods=['GET'])
+@crossdomain(origin='*')
+def save_bundle(bundleid):
+    """
+    """
+    if app._verbose:
+        print("save_bundle(bundleid={})".format(bundleid))
+
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'}, api=True)
+
+    resp = _get_bundle_json(bundleid, do_jsonify=True)
+
+    resp.headers.set('Content-Type', 'text/json')
+    resp.headers.set('Content-Disposition', 'attachment', filename='{}.bundle'.format(bundleid))
+
+    return resp
+
+@app.route('/export_compute/<string:bundleid>/<string:compute>', defaults={'model': None}, methods=['GET'])
+@app.route('/export_compute/<string:bundleid>/<string:compute>/<string:model>', methods=['GET'])
+@crossdomain(origin='*')
+def export_compute(bundleid, compute, model=None):
+    """
+    """
+    if app._verbose:
+        print("export_compute(bundleid={}, compute={})".format(bundleid, compute))
+
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    ef = tempfile.NamedTemporaryFile(prefix="export_compute", suffix=".py")
+
+    script_fname=ef.name
+    b.export_compute(script_fname, out_fname=None, compute=compute, model=model)
+
+    return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_compute_{}.py'.format(bundleid,compute))
+
+@app.route('/export_arrays/<string:bundleid>/<string:params>', methods=['GET'])
+@crossdomain(origin='*')
+def export_params(bundleid, params):
+    """
+    """
+    if app._verbose:
+        print("export_arrays(bundleid={}, params={})".format(bundleid, params))
+
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    ef = tempfile.NamedTemporaryFile(prefix="export_params", suffix=".csv")
+
+    b.export_arrays(ef.name, delimiter=',', uniqueid=params.split(","))
+
+    return send_file(ef.name, as_attachment=True, attachment_filename='{}_export_arrays.csv'.format(bundleid))
+
+
+
+@app.route('/bundle/<string:bundleid>', methods=['GET'])
+@crossdomain(origin='*')
+def bundle(bundleid):
+    """
+    """
+    if app._verbose:
+        print("bundle(bundleid={})".format(bundleid))
+
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    param_list = sorted([_param_json_overview(param) for param in b.to_list()], key=lambda p: p['qualifier'])
+    param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+
+    tags = {k: _sort_tags(k, v) for k,v in b.tags.items()}
+
+    # failed_constraints = _get_failed_constraints(b)
+    info = _run_checks(b, bundleid, do_emit=False)
+    info['success'] = True
+    info['parameters'] = param_dict
+    info['tags'] = tags
+
+    return _get_response(info, api=True)
+
+@app.route('/parameter/<string:bundleid>/<string:uniqueid>', methods=['GET'])
+@crossdomain(origin='*')
+def parameter(bundleid, uniqueid):
+    """
+    """
+    if app._verbose:
+        print("parameter(bundleid={}, uniqueid={})".format(bundleid, uniqueid))
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    try:
+        param = b.get_parameter(uniqueid=str(uniqueid), check_visible=False, check_advanced=False, check_default=False)
+    except:
+        return _get_response({'success': False, 'error': 'could not find parameter with uniqueid={}'.format(uniqueid)}, api=True)
+
+    data = _param_json_detailed(param)
+
+    return _get_response({'success': True, 'parameter': data}, api=True)
+
+@app.route('/nparray/<string:input>', methods=['GET'])
+@crossdomain(origin='*')
+def nparray(input):
+    if app._verbose:
+        print("nparray(input={}))".format(input))
+    # input is a json-string representation of an array or nparray helper dictionary
+
+    # first let's load the string
+    try:
+        if '{' not in input:
+            # then assume this is a comma-separate list to be converted to an array
+            npa = phoebe.dependencies.nparray.array([float(v) for v in input.replace('"', '').split(',') if len(v)])
+            is_array = True
+        else:
+            npa = phoebe.dependencies.nparray.from_json(input)
+            is_array = False
+    except Exception as err:
+        return _get_response({'success': False, 'error': 'could not convert to valid nparray object with err: {}'.format(str(err))}, api=True)
+
+    empty_arange = {'nparray': 'arange', 'start': '', 'stop': '', 'step': ''}
+    empty_linspace = {'nparray': 'linspace', 'start': '', 'stop': '', 'num': '', 'endpoint': True}
+
+    if is_array:
+        # now we want to return all valid conversions
+        data = {'array': npa.to_array().to_dict(),
+                'arraystr': ",".join([str(v) for v in npa.to_array().tolist()]),
+                'linspace': empty_linspace,
+                'arange': empty_arange}
+    else:
+        # now we want to return all valid conversions
+        data = {'array': npa.to_array().to_dict(),
+                'arraystr': ",".join([str(v) for v in npa.to_array().tolist()]),
+                'linspace': npa.to_dict() if npa.__class__.__name__ == 'Linspace' else npa.to_linspace().to_dict() if hasattr(npa, 'to_linspace') else empty_linspace,
+                'arange': npa.to_dict() if npa.__class__.__name__ == 'Arange' else npa.to_arange().to_dict() if hasattr(npa, 'to_arange') else empty_arange}
+
+    return _get_response({'success': True, 'response': data}, api=True)
+
+@app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET'])
+def serve_figure(bundleid, figure):
+    fname = '{}_{}.png'.format(bundleid, figure)
+    if app._verbose:
+        print("serve_figure", fname)
+    return send_from_directory(_dir_tmpimages, fname)
+
+@app.route("/<string:bundleid>/figure_afig/<string:figure>", methods=['GET'])
+def serve_figure_afig(bundleid, figure):
+    fname = '{}_{}.afig'.format(bundleid, figure)
+    if app._verbose:
+        print("serve_figure_afig", fname)
+    return send_from_directory(_dir_tmpimages, fname)
+
+
+############################# WEBSOCKET ROUTES ################################
+
+########## SOCKET ERRORS
+@socketio.on_error()
+def error_handler(err):
+    print("websocket error:", err)
+
+    if app._verbose:
+        ex_type, ex, tb = sys.exc_info()
+        print traceback.print_tb(tb)
+
+    emit('msg', {'success': False, 'id': None, 'level': 'error', 'msg': 'websocket: '+err.message}, broadcast=False)
+
+
+
+########## CLIENT MANAGEMENT
+@socketio.on('connect')
+def connect():
+    if app._verbose:
+        print('Client connected')
+
+    # emit('connect', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}})
+
+@socketio.on('disconnect')
+def disconnect():
+    if app._verbose:
+        print('Client disconnected')
+
+    # emit('disconnect', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}})
+
+
+@socketio.on('register client')
+def register_client(msg):
+    clientid = msg.get('clientid', None)
+    bundleid = msg.get('bundleid', None)
+    if bundleid is not None and bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("register client {} error: {}".format(msg, err))
+
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        return
+
+    if app._verbose:
+        print("register_client(clientid={}, bundleid={})".format(clientid, bundleid))
+
+    if clientid is not None and clientid not in app._clients:
+        app._clients.append(clientid)
+
+    if bundleid is not None:
+        if bundleid not in app._clients_per_bundle.keys():
+            app._clients_per_bundle[bundleid] = [clientid]
+        elif clientid not in app._clients_per_bundle.get(bundleid, []):
+            app._clients_per_bundle[bundleid].append(clientid)
+
+    bundle_memory_cleanup()
+
+@socketio.on('deregister client')
+def deregister_client(msg):
+    clientid = msg.get('clientid', None)
+    bundleid = msg.get('bundleid', None)
+    if app._verbose:
+        print("deregister_client(clientid={}, bundleid={})".format(clientid, bundleid))
+
+    if bundleid is not None:
+        app._clients_per_bundle[bundleid] = [c for c in app._clients_per_bundle.get(bundleid, []) if c!=clientid]
+
+    elif clientid is not None and clientid in app._clients:
+        # note: we'll leave the clientid in app._clients_per_bundle.  Those bundles
+        # will become stale and eventually deleted by timeout in bundle_memory_cleanup.
+        app._clients.remove(clientid)
+
+    # now cleanup from memory any bundle with NO cients
+    bundle_memory_cleanup()
+
+########## BUNDLE METHODS
+def _run_checks(b, bundleid, do_emit=True):
+    report = b.run_checks()
+
+    if do_emit:
+        emit('{}:checks:react'.format(bundleid), {'success': True, 'checks_status': report.status, 'checks_report': [item.to_dict() for item in report.items]}, broadcast=True)
+
+    try:
+        b.run_failed_constraints()
+    except Exception as err:
+        emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': err.message}, broadcast=False)
+    # if len(b._failed_constraints):
+        # msg = 'Constraints for the following parameters failed to run: {}.  Affected values will not be updated until the constraints can succeed.'.format(', '.join([b.get_parameter(uniqueid=c, check_visible=False).constrained_parameter.uniquetwig for c in b._failed_constraints]))
+        # emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
+
+    failed_constraints = _get_failed_constraints(b)
+    if do_emit:
+        emit('{}:failed_constraints:react'.format(bundleid), {'failed_constraints': failed_constraints}, broadcast=True)
+
+    return {'checks_status': report.status, 'checks_report': [item.to_dict() for item in report.items], 'failed_constraints': failed_constraints}
+
+
+def _update_figures(b, bundleid, affected_ps=None):
+    # we need to update any figures in which:
+    # * a parameter tagged with that filter has been changed
+    # * a parameter tagged with a dataset selected in a given figure
+    # * a parameter tagged with a model selected in a given figure
+    if app._verbose:
+        print("_update_figures: ", bundleid)
+
+
+    if affected_ps is None:
+        figures = b.figures
+
+    else:
+        if len(affected_ps.filter(context='figure', figure=[None])):
+            # then we changed something like color@primary@figure.  Its not obvious
+            # how to estimate which figures need to be updated in this case without
+            # looking through all *_mode for component (in this case), so we'll
+            # just update all figures
+            figures = b.figures
+        else:
+            figures = affected_ps.figures
+            datasets = affected_ps.datasets
+            models = affected_ps.models
+            for figure in b.figures:
+                if figure in figures:
+                    continue
+                figure_datasets = b.get_value(qualifier='datasets', figure=figure, check_visible=False, check_default=False, expand=True)
+                figure_models = b.get_value(qualifier='models', figure=figure, check_visible=False, check_default=False, expand=True)
+                if np.any([ds in figure_datasets for ds in datasets]) or np.any([ml in figure_models for ml in models]):
+                    figures.append(figure)
+
+        if len(affected_ps.filter(qualifier=['default_time_source', 'default_time'], check_visible=False)):
+            # then we need to add any figures which have time_source == 'default'
+            for figure in b.figures:
+                if figure in figures:
+                    continue
+                if b.get_value(qualifier='time_source', figure=figure, context='figure', check_visible=False) == 'default':
+                    figures.append(figure)
+
+
+    current_time = str(datetime.now())
+    figure_update_times = {}
+    for figure in figures:
+        if app._verbose:
+            print("_update_figures: calling run_figure on figure: {}".format(figure))
+        try:
+        # if True:
+            afig, mplfig = b.run_figure(figure=figure, save=os.path.join(_dir_tmpimages, '{}_{}.png'.format(bundleid, figure)))
+            render_kwargs = {'render': 'draw'}
+            # TODO: we need to keep all things sent to draw
+            # i=time,
+            # draw_sidebars=draw_sidebars,
+            # draw_title=draw_title,
+            # tight_layout=tight_layout,
+            # subplot_grid=subplot_grid,
+            afig.save(os.path.join(_dir_tmpimages, '{}_{}.afig'.format(bundleid, figure)), renders=[render_kwargs])
+        except Exception as err:
+            if app._verbose:
+                print("_update_figures error: {}".format(str(err)))
+            # notify the client that the figure is now failing (and probably shouldn't be shown)
+            figure_update_times[figure] = 'failed'
+            # remove any existing cached file so that loading won't work
+            try:
+                os.remove(os.path.join(_dir_tmpimages, '{}_{}.png'.format(bundleid, figure)))
+                os.remove(os.path.join(_dir_tmpimages, '{}_{}.afig'.format(bundleid, figure)))
+            except:
+                pass
+        else:
+            figure_update_times[figure] = current_time
+
+    if app._verbose:
+        print("_update_figures: emitting figures_updated {}".format(figure_update_times))
+    emit('{}:figures_updated:react'.format(bundleid), {'figure_update_times': figure_update_times}, broadcast=True)
+
+
+
+@socketio.on('set_value')
+def set_value(msg):
+    if app._verbose:
+        print("set_value: ", msg)
+
+    bundleid = msg.pop('bundleid')
+
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("set_value {} error: {}".format(msg, err))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        return
+
+
+    b = app._bundles[bundleid]
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    msg.setdefault('check_visible', False)
+    msg.setdefault('check_default', False)
+    msg.setdefault('check_advanced', False)
+
+    client_types = _client_types_for_bundle(bundleid)
+    if 'web' in client_types or 'desktop' in client_types:
+        is_visible_before = {p.uniqueid: p.is_visible for p in b.to_list(check_visible=False, check_default=False, check_advanced=False)}
+
+    try:
+        # TODO: handle getting nparray objects (probably as json strings/unicodes)
+        b.set_value_all(**msg)
+        ps_constraints = b.run_delayed_constraints()
+    except Exception as err:
+        if app._verbose:
+            print("set_value {} error: {}".format(msg, err.message))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+        return
+
+    try:
+        ps_list = ps_constraints + b.filter(**{k:v for k,v in msg.items() if k not in ['value']}).to_list()
+    except Exception as err:
+        if app._verbose:
+            print("set_value {} error on filter: {}".format(msg, err.message))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+        return
+    else:
+        if 'web' in client_types or 'desktop' in client_types:
+
+            # we need to also include parameters in which the visibility has changed
+            is_visible_changed = {p.uniqueid: p.is_visible for p in b.to_list(check_visible=False, check_default=False, check_advanced=False) if p.is_visible!=is_visible_before.get(p.uniqueid, None)}
+            # TODO: need to figure out what should be shown in the client if a new items has become visible but not within the filter
+            # TODO: tag visibility in the client needs to change based on the change in parameter visibilities
+
+            ps_list += b.filter(uniqueid=is_visible_changed.keys(), check_visible=False, check_advanced=False, check_default=False).to_list()
+
+            param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
+            param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+
+            if app._verbose:
+                print("set_value success, broadcasting changes:react: {}".format(param_dict))
+
+            emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
+
+            # flush so the changes goes through before running checks and updating figures
+            socketio.sleep(0)
+
+            _run_checks(b, bundleid)
+            _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
+
+        if 'python' in client_types:
+            ps_dict = {p.uniqueid: {'value': p.to_json()['value']} for p in ps_list}
+
+            if app._verbose:
+                print("set_value success, broadcasting changes:python: {}".format(ps_dict))
+
+            emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+
+
+# TODO: now that set_default_unit_all returns a PS, we could use bundle_method
+# instead? - need to see what needs to be done from the python-client side
+@socketio.on('set_default_unit')
+def set_default_unit(msg):
+    if app._verbose:
+        print("set_default_unit: ", msg)
+
+    bundleid = msg.pop('bundleid')
+
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("set_default_unit {} error: {}".format(msg, err))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        return
+
+
+    b = app._bundles[bundleid]
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    msg.setdefault('check_visible', False)
+    msg.setdefault('check_default', False)
+    msg.setdefault('check_advanced', False)
+
+    client_types = _client_types_for_bundle(bundleid)
+
+    try:
+        # TODO: handle getting nparray objects (probably as json strings/unicodes)
+        b.set_default_unit_all(**msg)
+    except Exception as err:
+        if app._verbose:
+            print("set_default_unit {} error: {}".format(msg, err.message))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+        return
+
+    try:
+        ps_list = b.filter(**{k:v for k,v in msg.items() if k not in ['unit']}).to_list()
+    except Exception as err:
+        if app._verbose:
+            print("set_default_unit {} error on filter: {}".format(msg, err.message))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+        return
+    else:
+        if 'web' in client_types or 'desktop' in client_types:
+            param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
+            param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+
+            if app._verbose:
+                print("set_default_unit success, broadcasting changes:react: {}".format(param_dict))
+
+            emit('{}:changes:react'.format(bundleid), {'success': True, 'parameters': param_dict}, broadcast=True)
+
+            _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
+
+        if 'python' in client_types:
+            ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}
+
+            if app._verbose:
+                print("set_default_unit success, broadcasting changes:python: {}".format(ps_dict))
+
+            emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+
+@socketio.on('bundle_method')
+def bundle_method(msg):
+    if app._verbose:
+        print("bundle_method: ", msg)
+
+    bundleid = msg.pop('bundleid', None)
+
+    for k,v in msg.items():
+        if isinstance(v, unicode):
+            msg[k] = str(v)
+
+    if bundleid is None:
+        emit('errors', {'success': False, 'error': "must provide bundleid"}, broadcast=False)
+        return
+
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("bundle_method {} error: {}".format(msg, err))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        return
+
+
+    b = app._bundles[bundleid]
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    # msg.setdefault('check_visible', False)
+    # msg.setdefault('check_default', False)
+    # msg.setdefault('check_advanced', False)
+
+    client_types = _client_types_for_bundle(bundleid)
+
+    method = msg.pop('method')
+
+    if method in ['run_compute']:
+        # TODO: have this be a environment variable or flag at the top-level?
+        # forbid expensive computations on this server
+        msg['max_computations'] = _max_computations
+        msg['detach'] = True
+    elif method in ['attach_job']:
+        msg['wait'] = False
+        # msg['cleanup'] = False
+
+    # make sure to return parameters removed during overwrite so that we can
+    # catch that and emit the necessary changes to the client(s)
+    if method.split('_')[0] in ['add', 'run']:
+        msg['return_overwrite'] = True
+        msg.setdefault('overwrite', True)
+
+    try:
+        ps = getattr(b, method)(**msg)
+        ps_list = ps.to_list() if hasattr(ps, 'to_list') else [ps] if isinstance(ps, phoebe.parameters.Parameter) else []
+    except Exception as err:
+        if app._verbose:
+            print("bundle_method ERROR ({}): {}".format(msg, err.message))
+        if app._debug:
+            raise
+
+        if method=='attach_job' and 'Expecting object' in err.message:
+            # then its likely the object just hasn't been completely written to
+            # disk yet, this error is expected.
+            # TODO: catch this within PHOEBE instead and return a reasonable status
+            pass
+        else:
+            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+
+
+            if method=='attach_job' and ('web' in client_types or 'desktop' in client_types):
+                # then we still need to emit the change the the status of the job parameter so the client stops polling
+                # param_list = [_param_json_overview(b.get_parameter(uniqueid=msg.get('uniqueid'), check_visible=False, check_default=False))]
+                # param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+                # jp =
+                pjo = _param_json_overview(b.get_parameter(uniqueid=msg.get('uniqueid'), check_visible=False, check_default=False))
+                # pjo['valuestr'] = 'failed'
+                param_dict = {pjo.pop('uniqueid'): pjo}
+                packet = {'success': True, 'parameters': param_dict}
+
+                emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
+
+            return
+
+
+    if method in ['flip_constraint']:
+        param = b.get_parameter(**{k:v for k,v in msg.items() if k!='solve_for'})
+        ps_list += param.vars.to_list()
+
+    # TODO: these should now already be handled in ps_list for rename_*
+    # we could also include these in the output to all methods from PHOEBE
+    # and then could remove all the logic here?
+    if method not in ['run_compute', 'attach_job']:
+        ps_list += b._handle_pblum_defaults(return_changes=True)
+        ps_list += b._handle_dataset_selectparams(return_changes=True)
+        ps_list += b._handle_compute_selectparams(return_changes=True)
+        ps_list += b._handle_component_selectparams(return_changes=True)
+
+    if method in ['attach_job'] and b.get_value(uniqueid=msg['uniqueid'], check_visible=False) == 'loaded':
+        # we want to wait to do this until attach_job, if we do it after run_compute
+        # then overwriting an existing model will cause issues
+        if app._verbose:
+            print("bundle_method attach_job calling _handle_model_selectparams and _handle_meshcolor_choiceparams now that loaded")
+        ps_list += b._handle_model_selectparams(return_changes=True)
+        ps_list += b._handle_meshcolor_choiceparams(return_changes=True)
+        ps_list += b._handle_figure_time_source_params(return_changes=True)
+
+
+    if 'web' in client_types or 'desktop' in client_types:
+        # handle any deleted parameters
+        removed_params_list = [param.uniqueid for param in ps_list if param._bundle is None]
+
+        # since some params have been removed, we'll skip any that have param._bundle is None
+        param_list = sorted([_param_json_overview(param) for param in ps_list if param._bundle is not None], key=lambda p: p['qualifier'])
+        param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
+
+        if app._verbose:
+            print("bundle_method success, broadcasting changes:react: {}".format(param_dict))
+
+        packet = {'success': True, 'parameters': param_dict, 'removed_parameters': removed_params_list}
+
+        if method.split('_')[0] not in []:
+            # if we added new parameters, then the tags likely have changed
+            packet['tags'] = {k: _sort_tags(k, v) for k,v in b.tags.items()}
+
+        if method.split('_')[0] == 'add':
+            context = method.split('_')[1]
+            packet['add_filter'] = {context: getattr(ps, context)}
+        elif method.split('_')[0] == 'run':
+            new_context = {'compute': 'model'}[method.split('_')[1]]
+            packet['add_filter'] = {new_context: getattr(ps, new_context)}
+        elif method == 'import_model':
+            new_context = 'model'
+            packet['add_filter'] = {'model': ps.model}
+
+        emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
+        # flush so the changes goes through before running checks and updating figures
+        socketio.sleep(0)
+        _run_checks(b, bundleid)
+        _update_figures(b, bundleid, phoebe.parameters.ParameterSet(ps_list))
+
+    if 'python' in client_types:
+        # TODO: this probably isn't sufficient for all methods.  What information
+        # do we need to pass to the python clients for things like remove_*, run_*?
+        ps_dict = {p.uniqueid: {'default_unit': p.get_default_unit()} for p in ps_list}
+
+        if app._verbose:
+            print("bundle_method success, broadcasting changes:python: {}".format(ps_dict))
+
+        emit('{}:changes:python'.format(bundleid), {'success': True, 'parameters': ps_dict}, broadcast=True)
+
+    # app._bundles[bundleid] = b
+
+
+
+@socketio.on('rerun_all_figures')
+def rerun_all_figures(msg):
+    if app._verbose:
+        print("bundle_method: ", msg)
+
+    bundleid = msg.pop('bundleid', None)
+
+    if bundleid is None:
+        emit('errors', {'success': False, 'error': "must provide bundleid"}, broadcast=False)
+        return
+
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("bundle_method {} error: {}".format(msg, err))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        return
+
+
+    b = app._bundles[bundleid]
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    client_types = _client_types_for_bundle(bundleid)
+    _update_figures(b, bundleid, None)
+
+
+if __name__ == "__main__":
+    #phoebe_server.py port, parent, host
+    if len(sys.argv) >= 2:
+        port = int(float(sys.argv[1]))
+    else:
+        port = 5555
+
+    if len(sys.argv) >= 3:
+        parent = sys.argv[2]
+    else:
+        parent = 'notprovided'
+
+    if len(sys.argv) >=4:
+        host = sys.argv[3]
+    else:
+        host = '127.0.0.1'
+
+    app._parent = parent
+
+    if app._verbose:
+        print("*** SERVER READY at {}:{} ***".format(host, port))
+
+    socketio.run(app, host=host, port=port)

@@ -98,7 +98,7 @@ def sun_earth_result():
     # we're not actually computing light curves so don't care about
     # the failing check that the earth is smaller than triangles on
     # the sun
-    b.run_compute(skip_checks=True)
+    b.run_compute(skip_checks=True, eclipse_method='only_horizon')
 
     q = b['value@q@orbit']
     F = b['value@syncpar@primary']

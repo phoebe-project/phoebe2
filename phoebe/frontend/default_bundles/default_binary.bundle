@@ -382,7 +382,8 @@ null
 "value": "auto", 
 "choices": [
 "auto", 
-"ck2004"
+"ck2004", 
+"phoenix"
 ], 
 "context": "component", 
 "copy_for": false, 
@@ -726,7 +727,8 @@ null
 "value": "auto", 
 "choices": [
 "auto", 
-"ck2004"
+"ck2004", 
+"phoenix"
 ], 
 "context": "component", 
 "copy_for": false, 
@@ -1592,8 +1594,7 @@ null
 "description": "Type of boosting method", 
 "value": "none", 
 "choices": [
-"none", 
-"linear"
+"none"
 ], 
 "context": "compute", 
 "copy_for": false, 
@@ -1709,8 +1710,9 @@ null
 "choices": [
 "blackbody", 
 "extern_atmx", 
-"extern_planckint", 
-"ck2004"
+"ck2004", 
+"phoenix", 
+"extern_planckint"
 ], 
 "context": "compute", 
 "copy_for": {
@@ -1944,8 +1946,9 @@ null
 "choices": [
 "blackbody", 
 "extern_atmx", 
-"extern_planckint", 
-"ck2004"
+"ck2004", 
+"phoenix", 
+"extern_planckint"
 ], 
 "context": "compute", 
 "copy_for": false, 
@@ -1962,8 +1965,9 @@ null
 "choices": [
 "blackbody", 
 "extern_atmx", 
-"extern_planckint", 
-"ck2004"
+"ck2004", 
+"phoenix", 
+"extern_planckint"
 ], 
 "context": "compute", 
 "copy_for": false, 
