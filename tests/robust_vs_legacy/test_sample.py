@@ -13,8 +13,6 @@ if plot:
     except ImportError:
         plot = False
 
-phoebe.devel_on()
-
 from multiprocessing import Process
 def run_with_limited_time(func, args, kwargs, time):
     """Runs a function with time limit
@@ -95,7 +93,7 @@ def chi2(b, dataset, model1='phoebe1model', model2='phoebe2model'):
         # phoebe gives nans for RVs when a star is completely eclipsed, whereas
         # phoebe1 will give a value.  So let's use nansum to just ignore those
         # regions of the RV curve
-        print "***", depvar, dataset, model1, model2, comp
+        print("***", depvar, dataset, model1, model2, comp)
         chi2 += np.nansum((b.get_value(qualifier=depvar, dataset=dataset, model=model1, component=comp, context='model')\
             -b.get_value(qualifier=depvar, dataset=dataset, model=model2, component=comp, context='model'))**2)
 
@@ -107,9 +105,9 @@ if __name__ == '__main__':
     argv = sys.argv
 
     if len(argv) <= 1:
-        print "USAGE: test_sample.py [results] [sample]"
-        print "results: plot the results from the existing log file"
-        print "sample: enter an infinite loop of sampling and appending to the log file (ctrl+c to exit)"
+        print("USAGE: test_sample.py [results] [sample]")
+        print("results: plot the results from the existing log file")
+        print("sample: enter an infinite loop of sampling and appending to the log file (ctrl+c to exit)")
 
     if 'results' in argv:
         import matplotlib.pyplot as plt
@@ -214,7 +212,7 @@ if __name__ == '__main__':
                     b.run_compute('phoebe', model='phoebe2model')
                 except ValueError:
                     phoebe2_passed = False
-                    print "phoebe2 failed overflow checks, skipping"
+                    print("phoebe2 failed overflow checks, skipping")
                     continue
                 else:
                     phoebe2_passed = True
@@ -278,10 +276,9 @@ if __name__ == '__main__':
             except KeyboardInterrupt:
                 break
             except ValueError, err:
-                print err
+                print(err)
                 import pdb; pdb.set_trace()  # breakpoint d8e3dc28 //
 
 
         print("*** CLOSING LOG FILE ***")
         f.close()
-

@@ -42,7 +42,7 @@ except:
 class Animation(object):
     def __init__(self, affig, tight_layout=True,
                  draw_sidebars=True, draw_title=True,
-                 subplot_grid=None):
+                 subplot_grid=None, animate_callback=None):
         self.affig = affig
         self.mplfig = affig._get_backend_object()
         self.mplfig.clf()
@@ -51,6 +51,7 @@ class Animation(object):
         self.draw_sidebars = draw_sidebars
         self.draw_title = draw_title
         self.subplot_grid = subplot_grid
+        self.animate_callback = animate_callback
 
     def anim_init(self):
         return self.affig._get_backend_artists()
@@ -60,11 +61,14 @@ class Animation(object):
         for mplax in self.mplfig.axes:
             mplax.cla()
 
-        self.affig.draw(i=i,
-                        tight_layout=self.tight_layout,
-                        draw_sidebars=self.draw_sidebars,
-                        draw_title=self.draw_title,
-                        subplot_grid=self.subplot_grid,
-                        in_animation=True)
+        mplfig = self.affig.draw(i=i,
+                                 tight_layout=self.tight_layout,
+                                 draw_sidebars=self.draw_sidebars,
+                                 draw_title=self.draw_title,
+                                 subplot_grid=self.subplot_grid,
+                                 in_animation=i+1)
+
+        if self.animate_callback is not None:
+            self.animate_callback(mplfig)
 
         return self.affig._get_backend_artists()

@@ -10,7 +10,7 @@ env:
   global:
     # Set defaults to avoid repeating in most cases
     - CONDA_DEPENDENCIES='scipy matplotlib sympy requests mpi4py'
-    - PIP_DEPENDENCIES='nose rebound requests mpi4py'
+    - PIP_DEPENDENCIES='nose rebound requests mpi4py pytest asdf'
     - NOSETESTS=1
     - BENCHMARK=0
     - PHOEBE_ENABLE_PLOTTING = 'FALSE'
@@ -26,7 +26,7 @@ matrix:
     # Try with various compilers with default version of numpy/astropy
     - os: linux
       compiler: g++-5
-      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 NOSETESTS=1'
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 NOSETESTS=1
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]
@@ -40,7 +40,7 @@ matrix:
     # Try with various versions of numpy/astropy with default compiler
     - os: linux
       compiler: g++-5
-      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.16 ASTROPY_VERSION=2.0 NOSETESTS=1'
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.16 ASTROPY_VERSION=2.0 NOSETESTS=1
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]
@@ -48,7 +48,24 @@ matrix:
 
     - os: linux
       compiler: g++-5
-      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.16 ASTROPY_VERSION=stable NOSETESTS=1'
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.16 ASTROPY_VERSION=stable NOSETESTS=1
+      addons:
+        apt:
+          sources: [ubuntu-toolchain-r-test]
+          packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
+
+    # Try with Python 3.6 (earliest supported version) and latest minor version (3.7)
+    - os: linux
+      compiler: g++-5
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=3.6 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1
+      addons:
+        apt:
+          sources: [ubuntu-toolchain-r-test]
+          packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
+
+    - os: linux
+      compiler: g++-5
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=3.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]
@@ -57,18 +74,18 @@ matrix:
     # and lastly, run the benchmarks
     - os: linux
       compiler: g++-5
-      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 NOSETESTS=0 BENCHMARK=1'
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 NOSETESTS=0 BENCHMARK=1
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]
           packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
 
   allow_failures:
+    # run with development versions of numpy as astropy (require python 3.5+)
     - env: NUMPY_VERSION=dev
-
     - os: linux
       compiler: g++-5
-      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=2.7 NUMPY_VERSION=1.16 ASTROPY_VERSION=stable NOSETESTS=1'
+      env: CXX=g++-5 CC=gcc-5 PYTHON_VERSION=3.7 NUMPY_VERSION=dev ASTROPY_VERSION=dev NOSETESTS=1
       addons:
         apt:
           sources: [ubuntu-toolchain-r-test]

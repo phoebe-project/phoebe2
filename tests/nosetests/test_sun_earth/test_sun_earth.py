@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from scipy import integrate
 
 import phoebe
-# phoebe.devel_on()
 from phoebe import u, c
 import libphoebe
 
@@ -41,11 +40,13 @@ def initiate_sun_earth_system(pb_str):
 
     if BLACKBODY:
         b.set_value_all('atm', value='blackbody')
+        b.set_value_all('ld_mode', 'manual')
         b.set_value_all('ld_func', value='linear')
         b.set_value_all('ld_coeffs', value=[0.0])
     else:
         b.set_value_all('atm', component='secondary', value='blackbody')
         b.set_value_all('ld_func', component='primary', value='interp')
+        b.set_value_all('ld_mode', component='secondary', value='manual')
         b.set_value_all('ld_func', component='secondary', value='linear')
         b.set_value_all('ld_coeffs', component='secondary', value=[0.0])
 
@@ -94,7 +95,10 @@ def sun_earth_result():
     b['ntriangles@primary'] = Nt
     b['ntriangles@secondary'] = Nt
 
-    b.run_compute()
+    # we're not actually computing light curves so don't care about
+    # the failing check that the earth is smaller than triangles on
+    # the sun
+    b.run_compute(skip_checks=True, eclipse_method='only_horizon')
 
     q = b['value@q@orbit']
     F = b['value@syncpar@primary']

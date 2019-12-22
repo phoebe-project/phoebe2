@@ -25,9 +25,11 @@ def test_binary(plot=False):
     cb.set_value_all('atm', 'extern_planckint')
 
     # turn off limb-darkening:
+    cb.set_value_all('ld_mode_bol', 'manual')
     cb.set_value_all('ld_func_bol', 'linear')
     cb.set_value_all('ld_coeffs_bol', [0.0])
 
+    cb.set_value_all('ld_mode', 'manual')
     cb.set_value_all('ld_func', 'linear')
     cb.set_value_all('ld_coeffs', [0.0])
 
@@ -37,10 +39,9 @@ def test_binary(plot=False):
     #turn off albedos (legacy requirement)
     cb.set_value_all('irrad_frac_refl_bol',  0.0)
 
-
-    if plot: print "running phoebe2 model..."
+    print("running phoebe2 model...")
     cb.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
-    if plot: print "running phoebe1 model..."
+    print("running phoebe1 model...")
     cb.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 
     phoebe2_val_lc = cb.get_value('fluxes@phoebe2model')
@@ -51,9 +52,9 @@ def test_binary(plot=False):
     phoebe1_val_rv2 = cb.get_value('rvs@secondary@phoebe1model')[2:48]
 
     if plot:
-        print "max lc atol {}: rtol: {}".format(np.max(phoebe2_val_lc - phoebe1_val_lc), np.max((phoebe2_val_lc - phoebe1_val_lc)/phoebe1_val_lc))
-        print "max rv1 atol: {} rtol: {}".format(np.max(phoebe2_val_rv1 - phoebe1_val_rv1), np.max((phoebe2_val_rv1 - phoebe1_val_rv1)/phoebe1_val_rv1))
-        print "max rv2 atol: {} rtol: {}".format(np.max(phoebe2_val_rv2 - phoebe1_val_rv2), np.max((phoebe2_val_rv2 - phoebe1_val_rv2)/phoebe1_val_rv2))
+        print("max lc atol {}: rtol: {}".format(np.max(phoebe2_val_lc - phoebe1_val_lc), np.max((phoebe2_val_lc - phoebe1_val_lc)/phoebe1_val_lc)))
+        print("max rv1 atol: {} rtol: {}".format(np.max(phoebe2_val_rv1 - phoebe1_val_rv1), np.max((phoebe2_val_rv1 - phoebe1_val_rv1)/phoebe1_val_rv1)))
+        print("max rv2 atol: {} rtol: {}".format(np.max(phoebe2_val_rv2 - phoebe1_val_rv2), np.max((phoebe2_val_rv2 - phoebe1_val_rv2)/phoebe1_val_rv2)))
 
         cb.plot(dataset='lc01', show=True)
         cb.plot(dataset='rv01', show=True)

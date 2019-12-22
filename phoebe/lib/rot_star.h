@@ -95,7 +95,7 @@ namespace rot_star {
   */
   template <class T>
   T lagrange_point(const T & omega) {
-    if (omega == 0) return std::nan("");
+    if (omega == 0) return std::numeric_limits<T>::quiet_NaN();
     return std::cbrt(omega*omega);
   }
 
@@ -143,7 +143,7 @@ namespace rot_star {
       radius of the equator
 
     Comment:
-      if equator does not exist return std::nan()
+      if equator does not exist return std::quiet_nan()
   */
   template <class T>
   T equator(const T & Omega0, const T & omega) {
@@ -156,7 +156,7 @@ namespace rot_star {
 
     if (t > 1) {   // critical value
       std::cerr << "equator::area_volume:There is no solution for equator.\n";
-      return std::nan("");
+      return std::numeric_limits<T>::quiet_NaN();
     }
 
     // return standard solution
@@ -177,7 +177,7 @@ namespace rot_star {
   template<class T>
   T critical_potential(const T & omega) {
 
-    if (omega == 0) return std::nan("");
+    if (omega == 0) return std::numeric_limits<T>::quiet_NaN();
 
     return 3*std::pow(omega, 2./3)/2;
   }
@@ -369,7 +369,7 @@ namespace rot_star {
 
     if (q-qmax >= qmax*eps1) {
       std::cerr << "rotstar::Omega_at_vol::Volume is too large for given omega.\n";
-      return std::nan("");
+      return std::numeric_limits<T>::quiet_NaN();
     }
 
     //
@@ -455,7 +455,7 @@ namespace rot_star {
 
     if (it == max_iter) {
       std::cerr << "rotstar::Omega_at_vol::To many iterations.\n";
-      return std::nan("");
+      return std::numeric_limits<T>::quiet_NaN();
     }
 
     return 1.5*std::cbrt(w2/t);

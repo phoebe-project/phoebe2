@@ -3,14 +3,11 @@ can also be run with mpirun -np 8 python test_mpi.py
 but won't run detached (ie. detach=True will be ignored)
 """
 
-# for fair timing comparisons, let's disable checking for online passbands
-import os
-os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE'
-
 import phoebe
 import numpy as np
+import sys
 
-def test_mpi(plot=False, npoints=8):
+def test_mpi(verbose=False, plot=False, npoints=8, turn_mpi_off_after=True):
     phoebe.reset_settings()
     phoebe.mpi_on(4)
 
@@ -18,24 +15,35 @@ def test_mpi(plot=False, npoints=8):
 
     b.add_dataset('lc', times=np.linspace(0,1,npoints))
 
-    if plot: print "calling compute"
+    if verbose: print("calling compute")
     b.run_compute(irrad_method='none', ntriangles=1000, detach=True)
-    if plot:
-        print "attaching to model"
-        print b['model'].status
+    if verbose:
+        print("attaching to model")
+        print(b['model'].status)
     b['model'].attach()
 
-    if plot: print "model received"
+    if verbose: print("model received")
 
     if plot:
         b.plot(show=True)
 
     phoebe.reset_settings()
-    phoebe.mpi_off()
+    if turn_mpi_off_after:
+        # we need to turn this off for the next test in nosetests... but
+        # if running from python or mpirun, we don't want to release all the
+        # workers or they'll just pickup all the previous tasks
+        phoebe.mpi_off()
 
     return b
 
-if __name__ == '__main__':
-    logger = phoebe.logger(clevel='WARNING')
+# disable testing within nosetests/Travis
+test_mpi.__test__ = False
 
-    b = test_mpi(plot=False, npoints=1001)
+if __name__ == '__main__':
+    # for fair timing comparisons, let's disable checking for online passbands
+    import os
+    os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE'
+
+    logger = phoebe.logger(clevel='INFO')
+
+    b = test_mpi(verbose=True, plot=False, npoints=101, turn_mpi_off_after=False)

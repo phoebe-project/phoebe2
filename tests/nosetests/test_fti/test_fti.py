@@ -25,8 +25,8 @@ def test_binary(plot=False):
     fluxes = b.get_value('fluxes', context='model')
 
     if plot:
-        print "fti off"
-        print abs(fluxes_legacy-fluxes).max()
+        print("fti off")
+        print(abs(fluxes_legacy-fluxes).max())
         plt.plot(times, fluxes_legacy, 'k-')
         b.plot(show=True)
     assert(np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-3))
@@ -36,8 +36,8 @@ def test_binary(plot=False):
     fluxes = b.get_value('fluxes', context='model')
 
     if plot:
-        print "fti on"
-        print abs(fluxes_legacy-fluxes).max()
+        print("fti on")
+        print(abs(fluxes_legacy-fluxes).max())
         plt.plot(times, fluxes_legacy, 'k-')
         b.plot(show=True)
     assert(np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-3))

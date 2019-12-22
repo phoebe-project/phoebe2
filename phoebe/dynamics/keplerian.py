@@ -11,6 +11,8 @@ import logging
 logger = logging.getLogger("DYNAMICS.KEPLERIAN")
 logger.addHandler(logging.NullHandler())
 
+_skip_filter_checks = {'check_default': False, 'check_visible': False}
+
 def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
@@ -39,19 +41,22 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
 
     b.run_delayed_constraints()
 
-    computeps = b.get_compute(compute, check_visible=False, force_ps=True)
-    ltte = computeps.get_value('ltte', check_visible=False, **kwargs)
+    kwargs.setdefault('check_visible', False)
+    kwargs.setdefault('check_default', False)
+
+    computeps = b.get_compute(compute, force_ps=True, **_skip_filter_checks)
+    ltte = computeps.get_value('ltte', **kwargs)
 
     # make sure times is an array and not a list
     times = np.array(times)
 
-    vgamma = b.get_value('vgamma', context='system', unit=u.solRad/u.d)
-    t0 = b.get_value('t0', context='system', unit=u.d)
+    vgamma = b.get_value('vgamma', context='system', unit=u.solRad/u.d, **_skip_filter_checks)
+    t0 = b.get_value('t0', context='system', unit=u.d, **_skip_filter_checks)
 
     hier = b.hierarchy
     starrefs = hier.get_stars()
     orbitrefs = hier.get_orbits()
-    s = b.filter(context='component')
+    s = b.filter(context='component', **_skip_filter_checks)
 
     periods, eccs, smas, t0_perpasses, per0s, long_ans, incls, dpdts, \
     deccdts, dperdts, components = [],[],[],[],[],[],[],[],[],[],[]
@@ -70,21 +75,21 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
 
         #print "***", component, ancestororbits
 
-        periods.append([s.get_value('period', u.d, component=orbit) for orbit in ancestororbits])
-        eccs.append([s.get_value('ecc', component=orbit) for orbit in ancestororbits])
-        t0_perpasses.append([s.get_value('t0_perpass', u.d, component=orbit) for orbit in ancestororbits])
-        per0s.append([s.get_value('per0', u.rad, component=orbit) for orbit in ancestororbits])
-        long_ans.append([s.get_value('long_an', u.rad, component=orbit) for orbit in ancestororbits])
-        incls.append([s.get_value('incl', u.rad, component=orbit) for orbit in ancestororbits])
-        dpdts.append([s.get_value('dpdt', u.d/u.d, component=orbit) for orbit in ancestororbits])
+        periods.append([s.get_value('period', u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
+        eccs.append([s.get_value('ecc', component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
+        t0_perpasses.append([s.get_value('t0_perpass', u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
+        per0s.append([s.get_value('per0', u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
+        long_ans.append([s.get_value('long_an', u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
+        incls.append([s.get_value('incl', u.rad, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
+        dpdts.append([s.get_value('dpdt', u.d/u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
         if conf.devel:
             try:
-                deccdts.append([s.get_value('deccdt', u.dimensionless_unscaled/u.d, component=orbit) for orbit in ancestororbits])
+                deccdts.append([s.get_value('deccdt', u.dimensionless_unscaled/u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
             except ValueError:
                 deccdts.append([0.0 for orbit in ancestororbits])
         else:
             deccdts.append([0.0 for orbit in ancestororbits])
-        dperdts.append([s.get_value('dperdt', u.rad/u.d, component=orbit) for orbit in ancestororbits])
+        dperdts.append([s.get_value('dperdt', u.rad/u.d, component=orbit, **_skip_filter_checks) for orbit in ancestororbits])
 
         # sma needs to be the COMPONENT sma.  This is stored in the bundle for stars, but is NOT
         # for orbits in orbits, so we'll need to recompute those from the mass-ratio and sma of
@@ -93,9 +98,9 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
         smas_this = []
         for comp in [component]+ancestororbits[:-1]:
             if comp in starrefs:
-                smas_this.append(s.get_value('sma', u.solRad, component=comp))
+                smas_this.append(s.get_value('sma', u.solRad, component=comp, **_skip_filter_checks))
             else:
-                q = s.get_value('q', component=hier.get_parent_of(comp))
+                q = s.get_value('q', component=hier.get_parent_of(comp), **_skip_filter_checks)
                 comp_comp = hier.get_primary_or_secondary(comp)
 
                 # NOTE: similar logic is also in constraints.comp_sma
@@ -105,7 +110,7 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
                 else:
                     qthing = (1. + q)
 
-                smas_this.append(s.get_value('sma', u.solRad, component=hier.get_parent_of(comp)) / qthing)
+                smas_this.append(s.get_value('sma', u.solRad, component=hier.get_parent_of(comp), **_skip_filter_checks) / qthing)
 
         smas.append(smas_this)
 
@@ -332,8 +337,8 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
             #scale_factor = 1.0/c.c.value * c.R_sun.value/(24*3600.)
             scale_factor = (c.R_sun/c.c).to(u.d).value
 
-            def propertime_barytime_residual(t):
-                pos, vel, euler = binary_dynamics_nested(time, period, ecc, sma, \
+            def propertime_barytime_residual(t, time):
+                pos, vel, euler = binary_dynamics_nested(t, period, ecc, sma, \
                                 t0_perpass, per0, long_an, incl, dpdt, deccdt, \
                                 dperdt, components=component, t0=t0, vgamma=vgamma, \
                                 mass_conservation=mass_conservation)
@@ -341,7 +346,7 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
                 return t - z*scale_factor - time
 
             # Finding that right time is easy with a Newton optimizer:
-            propertimes = [newton(propertime_barytime_residual, time) for \
+            propertimes = [newton(propertime_barytime_residual, time, args=(time,)) for \
                time in times]
             propertimes = np.array(propertimes).ravel()
 

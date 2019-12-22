@@ -1,3 +1,3 @@
 
-from parameters import *
+from .parameters import *
 

@@ -1,7 +1,9 @@
 /build
 /dist
+.vscode
 /phoebe/atmospheres/tables/ck2004
 /phoebe/atmospheres/tables/ck2004i
+/phoebe/atmospheres/tables/phoenix
 MANIFEST
 *_tmp*
 *after.phoebe
@@ -13,6 +15,7 @@ MANIFEST
 *.log
 *.txt
 *.png
+.DS_Store
 libphoebe.so
 
 *.swp

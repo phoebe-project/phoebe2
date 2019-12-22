@@ -670,9 +670,13 @@ class ProtoMesh(object):
                             nv += 1
 
                     # now we need to apply this to all indices after filtering
-                    for it,triangle in enumerate(copy[k]):
-                        for iv,vertex in enumerate(triangle):
-                            copy[k][it][iv] = index_mapping[vertex]
+                    try:
+                        for it,triangle in enumerate(copy[k]):
+                            for iv,vertex in enumerate(triangle):
+                                copy[k][it][iv] = index_mapping[vertex]
+                    except KeyError:
+                        raise TypeError('Mesh failed or incomplete. Try increasing the number of triangles!')
+
 
             elif len(current_value) == len(bool_per_vertex):
                 copy[k] = current_value[bool_per_vertex]
@@ -1429,12 +1433,13 @@ class Meshes(object):
 
         :parameter list items:
         """
+        items = {k:v for k,v in items.items() if v is not None}
         if isinstance(list(items.values())[0], ProtoMesh):
             self._dict = items
         else:
             self._dict = {component: body.mesh for component, body in items.items()}
         #self._component_by_no = {body.comp_no: component for component, body in items.items()}
-        self._components = items.keys()
+        self._components = list(items.keys())
         self._parent_envelope_of = parent_envelope_of
 
     def items(self):
@@ -1447,13 +1452,13 @@ class Meshes(object):
         """
         TODO: add documentation
         """
-        return self._dict.keys()
+        return list(self._dict.keys())
 
     def values(self):
         """
         TODO: add documentation
         """
-        return self._dict.values()
+        return list(self._dict.values())
 
     def __getitem__(self, key):
         """
@@ -1529,6 +1534,8 @@ class Meshes(object):
                 # self._dict[comp][field][inds] = value
             else:
                 if comp in self._dict.keys():
+                    if self._dict[comp] is None:
+                        return
                     self._dict[comp][field] = value
                 else:
                     meshes = self._dict[self._parent_envelope_of[comp]]
@@ -1556,6 +1563,8 @@ class Meshes(object):
                 # but don't allow nesting in the dictionary, instead combine
                 # all subcomponents into one entry with the current component
                 return mesh.get_column_flat(field, mesh._components, computed_type)
+            elif mesh is None:
+                return None
 
             f = mesh[field]
             if isinstance(f, ComputedColumn):
@@ -1569,7 +1578,7 @@ class Meshes(object):
             if isinstance(components, str):
                 components = [components]
         else:
-            components = self.keys()
+            components = list(self.keys())
 
         return {c: get_field(c, field, computed_type) for c in components}
 
@@ -1590,6 +1599,7 @@ class Meshes(object):
         """
         TODO: add documentation
         """
+
         if components:
             if isinstance(components, str):
                 components = [components]
@@ -1597,11 +1607,17 @@ class Meshes(object):
                 components = components
             else:
                 raise TypeError("components should be list or string, not {}".format(type(components)))
+            value = {c: v for c,v in value.items() if v is not None}
+            components = list(value.keys())
         elif isinstance(value, dict):
-            components = value.keys()
+            value = {c: v for c,v in value.items() if v is not None}
+            components = list(value.keys())
         elif isinstance(value, list):
-            components = self._dict.keys()
-            value = {c: v for c,v in zip(components, value)}
+            value = {c: v for c,v in zip(list(self._dict.keys()), value) if v is not None}
+            components = list(value.keys())
+
+        if not len(components):
+            return np.array([])
 
         if offset:
             values = []
@@ -1645,6 +1661,8 @@ class Meshes(object):
                 meshes = {comp: self[comp]}
 
             for c, mesh in meshes.items():
+                if mesh is None:
+                    continue
                 if computed_type=='vertices' or (computed_type is None and mesh._compute_at_vertices):
                     N = mesh.Nvertices
                 else:

@@ -15,34 +15,71 @@ from phoebe import conf
 # Note: this means that cross-PS constraints should not be added by default as we do not
 # know the hierarchy here
 
-_ld_func_choices_no_interp = ['linear', 'logarithmic', 'quadratic', 'square_root', 'power']
+from phoebe.parameters.dataset import _ld_func_choices, _ld_coeffs_source_choices
 
 def orbit(component, **kwargs):
     """
-    Create parameters for a new orbit.
+    Create a <phoebe.parameters.ParameterSet> for a new orbit.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_component`
+    <phoebe.frontend.bundle.Bundle.add_component>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_component>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    The following constraints are returned, and will automtically be applied
+    if attaching to the <phoebe.frontend.bundle.Bundle> via
+    <phoebe.frontend.bundle.Bundle.add_component>:
+    * <phoebe.parameters.constraint.asini>
+    * <phoebe.parameters.constraint.ecosw>
+    * <phoebe.parameters.constraint.esinw>
+    * <phoebe.parameters.constraint.t0_perpass_supconj>
+    * <phoebe.parameters.constraint.t0_ref_supconj>
+    * <phoebe.parameters.constraint.mean_anom>
+    * <phoebe.parameters.constraint.freq>
+
+    Arguments
+    ----------
+    * `period` (float/quantity, optional): orbital period.
+    * `freq` (float/quantity, optional): orbital frequency.
+    * `dpdt` (float/quantity, optional): time derivative orbital period.
+    * `per0` (float/quantity, optional): argument of periastron
+    * `dperdt` (float/quantity, optional): time derivative of argument of periastron.
+    * `ecc` (float, optional): eccentricity
+    * `t0_perpass` (float/quantity, optional): zeropoint date at periastron passage of the
+        primary component.
+    * `t0_supconj` (float/quantity, optional): zeropoint date at superior conjunction of
+        the primary component.
+    * `t0_ref` (float/quantity, optional): zeropoint date at reference point for the
+        primary component.
+    * `mean_anom` (float/quantity, optional): mean anomaly.
+    * `incl` (float/quantity, optional): orbital inclination.
+    * `q` (float, optional): mass ratio.
+    * `sma` (float/quantity, optional): semi-major axis of the orbit.
+    * `long_an` (float/quantity, optional): longitude of the ascending node.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
     params = []
 
-    #~ params += [ObjrefParameter(value=component)]
-    params += [FloatParameter(qualifier='period', timederiv='dpdt', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Orbital period')]
-    params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi/3.0), default_unit=u.rad/u.d, description='Orbital frequency')]
-    params += [FloatParameter(qualifier='dpdt', value=kwargs.get('dpdt', 0.0), default_unit=u.s/u.yr, description='Period change')]
+    params += [FloatParameter(qualifier='period', timederiv='dpdt', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(1e-6,None), description='Orbital period')]
+    params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi/3.0), default_unit=u.rad/u.d, advanced=True, description='Orbital frequency')]
+    params += [FloatParameter(qualifier='dpdt', value=kwargs.get('dpdt', 0.0), default_unit=u.s/u.yr, advanced=True, description='Time derivative of orbital period')]
     params += [FloatParameter(qualifier='per0', timederiv='dperdt', value=kwargs.get('per0', 0.0), default_unit=u.deg, description='Argument of periastron')]
-    params += [FloatParameter(qualifier='dperdt', value=kwargs.get('dperdt', 0.0), default_unit=u.deg/u.yr, description='Periastron change')]
+    params += [FloatParameter(qualifier='dperdt', value=kwargs.get('dperdt', 0.0), default_unit=u.deg/u.yr, advanced=True, description='Periastron change')]
     params += [FloatParameter(qualifier='ecc', timederiv='deccdt', value=kwargs.get('ecc', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,0.999999), description='Eccentricity')]
-    if conf.devel:
-        params += [FloatParameter(qualifier='deccdt', value=kwargs.get('deccdt', 0.0), default_unit=u.dimensionless_unscaled/u.d, description='Eccentricity change')]
+    # if conf.devel:
+        # NOTE: if adding this back in, will need to update the t0_* constraints in builtin.py and re-enable in parameters.HierarchyParameter.is_time_dependent
+        # params += [FloatParameter(qualifier='deccdt', value=kwargs.get('deccdt', 0.0), default_unit=u.dimensionless_unscaled/u.d, advanced=True, description='Eccentricity change')]
     params += [FloatParameter(qualifier='t0_perpass', value=kwargs.get('t0_perpass', 0.0), default_unit=u.d, description='Zeropoint date at periastron passage of the primary component')]  # TODO: d vs JD
     params += [FloatParameter(qualifier='t0_supconj', value=kwargs.get('t0_supconj', 0.0), default_unit=u.d, description='Zeropoint date at superior conjunction of the primary component')]  # TODO: d vs JD
     params += [FloatParameter(qualifier='t0_ref', value=kwargs.get('t0_ref', 0.0), default_unit=u.d, description='Zeropoint date at reference point for the primary component')]
-    params += [FloatParameter(qualifier='mean_anom', value=kwargs.get('mean_anom', 0.0), default_unit=u.deg, description='Mean anomaly')]
+    params += [FloatParameter(qualifier='mean_anom', value=kwargs.get('mean_anom', 0.0), default_unit=u.deg, advanced=True, description='Mean anomaly at t0@system')]
     #params += [FloatParameter(qualifier='ph_perpass', value=kwargs.get('ph_perpass', 0.0), default_unit=u.cycle, description='Phase at periastron passage')]
     #params += [FloatParameter(qualifier='ph_supconj', value=kwargs.get('ph_supconj', 0.0), default_unit=u.cycle, description='Phase at superior conjunction')]
     #params += [FloatParameter(qualifier='ph_infconj', value=kwargs.get('ph_infconj', 0.0), default_unit=u.cycle, description='Phase at inferior conjunction')]
@@ -71,34 +108,87 @@ def orbit(component, **kwargs):
 
 def star(component, **kwargs):
     """
-    Create parameters for a new star.
+    Create a <phoebe.parameters.ParameterSet> for a new star.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_component`
+    <phoebe.frontend.bundle.Bundle.add_component>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_component>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    The following constraints are returned, and will automtically be applied
+    if attaching to the <phoebe.frontend.bundle.Bundle> via
+    <phoebe.frontend.bundle.Bundle.add_component>:
+    * <phoebe.parameters.constraint.freq>
+    * <phoebe.parameters.constraint.irrad_frac>
+    * <phoebe.parameters.constraint.logg>
+
+    Arguments
+    ----------
+    * `requiv` (float/quantity, optional): equivalent radius.
+    * `requiv_max` (float/quantity, optional): critical (maximum) value of the
+        equivalent radius for the given morphology.
+    * `requiv_min` (float/quantity, optional): critical (minimum) value of the
+        equivalent radius for the given morphology.
+    * `teff` (float/quantity, optional): mean effective temperature.
+    * `abun` (float, optional): abundance/metallicity
+    * `syncpar` (float, optional): syncrhonicity parameter.
+    * `period` (float/quantity, optional): rotation period.
+    * `freq` (float/quantity, optional): rotation frequency.
+    * `pitch` (float/quantity, optional): pitch of the stellar rotation axis wrt
+        the orbital inclination.
+    * `yaw` (float/quantity, optional): yaw of the stellar rotation axis wrt
+        the orbital longitdue of ascending node.
+    * `incl` (float/quantity, optional): inclination of the stellar rotation axis
+    * `long_an` (float/quantity, optional): longitude of the ascending node (ie.
+        equator) of the star.
+    * `gravb_bol` (float, optional): bolometric gravity brightening.
+    * `irrad_frac_refl_bol` (float, optional): ratio of incident
+        bolometric light that is used for reflection (heating without
+        redistribution).
+    * `irrad_frac_refl_lost` (float, optional): ratio of incident
+        bolometric light that is lost/ignored.
+    * `ld_mode_bol` (string, optional, default='lookup'): mode to use for handling
+        bolometric limb-darkening.  Note that unlike passband limb-darkening,
+        'lookup' will apply a single set of coefficients per-component instead
+        of per-element.
+    * `ld_func_bol` (string, optional): bolometric limb-darkening model.
+    * `ld_coeffs_source_bol` (string, optional, default='auto'): source for
+        bolometric limb-darkening coefficients ('auto' to interpolate from the
+        applicable table according to the 'atm' parameter, or the name of a
+        specific atmosphere table).  Only applicable if `ld_mode_bol` is
+        'lookup'.
+    * `ld_coeffs_bol` (list/array, optional): bolometric limb-darkening
+        coefficients.  Only applicable if `ld_mode_bol` is 'manual'.
+    * `mass` (float/quantity, optional): mass of the star.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
     params = []
 
-    #~ params += [ObjrefParameter(value=component)]
-    params += [FloatParameter(qualifier='requiv', value=kwargs.get('requiv', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Equivalent radius')]
+    params += [FloatParameter(qualifier='requiv', value=kwargs.get('requiv', 1.0), default_unit=u.solRad, limits=(1e-6,None), description='Equivalent radius')]
     params += [FloatParameter(qualifier='requiv_max', value=kwargs.get('requiv_max', 10.0), default_unit=u.solRad, limits=(0.0, None), description='Critical (maximum) value of the equivalent radius for the given morphology')]
     params += [FloatParameter(qualifier='requiv_min', visible_if='hierarchy.is_contact_binary:True', value=kwargs.get('requiv_min', 0.1), default_unit=u.solRad, limits=(0.0, None), description='Critical (minimum) value of the equivalent radius for the given morphology')]
-    params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
-    params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
+    params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 6000.), default_unit=u.K, limits=(300.0,None), description='Mean effective temperature')]
+    params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Abundance/Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
+
+    params += [FloatParameter(qualifier='logg', value=1.0, default_unit=u.dimensionless_unscaled, description='logg at requiv')]
 
     params += [FloatParameter(qualifier='syncpar', visible_if='hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
-    params += [FloatParameter(qualifier='period', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
-    params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
+    params += [FloatParameter(qualifier='period', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(1e-6,None), advanced=True, description='Rotation period')]
+    params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), advanced=True, description='Rotation frequency')]
 
-    params += [FloatParameter(qualifier='pitch', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('pitch', 0), default_unit=u.deg, description='Pitch of the stellar rotation axis wrt the orbital rotation axis')]
-    params += [FloatParameter(qualifier='yaw', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('yaw', 0), default_unit=u.deg, description='Yaw of the stellar rotation axis wrt the orbital rotation axis')]
+    params += [FloatParameter(qualifier='pitch', visible_if='hierarchy.is_contact_binary:False,hierarchy.is_binary:True', value=kwargs.get('pitch', 0), default_unit=u.deg, advanced=True, description='Pitch of the stellar rotation axis wrt the orbital inclination')]
+    params += [FloatParameter(qualifier='yaw', visible_if='hierarchy.is_contact_binary:False,hierarchy.is_binary:True', value=kwargs.get('yaw', 0), default_unit=u.deg, advanced=True, description='Yaw of the stellar rotation axis wrt the orbital longitude of ascending node')]
 
-    params += [FloatParameter(qualifier='incl', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('incl', 90), default_unit=u.deg, description='Inclination of the stellar rotation axis')]
-    params += [FloatParameter(qualifier='long_an', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('long_an', 0.0), default_unit=u.deg, description='Longitude of the ascending node (ie. equator) of the star')]
+    params += [FloatParameter(qualifier='incl', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('incl', 90), default_unit=u.deg, advanced=True, description='Inclination of the stellar rotation axis')]
+    params += [FloatParameter(qualifier='long_an', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('long_an', 0.0), default_unit=u.deg, advanced=True, description='Longitude of the ascending node (ie. equator) of the star')]
 
     # params += [FloatParameter(qualifier='vsini', value=kwargs.get('vsini', 1), default_unit=u.km/u.s, description='Projected maximum rotational velocity')]
 
@@ -108,16 +198,30 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
 
     # also see constraint below
-    params += [FloatParameter(qualifier='irrad_frac_refl_bol', value=kwargs.get('irrad_frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
-    params += [FloatParameter(qualifier='irrad_frac_lost_bol', value=kwargs.get('irrad_frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
+    params += [FloatParameter(qualifier='irrad_frac_refl_bol', value=kwargs.get('irrad_frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection/irradiation (heating without redistribution)')]
+    params += [FloatParameter(qualifier='irrad_frac_lost_bol', value=kwargs.get('irrad_frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), advanced=True, description='ratio of incident bolometric light that is lost/ignored')]
 
-    # TODO: allow for 'interp' as choice, make default, and set visible_if for ld_coeffs_bol (see ld_coeffs in dataset.py)
-    params += [ChoiceParameter(qualifier='ld_func_bol', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
-    params += [FloatArrayParameter(qualifier='ld_coeffs_bol', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
+    params += [ChoiceParameter(qualifier='ld_mode_bol',
+                               value=kwargs.get('ld_mode_bol', 'lookup'), choices=['lookup', 'manual'],
+                               description='Mode to use for bolometric limb-darkening (used only for irradiation).')]
+
+    params += [ChoiceParameter(qualifier='ld_func_bol',
+                              value=kwargs.get('ld_func_bol', 'logarithmic'),
+                              choices=_ld_func_choices,
+                              description='Bolometric limb darkening model (used only for irradiation).')]
+
+    params += [ChoiceParameter(visible_if='ld_mode_bol:lookup', qualifier='ld_coeffs_source_bol',
+                               value=kwargs.get('ld_coeffs_source_bol', 'auto'), choices=_ld_coeffs_source_choices,
+                               advanced=True,
+                               description='Source for bolometric limb darkening coefficients (used only for irradiation; \'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
+
+
+    params += [FloatArrayParameter(visible_if='ld_mode_bol:manual', qualifier='ld_coeffs_bol',
+                                   value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]),
+                                   default_unit=u.dimensionless_unscaled,
+                                   description='Bolometric limb darkening coefficients (used only for irradiation).')]
 
     params += [FloatParameter(qualifier='mass', value=kwargs.get('mass', 1.0), default_unit=u.solMass, description='Mass')]
-
-    # TODO: add others or move to a bol_dep (in which case create the bol_dep now)?
 
     constraints = []
     # constraints handled by set_hierarchy:
@@ -129,25 +233,41 @@ def star(component, **kwargs):
     # - yaw
 
     constraints += [(constraint.freq, component)]
+    constraints += [(constraint.logg, component)]
     constraints += [(constraint.irrad_frac, component)]
 
     return ParameterSet(params), constraints
 
 def envelope(component, **kwargs):
     """
-    Create parameters for an envelope (usually will be attached to two stars solRad
-        that they can share a common-envelope)
+    Create a <phoebe.parameters.ParameterSet> for a new envelope.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_component`
+    <phoebe.frontend.bundle.Bundle.add_component>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_component>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `abun` (float, optional): abundance/metallicity.
+    * `fillout_factor` (float, optional): fillout-factor of the envelope.
+    * `pot` (float, optional): potential of the envelope.
+    * `pot_min` (float, optional): critical (minimum) value of the potential to
+        remain a contact.
+    * `pot_max` (float, optional): critical (maximum) value of the potential to
+        remain a contact.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
     params = []
 
-    params += [FloatParameter(qualifier='abun', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
+    params += [FloatParameter(qualifier='abun', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Abundance/Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
     # params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
 
 
@@ -158,7 +278,7 @@ def envelope(component, **kwargs):
 
 
     params += [FloatParameter(qualifier='fillout_factor', value=kwargs.get('fillout_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Fillout-factor of the envelope')]
-    params += [FloatParameter(qualifier='pot', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential of the envelope (from the primary component\s reference)')]
+    params += [FloatParameter(qualifier='pot', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential of the envelope (from the primary component\'s reference)')]
     params += [FloatParameter(qualifier='pot_min', value=kwargs.get('pot_min', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (minimum) value of the potential to remain a contact')]
     params += [FloatParameter(qualifier='pot_max', value=kwargs.get('pot_max', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Critical (maximum) value of the potential to remain a contact')]
     # params += [FloatParameter(qualifier='intens_coeff1', value=kwargs.get('intens_coeff1', 1.0), default_unit=u.dimensionless_unscaled, description='')]
@@ -177,3 +297,8 @@ def envelope(component, **kwargs):
     # requiv_contact_min/max
 
     return ParameterSet(params), constraints
+
+
+# del deepcopy
+# del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
+# del fnmatch

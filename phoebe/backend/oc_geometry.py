@@ -293,7 +293,7 @@ def compute_frac_areas(new_mesh,xmin):
             # the top one gets its own fractional area, the two bottom ones get half of the remaining
 
             if (env1==0 and env2==0 and env3==1) or (env1==1 and env2==1 and env3==0):
-				frac_areas[i]=[0.5*(area1+area2)/area0,0.5*(area1+area2)/area0,area3/area0]
+                frac_areas[i]=[0.5*(area1+area2)/area0,0.5*(area1+area2)/area0,area3/area0]
             if (env1==0 and env2==1 and env3==1) or (env1==1 and env2==0 and env3==0):
                 frac_areas[i]=[area1/area0,0.5*(area2+area3)/area0,0.5*(area2+area3)/area0]
             if (env1==0 and env2==1 and env3==0) or (env1==1 and env2==0 and env3==1):

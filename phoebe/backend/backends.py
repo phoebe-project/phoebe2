@@ -1,11 +1,17 @@
 import os
 import numpy as np
-import commands
+
+try:
+  import commands
+except:
+  import subprocess as commands
+
 import tempfile
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import ParameterSet
 from phoebe import dynamics
 from phoebe.backend import universe, etvs, horizon_analytic
+from phoebe.atmospheres import passbands
 from phoebe.distortions  import roche
 from phoebe.frontend import io
 import phoebe.frontend.bundle
@@ -24,12 +30,21 @@ except ImportError:
 else:
     _use_phb1 = True
 
+try:
+    import ellc
+except ImportError:
+    _use_ellc = False
+else:
+    _use_ellc = True
+
 import logging
 logger = logging.getLogger("BACKENDS")
 logger.addHandler(logging.NullHandler())
 
 # the following list is for backends that use numerical meshes
 _backends_that_require_meshing = ['phoebe', 'legacy']
+
+_skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 def _needs_mesh(b, dataset, kind, component, compute):
     """
@@ -71,11 +86,15 @@ def _expand_mesh_times(b, dataset_ps, component):
                 # then we need to concatenate over all components_
                 # (times@rv@primary and times@rv@secondary are not necessarily
                 # identical)
-                add_times = np.unique(np.append(*[add_ps.get_value(qualifier=add_timequalifier, component=c) for c in add_ps_components]))
+                add_times = np.unique(np.append(*[add_ps.get_value(qualifier='compute_times', component=c) for c in add_ps_components]))
+                if not len(add_times):
+                    add_times = np.unique(np.append(*[add_ps.get_value(qualifier=add_timequalifier, component=c) for c in add_ps_components]))
             else:
                 # then we're adding from some dataset at the system-level (like lcs)
                 # that have component=None
-                add_times = add_ps.get_value(qualifier=add_timequalifier, component=None, unit=u.d)
+                add_times = add_ps.get_value(qualifier='compute_times', component=None, unit=u.d)
+                if not len(add_times):
+                    add_times = add_ps.get_value(qualifier=add_timequalifier, component=None, unit=u.d)
         else:
             # then some sort of t0 from context='component' or 'system'
             add_times = [b.get_value(include_times_entry, context=['component', 'system'])]
@@ -86,8 +105,8 @@ def _expand_mesh_times(b, dataset_ps, component):
     if dataset_ps.kind != 'mesh':
         raise TypeError("_expand_mesh_times only works for mesh datasets")
 
-    # we're first going to access the times@mesh... this should not have a component tag
-    this_times = dataset_ps.get_value(qualifier='times', component=None, unit=u.d)
+    # we're first going to access the compute_times@mesh... this should not have a component tag
+    this_times = dataset_ps.get_value(qualifier='compute_times', component=None, unit=u.d)
     this_times = np.unique(np.append(this_times,
                                      [get_times(b, include_times_entry) for include_times_entry in dataset_ps.get_value(qualifier='include_times', expand=True)]
                                      )
@@ -139,8 +158,8 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
 
     for dataset in b.filter(qualifier='enabled', compute=compute, value=True).datasets:
         dataset_ps = b.filter(context='dataset', dataset=dataset)
-        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, check_visible=False)
-        dataset_kind = dataset_ps.exclude(kind='*_dep').kind
+        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute)
+        dataset_kind = dataset_ps.kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
         if dataset_kind in ['lc']:
             # then the Parameters in the model only exist at the system-level
@@ -158,28 +177,33 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
             elif dataset_kind == 'mesh':
                 this_times = _expand_mesh_times(b, dataset_ps, component)
             elif dataset_kind in ['lp']:
-                # then we have Parameters tagged by times, this will probably
-                # also apply to spectra.
-                this_times = [float(t) for t in dataset_ps.times]
+                this_times = np.unique(dataset_ps.get_value(qualifier='compute_times', unit=u.d))
+                if not len(this_times):
+                    # then we have Parameters tagged by times, this will probably
+                    # also apply to spectra.
+                    this_times = [float(t) for t in dataset_ps.times]
             else:
                 timequalifier = _timequalifier_by_kind(dataset_kind)
                 timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
                 # print "*****", dataset_kind, dataset_ps.kinds, timequalifier, timecomponent
-                this_times = dataset_ps.get_value(qualifier=timequalifier, component=timecomponent, unit=u.d)
+                # NOTE: compute_times is not component-dependent, but times can be (i.e. for RV datasets)
+                this_times = dataset_ps.get_value(qualifier='compute_times', unit=u.d)
+                if not len(this_times):
+                    this_times = dataset_ps.get_value(qualifier=timequalifier, component=timecomponent, unit=u.d)
 
                 # we may also need to compute at other times if requested by a
                 # mesh with this dataset in datasets@mesh
                 # for mesh_datasets_parameter in mesh_datasets_parameters:
                     # if dataset in mesh_datasets_parameter.get_value():
-                        # mesh_obs_ps = b.filter(context='dataset', dataset=mesh_datasets_parameter.dataset, component=None).exclude(kind='*_dep')
+                        # mesh_obs_ps = b.filter(context='dataset', dataset=mesh_datasets_parameter.dataset, component=None)
                         # TODO: not sure about the component=None on the next line... what will this do for rvs with different times per-component?
                         # mesh_times = _expand_mesh_times(b, mesh_obs_ps, component=None)
                         # this_times = np.unique(np.append(this_times, mesh_times))
 
             if allow_oversample and \
                     dataset_kind in ['lc'] and \
-                    b.get_value(qualifier='exptime', dataset=dataset, check_visible=False) > 0 and \
-                    dataset_compute_ps.get_value(qualifier='fti_method', **kwargs)=='oversample':
+                    b.get_value(qualifier='exptime', dataset=dataset) > 0 and \
+                    dataset_compute_ps.get_value(qualifier='fti_method', check_visible=False, **kwargs)=='oversample':
 
                 # Then we need to override the times retrieved from the dataset
                 # with the oversampled times.  Later we'll do an average over
@@ -200,6 +224,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 this_wavelengths = None
 
             if len(this_times) and (this_wavelengths is None or len(this_wavelengths)):
+
                 info = {'dataset': dataset,
                         'component': component,
                         'kind': dataset_kind,
@@ -212,9 +237,10 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                     # of columns@mesh.  Let's store the needed information here,
                     # where mesh_datasets and mesh_kinds correspond to each
                     # other (but mesh_columns does not).
-                    info['mesh_columns'] = dataset_ps.get_value('columns', expand=True)
+                    info['mesh_coordinates'] = dataset_ps.get_value(qualifier='coordinates', expand=True)
+                    info['mesh_columns'] = dataset_ps.get_value(qualifier='columns', expand=True)
                     info['mesh_datasets'] = list(set([c.split('@')[1] for c in info['mesh_columns'] if len(c.split('@'))>1]))
-                    info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').exclude(kind='*_dep').kind for ds in info['mesh_datasets']]
+                    info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').kind for ds in info['mesh_datasets']]
 
                 if by_time:
                     for time_ in this_times:
@@ -239,7 +265,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 needed_syns.append(needed_syn_info)
 
     if by_time and len(times):
-        ti = zip(times, infolists)
+        ti = list(zip(times, infolists))
         ti.sort()
         times, infolists = zip(*ti)
 
@@ -273,7 +299,7 @@ def _create_syns(b, needed_syns):
 
             # needed_syn['columns'] = b.get_value(qualifier='columns', dataset=needed_syn['dataset'], context='dataset')
             # datasets = b.get_value(qualifier='datasets', dataset=needed_syn['dataset'], context='dataset')
-            # needed_syn['datasets'] = {ds: b.filter(datset=ds, context='dataset').exclude(kind='*_dep').kind for ds in datasets}
+            # needed_syn['datasets'] = {ds: b.filter(datset=ds, context='dataset').kind for ds in datasets}
 
         # phoebe will compute everything sorted - even if the input times array
         # is out of order, so let's make sure the exposed times array is in
@@ -283,7 +309,7 @@ def _create_syns(b, needed_syns):
 
             needed_syn['empty_arrays_len'] = len(needed_syn['times'])
 
-        these_params, these_constraints = getattr(_dataset, "{}_syn".format(syn_kind.lower()))(**needed_syn)
+        these_params, these_constraints = getattr(_dataset, syn_kind.lower())(syn=True, **needed_syn)
         # TODO: do we need to handle constraints?
         these_params = these_params.to_list()
         for param in these_params:
@@ -361,6 +387,10 @@ class BaseBackend(object):
         for k,v in kwargs.items():
             packet[k] = v
 
+        if kwargs.get('max_computations', None) is not None:
+            if len(packet.get('infolists', packet.get('infolist', []))) > kwargs.get('max_computations'):
+                raise ValueError("more than {} computations detected ({} estimated).".format(kwargs.get('max_computations'), len(packet['infolists'])))
+
         packet['b'] = b.to_json() if mpi.enabled else b
         packet['compute'] = compute
         packet['backend'] = self.__class__.__name__
@@ -388,7 +418,10 @@ class BaseBackend(object):
                 # single time/dataset
                 for packet in packetlist:
                     # single parameter
-                    new_syns.set_value(**packet)
+                    try:
+                        new_syns.set_value(check_visible=False, check_default=False, **packet)
+                    except Exception as err:
+                        raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, str(err)))
 
         return new_syns
 
@@ -412,6 +445,7 @@ class BaseBackend(object):
 
         if mpi.enabled:
             # broadcast the packet to ALL workers
+            logger.debug("rank:{}/{} broadcasting to all workers".format(mpi.myrank, mpi.nprocs))
             mpi.comm.bcast(packet, root=0)
 
             # now even the master can become a worker and take on a chunk
@@ -419,11 +453,13 @@ class BaseBackend(object):
             rpacketlists = self._run_chunk(**packet)
 
             # now receive all packetlists
+            logger.debug("rank:{}/{} gathering packetlists from all workers".format(mpi.myrank, mpi.nprocs))
             rpacketlists_per_worker = mpi.comm.gather(rpacketlists, root=0)
 
         else:
             rpacketlists_per_worker = [self._run_chunk(**packet)]
 
+        logger.debug("rank:{}/{} calling _fill_syns".format(mpi.myrank, mpi.nprocs))
         return self._fill_syns(new_syns, rpacketlists_per_worker)
 
 
@@ -461,6 +497,8 @@ class BaseBackendByTime(BaseBackend):
 
 
     def _run_chunk(self, b, compute, times, infolists, **kwargs):
+        logger.debug("rank:{}/{} _run_chunk".format(mpi.myrank, mpi.nprocs))
+
         worker_setup_kwargs = self._worker_setup(b, compute, times, infolists, **kwargs)
 
         inds = range(len(times))
@@ -476,6 +514,7 @@ class BaseBackendByTime(BaseBackend):
             packetlist = self._run_single_time(b, i, time, infolist, **worker_setup_kwargs)
             packetlists.append(packetlist)
 
+        logger.debug("rank:{}/{} _run_chunk returning packetlist".format(mpi.myrank, mpi.nprocs))
         return packetlists
 
 
@@ -523,62 +562,43 @@ class BaseBackendByDataset(BaseBackend):
 
 class PhoebeBackend(BaseBackendByTime):
     """
-    Run the PHOEBE 2.0 backend.  This is the default built-in backend
-    so no other pre-requisites are required.
+    See <phoebe.parameters.compute.phoebe>.
 
-    When using this backend, please cite
-        * TODO: include list of citations
-
-    When using dynamics_method=='nbody', please cite:
-        * TODO: include list of citations for reboundx
-
-    Parameters that are used by this backend:
-
-    * Compute:
-        * all parameters in :func:`phoebe.parameters.compute.phoebe`
-    * Orbit:
-        * TOOD: list these
-    * Star:
-        * TODO: list these
-    * lc dataset:
-        * TODO: list these
-
-    Values that are filled by this backend:
-
-    * lc:
-        * times
-        * fluxes
-    * rv (dynamical only):
-        * times
-        * rvs
-
-    The run method of this class will almost always be called through the bundle, using
-        * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
-        * :meth:`phoebe.frontend.bundle.Bundle.run_compute`
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_compute>
+    * <phoebe.frontend.bundle.Bundle.run_compute>
     """
 
     def run_checks(self, b, compute, times=[], **kwargs):
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        logger.debug("rank:{}/{} run_checks".format(mpi.myrank, mpi.nprocs))
+
+        computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
         meshablerefs = hier.get_meshables()
 
-        if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0], **kwargs) in ['roche']:
-            raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0], **kwargs)))
+        if len(starrefs)==1 and computeparams.get_value(qualifier='distortion_method', component=starrefs[0], **kwargs) in ['roche', 'none']:
+            raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value(qualifier='distortion_method', component=starrefs[0], **kwargs)))
 
     def _create_system_and_compute_pblums(self, b, compute,
                                           dynamics_method=None,
                                           hier=None,
                                           meshablerefs=None,
+                                          datasets=None,
+                                          compute_l3=True,
+                                          compute_l3_frac=False,
+                                          compute_extrinsic=False,
+                                          reset=True,
+                                          lc_only=True,
                                           **kwargs):
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: calling universe.System.from_bundle".format(mpi.myrank, mpi.nprocs))
         system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
 
         if dynamics_method is None:
-            computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
-            dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
+            computeparams = b.get_compute(compute, force_ps=True)
+            dynamics_method = computeparams.get_value(qualifier='dynamics_method', **kwargs)
 
         if hier is None:
             hier = b.get_hierarchy()
@@ -587,7 +607,7 @@ class PhoebeBackend(BaseBackendByTime):
             starrefs  = hier.get_stars()
             meshablerefs = hier.get_meshables()
 
-        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
+        t0 = b.get_value(qualifier='t0', context='system', unit=u.d, t0=kwargs.get('t0', None), **_skip_filter_checks)
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: computing dynamics at t0".format(mpi.myrank, mpi.nprocs))
@@ -611,8 +631,8 @@ class PhoebeBackend(BaseBackendByTime):
 
         else:
             # singlestar case
-            incl = b.get_value('incl', component=meshablerefs[0], unit=u.rad)
-            long_an = b.get_value('long_an', component=meshablerefs[0], unit=u.rad)
+            incl = b.get_value(qualifier='incl', component=meshablerefs[0], unit=u.rad)
+            long_an = b.get_value(qualifier='long_an', component=meshablerefs[0], unit=u.rad)
 
             x0, y0, z0 = [0.], [0.], [0.]
             vx0, vy0, vz0 = [0.], [0.], [0.]
@@ -621,32 +641,57 @@ class PhoebeBackend(BaseBackendByTime):
         # Now we need to compute intensities at t0 in order to scale pblums for all future times
         # but only if any of the enabled datasets require intensities
         enabled_ps = b.filter(qualifier='enabled', compute=compute, value=True)
-        datasets = enabled_ps.datasets
-        # kinds = [b.get_dataset(dataset=ds).exclude(kind='*_dep').kind for ds in datasets]
+        if datasets is None:
+            datasets = enabled_ps.datasets
+        # kinds = [b.get_dataset(dataset=ds).kind for ds in datasets]
 
         logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: handling pblum scaling".format(mpi.myrank, mpi.nprocs))
-        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+        # NOTE: system.compute_pblum_scalings populates at t0 with ignore_effect=True (so intrinsic pblum)
+        system.compute_pblum_scalings(b, datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, reset=False, lc_only=lc_only)
+        if compute_l3 or compute_extrinsic:
+            if len(b.features):
+                # then the features may affect intrinsic vs extrinsic pblums,
+                # so we need to reset and force re-meshing
+                system.reset(force_remesh=True)
+
+        if compute_l3 and (compute_l3_frac or "frac" in [list(l3.keys())[0] for l3 in system.l3s.values()]):
+            logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: computing l3s".format(mpi.myrank, mpi.nprocs))
+            system.compute_l3s(datasets, t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, compute_l3_frac=compute_l3_frac, reset=False)
+        elif compute_extrinsic:
+            logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: recomputing with extrinsic effects enabled".format(mpi.myrank, mpi.nprocs))
+            system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
+
+        if reset:
+            logger.debug("rank:{}/{} PhoebeBackend._create_system_and_compute_pblums: resetting system".format(mpi.myrank, mpi.nprocs))
+            system.reset(force_recompute_instantaneous=True)
 
         return system
 
 
     def _worker_setup(self, b, compute, times, infolists, **kwargs):
         logger.debug("rank:{}/{} PhoebeBackend._worker_setup: extracting parameters".format(mpi.myrank, mpi.nprocs))
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
         starrefs  = hier.get_stars()
         meshablerefs = hier.get_meshables()
 
-        do_horizon = False #computeparams.get_value('horizon', **kwargs)
-        dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
-        ltte = computeparams.get_value('ltte', **kwargs)
-        distance = b.get_value(qualifier='distance', context='system', unit=u.m, **kwargs)
+        # if ld_mode_bol is lookup, we need to pre-compute those and store
+        # them in the (hidden) ld_coeffs_bol parameters
+        # TODO [optimize]: skip this if irrad_method is 'none' or albedos are 0?
+        b._compute_necessary_values(computeparams, **kwargs)
+
+        do_horizon = False #computeparams.get_value(qualifier='horizon', **kwargs)
+        dynamics_method = computeparams.get_value(qualifier='dynamics_method', dynamics_method=kwargs.pop('dynamics_method', None), **_skip_filter_checks)
+        ltte = computeparams.get_value(qualifier='ltte', ltte=kwargs.pop('ltte', None), **_skip_filter_checks)
+        distance = b.get_value(qualifier='distance', context='system', unit=u.m, distance=kwargs.pop('distance', None), **_skip_filter_checks)
 
         # TODO: skip initializing system if we NEVER need meshes
         system = self._create_system_and_compute_pblums(b, compute,
                                                         dynamics_method=dynamics_method,
                                                         hier=hier,
                                                         meshablerefs=meshablerefs,
+                                                        compute_l3=True,
+                                                        compute_extrinsic=False,
                                                         **kwargs)
 
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
@@ -672,10 +717,10 @@ class PhoebeBackend(BaseBackendByTime):
 
         else:
             # singlestar case
-            incl = b.get_value('incl', component=meshablerefs[0], unit=u.rad)
-            long_an = b.get_value('long_an', component=meshablerefs[0], unit=u.rad)
-            vgamma = b.get_value('vgamma', context='system', unit=u.solRad/u.d)
-            t0 = b.get_value('t0', context='system', unit=u.d)
+            incl = b.get_value(qualifier='incl', component=meshablerefs[0], unit=u.rad)
+            long_an = b.get_value(qualifier='long_an', component=meshablerefs[0], unit=u.rad)
+            vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.solRad/u.d)
+            t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
 
             ts = [times]
             vxs, vys, vzs = [np.zeros(len(times))], [np.zeros(len(times))], [np.zeros(len(times))]
@@ -737,8 +782,8 @@ class PhoebeBackend(BaseBackendByTime):
 
 
             # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
-            # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
-            # sma = b.get_value('sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
+            # masses = [b.get_value(qualifier='mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
+            # sma = b.get_value(qualifier='sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
 
             logger.debug("rank:{}/{} PhoebeBackend._run_single_time: calling system.update_positions at time={}".format(mpi.myrank, mpi.nprocs, time))
             system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli, ds=di, Fs=Fi)
@@ -854,13 +899,10 @@ class PhoebeBackend(BaseBackendByTime):
                                               time, info))
 
             elif kind=='lc':
-                l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
-
                 obs = system.observe(info['dataset'],
                                      kind=kind,
                                      components=info['component'],
-                                     distance=distance,
-                                     l3=l3)
+                                     distance=distance)
 
                 packetlist.append(_make_packet('fluxes',
                                               obs['flux']*u.W/u.m**2,
@@ -869,7 +911,7 @@ class PhoebeBackend(BaseBackendByTime):
             elif kind=='etv':
 
                 # TODO: add support for other etv kinds (barycentric, robust, others?)
-                time_ecl = etvs.crossing(b, info['component'], time, dynamics_method, ltte, tol=computeparams.get_value('etv_tol', u.d, dataset=info['dataset'], component=info['component']))
+                time_ecl = etvs.crossing(b, info['component'], time, dynamics_method, ltte, tol=computeparams.get_value(qualifier='etv_tol', unit=u.d, dataset=info['dataset'], component=info['component']))
 
                 this_obs = b.filter(dataset=info['dataset'], component=info['component'], context='dataset')
 
@@ -924,13 +966,24 @@ class PhoebeBackend(BaseBackendByTime):
 
             elif kind=='mesh':
                 body = system.get_body(info['component'])
+                if body.mesh is None:
+                    continue
 
-                packetlist.append(_make_packet('uvw_elements',
-                                              body.mesh.vertices_per_triangle,
-                                              time, info))
-                packetlist.append(_make_packet('xyz_elements',
-                                              body.mesh.roche_vertices_per_triangle,
-                                              time, info))
+                if 'uvw' in info['mesh_coordinates']:
+                    packetlist.append(_make_packet('uvw_elements',
+                                                  body.mesh.vertices_per_triangle,
+                                                  time, info))
+                    packetlist.append(_make_packet('uvw_normals',
+                                                  body.mesh.tnormals,
+                                                  time, info))
+
+                if 'xyz' in info['mesh_coordinates']:
+                    packetlist.append(_make_packet('xyz_elements',
+                                                  body.mesh.roche_vertices_per_triangle,
+                                                  time, info))
+                    packetlist.append(_make_packet('xyz_normals',
+                                                  body.mesh.roche_tnormals,
+                                                  time, info))
 
                 # if 'pot' in info['mesh_columns']:
                     # packetlist.append(_make_packet('pot',
@@ -1096,15 +1149,15 @@ class PhoebeBackend(BaseBackendByTime):
 
                 # Dataset-dependent quantities
                 for mesh_dataset in info['mesh_datasets']:
-                    if 'pblum@{}'.format(mesh_dataset) in info['mesh_columns']:
-                        packetlist.append(_make_packet('pblum',
+                    if 'pblum_ext@{}'.format(mesh_dataset) in info['mesh_columns']:
+                        packetlist.append(_make_packet('pblum_ext',
                                                       body.compute_luminosity(mesh_dataset),
                                                       time, info,
                                                       dataset=mesh_dataset,
                                                       component=info['component']))
 
-                    if 'abs_pblum@{}'.format(mesh_dataset) in info['mesh_columns']:
-                        packetlist.append(_make_packet('abs_pblum',
+                    if 'abs_pblum_ext@{}'.format(mesh_dataset) in info['mesh_columns']:
+                        packetlist.append(_make_packet('abs_pblum_ext',
                                                       body.compute_luminosity(mesh_dataset, scaled=False),
                                                       time, info,
                                                       dataset=mesh_dataset,
@@ -1147,50 +1200,22 @@ class PhoebeBackend(BaseBackendByTime):
             else:
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
 
+        logger.debug("rank:{}/{} PhoebeBackend._run_single_time: returning packetlist at time={}".format(mpi.myrank, mpi.nprocs, time))
+
         return packetlist
 
 
 class LegacyBackend(BaseBackendByDataset):
     """
-    Use PHOEBE 1.0 (legacy) which is based on the Wilson-Devinney code
-    to compute radial velocities and light curves for binary systems
-    (>2 stars not supported).  The code is available here:
-
-    http://phoebe-project.org/1.0
-
-    PHOEBE 1.0 and the 'phoebeBackend' python interface must be installed
-    and available on the system in order to use this plugin.
-
-    When using this backend, please cite
-        * Prsa & Zwitter (2005), ApJ, 628, 426
-
-    Parameters that are used by this backend:
-
-    * Compute:
-        * all parameters in :func:`phoebe.parameters.compute.legacy`
-    * Orbit:
-        * TOOD: list these
-    * Star:
-        * TODO: list these
-    * lc dataset:
-        * TODO: list these
-
-    Values that are filled by this backend:
-
-    * lc:
-        * times
-        * fluxes
-    * rv (dynamical only):
-        * times
-        * rvs
+    See <phoebe.parameters.compute.legacy>.
 
     The run method in this class will almost always be called through the bundle, using
-        * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
-        * :meth:`phoebe.frontend.bundle.Bundle.run_compute`
+    * <phoebe.frontend.bundle.Bundle.add_compute>
+    * <phoebe.frontend.bundle.Bundle.run_compute>
     """
 
     def run_checks(self, b, compute, times=[], **kwargs):
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True)
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -1209,10 +1234,9 @@ class LegacyBackend(BaseBackendByDataset):
         """
         logger.debug("rank:{}/{} LegacyBackend._worker_setup: creating temporary phoebe file".format(mpi.myrank, mpi.nprocs))
 
-        #make phoebe 1 file
-        # TODO: do we cleanup this temp file?
-        tmp_file = tempfile.NamedTemporaryFile()
-        io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
+        # make phoebe 1 file
+        tmp_filename = temp_name = next(tempfile._get_candidate_names())
+        io.pass_to_legacy(b, filename=tmp_filename, compute=compute, **kwargs)
         phb1.init()
         try:
             if hasattr(phb1, 'auto_configure'):
@@ -1224,7 +1248,7 @@ class LegacyBackend(BaseBackendByDataset):
         except SystemError:
             raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
 
-        phb1.open(tmp_file.name)
+        phb1.open(tmp_filename)
 
         # build lookup tables between the dataset labels and the indices needed
         # to pass to phoebe legacy
@@ -1241,7 +1265,9 @@ class LegacyBackend(BaseBackendByDataset):
             rvcurve = rvid+'-'+comp
             rvinds[rvcurve] = rvind
 
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True)
+
+        os.remove(tmp_filename)
 
         return dict(lcinds=lcinds,
                     rvinds=rvinds,
@@ -1493,58 +1519,11 @@ class LegacyBackend(BaseBackendByDataset):
 
 class PhotodynamBackend(BaseBackendByDataset):
     """
-    Use Josh Carter's photodynamical code (photodynam) to compute
-    velocities (dynamical only), orbital positions and velocities
-    (center of mass only), and light curves (assumes spherical stars).
-    The code is available here:
-
-    https://github.com/dfm/photodynam
-
-    photodynam must be installed and available on the system in order to
-    use this plugin.
-
-    Please cite both
-
-    * Science 4 February 2011: Vol. 331 no. 6017 pp. 562-565 DOI:10.1126/science.1201274
-    * MNRAS (2012) 420 (2): 1630-1635. doi: 10.1111/j.1365-2966.2011.20151.x
-
-    when using this code.
-
-    Parameters that are used by this backend:
-
-    * Compute:
-        - all parameters in :func:`phoebe.parameters.compute.photodynam`
-
-    * Orbit:
-        - sma
-        - ecc
-        - incl
-        - per0
-        - long_an
-        - t0_perpass
-
-    * Star:
-        - mass
-        - radius
-
-    * lc dataset:
-        - pblum
-        - ld_coeffs (if ld_func=='linear')
-
-    Values that are filled by this backend:
-
-    * lc:
-        - times
-        - fluxes
-
-    * rv (dynamical only):
-        - times
-        - rvs
+    See <phoebe.parameters.compute.photodynam>.
 
     The run method in this class will almost always be called through the bundle, using
-        * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
-        * :meth:`phoebe.frontend.bundle.Bundle.run_compute`
-
+    * <phoebe.frontend.bundle.Bundle.add_compute>
+    * <phoebe.frontend.bundle.Bundle.run_compute>
     """
     def run_checks(self, b, compute, times=[], **kwargs):
         # check whether photodynam is installed
@@ -1559,17 +1538,21 @@ class PhotodynamBackend(BaseBackendByDataset):
         logger.debug("rank:{}/{} PhotodynamBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
 
         computeparams = b.get_compute(compute, force_ps=True)
+
+        b._compute_necessary_values(computeparams)
+
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
         orbitrefs = hier.get_orbits()
 
-        step_size = computeparams.get_value('stepsize', **kwargs)
-        orbit_error = computeparams.get_value('orbiterror', **kwargs)
+        step_size = computeparams.get_value(qualifier='stepsize', **kwargs)
+        orbit_error = computeparams.get_value(qualifier='orbiterror', **kwargs)
         time0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
 
 
-        return dict(starrefs=starrefs,
+        return dict(compute=compute,
+                    starrefs=starrefs,
                     orbitrefs=orbitrefs,
                     step_size=step_size,
                     orbit_error=orbit_error,
@@ -1581,6 +1564,7 @@ class PhotodynamBackend(BaseBackendByDataset):
         logger.debug("rank:{}/{} PhotodynamBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
 
 
+        compute = kwargs.get('compute')
         starrefs = kwargs.get('starrefs')
         orbitrefs = kwargs.get('orbitrefs')
         step_size = kwargs.get('step_size')
@@ -1593,25 +1577,24 @@ class PhotodynamBackend(BaseBackendByDataset):
         fi.write('{} {}\n'.format(len(starrefs), time0))
         fi.write('{} {}\n'.format(step_size, orbit_error))
         fi.write('\n')
-        fi.write(' '.join([str(b.get_value('mass', component=star,
+        fi.write(' '.join([str(b.get_value(qualifier='mass', component=star,
                 context='component', unit=u.solMass) * c.G.to('AU3 / (Msun d2)').value)
                 for star in starrefs])+'\n') # GM
 
-        fi.write(' '.join([str(b.get_value('requiv', component=star,
+        fi.write(' '.join([str(b.get_value(qualifier='requiv', component=star,
                 context='component', unit=u.AU))
                 for star in starrefs])+'\n')
 
         if info['kind'] == 'lc':
-            # TODO: support pblum_ref
-            pblums = [b.get_value(qualifier='pblum', component=star,
-                        context='dataset', dataset=info['dataset'])
-                        for star in starrefs]  # TODO: units or unitless?
+            # TODO: this will make two meshing calls, let's create and extract from the dictionary instead, or use set_value=True
+            pblums = [b.get_value(qualifier='pblum', dataset=info['dataset'], component=starref, unit=u.W, check_visible=False) for starref in starrefs]
 
             u1s, u2s = [], []
             for star in starrefs:
                 if b.get_value(qualifier='ld_func', component=star, dataset=info['dataset'], context='dataset') == 'quadratic':
-                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=star, dataset=info['dataset'], context='dataset')
+                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=star, dataset=info['dataset'], context='dataset', check_visible=False)
                 else:
+                    # TODO: can we still interpolate for quadratic manually using b.compute_ld_coeffs?
                     ld_coeffs = (0,0)
                     logger.warning("ld_func for {} {} must be 'quadratic' for the photodynam backend, but is not: defaulting to quadratic with coeffs of {}".format(star, info['dataset'], ld_coeffs))
 
@@ -1635,24 +1618,24 @@ class PhotodynamBackend(BaseBackendByDataset):
         fi.write('\n')
 
         for orbitref in orbitrefs:
-            a = b.get_value('sma', component=orbitref,
+            a = b.get_value(qualifier='sma', component=orbitref,
                 context='component', unit=u.AU)
-            e = b.get_value('ecc', component=orbitref,
+            e = b.get_value(qualifier='ecc', component=orbitref,
                 context='component')
-            i = b.get_value('incl', component=orbitref,
+            i = b.get_value(qualifier='incl', component=orbitref,
                 context='component', unit=u.rad)
-            o = b.get_value('per0', component=orbitref,
+            o = b.get_value(qualifier='per0', component=orbitref,
                 context='component', unit=u.rad)
-            l = b.get_value('long_an', component=orbitref,
+            l = b.get_value(qualifier='long_an', component=orbitref,
                 context='component', unit=u.rad)
 
-            # t0 = b.get_value('t0_perpass', component=orbitref,
+            # t0 = b.get_value(qualifier='t0_perpass', component=orbitref,
                 # context='component', unit=u.d)
-            # period = b.get_value('period', component=orbitref,
+            # period = b.get_value(qualifier='period', component=orbitref,
                 # context='component', unit=u.d)
 
             # om = 2 * np.pi * (time0 - t0) / period
-            om = b.get_value('mean_anom', component=orbitref,
+            om = b.get_value(qualifier='mean_anom', component=orbitref,
                              context='component', unit=u.rad)
 
             fi.write('{} {} {} {} {} {}\n'.format(a, e, i, o, l, om))
@@ -1666,7 +1649,12 @@ class PhotodynamBackend(BaseBackendByDataset):
         # v light-time corrected velocities
         fr.write('t F x v \n')   # TODO: don't always get all?
 
-        for t in b.get_value('times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d):
+        ds = b.get_dataset(dataset=info['dataset'])
+        times = ds.get_value(qualifier='compute_times', unit=u.d)
+        if not len(times) and 'times' in ds.qualifiers:
+            times = b.get_value(qualifier='times', component=info['component'], unit=u.d)
+
+        for t in times:
             fr.write('{}\n'.format(t))
         fr.close()
 
@@ -1687,7 +1675,7 @@ class PhotodynamBackend(BaseBackendByDataset):
                                            info))
 
             packetlist.append(_make_packet('fluxes',
-                                           stuff[1],
+                                           stuff[1] +b.get_value(qualifier='pbflux', dataset=info['dataset'], unit=u.W/u.m**2, check_visible=False) - 1,
                                            None,
                                            info))
 
@@ -1752,50 +1740,7 @@ class PhotodynamBackend(BaseBackendByDataset):
 
 class JktebopBackend(BaseBackendByDataset):
     """
-    Use John Southworth's code (jktebop) to compute radial velocities
-    and light curves.  The code is available here:
-
-    http://www.astro.keele.ac.uk/jkt/codes/jktebop.html
-
-    jktebop must be installed and available on the system in order to
-    use this plugin.
-
-    Please see the link above for a list of publications to cite when using this
-    code.
-
-    According to jktebop's website:
-
-        JKTEBOP models the two components as biaxial spheroids for the
-        calculation of the reflection and ellipsoidal effects,
-        and as spheres for the eclipse shapes.
-
-    Note that the wrapper around jktebop only uses its forward model.
-    Jktebop also includes its own fitting kinds, including bootstrapping.
-    Those capabilities cannot be accessed from PHOEBE.
-
-    Parameters that are used by this backend:
-
-    * Compute:
-        -  all parameters in :func:`phoebe.parameters.compute.jktebop`
-
-    * Orbit:
-        - TODO: list these
-
-    * Star:
-        - TODO: list these
-
-    * lc dataset:
-        - TODO :list these
-
-    Values that are filled by this backend:
-
-    * lc:
-        - times
-        - fluxes
-
-    * rv (dynamical only):
-        - times
-        - rvs
+    See <phoebe.parameters.compute.jktebop>.
 
     This run method in this class will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
@@ -1805,7 +1750,7 @@ class JktebopBackend(BaseBackendByDataset):
         # check whether jktebop is installed
         out = commands.getoutput('jktebop')
         if 'not found' in out:
-            raise ImportError('jktebop executable not found')
+            raise ImportError('jktebop executable not found.')
 
         hier = b.get_hierarchy()
 
@@ -1815,7 +1760,13 @@ class JktebopBackend(BaseBackendByDataset):
         if len(starrefs) != 2 or len(orbitrefs) != 1:
             raise ValueError("jktebop backend only accepts binary systems")
 
-        logger.warning("JKTEBOP backend is still in development/testing and is VERY experimental")
+        # handled in bundle checks
+        # for dataset in b.filter(compute=compute, context='compute', qualifier='enabled', value=True).datasets:
+        #     for comp in starrefs:
+        #         if b.get_value(qualifier='ld_func', component=comp, dataset=datset, context='dataset') == 'interp':
+        #             raise ValueError("jktebop backend does not accept ld_func='interp'")
+
+        logger.warning("jktebop backend is still in development/testing and is VERY experimental")
 
 
     def _worker_setup(self, b, compute, infolist, **kwargs):
@@ -1824,6 +1775,9 @@ class JktebopBackend(BaseBackendByDataset):
         logger.debug("rank:{}/{} JktebopBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
 
         computeparams = b.get_compute(compute, force_ps=True)
+
+        b._compute_necessary_values(computeparams)
+
         hier = b.get_hierarchy()
 
         starrefs  = hier.get_stars()
@@ -1831,69 +1785,91 @@ class JktebopBackend(BaseBackendByDataset):
 
         orbitref = orbitrefs[0]
 
-        ringsize = computeparams.get_value('ringsize', unit=u.deg, **kwargs)
+        ringsize = computeparams.get_value(qualifier='ringsize', unit=u.deg, **kwargs)
 
-        rA = b.get_value('rpole', component=starrefs[0], context='component', unit=u.solRad)
-        rB = b.get_value('rpole', component=starrefs[1], context='component', unit=u.solRad)
-        sma = b.get_value('sma', component=orbitref, context='component', unit=u.solRad)
-        incl = b.get_value('incl', component=orbitref, context='component', unit=u.deg)
-        q = b.get_value('q', component=orbitref, context='component')
-        ecosw = b.get_value('ecosw', component=orbitref, context='component')
-        esinw = b.get_value('esinw', component=orbitref, context='component')
+        rA = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)
+        rB = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)
+        sma = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad)
+        incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg)
+        q = b.get_value(qualifier='q', component=orbitref, context='component')
+        ecosw = b.get_value(qualifier='ecosw', component=orbitref, context='component')
+        esinw = b.get_value(qualifier='esinw', component=orbitref, context='component')
 
-        gravbA = b.get_value('gravb_bol', component=starrefs[0], context='component')
-        gravbB = b.get_value('gravb_bol', component=starrefs[1], context='component')
-
-
-        period = b.get_value('period', component=orbitref, context='component', unit=u.d)
-        t0_supconj = b.get_value('t0_supconj', component=orbitref, context='component', unit=u.d)
+        gravbA = b.get_value(qualifier='gravb_bol', component=starrefs[0], context='component')
+        gravbB = b.get_value(qualifier='gravb_bol', component=starrefs[1], context='component')
 
 
-        return dict()
+        period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d)
+        t0_supconj = b.get_value(qualifier='t0_supconj', component=orbitref, context='component', unit=u.d)
+
+
+        return dict(compute=compute,
+                    starrefs=starrefs,
+                    oritref=orbitref,
+                    ringsize=ringsize,
+                    rA=rA, rB=rB,
+                    sma=sma, incl=incl, q=q,
+                    ecosw=ecosw, esinw=esinw,
+                    gravbA=gravbA, gravbB=gravbB,
+                    period=period, t0_supconj=t0_supconj)
 
     def _run_single_dataset(self, b, info, **kwargs):
         """
         """
         logger.debug("rank:{}/{} JktebopBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
 
+        compute = kwargs.get('compute')
+        starrefs = kwargs.get('starrefs')
+        orbitref = kwargs.get('orbitref')
+        ringsize = kwargs.get('ringsize')
+        rA = kwargs.get('rA')
+        rB = kwargs.get('rB')
+        sma = kwargs.get('sma')
+        incl = kwargs.get('incl')
+        q = kwargs.get('q')
+        ecosw = kwargs.get('ecosw')
+        esinw = kwargs.get('esinw')
+        gravbA = kwargs.get('gravbA')
+        gravbB = kwargs.get('gravbB')
+        period = kwargs.get('period')
+        t0_supconj = kwargs.get('t0_supconj')
+
         # get dataset-dependent things that we need
-        l3 = b.get_value('l3', dataset=info['dataset'], context='dataset')
-        # TODO: need to sum up pblums of each component - so need to write a function which will use the phoebe2 backend
-        # to compute pblums that are coupled (or they need to be computed as constraints - I guess we'll see how fast that function runs)
-        try:
-            pblum = sum([b.get_value('pblum', dataset=info['dataset'], component=starref, context='dataset') for starref in starrefs])  # TODO: supposed to be in mags?
-        except:
-            raise ValueError("jktebop backend currently only supports decoupled pblums (b.set_value_all('pblum_ref', 'self'))")
+        l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
 
-        logger.warning("pblum in jktebop is sum of pblums (per-component): {}".format(pblum))
-        pblum = -2.5 * np.log10(pblum) + 0.0
+        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
+        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
 
-        ldfuncA = b.get_value('ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
-        ldfuncB = b.get_value('ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
+        # use check_visible=False to access the ld_coeffs from
+        # compute_ld_coeffs(set_value=True) done in _worker_setup
+        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
 
-        ldcoeffsA = b.get_value('ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset')
-        ldcoeffsB = b.get_value('ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset')
+        irrad_method = b.get_value(qualifier="irrad_method", compute=compute, context='compute')
+        if irrad_method == "biaxial spheroid":
+            albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component')
+            albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component')
+        elif irrad_method == 'none':
+            albA = 0.0
+            albB = 0.0
+        else:
+            raise NotImplementedError("irrad_method '{}' not supported".format(irrad_method))
 
-        if len(ldcoeffsA) != 2:
-            logger.warning("ld_coeffs not compatible with jktebop - setting to (0.5,0.5)")
-            ldcoeffsA = (0.5,0.5)
-        if len(ldcoeffsB) != 2:
-            logger.warning("ld_coeffs not compatible with jktebop - setting to (0.5,0.5)")
-            ldcoeffsB = (0.5,0.5)
-
-        albA = b.get_value('irrad_frac_refl_bol', component=starrefs[0], context='component')
-        albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
-
-        tratio = b.get_value('teff', component=starrefs[0], context='component', unit=u.K) / b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
+        logger.debug("estimating surface brightness ratio from pblum and requiv")
+        # note: these aren't true surface brightnesses, but the ratio should be fine
+        sb_primary = b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2
+        sb_secondary = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2
+        sb_ratio =  sb_secondary / sb_primary
 
         # provide translation from phoebe's 'ld_func' to jktebop's 'LD law type'
         ldfuncs = {'linear': 'lin',
-                'logarithmic': 'log',
-                'square_root': 'sqrt',
-                'quadratic': 'quad'}
+                   'logarithmic': 'log',
+                   'square_root': 'sqrt',
+                   'quadratic': 'quad'}
 
         # let's make sure we'll be able to make the translation later
         if ldfuncA not in ldfuncs.keys() or ldfuncB not in ldfuncs.keys():
+            # NOTE: this is now handle in b.run_checks, so should never happen
             # TODO: provide a more useful error statement
             raise ValueError("jktebop only accepts the following options for ld_func: {}".format(ldfuncs.keys()))
 
@@ -1917,7 +1893,7 @@ class JktebopBackend(BaseBackendByDataset):
 
 
         fi.write('{:5} {:11} Gravity darkening (starA)  Grav darkening (starB)\n'.format(gravbA, gravbB))
-        fi.write('{:5} {:11} Surface brightness ratio   Amount of third light\n'.format(tratio, l3))
+        fi.write('{:5} {:11} Surface brightness ratio   Amount of third light\n'.format(sb_ratio, l3))
 
 
         # According to jktebop's readme.txt:
@@ -1926,10 +1902,10 @@ class JktebopBackend(BaseBackendByDataset):
 
         fi.write('{:5} {:11} LD law type for star A     LD law type for star B\n'.format(ldfuncs[ldfuncA], ldfuncs[ldfuncB]))
         fi.write('{:5} {:11} LD star A (linear coeff)   LD star B (linear coeff)\n'.format(ldcoeffsA[0], ldcoeffsB[0]))
-        fi.write('{:5} {:11} LD star A (nonlin coeff)   LD star B (nonlin coeff)\n'.format(ldcoeffsA[1], ldcoeffsB[1]))
+        fi.write('{:5} {:11} LD star A (nonlin coeff)   LD star B (nonlin coeff)\n'.format(ldcoeffsA[1] if len(ldcoeffsA)==2 else 0.0, ldcoeffsB[1] if len(ldcoeffsB)==2 else 0.0))
 
         fi.write('{:5} {:11} Reflection effect star A   Reflection effect star B\n'.format(albA, albB))
-        fi.write('{:5} {:11} Phase of primary eclipse   Light scale factor (mag)\n'.format(0.0, pblum))
+        fi.write('{:5} {:11} Phase of primary eclipse   Light scale factor (mag)\n'.format(0.0, 1.0))
         fi.write('{:13}      Orbital period of eclipsing binary system (days)\n'.format(period))
         fi.write('{:13}      Reference time of primary minimum (HJD)\n'.format(t0_supconj))
 
@@ -1981,8 +1957,8 @@ class JktebopBackend(BaseBackendByDataset):
 
         # TODO: create_tmp_jktebop_lc_in - probably with times and dummy fluxes if none are in the obs
         #~ flc = open('_tmp_jktebop_lc_in', 'w')
-        #~ times = b.get_value('times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
-        #~ fluxes = b.get_value('flux', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
+        #~ times = b.get_value(qualifier='times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
+        #~ fluxes = b.get_value(qualifier='flux', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
 
         #~ if len(fluxes) < len(times):
             #~ # then just provide dummy fluxes - we're not using
@@ -2008,9 +1984,8 @@ class JktebopBackend(BaseBackendByDataset):
         times_all = b.to_time(phases_all)  # in days
         mags_interp = np.interp(info['times'], times_all, mags_all)
 
-        logger.warning("converting from mags from JKTEBOP to flux")
-        ref_mag = 0  # TODO: what should we do with this?? - option in jktebop compute?
-        fluxes = 10**((mags_interp-ref_mag)/-2.5) * 2  # 2 seems to be necessary - probably from a difference in pblum conventions (or just normalization???)
+        logger.warning("converting from mags from jktebop to flux")
+        fluxes = 10**((0.0-mags_interp)/2.5) * b.get_value(qualifier='pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
 
         packetlist.append(_make_packet('times',
                                        info['times']*u.d,
@@ -2021,5 +1996,272 @@ class JktebopBackend(BaseBackendByDataset):
                                        fluxes,
                                        None,
                                        info))
+
+        return packetlist
+
+class EllcBackend(BaseBackendByDataset):
+    """
+    See <phoebe.parameters.compute.ellc>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_compute>
+    * <phoebe.frontend.bundle.Bundle.run_compute>
+    """
+    def run_checks(self, b, compute, times=[], **kwargs):
+        # check whether ellc is installed
+        if not _use_ellc:
+            raise ImportError("could not import ellc")
+
+        hier = b.get_hierarchy()
+
+        starrefs  = hier.get_stars()
+        orbitrefs = hier.get_orbits()
+
+        if len(starrefs) != 2 or len(orbitrefs) != 1:
+            raise ValueError("ellc backend only accepts binary systems")
+
+        logger.warning("ellc backend is still in development/testing and is VERY experimental")
+
+
+    def _worker_setup(self, b, compute, infolist, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} EllcBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
+
+        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+
+        b._compute_necessary_values(computeparams)
+
+        hier = b.get_hierarchy()
+
+        starrefs  = hier.get_stars()
+        orbitrefs = hier.get_orbits()
+
+        orbitref = orbitrefs[0]
+
+        shape_1 = computeparams.get_value(qualifier='distortion_method', component=starrefs[0])
+        shape_2 = computeparams.get_value(qualifier='distortion_method', component=starrefs[1])
+
+        hf_1 = computeparams.get_value(qualifier='hf', component=starrefs[0], check_visible=False)
+        hf_2 = computeparams.get_value(qualifier='hf', component=starrefs[1], check_visible=False)
+
+        grid_1 = computeparams.get_value(qualifier='grid', component=starrefs[0])
+        grid_2 = computeparams.get_value(qualifier='grid', component=starrefs[1])
+
+        exact_grav = computeparams.get_value(qualifier='exact_grav')
+
+        a = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad)
+        radius_1 = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad) / a
+        radius_2 = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad) / a
+
+        period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d)
+        q = b.get_value(qualifier='q', component=orbitref, context='component')
+
+        # TODO: there seems to be a convention flip between primary and secondary star in ellc... maybe we can just address via t_zero?
+        t_zero = b.get_value(qualifier='t0_supconj', component=orbitref, context='component', unit=u.d)
+
+        incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg)
+        didt = 0.0
+        # didt = b.get_value(qualifier='dincldt', component=orbitref, context='component', unit=u.deg/u.d) * period
+
+        ecc = b.get_value(qualifier='ecc', component=orbitref, context='component')
+        w = b.get_value(qualifier='per0', component=orbitref, context='component', unit=u.rad)
+
+        domdt = b.get_value(qualifier='dperdt', component=orbitref, context='component', unit=u.deg/u.d) * period
+
+        gdc_1 = b.get_value(qualifier='gravb_bol', component=starrefs[0], context='component')
+        gdc_2 = b.get_value(qualifier='gravb_bol', component=starrefs[1], context='component')
+
+        rotfac_1 = b.get_value(qualifier='syncpar', component=starrefs[0], context='component')
+        rotfac_2 = b.get_value(qualifier='syncpar', component=starrefs[1], context='component')
+
+        f_c = np.sqrt(ecc) * np.cos(w)
+        f_s = np.sqrt(ecc) * np.sin(w)
+
+
+        return dict(compute=compute,
+                    starrefs=starrefs,
+                    oritref=orbitref,
+                    shape_1=shape_1, shape_2=shape_2,
+                    grid_1=grid_1, grid_2=grid_2,
+                    exact_grav=exact_grav,
+                    radius_1=radius_1, radius_2=radius_2,
+                    incl=incl,
+                    t_zero=t_zero,
+                    period=period,
+                    q=q,
+                    a=a,
+                    f_c=f_c, f_s=f_s,
+                    didt=didt, domdt=domdt,
+                    gdc_1=gdc_1, gdc_2=gdc_2,
+                    rotfac_1=rotfac_1, rotfac_2=rotfac_2)
+
+    def _run_single_dataset(self, b, info, **kwargs):
+        """
+        """
+        logger.debug("rank:{}/{} EllcBackend._run_single_dataset(info['dataset']={} info['component']={} info.keys={}, **kwargs.keys={})".format(mpi.myrank, mpi.nprocs, info['dataset'], info['component'], info.keys(), kwargs.keys()))
+
+        compute = kwargs.get('compute')
+        starrefs = kwargs.get('starrefs')
+        orbitref = kwargs.get('orbitref')
+
+        grid_1 = kwargs.get('grid_1')
+        grid_2 = kwargs.get('grid_2')
+        shape_1 = kwargs.get('shape_1')
+        shape_2 = kwargs.get('shape_2')
+        hf_1 = kwargs.get('hf_1')
+        hf_2 = kwargs.get('hf_2')
+
+        exact_grav = kwargs.get('exact_grav')
+
+        radius_1 = kwargs.get('radius_2')
+        radius_2 = kwargs.get('radius_1')
+
+        incl = kwargs.get('incl')
+
+        t_zero = kwargs.get('t_zero')
+        period = kwargs.get('period')
+        a = kwargs.get('a')
+        q = kwargs.get('q')
+
+        f_c = kwargs.get('f_c')
+        f_s = kwargs.get('f_s')
+
+        didt = kwargs.get('didt')
+        domdt = kwargs.get('domdt')
+
+        gdc_1 = kwargs.get('gdc_1')
+        gdc_2 = kwargs.get('gdc_2')
+
+        rotfac_1 = kwargs.get('rotfac_1')
+        rotfac_2 = kwargs.get('rotfac_2')
+
+
+        # get dataset-dependent things that we need
+        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
+        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
+
+        # use check_visible=False to access the ld_coeffs from
+        # compute_ld_coeffs(set_value=True) done in _worker_setup
+        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
+
+        # albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component')
+        # albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component')
+
+        if info['kind'] == 'lc':
+            light_3 = b.get_value(qualifier='l3_frac', dataset=info['dataset'], context='dataset', check_visible=False)
+
+            # this is just a hack for now, we'll eventually want the true sb ratio
+            logger.info("computing sb_ratio from pblums and requivs for dataset='{}'".format(info['dataset']))
+            # note: these aren't true surface brightnesses, but the ratio should be fine
+            sb_primary = b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2
+            sb_secondary = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2
+            sb_ratio =  sb_secondary / sb_primary
+
+            t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
+
+            # move outside above 'lc' if-statement once exptime is supported for RVs in phoebe
+            if b.get_value(qualifier='fti_method', compute=compute, dataset=info['dataset'], context='compute') == 'oversample':
+                n_int = b.get_value(qualifier='fti_oversample', compute=compute, dataset=info['dataset'], context='compute')
+            else:
+                n_int = 1
+
+            logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
+            fluxes = ellc.lc(info['times'],
+                             radius_1, radius_2,
+                             sb_ratio,
+                             incl,
+                             light_3,
+                             t_zero, period, a, q,
+                             f_c, f_s,
+                             ldc_1=None, ldc_2=None,
+                             gdc_1=gdc_1, gdc_2=gdc_2,
+                             didt=didt, domdt=domdt,
+                             rotfac_1=rotfac_1, rotfac_2=rotfac_2,
+                             hf_1=hf_1, hf_2=hf_2,
+                             bfac_1=None, bfac_2=None,
+                             heat_1=None, heat_2=None,
+                             lambda_1=None, lambda_2=None,
+                             vsini_1=None, vsini_2=None,
+                             t_exp=t_exp, n_int=n_int,
+                             grid_1=grid_1, grid_2=grid_2,
+                             ld_1=None, ld_2=None,
+                             shape_1=shape_1, shape_2=shape_2,
+                             spots_1=None, spots_2=None,
+                             exact_grav=exact_grav,
+                             verbose=1)
+
+            # ellc returns "arbitrary" flux values... let's try to rescale
+            # to our flux units to be compatible with other backends
+            fluxes *= b.get_value(qualifier='pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
+
+            # fill packets
+            packetlist = []
+
+            packetlist.append(_make_packet('times',
+                                           info['times']*u.d,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('fluxes',
+                                           fluxes,
+                                           None,
+                                           info))
+
+        elif info['kind'] == 'rv':
+            rv_method = b.get_value(qualifier='rv_method', compute=compute, dataset=info['dataset'], component=info['component'], context='compute')
+            flux_weighted = rv_method == 'flux-weighted'
+            if flux_weighted:
+                raise NotImplementedError("flux-weighted does not seem to work in ellc")
+
+            # surface-brightness ratio shouldn't matter for rvs...
+            sb_ratio = 1.0
+
+            # enable once exptime for RVs is supported in PHOEBE
+            # t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
+            t_exp = 0
+            n_int = 1
+
+            logger.info("calling ellc.rv for dataset='{}'".format(info['dataset']))
+            rvs1, rvs2 = ellc.rv(info['times'],
+                                  radius_1, radius_2,
+                                  sb_ratio,
+                                  incl,
+                                  t_zero, period, a, q,
+                                  f_c, f_s,
+                                  ldc_1=None, ldc_2=None,
+                                  gdc_1=gdc_1, gdc_2=gdc_2,
+                                  didt=didt, domdt=domdt,
+                                  rotfac_1=rotfac_1, rotfac_2=rotfac_2,
+                                  hf_1=hf_1, hf_2=hf_2,
+                                  bfac_1=None, bfac_2=None,
+                                  heat_1=None, heat_2=None,
+                                  lambda_1=None, lambda_2=None,
+                                  vsini_1=None, vsini_2=None,
+                                  t_exp=t_exp, n_int=n_int,
+                                  grid_1=grid_1, grid_2=grid_2,
+                                  ld_1=None, ld_2=None,
+                                  shape_1=shape_1, shape_2=shape_2,
+                                  spots_1=None, spots_2=None,
+                                  flux_weighted=flux_weighted,
+                                  verbose=1)
+
+
+            # fill packets
+            packetlist = []
+
+            packetlist.append(_make_packet('times',
+                                           info['times']*u.d,
+                                           None,
+                                           info))
+
+            rvs = rvs1 if b.hierarchy.get_primary_or_secondary(info['component'])=='primary' else rvs2
+            packetlist.append(_make_packet('rvs',
+                                           rvs*u.km/u.s,
+                                           None,
+                                           info))
+        else:
+            raise TypeError("ellc only supports 'lc' and 'rv' datasets")
 
         return packetlist

@@ -7,7 +7,11 @@ from phoebe import conf
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
-_ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power']
+_ld_func_choices = ['linear', 'logarithmic', 'quadratic', 'square_root', 'power']
+
+
+passbands._init_passbands()  # TODO: move to module import
+_ld_coeffs_source_choices = ['auto'] + list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms_ld']]))
 
 global _mesh_columns
 global _pbdep_columns
@@ -34,9 +38,10 @@ _mesh_columns += ['rs'] #, 'cosbetas']
 lc_columns = []
 lc_columns += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_normal_intensities']
 lc_columns += ['boost_factors', 'ldint']
-lc_columns += ['pblum', 'abs_pblum', 'ptfarea']
+lc_columns += ['pblum_ext', 'abs_pblum_ext', 'ptfarea']
 
-rv_columns = lc_columns[:]
+# rv columns have all pb-dependent columns except those that require pblum scaling
+rv_columns = [c for c in lc_columns[:] if c not in ['intensities', 'normal_intensities', 'pblum_ext']]
 rv_columns += ['rvs']
 
 lp_columns = rv_columns[:]
@@ -47,6 +52,10 @@ _pbdep_columns = {'lc': lc_columns,
                   'rv': rv_columns,
                   'lp': lp_columns}
 
+import logging
+logger = logging.getLogger("DATASET")
+logger.addHandler(logging.NullHandler())
+
 def _empty_array(kwargs, qualifier):
     if qualifier in kwargs.keys():
         return kwargs.get(qualifier)
@@ -55,328 +64,527 @@ def _empty_array(kwargs, qualifier):
     else:
         return []
 
-def lc(**kwargs):
+def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
     """
-    Create parameters for a new light curve dataset.
+    Create a <phoebe.parameters.ParameterSet> for a light curve dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset> as
+    `b.add_dataset('lc')`.  In this case, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `syn` (bool, optional, default=False): whether to create the parameters
+        for the synthetic (model) instead of the observational (dataset).
+    * `as_ps` (bool, optional, default=True): whether to return the parameters
+        as a <phoebe.parameters.ParameterSet> instead of a list of
+        <phoebe.parameters.Parameter> objects.
+    * `is_lc` (bool, optional, default=True): whether to build all lc parameters
+        or just passband-dependent parameters.  Generally this is only used
+        internally by other dataset types that need passband-dependent parameters.
+    * `times` (array/quantity, optional): observed times.  Only applicable
+        if `is_lc` is True.
+    * `fluxes` (array/quantity, optional): observed flux.  Only applicable
+        if `is_lc` is True.
+    * `sigmas` (array/quantity, optional): errors on flux measurements.  Only
+        applicable if `syn` is False and `is_lc` is True.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.  Only applicable if `syn` is False and `is_lc` is True.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.  Only applicable if `syn` is False and `is_lc` is True.
+    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times`.  Only
+        applicable if `syn` is False and `is_lc` is True.  Not applicable for
+        single stars (in which case t0@system is always used).
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
+        if `syn` is False.
+    * `ld_func` (string, optional, default='logarithmic'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
+    * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
+    * `passband` (string, optional): passband.  Only applicable if `syn` is False.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy or photons.  Only applicable if `syn` is False.
+    * `ebv` (float, optional, default=0): extinction E(B-V).  Only applicable
+        if `syn` is False.
+    * `Av` (float, optional, default=0): extinction Av.  Only applicable if
+        `syn` is False.
+    * `Rv` (float, optional, default=3.1): extinction law parameter.  Only
+       applicable if `syn` is False.
+    * `pblum_mode` (string, optional, default='manual'): mode for scaling
+        passband luminosities.  Only applicable if `syn` is False and `is_lc`
+        is True.
+    * `pblum_dataset` (string, optional):  Dataset to reference for coupling
+        luminosities.  Only applicable if `pblum_mode` is 'dataset-coupled'.
+    * `pblum_component` (string, optional): Component to provide `pblum`.
+        Only applicable if `pblum_mode` is 'component-coupled'.
+    * `pblum` (float/quantity or string, optional): passband luminosity (defined at t0).
+        If `pblum_mode` is 'decoupled', then one entry per-star will be applicable.
+        If `pblum_mode` is 'component-coupled', then only the entry for the primary
+        component, according to <phoebe.parameters.HierarchyParameter> will be
+        available.  To change the provided component, see `pblum_component`.
+        Only applicable if `syn` is False and `is_lc` is True.
+    * `l3_mode` (string, optional, default='flux'): mode for providing third
+        light (`l3`).  Only applicable if `syn` is False and `is_lc` is True.
+    * `l3` (float/quantity, optional): third light in flux units (only applicable
+        if `l3_mode` is 'flux'). Only applicable if `syn` is False and `is_lc`
+        is True.
+    * `l3_frac` (float/quantity, optional): third light in fraction
+        (only applicable if `l3_mode` is 'fraction').
+        Only applicable if `syn` is False and `is_lc` is True.
+    * `exptime` (float/quantity, optional): exposure time of the observations
+        (`times` is defined at the mid-exposure).
+        Only applicable if `syn` is False and `is_lc` is True.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet> or list, list): ParameterSet (if `as_ps`)
+        or list of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
-    obs_params = []
-
-    syn_params, constraints = lc_syn(syn=False, **kwargs)
-    obs_params += syn_params.to_list()
-    #obs_params += lc_dep(**kwargs).to_list()
-
-    #~ obs_params += [FloatArrayParameter(qualifier='flag', value=kwargs.get('flag', []), default_unit=None, description='Signal flag')]
-    #~ obs_params += [FloatArrayParameter(qualifier='weight', value=kwargs.get('weight', []), default_unit=None, description='Signal weight')]
-
-    #~ obs_params += [FloatParameter(qualifier='timeoffset', value=kwargs.get('timeoffset', 0.0), default_unit=u.d, description='Zeropoint date offset for observations')]
-    #~ obs_params += [FloatParameter(qualifier='statweight', value=kwargs.get('statweight', 0.0), default_unit=None, description='Statistical weight in overall fitting')]
-
-    return ParameterSet(obs_params), constraints
-
-def lc_syn(syn=True, **kwargs):
-
-    syn_params = []
-
-    syn_params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='Observed times')]
-    syn_params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), default_unit=u.W/u.m**2, description='Observed flux')]
-    if not syn:
-        syn_params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
+    params, constraints = [], []
 
 
-    #~ syn_params += [FloatArrayParameter(qualifier='exptime', value=kwargs.get('exptime', []), default_unit=u.s, description='Signal exposure time')]
-
-    constraints = []
-
-    return ParameterSet(syn_params), constraints
-
-def lc_dep(is_lc=True, **kwargs):
-    dep_params = []
-
-    # NOTE: these need to be added to the exception in bundle.add_dataset so that the kwargs get applied correctly
-    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
-    dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, allow_none=True, description='Limb darkening coefficients')]
-    passbands.init_passbands()  # NOTE: this only actually does something on the first call
-    dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
-    dep_params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy of photons')]
     if is_lc:
-        dep_params += [ChoiceParameter(qualifier='pblum_ref', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
-        dep_params += [FloatParameter(qualifier='pblum', visible_if='pblum_ref:self', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
-        dep_params += [FloatParameter(qualifier='l3', value=kwargs.get('l3', 0.), default_unit=u.W/u.m**3, description='Third light')]
+        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+        params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), default_unit=u.W/u.m**2, description='Model (synthetic) flux' if syn else 'Observed flux')]
 
-    # dep_params += [FloatParameter(qualifier='alb', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('alb', 0.), default_unit=u.dimensionless_unscaled, description='Passband Bond\'s albedo, alb=0 is no reflection')]
-
-    if is_lc:
-        dep_params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
-
-    return ParameterSet(dep_params)
-
-def rv(**kwargs):
-    """
-    Create parameters for a new radial velocity dataset.
-
-    Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
-
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
-    """
-
-    obs_params = []
-
-    #obs_params += [FloatParameter(qualifier='statweight', value = kwargs.get('statweight', 1.0), default_unit=u.dimensionless_unscaled, description='Statistical weight in overall fitting')]
-    syn_params, constraints = rv_syn(syn=False, **kwargs)
-    obs_params += syn_params.to_list()
-    #obs_params += rv_dep(**kwargs).to_list()
-
-    return ParameterSet(obs_params), constraints
-
-def rv_syn(syn=True, **kwargs):
-    """
-    """
-
-    syn_params = []
-
-    syn_params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Observed times')]
-    syn_params += [FloatArrayParameter(qualifier='rvs', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'rvs'), default_unit=u.km/u.s, description='Observed radial velocity')]
     if not syn:
-        syn_params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
+        # TODO: should we move all limb-darkening to compute options since
+        # not all backends support interp (and lookup is atm-dependent)
+        params += [ChoiceParameter(qualifier='ld_mode', copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('ld_mode', 'interp'), choices=['interp', 'lookup', 'manual'],
+                                   description='Mode to use for limb-darkening')]
+        params += [ChoiceParameter(visible_if='ld_mode:lookup|manual', qualifier='ld_func',
+                                   copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('ld_func', 'logarithmic'), choices=_ld_func_choices,
+                                   description='Limb darkening model')]
+        params += [ChoiceParameter(visible_if='ld_mode:lookup', qualifier='ld_coeffs_source',
+                                   copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                   value=kwargs.get('ld_coeffs_source', 'auto'), choices=_ld_coeffs_source_choices,
+                                   advanced=True,
+                                   description='Source for limb darkening coefficients (\'auto\' to interpolate from the applicable table according to the \'atm\' parameter, or the name of a specific atmosphere table)')]
+        params += [FloatArrayParameter(visible_if='ld_mode:manual', qualifier='ld_coeffs',
+                                       copy_for={'kind': ['star'], 'component': '*'}, component='_default',
+                                       value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled,
+                                       description='Limb darkening coefficients')]
+
+        passbands._init_passbands()  # NOTE: this only actually does something on the first call
+        params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
+        params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], advanced=True, description='Whether passband intensities are weighted by energy or photons')]
+
+        params += [FloatParameter(qualifier='ebv', value=kwargs.get('ebv', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Passband extinction E(B-V)')]
+        params += [FloatParameter(qualifier='Av', value=kwargs.get('Av', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Passband extinction Av')]
+        params += [FloatParameter(qualifier='Rv', value=kwargs.get('Rv', 3.1), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Extinction law parameter')]
+        constraints +=[(constraint.extinction, kwargs.get('dataset', None))]
+
+    if is_lc and not syn:
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+
+        params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
+
+        params += [ChoiceParameter(qualifier='pblum_mode', value=kwargs.get('pblum_mode', 'component-coupled'),
+                                   choices=['decoupled', 'component-coupled', 'dataset-coupled', 'dataset-scaled', 'absolute'],
+                                   description='Mode for scaling passband luminosities')]
+
+        # pblum_mode = 'component-coupled' or 'decoupled'
+        params += [ChoiceParameter(visible_if='pblum_mode:component-coupled', qualifier='pblum_component', value=kwargs.get('pblum_component', ''), choices=kwargs.get('starrefs', ['']), advanced=True, description='Which component\'s pblum will be provided')]
+        params += [FloatParameter(qualifier='pblum', visible_if='[component]pblum_mode:decoupled||[component]pblum_mode:component-coupled,[component]pblum_component:<component>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
+
+        # pblum_mode = 'dataset-coupled'
+        params += [ChoiceParameter(visible_if='pblum_mode:dataset-coupled', qualifier='pblum_dataset', value=kwargs.get('pblum_dataset', ''), choices=['']+kwargs.get('lcrefs', []), description='Dataset with which to couple luminosities based on color')]
+
+        # pblum_mode = 'pbflux'
+        params += [FloatParameter(visible_if='false', qualifier='pbflux', value=kwargs.get('pbflux', 1.0), default_unit=u.W/u.m**2, description='Total inrinsic (excluding features and irradiation) passband flux (at t0, including l3 if pblum_mode=\'flux\')')]
+
+        params += [ChoiceParameter(qualifier='l3_mode', value=kwargs.get('l3_mode', 'flux'), choices=['flux', 'fraction'], description='Whether third light is given in units of flux or as a fraction of total light')]
+        params += [FloatParameter(visible_if='l3_mode:flux', qualifier='l3', value=kwargs.get('l3', 0.), limits=[0, None], default_unit=u.W/u.m**2, description='Third light in flux units')]
+        params += [FloatParameter(visible_if='l3_mode:fraction', qualifier='l3_frac', value=kwargs.get('l3_frac', 0.), limits=[0, 1], default_unit=u.dimensionless_unscaled, description='Third light as a fraction of total light')]
+
+        params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
 
 
-    constraints = []
+    return ParameterSet(params) if as_ps else params, constraints
 
-    return ParameterSet(syn_params), constraints
-
-def rv_dep(**kwargs):
+def rv(syn=False, as_ps=True, **kwargs):
     """
-    """
-
-    dep_params = []
-    # TODO: only relevent-if rv_method='flux-weighted'
-
-    dep_params += lc_dep(is_lc=False, **kwargs).to_list()
-
-
-    return ParameterSet(dep_params)
-
-def lp(**kwargs):
-    """
-    Create parameters for a new line profile dataset.
+    Create a <phoebe.parameters.ParameterSet> for a radial velocity dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset> as
+    `b.add_dataset('rv')`.  In this case, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `syn` (bool, optional, default=False): whether to create the parameters
+        for the synthetic (model) instead of the observational (dataset).
+    * `as_ps` (bool, optional, default=True): whether to return the parameters
+        as a <phoebe.parameters.ParameterSet> instead of a list of
+        <phoebe.parameters.Parameter> objects.
+    * `times` (array/quantity, optional): observed times.
+    * `rvs` (array/quantity, optional): observed radial velocities.
+    * `sigmas` (array/quantity, optional): errors on radial velocity measurements.
+        Only applicable if `syn` is False.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times`.  Only
+        applicable if `syn` is False.  Not applicable for
+        single stars (in which case t0@system is always used).
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
+        if `syn` is False.
+    * `ld_func` (string, optional, default='linear'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
+    * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
+    * `passband` (string, optional): passband.  Only applicable if `syn` is False.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy or photons.  Only applicable if `syn` is False.
+    * `ebv` (float, optional, default=0): extinction E(B-V).  Only applicable
+        if `syn` is False.
+    * `Av` (float, optional, default=0): extinction Av.  Only applicable if
+        `syn` is False.
+    * `Rv` (float, optional, default=3.1): extinction law parameter.  Only
+       applicable if `syn` is False.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet> or list, list): ParameterSet (if `as_ps`)
+        or list of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
-    obs_params = []
+    params, constraints = [], []
 
-    #obs_params += [FloatParameter(qualifier='statweight', value = kwargs.get('statweight', 1.0), default_unit=u.dimensionless_unscaled, description='Statistical weight in overall fitting')]
-    syn_params, constraints = lp_syn(syn=False, **kwargs)
-    obs_params += syn_params.to_list()
-    #obs_params += rv_dep(**kwargs).to_list()
+    params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+    params += [FloatArrayParameter(qualifier='rvs', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'rvs'), default_unit=u.km/u.s, description='Model (synthetic) radial velocities' if syn else 'Observed radial velocity')]
 
-    return ParameterSet(obs_params), constraints
+    if not syn:
+        params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
 
-def lp_syn(syn=True, **kwargs):
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+
+    lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
+    params += lc_params
+    constraints += lc_constraints
+
+    return ParameterSet(params) if as_ps else params, constraints
+
+def lp(syn=False, as_ps=True, **kwargs):
     """
+    Create a <phoebe.parameters.ParameterSet> for a line profile dataset.
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_dataset> as
+    `b.add_dataset('lp', times=[...])`.  In this case, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    Note that `times` **must** be passed during creation and cannot be changed
+    after the fact as this function creates copies of the `flux_densities`
+    and `sigmas` parameters per-time instead of creating a `times` parameter.
+
+    Arguments
+    ----------
+    * `syn` (bool, optional, default=False): whether to create the parameters
+        for the synthetic (model) instead of the observational (dataset).
+    * `as_ps` (bool, optional, default=True): whether to return the parameters
+        as a <phoebe.parameters.ParameterSet> instead of a list of
+        <phoebe.parameters.Parameter> objects.
+    * `times` (array/quantity): times at which the dataset should be defined.
+        **IMPORTANT**: times is not a parameter and must be passed during creation,
+        see note above.  If `syn` is True, a `times` parameter will be created,
+        but all other parameters will be tagged with individual times.
+    * `wavelengths` (array/quantity, optional): observed wavelengths.
+    * `flux_densities` (array/quantity, optional): observed flux densities.
+        A copy of this parameter will exist per-time (as passed to the `times`
+        argument at creation, see above) and will be tagged with that time.
+    * `sigmas` (array/quantity, optional): errors on flux densities measurements.
+        Only applicable if `syn` is False.  A copy of this parameter will exist
+        per-time (as passed to the `times` argument at creation, see above) and
+        will be tagged with that time.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.  If provided, this will override the tagged times as defined
+        by `times` (note that interpolating between the model computed at
+        `compute_times` and the dataset defined at `times` is not currently
+        supported).  Only applicable if `syn` is False.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times`.  Only
+        applicable if `syn` is False.  Not applicable for
+        single stars (in which case t0@system is always used).
+    * `profile_func` (string, optional, default='gaussian'): function to use
+        for the rest line profile.
+    * `profile_rest` (float, optional, default=550): rest central wavelength
+        for the line profile.
+    * `profile_sv` (float, optional, default=1e-4): subsidiary value of the
+        profile.
+    * `ld_mode` (string, optional, default='interp'): mode to use for handling
+        limb-darkening.  Note that 'interp' is not available for all values
+        of `atm` (availability can be checked by calling
+        <phoebe.frontend.bundle.Bundle.run_checks> and will automatically be checked
+        during <phoebe.frontend.bundle.Bundle.run_compute>).  Only applicable
+        if `syn` is False.
+    * `ld_func` (string, optional, default='linear'): function/law to use for
+        limb-darkening model. Not applicable if `ld_mode` is 'interp'.  Only
+        applicable if `syn` is False.
+    * `ld_coeffs_source` (string, optional, default='auto'): source for limb-darkening
+        coefficients ('auto' to interpolate from the applicable table according
+        to the 'atm' parameter, or the name of a specific atmosphere table).
+        Only applicable if `ld_mode` is 'lookup'.  Only applicable if
+        `syn` is False.
+    * `ld_coeffs` (list, optional): limb-darkening coefficients.  Must be of
+        the approriate length given the value of `ld_coeffs_source` which can
+        be checked by calling <phoebe.frontend.bundle.Bundle.run_checks>
+        and will automtically be checked during
+        <phoebe.frontend.bundle.Bundle.run_compute>.  Only applicable
+       if `ld_mode` is 'manual'.  Only applicable if `syn` is False.
+    * `passband` (string, optional): passband.  Only applicable if `syn` is False.
+    * `intens_weighting` (string, optional): whether passband intensities are
+        weighted by energy or photons.  Only applicable if `syn` is False.
+    * `ebv` (float, optional, default=0): extinction E(B-V).  Only applicable
+        if `syn` is False.
+    * `Av` (float, optional, default=0): extinction Av.  Only applicable if
+        `syn` is False.
+    * `Rv` (float, optional, default=3.1): extinction law parameter.  Only
+       applicable if `syn` is False.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet> or list, list): ParameterSet (if `as_ps`)
+        or list of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
+
+    params, constraints = [], []
 
     times = kwargs.get('times', [])
 
-    syn_params = []
-
     # if syn:
-        # wavelengths array is copied per-time for the model
-        # for time in times:
-            # syn_params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'envelope', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
+        # expose the computed times as we do for a mesh, even though the actual
+        # parameters will be **tagged** with times
+        # TODO: it would be nice if this wasn't copied per-component in the model... but it is also somewhat useful
+        # NOTE: enabling this requires some changes to plotting logic.  We have it for meshes so you can plot pot vs time, for example, but lp doesn't have any syn FloatParameters
+        # params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
 
-    # else:
+
     # wavelengths is time-independent
-    syn_params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the observations')]
+    params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the model (synthetic)' if syn else 'Wavelengths of the observations')]
 
     for time in times:
         # but do allow per-component flux_densities and sigmas
-        syn_params += [FloatArrayParameter(qualifier='flux_densities', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'flux_densities'), default_unit=u.W/(u.m**2*u.nm), description='Flux density per wavelength (must be same length as wavelengths or empty)')]
+        params += [FloatArrayParameter(qualifier='flux_densities', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'},
+                                       component='_default', time=time, value=_empty_array(kwargs, 'flux_densities'), default_unit=u.W/(u.m**2*u.nm),
+                                       description='Flux density per wavelength (must be same length as wavelengths or empty)')]
+
         if not syn:
-            syn_params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
+            params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
 
-    constraints = []
-
-    return ParameterSet(syn_params), constraints
-
-def lp_dep(**kwargs):
-    """
-    """
-
-    dep_params = []
-
-    dep_params += lc_dep(is_lc=False, **kwargs).to_list()
-
-    dep_params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
-    dep_params += [FloatParameter(qualifier='profile_rest', value=kwargs.get('profile_rest', 550), default_unit=u.nm, limits=(0, None), description='Rest central wavelength of the profile')]
-    dep_params += [FloatParameter(qualifier='profile_sv', value=kwargs.get('profile_sv', 1e-4), default_unit=u.dimensionless_unscaled, limits=(0, None), description='Subsidiary value of the profile')]
-
-    return ParameterSet(dep_params)
-
-
-def etv(**kwargs):
-    """
-    Create parameters for a new eclipse timing variations dataset.
-
-    Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
-
-    :parameter **kwargs: default for the values of any of the ParameterSet
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
-    """
-    if not conf.devel:
-        raise NotImplementedError("'etv' dataset not officially supported for this release.  Enable developer mode to test.")
-
-    obs_params = []
-
-    syn_params, constraints = etv_syn(syn=False, **kwargs)
-    obs_params += syn_params.to_list()
-    #obs_params += etv_dep(**kwargs).to_list()
-
-    return ParameterSet(obs_params), constraints
-
-def etv_syn(syn=True, **kwargs):
-    """
-    """
-
-    syn_params = []
-
-    #syn_params += [IntArrayParameter(qualifier='N', value=kwargs.get('N', []), description='Epoch since t0')]
-    syn_params += [FloatArrayParameter(qualifier='Ns', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'Ns'), default_unit=u.dimensionless_unscaled, description='Epoch since t0')]
-    syn_params += [FloatArrayParameter(qualifier='time_ecls', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'times_ecl'), default_unit=u.d, description='Time of eclipse')]
-    syn_params += [FloatArrayParameter(qualifier='time_ephems', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'times_ephem'), default_unit=u.d, description='Expected time of eclipse from the current ephemeris')]
-    syn_params += [FloatArrayParameter(qualifier='etvs', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'etvs'), default_unit=u.d, description='Eclipse timing variation (time_obs - time_ephem)')]
     if not syn:
-        syn_params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.d, description='Observed uncertainty on time_obs')]
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times of individual entries.  Note that interpolation is not currently supported for lp datasets.')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
-    constraints = []
-    constraints += [(constraint.time_ephem, kwargs.get('component', '_default'), kwargs.get('dataset', None))]
-    constraints += [(constraint.etv, kwargs.get('component', '_default'), kwargs.get('dataset', None))]
+        params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
+        params += [FloatParameter(qualifier='profile_rest', value=kwargs.get('profile_rest', 550), default_unit=u.nm, limits=(0, None), description='Rest central wavelength of the profile')]
+        params += [FloatParameter(qualifier='profile_sv', value=kwargs.get('profile_sv', 1e-4), default_unit=u.dimensionless_unscaled, limits=(0, None), description='Subsidiary value of the profile')]
 
-    return ParameterSet(syn_params), constraints
+    lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
+    params += lc_params
+    constraints += lc_constraints
 
-def etv_dep(**kwargs):
+    return ParameterSet(params) if as_ps else params, constraints
+
+
+def orb(syn=False, as_ps=True, **kwargs):
     """
-    """
-
-    dep_params = []
-
-    # TODO: only relevent-if rv_method='flux-weighted'
-    # TODO: add these back in if we implement an etv_method that actually needs fluxes
-    #dep_params += [ChoiceParameter(qualifier='ld_func', value=kwargs.get('ld_func', 'logarithmic'), choices=_ld_func_choices, description='Limb darkening model')]
-    #dep_params += [FloatArrayParameter(qualifier='ld_coeffs', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=None, description='Limb darkening coefficients')]
-    #passbands.init_passbands()  # TODO: possibly move to the import of the passbands module
-    #dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands._pbtable.keys(), description='Passband')]
-
-
-    return ParameterSet(dep_params)
-
-def orb(**kwargs):
-    """
-    Create parameters for a new orbit dataset.
+    Create a <phoebe.parameters.ParameterSet> for an orbit dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset> as
+    `b.add_dataset('orb')`.  In this case, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `syn` (bool, optional, default=False): whether to create the parameters
+        for the synthetic (model) instead of the observational (dataset).
+    * `as_ps` (bool, optional, default=True): whether to return the parameters
+        as a <phoebe.parameters.ParameterSet> instead of a list of
+        <phoebe.parameters.Parameter> objects.
+    * `times` (array/quantity, optional): observed times.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times`.  Only
+        applicable if `syn` is False.  Not applicable for
+        single stars (in which case t0@system is always used).
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet> or list, list): ParameterSet (if `as_ps`)
+        or list of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
-    obs_params = []
-
-    #~ obs_params += [FloatArrayParameter(qualifier='exptime', value=kwargs.get('exptime', []), default_unit=u.s, description='Signal exposure time')]
-    #~ obs_params += [FloatArrayParameter(qualifier='flag', value=kwargs.get('flag', []), default_unit=None, description='Signal flag')]
-    #~ obs_params += [FloatArrayParameter(qualifier='weight', value=kwargs.get('weight', []), default_unit=None, description='Signal weight')]
-
-    #~ obs_params += [FloatParameter(qualifier='timeoffset', value=kwargs.get('timeoffset', 0.0), default_unit=u.d, description='Zeropoint date offset for observations')]
-    #~ obs_params += [FloatParameter(qualifier='statweight', value=kwargs.get('statweight', 0.0), default_unit=None, description='Statistical weight in overall fitting')]
-
-    syn_params, constraints = orb_syn(syn=False, **kwargs)
-    obs_params += syn_params.to_list()
-    #obs_params += orb_dep(**kwargs).to_list()
-
-    return ParameterSet(obs_params), []
-
-def orb_syn(syn=True, **kwargs):
-
-    syn_params = []
-
-    syn_params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+    params, constraints = [], []
 
     if syn:
-        # syns ignore copy_for anyways
-        syn_params += [FloatArrayParameter(qualifier='us', value=_empty_array(kwargs, 'us'), default_unit=u.solRad, description='U position')]
-        syn_params += [FloatArrayParameter(qualifier='vs', value=_empty_array(kwargs, 'vs'), default_unit=u.solRad, description='V position')]
-        syn_params += [FloatArrayParameter(qualifier='ws', value=_empty_array(kwargs, 'ws'), default_unit=u.solRad, description='W position')]
-        syn_params += [FloatArrayParameter(qualifier='vus', value=_empty_array(kwargs, 'vus'), default_unit=u.km/u.s, description='U velocity')]
-        syn_params += [FloatArrayParameter(qualifier='vvs', value=_empty_array(kwargs, 'vvs'), default_unit=u.km/u.s, description='V velocity')]
-        syn_params += [FloatArrayParameter(qualifier='vws', value=_empty_array(kwargs, 'vws'), default_unit=u.km/u.s, description='W velocity')]
+        params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
 
-    constraints = []
+    if syn:
+        params += [FloatArrayParameter(qualifier='us', value=_empty_array(kwargs, 'us'), default_unit=u.solRad, description='U position')]
+        params += [FloatArrayParameter(qualifier='vs', value=_empty_array(kwargs, 'vs'), default_unit=u.solRad, description='V position')]
+        params += [FloatArrayParameter(qualifier='ws', value=_empty_array(kwargs, 'ws'), default_unit=u.solRad, description='W position')]
+        params += [FloatArrayParameter(qualifier='vus', value=_empty_array(kwargs, 'vus'), default_unit=u.km/u.s, description='U velocity')]
+        params += [FloatArrayParameter(qualifier='vvs', value=_empty_array(kwargs, 'vvs'), default_unit=u.km/u.s, description='V velocity')]
+        params += [FloatArrayParameter(qualifier='vws', value=_empty_array(kwargs, 'vws'), default_unit=u.km/u.s, description='W velocity')]
 
-    return ParameterSet(syn_params), constraints
+    if not syn:
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
-def orb_dep(**kwargs):
+    return ParameterSet(params) if as_ps else params, constraints
 
-    dep_params = []
-
-    # ltte (per dep and per compute???)???
-
-    return ParameterSet(dep_params)
-
-def mesh(**kwargs):
+def mesh(syn=False, as_ps=True, **kwargs):
     """
-    Create parameters for a new mesh dataset.
+    Create a <phoebe.parameters.ParameterSet> for a mesh dataset.
 
     Generally, this will be used as an input to the kind argument in
-    :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
+    <phoebe.frontend.bundle.Bundle.add_dataset> as
+    `b.add_dataset('mesh')`.  In this case, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
 
-    :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s
+    Arguments
+    ----------
+    * `syn` (bool, optional, default=False): whether to create the parameters
+        for the synthetic (model) instead of the observational (dataset).
+    * `as_ps` (bool, optional, default=True): whether to return the parameters
+        as a <phoebe.parameters.ParameterSet> instead of a list of
+        <phoebe.parameters.Parameter> objects.
+    * `times` (array/quantity, optional): observed times.  Only applicable
+        if `syn` is True.  When `syn` is False: if provided, but `compute_times`
+        is not provided, this will write to `compute_times` with a warning
+        in the logger.
+    * `compute_times` (array/quantity, optional): times at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `compute_phases` (array/quantity, optional): phases at which to compute
+        the model.  Only applicable if `syn` is False.
+    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times`.  Only
+        applicable if `syn` is False.  Not applicable for
+        single stars (in which case t0@system is always used).
+    * `include_times` (string, optional): append to `compute_times` from the
+        following datasets/time standards.  If referring to other datasets,
+        this will copy the computed times of that dataset (whether that be
+        from the `times` or `compute_times` of the respective dataset).
+        Only applicable if `syn` is False.
+    * `coordinates` (list, optional, default=['xyz', 'uvw']): coordinates to
+        expose the mesh.  uvw (plane of sky) and/or xyz (roche).
+    * `columns` (list, optional, default=[]): columns to expose within the mesh.
+        Only applicable if `syn` is False.
+    * `**kwargs`: if `syn` is True, additional kwargs will be applied to the
+        exposed columns according to the passed lists for `mesh_columns`
+        and `mesh_datasets`.
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet> or list, list): ParameterSet (if `as_ps`)
+        or list of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
     """
 
-    obs_params = []
-
-    syn_params, constraints = mesh_syn(syn=False, **kwargs)
-    obs_params += syn_params.to_list()
-
-    obs_params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), description='append to times from the following datasets/time standards', choices=['t0@system'])]
-
-    obs_params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', []), description='columns to expose within the mesh', choices=_mesh_columns)]
-    #obs_params += mesh_dep(**kwargs).to_list()
-
-    return ParameterSet(obs_params), constraints
-
-def mesh_syn(syn=True, **kwargs):
-
-    syn_params = []
+    params, constraints = [], []
 
     times = kwargs.get('times', [])
 
-    syn_params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+    if syn:
+        # TODO: it would be nice if this wasn't copied per-component in the model... but it is also somewhat useful
+        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+
+    if not syn:
+        if 'times' in kwargs.keys():
+            if 'compute_times' in kwargs.keys():
+                raise KeyError("mesh dataset cannot accept both 'times' and 'compute_times'.")
+            else:
+                logger.warning("mesh datasets do not have a 'times' parameter.  Applying value sent to 'times' to 'compute_times'")
+                compute_times = kwargs.get('times', [])
+        else:
+            compute_times = kwargs.get('compute_times', [])
+
+
+        params += [FloatArrayParameter(qualifier='compute_times', value=compute_times, default_unit=u.d, description='Times to use during run_compute.')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
+        constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+
+        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), advanced=True, description='append to compute_times from the following datasets/time standards', choices=['t0@system'])]
+        params += [SelectParameter(qualifier='coordinates', value=kwargs.get('coordinates', ['xyz', 'uvw']), choices=['xyz', 'uvw'], advanced=True, description='coordinates to expose the mesh.  uvw (plane of sky) and/or xyz (roche)')]
+        params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', []), description='columns to expose within the mesh', choices=_mesh_columns)]
 
     # the following will all be arrays (value per triangle) per time
     if syn:
         columns = kwargs.get('mesh_columns', [])
+        coordinates = kwargs.get('mesh_coordinates', ['xyz', 'uvw'])
         mesh_datasets = kwargs.get('mesh_datasets', [])
 
         for t in times:
@@ -384,9 +592,14 @@ def mesh_syn(syn=True, **kwargs):
                 raise ValueError("times must all be of type float")
 
 
-            # always include basic geometric columns
-            syn_params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), default_unit=u.solRad, description='Vertices of triangles in the plane-of-sky')]
-            syn_params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), default_unit=u.dimensionless_unscaled, description='Vertices of triangles in Roche coordinates')]
+            # basic geometric columns
+            if 'uvw' in coordinates:
+                params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), default_unit=u.solRad, advanced=True, description='Vertices of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='uvw_normals', time=t, value=kwargs.get('uvw_normals', []), default_unit=u.solRad, advanced=True, description='Normals of triangles in the plane-of-sky')]
+
+            if 'xyz' in coordinates:
+                params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), default_unit=u.dimensionless_unscaled, advanced=True, description='Vertices of triangles in Roche coordinates')]
+                params += [FloatArrayParameter(qualifier='xyz_normals', time=t, value=kwargs.get('xyz_normals ', []), default_unit=u.dimensionless_unscaled, advanced=True, description='Normals of triangles in Roche coordinates')]
 
             # NOTE: if changing the parameters which are optional, changes must
             # be made here, in the choices for the columns Parameter, and in
@@ -394,120 +607,119 @@ def mesh_syn(syn=True, **kwargs):
             # packet
 
             # if 'pot' in columns:
-                # syn_params += [FloatParameter(qualifier='pot', time=t, value=kwargs.get('pot', 0.0), default_unit=u.dimensionless_unscaled, description='Equipotential of the stellar surface')]
+                # params += [FloatParameter(qualifier='pot', time=t, value=kwargs.get('pot', 0.0), default_unit=u.dimensionless_unscaled, description='Equipotential of the stellar surface')]
             # if 'rpole' in columns:
-            #     syn_params += [FloatParameter(qualifier='rpole', time=t, value=kwargs.get('rpole', 0.0), default_unit=u.solRad, description='Polar radius of the stellar surface')]
+            #     params += [FloatParameter(qualifier='rpole', time=t, value=kwargs.get('rpole', 0.0), default_unit=u.solRad, description='Polar radius of the stellar surface')]
             if 'volume' in columns:
-                syn_params += [FloatParameter(qualifier='volume', time=t, value=kwargs.get('volume', 0.0), default_unit=u.solRad**3, description='Volume of the stellar surface')]
+                params += [FloatParameter(qualifier='volume', time=t, value=kwargs.get('volume', 0.0), default_unit=u.solRad**3, description='Volume of the stellar surface')]
 
 
             if 'xs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='xs', time=t, value=kwargs.get('xs', []), default_unit=u.solRad, description='X coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='xs', time=t, value=kwargs.get('xs', []), default_unit=u.solRad, description='X coordinate of center of triangles in the plane-of-sky')]
             if 'ys' in columns:
-                syn_params += [FloatArrayParameter(qualifier='ys', time=t, value=kwargs.get('ys', []), default_unit=u.solRad, description='Y coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='ys', time=t, value=kwargs.get('ys', []), default_unit=u.solRad, description='Y coordinate of center of triangles in the plane-of-sky')]
             if 'zs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='zs', time=t, value=kwargs.get('zs', []), default_unit=u.solRad, description='Z coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='zs', time=t, value=kwargs.get('zs', []), default_unit=u.solRad, description='Z coordinate of center of triangles in the plane-of-sky')]
 
             if 'vxs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vxs', time=t, value=kwargs.get('vxs', []), default_unit=u.km/u.s, description='X velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vxs', time=t, value=kwargs.get('vxs', []), default_unit=u.km/u.s, description='X velocity of center of triangles')]
             if 'vys' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vys', time=t, value=kwargs.get('vys', []), default_unit=u.km/u.s, description='Y velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vys', time=t, value=kwargs.get('vys', []), default_unit=u.km/u.s, description='Y velocity of center of triangles')]
             if 'vzs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vzs', time=t, value=kwargs.get('vzs', []), default_unit=u.km/u.s, description='Z velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vzs', time=t, value=kwargs.get('vzs', []), default_unit=u.km/u.s, description='Z velocity of center of triangles')]
 
             if 'nxs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='nxs', time=t, value=kwargs.get('nxs', []), default_unit=u.dimensionless_unscaled, description='X component of normals')]
+                params += [FloatArrayParameter(qualifier='nxs', time=t, value=kwargs.get('nxs', []), default_unit=u.dimensionless_unscaled, description='X component of normals')]
             if 'nys' in columns:
-                syn_params += [FloatArrayParameter(qualifier='nys', time=t, value=kwargs.get('nys', []), default_unit=u.dimensionless_unscaled, description='Y component of normals')]
+                params += [FloatArrayParameter(qualifier='nys', time=t, value=kwargs.get('nys', []), default_unit=u.dimensionless_unscaled, description='Y component of normals')]
             if 'nzs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='nzs', time=t, value=kwargs.get('nzs', []), default_unit=u.dimensionless_unscaled, description='Z component of normals')]
+                params += [FloatArrayParameter(qualifier='nzs', time=t, value=kwargs.get('nzs', []), default_unit=u.dimensionless_unscaled, description='Z component of normals')]
 
             if 'us' in columns:
-                syn_params += [FloatArrayParameter(qualifier='us', time=t, value=kwargs.get('us', []), default_unit=u.solRad, description='U coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='us', time=t, value=kwargs.get('us', []), default_unit=u.solRad, description='U coordinate of center of triangles in the plane-of-sky')]
             if 'vs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vs', time=t, value=kwargs.get('vs', []), default_unit=u.solRad, description='V coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='vs', time=t, value=kwargs.get('vs', []), default_unit=u.solRad, description='V coordinate of center of triangles in the plane-of-sky')]
             if 'ws' in columns:
-                syn_params += [FloatArrayParameter(qualifier='ws', time=t, value=kwargs.get('ws', []), default_unit=u.solRad, description='W coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='ws', time=t, value=kwargs.get('ws', []), default_unit=u.solRad, description='W coordinate of center of triangles in the plane-of-sky')]
 
             if 'vus' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vus', time=t, value=kwargs.get('vus', []), default_unit=u.km/u.s, description='U velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vus', time=t, value=kwargs.get('vus', []), default_unit=u.km/u.s, description='U velocity of center of triangles')]
             if 'vvs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vvs', time=t, value=kwargs.get('vvs', []), default_unit=u.km/u.s, description='V velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vvs', time=t, value=kwargs.get('vvs', []), default_unit=u.km/u.s, description='V velocity of center of triangles')]
             if 'vws' in columns:
-                syn_params += [FloatArrayParameter(qualifier='vws', time=t, value=kwargs.get('vws', []), default_unit=u.km/u.s, description='W velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vws', time=t, value=kwargs.get('vws', []), default_unit=u.km/u.s, description='W velocity of center of triangles')]
 
             if 'nus' in columns:
-                syn_params += [FloatArrayParameter(qualifier='nus', time=t, value=kwargs.get('nus', []), default_unit=u.dimensionless_unscaled, description='U component of normals')]
+                params += [FloatArrayParameter(qualifier='nus', time=t, value=kwargs.get('nus', []), default_unit=u.dimensionless_unscaled, description='U component of normals')]
             if 'nvs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='nvs', time=t, value=kwargs.get('nvs', []), default_unit=u.dimensionless_unscaled, description='V component of normals')]
+                params += [FloatArrayParameter(qualifier='nvs', time=t, value=kwargs.get('nvs', []), default_unit=u.dimensionless_unscaled, description='V component of normals')]
             if 'nws' in columns:
-                syn_params += [FloatArrayParameter(qualifier='nws', time=t, value=kwargs.get('nws', []), default_unit=u.dimensionless_unscaled, description='W component of normals')]
+                params += [FloatArrayParameter(qualifier='nws', time=t, value=kwargs.get('nws', []), default_unit=u.dimensionless_unscaled, description='W component of normals')]
 
 
             if 'areas' in columns:
-                syn_params += [FloatArrayParameter(qualifier='areas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of triangles')]
+                params += [FloatArrayParameter(qualifier='areas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of triangles')]
             # if 'tareas' in columns:
-                # syn_params += [FloatArrayParameter(qualifier='tareas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of WD triangles')]
+                # params += [FloatArrayParameter(qualifier='tareas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of WD triangles')]
 
 
             if 'rs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), default_unit=u.solRad, description='Distance of each triangle from center of mass (of the half-envelope for contacts)')]
+                params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), default_unit=u.solRad, description='Distance of each triangle from center of mass (of the half-envelope for contacts)')]
             # if 'cosbetas' in columns:
-            #     syn_params += [FloatArrayParameter(qualifier='cosbetas', time=t, value=kwargs.get('cosbetas', []), default_unit=u.solRad, description='')]
+            #     params += [FloatArrayParameter(qualifier='cosbetas', time=t, value=kwargs.get('cosbetas', []), default_unit=u.solRad, description='')]
 
 
             if 'loggs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='loggs', time=t, value=kwargs.get('loggs', []), default_unit=u.dimensionless_unscaled, description='Local surface gravity')]
+                params += [FloatArrayParameter(qualifier='loggs', time=t, value=kwargs.get('loggs', []), default_unit=u.dimensionless_unscaled, description='Local surface gravity')]
             if 'teffs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='teffs', time=t, value=kwargs.get('teffs', []), default_unit=u.K, description='Local effective temperature')]
+                params += [FloatArrayParameter(qualifier='teffs', time=t, value=kwargs.get('teffs', []), default_unit=u.K, description='Local effective temperature')]
 
             if 'rprojs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='rprojs', time=t, value=kwargs.get('rprojs', []), default_unit=u.solRad, description='Projected distance (on plane of sky) of each triangle from center of mass (of the half-envelope for contacts)')]
+                params += [FloatArrayParameter(qualifier='rprojs', time=t, value=kwargs.get('rprojs', []), default_unit=u.solRad, description='Projected distance (on plane of sky) of each triangle from center of mass (of the half-envelope for contacts)')]
             if 'mus' in columns:
-                syn_params += [FloatArrayParameter(qualifier='mus', time=t, value=kwargs.get('mus', []), default_unit=u.dimensionless_unscaled, description='Mu')]
+                params += [FloatArrayParameter(qualifier='mus', time=t, value=kwargs.get('mus', []), default_unit=u.dimensionless_unscaled, description='Mu')]
             if 'visible_centroids' in columns:
-                syn_params += [FloatArrayParameter(qualifier='visible_centroids', time=t, value=kwargs.get('visible_centroids', []), default_unit=u.solRad  if t is not None else u.dimensionless_unscaled, description='Center of the visible portion of each triangle')]
+                params += [FloatArrayParameter(qualifier='visible_centroids', time=t, value=kwargs.get('visible_centroids', []), default_unit=u.solRad  if t is not None else u.dimensionless_unscaled, description='Center of the visible portion of each triangle')]
             if 'visibilities' in columns:
-                syn_params += [FloatArrayParameter(qualifier='visibilities', time=t, value=kwargs.get('visibilities', []), default_unit=u.dimensionless_unscaled, description='Visiblity of triangles (1=visible, 0.5=partial, 0=hidden)')]
+                params += [FloatArrayParameter(qualifier='visibilities', time=t, value=kwargs.get('visibilities', []), default_unit=u.dimensionless_unscaled, description='Visiblity of triangles (1=visible, 0.5=partial, 0=hidden)')]
 
-            # syn_params += [FloatArrayParameter(qualifier='horizon_xs', time=t, value=kwargs.get('horizon_xs', []), default_unit=u.solRad, description='Horizon of the mesh (x component)')]
-            # syn_params += [FloatArrayParameter(qualifier='horizon_ys', time=t, value=kwargs.get('horizon_ys', []), default_unit=u.solRad, description='Horizon of the mesh (y component)')]
-            # syn_params += [FloatArrayParameter(qualifier='horizon_zs', time=t, value=kwargs.get('horizon_zs', []), default_unit=u.solRad, description='Horizon of the mesh (z component)')]
-            # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_xs', time=t, value=kwargs.get('horizon_analytic_xs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, x component)')]
-            # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_ys', time=t, value=kwargs.get('horizon_analytic_ys', []), default_unit=u.solRad, description='Analytic horizon (interpolated, y component)')]
-            # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_xs', time=t, value=kwargs.get('horizon_xs', []), default_unit=u.solRad, description='Horizon of the mesh (x component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_ys', time=t, value=kwargs.get('horizon_ys', []), default_unit=u.solRad, description='Horizon of the mesh (y component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_zs', time=t, value=kwargs.get('horizon_zs', []), default_unit=u.solRad, description='Horizon of the mesh (z component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_analytic_xs', time=t, value=kwargs.get('horizon_analytic_xs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, x component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_analytic_ys', time=t, value=kwargs.get('horizon_analytic_ys', []), default_unit=u.solRad, description='Analytic horizon (interpolated, y component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
 
             for dataset in mesh_datasets:
                 # if 'dls@{}'.format(dataset) in columns:
-                    # syn_params += [FloatArrayParameter(qualifier='dls', dataset=dataset, time=t, value=[], default_unit=u.nm, description='Per-element delta-lambda caused by doppler shift'.format(dataset))]
+                    # params += [FloatArrayParameter(qualifier='dls', dataset=dataset, time=t, value=[], default_unit=u.nm, description='Per-element delta-lambda caused by doppler shift'.format(dataset))]
                 if 'rvs@{}'.format(dataset) in columns:
-                    syn_params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.km/u.s, description='Per-element value of rvs for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.km/u.s, description='Per-element value of rvs for {} dataset'.format(dataset))]
                 if 'intensities@{}'.format(dataset) in columns:
-                    syn_params += [FloatArrayParameter(qualifier='intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of intensities for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of intensities for {} dataset'.format(dataset))]
                 if 'normal_intensities@{}'.format(dataset) in columns:
-                    syn_params += [FloatArrayParameter(qualifier='normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of normal_intensities for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of normal_intensities for {} dataset'.format(dataset))]
                 if 'abs_intensities@{}'.format(dataset) in columns:
-                    syn_params += [FloatArrayParameter(qualifier='abs_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_intensities for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='abs_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_intensities for {} dataset'.format(dataset))]
                 if 'abs_normal_intensities@{}'.format(dataset) in columns:
-                    syn_params += [FloatArrayParameter(qualifier='abs_normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_normal_intensities for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='abs_normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_normal_intensities for {} dataset'.format(dataset))]
                 if 'boost_factors@{}'.format(dataset) in columns:
-                    syn_params += [FloatArrayParameter(qualifier='boost_factors', dataset=dataset, time=t, value=[], default_unit=u.dimensionless_unscaled, description='Per-element value of boost_factors for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='boost_factors', dataset=dataset, time=t, value=[], default_unit=u.dimensionless_unscaled, description='Per-element value of boost_factors for {} dataset'.format(dataset))]
                 if 'ldint@{}'.format(dataset) in columns:
-                    syn_params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
+                    params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
 
                 if 'ptfarea@{}'.format(dataset) in columns:
-                    syn_params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), default_unit=u.m, description='Area of the passband transmission function')]
-                if 'pblum@{}'.format(dataset) in columns:
-                    syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (after pblum scaling)')]
-                if 'abs_pblum@{}'.format(dataset) in columns:
-                    syn_params += [FloatParameter(qualifier='abs_pblum', dataset=dataset, time=t, value=kwargs.get('abs_pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (before pblum scaling)')]
+                    params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), default_unit=u.m, description='Area of the passband transmission function')]
+                if 'pblum_ext@{}'.format(dataset) in columns:
+                    params += [FloatParameter(qualifier='pblum_ext', dataset=dataset, time=t, value=kwargs.get('pblum_ext', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (after pblum scaling)')]
+                if 'abs_pblum_ext@{}'.format(dataset) in columns:
+                    params += [FloatParameter(qualifier='abs_pblum_ext', dataset=dataset, time=t, value=kwargs.get('abs_pblum_ext', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (before pblum scaling)')]
 
-    constraints = []
 
-    return ParameterSet(syn_params), constraints
+    return ParameterSet(params) if as_ps else params, constraints
 
-def mesh_dep(**kwargs):
 
-    dep_params = []
-
-    return ParameterSet(dep_params)
+# del _empty_array
+# del deepcopy
+# del download_passband, list_installed_passbands, list_online_passbands, list_passbands, parameter_from_json, parse_json, send_if_client, update_if_client
+# del fnmatch

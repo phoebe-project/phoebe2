@@ -2,17 +2,21 @@ import numpy as np
 from scipy.optimize import newton
 from scipy.special import sph_harm as Y
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
-import os
+import sys, os
 import copy
 
 from phoebe.atmospheres import passbands
 from phoebe.distortions import roche, rotstar
 from phoebe.backend import eclipse, oc_geometry, mesh, mesh_wd
+from phoebe.utils import _bytes
 import libphoebe
 
 from phoebe import u
 from phoebe import c
 from phoebe import conf
+
+if sys.version_info[0] == 3:
+  unicode = str
 
 import logging
 logger = logging.getLogger("UNIVERSE")
@@ -20,6 +24,8 @@ logger.addHandler(logging.NullHandler())
 
 _basedir = os.path.dirname(os.path.abspath(__file__))
 _pbdir = os.path.abspath(os.path.join(_basedir, '..', 'atmospheres', 'tables', 'passbands'))
+
+
 
 """
 Class/SubClass Structure of Universe.py:
@@ -99,6 +105,7 @@ class System(object):
                  dynamics_method='keplerian',
                  irrad_method='none',
                  boosting_method='none',
+                 l3s={},
                  parent_envelope_of={}):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
@@ -109,6 +116,8 @@ class System(object):
         self.horizon_method = horizon_method
         self.dynamics_method = dynamics_method
         self.irrad_method = irrad_method
+
+        self.l3s = l3s
 
         self.is_first_refl_iteration = True
 
@@ -144,35 +153,26 @@ class System(object):
         if not len(hier.get_value()):
             raise NotImplementedError("Meshing requires a hierarchy to exist")
 
-
         # now pull general compute options
         if compute is not None:
-            if isinstance(compute, str):
-                compute_ps = b.get_compute(compute, check_visible=False)
+            if isinstance(compute, str) or isinstance(compute, unicode):
+                compute_ps = b.get_compute(compute)
             else:
                 # then hopefully compute is the parameterset
                 compute_ps = compute
+
             eclipse_method = compute_ps.get_value(qualifier='eclipse_method', **kwargs)
-            horizon_method = compute_ps.get_value(qualifier='horizon_method', check_visible=False, **kwargs)
+            horizon_method = compute_ps.get_value(qualifier='horizon_method', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             irrad_method = compute_ps.get_value(qualifier='irrad_method', **kwargs)
             boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
-            if conf.devel:
-                mesh_init_phi_override = kwargs.pop('mesh_init_phi', 0.0)
-                try:
-                    mesh_init_phi = compute_ps.get_value(qualifier='mesh_init_phi', unit=u.rad, mesh_init_phi=mesh_init_phi_override)
-                except ValueError:
-                    # allow setting mesh_init_phi in devel mode even if parameter doesn't exist
-                    mesh_init_phi = mesh_init_phi_override
-            else:
-                mesh_init_phi = 0.0
         else:
             eclipse_method = 'native'
             horizon_method = 'boolean'
             dynamics_method = 'keplerian'
             irrad_method = 'none'
             boosting_method = 'none'
-            mesh_init_phi = 0.0
+            compute_ps = None
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
         # the current module - now this doesn't really make sense since we only
@@ -186,12 +186,25 @@ class System(object):
             if hier.get_kind_of(component) in ['envelope']:
                 return 'roche'
 
-            if compute_ps.get_value('mesh_method', component=component, **kwargs)=='wd':
+            if compute_ps is None:
                 return 'roche'
 
-            return compute_ps.get_value('distortion_method', component=component, **kwargs)
+            if compute_ps.get_value(qualifier='mesh_method', component=component, **kwargs)=='wd':
+                return 'roche'
 
-        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
+            return compute_ps.get_value(qualifier='distortion_method', component=component, **kwargs)
+
+        bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
+
+        l3s = {}
+        for ds in b.filter('l3_mode').datasets:
+            l3_mode = b.get_value(qualifier='l3_mode', dataset=ds, context='dataset')
+            if l3_mode == 'flux':
+                l3s[ds] = {'flux': b.get_value(qualifier='l3', dataset=ds, context='dataset', unit=u.W/u.m**2)}
+            elif l3_mode == 'fraction':
+                l3s[ds] = {'frac': b.get_value(qualifier='l3_frac', dataset=ds, context='dataset')}
+            else:
+                raise NotImplementedError("l3_mode='{}' not supported".format(l3_mode))
 
         # envelopes need to know their relationships with the underlying stars
         parent_envelope_of = {}
@@ -205,6 +218,7 @@ class System(object):
                    dynamics_method=dynamics_method,
                    irrad_method=irrad_method,
                    boosting_method=boosting_method,
+                   l3s=l3s,
                    parent_envelope_of=parent_envelope_of)
 
     def items(self):
@@ -217,20 +231,20 @@ class System(object):
         """
         TODO: add documentation
         """
-        return self._bodies.keys()
+        return list(self._bodies.keys())
 
     def values(self):
         """
         TODO: add documentation
         """
-        return self._bodies.values()
+        return list(self._bodies.values())
 
     @property
     def bodies(self):
         """
         TODO: add documentation
         """
-        return self.values()
+        return list(self.values())
 
     def get_body(self, component):
         """
@@ -277,6 +291,7 @@ class System(object):
         #
         # rather than calling self.meshes repeatedly
 
+        # return mesh.Meshes({c:b for c,b in self._bodies.items() if b is not None}, self._parent_envelope_of)
         return mesh.Meshes(self._bodies, self._parent_envelope_of)
 
     def reset(self, force_remesh=False, force_recompute_instantaneous=False):
@@ -293,6 +308,7 @@ class System(object):
 
         all arrays should be for the current time, but iterable over all bodies
         """
+        logger.debug('system.update_positions ignore_effects={}'.format(ignore_effects))
         self.xs = np.array(_value(xs))
         self.ys = np.array(_value(ys))
         self.zs = np.array(_value(zs))
@@ -318,53 +334,164 @@ class System(object):
 
         for kind, dataset in zip(kinds, datasets):
             for starref, body in self.items():
-                body.populate_observable(time, kind, dataset)
+                body.populate_observable(time, kind, dataset, ignore_effects=ignore_effects)
 
     def compute_pblum_scalings(self, b, datasets, t0,
                                x0, y0, z0, vx0, vy0, vz0,
                                etheta0, elongan0, eincl0,
-                               ignore_effects=True):
+                               reset=True, lc_only=True):
+
+        logger.debug("system.compute_pblum_scalings")
 
         self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
+        hier_stars = b.hierarchy.get_stars()
+
+        pblum_scale_copy_ds = {}
         for dataset in datasets:
             ds = b.get_dataset(dataset=dataset)
-            kind = ds.exclude(kind='*_dep').kind
-            if kind not in ['lc']:
+            kind = ds.kind
+            if kind not in ['lc'] and lc_only:
                 # only LCs need pblum scaling
                 continue
 
+            try:
+                pblum_mode = ds.get_value(qualifier='pblum_mode')
+            except ValueError:
+                # RVs etc don't have pblum_mode, but may still want luminosities
+                pblum_mode = 'absolute'
+
+            logger.debug("system.compute_pblum_scalings: populating observables for dataset={} with for pblum_mode={}".format(dataset, pblum_mode))
             self.populate_observables(t0, [kind], [dataset],
                                         ignore_effects=True)
 
-            # now for each component we need to store the scaling factor between
-            # absolute and relative intensities
-            pblum_copy = {}
-            for component in ds.filter(qualifier='pblum_ref').components:
-                # print "**** pblum scaling component:", component
-                if component=='_default':
-                    continue
-                pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
-                if pblum_ref=='self':
-                    pblum = ds.get_value(qualifier='pblum', component=component)
-                    ld_func = ds.get_value(qualifier='ld_func', component=component)
-                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
+            ds_components = hier_stars
+            #ds_components = ds.filter(qualifier='pblum_ref', check_visible=False).components
+
+            if pblum_mode == 'decoupled':
+                for component in ds_components:
+                    if component=='_default':
+                        continue
+
+                    pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component)
+                    # ld_mode = ds.get_value(qualifier='ld_mode', component=component)
+                    # ld_func = ds.get_value(qualifier='ld_func', component=component, check_visible=False)
+                    # ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
                     # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
-                    self.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
-                else:
-                    # then this component wants to copy the scale from another component
-                    # in the system.  We'll just store this now so that we make sure the
-                    # component we're copying from has a chance to compute its scale
-                    # first.
-                    pblum_copy[component] = pblum_ref
+                    self.get_body(component).compute_pblum_scale(dataset, pblum, component=component)
 
-            # now let's copy all the scales for those that are just referencing another component
-            for comp, comp_copy in pblum_copy.items():
-                pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
-                self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+            elif pblum_mode == 'component-coupled':
 
-        self.reset(force_recompute_instantaneous=True)
+                # now for each component we need to store the scaling factor between
+                # absolute and relative intensities
+                pblum_scale_copy_comp = {}
+                pblum_component = ds.get_value(qualifier='pblum_component')
+                for component in ds_components:
+                    if component=='_default':
+                        continue
+                    if pblum_component==component:
+                        pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component)
+                        # ld_mode = ds.get_value(qualifier='ld_mode', component=component)
+                        # ld_func = ds.get_value(qualifier='ld_func', component=component, check_visible=False)
+                        # ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
+
+                        # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
+                        self.get_body(component).compute_pblum_scale(dataset, pblum, component=component)
+                    else:
+                        # then this component wants to copy the scale from another component
+                        # in the system.  We'll just store this now so that we make sure the
+                        # component we're copying from has a chance to compute its scale
+                        # first.
+                        pblum_scale_copy_comp[component] = pblum_component
+
+                # now let's copy all the scales for those that are just referencing another component
+                for comp, comp_copy in pblum_scale_copy_comp.items():
+                    pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
+                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
+
+            elif pblum_mode == 'dataset-coupled':
+                pblum_ref = ds.get_value(qualifier='pblum_dataset')
+                pblum_scale_copy_ds[dataset] = pblum_ref
+
+            elif pblum_mode == 'dataset-scaled':
+                # for now we'll allow the scaling to fallback on 1.0, but not
+                # set the actual value so that these are EXCLUDED from b.compute_pblums
+                continue
+
+            elif pblum_mode == 'absolute':
+                # even those these will default to 1.0, we'll set them in the dictionary
+                # so the resulting pblums are available to b.compute_pblums()
+                for comp in ds_components:
+                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=1.0)
+
+            else:
+                raise NotImplementedError("pblum_mode='{}' not supported".format(pblum_mode))
+
+
+            # now let's copy all the scales for those that are just referencing another dataset
+            for ds, ds_copy in pblum_scale_copy_ds.items():
+                for comp in ds_components:
+                    pblum_scale = self.get_body(comp).get_pblum_scale(ds_copy, component=comp)
+                    self.get_body(comp).set_pblum_scale(ds, component=comp, pblum_scale=pblum_scale)
+
+
+        if reset:
+            self.reset(force_recompute_instantaneous=True)
+
+    def compute_l3s(self, datasets, t0,
+                    x0, y0, z0, vx0, vy0, vz0,
+                    etheta0, elongan0, eincl0,
+                    compute_l3_frac=False, reset=True):
+
+        logger.debug("system.compute_l3s")
+        def _compute_flux_tot(dataset):
+            return np.sum([star.compute_luminosity(dataset, include_effects=True)/(4*np.pi) for star in self.values()])
+
+        # convert between l3(_flux) and l3_frac from the following definitions:
+        # flux_sys = sum(L_star/4pi for star in stars)
+        # flux_tot = flux_sys + l3_flux
+        # l3_frac = l3_flux / tot_flux
+
+        self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=False)
+
+        # NOTE must have already called compute_pblum_scalings
+        for dataset, l3 in self.l3s.items():
+            populated = False
+            if datasets is not None and dataset not in datasets:
+                continue
+
+            # l3 is a dictionary with key 'flux' or 'frac' and value the l3 in that "units"
+            flux_tot = None
+            if 'flux' not in l3.keys():
+                logger.debug('system.compute_l3s: computing l3 in flux for datset={}'.format(dataset))
+                if not populated:
+                    self.populate_observables(t0, ['lc'], [dataset],
+                                                ignore_effects=False)
+                    populated = True
+
+                if flux_tot is None:
+                    flux_tot = _compute_flux_tot(dataset)
+                l3_frac = l3.get('frac')
+                l3_flux = (l3_frac * flux_tot) / (1  - l3_frac) # u.W / u.m**2
+                self.l3s[dataset]['flux'] = l3_flux
+
+
+            if compute_l3_frac and 'frac' not in l3.keys():
+                logger.debug('system.compute_l3s: computing l3 in fraction for dataset={}'.format(dataset))
+                if not populated:
+                    self.populate_observables(t0, ['lc'], [dataset],
+                                                ignore_effects=False)
+                    populated = True
+                if flux_tot is None:
+                    flux_tot = _compute_flux_tot(dataset)
+                l3_flux = l3.get('flux')
+                l3_frac = l3_flux / flux_tot
+                self.l3s[dataset]['frac'] = l3_frac
+
+        if reset:
+            self.reset(force_recompute_instantaneous=True)
+
 
     def handle_reflection(self,  **kwargs):
         """
@@ -388,6 +515,7 @@ class System(object):
         logger.debug("reflection: computing bolometric intensities")
         fluxes_intrins_per_body = []
         for starref, body in self.items():
+            if body.mesh is None: continue
             abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
                                                             atm='blackbody',
                                                             photon_weighted=False)
@@ -396,18 +524,22 @@ class System(object):
 
         fluxes_intrins_flat = meshes.pack_column_flat(fluxes_intrins_per_body)
 
-        if np.all([body.is_convex for body in self.bodies]):
-            logger.info("handling reflection (convex case), method='{}'".format(self.irrad_method))
+        if len(fluxes_intrins_per_body) == 1 and np.all([body.is_convex for body in self.bodies]):
+            logger.info("skipping reflection because only 1 (convex) body")
+            return
 
-            vertices_per_body = meshes.get_column('vertices').values()
-            triangles_per_body = meshes.get_column('triangles').values()
-            normals_per_body = meshes.get_column('vnormals').values()
-            areas_per_body = meshes.get_column('areas').values()
-            irrad_frac_refl_per_body = meshes.get_column('irrad_frac_refl', computed_type='for_computations').values()
-            teffs_intrins_per_body = meshes.get_column('teffs', computed_type='for_computations').values()
+        elif np.all([body.is_convex for body in self.bodies]):
+            logger.debug("handling reflection (convex case), method='{}'".format(self.irrad_method))
 
-            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
+            vertices_per_body = list(meshes.get_column('vertices').values())
+            triangles_per_body = list(meshes.get_column('triangles').values())
+            normals_per_body = list(meshes.get_column('vnormals').values())
+            areas_per_body = list(meshes.get_column('areas').values())
+            irrad_frac_refl_per_body = list(meshes.get_column('irrad_frac_refl', computed_type='for_computations').values())
+            teffs_intrins_per_body = list(meshes.get_column('teffs', computed_type='for_computations').values())
 
+            ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
+            logger.debug("irradiation ld_func_and_coeffs: {}".format(ld_func_and_coeffs))
             fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
@@ -415,23 +547,23 @@ class System(object):
                                                                                        irrad_frac_refl_per_body,
                                                                                        fluxes_intrins_per_body,
                                                                                        ld_func_and_coeffs,
-                                                                                       self.irrad_method.title(),
-                                                                                       support=b'vertices'
+                                                                                       _bytes(self.irrad_method.title()),
+                                                                                       support=_bytes('vertices')
                                                                                        )
 
             fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
 
         else:
-            logger.info("handling reflection (general case), method='{}'".format(self.irrad_method))
+            logger.debug("handling reflection (general case), method='{}'".format(self.irrad_method))
 
-            vertices_flat = meshes.get_column_flat('vertices')
-            triangles_flat = meshes.get_column_flat('triangles')
-            normals_flat = meshes.get_column_flat('vnormals')
-            areas_flat = meshes.get_column_flat('areas')
-            irrad_frac_refl_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations')
+            vertices_flat = meshes.get_column_flat('vertices') # np.ndarray
+            triangles_flat = meshes.get_column_flat('triangles') # np.ndarray
+            normals_flat = meshes.get_column_flat('vnormals') # np.ndarray
+            areas_flat = meshes.get_column_flat('areas') # np.ndarray
+            irrad_frac_refl_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations') # np.ndarray
 
-            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.mesh_bodies]
-            ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)})
+            ld_func_and_coeffs = [tuple([_bytes(body.ld_func['bol'])] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.mesh_bodies] # list
+            ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.mesh_bodies, fluxes_intrins_per_body)}) # np.ndarray
 
             fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
                                                                             triangles_flat,
@@ -441,8 +573,8 @@ class System(object):
                                                                             fluxes_intrins_flat,
                                                                             ld_func_and_coeffs,
                                                                             ld_inds_flat,
-                                                                            self.irrad_method.title(),
-                                                                            support=b'vertices'
+                                                                            _bytes(self.irrad_method.title()),
+                                                                            support=_bytes('vertices')
                                                                             )
 
 
@@ -453,6 +585,10 @@ class System(object):
         # flux under stefan-boltzmann. These effective temperatures will
         # then be used for all passband intensities.
         teffs_intrins_and_refl_flat = teffs_intrins_flat * (fluxes_intrins_and_refl_flat / fluxes_intrins_flat) ** (1./4)
+
+        nanmask = np.isnan(teffs_intrins_and_refl_flat)
+        if np.any(nanmask):
+            raise ValueError("irradiation resulted in nans for teffs")
 
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
@@ -547,7 +683,7 @@ class System(object):
         return horizon
 
 
-    def observe(self, dataset, kind, components=None, distance=1.0, l3=0.0, **kwargs):
+    def observe(self, dataset, kind, components=None, distance=1.0, **kwargs):
         """
         TODO: add documentation
 
@@ -637,12 +773,15 @@ class System(object):
             # then we will need to build a flat column based on the component
             # of each element so that ptfarea is an array with the same shape
             # as those above
-            if isinstance(self.bodies[0], Envelope):
-                # for envelopes, we'll make the same assumption and just grab
-                # that value stored in the first "half"
-                ptfarea = self.bodies[0]._halves[0].get_ptfarea(dataset)
-            else:
-                ptfarea = self.bodies[0].get_ptfarea(dataset)
+            for body in self.bodies:
+                if body.mesh is not None:
+                    if isinstance(body, Envelope):
+                        # for envelopes, we'll make the same assumption and just grab
+                        # that value stored in the first "half"
+                        ptfarea = body._halves[0].get_ptfarea(dataset)
+                    else:
+                        ptfarea = body.get_ptfarea(dataset)
+                    break
 
             # intensities (Imu) is the intensity in the direction of the observer per unit surface area of the triangle, scaled according to pblum scaling
             # areas is the area of each triangle (using areas_si from the mesh to force SI units)
@@ -655,6 +794,7 @@ class System(object):
             # note that the intensities are already projected (Imu) but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
 
+            l3 = self.l3s.get(dataset).get('flux')
             return {'flux': np.sum(intensities*areas*mus*visibilities)*ptfarea/(distance**2)+l3}
 
         else:
@@ -900,15 +1040,17 @@ class Body(object):
 
     def reset(self, force_remesh=False, force_recompute_instantaneous=False):
         if force_remesh:
-            logger.debug("{}.reset: forcing remesh for next iteration".format(self.component))
+            logger.debug("{}.reset: forcing remesh and recompute_instantaneous for next iteration".format(self.component))
         elif force_recompute_instantaneous:
             logger.debug("{}.reset: forcing recompute_instantaneous for next iteration".format(self.component))
 
         if self.needs_remesh or force_remesh:
             self._mesh = None
+            self._standard_meshes = {}
 
         if self.needs_recompute_instantaneous or self.needs_remesh or force_remesh or force_recompute_instantaneous:
             self.inst_vals = {}
+            self._force_recompute_instantaneous_next_update_position = True
 
     def reset_time(self, time, true_anom, elongan, eincl):
         """
@@ -953,7 +1095,7 @@ class Body(object):
         :parameter list ds: (optional) a list/array of instantaneous distances of ALL COMPONENTS in the :class:`System`
         :parameter list Fs: (optional) a list/array of instantaneous syncpars of ALL COMPONENTS in the :class:`System`
         """
-
+        logger.debug("{}.update_position ignore_effects={}".format(self.component, ignore_effects))
         self.reset_time(time, ethetas[self.ind_self], elongans[self.ind_self], eincls[self.ind_self])
 
         #-- Get current position/euler information
@@ -1074,9 +1216,10 @@ class Body(object):
         # needed for this time-step.
         # TODO [DONE?]: make sure features smartly trigger needs_recompute_instantaneous
         # TODO: get rid of the or True here... the problem is that we're saving the standard mesh before filling local quantities
-        if self.needs_recompute_instantaneous or did_remesh:
-            logger.debug("{}.update_position: calling compute_local_quantities at t={}".format(self.component, self.time))
+        if self.needs_recompute_instantaneous or did_remesh or self._force_recompute_instantaneous_next_update_position:
+            logger.debug("{}.update_position: calling compute_local_quantities at t={} ignore_effects={}".format(self.component, self.time, ignore_effects))
             self.compute_local_quantities(xs, ys, zs, ignore_effects)
+            self._force_recompute_instantaneous_next_update_position = False
 
         return
 
@@ -1085,7 +1228,7 @@ class Body(object):
         """
         raise NotImplementedError("compute_local_quantities needs to be overridden by the subclass of Star")
 
-    def populate_observable(self, time, kind, dataset, **kwargs):
+    def populate_observable(self, time, kind, dataset, ignore_effects=False, **kwargs):
         """
         TODO: add documentation
         """
@@ -1101,7 +1244,7 @@ class Body(object):
             # and then lc requesting intensities with SAME passband/atm)
             return
 
-        new_mesh_cols = getattr(self, '_populate_{}'.format(kind.lower()))(dataset, **kwargs)
+        new_mesh_cols = getattr(self, '_populate_{}'.format(kind.lower()))(dataset, ignore_effects=ignore_effects, **kwargs)
 
         for key, col in new_mesh_cols.items():
 
@@ -1114,7 +1257,8 @@ class Star(Body):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
+                 extinct, Rv,
+                 ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -1155,8 +1299,12 @@ class Star(Body):
         # DATSET-DEPENDENT DICTS
         self.passband = passband
         self.intens_weighting = intens_weighting
-        self.ld_coeffs = ld_coeffs
+        self.extinct = extinct
+        self.Rv = Rv
+        self.ld_mode = ld_mode
         self.ld_func = ld_func
+        self.ld_coeffs = ld_coeffs
+        self.ld_coeffs_source = ld_coeffs_source
         self.lp_profile_rest = lp_profile_rest
 
         # Let's create a dictionary to handle how each dataset should scale between
@@ -1170,7 +1318,7 @@ class Star(Body):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
         """
         Build a star from the :class:`phoebe.frontend.bundle.Bundle` and its
         hierarchy.
@@ -1200,17 +1348,17 @@ class Star(Body):
 
         ind_self = starrefs.index(label_self)
         # for the sibling, we may need to handle a list of stars (ie in the case of a hierarchical triple)
-        ind_sibling = starrefs.index(label_sibling) if isinstance(label_sibling, str) else [starrefs.index(l) for l in label_sibling]
+        ind_sibling = starrefs.index(label_sibling) if (isinstance(label_sibling, str) or isinstance(label_sibling, unicode)) else [starrefs.index(l) for l in label_sibling]
         comp_no = ['primary', 'secondary'].index(hier.get_primary_or_secondary(component))+1
 
-        self_ps = b.filter(component=component, context='component', check_visible=False)
-        requiv = self_ps.get_value('requiv', unit=u.solRad)
+        self_ps = b.filter(component=component, context='component')
+        requiv = self_ps.get_value(qualifier='requiv', unit=u.solRad)
 
 
-        masses = [b.get_value('mass', component=star, context='component', unit=u.solMass) for star in starrefs]
+        masses = [b.get_value(qualifier='mass', component=star, context='component', unit=u.solMass) for star in starrefs]
         if b.hierarchy.get_parent_of(component) is not None:
-            sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
-            ecc = b.get_value('ecc', component=label_orbit, context='component')
+            sma = b.get_value(qualifier='sma', component=label_orbit, context='component', unit=u.solRad)
+            ecc = b.get_value(qualifier='ecc', component=label_orbit, context='component')
             is_single = False
         else:
             # single star case
@@ -1218,84 +1366,102 @@ class Star(Body):
             ecc = 0.0
             is_single = True
 
-        incl = b.get_value('incl', component=label_orbit, context='component', unit=u.rad)
-        long_an = b.get_value('long_an', component=label_orbit, context='component', unit=u.rad)
+        incl = b.get_value(qualifier='incl', component=label_orbit, context='component', unit=u.rad)
+        long_an = b.get_value(qualifier='long_an', component=label_orbit, context='component', unit=u.rad)
 
         # NOTE: these may not be used when not visible for contact systems, so
         # Star_roche_envelope_half should ignore and override with
         # aligned/synchronous
-        incl_star = self_ps.get_value('incl', unit=u.rad, check_visible=False)
-        long_an_star = self_ps.get_value('long_an', unit=u.rad, check_visible=False)
+        incl_star = self_ps.get_value(qualifier='incl', unit=u.rad)
+        long_an_star = self_ps.get_value(qualifier='long_an', unit=u.rad)
         polar_direction_uvw = mesh.spin_in_system(incl_star, long_an_star)
         # freq_rot for contacts will be provided by that subclass as 2*pi/P_orb since they're always synchronous
-        freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
+        freq_rot = self_ps.get_value(qualifier='freq', unit=u.rad/u.d)
 
-        t0 = b.get_value('t0', context='system', unit=u.d)
+        t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
 
-        teff = b.get_value('teff', component=component, context='component', unit=u.K)
-        gravb_bol= b.get_value('gravb_bol', component=component, context='component')
+        teff = b.get_value(qualifier='teff', component=component, context='component', unit=u.K)
+        gravb_bol= b.get_value(qualifier='gravb_bol', component=component, context='component')
 
-        abun = b.get_value('abun', component=component, context='component', check_visible=False)
-        irrad_frac_refl = b.get_value('irrad_frac_refl_bol', component=component, context='component')
+        abun = b.get_value(qualifier='abun', component=component, context='component')
+        irrad_frac_refl = b.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component')
 
         try:
             rv_grav_override = kwargs.pop('rv_grav', None)
-            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, rv_grav=rv_grav_override) if compute is not None else False
+            do_rv_grav = b.get_value(qualifier='rv_grav', component=component, compute=compute, rv_grav=rv_grav_override) if compute is not None else False
         except ValueError:
             # rv_grav may not have been copied to this component if no rvs are attached
             do_rv_grav = False
 
-        mesh_method_override = kwargs.pop('mesh_method', None)
-        mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
+        if b.hierarchy.is_meshable(component):
+            mesh_method_override = kwargs.pop('mesh_method', None)
+            mesh_method = b.get_value(qualifier='mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
 
-        if mesh_method == 'marching':
-            # we need check_visible=False in each of these in case mesh_method
-            # was overriden from kwargs
-            ntriangles_override = kwargs.pop('ntriangles', None)
-            kwargs['ntriangles'] = b.get_value(qualifier='ntriangles', component=component, compute=compute, ntriangles=ntriangles_override, check_visible=False) if compute is not None else 1000
-            distortion_method_override = kwargs.pop('distortion_method', None)
-            kwargs['distortion_method'] = b.get_value(qualifier='distortion_method', component=component, compute=compute, distortion_method=distortion_method_override, check_visible=False) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
-        elif mesh_method == 'wd':
-            # we need check_visible=False in each of these in case mesh_method
-            # was overriden from kwargs
-            gridsize_override = kwargs.pop('gridsize', None)
-            kwargs['gridsize'] = b.get_value(qualifier='gridsize', component=component, compute=compute, gridsize=gridsize_override, check_visible=False) if compute is not None else 30
+            if mesh_method == 'marching':
+                # we need check_visible=False in each of these in case mesh_method
+                # was overriden from kwargs
+                ntriangles_override = kwargs.pop('ntriangles', None)
+                kwargs['ntriangles'] = b.get_value(qualifier='ntriangles', component=component, compute=compute, ntriangles=ntriangles_override, check_visible=False) if compute is not None else 1000
+                distortion_method_override = kwargs.pop('distortion_method', None)
+                kwargs['distortion_method'] = b.get_value(qualifier='distortion_method', component=component, compute=compute, distortion_method=distortion_method_override, check_visible=False) if compute is not None else distortion_method_override if distortion_method_override is not None else 'roche'
+            elif mesh_method == 'wd':
+                # we need check_visible=False in each of these in case mesh_method
+                # was overriden from kwargs
+                gridsize_override = kwargs.pop('gridsize', None)
+                kwargs['gridsize'] = b.get_value(qualifier='gridsize', component=component, compute=compute, gridsize=gridsize_override, check_visible=False) if compute is not None else 30
+            else:
+                raise NotImplementedError
         else:
-            raise NotImplementedError
+            # then we're half of a contact... the Envelope object will handle meshing
+            mesh_method = kwargs.pop('mesh_method', None)
 
         features = []
-        for feature in b.filter(component=component).features:
-            feature_ps = b.filter(feature=feature, component=component)
+        for feature in b.filter(qualifier='enabled', compute=compute, value=True).features:
+            feature_ps = b.get_feature(feature=feature)
+            if feature_ps.component != component:
+                continue
             feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
         if conf.devel:
             mesh_offset_override = kwargs.pop('mesh_offset', None)
             try:
-                do_mesh_offset = b.get_value('mesh_offset', compute=compute, mesh_offset=mesh_offset_override)
+                do_mesh_offset = b.get_value(qualifier='mesh_offset', compute=compute, mesh_offset=mesh_offset_override)
             except ValueError:
                 do_mesh_offset = mesh_offset_override
         else:
             do_mesh_offset = True
 
+        if conf.devel and mesh_method=='marching':
+            kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs))
+
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
         datasets_lp = [ds for ds in b.filter(kind='lp', context='dataset').datasets if ds != '_default']
         atm_override = kwargs.pop('atm', None)
-        atm = b.get_value('atm', compute=compute, component=component, atm=atm_override) if compute is not None else 'blackbody'
+        atm = b.get_value(qualifier='atm', compute=compute, component=component, atm=atm_override) if compute is not None else 'ck2004'
         passband_override = kwargs.pop('passband', None)
-        passband = {ds: b.get_value('passband', dataset=ds, passband=passband_override) for ds in datasets_intens}
+        passband = {ds: b.get_value(qualifier='passband', dataset=ds, passband=passband_override) for ds in datasets_intens}
         intens_weighting_override = kwargs.pop('intens_weighting', None)
-        intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, intens_weighting=intens_weighting_override) for ds in datasets_intens}
+        intens_weighting = {ds: b.get_value(qualifier='intens_weighting', dataset=ds, intens_weighting=intens_weighting_override) for ds in datasets_intens}
+        ebv_override = kwargs.pop('ebv', None)
+        extinct = {ds: b.get_value('ebv', dataset=ds, context='dataset', ebv=ebv_override) for ds in datasets_intens}
+        Rv_override = kwargs.pop('Rv', None)
+        Rv = {ds: b.get_value('Rv', dataset=ds, context='dataset', Rv=Rv_override) for ds in datasets_intens}
+        ld_mode_override = kwargs.pop('ld_mode', None)
+        ld_mode = {ds: b.get_value(qualifier='ld_mode', dataset=ds, component=component, ld_mode=ld_mode_override) for ds in datasets_intens}
         ld_func_override = kwargs.pop('ld_func', None)
-        ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, ld_func=ld_func_override) for ds in datasets_intens}
+        ld_func = {ds: b.get_value(qualifier='ld_func', dataset=ds, component=component, ld_func=ld_func_override, check_visible=False) for ds in datasets_intens}
         ld_coeffs_override = kwargs.pop('ld_coeffs', None)
-        ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, ld_coeffs=ld_coeffs_override) for ds in datasets_intens}
+        ld_coeffs = {ds: b.get_value(qualifier='ld_coeffs', dataset=ds, component=component, ld_coeffs=ld_coeffs_override, check_visible=False) for ds in datasets_intens}
+        ld_coeffs_source_override = kwargs.pop('ld_coeffs_source', None)
+        ld_coeffs_source = {ds: b.get_value(qualifier='ld_coeffs_source', dataset=ds, component=component, ld_coeffs_source=ld_coeffs_source_override, check_visible=False) for ds in datasets_intens}
         ld_func_bol_override = kwargs.pop('ld_func_bol', None)
-        ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', check_visible=False, ld_func_bol=ld_func_bol_override)
+        ld_func['bol'] = b.get_value(qualifier='ld_func_bol', component=component, context='component', ld_func_bol=ld_func_bol_override)
         ld_coeffs_bol_override = kwargs.pop('ld_coeffs_bol', None)
-        ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', check_visible=False, ld_coeffs_bol=ld_coeffs_bol_override)
+        ld_coeffs['bol'] = b.get_value(qualifier='ld_coeffs_bol', component=component, context='component', ld_coeffs_bol=ld_coeffs_bol_override, check_visible=False)
         profile_rest_override = kwargs.pop('profile_rest', None)
-        lp_profile_rest = {ds: b.get_value('profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override) for ds in datasets_lp}
+        lp_profile_rest = {ds: b.get_value(qualifier='profile_rest', dataset=ds, unit=u.nm, profile_rest=profile_rest_override) for ds in datasets_lp}
+
 
         # we'll pass kwargs on here so they can be overridden by the classmethod
         # of any subclass and then intercepted again by the __init__ by the
@@ -1305,14 +1471,17 @@ class Star(Body):
                    masses, ecc,
                    incl, long_an, t0,
                    do_mesh_offset,
-                   mesh_init_phi,
+                   kwargs.pop('mesh_init_phi', 0.0),
 
                    atm,
                    datasets,
                    passband,
                    intens_weighting,
+                   extinct, Rv,
+                   ld_mode,
                    ld_func,
                    ld_coeffs,
+                   ld_coeffs_source,
                    lp_profile_rest,
                    requiv,
                    sma,
@@ -1498,7 +1667,7 @@ class Star(Body):
 
             if self.mesh is None:
                 raise ValueError("mesh must be computed before determining tpole")
-            # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
+            # Convert from mean to polar by dividing flux by gravity darkened flux (Ls drop out)
             # see PHOEBE Legacy scientific reference eq 5.20
             self.inst_vals['tpole'] = self.teff*(np.sum(self.mesh.areas) / np.sum(self.mesh.gravs.centers*self.mesh.areas))**(0.25)
 
@@ -1637,6 +1806,7 @@ class Star(Body):
     def compute_luminosity(self, dataset, scaled=True, **kwargs):
         """
         """
+        # assumes dataset-columns have already been populated
         logger.debug("{}.compute_luminosity(dataset={})".format(self.component, dataset))
 
         # areas are the NON-projected areas of each surface element.  We'll be
@@ -1761,7 +1931,7 @@ class Star(Body):
         return cols
 
 
-    def _populate_lc(self, dataset, **kwargs):
+    def _populate_lc(self, dataset, ignore_effects=False, **kwargs):
         """
         Populate columns necessary for an LC dataset
 
@@ -1770,22 +1940,57 @@ class Star(Body):
 
         :raises NotImplementedError: if lc_method is not supported
         """
-        logger.debug("{}._populate_lc(dataset={})".format(self.component, dataset))
+        logger.debug("{}._populate_lc(dataset={}, ignore_effects={})".format(self.component, dataset, ignore_effects))
 
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
 
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
-        ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
-        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
+        extinct = kwargs.get('extinct', self.extinct.get(dataset, None))
+        Rv = kwargs.get('Rv', self.Rv.get(dataset, None))
+        ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
+        ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
+        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'manual' else None
+        ld_coeffs_source = kwargs.get('ld_coeffs_source', self.ld_coeffs_source.get(dataset, 'none')) if ld_mode == 'lookup' else None
+        if ld_mode == 'interp':
+            # calls to pb.Imu need to pass on ld_func='interp'
+            # NOTE: we'll do another check when calling pb.Imu, but we'll also
+            # change the value here for the debug logger
+            ld_func = 'interp'
+            ldatm = atm
+        elif ld_mode == 'lookup':
+            if ld_coeffs_source == 'auto':
+                if atm == 'blackbody':
+                    ldatm = 'ck2004'
+                elif atm == 'extern_atmx':
+                    ldatm = 'ck2004'
+                elif atm == 'extern_planckint':
+                    ldatm = 'ck2004'
+                else:
+                    ldatm = atm
+            else:
+                ldatm = ld_coeffs_source
+        elif ld_mode == 'manual':
+            ldatm = 'none'
+        else:
+            raise NotImplementedError
+
         boosting_method = kwargs.get('boosting_method', self.boosting_method)
+
+        logger.debug("ld_func={}, ld_coeffs={}, atm={}, ldatm={}".format(ld_func, ld_coeffs, atm, ldatm))
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
         if lc_method=='numerical':
 
             pb = passbands.get_passband(passband)
+
+            if ldatm != 'none' and '{}:ldint'.format(ldatm) not in pb.content:
+                if ld_mode == 'lookup':
+                    raise ValueError("{} not supported for limb-darkening with {}:{} passband.  Try changing the value of the ld_coeffs_source parameter".format(ldatm, pb.pbset, pb.pbname))
+                else:
+                    raise ValueError("{} not supported for limb-darkening with {}:{} passband.  Try changing the value of the atm parameter".format(ldatm, pb.pbset, pb.pbname))
 
             if intens_weighting=='photon':
                 ptfarea = pb.ptf_photon_area/pb.h/pb.c
@@ -1794,40 +1999,69 @@ class Star(Body):
 
             self.set_ptfarea(dataset, ptfarea)
 
-            ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
-                             logg=self.mesh.loggs.for_computations,
-                             abun=self.mesh.abuns.for_computations,
-                             atm=atm,
-                             ld_func=ld_func,
-                             ld_coeffs=ld_coeffs,
-                             photon_weighted=intens_weighting=='photon')
+            try:
+                ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
+                                 logg=self.mesh.loggs.for_computations,
+                                 abun=self.mesh.abuns.for_computations,
+                                 ldatm=ldatm,
+                                 ld_func=ld_func if ld_mode != 'interp' else ld_mode,
+                                 ld_coeffs=ld_coeffs,
+                                 photon_weighted=intens_weighting=='photon')
+            except ValueError as err:
+                if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
+                    # let's override with a more helpful error message
+                    logger.warning(str(err))
+                    if atm=='blackbody':
+                        raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing ld_coeffs_source to a table that covers a sufficient range of values or set ld_mode to 'manual' and manually provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
+                    else:
+                        if ld_mode=='interp':
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody' and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
+                        elif ld_mode == 'lookup':
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody' and/or ld_mode to 'manual' (in which case coefficients will need to be explicitly provided via ld_coeffs). Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
+                        else:
+                            # manual... this means that the atm itself is out of bounds, so the only option is atm=blackbody
+                            raise ValueError("Could not compute ldint with ldatm='{}'.  Try changing atm to a table that covers a sufficient range of values.  If necessary, set atm to 'blackbody', ld_mode to 'manual', and provide coefficients via ld_coeffs. Enable 'warning' logger to see out-of-bound arrays.".format(ldatm))
+                else:
+                    raise err
 
-
-            # abs_normal_intensities are the normal emergent passband intensities:
-            abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
-                                              logg=self.mesh.loggs.for_computations,
-                                              abun=self.mesh.abuns.for_computations,
-                                              atm=atm,
-                                              ldint=ldint,
-                                              photon_weighted=intens_weighting=='photon')
+            try:
+                # abs_normal_intensities are the normal emergent passband intensities:
+                abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
+                                                  logg=self.mesh.loggs.for_computations,
+                                                  abun=self.mesh.abuns.for_computations,
+                                                  atm=atm,
+                                                  ldatm=ldatm,
+                                                  ldint=ldint,
+                                                  photon_weighted=intens_weighting=='photon')
+            except ValueError as err:
+                if str(err).split(":")[0] == 'Atmosphere parameters out of bounds':
+                    # let's override with a more helpful error message
+                    logger.warning(str(err))
+                    raise ValueError("Could not compute intensities with atm='{}'.  Try changing atm to a table that covers a sufficient range of values (or to 'blackbody' in which case ld_mode will need to be set to 'manual' and coefficients provided via ld_coeffs).  Enable 'warning' logger to see out-of-bounds arrays.".format(atm))
+                else:
+                    raise err
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
+            # ! Because the interpolation within Imu will otherwise fail.
+            # ! It would be best to pass only [visibilities > 0] elements to Imu.
             abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
                                      logg=self.mesh.loggs.for_computations,
                                      abun=self.mesh.abuns.for_computations,
                                      mu=abs(self.mesh.mus_for_computations),
                                      atm=atm,
+                                     ldatm=ldatm,
                                      ldint=ldint,
-                                     ld_func=ld_func,
+                                     ld_func=ld_func if ld_mode != 'interp' else ld_mode,
                                      ld_coeffs=ld_coeffs,
                                      photon_weighted=intens_weighting=='photon')
 
 
             # Beaming/boosting
-            if boosting_method == 'none':
+            if boosting_method == 'none' or ignore_effects:
                 boost_factors = 1.0
             elif boosting_method == 'linear':
+                logger.debug("calling pb.bindex for boosting_method='linear'")
                 bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
                                    logg=self.mesh.loggs.for_computations,
                                    abun=self.mesh.abuns.for_computations,
@@ -1842,6 +2076,22 @@ class Star(Body):
             # boosting is aspect dependent so we don't need to correct the
             # normal intensities
             abs_intensities *= boost_factors
+
+            if extinct == 0.0:
+                extinct_factors = 1.0
+            else:
+                extinct_factors = pb.interpolate_extinct(Teff=self.mesh.teffs.for_computations,
+                                                         logg=self.mesh.loggs.for_computations,
+                                                         abun=self.mesh.abuns.for_computations,
+                                                         extinct=extinct,
+                                                         Rv=Rv,
+                                                         atm=atm,
+                                                         photon_weighted=intens_weighting=='photon')
+
+                # extinction is NOT aspect dependent, so we'll correct both
+                # normal and directional intensities
+                abs_intensities *= extinct_factors
+                abs_normal_intensities *= extinct_factors
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the
@@ -1876,7 +2126,8 @@ class Star_roche(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
+                 extinct, Rv,
+                 ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -1899,7 +2150,8 @@ class Star_roche(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
-                                         ld_func, ld_coeffs,
+                                         extinct, Rv,
+                                         ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
                                          requiv, sma,
                                          polar_direction_uvw,
@@ -1913,13 +2165,13 @@ class Star_roche(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
-        self_ps = b.filter(component=component, context='component', check_visible=False)
-        F = self_ps.get_value('syncpar', check_visible=False)
+        self_ps = b.filter(component=component, context='component')
+        F = self_ps.get_value(qualifier='syncpar')
 
         return super(Star_roche, cls).from_bundle(b, component, compute,
-                                                  mesh_init_phi, datasets,
+                                                  datasets,
                                                   F=F, **kwargs)
 
 
@@ -2034,7 +2286,7 @@ class Star_roche(Star):
                                                                     delta=delta,
                                                                     choice=0,
                                                                     full=True,
-                                                                    max_triangles=ntriangles*2,
+                                                                    max_triangles=int(ntriangles*1.5),
                                                                     vertices=True,
                                                                     triangles=True,
                                                                     centers=True,
@@ -2047,7 +2299,7 @@ class Star_roche(Star):
                                                                     volume=False,
                                                                     init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
             except Exception as err:
-                if err.message == 'There are too many triangles!':
+                if str(err) == 'There are too many triangles!':
                     mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
                     if mesh_init_phi_attempts > 5:
                         raise err
@@ -2093,7 +2345,8 @@ class Star_roche_envelope_half(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
+                 extinct, Rv,
+                 ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -2120,7 +2373,8 @@ class Star_roche_envelope_half(Star):
                                          do_mesh_offset, mesh_init_phi,
 
                                          atm, datasets, passband, intens_weighting,
-                                         ld_func, ld_coeffs,
+                                         extinct, Rv,
+                                         ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                          lp_profile_rest,
                                          requiv, sma,
                                          polar_direction_uvw,
@@ -2138,12 +2392,12 @@ class Star_roche_envelope_half(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], pot=None, **kwargs):
+                    datasets=[], pot=None, **kwargs):
 
         envelope = b.hierarchy.get_envelope_of(component)
 
         if pot is None:
-            pot = b.get_value('pot', component=envelope, context='component')
+            pot = b.get_value(qualifier='pot', component=envelope, context='component')
 
         mesh_method_override = kwargs.pop('mesh_method', None)
         kwargs.setdefault('mesh_method', b.get_value(qualifier='mesh_method', component=envelope, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching')
@@ -2151,7 +2405,7 @@ class Star_roche_envelope_half(Star):
         kwargs.setdefault('ntriangles', b.get_value(qualifier='ntriangles', component=envelope, compute=compute, ntriangles=ntriangles_override) if compute is not None else 1000)
 
         return super(Star_roche_envelope_half, cls).from_bundle(b, component, compute,
-                                                  mesh_init_phi, datasets,
+                                                  datasets,
                                                   pot=pot,
                                                   **kwargs)
 
@@ -2237,7 +2491,7 @@ class Star_roche_envelope_half(Star):
                                                          delta=delta,
                                                          choice=2,
                                                          full=True,
-                                                         max_triangles=ntriangles*2,
+                                                         max_triangles=int(ntriangles*1.5),
                                                          vertices=True,
                                                          triangles=True,
                                                          centers=True,
@@ -2250,7 +2504,7 @@ class Star_roche_envelope_half(Star):
                                                          volume=False,
                                                          init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
             except Exception as err:
-                if err.message == 'There are too many triangles!':
+                if str(err) == 'There are too many triangles!':
                     mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
                     if mesh_init_phi_attempts > 5:
                         raise err
@@ -2292,7 +2546,8 @@ class Star_rotstar(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
+                 extinct, Rv,
+                 ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -2314,7 +2569,8 @@ class Star_rotstar(Star):
                                            do_mesh_offset, mesh_init_phi,
 
                                            atm, datasets, passband, intens_weighting,
-                                           ld_func, ld_coeffs,
+                                           extinct, Rv,
+                                           ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                            lp_profile_rest,
                                            requiv, sma,
                                            polar_direction_uvw,
@@ -2328,11 +2584,11 @@ class Star_rotstar(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
 
         return super(Star_rotstar, cls).from_bundle(b, component, compute,
-                                                    mesh_init_phi, datasets,
+                                                    datasets,
                                                     **kwargs)
 
 
@@ -2418,7 +2674,7 @@ class Star_rotstar(Star):
                 new_mesh = libphoebe.rotstar_misaligned_marching_mesh(*mesh_args,
                                                                       delta=delta,
                                                                       full=True,
-                                                                      max_triangles=ntriangles*2,
+                                                                      max_triangles=int(ntriangles*1.5),
                                                                       vertices=True,
                                                                       triangles=True,
                                                                       centers=True,
@@ -2431,7 +2687,7 @@ class Star_rotstar(Star):
                                                                       volume=True,
                                                                       init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
             except Exception as err:
-                if err.message == 'There are too many triangles!':
+                if str(err) == 'There are too many triangles!':
                     mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
                     if mesh_init_phi_attempts > 5:
                         raise err
@@ -2464,7 +2720,8 @@ class Star_sphere(Star):
                  long_an, t0, do_mesh_offset, mesh_init_phi,
 
                  atm, datasets, passband, intens_weighting,
-                 ld_func, ld_coeffs,
+                 extinct, Rv,
+                 ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                  lp_profile_rest,
                  requiv, sma,
                  polar_direction_uvw,
@@ -2487,7 +2744,8 @@ class Star_sphere(Star):
                                           do_mesh_offset, mesh_init_phi,
 
                                           atm, datasets, passband, intens_weighting,
-                                          ld_func, ld_coeffs,
+                                          extinct, Rv,
+                                          ld_mode, ld_func, ld_coeffs, ld_coeffs_source,
                                           lp_profile_rest,
                                           requiv, sma,
                                           polar_direction_uvw,
@@ -2501,12 +2759,12 @@ class Star_sphere(Star):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
-        self_ps = b.filter(component=component, context='component', check_visible=False)
+        self_ps = b.filter(component=component, context='component')
 
         return super(Star_sphere, cls).from_bundle(b, component, compute,
-                                                   mesh_init_phi, datasets,
+                                                   datasets,
                                                    **kwargs)
 
 
@@ -2581,7 +2839,7 @@ class Star_sphere(Star):
                 new_mesh = libphoebe.sphere_marching_mesh(*mesh_args,
                                                           delta=delta,
                                                           full=True,
-                                                          max_triangles=ntriangles*2,
+                                                          max_triangles=int(ntriangles*1.5),
                                                           vertices=True,
                                                           triangles=True,
                                                           centers=True,
@@ -2594,7 +2852,7 @@ class Star_sphere(Star):
                                                           volume=True,
                                                           init_phi=kwargs.get('mesh_init_phi', self.mesh_init_phi))
             except Exception as err:
-                if err.message == 'There are too many triangles!':
+                if str(err) == 'There are too many triangles!':
                     mesh_init_phi_attempts = kwargs.get('mesh_init_phi_attempts', 1) + 1
                     if mesh_init_phi_attempts > 5:
                         raise err
@@ -2620,6 +2878,95 @@ class Star_sphere(Star):
         return new_mesh, scale
 
 
+class Star_none(Star):
+    """
+    Override everything to do nothing... the Star just exists to be a mass
+    for dynamics (and possibly distortion of other stars), but will not have
+    any mesh or produce any observables
+    """
+    @property
+    def is_convex(self):
+        return True
+
+    @property
+    def needs_remesh(self):
+        """
+        whether the star needs to be re-meshed (for any reason)
+        """
+        return False
+
+    @classmethod
+    def _return_nones(*args, **kwargs):
+        return 0.0
+
+    @property
+    def _rpole_func(self):
+        return self._return_nones
+
+    @property
+    def _gradOmega_func(self):
+        return self._return_nones
+
+    @property
+    def instantaneous_mesh_args(self):
+        return None
+
+    @property
+    def instantaneous_maxr(self):
+        return 0.0
+
+    def _build_mesh(self, mesh_method, **kwargs):
+        return {}, 0.0
+
+    def _offset_mesh(self, new_mesh):
+        return new_mesh
+
+    def update_position(self, time,
+                        xs, ys, zs, vxs, vys, vzs,
+                        ethetas, elongans, eincls,
+                        ds=None, Fs=None,
+                        ignore_effects=False,
+                        component_com_x=None,
+                        **kwargs):
+
+        # scaledprotomesh = mesh.ScaledProtoMesh(scale=1.0, **{})
+        #
+        # # TODO: get rid of this ugly _value stuff
+        # pos = (_value(xs[self.ind_self]), _value(ys[self.ind_self]), _value(zs[self.ind_self]))
+        # vel = (_value(vxs[self.ind_self_vel]), _value(vys[self.ind_self_vel]), _value(vzs[self.ind_self_vel]))
+        # euler = (_value(ethetas[self.ind_self]), _value(elongans[self.ind_self]), _value(eincls[self.ind_self]))
+        # euler_vel = (_value(ethetas[self.ind_self_vel]), _value(elongans[self.ind_self_vel]), _value(eincls[self.ind_self_vel]))
+        #
+        # self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh,
+        #                                         pos, vel, euler, euler_vel,
+        #                                         np.array([0,0,1]),
+        #                                         component_com_x)
+
+        self._mesh = None
+
+
+    def compute_pblum_scale(self, *args, **kwargs):
+        return
+
+    def get_pblum_scale(self, *args, **kwargs):
+        return 1.0
+
+    def set_pblum_scale(self, *args, **kwargs):
+        return
+
+    def compute_luminosity(self, *args, **kwargs):
+        return 0.0
+
+    def _populate_lp(self, dataset, **kwargs):
+        return {}
+
+    def _populate_rv(self, dataset, **kwargs):
+        return {}
+
+    def _populate_lc(self, dataset, ignore_effects=False, **kwargs):
+        return {}
+
+
 class Envelope(Body):
     def __init__(self, component, halves, pot, q,
                  mesh_method,
@@ -2634,7 +2981,7 @@ class Envelope(Body):
 
     @classmethod
     def from_bundle(cls, b, component, compute=None,
-                    mesh_init_phi=0.0, datasets=[], **kwargs):
+                    datasets=[], **kwargs):
 
         # self_ps = b.filter(component=component, context='component', check_visible=False)
 
@@ -2642,17 +2989,28 @@ class Envelope(Body):
         if not len(stars)==2:
             raise ValueError("hieararchy cannot find two stars in envelope")
 
-        pot = b.get_value('pot', component=component, context='component')
+        pot = b.get_value(qualifier='pot', component=component, context='component')
 
         orbit = b.hierarchy.get_parent_of(component)
-        q = b.get_value('q', component=orbit, context='component')
+        q = b.get_value(qualifier='q', component=orbit, context='component')
 
         mesh_method_override = kwargs.pop('mesh_method', None)
-        mesh_method = b.get_value('mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
+        mesh_method = b.get_value(qualifier='mesh_method', component=component, compute=compute, mesh_method=mesh_method_override) if compute is not None else 'marching'
+
+        if conf.devel:
+            mesh_init_phi_override = kwargs.pop('mesh_init_phi', 0.0)
+            try:
+                mesh_init_phi = b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, mesh_init_phi=mesh_init_phi_override)
+            except ValueError:
+                kwargs.setdefault('mesh_init_phi', mesh_init_phi_override)
+            else:
+                kwargs.setdefault('mesh_init_phi', mesh_init_phi)
+        else:
+            kwargs.setdefault('mesh_init_phi', 0.0)
 
         # we'll pass on the potential from the envelope to both halves (even
         # though technically only the primary will ever actually build a mesh)
-        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, mesh_init_phi=mesh_init_phi, datasets=datasets, pot=pot, **kwargs) for star in stars]
+        halves = [Star_roche_envelope_half.from_bundle(b, star, compute=compute, datasets=datasets, pot=pot, mesh_method=mesh_method, **kwargs) for star in stars]
 
         return cls(component, halves, pot, q, mesh_method)
 
@@ -2765,8 +3123,8 @@ class Envelope(Body):
             triangind_primsec_f[indices_prim] = new_triangle_indices_prim
             triangind_secprim_f[indices_sec] = new_triangle_indices_sec
 
-            mesh['triangles'][triangind_primsec] = triangind_primsec_f.reshape(len(triangind_primsec_f) / 3, 3)
-            mesh['triangles'][triangind_secprim] = triangind_secprim_f.reshape(len(triangind_secprim_f) / 3, 3)
+            mesh['triangles'][triangind_primsec] = triangind_primsec_f.reshape(len(triangind_primsec_f) // 3, 3)
+            mesh['triangles'][triangind_secprim] = triangind_secprim_f.reshape(len(triangind_secprim_f) // 3, 3)
 
             # NOTE: this doesn't update the stored entries for scalars (volume, area, etc)
             mesh_halves = [mesh.take(env_comp_triangles==0, env_comp_verts==0), mesh.take(env_comp_triangles==1, env_comp_verts==1)]
@@ -2804,6 +3162,9 @@ class Envelope(Body):
         # but keeps all this logic out of the Star classes
         for half, com in zip(self._halves, [0, 1]):
             half.update_position(component_com_x=com, *args, **kwargs)
+
+    def compute_luminosity(self, *args, **kwargs):
+        return np.sum([half.compute_luminosity(*args, **kwargs) for half in self._halves])
 
     def populate_observable(self, time, kind, dataset, **kwargs):
         """
@@ -2909,24 +3270,24 @@ class Spot(Feature):
 
         feature_ps = b.get_feature(feature)
 
-        colat = feature_ps.get_value('colat', unit=u.rad)
-        longitude = feature_ps.get_value('long', unit=u.rad)
+        colat = feature_ps.get_value(qualifier='colat', unit=u.rad)
+        longitude = feature_ps.get_value(qualifier='long', unit=u.rad)
 
         if len(b.hierarchy.get_stars())>=2:
             star_ps = b.get_component(feature_ps.component)
             orbit_ps = b.get_component(b.hierarchy.get_parent_of(feature_ps.component))
-            syncpar = star_ps.get_value('syncpar')
-            period = orbit_ps.get_value('period')
+            syncpar = star_ps.get_value(qualifier='syncpar')
+            period = orbit_ps.get_value(qualifier='period')
             dlongdt = (syncpar - 1) / period * 2 * np.pi
         else:
             star_ps = b.get_component(feature_ps.component)
-            dlongdt = star_ps.get_value('freq', unit=u.rad/u.d)
+            dlongdt = star_ps.get_value(qualifier='freq', unit=u.rad/u.d)
             longitude += np.pi/2
 
-        radius = feature_ps.get_value('radius', unit=u.rad)
-        relteff = feature_ps.get_value('relteff', unit=u.dimensionless_unscaled)
+        radius = feature_ps.get_value(qualifier='radius', unit=u.rad)
+        relteff = feature_ps.get_value(qualifier='relteff', unit=u.dimensionless_unscaled)
 
-        t0 = b.get_value('t0', context='system', unit=u.d)
+        t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
 
         return cls(colat, longitude, dlongdt, radius, relteff, t0)
 
@@ -3000,11 +3361,11 @@ class Pulsation(Feature):
         """
 
         feature_ps = b.get_feature(feature)
-        freq = feature_ps.get_value('freq', unit=u.d**-1)
-        radamp = feature_ps.get_value('radamp', unit=u.dimensionless_unscaled)
-        l = feature_ps.get_value('l', unit=u.dimensionless_unscaled)
-        m = feature_ps.get_value('m', unit=u.dimensionless_unscaled)
-        teffext = feature_ps.get_value('teffext')
+        freq = feature_ps.get_value(qualifier='freq', unit=u.d**-1)
+        radamp = feature_ps.get_value(qualifier='radamp', unit=u.dimensionless_unscaled)
+        l = feature_ps.get_value(qualifier='l', unit=u.dimensionless_unscaled)
+        m = feature_ps.get_value(qualifier='m', unit=u.dimensionless_unscaled)
+        teffext = feature_ps.get_value(qualifier='teffext')
 
         GM = c.G.to('solRad3 / (solMass d2)').value*b.get_value(qualifier='mass', component=feature_ps.component, context='component', unit=u.solMass)
         R = b.get_value(qualifier='rpole', component=feature_ps.component, section='component', unit=u.solRad)

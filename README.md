@@ -1,4 +1,4 @@
-PHOEBE 2.1
+PHOEBE 2.2
 ------------------------
 
 <p align="center"><a href="http://phoebe-project.org"><img src="./images/logo_blue.svg" alt="PHOEBE logo" width="160px" align="center"/></a></p>
@@ -8,13 +8,14 @@ PHOEBE 2.1
 </pre>
 
 <p align="center">
-  <a target="_blank" rel="noopener" href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
-  <a target="_blank" rel="noopener" href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-2.7+-blue.svg"/></a>
-  <a target="_blank" rel="noopener" href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
-  <a target="_blank" rel="noopener" href="https://travis-ci.org/phoebe-project/phoebe2"><img src="https://travis-ci.org/phoebe-project/phoebe2.svg?branch=master"/></a>
-  <a target="_blank" rel="noopener" href="http://phoebe-project.org/docs"><img src="https://img.shields.io/badge/docs-passing-success.svg"/></a>
-  <a target="_blank" rel="noopener" href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
-  <a target="_blank" rel="noopener" href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
+  <a href="https://pypi.org/project/phoebe/"><img src="https://img.shields.io/badge/pip-phoebe-blue.svg"/></a>
+  <a href="http://phoebe-project.org/install"><img src="https://img.shields.io/badge/python-2.7+%20%7C%203.6+-blue.svg"/></a>
+  <a href="https://github.com/phoebe-project/phoebe2/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-GPL3-blue.svg"/></a>
+  <a href="https://travis-ci.org/phoebe-project/phoebe2"><img src="https://travis-ci.org/phoebe-project/phoebe2.svg?branch=master"/></a>
+  <a href="http://phoebe-project.org/docs"><img src="https://img.shields.io/badge/docs-passing-success.svg"/></a>
+  <a href="https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P"><img src="https://img.shields.io/badge/ApJS-Prsa+2016-lightgrey.svg"/></a>
+  <a href="https://ui.adsabs.harvard.edu/abs/2018ApJS..237...26H"><img src="https://img.shields.io/badge/ApJS-Horvat+2018-lightgrey.svg"/></a>
+  <a href="https://ui.adsabs.harvard.edu/abs/2019arXiv191209474J"><img src="https://img.shields.io/badge/arXiv-Jones+2020-lightgrey.svg"/></a>
 </p>
 
 <p align="center">
@@ -29,14 +30,13 @@ PHOEBE stands for PHysics Of Eclipsing BinariEs. PHOEBE is pronounced [fee-bee](
 
 PHOEBE 2 is a rewrite of the original PHOEBE code. For most up-to-date information please refer to the PHOEBE project webpage: [http://phoebe-project.org](http://phoebe-project.org)
 
-PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](https://ui.adsabs.harvard.edu/#abs/2016ApJS..227...29P).  The addition of support for misaligned stars in version 2.1 is described in [Horvat et al. (2018, ApJS 237, 26)](https://ui.adsabs.harvard.edu/#abs/2018ApJS..237...26H).
+PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](https://ui.adsabs.harvard.edu/#abs/2016ApJS..227...29P).  The addition of support for misaligned stars in version 2.1 is described in [Horvat et al. (2018, ApJS 237, 26)](https://ui.adsabs.harvard.edu/#abs/2018ApJS..237...26H).  Interstellar extinction and support for Python 3 was added in version 2.2 and described in [Jones et al. (2020, submitted)](https://ui.adsabs.harvard.edu/abs/2019arXiv191209474J).
 
 PHOEBE 2 is released under the [GNU General Public License v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
-
 The source code is available for download from the [PHOEBE project homepage](http://phoebe-project.org) and from [github](https://github.com/phoebe-project/phoebe2).
 
-The development of PHOEBE 2 is funded in part by the [NSF grant #1517474](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1517474).
+The development of PHOEBE 2 is funded in part by [NSF grant #1517474](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1517474), [NSF grant #1909109](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1909109) and [NASA 17-ADAP17-68](https://ui.adsabs.harvard.edu/abs/2017adap.prop...68P).
 
 
 DOWNLOAD AND INSTALLATION
@@ -62,7 +62,7 @@ To install PHOEBE 2 from the source site-wide, go to the `phoebe2/` directory an
     python setup.py build
     sudo python setup.py install
 
-For further details on pre-requisites and minimal versions of python consult the [PHOEBE project webpage](http://phoebe-project.org).
+For further details on pre-requisites and minimal versions of python consult the [PHOEBE project webpage](http://phoebe-project.org/install/2.2).
 
 
 GETTING STARTED
@@ -74,11 +74,25 @@ PHOEBE 2 has a steep learning curve. There is no graphical front-end as of yet; 
     >>> import phoebe
     >>>
 
-To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.1/) hosted on the PHOEBE webpage.
+To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.2/) hosted on the PHOEBE webpage.
 
 
 CHANGELOG
 ----------
+
+### 2.2.0 - extinction feature release
+* Add support for interstellar extinction/reddening.
+* Support for Python 3.6+ in addition to Python 2.7+.
+* Overhaul of limb-darkening with new ld_mode and ld_coeffs_source parameters.
+* Overhaul of passband luminosity and flux scaling with new pblum_mode parameter, including support for maintaining color relations between multiple passbands.
+* Ability to provide third light in either flux or percentage units, via the new l3_mode and l3_frac parameters.
+* Support for computing a model at different times than the observations, via the new compute_times or computes_phases parameter.
+* Transition from pickled to FITS passband files, with automatic detection for available updates.  The tables can now also be accessed via tables.phoebe-project.org.
+* DISABLED support for beaming/boosting.
+* Allow flipping Kepler's thrid law constraint to solve for q.
+* Require overwrite=True during add_* or run_* methods that would result in overwriting an existing label.
+* Constraint for logg.
+* Account for time-dependence (dpdt/dperdt) in t0 constraints.
 
 ### 2.1.17 - ignore fits passbands hotfix
 

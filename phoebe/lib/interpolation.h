@@ -154,7 +154,7 @@ struct Tlinear_interpolation {
 
       // AN OUT-OF-BOUNDS SITUATION -- both sides handled.
       if (axidx[j] < 1) {
-        for (l = 0; l < Nv; ++l) r[l] = std::nan("");
+        for (l = 0; l < Nv; ++l) r[l] = std::numeric_limits<T>::quiet_NaN();
         return false;
       }
     }

@@ -1,8 +1,6 @@
 import phoebe as phb2
 import numpy as np
 
-phb2.devel_on()
-
 def test_reimport(filename=None):
 
 #import data

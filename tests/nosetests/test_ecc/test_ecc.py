@@ -6,8 +6,6 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
-
 def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
 
@@ -20,9 +18,11 @@ def test_binary(plot=False):
     b.set_value_all('atm', 'extern_planckint')
 
     # set matching limb-darkening, both bolometric and passband
+    b.set_value_all('ld_mode_bol', 'manual')
     b.set_value_all('ld_func_bol', 'linear')
     b.set_value_all('ld_coeffs_bol', [0.0])
 
+    b.set_value_all('ld_mode', 'manual')
     b.set_value_all('ld_func', 'linear')
     b.set_value_all('ld_coeffs', [0.0])
 
@@ -34,16 +34,17 @@ def test_binary(plot=False):
     for ecc in [0.3, 0.505]:
         b.set_value('ecc', ecc)
 
-        if plot: print "running phoebe2 model..."
-        b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
-        if plot: print "running phoebe1 model..."
-        b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
+
+        print("running phoebe2 model...")
+        b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model', overwrite=True)
+        print("running phoebe1 model...")
+        b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model', overwrite=True)
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
 
         if plot:
-            print "ecc: {} max (rel): {}".format(ecc , abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
+            print("ecc: {} max (rel): {}".format(ecc , abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()))
 
             b.plot(dataset='lc01', show=True)
 

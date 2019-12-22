@@ -1,7 +1,13 @@
 import numpy as np
 import phoebe as phb
 import os.path
+import sys
 import logging
+
+if sys.version_info[0] >= 3:
+    from io import IOBase as _IOBase
+
+
 from phoebe import conf
 from phoebe.distortions import roche
 # from phoebe.constraints.builtin import t0_ref_to_supconj
@@ -9,6 +15,12 @@ from phoebe.distortions import roche
 import libphoebe
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
+
+def _is_file(obj):
+    if sys.version_info[0] >= 3:
+        return isinstance(obj, _IOBase) or obj.__class__.__name__ in ['FileStorage']
+    else:
+        return isinstance(obj, file) or obj.__class__.__name__ in ['FileStorage']
 
 """
 Dictionaries of parameters for conversion between phoebe1 and phoebe 2
@@ -39,6 +51,8 @@ _1to2par = {'ld_model':'ld_func',
             'hla': 'pblum',
             'cla': 'pblum',
             'el3': 'l3',
+            'el3frac':'l3_frac',
+            'el3_units':'l3_mode',
             'reflections':'refl_num',
             'finesize': 'gridsize',
             'vga': 'vgamma',
@@ -151,6 +165,9 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
     pieces = pname.split('_')
     pnew = pieces[-1]
     d = {}
+    #on the very rare occasion phoebe 1 has a separate unit parameters
+    if pnew == 'units':
+        pnew = pieces[-2]+'_'+pieces[-1]
 
     if pnew == 'switch':
        pnew = pieces[1]
@@ -246,6 +263,10 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
     """
     load dictionary with lc data
     """
+    if dir is None:
+        logger.warning("to load referenced data files, pass filename as string instead of file object")
+        return {}
+
     if '/' in filename:
         path, filename = os.path.split(filename)
     else:
@@ -253,7 +274,11 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
         path = dir
 
     load_file = os.path.join(path, filename)
-    lcdata = np.loadtxt(load_file)
+    try:
+        lcdata = np.loadtxt(load_file)
+    except IOError:
+        logger.warning("Could not load data file referenced at {}. Dataset will be empty.".format(load_file))
+        return {}
     ncol = len(lcdata[0])
 
     #check if there are enough columns for errors
@@ -298,6 +323,10 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
     """
     load dictionary with rv data.
     """
+    if dir is None:
+        logger.warning("to load referenced data files, pass filename as string instead of file object")
+        return {}
+
 
     if '/' in filename:
         path, filename = os.path.split(filename)
@@ -305,7 +334,11 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
         path = dir
 
     load_file = os.path.join(path, filename)
-    rvdata = np.loadtxt(load_file)
+    try:
+        rvdata = np.loadtxt(load_file)
+    except IOError:
+        logger.warning("Could not load data file referenced at {}. Dataset will be empty.".format(load_file))
+        return {}
 
     d ={}
     d['phoebe_rv_time'] = rvdata[:,0]
@@ -403,7 +436,21 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     conf_interactive_checks_state = conf.interactive_checks
     conf_interactive_constraints_state = conf.interactive_constraints
     conf.interactive_off(suppress_warning=True)
-    legacy_file_dir = os.path.dirname(filename)
+
+
+    if _is_file(filename):
+        f = filename
+        legacy_file_dir = None
+
+    elif isinstance(filename, str) or isinstance(filename, unicode):
+        filename = os.path.expanduser(filename)
+        legacy_file_dir = os.path.dirname(filename)
+
+        logger.debug("importing from {}".format(filename))
+        f = open(filename, 'r')
+
+    else:
+        raise TypeError("filename must be string, unicode, or file object, got {}".format(type(filename)))
 
 # load the phoebe file
 
@@ -504,15 +551,15 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     mzero = None
     if 'phoebe_mnorm' in params:
         mzero = np.float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
-# determine if luminosities are decoupled and set pblum_ref accordingly
+# determine if luminosities are decoupled and set pblum_mode accordingly
     try:
         decoupled_luminosity = np.int(params[:,1][list(params[:,0]).index('phoebe_usecla_switch')])
     except:
         pass
 #    if decoupled_luminosity == 0:
-#        eb.set_value(qualifier='pblum_ref', component='secondary', value='primary')
+#        eb.set_value(qualifier='pblum_mode', value='component-coupled')
 #    else:
-#        eb.set_value(qualifier='pblum_ref', component='secondary', value='self')
+#        eb.set_value(qualifier='pblum_mode', value='decoupled')
 
 #Determin LD law
 
@@ -540,6 +587,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     lcin.extend(rvin)
     lcin.extend(spotin)
     params = np.delete(params, lcin, axis=0)
+
+# grab third light unit which is not lightcurve dependent in phoebe legacy and remove from params
+    l3_units = params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"')
+    params = np.delete(params, [list(params[:,0]).index('phoebe_el3_units')], axis=0)
 
 #load orbital/stellar parameters
 
@@ -660,19 +711,29 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['value'] = val
 #        elif pnew == 'refl_num':
         if len(d) > 0:
-
-            eb.set_value_all(check_visible=False, **d)
+            try:
+                eb.set_value_all(check_visible=False, **d)
+            except Exception as err:
+                raise Exception("could not set_value_all({}).  Original error: {}".format(d, str(err)))
     if semi_detached:
         if 'primary' in morphology:
             eb.add_constraint('semidetached', component='primary')
         elif 'secondary' in morphology:
             eb.add_constraint('semidetached', component='secondary')
 
+
+
+
+
     #make sure constraints have been applied
     eb.run_delayed_constraints()
 
 
 # First LC
+    # grab third light unit which is not lightcurve dependent in phoebe legacy and remove from params
+#    l3_units = params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"')
+#    params = np.delete(params, [list(params[:,0]).index('phoebe_el3_units')], axis=0)
+
     for x in range(1,lcno+1):
 
         #list of parameters related to current dataset
@@ -746,12 +807,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         l3 = np.float(params[:,1][list(params[:,0]).index('phoebe_el3['+str(x)+'].VAL')])
 
 
-        if params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"') == 'Total light':
-            logger.warning('l3 as a percentage of total light is currently not supported in phoebe 2')
-            l3=0
+#        if params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"') == 'Total light':
+#            logger.warning('l3 as a percentage of total light is currently not supported in phoebe 2')
+#            l3=0
 #            l3 = l3/(4.0*np.pi)*(hla+cla)/(1.0-l3)
-
-        lc_dict['phoebe_lc_el3'] = l3
+        lc_dict['phoebe_lc_el3_units'] = l3_units
+        #since l3 has two possible parameters in phoebe2 adjust phoebe legacy accordingly
+        if l3_units == 'Total light':
+            lc_dict['phoebe_lc_el3frac'] = l3
+        else:
+            lc_dict['phoebe_lc_el3'] = l3
 
     # Determine the correct dataset to open
     # create rv data dictionary
@@ -812,12 +877,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
         eb.set_value_all(check_visible= False, **d)
 
+        # disable interpolating ld coefficients
+        eb.set_value_all(qualifier='ld_mode', dataset=dataid, value='manual', check_visible=False)
+        eb.set_value_all(qualifier='ld_mode_bol', value='manual', check_visible=False)
+
     #set pblum reference
 
         if decoupled_luminosity == 0:
-            eb.set_value(qualifier='pblum_ref', component='secondary', value='primary', dataset=dataid)
+            eb.set_value(qualifier='pblum_mode', dataset=dataid, value='component-coupled')
         else:
-            eb.set_value(qualifier='pblum_ref', component='secondary', value='self', dataset=dataid)
+            eb.set_value(qualifier='pblum_mode', dataset=dataid, value='decoupled')
 
     #set ldlaw
 
@@ -843,7 +912,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     # cycle through all parameters. separate out data parameters and model parameters. add model parameters
 
         for k in lc_dict:
+
             pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
+
 #            print d
         # as long as the parameter exists add it
             if len(d) > 0:
@@ -851,16 +922,18 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
 
-#                if d['qualifier'] == 'pblum' and contact_binary:
+                if d['qualifier'] == 'l3_mode':
+                    choice_dict = {'Flux':'flux', 'Total light':'fraction'}
+                    val = choice_dict[d['value']]
+                    d['value'] = val
 
 #                    d['component'] = 'contact_envelope'
 
                 try:
+
                     eb.set_value_all(check_visible=False, **d)
-    #                del d['value']
-     #               print "Value", eb.get_value(**d)
-                except ValueError, msg:
-                    raise ValueError(msg.message + " ({})".format(d))
+                except ValueError as exc:
+                    raise ValueError(exc.args[0] + " ({})".format(d))
 
 #Now rvs
     for x in range(1,rvno+1):
@@ -929,7 +1002,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             rv_dict.update(data_dict)
 
-            time = rv_dict['phoebe_rv_time']
+            time = rv_dict.get('phoebe_rv_time', [])
         #
 
         rv_dataset = det_dataset(eb, passband, dataid, comp, time)
@@ -941,6 +1014,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
 
         eb.set_value_all(check_visible= False, **d)
+
+        # disable interpolating ld coefficients
+        eb.set_value_all(qualifier='ld_mode', dataset=dataid, value='manual', check_visible=False)
+
 
     #set ldlaw
 
@@ -990,7 +1067,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         elif source == 2:
             component = 'secondary'
         elif source == 0:
-            component = 'secondary' 
+            component = 'secondary'
         else:
             raise ValueError("spot component not specified and cannot be added")
 
@@ -1143,7 +1220,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb.flip_constraint('requiv@primary', 'pot@contact_envelope')
     if 'Linear' in ldlaw:
 
-        ldcos = eb.filter('ld_coeffs')
+        ldcos = eb.filter('ld_coeffs', check_visible=False)
         ldcosbol = eb.filter('ld_coeffs_bol')
         for x in range(len(ldcos)):
             val = ldcos[x].value[0]
@@ -1377,6 +1454,15 @@ Create a .phoebe file from phoebe 1 from a phoebe 2 bundle.
 
 def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
+    #run checks which must pass before allowing use of function
+    #l3_modes must all be the same
+    l3_modes = [p.value for p in eb.filter(qualifier='l3_mode').to_list()]
+    if len(list(set(l3_modes))) > 1:
+        logger.warning("legacy does not natively support mixed values of l3_mode, so all will be converted to 'flux' before passing to PHOEBE legacy.")
+        l3_mode_force_flux = True
+    else:
+        l3_mode_force_flux = False
+
     eb.run_delayed_constraints()
 
 
@@ -1395,9 +1481,38 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         # contacts are always aligned, for detached systems we need to check
         # to make sure they are aligned.
         for star in stars:
-            if eb.get_value('pitch', component=star) != 0 or eb.get_value('yaw', component=star) != 0:
+            if eb['hierarchy'].is_misaligned():
                 raise ValueError("PHOEBE 1 only supports aligned systems.  Edit pitch and yaw to be aligned or use another backend")
 
+    # Did you pass a compute parameter set?
+    if compute is not None:
+        # print("compute", compute)
+        computeps = eb.get_compute(compute=compute)
+#        computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
+
+    #Find Compute Parameter Set
+    else:
+        ncompute = len(eb.filter(context='compute', kind='legacy').computes)
+        if ncompute == 1:
+            computeps = eb.get_compute(kind='legacy', check_visible=False)
+            compute = computeps.compute
+
+        elif ncompute == 0:
+            raise ValueError('Your bundle must contain a "legacy" compute parameter set in order to export to a legacy file.')
+
+        else:
+            raise ValueError('Your bundle contains '+str(ncompute)+' parameter sets. You must specify one to use.')
+
+
+    # TODO: can we somehow merge these instead of needing to re-mesh between?
+
+    # handle any limb-darkening interpolation
+    eb._compute_necessary_values(computeps)
+
+    # TODO: remove this check once https://github.com/phoebe-project/phoebe1/issues/4 is closed
+    for pblum_param in eb.filter(qualifier='pblum', check_visible=False).to_list():
+        if pblum_param.get_value() >= 1e4:
+            raise ValueError("PHOEBE legacy cannot handle pblum values larger than 1e4")
 
 # check for semi_detached
     semi_detached = None #keep track of which component is in semidetached
@@ -1418,7 +1533,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
     lcs = eb.get_dataset(kind='lc').datasets
     rvs = eb.get_dataset(kind='rv').datasets
-    spots = eb.features
+    # only spots have an enabled parameter in legacy compute options
+    spots = eb.filter(qualifier='enabled', compute=compute, value=True).features
 
     #make lists to put results with important things already added
 
@@ -1433,11 +1549,20 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     parnames.append('phoebe_indep')
     parvals.append('"Time (HJD)"')
     types.append('choice')
-    # Force el3 unit to be flux
-    parnames.append('phoebe_el3_units')
-    parvals.append('"Flux"')
-    types.append('choice')
-
+    # add l3_mode
+    choice_dict = {'flux':'Flux', 'fraction':'Total light'}
+    if len(lcs) > 0:
+        if l3_mode_force_flux:
+            l3_mode = 'flux'
+        else:
+            l3_mode = eb.filter('l3_mode')[0].value
+        parnames.append('phoebe_el3_units')
+        parvals.append('"'+choice_dict[l3_mode]+'"')
+        types.append('choice')
+    else:
+        parnames.append('phoebe_el3_units')
+        parvals.append('"'+choice_dict['flux']+'"')
+        types.append('choice')
 # add limb darkening law first because it exists many places in phoebe2
 
 
@@ -1485,19 +1610,21 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #    if len(ldlaws) == 0:
 #        pass
 
-
-
     if len(lcs) != 0:
-
-        pblum_ref = eb.get_value(dataset = lcs[0], qualifier = 'pblum_ref', component=secondary)
-        # print "pblum_ref", pblum_ref
-        if pblum_ref == 'self':
-
+        pblum_mode = eb.get_value(dataset=lcs[0], qualifier='pblum_mode')
+        if pblum_mode == 'decoupled':
             decouple_luminosity = '1'
 
-        else:
+            if contact_binary:
+                raise ValueError("contact binaries in legacy do not support decoupled pblums")
 
+        elif pblum_mode == 'component-coupled':
             decouple_luminosity = '0'
+        elif pblum_mode == 'dataset-scaled':
+            decouple_luminosity = '0'
+        else:
+            # then we'll rely on the values from compute_pblums and pass luminosities for both objecs
+            decouple_luminosity = '1'
 
         parnames.append('phoebe_usecla_switch')
         parvals.append(decouple_luminosity)
@@ -1618,7 +1745,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 # loop through lcs
 
     for x in range(len(lcs)):
-        quals = eb.filter(dataset=lcs[x], context='dataset')+eb.filter(dataset=lcs[x], context='compute')
+        quals = eb.filter(dataset=lcs[x], context=['dataset', 'compute'], check_visible=False)
+        #pull out l3_mode
+        quals = quals.exclude('l3_mode')
+
         #phoebe 2 is ALWAYS times so pass time as the ind variable
         parnames.append('phoebe_lc_indep['+str(x+1)+']')
         parvals.append('Time (HJD)')
@@ -1629,6 +1759,15 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         parnames.append('phoebe_lc_id['+str(x+1)+']')
         parvals.append(lcs[x])
         types.append('choice')
+
+
+
+        # choice_dict = {'flux':'Flux', 'fraction':'Total light'}
+        # parnames.append('l3_mode')
+        # parvals.append('"'+choice_dict[l3_mode]+'""')
+        # types.append('choice')
+
+
 
         for param in quals.to_list():
 #            if len(eb.filter(qualifier=quals[y], dataset=lcs[x])) == 1:
@@ -1641,6 +1780,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 comp_int = 1
             elif param.component == secondary:
                 comp_int = 2
+
             else:
                 comp_int = None
 
@@ -1660,9 +1800,13 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
                 if param.qualifier == 'pblum':
                     if contact_binary:
-                        pname = ret_parname(param.qualifier, comp_int= 1, dnum = x+1, ptype=ptype)
+                        if comp_int == 2:
+                            # TODO: this is again assuming the the secondary is coupled to the primary
+                            continue
+
+                        pname = ret_parname(param.qualifier, comp_int=comp_int, dnum=x+1, ptype=ptype)
                     else:
-                        pname = ret_parname(param.qualifier, comp_int= comp_int, dnum = x+1, ptype=ptype)
+                        pname = ret_parname(param.qualifier, comp_int=comp_int, dnum=x+1, ptype=ptype)
 
                 elif param.qualifier == 'exptime':
 
@@ -1670,18 +1814,24 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                     pname = ['phoebe_cadence_switch']
                     val = ['0']
                     ptype='boolean'
-#                    if pname[0] not in parnames:
-#                        parnames.extend(pname)
-#                        parvals.extend(val)
-#                        types.append('boolean')
-#                elif param.qualifier == 'l3':
-#                    pname = ['phoebe_el3']
-#                    val = val*4*np.pi
-#                    ptype = 'float'
+
+                elif param.qualifier == 'l3_frac':
+                    if param.is_visible and not l3_mode_force_flux:
+                        pname = ret_parname('l3', comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
+                    else:
+                        continue
+
+                elif param.qualifier == 'l3':
+                    if param.is_visible or l3_mode_force_flux:
+                        pname = ret_parname('l3', comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
+                    else:
+                        continue
+
                 else:
 
                     pname = ret_parname(param.qualifier, comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
                 if pname[0] not in parnames:
+
                     parnames.extend(pname)
                     parvals.extend(val)
                     if ptype == 'array':
@@ -1720,10 +1870,11 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     for y in range(len(rvs)):
 
         #get rv qualifiers
-        quals = eb.filter(dataset=rvs[y], context='dataset')+eb.filter(dataset=rvs[y], context='compute')
+        quals = eb.filter(dataset=rvs[y], context=['dataset', 'compute'], check_visible=False)
 
         #cycle through components
-        comps = quals.components
+        comps = quals.filter(qualifier='times').components
+        # comps = eb.hierarchy.get_stars()
 
         rv_type = {primary:{'curve' : '"Primary RV"', 'comp_int' : 1} , \
         secondary: {'curve':'"Secondary RV"', 'comp_int':2}}
@@ -1939,25 +2090,6 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
 #loop through LEGACY compute parameter set
 
-
-    # Did you pass a compute parameter set?
-    if compute is not None:
-        # print("compute", compute)
-        computeps = eb.get_compute(compute=compute)
-#        computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
-
-    #Find Compute Parameter Set
-    else:
-        ncompute = len(eb.filter(context='compute', kind='legacy').computes)
-        if ncompute == 1:
-            computeps = eb.get_compute(kind='legacy', check_visible=False)
-
-        elif ncompute == 0:
-            raise ValueError('Your bundle must contain a "Legacy" compute parameter set.')
-
-        else:
-            raise ValueError('Your bundle contains '+str(ncompute)+' parameter sets. You must specify one to use.')
-
     for param in computeps.to_list():
         if param.component == primary:
             comp_int = 1
@@ -1980,9 +2112,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
             if param.get_value(**kwargs) == 0:
                 #Legacy phoebe will calculate reflection no matter what.
                 # Turn off reflection switch but keep albedos
-                logger.warning('To completely remove irradiation effects in \
-                                Phoebe Legacy irrad_frac_refl_bol must be set \
-                                to zero for both components')
+                logger.warning('To completely remove irradiation effects in PHOEBE Legacy irrad_frac_refl_bol must be set to zero for both components')
                 pname = 'phoebe_reffect_switch'
                 val = '0'
                 ptype='boolean'

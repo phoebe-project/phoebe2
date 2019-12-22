@@ -9,7 +9,52 @@ logger = logging.getLogger("BUILTIN")
 logger.addHandler(logging.NullHandler())
 
 # expose these at top-level so they're available to constraints
-from numpy import sin, cos, tan, arcsin, arccos, arctan, arctan2, sqrt
+from numpy import sin, cos, tan, arcsin, arccos, arctan, arctan2, sqrt, log10
+
+def phases_to_times(phase, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
+    if t0 == 't0_supconj':
+        t0 = t0_supconj
+    elif t0 == 't0_perpass':
+        t0 = t0_perpass
+    elif t0 == 't0_ref':
+        t0 = t0_ref
+
+    if isinstance(phase, list):
+        phase = np.asarray(phase)
+
+    if dpdt != 0:
+        time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
+    else:
+        time = t0 + (phase)*period
+
+    return time
+
+def times_to_phases(time, period, dpdt, t0, t0_supconj, t0_perpass, t0_ref):
+    if t0 == 't0_supconj':
+        t0 = t0_supconj
+    elif t0 == 't0_perpass':
+        t0 = t0_perpass
+    elif t0 == 't0_ref':
+        t0 = t0_ref
+
+    if isinstance(time, list):
+        time = np.asarray(time)
+
+
+    if dpdt != 0:
+        phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
+    else:
+        phase = np.mod((time-t0)/period, 1.0)
+
+    if isinstance(phase, float):
+        if phase > 0.5:
+            phase -= 1
+    else:
+        # then should be an array
+        phase[phase > 0.5] -= 1
+
+    return phase
+
 
 def requiv_L1(q, syncpar, ecc, sma, incl_star, long_an_star, incl_orb, long_an_orb, compno, **kwargs):
     """
@@ -54,8 +99,8 @@ def requiv_contact_L23(q, sma, compno, **kwargs):
     logger.debug("libphoebe.roche_contact_neck_min(phi=pi/2, q={}, d=1., crit_pot_L23={})".format(q, crit_pot_L23))
     nekmin = libphoebe.roche_contact_neck_min(np.pi/2., q, 1., crit_pot_L23)['xmin']
     # we now have the critical potential and nekmin as if we were the primary star, so now we'll use compno=0 regardless
-    logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d=1, Omega={}, compno=0)".format(nekmin, q, crit_pot_L23))
-    crit_vol_L23 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1., crit_pot_L23, compno-1)['lvolume']
+    logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d=1, Omega={}, compno={})".format(nekmin, q, crit_pot_L23, compno-1))
+    crit_vol_L23 = libphoebe.roche_contact_partial_area_volume(nekmin, q, 1., crit_pot_L23, compno-1, lvolume=True, ldvolume=False, larea=False)['lvolume']
 
     logger.debug("resulting vol: {}, requiv: {}".format(crit_vol_L23, (3./4*1./np.pi*crit_vol_L23)**(1./3) * sma))
 
@@ -127,44 +172,48 @@ def ecosw2ecc(ecosw, per0):
 
 
 
-def _delta_t_supconj_perpass(period, ecc, per0):
+def _delta_t_supconj_perpass(t, period, ecc, per0, dpdt, dperdt, t0):
     """
     time shift between superior conjuction and periastron passage
     """
+    period = period + (t-t0)*dpdt
+    per0 = (per0 + (t-t0)*dperdt) % (2*np.pi)
     ups_sc = np.pi/2-per0
     E_sc = 2*np.arctan( np.sqrt((1-ecc)/(1+ecc)) * np.tan(ups_sc/2) )
     M_sc = E_sc - ecc*np.sin(E_sc)
     return period*(M_sc/2./np.pi)
 
-def t0_perpass_to_supconj(t0_perpass, period, ecc, per0):
+def t0_perpass_to_supconj(t0_perpass, period, ecc, per0, dpdt, dperdt, t0):
     """
     """
-    return t0_perpass + _delta_t_supconj_perpass(period, ecc, per0)
+    return t0_perpass + _delta_t_supconj_perpass(t0_perpass, period, ecc, per0, dpdt, dperdt, t0)
 
-def t0_supconj_to_perpass(t0_supconj, period, ecc, per0):
+def t0_supconj_to_perpass(t0_supconj, period, ecc, per0, dpdt, dperdt, t0):
     """
     """
-    return t0_supconj - _delta_t_supconj_perpass(period, ecc, per0)
+    return t0_supconj - _delta_t_supconj_perpass(t0_supconj, period, ecc, per0, dpdt, dperdt, t0)
 
-def _delta_t_supconj_ref(period, ecc, per0):
+def _delta_t_supconj_ref(t, period, ecc, per0, dpdt, dperdt, t0):
     """
     time shift between superior conjunction and reference time (time at
     which the primary star crosses the barycenter along line-of-sight)
     """
+    period = period + (t-t0)*dpdt
+    per0 = (per0 + (t-t0)*dperdt) % (2*np.pi)
     ups_sc = np.pi/2-per0
     E_sc = 2*np.arctan( np.sqrt((1-ecc)/(1+ecc)) * np.tan(ups_sc/2) )
     M_sc = E_sc - ecc*np.sin(E_sc)
     return period*((M_sc+per0)/2./np.pi - 1./4)
 
-def t0_ref_to_supconj(t0_ref, period, ecc, per0):
+def t0_ref_to_supconj(t0_ref, period, ecc, per0, dpdt, dperdt, t0):
     """
     """
-    return t0_ref + _delta_t_supconj_ref(period, ecc, per0)
+    return t0_ref + _delta_t_supconj_ref(t0_ref, period, ecc, per0, dpdt, dperdt, t0)
 
-def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
+def t0_supconj_to_ref(t0_supconj, period, ecc, per0, dpdt, dperdt, t0):
     """
     """
-    return t0_supconj - _delta_t_supconj_ref(period, ecc, per0)
+    return t0_supconj - _delta_t_supconj_ref(t0_supconj, period, ecc, per0, dpdt, dperdt, t0)
 
 def requiv_to_pot_contact(requiv, q, sma, compno=1):
     """
@@ -204,7 +253,7 @@ def pot_to_requiv_contact(pot, q, sma, compno=1):
         logger.debug("libphoebe.roche_contact_neck_min(pi/2, q={}, d={}, pot={})".format(q, d, pot))
         nekmin = libphoebe.roche_contact_neck_min(np.pi / 2., q, d, pot)['xmin']
         logger.debug("libphoebe.roche_contact_partial_area_volume(nekmin={}, q={}, d={}, pot={}, compno={})".format(nekmin, q, d, pot, compno-1))
-        volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno-1)['lvolume']
+        volume_equiv = libphoebe.roche_contact_partial_area_volume(nekmin, q, d, pot, compno-1, lvolume=True, ldvolume=False, larea=False)['lvolume']
         # returns normalized vequiv, should multiply by sma back for requiv in SI
         return sma * (3./4 * 1./np.pi * volume_equiv)**(1./3)
     except:

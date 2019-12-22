@@ -679,7 +679,7 @@ namespace gen_roche {
 
     }
 
-    return std::nan("");
+    return std::numeric_limits<T>::quiet_NaN();
   }
 
   /*
@@ -805,7 +805,7 @@ namespace gen_roche {
       for (auto && v : roots) if (0 < v && v < 1) return v;
     }
 
-    return std::nan("");
+    return std::numeric_limits<T>::quiet_NaN();
   }
   #if defined(DEBUG)
   #undef DEBUG
@@ -902,7 +902,7 @@ namespace gen_roche {
       for (auto && v : roots) if (0 < v && v < 1) return 1 - v;
     }
 
-    return std::nan("");
+    return std::numeric_limits<T>::quiet_NaN();
   }
 
   /*
@@ -1014,7 +1014,7 @@ namespace gen_roche {
     std::cerr << fname << "::END" << std::endl;
     #endif
 
-    return std::nan("");
+    return std::numeric_limits<T>::quiet_NaN();
   }
 
   /*
@@ -1813,8 +1813,6 @@ namespace gen_roche {
     const bool polish = false)
   {
 
-    using G = glq<T, 10>;
-
     //
     // What is calculated
     //
@@ -1825,16 +1823,20 @@ namespace gen_roche {
       b_dvol = (choice & 4u) == 4u;
 
     if (!b_area && !b_vol && !b_dvol) return;
+  
+    using real = long double;
 
+    using G = glq<real, 10>;
+  
     const int dim = G::n + 3;
-
-    T d2 = delta*delta,
+    
+    real d2 = delta*delta,
       d3 = d2*delta,
       d4 = d2*d2,
       b = d3*F*F*(1 + q),
       omega = delta*Omega0;
 
-    long double
+    real
       y[dim], k[4][dim], w[G::n],
       t = (dir > 0 ? xrange[0]/delta : xrange[1]/delta),
       dt = (xrange[1] - xrange[0])/(m*delta);
@@ -1860,7 +1862,7 @@ namespace gen_roche {
 
       {
         // auxiliary variables
-        T t1, f, g, f1, f2, s, s1, s2;
+        real t1, f, g, f1, f2, s, s1, s2;
 
         //
         // RK iteration
@@ -1996,12 +1998,13 @@ namespace gen_roche {
       if (polish){
 
         const int it_max = 10;
-        const T eps = 10*std::numeric_limits<T>::epsilon();
-        const T min = 10*std::numeric_limits<T>::min();
+        const real eps = 10*std::numeric_limits<T>::epsilon();
+        const real min = 10*std::numeric_limits<T>::min();
 
         int it;
 
-        T s1 = t*t, s2 = (t - 1)*(t - 1),
+        real 
+          s1 = t*t, s2 = (t - 1)*(t - 1),
           s, f, df, ds, f1, f2, g1, g2;
 
         for (int i = 0; i < G::n; ++i) {

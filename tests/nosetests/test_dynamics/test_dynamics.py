@@ -6,7 +6,6 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
-phoebe.devel_on()
 
 def _keplerian_v_nbody(b, plot=False):
     """
@@ -26,12 +25,12 @@ def _keplerian_v_nbody(b, plot=False):
     for ci in range(len(b.hierarchy.get_stars())):
         # TODO: make atol lower (currently 1e-5 solRad which is awfully big, but 1e-6 currently fails!)
         if plot:
-            print "max atol us:", nb_us[ci] - k_us[ci]
-            print "max atol vs:", nb_vs[ci] - k_vs[ci]
-            print "max atol ws:", nb_ws[ci] - k_ws[ci]
-            print "max atol vus:", nb_vus[ci] - k_vus[ci]
-            print "max atol vvs:", nb_vvs[ci] - k_vvs[ci]
-            print "max atol vws:", nb_vws[ci] - k_vws[ci]
+            print("max atol xs:", nb_us[ci] - k_us[ci])
+            print("max atol ys:", nb_vs[ci] - k_vs[ci])
+            print("max atol zs:", nb_ws[ci] - k_ws[ci])
+            print("max atol vxs:", nb_vus[ci] - k_vus[ci])
+            print("max atol vys:", nb_vvs[ci] - k_vvs[ci])
+            print("max atol vzs:", nb_vws[ci] - k_vws[ci])
 
         assert(np.allclose(nb_us[ci], k_us[ci], atol=1e-5))
         assert(np.allclose(nb_vs[ci], k_vs[ci], atol=1e-5))
@@ -54,10 +53,11 @@ def _phoebe_v_photodynam(b, plot=False):
     # photodynam backend ONLY works with ltte=True, so we will run the phoebe backend with that as well
     # TODO: remove distortion_method='nbody' once that is supported
     # NOTE: bs is the exact same as that used in photodynam.  Nbody and rebound are slightly different.
-    b.add_compute('phoebe', dynamics_method='bs', ltte=True, compute='phoebecompute')
+    b.set_value('dynamics_method', 'bs')
+    b.set_value('ltte', True)
 
     b.run_compute('pdcompute', model='pdresults')
-    b.run_compute('phoebecompute', model='phoeberesults')
+    b.run_compute('phoebe01', model='phoeberesults')
 
     for comp in b.hierarchy.get_stars():
         # TODO: check to see how low we can make atol (or change to rtol?)
@@ -71,7 +71,7 @@ def _phoebe_v_photodynam(b, plot=False):
                 plt.plot(b.get_value('times', model='phoeberesults', component=comp, unit=u.d), b.get_value(k, model='phoeberesults', component=comp), 'r-')
                 plt.plot(b.get_value('times', model='phoeberesults', component=comp, unit=u.d), b.get_value(k, model='pdresults', component=comp), 'b-')
                 diff = abs(b.get_value(k, model='phoeberesults', component=comp) - b.get_value(k, model='pdresults', component=comp))
-                print "*** max abs ({}): {}".format(k, max(diff))
+                print("*** max abs ({}): {}".format(k, max(diff)))
                 plt.xlabel('t')
                 plt.ylabel(k)
                 plt.show()
@@ -93,9 +93,10 @@ def _frontend_v_backend(b, plot=False):
 
     times = np.linspace(0, 100, 21)
     b.add_dataset('orb', times=times, dataset='orb01', component=b.hierarchy.get_stars())
-    b.add_compute('phoebe', dynamics_method='keplerian', compute='keplerian')
-    b.add_compute('phoebe', dynamics_method='bs', compute='nbody')
+    b.rename_compute('phoebe01', 'nbody')
+    b.set_value('dynamics_method', 'bs')
 
+    b.add_compute('phoebe', dynamics_method='keplerian', compute='keplerian')
 
     # NBODY
     # do backend Nbody
@@ -143,18 +144,24 @@ def _frontend_v_backend(b, plot=False):
 def test_binary(plot=False):
     """
     """
+    phoebe.devel_on() # required for nbody dynamics
 
     # TODO: grid over orbital parameters
     # TODO: once ps.copy is implemented, just send b.copy() to each of these
 
     b = phoebe.default_binary()
+    b.get_parameter('dynamics_method')._choices = ['keplerian', 'bs']
     _keplerian_v_nbody(b, plot=plot)
 
     b = phoebe.default_binary()
+    b.get_parameter('dynamics_method')._choices = ['keplerian', 'bs']
     _phoebe_v_photodynam(b, plot=plot)
 
     b = phoebe.default_binary()
+    b.get_parameter('dynamics_method')._choices = ['keplerian', 'bs']
     _frontend_v_backend(b, plot=plot)
+
+    phoebe.devel_off() # reset for future tests
 
 
 if __name__ == '__main__':

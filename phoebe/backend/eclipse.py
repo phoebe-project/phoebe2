@@ -1,6 +1,8 @@
+import sys
 import numpy as np
 
 from phoebe.algorithms import ceclipse
+from phoebe.utils import _bytes
 import libphoebe
 
 import logging
@@ -69,7 +71,7 @@ def wd_horizon(meshes, xs, ys, zs, expose_horizon=False):
         # let's get the x-coordinate wrt THIS star so we can do left vs right
         x_rel = mesh_front.centers[:,0] - xs[i_front]
 
-        print lat, x_rel[lat_strip_inds].min(), x_rel[lat_strip_inds].max()
+        print(lat, x_rel[lat_strip_inds].min(), x_rel[lat_strip_inds].max())
 
         # and since we want the first element in the front, let's just get rid of the back
         front_inds = mesh_front.mus >= 0.0
@@ -134,7 +136,7 @@ def only_horizon(meshes, xs, ys, zs, expose_horizon=False):
 
     # this can all by easily done by multiplying by int(mu>0) (1 if visible, 0 if hidden)
 
-    return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items()}, None, None
+    return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items() if mesh is not None}, None, None
 
 def native(meshes, xs, ys, zs, expose_horizon=False, horizon_method='boolean'):
     """
@@ -166,7 +168,7 @@ def native(meshes, xs, ys, zs, expose_horizon=False, horizon_method='boolean'):
                                      normals_flat,
                                      tvisibilities=True,
                                      taweights=True,
-                                     method=horizon_method,
+                                     method=_bytes(horizon_method),
                                      horizon=expose_horizon)
 
     visibilities = meshes.unpack_column_flat(info['tvisibilities'], computed_type='triangles')
