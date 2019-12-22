@@ -224,6 +224,9 @@ class Passband:
         self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
         self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
+        # Initialize (empty) history:
+        self.history = {}
+
     def __repr__(self):
         return '<Passband: %s:%s>' % (self.pbset, self.pbname)
 
@@ -268,10 +271,14 @@ class Passband:
 
         header['CONTENT'] = str(self.content)
 
+        # Add all existing history entries:
+        for h in self.history.keys():
+            header['HISTORY'] = h + ': ' + self.history[h] + '-END-'
+
+        # Append any new history entry:
         if history_entry:
-            # comment divider:
-            history_entry += '-END-'
-            header['HISTORY'] = '%s: %s' % (timestamp, history_entry)
+            header['HISTORY'] = '%s: %s' % (timestamp, history_entry) + '-END-'
+            self.history[timestamp] = history_entry
 
         if 'extern_planckint:Inorm' in self.content or 'extern_atmx:Inorm' in self.content:
             header['WD_IDX'] = self.extern_wd_idx
