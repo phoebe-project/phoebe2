@@ -81,6 +81,7 @@ CHANGELOG
 ----------
 
 ### 2.2.0 - extinction feature release
+
 * Add support for interstellar extinction/reddening.
 * Support for Python 3.6+ in addition to Python 2.7+.
 * Overhaul of limb-darkening with new ld_mode and ld_coeffs_source parameters.
