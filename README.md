@@ -80,6 +80,10 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.2.1 - g++/gcc version check hotfix
+
+* Improves the detection of g++/gcc version to compare against requirements during setup.
+
 ### 2.2.0 - extinction feature release
 
 * Add support for interstellar extinction/reddening.
