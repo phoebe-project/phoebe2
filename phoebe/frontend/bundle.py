@@ -5468,6 +5468,188 @@ class Bundle(ParameterSet):
                 changes.append(param)
         return changes
 
+    @send_if_client
+    def add_distribution(self, twig=None, value=None, **kwargs):
+        """
+        Add a new distribution to the bundle, tagged to reference an existing
+        parameter.  Unlike other `add_` methods in the bundle, this does not
+        add a ParameterSet from a specific kind, but rather adds a **single**
+        <phoebe.parameters.DistributionParameter> to the bundle in context='distribution',
+        tagged according to `twig` and `**kwargs`.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.remove_distribution>
+        * <phoebe.frontend.bundle.Bundle.rename_distribution>
+
+        Arguments
+        ----------
+        * `twig` (string, optional, default=None): twig pointing to an existing
+            parameter to reference with this distribution.  If provided, this
+            (along with `**kwargs`) must point to a single parameter.
+        * `value` (npdists Distribution object, optional, default=None): the
+            distribution to be applied to the created <phoebe.parameters.DistributionParameter>.
+            If not provided, will be a delta function around the current value
+            of the referenced parameter.
+        * `distribution` (string, optional): name of the newly-created distribution.
+        * `overwrite` (boolean, optional, default=False): whether to overwrite
+            an existing distribution with the same tags.  If False,
+            an error will be raised.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
+        * `**kwargs`: tags to filter for a matching parameter (and to tag the
+            new <phoebe.parameters.DistributionParameter>).  This (along with `twig`)
+            must point to a single parameter.
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+
+        Raises
+        --------
+        * ValueError: if `twig` and `**kwargs` do not resolve to a single parameter
+        """
+
+        if kwargs.get('distribution', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('distribution')
+
+        kwargs.setdefault('distribution',
+                          self._default_label('dist',
+                                              **{'context': 'distribution',
+                                                 'kind': 'dist'}))
+
+        if kwargs.pop('check_label', True):
+            self._check_label(kwargs['distribution'], allow_overwrite=kwargs.get('overwrite', False))
+
+        ref_param = self.get_parameter(twig=twig, **kwargs)
+        if value is None:
+            value = npdists.delta(ref_param.get_value())
+        dist_param = DistributionParameter(qualifier=ref_param.qualifier, value=value)
+
+
+
+        metawargs = {'context': 'distribution',
+                     'distribution': kwargs['distribution']}
+        for k,v in ref_param.meta.items():
+            if k in parameters._contexts:
+                metawargs.setdefault(k,v)
+
+        if kwargs.get('overwrite', False):
+            overwrite_ps = self.remove_distribution(distribution=kwargs['distribution'])
+            # check the label again, just in case kwargs['distribution'] belongs to
+            # something other than component
+            self.exclude(distribution=kwargs['distribution'])._check_label(kwargs['distribution'], allow_overwrite=False)
+        else:
+            removed_ps = None
+
+        self._attach_params([dist_param], **metawargs)
+
+        redo_kwargs = deepcopy(kwargs)
+        self._add_history(redo_func='add_distribution',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='remove_distribution',
+                          undo_kwargs={'distribution': kwargs['distribution']})
+
+
+        ret_ps = self.filter(distribution=kwargs['distribution'], check_visible=False, check_default=False)
+
+        # since we've already processed (so that we can get the new qualifiers),
+        # we'll only raise a warning
+        self._kwargs_checks(kwargs,
+                            additional_allowed_keys=['overwrite', 'return_overwrite'],
+                            warning_only=True, ps=ret_ps)
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
+
+        return ret_ps
+
+    def get_distribution(self, distribution=None, **kwargs):
+        """
+        Filter in the 'distribution' context
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+        * <phoebe.frontend.bundle.Bundle.add_distribution>
+        * <phoebe.frontend.bundle.Bundle.remove_distribution>
+        * <phoebe.frontend.bundle.Bundle.rename_distribution>
+
+        Arguments
+        ----------
+        * `distribution`: (string, optional, default=None): the name of the distribution
+        * `**kwargs`: any other tags to do the filtering (excluding distribution and context)
+
+        Returns
+        ---------
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        kwargs['distribution'] = distribution
+        kwargs['context'] = 'distribution'
+        ret_ps = self.filter(**kwargs).exclude(distribution=[None])
+
+        if len(ret_ps.distributions) == 0:
+            raise ValueError("no distributions matched: {}".format(kwargs))
+        elif len(ret_ps.distributions) > 1:
+            raise ValueError("more than one distribution matched: {}".format(kwargs))
+
+        return ret_ps
+
+    def remove_distribution(self, distribution, **kwargs):
+        """
+        Remove a distribution-set from the bundle.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+        * <phoebe.frontend.bundle.Bundle.add_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.rename_distribution>
+
+        Arguments
+        ----------
+        * `distribution` (string): the label of the distribution to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: distribution, context
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+        """
+        kwargs['distribution'] = distribution
+        kwargs['context'] = 'distribution'
+        return self.remove_parameters_all(**kwargs)
+
+    def rename_distribution(self, old_distribution, new_distribution):
+        """
+        Change the label of a distribution-set attached to the Bundle.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.remove_distribution>
+
+        Arguments
+        ----------
+        * `old_distribution` (string): current label of the distribution (must exist)
+        * `new_distribution` (string): the desired new label of the distribution
+            (must not yet exist)
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed distribution
+
+        Raises
+        --------
+        * ValueError: if the value of `new_distribution` is forbidden or already exists.
+        """
+        # TODO: raise error if old_distribution not found?
+
+        self._check_label(new_distribution)
+        self._rename_label('distribution', old_distribution, new_distribution)
+
+        return self.filter(distribution=new_distribution)
 
     @send_if_client
     def add_figure(self, kind, **kwargs):
@@ -5563,7 +5745,6 @@ class Bundle(ParameterSet):
         # self._check_copy_for()
 
         redo_kwargs = deepcopy(kwargs)
-        redo_kwargs['func'] = fname
         self._add_history(redo_func='add_figure',
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_figure',

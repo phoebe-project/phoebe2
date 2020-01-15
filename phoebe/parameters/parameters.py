@@ -102,7 +102,7 @@ _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
 _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['history', 'system', 'component', 'feature',
-             'dataset', 'constraint', 'compute', 'model', 'figure', 'setting']
+             'dataset', 'constraint', 'distribution', 'compute', 'model', 'figure', 'setting']
 
 # define a list of default_forbidden labels
 # an individual ParameterSet may build on this list with components, datasets,
@@ -437,6 +437,7 @@ class ParameterSet(object):
         self._dataset = None
         self._figure = None
         self._constraint = None
+        self._distribution = None
         self._compute = None
         self._model = None
         # self._fitting = None
@@ -976,6 +977,40 @@ class ParameterSet(object):
             in this <phoebe.parmaeters.ParameterSet>
         """
         return self._options_for_tag('constraint')
+
+    @property
+    def distribution(self):
+        """Return the value for distribution if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.distributions>.
+
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.distribution>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
+        """
+        return self._distribution
+
+    @property
+    def distributions(self):
+        """Return a list of all the distributions of the Parameters.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.distribution>
+
+        Returns
+        --------
+        * (list) a list of all constraints for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
+        """
+        return self._options_for_tag('distribution')
 
     @property
     def compute(self):
@@ -4617,6 +4652,7 @@ class Parameter(object):
         self._dataset = kwargs.get('dataset', None)
         self._figure = kwargs.get('figure', None)
         self._constraint = kwargs.get('constraint', None)
+        self._distribution = kwargs.get('distribution', None)
         self._compute = kwargs.get('compute', None)
         self._model = kwargs.get('model', None)
         # self._fitting = kwargs.get('fitting', None)
@@ -5146,6 +5182,21 @@ class Parameter(object):
         * (str) the constraint tag of this Parameter.
         """
         return self._constraint
+
+    @property
+    def distribution(self):
+        """
+        Return the distribution of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.distribution>
+        * <phoebe.parameters.ParameterSet.distributions>
+
+        Returns
+        -------
+        * (str) the distribution tag of this Parameter.
+        """
+        return self._distribution
 
     @property
     def compute(self):
