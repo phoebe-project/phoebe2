@@ -7096,6 +7096,18 @@ class DistributionParameter(Parameter):
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
+    def plot(self, **kwargs):
+        """
+        Plot both the analytic distribution function as well as a sampled
+        histogram from the distribution.  Requires matplotlib to be installed.
+
+        This is simply a shortcut to [npdists.BaseDistribution.plot](https://npdists.readthedocs.io/en/latest/api/BaseDistribution.plot/)
+
+        Raises
+        --------
+        * ImportError: if matplotlib dependency is not met.
+        """
+        return self.get_value().plot(**kwargs)
 
 class FloatParameter(Parameter):
     def __init__(self, *args, **kwargs):
