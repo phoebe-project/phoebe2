@@ -5481,6 +5481,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.get_distribution>
         * <phoebe.frontend.bundle.Bundle.remove_distribution>
         * <phoebe.frontend.bundle.Bundle.rename_distribution>
+        * <phoebe.parameters.DistributionParameter.add_distribution>
 
         Arguments
         ----------
@@ -5492,12 +5493,6 @@ class Bundle(ParameterSet):
             If not provided, will be a delta function around the current value
             of the referenced parameter.
         * `distribution` (string, optional): name of the newly-created distribution.
-        * `overwrite` (boolean, optional, default=False): whether to overwrite
-            an existing distribution with the same tags.  If False,
-            an error will be raised.
-        * `return_overwrite` (boolean, optional, default=False): whether to include
-            removed parameters due to `overwrite` in the returned ParameterSet.
-            Only applicable if `overwrite` is True.
         * `**kwargs`: tags to filter for a matching parameter (and to tag the
             new <phoebe.parameters.DistributionParameter>).  This (along with `twig`)
             must point to a single parameter.
@@ -5520,10 +5515,13 @@ class Bundle(ParameterSet):
                                               **{'context': 'distribution',
                                                  'kind': 'dist'}))
 
-        if kwargs.pop('check_label', True):
-            self._check_label(kwargs['distribution'], allow_overwrite=kwargs.get('overwrite', False))
+        # if kwargs.pop('check_label', True):
+            # self._check_label(kwargs['distribution'], allow_overwrite=kwargs.get('overwrite', False))
 
-        ref_param = self.get_parameter(twig=twig, **kwargs)
+        if isinstance(twig, Parameter):
+            ref_param = twig
+        else:
+            ref_param = self.exclude(context='distribution').get_parameter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']})
         if value is None:
             value = npdists.delta(ref_param.get_value())
         dist_param = DistributionParameter(qualifier=ref_param.qualifier, value=value)
@@ -5575,6 +5573,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.add_distribution>
         * <phoebe.frontend.bundle.Bundle.remove_distribution>
         * <phoebe.frontend.bundle.Bundle.rename_distribution>
+        * <phoebe.parameters.DistributionParameter.get_distribution>
 
         Arguments
         ----------
@@ -5587,7 +5586,7 @@ class Bundle(ParameterSet):
         """
         kwargs['distribution'] = distribution
         kwargs['context'] = 'distribution'
-        ret_ps = self.filter(**kwargs).exclude(distribution=[None])
+        ret_ps = self.filter(**kwargs)
 
         if len(ret_ps.distributions) == 0:
             raise ValueError("no distributions matched: {}".format(kwargs))
