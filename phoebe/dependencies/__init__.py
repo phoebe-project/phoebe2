@@ -7,4 +7,5 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
         print("autofig could not be imported with error: {}.  Plotting will be disabled.".format(e))
 
 from . import nparray
+from . import npdists
 from . import unitsiau2015
