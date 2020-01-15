@@ -9,7 +9,7 @@ from phoebe.constraints.expression import ConstraintVar
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete
-from phoebe.dependencies import nparray
+from phoebe.dependencies import nparray, npdists
 from phoebe.utils import parse_json
 
 import sys
@@ -6980,6 +6980,62 @@ class IntParameter(Parameter):
         """
         _orig_value = deepcopy(self.get_value())
 
+        value = self._check_value(value)
+
+        self._value = value
+
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+
+
+class DistributionParameter(Parameter):
+    def __init__(self, *args, **kwargs):
+        """
+        see <phoebe.parameters.Parameter.__init__>
+
+        additional options:
+        * `default_unit`
+        """
+        super(DistributionParameter, self).__init__(*args, **kwargs)
+
+        self.set_value(kwargs.get('value', ''))
+
+        self._dict_fields_other = ['description', 'value', 'quantity', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields = _meta_fields_all + self._dict_fields_other
+
+    @update_if_client
+    def get_value(self, **kwargs):
+        """
+        Get the current value of the <phoebe.parameters.DistributionParameter>
+        """
+        default = super(DistributionParameter, self).get_value(**kwargs)
+        if default is not None: return default
+        return self._value
+
+    def _check_value(self, value):
+        if isinstance(value, npdists.BaseDistribution):
+            return value
+        else:
+            raise TypeError("must be a npdists Distribution object, got {}".format(value))
+
+    @send_if_client
+    def set_value(self, value, force=False, run_checks=None, run_constraints=None, **kwargs):
+        """
+        Set the current value of the <phoebe.parameters.DistributionParameter>.
+
+        Arguments
+        -------------
+        * `value` (npdists distribution object): the distribution object
+        * `run_checks` (bool, optional): whether to call
+            <phoebe.frontend.bundle.Bundle.run_checks> after setting the value.
+            If `None`, the value in `phoebe.conf.interactive_checks` will be used.
+            This will not raise an error, but will cause a warning in the logger
+            if the new value will cause the system to fail checks.
+        * `run_constraints` whether to run any necessary constraints after setting
+            the value.  If `None`, the value in `phoebe.conf.interactive_constraints`
+            will be used.
+        * `**kwargs`: IGNORED
+        """
+        _orig_value = deepcopy(self.get_value())
         value = self._check_value(value)
 
         self._value = value
