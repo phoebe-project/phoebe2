@@ -5510,7 +5510,7 @@ class Bundle(ParameterSet):
              <phoebe.parameters.figure> module.
         * `figure` (string, optional): name of the newly-created figure.
         * `overwrite` (boolean, optional, default=False): whether to overwrite
-            an existing component with the same `figure` tag.  If False,
+            an existing figure with the same `figure` tag.  If False,
             an error will be raised.
         * `return_overwrite` (boolean, optional, default=False): whether to include
             removed parameters due to `overwrite` in the returned ParameterSet.
@@ -5607,7 +5607,8 @@ class Bundle(ParameterSet):
         * `figure`: (string, optional, default=None): the name of the figure
         * `**kwargs`: any other tags to do the filtering (excluding figure and context)
 
-        Returns:
+        Returns
+        ----------
         * a <phoebe.parameters.ParameterSet> object.
         """
         kwargs['figure'] = figure
