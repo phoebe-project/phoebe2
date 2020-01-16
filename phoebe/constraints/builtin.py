@@ -1,6 +1,7 @@
 import numpy as np
 from phoebe.distortions import roche as _roche
 from phoebe.backend import mesh as _mesh
+from phoebe.dependencies import npdists as _npdists
 import libphoebe
 from scipy.optimize import newton, bisect
 
@@ -259,3 +260,6 @@ def pot_to_requiv_contact(pot, q, sma, compno=1):
     except:
         # replace this with actual check in the beginning or before function call
         raise ValueError('potential probably out of bounds for contact envelope')
+
+def npdists_from_json(json):
+    return _npdists.from_json(json)

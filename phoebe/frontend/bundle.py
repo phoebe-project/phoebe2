@@ -5500,7 +5500,8 @@ class Bundle(ParameterSet):
 
         Returns
         ---------
-        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+        * <phoebe.parameters.ParameterSet> of all parameters in the distribution
+            set `distribution`, including those previously added.
 
         Raises
         --------
@@ -5522,7 +5523,7 @@ class Bundle(ParameterSet):
         if isinstance(twig, Parameter):
             ref_param = twig
         else:
-            ref_param = self.exclude(context='distribution').get_parameter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']})
+            ref_param = self.exclude(context=['distribution', 'constraint']).get_parameter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']})
         if value is None:
             value = _npdists.delta(ref_param.get_value())
         dist_param = DistributionParameter(qualifier=ref_param.qualifier, value=value)
@@ -5543,6 +5544,8 @@ class Bundle(ParameterSet):
         else:
             removed_ps = None
 
+        if len(self.filter(qualifier=dist_param.qualifier, check_visible=False, check_default=False, **metawargs)):
+            raise ValueError("distribution parameter for {} already exists with distribution='{}'".format(ref_param.twig, kwargs['distribution']))
         self._attach_params([dist_param], **metawargs)
 
         redo_kwargs = deepcopy(kwargs)
@@ -5567,7 +5570,13 @@ class Bundle(ParameterSet):
 
     def get_distribution(self, distribution=None, **kwargs):
         """
-        Filter in the 'distribution' context
+        Filter in the 'distribution' context.
+
+        Note that this returns a ParameterSet of <phoebe.parameters.DistributionParameter>
+        objects.  The distribution objects themselves can then be accessed
+        via <phoebe.parameters.DistributionParameter.get_value>.  To access
+        distribution objects of constrained parameters propaged through constraints,
+        use <phoebe.parameters.FloatParameter.get_distribution> instead.
 
         See also:
         * <phoebe.parameters.ParameterSet.filter>
@@ -5654,7 +5663,9 @@ class Bundle(ParameterSet):
     def run_distribution(self, distribution=None, N=None, set_value=False):
         """
         Sample from all distributions in a distribution set (tagged with
-        distribution=`distribution`).
+        distribution=`distribution`).  Note that distributions attached
+        to constrained parameters will be ignored (but constrained values will
+        be updated if `set_value` is True).
 
         Arguments
         ----------
@@ -5669,7 +5680,8 @@ class Bundle(ParameterSet):
         Returns
         --------
         * (dict or ParameterSet): dictionary of twig, value pairs if `set_value`
-            is False.  ParameterSet of changed Parameters if `set_value` is True.
+            is False.  ParameterSet of changed Parameters (including those by
+            constraints) if `set_value` is True.
 
         Raises
         -------
@@ -5679,6 +5691,10 @@ class Bundle(ParameterSet):
         if N is not None and set_value:
             raise ValueError("cannot use set_value and N together")
 
+        if set_value:
+            user_interactive_constraints = conf.interactive_constraints
+            conf.interactive_constraints_off(suppress_warning=True)
+
         dist_ps = self.get_distribution(distribution)
         dists = [dist_param.get_value() for dist_param in dist_ps.to_list()]
         sampled_values = _npdists.sample_from_dists(dists)
@@ -5686,13 +5702,20 @@ class Bundle(ParameterSet):
         ret = {}
         changed_params = []
         for sampled_value, dist_param in zip(sampled_values, dist_ps.to_list()):
-            param = self.exclude(context='distribution', check_visible=False, check_default=False).get_parameter(check_visible=False, check_default=False, qualifier=dist_param.qualifier, **{k:v for k,v in dist_param.meta.items() if k in parameters._contexts and k not in ['distribution']})
+            param = self.exclude(context=['distribution', 'constraint'], check_visible=False, check_default=False).get_parameter(check_visible=False, check_default=False, qualifier=dist_param.qualifier, **{k:v for k,v in dist_param.meta.items() if k in parameters._contexts and k not in ['distribution']})
+            if param.is_constraint:
+                logger.warning("skipping drawing from {} as {} is constrained".format(dist_param.twig, param.twig))
+                continue
+
             ret[param.twig] = sampled_value
             if set_value:
                 param.set_value(sampled_value)
                 changed_params.append(param)
 
         if set_value:
+            changed_params += self.run_delayed_constraints()
+            if user_interactive_constraints:
+                conf.interactive_constraints_on()
             return ParameterSet(changed_params)
         else:
             return ret
@@ -7106,7 +7129,9 @@ class Bundle(ParameterSet):
 
 
     @send_if_client
-    def run_compute(self, compute=None, model=None, detach=False,
+    def run_compute(self, compute=None, model=None,
+                    draw_from=None,
+                    detach=False,
                     times=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset(s) using
@@ -7142,6 +7167,16 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
             creation.
+        * `draw_from` (string, optional, default=None): distribution tag to
+            draw from before computing the model.  All parameters without a valid
+            distribution object with distribution=`draw_from` will fallback
+            on their face-values.  See <phoebe.parameters.FloatParameter.get_quantity>
+            for more details.
+        * `draw_seed` (int, optional): seed to use when sampling. Only applicable
+            for parameters that are drawn from distributions according to `draw_from`.
+            NOTE: as this is intended to be a single seed across multiple parameters,
+            the values drawn will not be the same as passing the same value of
+            `draw_seed` to each individual <phoebe.parameters.FloatParameter.get_quantity>.
         * `detach` (bool, optional, default=False, EXPERIMENTAL):
             whether to detach from the computation run,
             or wait for computations to complete.  If detach is True, see
@@ -7197,6 +7232,9 @@ class Bundle(ParameterSet):
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
+
+        if draw_from is not None and draw_seed is None:
+            draw_seed = _npdists.get_random_seed()
 
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
 

@@ -7326,6 +7326,19 @@ class FloatParameter(Parameter):
         """
         self._timederiv = timederiv
 
+    @property
+    def in_distributions(self):
+        """
+        List the tags of the distributions attached to this parameters
+
+        Returns
+        ----------
+        * (list of strings)
+        """
+        return self._bundle.filter(context='distribution', qualifier=self.qualifier,
+                                   check_visible=False, check_default=False,
+                                   **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).distributions
+
     def add_distribution(self, value):
         """
         Add a distribution to the bundle attached to this Parameter.
@@ -7347,12 +7360,21 @@ class FloatParameter(Parameter):
 
         self._bundle.add_distribution(twig=self, value=value)
 
-    def get_distribution(self, distribution=None):
+    def get_distribution(self, distribution=None, follow_constraints=True):
         """
         Access the distribution object corresponding to this parameter
         tagged with distribution=`distribution`.  To access the
         <phoebe.parameters.DistributionParameter> itself, see
         <phoebe.frontend.bundle.Bundle.get_distribution>.
+
+        If this parameter is a constrained parameter, and any of the parameters
+        involved in the constraint have distributions attached with
+        distribution=`distribution`, a distribution object will be exposed
+        that is propagated through the constraint (whether or not a
+        <phoebe.parameters.DistributionParameter> exists).  A warning will
+        be raised in the <phoebe.logger> if a distribution does exist but
+        the propaged distribution is to be returned instead.  To disable this
+        behavior, set `follow_constraints` to False.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.get_distribution>
@@ -7364,6 +7386,10 @@ class FloatParameter(Parameter):
         * `distribution` (string, optional, default=None): distribution tag
             of the <phoebe.parameters.DistributionParameter>.  Required if
             more than one are available.
+        * `follow_constraints` (bool, optional, default=True): whether to propagate
+            distributions through constraints if this parameter is constrained.
+            If False, the distribution directly attached to the parameter
+            will be exposed instead.
 
         Returns
         ----------
@@ -7378,13 +7404,39 @@ class FloatParameter(Parameter):
         if self._bundle is None:
             raise ValueError("parameter must be attached to a Bundle to call get_distribution")
 
+        if follow_constraints and len(self.constrained_by):
+            # then this is a constrained parameter, so we want to propagate
+            # any distributions through the constraint and return a CompositeDistribution
+            # instead.
+
+            if len(self._bundle.filter(qualifier=self.qualifier,
+                                       distribution=distribution,
+                                       context='distribution',
+                                       check_visible=False,
+                                       **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})):
+
+                logger.warning("{} is constrainted but also has a distribution attached with distribution='{}'.  Returning the distribution propagated through the constraint instead (pass follow_constraints=False to disable this behavior).".format(self.twig, distribution))
+
+            # constraint_expr = self.is_constraint.get_value()
+            if distribution is None:
+                if len(self._bundle.distributions) > 1:
+                    raise ValueError("must provide label of distribution")
+                elif len(self._bundle.distributions) == 1:
+                    distribution = self._bundle.distributions[0]
+                else:
+                    raise ValueError("no distributions found attached to bundle")
+
+            # raise NotImplementedError("constraint propagation for distributions not yet implemented")
+            return self.is_constraint.get_result(use_distribution=distribution)
+
         return self._bundle.get_parameter(qualifier=self.qualifier,
                                           distribution=distribution,
                                           context='distribution',
                                           check_visible=False,
                                           **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
 
-    def sample_distribution(self, distribution=None, seed=None, set_value=False):
+    def sample_distribution(self, distribution=None, follow_constraints=True,
+                            seed=None, set_value=False):
         """
         Sample from the distribution attached to this parameter (and optionally
         adopt the sampled value).
@@ -7398,6 +7450,11 @@ class FloatParameter(Parameter):
         * `distribution` (string, optional, default=None): distribution tag
             of the <phoebe.parameters.DistributionParameter>.  Required if
             more than one are available.
+        * `follow_constraints` (bool, optional, default=True): whether to propagate
+            distributions through constraints if this parameter is constrained.
+            If False, the distribution directly attached to the parameter
+            will be exposed instead.  See <phoebe.parameters.FloatParameter.get_distribution>
+            for more details.
         * `seed` (int, optional, default=None): seed to use when randomly
             drawing from the distribution.
         * `set_value` (bool, optional, default=False): whether to adopt the
@@ -7412,7 +7469,7 @@ class FloatParameter(Parameter):
         ----------
         * ValueError: if no valid distribution can be found.
         """
-        dist = self.get_distribution(distribution)
+        dist = self.get_distribution(distribution, follow_constraints=follow_constraints)
         value = dist.sample(seed=seed)
         if set_value:
             self.set_value(value)
@@ -9564,7 +9621,7 @@ class ConstraintParameter(Parameter):
         """
         return self.get_result()
 
-    def get_result(self, t=None, suppress_error=True):
+    def get_result(self, t=None, use_distribution=None, suppress_error=True):
         """
         Get the current value (as a quantity) of the result of the expression
         of this <phoebe.parameters.ConstraintParameter>.
@@ -9595,7 +9652,7 @@ class ConstraintParameter(Parameter):
                     return True
             return False
 
-        def get_values(vars, safe_label=True, string_safe_arrays=False):
+        def get_values(vars, safe_label=True, string_safe_arrays=False, use_distribution=None):
             # use np.float64 so that dividing by zero will result in a
             # np.inf
             def _single_value(quantity, string_safe_arrays=False):
@@ -9613,17 +9670,23 @@ class ConstraintParameter(Parameter):
                 else:
                     return quantity
 
-            def _value(var, string_safe_arrays=False):
+            def _value(var, string_safe_arrays=False, use_distribution=None):
+                if use_distribution:
+                    param = var.get_parameter()
+                    if use_distribution in param.in_distributions:
+                        return "npdists_from_json('{}')".format(param.get_distribution(use_distribution, follow_constraints=False).to_json())
+
+
                 if var.get_parameter() != self.constrained_parameter:
                     return _single_value(var.get_quantity(t=t), string_safe_arrays)
                 else:
                     return _single_value(var.get_quantity(), string_safe_arrays)
 
-            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays) for var in vars}
+            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays, use_distribution) for var in vars}
 
         eq = self.get_value()
 
-        if _use_sympy and not eq_needs_builtin(eq):
+        if _use_sympy and not eq_needs_builtin(eq) and not use_distribution:
             values = get_values(self._vars+self._addl_vars, safe_label=True)
             values['I'] = 1 # CHEATING MAGIC
             # just to be safe, let's reinitialize the sympy vars
@@ -9639,13 +9702,16 @@ class ConstraintParameter(Parameter):
             # order here matters - self.get_value() will update the user_labels
             # to be the current unique twigs
             #print "***", eq, values
+            # if use_distribution:
+            #     values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution)
+            #     print("***", values)
+            #     return
 
-
-            if eq_needs_builtin(eq):
+            if eq_needs_builtin(eq) or use_distribution:
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
 
-                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True)
+                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution)
 
                 # cannot do from builtin import *
                 for func in _constraint_builtin_funcs:
@@ -9670,6 +9736,9 @@ class ConstraintParameter(Parameter):
                     else:
                         raise ValueError("constraint returned None")
                 else:
+                    if use_distribution is not None:
+                        return value
+
                     try:
                         value = float(value)
                     except TypeError as err:
