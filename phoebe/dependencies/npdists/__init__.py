@@ -1,5 +1,5 @@
 from . import npdists as _npdists
-from .npdists import get_random_seed, sample_from_dists, sample_ppf_from_dists, logp_from_dists, sample_func_from_dists, plot_func_from_dists
+from .npdists import get_random_seed, sample_from_dists, sample_ppf_from_dists, logp_from_dists, sample_func_from_dists, plot_func_from_dists, _has_astropy, _units
 import numpy as _np
 from .npdists import BaseDistribution # for isinstance checking
 import json as _json
@@ -235,7 +235,7 @@ def from_dict(d):
     unit = d.pop('unit', None)
     dist = getattr(_npdists, classname)(**d)
     if unit is not None and _has_astropy:
-        dist *= _unit.Unit(unit)
+        dist *= _units.Unit(unit)
     return dist
 
 def from_json(j):

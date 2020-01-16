@@ -5526,6 +5526,15 @@ class Bundle(ParameterSet):
             ref_param = self.exclude(context=['distribution', 'constraint']).get_parameter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']})
         if value is None:
             value = _npdists.delta(ref_param.get_value())
+
+        if value.unit is None:
+            value.unit = ref_param.default_unit
+        else:
+            try:
+                value.unit.to(ref_param.default_unit)
+            except:
+                raise ValueError("units of {} on distribution not compatible with units of {} on parameter".format(value.unit, ref_param.default_unit))
+
         dist_param = DistributionParameter(qualifier=ref_param.qualifier, value=value)
 
 

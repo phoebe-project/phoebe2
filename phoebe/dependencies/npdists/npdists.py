@@ -41,6 +41,26 @@ _math_symbols = {'__mul__': '*', '__add__': '+', '__sub__': '-', '__div__': '/'}
 
 _builtin_attrs = ['unit', 'label', 'wrap_at', 'dimension', 'sample_args']
 
+_physical_types_to_si = {'length': 'solRad',
+                         'mass': 'solMass',
+                         'temperature': 'solTeff',
+                         'power': 'solLum',
+                         'time': 'd',
+                         'speed': 'solRad/d',
+                         'angle': 'rad',
+                         'angular speed': 'rad/d',
+                         'dimensionless': ''}
+
+_physical_types_to_solar = {'length': 'm',
+                            'mass': 'kg',
+                            'temperature': 'K',
+                            'power': 'W',
+                            'time': 's',
+                            'speed': 'm/s',
+                            'angle': 'rad',
+                            'angular speed': 'rad/s',
+                            'dimensionless': ''}
+
 ############################# HELPER FUNCTIONS #################################
 
 def get_random_seed():
@@ -728,6 +748,26 @@ class BaseDistribution(object):
             new_dist.wrap_at *= factor
         new_dist *= factor
         return new_dist
+
+    def to_si(self):
+        """
+        """
+        physical_type = self.unit.physical_type
+
+        if physical_type not in _physical_types_to_si.keys():
+            raise NotImplementedError("cannot convert object with physical_type={} to SI units".format(physical_type))
+
+        return self.to(_units.Unit(_physical_types_to_si.get(physical_type)))
+
+    def to_solar(self):
+        """
+        """
+        physical_type = self.unit.physical_type
+
+        if physical_type not in _physical_types_to_solar.keys():
+            raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
+
+        return self.to(_units.Unit(_physical_types_to_solar.get(physical_type)))
 
     @property
     def mean(self):

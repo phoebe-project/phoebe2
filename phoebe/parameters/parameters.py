@@ -9665,6 +9665,12 @@ class ConstraintParameter(Parameter):
                     if isinstance(v, np.ndarray) and string_safe_arrays:
                         v = v.tolist()
                     return v
+                elif isinstance(quantity, npdists.BaseDistribution):
+                    if self.in_solar_units:
+                        v = quantity.to_solar()
+                    else:
+                        v = quantity.to_si()
+                    return v
                 elif isinstance(quantity, str):
                     return '\'{}\''.format(quantity)
                 else:
@@ -9674,7 +9680,7 @@ class ConstraintParameter(Parameter):
                 if use_distribution:
                     param = var.get_parameter()
                     if use_distribution in param.in_distributions:
-                        return "npdists_from_json('{}')".format(param.get_distribution(use_distribution, follow_constraints=False).to_json())
+                        return "npdists_from_json('{}')".format(_single_value(param.get_distribution(use_distribution, follow_constraints=False)).to_json())
 
 
                 if var.get_parameter() != self.constrained_parameter:
@@ -9736,26 +9742,24 @@ class ConstraintParameter(Parameter):
                     else:
                         raise ValueError("constraint returned None")
                 else:
-                    if use_distribution is not None:
-                        return value
-
-                    try:
-                        value = float(value)
-                    except TypeError as err:
+                    if use_distribution is None:
                         try:
-                            value = np.asarray(value)
-                        except:
+                            value = float(value)
+                        except TypeError as err:
+                            try:
+                                value = np.asarray(value)
+                            except:
+                                if suppress_error:
+                                    value = np.nan
+                                    logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
+                                else:
+                                    raise
+                        except ValueError as err:
                             if suppress_error:
                                 value = np.nan
                                 logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
                             else:
                                 raise
-                    except ValueError as err:
-                        if suppress_error:
-                            value = np.nan
-                            logger.error("{} constraint raised the following error: {}".format(self.twig, str(err)))
-                        else:
-                            raise
 
 
 
@@ -9794,12 +9798,15 @@ class ConstraintParameter(Parameter):
         # let's assume the math was correct to give SI and we want units stored in self.default_units
 
         if self.default_unit is not None:
-            if self.in_solar_units:
-                convert_scale = u.to_solar(self.default_unit)
+            if isinstance(value, npdists.BaseDistribution):
+                value = value.to(self.default_unit)
             else:
-                convert_scale = self.default_unit.to_system(u.si)[0].scale
-            #value = float(value/convert_scale) * self.default_unit
-            value = value/convert_scale * self.default_unit
+                if self.in_solar_units:
+                    convert_scale = u.to_solar(self.default_unit)
+                else:
+                    convert_scale = self.default_unit.to_system(u.si)[0].scale
+                #value = float(value/convert_scale) * self.default_unit
+                value = value/convert_scale * self.default_unit
 
 
         return value
