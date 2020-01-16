@@ -7326,45 +7326,14 @@ class FloatParameter(Parameter):
         """
         self._timederiv = timederiv
 
-    def get_distribution(self, distribution=None):
-        """
-        Access the <phoebe.parameters.DistributionParameter> attached to this
-        parameter and tagged with distribution=`distribution`.
-
-        See also:
-        * <phoebe.frontend.bundle.Bundle.get_distribution>
-        * <phoebe.parameters.DistributionParameter.add_distribution>
-
-        Arguments
-        ----------
-        * `distribution` (string, optional, default=None): distribution tag
-            of the <phoebe.parameters.DistributionParameter>.  Required if
-            more than one are available.
-
-        Returns
-        ----------
-        * <phoebe.parameters.DistributionParameter>
-
-        Raises
-        ----------
-        * ValueError: if no valid distribution can be found.
-        """
-        if self._bundle is None:
-            raise ValueError("parameter must be attached to a Bundle to call get_distribution")
-
-        return self._bundle.get_parameter(qualifier=self.qualifier,
-                                          distribution=distribution,
-                                          context='distribution',
-                                          check_visible=False,
-                                          **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
-
     def add_distribution(self, value):
         """
         Add a distribution to the bundle attached to this Parameter.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.add_distribution>
-        * <phoebe.parameters.DistributionParameter.get_distribution>
+        * <phoebe.parameters.FloatParameter.get_distribution>
+        * <phoebe.parameters.FloatParameter.sample_distribution>
 
         Arguments
         ------------
@@ -7378,9 +7347,79 @@ class FloatParameter(Parameter):
 
         self._bundle.add_distribution(twig=self, value=value)
 
+    def get_distribution(self, distribution=None):
+        """
+        Access the distribution object corresponding to this parameter
+        tagged with distribution=`distribution`.  To access the
+        <phoebe.parameters.DistributionParameter> itself, see
+        <phoebe.frontend.bundle.Bundle.get_distribution>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.parameters.FloatParameter.sample_distribution>
+        * <phoebe.parameters.FloatParameter.add_distribution>
+
+        Arguments
+        ----------
+        * `distribution` (string, optional, default=None): distribution tag
+            of the <phoebe.parameters.DistributionParameter>.  Required if
+            more than one are available.
+
+        Returns
+        ----------
+        * Distribution object (not the parameter, see
+            <phoebe.frontend.bundle.Bundle.get_distribution> to access the
+            <phoebe.parameters.DistributionParameter>)
+
+        Raises
+        ----------
+        * ValueError: if no valid distribution can be found.
+        """
+        if self._bundle is None:
+            raise ValueError("parameter must be attached to a Bundle to call get_distribution")
+
+        return self._bundle.get_parameter(qualifier=self.qualifier,
+                                          distribution=distribution,
+                                          context='distribution',
+                                          check_visible=False,
+                                          **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
+
+    def sample_distribution(self, distribution=None, seed=None, set_value=False):
+        """
+        Sample from the distribution attached to this parameter (and optionally
+        adopt the sampled value).
+
+        See also:
+        * <phoebe.parameters.FloatParameter.get_distribution>
+        * <phoebe.parameters.FloatParameter.add_distribution>
+
+        Arguments
+        ------------
+        * `distribution` (string, optional, default=None): distribution tag
+            of the <phoebe.parameters.DistributionParameter>.  Required if
+            more than one are available.
+        * `seed` (int, optional, default=None): seed to use when randomly
+            drawing from the distribution.
+        * `set_value` (bool, optional, default=False): whether to adopt the
+            sampled value.
+
+        Returns
+        --------
+        * (float): the sampled value
+
+
+        Raises
+        ----------
+        * ValueError: if no valid distribution can be found.
+        """
+        dist = self.get_distribution(distribution)
+        value = dist.sample(seed=seed)
+        if set_value:
+            self.set_value(value)
+        return value
+
     #@update_if_client is on the called get_quantity
     def get_value(self, unit=None, t=None,
-                  draw_from=None, draw_samples=None, draw_seed=None,
                   **kwargs):
         """
         Get the current value of the <phoebe.parameters.FloatParameter> or
@@ -7394,7 +7433,6 @@ class FloatParameter(Parameter):
         default = super(FloatParameter, self).get_value(**kwargs)
         if default is not None: return default
         quantity = self.get_quantity(unit=unit, t=t,
-                                     draw_from=draw_from, draw_samples=draw_samples, draw_seed=draw_seed,
                                      **kwargs)
         if hasattr(quantity, 'value'):
             return quantity.value
@@ -7403,7 +7441,6 @@ class FloatParameter(Parameter):
 
     @update_if_client
     def get_quantity(self, unit=None, t=None,
-                     draw_from=None, draw_samples=None, draw_seed=None,
                      **kwargs):
         """
         Get the current quantity of the <phoebe.parameters.FloatParameter> or
@@ -7424,19 +7461,7 @@ class FloatParameter(Parameter):
         ----------
         * `unit` (unit or string, optional, default=None): unit to convert the
             value.  If not provided, will use the default unit (see
-            <phoebe.parameters.FloatParameter.default_unit>)
-        * `draw_from` (string, optional, default=None): distribution tag
-            to use for drawing from a distribution attached to this parameter.
-            If <phoebe.parameters.FloatParameter.get_distribution> does not
-            return a valid distribution by passing `draw_from`, the face-value
-            of the parameter will be returned instead.
-        * `draw_samples` (int, optional, default=None): number of samples to draw.
-            If None, will return a float/quantity.  If an integer, will return
-            an array with length `draw_samples`.  Only applicable if `draw_from`
-            is provided and is successfully retrieved.
-        * `draw_seed` (int, optional): seed to pass to np.random.seed
-            prior to sampling.  Only applicable if `draw_from` is provided and is
-            successfully retrieved.
+            <phoebe.parameters.FloatParameter.default_unit>
         * `**kwargs`: passing a keyword argument that matches the qualifier
             of the Parameter, will return that value instead of the stored value.
             See above for how default values are treated.
@@ -7450,16 +7475,6 @@ class FloatParameter(Parameter):
             value = default
             if isinstance(default, u.Quantity):
                 return value
-        elif draw_from is not None:
-            try:
-                dist = self.get_distribution(draw_from)
-            except:
-                logger.warning("distribution '{}' not found for {}, reverting to face-value".format(draw_from, self.twig))
-                value = self._value
-            else:
-                value = dist.get_value().sample(draw_samples, seed=draw_seed, as_quantity=True)
-                if not isinstance(value, u.Quantity):
-                    value = value * self.default_unit
         else:
             value = self._value
 

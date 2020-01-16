@@ -34,6 +34,7 @@ from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
+from phoebe.dependencies import npdists as _npdists
 from phoebe.utils import _bytes, parse_json
 import libphoebe
 
@@ -5523,7 +5524,7 @@ class Bundle(ParameterSet):
         else:
             ref_param = self.exclude(context='distribution').get_parameter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']})
         if value is None:
-            value = npdists.delta(ref_param.get_value())
+            value = _npdists.delta(ref_param.get_value())
         dist_param = DistributionParameter(qualifier=ref_param.qualifier, value=value)
 
 
@@ -5649,6 +5650,52 @@ class Bundle(ParameterSet):
         self._rename_label('distribution', old_distribution, new_distribution)
 
         return self.filter(distribution=new_distribution)
+
+    def run_distribution(self, distribution=None, N=None, set_value=False):
+        """
+        Sample from all distributions in a distribution set (tagged with
+        distribution=`distribution`).
+
+        Arguments
+        ----------
+        * `distribution`: (string, optional, default=None): the name of the distribution
+        * `N` (int, optional, default=None): number of samples to draw from
+            each distribution.  Note that this must be None if `set_value` is
+            set to True.
+        * `set_value` (bool, optional, default=False): whether to adopt the
+            sampled values for all relevant parameters.  Note that `N` must
+            be None.
+
+        Returns
+        --------
+        * (dict or ParameterSet): dictionary of twig, value pairs if `set_value`
+            is False.  ParameterSet of changed Parameters if `set_value` is True.
+
+        Raises
+        -------
+        * ValueError: if `set_value` is True and `N` is not None (as parameters
+            cannot be set to multiple values)
+        """
+        if N is not None and set_value:
+            raise ValueError("cannot use set_value and N together")
+
+        dist_ps = self.get_distribution(distribution)
+        dists = [dist_param.get_value() for dist_param in dist_ps.to_list()]
+        sampled_values = _npdists.sample_from_dists(dists)
+
+        ret = {}
+        changed_params = []
+        for sampled_value, dist_param in zip(sampled_values, dist_ps.to_list()):
+            param = self.exclude(context='distribution', check_visible=False, check_default=False).get_parameter(check_visible=False, check_default=False, qualifier=dist_param.qualifier, **{k:v for k,v in dist_param.meta.items() if k in parameters._contexts and k not in ['distribution']})
+            ret[param.twig] = sampled_value
+            if set_value:
+                param.set_value(sampled_value)
+                changed_params.append(param)
+
+        if set_value:
+            return ParameterSet(changed_params)
+        else:
+            return ret
 
     @send_if_client
     def add_figure(self, kind, **kwargs):
