@@ -4963,6 +4963,8 @@ class Parameter(object):
                         v = self._value.to(self.default_unit).to_dict()
                     else:
                         v = self._value.to_dict()
+                elif isinstance(self._value, npdists.BaseDistribution):
+                    v = self._value.to_dict()
                 if isinstance(v, u.Quantity):
                     v = self.get_value() # force to be in default units
                 if isinstance(v, np.ndarray):
@@ -7053,7 +7055,7 @@ class DistributionParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'value', 'quantity', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -7068,6 +7070,9 @@ class DistributionParameter(Parameter):
     def _check_value(self, value):
         if isinstance(value, npdists.BaseDistribution):
             return value
+        elif isinstance(value, dict) and 'npdists' in value.keys():
+            # then we're loading the JSON version of an nparray object
+            value = npdists.from_dict(value)
         else:
             raise TypeError("must be a npdists Distribution object, got {}".format(value))
 
@@ -7415,7 +7420,7 @@ class FloatParameter(Parameter):
                                        check_visible=False,
                                        **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})):
 
-                logger.warning("{} is constrainted but also has a distribution attached with distribution='{}'.  Returning the distribution propagated through the constraint instead (pass follow_constraints=False to disable this behavior).".format(self.twig, distribution))
+                logger.warning("{} is constrained but also has a distribution attached with distribution='{}'.  Returning the distribution propagated through the constraint instead (pass follow_constraints=False to disable this behavior).".format(self.twig, distribution))
 
             # constraint_expr = self.is_constraint.get_value()
             if distribution is None:
