@@ -7191,6 +7191,23 @@ class DistributionParameter(Parameter):
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
+    def set_property(self, **kwargs):
+        """
+        Set any property of the underlying [npdists](https://npdists.readthedocs.io)
+        object.
+
+        Example:
+        ```py
+        param.set_value(loc=10, scale=5)
+        ```
+
+        Arguments
+        ----------
+        * `**kwargs`: properties to be set on the underlying npdists object.
+        """
+        for property, value in kwargs.items():
+            setattr(self._value, property, value)
+
     def plot(self, **kwargs):
         """
         Plot both the analytic distribution function as well as a sampled
