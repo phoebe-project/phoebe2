@@ -5762,6 +5762,8 @@ class Bundle(ParameterSet):
         elif priors not in self.distributions:
             raise ValueError("no distributions for priors found with distribution='{}'".format(priors))
 
+        self.run_delayed_constraints()
+
         # TODO: check to see if dist_param references a constrained parameter,
         # and if so, raise a warning if all other parameters in the constraint
         # also have attached distributions?
