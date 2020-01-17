@@ -3136,6 +3136,7 @@ class ParameterSet(object):
 
         See also:
         * <phoebe.parameters.ParameterSet.calculate_chi2>
+        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
 
         Arguments
         -----------
@@ -3230,6 +3231,9 @@ class ParameterSet(object):
 
         See also:
         * <phoebe.parameters.ParameterSet.calculate_residuals>
+        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnpriors>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnprobability>
 
         Arguments
         -----------
@@ -3275,6 +3279,44 @@ class ParameterSet(object):
 
         return chi2
 
+    def calculate_lnlikelihood(self, model=None, dataset=None, component=None):
+        """
+        Compute the log-likelihood between a model and the observed values in the dataset(s).
+
+        Currently supports the following datasets:
+        * <phoebe.parameters.dataset.lc>
+        * <phoebe.parameters.dataset.rv>
+
+        This returns -0.5 * chi2 (see <phoebe.parameters.ParameterSet.calculate_lnlikelihood>)
+
+        See also:
+        * <phoebe.parameters.ParameterSet.calculate_residuals>
+        * <phoebe.parameters.ParameterSet.calculate_chi2>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnpriors>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnprobability>
+
+        Arguments
+        -----------
+        * `model` (string, optional, default=None): model to compare against
+            observations.  Required if more than one model exist.
+        * `dataset` (string or list, optional, default=None): dataset(s) for comparison.
+            Will sum over chi2 values of all datasets that match the filter.  So
+            if not provided, will default to all datasets exposed in the model.
+        * `component` (string or list, optional, default=None): component(s) for
+            comparison.  Required only if more than one component exist in the
+            dataset (for RVs, for example) and not all should be included in
+            the chi2
+
+        Returns
+        -----------
+        * (float) log-likelihood value
+
+        Raises
+        ----------
+        * NotImplementedError: if the dataset kind is not supported for residuals.
+        """
+
+        return -0.5 * self.calculate_chi2(model, dataset, component)
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
@@ -7057,6 +7099,54 @@ class DistributionParameter(Parameter):
 
         self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
+
+    def get_referenced_parameter(self):
+        """
+        Access the referenced parameter from the Bundle
+
+        Returns
+        ----------
+        * <phoebe.parameters.Parameter> object
+        """
+        return self._bundle.exclude(context=['distribution', 'constraint'],
+                                    check_visible=False).get_parameter(qualifier=self.qualifier,
+                                          check_visible=False,
+                                          **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
+
+    def calculate_lnprobability(self, value=None):
+        """
+        Calculate the log probability (possibly log-prior) of drawing a
+        value of the referenced parameter <phoebe.parameters.DistributionParameter.get_referenced_parameter>
+        from the distribution.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.calculate_lnpriors>
+
+        Arguments
+        ------------
+        * `value` (float or quantity, optional, default=None): value at which
+            to compute the probability.  If None, the quantity of the
+            referenced parameter will be used.  If units are not provided, will
+            assumed to be in the units of the distribution.
+
+        Returns
+        --------
+        * (float): log probability
+
+        Raises
+        ----------
+        * TypeError: if `value` is not of type None, quantity, float, or int.
+        """
+        if value is None:
+            param_quantity = self.get_referenced_parameter().get_quantity()
+        elif isinstance(value, u.Quantity):
+            param_quantity = value
+        elif isinstance(value, float) or isinstance(value, int):
+            param_quantity = value * self.get_value().unit
+        else:
+            raise TypeError("value must be of type None, Quantity, float, or int")
+
+        return self.get_value().logp(param_quantity.value, unit=param_quantity.unit)
 
     @update_if_client
     def get_value(self, **kwargs):
