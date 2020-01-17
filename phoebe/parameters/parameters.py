@@ -1907,7 +1907,12 @@ class ParameterSet(object):
         """
         """
         # may not be an exact match with __dict__.keys()
-        return len(self.filter(twig=twig))
+        if isinstance(twig, Parameter):
+            return len(self.filter(uniqueid=twig.uniqueid))
+        elif isinstance(twig, str):
+            return len(self.filter(twig=twig))
+        else:
+            raise NotImplementedError("cannot check contains on type {}".format(type(twig)))
 
     def __len__(self):
         """
@@ -3317,6 +3322,66 @@ class ParameterSet(object):
         """
 
         return -0.5 * self.calculate_chi2(model, dataset, component)
+
+    def calculate_lnp(self, distribution=None, **kwargs):
+        """
+        Compute the log-probability between a distribution-set and the face values of
+        the corresponding parameters (if `distribution` are priors, then this
+        computes log-priors).
+
+        Only parameters (or distribution parameters) included in the ParameterSet
+        (after filtering with `**kwargs`) will be included in the summed
+        log-probability.
+
+        See also:
+        * <phoebe.parameters.DistributionParameter.calculate_lnprobability>
+        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnprobability>
+
+        Arguments
+        -----------
+        * `distribution` (string, optional, default=None): label of the
+            distribution set.  Required if more than one
+            `distribution` available in the ParameterSet.
+        * `**kwargs` (optional): all additional keyword arguments are used
+            to filter the parameter set.
+
+        Returns
+        -----------
+        * (float) log-prior value
+
+        Raises
+        ----------
+        * ValueError: if `distribution` is not provided but more than one exist.
+        * ValueError: if no distributions can be found labeled `distribution`
+        """
+        if distribution is None:
+            if len(self.distributions) == 1:
+                distribution = self.distributions[0]
+            else:
+                raise ValueError("distribution must be provided (one of {})".format(self.distributions))
+        elif distribution not in self.distributions:
+            raise ValueError("no distributions found with distribution='{}'".format(distribution))
+
+        if len(kwargs.items()):
+            kwargs.setdefault('check_visible', False)
+            return self.filter(**kwargs).calculate_lnp(distribution=distribution)
+
+        self.run_delayed_constraints()
+
+        # TODO: check to see if dist_param references a constrained parameter,
+        # and if so, raise a warning if all other parameters in the constraint
+        # also have attached distributions?
+
+        lnp = 0
+        for dist_param in self._bundle.get_distribution(distribution=distribution).to_list():
+            if dist_param not in self or dist_param.get_referenced_parameter() not in self:
+                logger.warning("'{}' outside filter, excluding from lnp calculation".format(dist_param.twig))
+                continue
+
+            lnp += dist_param.lnp()
+
+        return lnp
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
@@ -7113,14 +7178,14 @@ class DistributionParameter(Parameter):
                                           check_visible=False,
                                           **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
 
-    def calculate_lnprobability(self, value=None):
+    def lnp(self, value=None):
         """
-        Calculate the log probability (possibly log-prior) of drawing a
-        value of the referenced parameter <phoebe.parameters.DistributionParameter.get_referenced_parameter>
+        Return the log probability of drawing a value of the referenced
+        parameter <phoebe.parameters.DistributionParameter.get_referenced_parameter>
         from the distribution.
 
         See also:
-        * <phoebe.frontend.bundle.Bundle.calculate_lnpriors>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnp>
 
         Arguments
         ------------

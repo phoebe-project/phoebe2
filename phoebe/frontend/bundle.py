@@ -5669,7 +5669,7 @@ class Bundle(ParameterSet):
 
         return self.filter(distribution=new_distribution)
 
-    def run_distribution(self, distribution=None, N=None, set_value=False):
+    def sample_distribution(self, distribution=None, N=None, set_value=False):
         """
         Sample from all distributions in a distribution set (tagged with
         distribution=`distribution`).  Note that distributions attached
@@ -5728,92 +5728,6 @@ class Bundle(ParameterSet):
             return ParameterSet(changed_params)
         else:
             return ret
-
-    def calculate_lnpriors(self, priors=None):
-        """
-        Compute the log-priors between a distribution-set and the face values of
-        the corresponding parameters.
-
-        See also:
-        * <phoebe.parameters.DistributionParameter.calculate_lnprobability>
-        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
-        * <phoebe.frontend.bundle.Bundle.calculate_lnprobability>
-
-        Arguments
-        -----------
-        * `priors` (string, optional, default=None): label of the
-            distribution set to use for priors.  Required if more than one
-            `distribution` available in the ParameterSet.
-
-        Returns
-        -----------
-        * (float) log-prior value
-
-        Raises
-        ----------
-        * ValueError: if `priors` is not provided but more than one exist.
-        * ValueError: if no distributions can be found labeled `priors`
-        """
-        if priors is None:
-            if len(self.distributions) == 1:
-                priors = self.distributions[0]
-            else:
-                raise ValueError("distribution must be provided (one of {})".format(self.distributions))
-        elif priors not in self.distributions:
-            raise ValueError("no distributions for priors found with distribution='{}'".format(priors))
-
-        self.run_delayed_constraints()
-
-        # TODO: check to see if dist_param references a constrained parameter,
-        # and if so, raise a warning if all other parameters in the constraint
-        # also have attached distributions?
-
-        lnprior = 0
-        for dist_param in self.get_distribution(distribution=priors).to_list():
-            lnprior += dist_param.calculate_lnprobability()
-
-        return lnprior
-
-    def calculate_lnprobability(self, model=None, dataset=None, component=None, priors=None):
-        """
-        Compute the log-probability between a model and observed values in the
-        dataset(s) and the face-values of parameters given prior(s).
-
-        This is the sum of the output from <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
-        and <phoebe.parameters.ParameterSet.calculate_lnpriors>.
-
-        See also:
-        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
-        * <phoebe.parameters.ParameterSet.calculate_lnprobability>
-        * <phoebe.frontend.bundle.Bundle.calculate_lnpriors>
-
-        Arguments
-        -----------
-        * `model` (string, optional, default=None): model to compare against
-            observations.  Required if more than one model exist.
-        * `dataset` (string or list, optional, default=None): dataset(s) for comparison.
-            Will sum over chi2 values of all datasets that match the filter.  So
-            if not provided, will default to all datasets exposed in the model.
-        * `component` (string or list, optional, default=None): component(s) for
-            comparison.  Required only if more than one component exist in the
-            dataset (for RVs, for example) and not all should be included in
-            the chi2.
-        * `priors` (string, optional, default=None): label of the
-            distribution set to use for priors.  Required if more than one
-            `distribution` available in the Bundle.
-
-        Returns
-        -----------
-        * (float) log-probability value
-
-        Raises
-        ----------
-        * NotImplementedError: if the dataset kind is not supported for residuals.
-        * ValueError: if `priors` is not provided but more than one exist.
-        * ValueError: if no distributions can be found labeled `priors`
-        """
-        return self.calculate_lnlikelihood(model, dataset, component) + self.calculate_lnpriors(priors)
-
 
     @send_if_client
     def add_figure(self, kind, **kwargs):
