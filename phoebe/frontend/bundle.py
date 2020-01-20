@@ -1112,8 +1112,6 @@ class Bundle(ParameterSet):
         """
         Export the Bundle to a file readable by PHOEBE legacy.
 
-        NEW IN PHOEBE 2.2.
-
         See also:
         * <phoebe.parameters.compute.legacy>
 
@@ -6820,8 +6818,6 @@ class Bundle(ParameterSet):
                        compute=None, model=None,
                        import_from_older=False, **kwargs):
         """
-        NEW in PHOEBE 2.2
-
         Export a script to call run_compute externally (in a different thread
         or on a different machine).  To automatically detach to a different
         thread and load the results, see <phoebe.frontend.bundle.Bundle.run_compute>
@@ -7266,8 +7262,6 @@ class Bundle(ParameterSet):
     def import_model(self, fname, model=None):
         """
         Import and attach a model from a file.
-
-        NEW IN PHOEBE 2.2
 
         Generally this file will be the output after running a script generated
         by <phoebe.frontend.bundle.Bundle.export_compute>.  This is NOT necessary
