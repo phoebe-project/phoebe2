@@ -3338,9 +3338,11 @@ class ParameterSet(object):
 
         Arguments
         -----------
-        * `distribution` (string, optional, default=None): label of the
-            distribution set.  Required if more than one
-            `distribution` available in the ParameterSet.
+        * `distribution` (string or list of strings, optional, default=None):
+            label of the distribution set.  Required if more than one
+            `distribution` available in the ParameterSet.  If distribution is
+            a list, duplicate entries will still be considered
+            (`calculate_lnp(distribution=['dist1', 'dist2']) = calculate_lnp(distribution='dist1')+calculate_lnp(distribution='dist2')`)
         * `**kwargs` (optional): all additional keyword arguments are used
             to filter the parameter set.
 
@@ -3358,12 +3360,20 @@ class ParameterSet(object):
                 distribution = self.distributions[0]
             else:
                 raise ValueError("distribution must be provided (one of {})".format(self.distributions))
-        elif distribution not in self.distributions:
+
+        elif (isinstance(distribution, str) and distribution not in self.distributions) or (isinstance(distribution, list) and not np.all([dist in self.distributions for dist in distribution])):
+            # TODO: improve this check and message for the case of a list
             raise ValueError("no distributions found with distribution='{}'".format(distribution))
 
         if len(kwargs.items()):
             kwargs.setdefault('check_visible', False)
             return self.filter(**kwargs).calculate_lnp(distribution=distribution)
+
+        if isinstance(distribution, list):
+            lnp = 0
+            for dist in distribution:
+                lnp += self.calculate_lnp(distribution=dist)
+            return lnp
 
         self.run_delayed_constraints()
 
