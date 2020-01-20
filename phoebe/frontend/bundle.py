@@ -5726,7 +5726,7 @@ class Bundle(ParameterSet):
         else:
             raise TypeError("distribution must be of type None, string, or list")
 
-        sampled_values = _npdists.sample_from_dists(dists)
+        sampled_values = _npdists.sample_from_dists(dists, size=N).T
 
         ret = {}
         changed_params = []
