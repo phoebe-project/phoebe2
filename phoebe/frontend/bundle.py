@@ -5667,7 +5667,7 @@ class Bundle(ParameterSet):
 
         return self.filter(distribution=new_distribution)
 
-    def sample_distribution(self, distribution=None, N=None, set_value=False):
+    def sample_distribution(self, distribution=None, N=None, set_value=False, keys='twig'):
         """
         Sample from all distributions in a distribution set (tagged with
         distribution=`distribution`).  Note that distributions attached
@@ -5683,6 +5683,9 @@ class Bundle(ParameterSet):
         * `set_value` (bool, optional, default=False): whether to adopt the
             sampled values for all relevant parameters.  Note that `N` must
             be None.
+        * `keys` (string, optional, default='twig'): attribute to use for dictionary
+            keys ('twig', 'qualifier', 'uniqueid') or 'parameter' for the
+            parameter object itself.  Only applicable if `set_value` is False.
 
         Returns
         --------
@@ -5714,10 +5717,14 @@ class Bundle(ParameterSet):
                 logger.warning("skipping drawing from {} as {} is constrained".format(dist_param.twig, param.twig))
                 continue
 
-            ret[param.twig] = sampled_value
             if set_value:
                 param.set_value(sampled_value)
                 changed_params.append(param)
+            else:
+                if keys.lower() == 'parameter':
+                    ret[param] = sampled_value
+                else:
+                    ret[getattr(param, keys)] = sampled_value
 
         if set_value:
             changed_params += self.run_delayed_constraints()
