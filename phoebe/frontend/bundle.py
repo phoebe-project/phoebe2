@@ -5676,7 +5676,10 @@ class Bundle(ParameterSet):
 
         Arguments
         ----------
-        * `distribution`: (string, optional, default=None): the name of the distribution
+        * `distribution`: (string or list of strings, optional, default=None):
+            the name of the distribution(s).  If a list: if a parameter has
+            multiple distributions matching the filter, those EARLIER in the
+            list will take precedence.
         * `N` (int, optional, default=None): number of samples to draw from
             each distribution.  Note that this must be None if `set_value` is
             set to True.
@@ -5705,8 +5708,24 @@ class Bundle(ParameterSet):
             user_interactive_constraints = conf.interactive_constraints
             conf.interactive_constraints_off(suppress_warning=True)
 
-        dist_ps = self.get_distribution(distribution)
-        dists = [dist_param.get_value() for dist_param in dist_ps.to_list()]
+        if isinstance(distribution, str) or distribution is None:
+            dist_ps = self.get_distribution(distribution)
+            dists = [dist_param.get_value() for dist_param in dist_ps.to_list()]
+        elif isinstance(distribution, list):
+            dists = []
+            uniqueids = []
+            for dist in distribution:
+                dist_ps = self.get_distribution(dist)
+                for dist_param in dist_ps.to_list():
+                    ref_param = dist_param.get_referenced_parameter()
+                    if ref_param.uniqueid not in uniqueids:
+                        dists.append(dist_param.get_value())
+                        uniqueids.append(ref_param.uniqueid)
+                    else:
+                        logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
+        else:
+            raise TypeError("distribution must be of type None, string, or list")
+
         sampled_values = _npdists.sample_from_dists(dists)
 
         ret = {}
