@@ -26,11 +26,13 @@ from phoebe.parameters import component as _component
 from phoebe.parameters import setting as _setting
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import compute as _compute
+from phoebe.parameters import fitting as _fitting
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
 from phoebe.parameters.parameters import _uniqueid
 from phoebe.backend import backends, mesh
+from phoebe.fittingbackends import fittingbackends as _fittingbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
@@ -72,8 +74,15 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
     if isinstance(func, unicode):
         func = str(func)
 
+    if isinstance(func, str) and "." in func:
+        # allow recursive submodule access
+        # example: mod=fitting, func='samplers.emcee'
+        return _get_add_func(getattr(mod, func.split('.')[0]), ".".join(func.split('.')[1:]), return_none_if_not_found=return_none_if_not_found)
+
     if isinstance(func, str) and hasattr(mod, func):
         func = getattr(mod, func)
+
+
 
     if hasattr(func, '__call__'):
         return func
@@ -354,6 +363,16 @@ class Bundle(ParameterSet):
     * <phoebe.frontend.bundle.Bundle.rename_figure>
     * <phoebe.frontend.bundle.Bundle.remove_figure>
     * <phoebe.frontend.bundle.Bundle.run_figure>
+
+    To run fitting backends, see:
+    * <phoebe.frontend.bundle.Bundle.add_fitting>
+    * <phoebe.frontend.bundle.Bundle.get_fitting>
+    * <phoebe.frontend.bundle.Bundle.rename_fitting>
+    * <phoebe.frontend.bundle.Bundle.remove_fitting>
+    * <phoebe.frontend.bundle.Bundle.run_fitting>
+    * <phoebe.frontend.bundle.Bundle.get_feedback>
+    * <phoebe.frontend.bundle.Bundle.rename_feedback>
+    * <phoebe.frontend.bundle.Bundle.remove_feedback>
 
     """
 
@@ -1442,6 +1461,9 @@ class Bundle(ParameterSet):
         elif tag=='model':
             affected_params += self._handle_model_selectparams(rename={old_value: new_value}, return_changes=True)
 
+        elif tag=='distribution':
+            affected_params += self._handle_distribution_selectparams(rename={old_value: new_value}, return_changes=True)
+
         return affected_params
 
     def get_setting(self, twig=None, **kwargs):
@@ -1935,6 +1957,25 @@ class Bundle(ParameterSet):
             else:
                 changed = False
 
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_distribution_selectparams(self, rename={}, return_changes=False):
+        """
+        """
+        affected_params = []
+
+        choices = self.distributions
+
+        for param in self.filter(context='fitting', qualifier=['init_from', 'priors'], check_default=False, check_visible=False).to_list():
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
@@ -3220,7 +3261,7 @@ class Bundle(ParameterSet):
 
         return report
 
-    def references(self, compute=None, dataset=None):
+    def references(self, compute=None, dataset=None, fitting=None):
         """
         Provides a list of used references from the given bundle based on the
         current parameter values and attached datasets/compute options.
@@ -3237,7 +3278,7 @@ class Bundle(ParameterSet):
         * Atmosphere table citations, when available/applicable.
         * Passband table citations, when available/applicable.
         * Dependency (astropy, numpy, etc) citations, when available/applicable.
-        * Alternate backends, when applicable.
+        * Alternate compute and/or fitting backends, when applicable.
 
         Arguments
         ------------
@@ -3247,6 +3288,9 @@ class Bundle(ParameterSet):
         * `dataset` (string or list of strings, optional, default=None): only
             consider a single (or list of) datasets.  If None or not provided,
             will default to all attached datasets.
+        * `fitting` (string or list of strings, optional, default=None): only
+            consider a single (or list of) fitting options.  If None or not
+            provided, will default to all attached fitting options.
 
         Returns
         ----------
@@ -3274,20 +3318,30 @@ class Bundle(ParameterSet):
         else:
             raise TypeError("dataset must be type None, string, or list")
 
+        if fitting is None:
+            fittings = self.fittings
+        elif isinstance(fitting, str):
+            fittings = [fitting]
+        elif isinstance(fitting, list):
+            fittings = fitting
+        else:
+            raise TypeError("fitting must be of type None, string, or list")
+
 
         # ref: url pairs
-        citation_urls = {'Prsa & Zwitter (2005)': 'https://ui.adsabs.harvard.edu/?#abs/2005ApJ...628..426P',
-                         'Prsa et al. (2016)': 'https://ui.adsabs.harvard.edu/?#abs/2016ApJS..227...29P',
-                         'Horvat et al. (2018)': 'https://ui.adsabs.harvard.edu/?#abs/2016ApJS..227...29P',
+        citation_urls = {'Prsa & Zwitter (2005)': 'https://ui.adsabs.harvard.edu/abs/2005ApJ...628..426P',
+                         'Prsa et al. (2016)': 'https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P',
+                         'Horvat et al. (2018)': 'https://ui.adsabs.harvard.edu/abs/2016ApJS..227...29P',
                          'Jones et al. (2020, submitted)': 'https://ui.adsabs.harvard.edu/abs/2019arXiv191209474J',
-                         'Castelli & Kurucz (2004)': 'https://ui.adsabs.harvard.edu/#abs/2004astro.ph..5087C',
-                         'Husser et al. (2013)': 'https://ui.adsabs.harvard.edu/#abs/2013A&A...553A...6H',
+                         'Castelli & Kurucz (2004)': 'https://ui.adsabs.harvard.edu/abs/2004astro.ph..5087C',
+                         'Husser et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013A&A...553A...6H',
                          'numpy/scipy': 'https://www.scipy.org/citing.html',
                          'astropy': 'https://www.astropy.org/acknowledging.html',
                          'jktebop': 'http://www.astro.keele.ac.uk/jkt/codes/jktebop.html',
                          'Carter et al. (2011)': 'https://ui.adsabs.harvard.edu/abs/2011Sci...331..562C',
                          'Andras (2012)': 'https://ui.adsabs.harvard.edu/abs/2012MNRAS.420.1630P',
                          'Maxted (2016)': 'https://ui.adsabs.harvard.edu/abs/2016A%26A...591A.111M',
+                         'Foreman-Mackey et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F'
                         }
 
         # ref: [reasons] pairs
@@ -3304,18 +3358,21 @@ class Bundle(ParameterSet):
         # check for backends
         for compute in computes:
             if self.get_compute(compute).kind == 'phoebe':
-                recs = _add_reason(recs, 'Prsa et al. (2016)', 'PHOEBE 2 backend')
+                recs = _add_reason(recs, 'Prsa et al. (2016)', 'PHOEBE 2 compute backend')
             elif self.get_compute(compute).kind == 'legacy':
-                recs = _add_reason(recs, 'Prsa & Zwitter (2005)', 'PHOEBE 1 (legacy) backend')
+                recs = _add_reason(recs, 'Prsa & Zwitter (2005)', 'PHOEBE 1 (legacy) compute backend')
                 # TODO: include Wilson & Devinney?
             elif self.get_compute(compute).kind == 'jktebop':
-                recs = _add_reason(recs, 'jktebop', 'jktebop backend')
+                recs = _add_reason(recs, 'jktebop', 'jktebop compute backend')
             elif self.get_compute(compute).kind == 'photodynam':
-                recs = _add_reason(recs, 'Carter et al. (2011)', 'photodynam backend')
-                recs = _add_reason(recs, 'Andras (2012)', 'photodynam backend')
+                recs = _add_reason(recs, 'Carter et al. (2011)', 'photodynam compute backend')
+                recs = _add_reason(recs, 'Andras (2012)', 'photodynam compute backend')
             elif self.get_compute(compute).kind == 'ellc':
-                recs = _add_response(recs, 'Maxted (2016)', 'ellc backend')
+                recs = _add_response(recs, 'Maxted (2016)', 'ellc compute backend')
 
+        for fitting in fittings:
+            if self.get_fitting(fitting).kind == 'emcee':
+                recs = _add_reason(recs, 'Foreman-Mackey et al. (2013)', 'emcee fitting backend')
 
         # check for presence of datasets that require PHOEBE releases
         for dataset in datasets:
@@ -3609,7 +3666,7 @@ class Bundle(ParameterSet):
         """
         Enable a `feature`.  Features that are enabled will be computed
         during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
-        during run_fitting (once supported).
+        during run_fitting .
 
         If `compute` is not provided, the dataset will be enabled across all
         compute options.
@@ -3648,7 +3705,7 @@ class Bundle(ParameterSet):
         """
         Disable a `feature`.  Features that are enabled will be computed
         during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
-        during run_fitting (once supported).
+        during run_fitting.
 
         If `compute` is not provided, the dataset will be disabled across all
         compute options.
@@ -4817,7 +4874,7 @@ class Bundle(ParameterSet):
         """
         Enable a `dataset`.  Datasets that are enabled will be computed
         during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
-        during run_fitting (once supported).
+        during run_fitting.
 
         If `compute` is not provided, the dataset will be enabled across all
         compute options.
@@ -4855,7 +4912,7 @@ class Bundle(ParameterSet):
         """
         Disable a `dataset`.  Datasets that are enabled will be computed
         during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
-        during run_fitting (once supported).
+        during run_fitting.
 
         If `compute` is not provided, the dataset will be disabled across all
         compute options.
@@ -5573,6 +5630,8 @@ class Bundle(ParameterSet):
         if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
             ret_ps += overwrite_ps
 
+        ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
+
         return ret_ps
 
     def get_distribution(self, distribution=None, **kwargs):
@@ -5635,7 +5694,9 @@ class Bundle(ParameterSet):
         """
         kwargs['distribution'] = distribution
         kwargs['context'] = 'distribution'
-        return self.remove_parameters_all(**kwargs)
+        ret_ps = self.remove_parameters_all(**kwargs)
+        ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
+        return ret_ps
 
     def rename_distribution(self, old_distribution, new_distribution):
         """
@@ -7081,7 +7142,7 @@ class Bundle(ParameterSet):
         f.write("import phoebe; import json\n")
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_fitting)
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['model', 'figure', 'constraint'], **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['distribution', 'model', 'figure', 'feedback', 'constraint'], **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('do_create_fig_params', do_create_fig_params)]
@@ -7699,3 +7760,406 @@ class Bundle(ParameterSet):
         """
         kwargs['qualifier'] = 'detached_job'
         return self.get_parameter(twig=twig, **kwargs).attach(wait=wait, sleep=sleep, cleanup=cleanup)
+
+
+    @send_if_client
+    def add_fitting(self, kind, **kwargs):
+        """
+        Add a set of fitting options for a given backend to the bundle.
+        The label (`fitting`) can then be sent to <phoebe.frontend.bundle.Bundle.run_fitting>.
+
+        If not provided, `fitting` will be created for you and can be
+        accessed by the `fitting` attribute of the returned
+        <phoebe.parameters.ParameterSet>.
+
+        Available kinds can be found in <phoebe.parameters.fitting> or by calling
+        <phoebe.list_available_fittings> and include:
+        * <phoebe.parameters.fitting.emcee>
+
+        Arguments
+        ----------
+        * `kind` (string): function to call that returns a
+             <phoebe.parameters.ParameterSet> or list of
+             <phoebe.parameters.Parameter> objects.  This must either be a
+             callable function that accepts only default values, or the name
+             of a function (as a string) that can be found in the
+             <phoebe.parameters.fitting> module.
+        * `fitting` (string, optional): name of the newly-created fitting options.
+        * `overwrite` (boolean, optional, default=False): whether to overwrite
+            an existing set of fitting options with the same `fitting` tag.  If False,
+            an error will be raised.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True.
+        * `**kwargs`: default values for any of the newly-created parameters
+            (passed directly to the matched callabled function).
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of all parameters that have been added
+
+        Raises
+        --------
+        * NotImplementedError: if a required constraint is not implemented
+        """
+        func = _get_add_func(_fitting, kind)
+
+        # remove if None
+        if kwargs.get('fitting', False) is None:
+            _ = kwargs.pop('fitting')
+
+        kwargs.setdefault('fitting',
+                          self._default_label(func.__name__,
+                                              **{'context': 'fitting',
+                                                 'kind': func.__name__}))
+
+        self._check_label(kwargs['fitting'], allow_overwrite=kwargs.get('overwrite', False))
+
+        params = func(**kwargs)
+        # TODO: similar kwargs logic as in add_dataset (option to pass dict to
+        # apply to different components this would be more complicated here if
+        # allowing to also pass to different datasets
+
+        metawargs = {'context': 'fitting',
+                     'kind': func.__name__,
+                     'fitting': kwargs['fitting']}
+
+        if kwargs.get('overwrite', False):
+            overwrite_ps = self.remove_fitting(fitting=kwargs['fitting'])
+            # check the label again, just in case kwargs['fitting'] belongs to
+            # something other than fitting
+            self._check_label(kwargs['fitting'], allow_overwrite=False)
+
+        logger.info("adding {} '{}' fitting to bundle".format(metawargs['kind'], metawargs['fitting']))
+        self._attach_params(params, **metawargs)
+
+        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs['func'] = func.__name__
+        self._add_history(redo_func='add_fitting',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='remove_fitting',
+                          undo_kwargs={'fitting': kwargs['fitting']})
+
+
+        ret_ps = self.get_fitting(check_visible=False, check_default=False, **metawargs)
+
+        # since we've already processed (so that we can get the new qualifiers),
+        # we'll only raise a warning
+        self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
+
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
+
+        self._handle_distribution_selectparams(return_changes=False)
+
+        return ret_ps
+
+    def get_fitting(self, fitting=None, **kwargs):
+        """
+        Filter in the 'fitting' context
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `fitting`: (string, optional, default=None): the name of the fitting options
+        * `**kwargs`: any other tags to do the filtering (excluding fitting and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        if fitting is not None:
+            kwargs['fitting'] = fitting
+        kwargs['context'] = 'fitting'
+        return self.filter(**kwargs)
+
+    def remove_fitting(self, fitting, **kwargs):
+        """
+        Remove a 'fitting' from the bundle.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+
+        Arguments
+        ----------
+        * `fitting` (string): the label of the fitting options to be removed.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: context, fitting.
+
+        Returns
+        -----------
+        * ParameterSet of removed or changed parameters
+        """
+        kwargs['fitting'] = fitting
+        kwargs['context'] = 'fitting'
+        ret_ps = self.remove_parameters_all(**kwargs)
+        ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
+        return ret_ps
+
+    def remove_fittings_all(self):
+        """
+        Remove all fitting options from the bundle.  To remove a single set
+        of fitting options see <phoebe.frontend.bundle.Bundle.remove_fitting>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+        """
+        removed_ps = ParameterSet()
+        for fitting in self.fittings:
+            removed_ps += self.remove_fitting(fitting)
+        return removed_ps
+
+    def rename_fitting(self, old_fitting, new_fitting):
+        """
+        Change the label of fitting options attached to the Bundle.
+
+        Arguments
+        ----------
+        * `old_fitting` (string): current label of the fitting options (must exist)
+        * `new_fitting` (string): the desired new label of the fitting options
+            (must not yet exist)
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed dataset
+
+        Raises
+        --------
+        * ValueError: if the value of `new_fitting` is forbidden or already exists.
+        """
+        # TODO: raise error if old_fitting not found?
+
+        self._check_label(new_fitting)
+        self._rename_label('fitting', old_fitting, new_fitting)
+
+        return self.filter(fitting=new_fitting)
+
+    @send_if_client
+    def run_fitting(self, fitting=None, compute=None, feedback=None,
+                    **kwargs):
+        """
+        Run a forward model of the system on the enabled dataset(s) using
+        a specified set of fitting options.
+
+        To attach and set custom values for fitting options, including choosing
+        which backend to use, see:
+        * <phoebe.frontend.bundle.Bundle.add_fitting>
+
+        To attach and set custom values for compute options, including choosing
+        which backend to use, see:
+        * <phoebe.frontend.bundle.Bundle.add_compute>
+
+        To define the dataset types and times at which the model(s) should be
+        computed see:
+        * <phoebe.frontend.bundle.Bundle.add_dataset>
+
+        To disable or enable existing datasets see:
+        * <phoebe.frontend.bundle.Bundle.enable_dataset>
+        * <phoebe.frontend.bundle.Bundle.disable_dataset>
+
+        See also:
+        * <phoebe.mpi_on>
+        * <phoebe.mpi_off>
+
+        Arguments
+        ------------
+        * `fitting` (string, optional): name of the fitting options to use.
+            If not provided or None, run_fitting will use an existing set of
+            attached fitting options if only 1 exists.  If more than 1 exist,
+            then fitting becomes a required argument.  If no fitting options
+            exist, an error will be raised.
+        * `compute` (string, optional): name of the compute options to use.
+            If not provided or None, run_compute will use an existing set of
+            attached compute options if only 1 exists.  If more than 1 exist,
+            then compute becomes a required argument.  If no compute options
+            exist, then this will use default options and create and attach
+            a new set of compute options with a default label.
+        * `feedback` (string, optional): name of the resulting feedback.  If not
+            provided this will default to 'latest'.  NOTE: existing feedbacks
+            with the same name will be overwritten depending on the value
+            of `overwrite` (see below).   See also
+            <phoebe.frontend.bundle.Bundle.rename_feedback> to rename a feedback after
+            creation.
+        * `overwrite` (boolean, optional, default=model=='latest'): whether to overwrite
+            an existing model with the same `model` tag.  If False,
+            an error will be raised.  This defaults to True if `model` is not provided
+            or is 'latest', otherwise it will default to False.
+        * `return_overwrite` (boolean, optional, default=False): whether to include
+            removed parameters due to `overwrite` in the returned ParameterSet.
+            Only applicable if `overwrite` is True (or defaults to True if
+            `model` is 'latest').
+        * `skip_checks` (bool, optional, default=False): whether to skip calling
+            <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
+            NOTE: some unexpected errors could occur for systems which do not
+            pass checks.
+        * `**kwargs`:: any values in the compute options to temporarily
+            override for this single compute run (parameter values will revert
+            after run_compute is finished)
+
+        Returns
+        ----------
+        * a <phoebe.parameters.ParameterSet> of the newly-created fitting feedback.
+
+        """
+        fitting_ps = self.get_fitting(fitting=fitting)
+        fitting_class = getattr(_fittingbackends, '{}Backend'.format(fitting_ps.kind.title()))
+        out = fitting_class().run(self, fitting, compute, **kwargs)
+        print(out)
+
+    def get_feedback(self, feedback=None, **kwargs):
+        """
+        Filter in the 'feedback' context
+
+        See also:
+        * <phoebe.parameters.ParameterSet.filter>
+
+        Arguments
+        ----------
+        * `feedback`: (string, optional, default=None): the name of the feedback
+        * `**kwargs`: any other tags to do the filtering (excluding feedback and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        if feedback is not None:
+            kwargs['feedback'] = feedback
+        kwargs['context'] = 'feedback'
+        return self.filter(**kwargs)
+
+    def rerun_feedback(self, feedback=None, **kwargs):
+        """
+        Rerun run_fitting for a given feedback.  This simply retrieves the current
+        compute parameters given the same compute label used to create the original
+        feedback.  This does not, therefore, necessarily ensure that the exact
+        same compute options are used.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.run_fitting>
+
+        Arguments
+        ------------
+        * `feedback` (string, optional): label of the feedback (will be overwritten)
+        * `**kwargs`: all keyword arguments are passed directly to
+            <phoebe.frontend.bundle.Bundle.run_compute>
+
+        Returns
+        ------------
+        * the output from <phoebe.frontend.bundle.Bundle.run_compute>
+        """
+        feedback_ps = self.get_feedback(feedback=feedback)
+
+        fitting = feedback_ps.fitting
+        kwargs.setdefault('fitting', fitting)
+
+        compute = feedback_ps.compute
+        kwargs.setdefault('compute', compute)
+
+        return self.run_fitting(feedback=feedback, **kwargs)
+
+    # def import_feedback(self, fname, feedback=None):
+    #     """
+    #     Import and attach a feedback from a file.
+    #
+    #     Generally this file will be the output after running a script generated
+    #     by <phoebe.frontend.bundle.Bundle.export_compute>.  This is NOT necessary
+    #     to be called if generating a feedback directly from
+    #     <phoebe.frontend.bundle.Bundle.run_fitting>.
+    #
+    #     See also:
+    #     * <phoebe.frontend.bundle.Bundle.export_fitting>
+    #
+    #     Arguments
+    #     ------------
+    #     * `fname` (string): the path to the file containing the feedback.  Likely
+    #         `out_fname` from <phoebe.frontend.bundle.Bundle.export_compute>.
+    #         Alternatively, this can be the json of the feedback.  Must be
+    #         able to be parsed by <phoebe.parameters.ParameterSet.open>.
+    #     * `feedback` (string, optional): the name of the feedback to be attached
+    #         to the Bundle.  If not provided, the feedback will be adopted from
+    #         the tags in the file.
+    #
+    #     Returns
+    #     -----------
+    #     * ParameterSet of added and changed parameters
+    #     """
+    #     result_ps = ParameterSet.open(fname)
+    #     metawargs = {}
+    #     if feedback is not None:
+    #         metawargs['feedback'] = feedback
+    #     self._attach_params(result_ps, override_tags=True, **metawargs)
+    #
+    #     return ParameterSet(changed_params) + self.get_feedback(feedback=feedback if feedback is not None else result_ps.feedbacks)
+
+    def remove_feedback(self, feedback, **kwargs):
+        """
+        Remove a 'feedback' from the bundle.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.remove_parameters_all>
+
+        Arguments
+        ----------
+        * `feedback` (string): the label of the feedback to be removed.
+        * `remove_figure_params` (bool, optional): whether to also remove
+            figure options tagged with `feedback`.  If not provided, will default
+            to false if `feedback` is 'latest', otherwise will default to True.
+        * `**kwargs`: other filter arguments to be sent to
+            <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
+            will be ignored: feedback, context.
+
+        Returns
+        -----------
+        * ParameterSet of removed or changed parameters
+        """
+        remove_figure_params = kwargs.pop('remove_figure_params', feedback!='latest')
+
+        kwargs['feedback'] = feedback
+        kwargs['context'] = ['feedback', 'figure'] if remove_figure_params else 'feedback'
+        ret_ps = self.remove_parameters_all(**kwargs)
+        if remove_figure_params:
+            ret_ps += ParameterSet(self._handle_meshcolor_choiceparams(return_changes=True))
+        return ret_ps
+
+    def remove_feedbacks_all(self):
+        """
+        Remove all feedbacks from the bundle.  To remove a single feedback see
+        <phoebe.frontend.bundle.Bundle.remove_feedback>.
+
+        Returns
+        -----------
+        * ParameterSet of removed parameters
+        """
+        removed_ps = ParameterSet()
+        for feedback in self.feedbacks:
+            removed_ps += self.remove_feedback(feedback=feedback)
+        return removed_ps
+
+    def rename_feedback(self, old_feedback, new_feedback):
+        """
+        Change the label of a feedback attached to the Bundle.
+
+        Arguments
+        ----------
+        * `old_feedback` (string): current label of the feedback (must exist)
+        * `new_feedback` (string): the desired new label of the feedback
+            (must not yet exist)
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed feedback
+
+        Raises
+        --------
+        * ValueError: if the value of `new_feedback` is forbidden or already exists.
+        """
+        # TODO: raise error if old_feature not found?
+
+        self._check_label(new_feedback)
+        self._rename_label('feedback', old_feedback, new_feedback)
+
+        ret_ps = self.filter(feedback=new_feedback)
+
+        return ret_ps

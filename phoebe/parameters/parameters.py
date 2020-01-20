@@ -95,14 +95,16 @@ _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
                                         'ConstraintParameter', 'JobParameter']
 
 _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
-                     'dataset', 'constraint', 'distribution', 'compute', 'model', 'figure', 'kind',
+                     'dataset', 'constraint', 'distribution', 'compute', 'model',
+                     'fitting', 'feedback', 'figure', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
 _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['history', 'system', 'component', 'feature',
-             'dataset', 'constraint', 'distribution', 'compute', 'model', 'figure', 'setting']
+             'dataset', 'constraint', 'distribution', 'compute', 'model',
+             'fitting', 'feedback', 'figure', 'setting']
 
 # define a list of default_forbidden labels
 # an individual ParameterSet may build on this list with components, datasets,
@@ -191,6 +193,9 @@ _forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
                       'stepsize', 'orbiterror', 'ringsize',
                       'exact_grav', 'grid', 'hf'
                       ]
+
+# from fitting:
+_forbidden_labels += ['nwalkers', 'niters']
 
 # from feature:
 _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
@@ -440,8 +445,8 @@ class ParameterSet(object):
         self._distribution = None
         self._compute = None
         self._model = None
-        # self._fitting = None
-        # self._feedback = None
+        self._fitting = None
+        self._feedback = None
         # self._plugin = None
         self._kind = None
         self._context = None
@@ -1113,6 +1118,74 @@ class ParameterSet(object):
             in this <phoebe.parmaeters.ParameterSet>
         """
         return self._options_for_tag('figure')
+
+    @property
+    def fitting(self):
+        """Return the value for fitting if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.fittings>.
+
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.fitting>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
+        """
+        return self._fitting
+
+    @property
+    def fittings(self):
+        """Return a list of all the fittings of the Parameters.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.fitting>
+
+        Returns
+        --------
+        * (list) a list of all fittings for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
+        """
+        return self._options_for_tag('fitting')
+
+    @property
+    def feedback(self):
+        """Return the value for feedback if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.feedbacks>.
+
+        To see the value of a single <phoebe.parameters.Parameter> object, see
+        <phoebe.parameters.Parameter.feedback>.
+
+        Returns
+        --------
+        (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
+            objects in the <phoebe.parmaters.ParameterSet>, otherwise None
+        """
+        return self._feedback
+
+    @property
+    def feedbacks(self):
+        """Return a list of all the feedbacks of the Parameters.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.tags>
+
+        For the singular version, see:
+        * <phoebe.parameters.ParameterSet.feedback>
+
+        Returns
+        --------
+        * (list) a list of all feedbacks for each <phoebe.parameters.Parameter>
+            in this <phoebe.parmaeters.ParameterSet>
+        """
+        return self._options_for_tag('feedback')
 
     @property
     def kind(self):
@@ -4738,6 +4811,8 @@ class Parameter(object):
         * `constraint` (string, optional): label for the constraint tag
         * `compute` (string, optional): label for the compute tag
         * `model` (string, optional): label for the model tag
+        * `fitting` (string, optional): label for the fitting tag
+        * `feedback` (string, optional): label for the feedback tag
         * `kind` (string, optional): label for the kind tag
         * `context` (string, optional): label for the context tag
         * `copy_for` (dictionary/False, optional, default=False): dictionary of
@@ -4773,8 +4848,8 @@ class Parameter(object):
         self._distribution = kwargs.get('distribution', None)
         self._compute = kwargs.get('compute', None)
         self._model = kwargs.get('model', None)
-        # self._fitting = kwargs.get('fitting', None)
-        # self._feedback = kwargs.get('feedback', None)
+        self._fitting = kwargs.get('fitting', None)
+        self._feedback = kwargs.get('feedback', None)
         # self._plugin = kwargs.get('plugin', None)
         self._kind = kwargs.get('kind', None)
         self._context = kwargs.get('context', None)
@@ -5362,6 +5437,36 @@ class Parameter(object):
         * (str) the figure tag of this Parameter.
         """
         return self._figure
+
+    @property
+    def fitting(self):
+        """
+        Return the fitting of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.fitting>
+        * <phoebe.parameters.ParameterSet.fittings>
+
+        Returns
+        -------
+        * (str) the fitting tag of this Parameter.
+        """
+        return self._fitting
+
+    @property
+    def feedback(self):
+        """
+        Return the feedback of this <phoebe.parameters.Parameter>.
+
+        See also:
+        * <phoebe.parameters.ParameterSet.feedback>
+        * <phoebe.parameters.ParameterSet.feedbacks>
+
+        Returns
+        -------
+        * (str) the feedback tag of this Parameter.
+        """
+        return self._feedback
 
     @property
     def kind(self):
@@ -6606,7 +6711,10 @@ class SelectParameter(Parameter):
             return self.expand_value(**kwargs)
 
         default = super(SelectParameter, self).get_value(**kwargs)
-        if default is not None: return default
+        if default is not None:
+            if isinstance(default, str):
+                return [default]
+            return default
         return self._value
 
     def expand_value(self, **kwargs):
