@@ -19,6 +19,7 @@ from copy import deepcopy
 try:
     import emcee
     import h5py
+    import schwimmbad
 except ImportError:
     _use_emcee = False
 else:
@@ -169,7 +170,7 @@ class EmceeBackend(BaseFittingBackend):
         # check whether emcee is installed
 
         if not _use_emcee:
-            raise ImportError("could not import emcee and h5py")
+            raise ImportError("could not import emcee, schwimbbad, and h5py")
 
         if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
             raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
@@ -198,25 +199,40 @@ class EmceeBackend(BaseFittingBackend):
 
     @staticmethod
     def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback):
+        def _restore_mpirun(within_mpirun, mpi_enabled):
+            mpi._within_mpirun = within_mpirun
+            mpi._enabled = mpi_enabled
+
+        # print("*** _lnlikelihood from rank: {}".format(mpi.myrank))
         # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
         # deferring constraints/checks until run_compute.
 
         # TODO: [OPTIMIZE] try to remove this deepcopy - for some reason distribution objects
         # are being stripped of their units without it
         b = phoebe.frontend.bundle.Bundle(deepcopy(bjson))
+        within_mpirun = mpi.within_mpirun
+        mpi_enabled = mpi.enabled
+        mpi._within_mpirun = False
+        mpi._enabled = False
 
         for uniqueid, value in zip(params_uniqueids, sampled_values):
             try:
                 b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
             except ValueError as err:
                 logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
+                _restore_mpirun(within_mpirun, mpi_enabled)
+                return -np.info
 
+        # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
         try:
             b.run_compute(compute=compute, model=feedback)
         except Exception as err:
             logger.warning("received error from run_compute: {}.  lnlikelihood=-inf".format(err))
+            _restore_mpirun(within_mpirun, mpi_enabled)
             return -np.inf
 
+        # print("*** _lnlikelihood returning from rank: {}".format(mpi.myrank))
+        _restore_mpirun(within_mpirun, mpi_enabled)
         return b.calculate_lnp(distribution=priors) + b.calculate_lnlikelihood(model=feedback)
 
 
@@ -231,9 +247,14 @@ class EmceeBackend(BaseFittingBackend):
         # from our own waiting loop in phoebe's __init__.py and subscribe them
         # to emcee's pool.
 
-        # self.pool = emcee_MPIPool()
-        # if self.pool.is_master():
-        if True:
+        if mpi.within_mpirun:
+            pool = schwimmbad.MPIPool()
+            is_master = pool.is_master()
+        else:
+            pool = None
+            is_master = True
+
+        if is_master:
             fitting_ps = b.get_fitting(fitting=fitting)
             niters = fitting_ps.get_value(qualifier='niters', niters=kwargs.get('niters', None))
             nwalkers = fitting_ps.get_value(qualifier='nwalkers', nwalkers=kwargs.get('nwalkers', None))
@@ -245,15 +266,15 @@ class EmceeBackend(BaseFittingBackend):
 
 
             sample_dict = b.sample_distribution(distribution=init_from, N=nwalkers, keys='uniqueid', set_value=False)
-            params_uniqueids, p0 = sample_dict.keys(), sample_dict.values()
+            params_uniqueids, p0 = list(sample_dict.keys()), np.asarray(list(sample_dict.values()))
 
             # EnsembleSampler kwargs
             esargs = {}
+            esargs['pool'] = pool
             esargs['nwalkers'] = nwalkers
             esargs['ndim'] = len(params_uniqueids)
             esargs['log_prob_fn'] = self._lnlikelihood
             # esargs['a'] = kwargs.pop('a', None),
-            # esargs['pool'] = self.pool
             # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
 
@@ -299,33 +320,37 @@ class EmceeBackend(BaseFittingBackend):
 
             logger.debug("sampler.sample(p0, {})".format(sargs))
             # TODO: parameters for checking convergence
-            for sample in sampler.sample(np.asarray(p0).T, **sargs):
+            for sample in sampler.sample(p0.T, **sargs):
                 # Only check convergence every 10 steps
-                if sampler.iteration % 10:
-                    logger.debug("completed interation {}".format(sampler.iteration))
-                    continue
+                print("*** iteration {} complete".format(sampler.iteration))
+
+
+                # if sampler.iteration % 10:
+                #     logger.debug("completed interation {}".format(sampler.iteration))
+                #     continue
 
                 # Compute the autocorrelation time so far
                 # Using tol=0 means that we'll always get an estimate even
                 # if it isn't trustworthy
-                logger.debug("checking for convergence on iteration {}".format(sampler.iteration))
-                tau = sampler.get_autocorr_time(tol=0)
-                autocorr[index] = np.mean(tau)
-                index += 1
-
-                # Check convergence
-                converged = np.all(tau * 100 < sampler.iteration)
-                converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
-                if converged:
-                    break
-                old_tau = tau
+                # logger.debug("checking for convergence on iteration {}".format(sampler.iteration))
+                # tau = sampler.get_autocorr_time(tol=0)
+                # autocorr[index] = np.mean(tau)
+                # index += 1
+                #
+                # # Check convergence
+                # converged = np.all(tau * 100 < sampler.iteration)
+                # converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
+                # if converged:
+                #     break
+                # old_tau = tau
 
         else:
             # NOTE: because we overrode self._run_worker to skip loading the
             # bundle, b is just a json string here.  If we ever need the
             # bundle in here, just remove the override for self._run_worker.
-            # self.pool.wait()
-            pass
+            pool.wait()
 
-        # self.pool.close()
+        if pool is not None:
+            print("*** closing pool on rank: {}".format(mpi.myrank))
+            pool.close()
         return {}
