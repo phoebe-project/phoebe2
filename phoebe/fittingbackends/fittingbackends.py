@@ -205,7 +205,10 @@ class EmceeBackend(BaseFittingBackend):
         b = phoebe.frontend.bundle.Bundle(deepcopy(bjson))
 
         for uniqueid, value in zip(params_uniqueids, sampled_values):
-            b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+            try:
+                b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+            except ValueError as err:
+                logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
 
         try:
             b.run_compute(compute=compute, model=feedback)
