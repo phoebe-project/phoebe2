@@ -7343,9 +7343,9 @@ class DistributionParameter(Parameter):
             return value
         elif isinstance(value, dict) and 'npdists' in value.keys():
             # then we're loading the JSON version of an nparray object
-            value = npdists.from_dict(value)
+            return npdists.from_dict(value)
         else:
-            raise TypeError("must be a npdists Distribution object, got {}".format(value))
+            raise TypeError("must be a npdists Distribution object, got {} (type: {})".format(value, type(value)))
 
     @send_if_client
     def set_value(self, value, force=False, run_checks=None, run_constraints=None, **kwargs):
