@@ -198,7 +198,8 @@ class EmceeBackend(BaseFittingBackend):
 
     @staticmethod
     def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback):
-        # TODO: [OPTIMIZE] disable interactive constraints somewhere... but probably at the run_fitting level
+        # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
+        # deferring constraints/checks until run_compute.
 
         # TODO: [OPTIMIZE] try to remove this deepcopy - for some reason distribution objects
         # are being stripped of their units without it
@@ -206,7 +207,7 @@ class EmceeBackend(BaseFittingBackend):
 
         for uniqueid, value in zip(params_uniqueids, sampled_values):
             try:
-                b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+                b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
             except ValueError as err:
                 logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
 
@@ -255,6 +256,8 @@ class EmceeBackend(BaseFittingBackend):
             # esargs['pool'] = self.pool
             # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
+
+            # TODO: OPTIMIZE exclude disabled datasets?
             bjson = b.exclude(context=['model', 'feedback', 'figure'], **_skip_filter_checks).exclude(
                               fitting=[f for f in b.fittings if f!=fitting and fitting is not None], **_skip_filter_checks).exclude(
                               compute=[c for c in b.computes if c!=compute and compute is not None], **_skip_filter_checks).exclude(
