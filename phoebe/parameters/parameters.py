@@ -332,7 +332,7 @@ def parameter_from_json(dictionary, bundle=None):
     if isinstance(dictionary, str):
         dictionary = json.loads(dictionary, object_pairs_hook=parse_json)
 
-    classname = dictionary.pop('Class')
+    classname = dictionary.get('Class')
 
     if classname not in _parameter_class_that_require_bundle:
         bundle = None

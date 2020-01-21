@@ -49,4 +49,7 @@ def emcee(**kwargs):
     params += [SelectParameter(qualifier='init_from', value=kwargs.get('init_from', []), choices=[], description='distribution to initialize samples from (all UNCONSTRAINED parameters with attached distributions will be sampled/fitted)')]
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution to use for priors')]
 
+    params += [StringParameter(qualifier='filename', value=kwargs.get('filename', 'emcee_progress.hd5'), description='filename to use for storing progress and continuing from previous run')]
+    params += [BoolParameter(qualifier='continue_previous_run', value=kwargs.get('continue_previous_run', False), description='continue previous run by reading contents in the file defined by filename')]
+
     return ParameterSet(params)

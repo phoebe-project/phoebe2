@@ -705,6 +705,9 @@ class BaseDistribution(object):
 
     @unit.setter
     def unit(self, unit):
+        if isinstance(unit, str):
+            unit = _units.Unit(unit)
+
         if not (unit is None or isinstance(unit, _units.Unit) or isinstance(unit, _units.CompositeUnit) or isinstance(unit, _units.IrreducibleUnit)):
             raise TypeError("unit must be of type astropy.units.Unit")
 
@@ -1534,7 +1537,7 @@ class BaseDistribution(object):
         d = {k:_json_safe(v) for k,v in self._descriptors.items()}
         d['npdists'] = self.__class__.__name__.lower()
         if self.unit is not None:
-            d['unit'] = self.unit.to_string()
+            d['unit'] = str(self.unit.to_string())
         if self.label is not None:
             d['label'] = self.label
         if self.wrap_at is not None:

@@ -335,8 +335,12 @@ def from_dict(d):
     if 'nparray' not in d.keys():
         raise ValueError("input dictionary missing 'nparray' entry")
 
-    classname = d.pop('nparray').title()
-    return getattr(_wrappers, classname)(**d)
+    classname = d.get('nparray').title()
+    # instead of popping npdarray (which would happen in memory and make that json
+    # unloadable again), we'll do a dictionary comprehension.  If this causes
+    # performance issues, we could instead accept and ignore nparray as
+    # a keyword argument to __init__
+    return getattr(_wrappers, classname)(**{k:v for k,v in d.items() if k!='nparray'})
 
 def from_json(j):
     """

@@ -231,9 +231,13 @@ def from_dict(d):
     if 'npdists' not in d.keys():
         raise ValueError("input dictionary missing 'nparray' entry")
 
-    classname = d.pop('npdists').title()
+    classname = d.get('npdists').title()
     unit = d.pop('unit', None)
-    dist = getattr(_npdists, classname)(**d)
+    # instead of popping npdists (which would happen in memory and make that json
+    # unloadable again), we'll do a dictionary comprehension.  If this causes
+    # performance issues, we could instead accept and ignore npdists as
+    # a keyword argument to __init__
+    dist = getattr(_npdists, classname)(**{k:v for k,v in d.items() if k!='npdists'})
     if unit is not None and _has_astropy:
         dist *= _units.Unit(unit)
     return dist

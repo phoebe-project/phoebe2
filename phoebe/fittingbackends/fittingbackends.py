@@ -8,14 +8,17 @@ import numpy as np
 
 # import tempfile
 # from phoebe.parameters import ParameterSet
-# import phoebe.frontend.bundle
+import phoebe.parameters as _parameters
+import phoebe.frontend.bundle
 # from phoebe import u, c
 from phoebe import conf, mpi
 
 from distutils.version import LooseVersion, StrictVersion
+from copy import deepcopy
 
 try:
     import emcee
+    import h5py
 except ImportError:
     _use_emcee = False
 else:
@@ -82,7 +85,10 @@ class BaseFittingBackend(object):
         packet['compute'] = compute
         packet['backend'] = self.__class__.__name__
 
-        return packet, feedback_ps
+        parameters = []
+
+
+        return packet, _parameters.ParameterSet(parameters)
 
     def _fill_feedback(self, feedback_ps, rpacketlists_per_worker):
         """
@@ -102,7 +108,7 @@ class BaseFittingBackend(object):
                     except Exception as err:
                         raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, str(err)))
 
-        return new_syns
+        return feedback_ps
 
     def run_worker(self):
         """
@@ -127,7 +133,7 @@ class BaseFittingBackend(object):
         self.run_checks(b, fitting,  compute, **kwargs)
 
         logger.debug("rank:{}/{} calling get_packet_and_feedback".format(mpi.myrank, mpi.nprocs))
-        packet, fitting_ps = self.get_packet_and_feedback(b, fitting, compute, **kwargs)
+        packet, feedback_ps = self.get_packet_and_feedback(b, fitting, compute, **kwargs)
 
         if mpi.enabled:
             # broadcast the packet to ALL workers
@@ -145,7 +151,7 @@ class BaseFittingBackend(object):
         else:
             rpacketlists_per_worker = [self.run_worker(**packet)]
 
-        logger.debug("rank:{}/{} calling _fill_syns".format(mpi.myrank, mpi.nprocs))
+        logger.debug("rank:{}/{} calling _fill_feedback".format(mpi.myrank, mpi.nprocs))
         return self._fill_feedback(feedback_ps, rpacketlists_per_worker)
 
 
@@ -163,14 +169,20 @@ class EmceeBackend(BaseFittingBackend):
         # check whether emcee is installed
 
         if not _use_emcee:
-            raise ImportError("could not import emcee")
+            raise ImportError("could not import emcee and h5py")
 
         if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
             raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
 
         fitting_ps = b.get_fitting(fitting)
-        if not len(fitting_ps.get_value('init_from', init_from=kwargs.get('init_from', None))):
+        if not len(fitting_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None))):
             raise ValueError("cannot run emcee without any distributions in init_from")
+
+        filename = fitting_ps.get_value(qualifier='filename', filename=kwargs.get('filename', None))
+        continue_previous_run = fitting_ps.get_value(qualifier='continue_previous_run', continue_previous_run=kwargs.get('continue_previous_run', None))
+        if continue_previous_run and not os.path.exists(filename):
+            raise ValueError("cannot file filename='{}', cannot use continue_previous_run=True".format(filename))
+
 
     def _get_packet_and_feedback(self, b, fitting, compute, **kwargs):
         # NOTE: b, fitting, compute, backend will be added by get_packet_and_feedback
@@ -185,12 +197,15 @@ class EmceeBackend(BaseFittingBackend):
         return kwargs, {}
 
     @staticmethod
-    def _loglikelihood(sampled_values, bjson, params_uniqueids, priors):
-        # TODO: disable interactive constraints somewhere... but probably at the run_fitting level
-        b = phoebe.Bundle(bjson)
+    def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback):
+        # TODO: [OPTIMIZE] disable interactive constraints somewhere... but probably at the run_fitting level
+
+        # TODO: [OPTIMIZE] try to remove this deepcopy - for some reason distribution objects
+        # are being stripped of their units without it
+        b = phoebe.frontend.bundle.Bundle(deepcopy(bjson))
 
         for uniqueid, value in zip(params_uniqueids, sampled_values):
-            b.set_value(uniqueid=uniqueid, value=value)
+            b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
 
         try:
             b.run_compute(compute=compute, model=feedback)
@@ -218,8 +233,11 @@ class EmceeBackend(BaseFittingBackend):
             fitting_ps = b.get_fitting(fitting=fitting)
             niters = fitting_ps.get_value(qualifier='niters', niters=kwargs.get('niters', None))
             nwalkers = fitting_ps.get_value(qualifier='nwalkers', nwalkers=kwargs.get('nwalkers', None))
-            init_from = fitting_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None), expand_value=True)
-            priors = fitting_ps.get_value(qualifier='priors', priors=kwargs.get('priors', None), expand_value=True)
+            init_from = fitting_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None), expand=True)
+            priors = fitting_ps.get_value(qualifier='priors', priors=kwargs.get('priors', None), expand=True)
+
+            filename = fitting_ps.get_value(qualifier='filename', filename=kwargs.get('filename', None))
+            continue_previous_run = fitting_ps.get_value(qualifier='continue_previous_run', continue_previous_run=kwargs.get('continue_previous_run', None))
 
 
             print("emcee sample_distribution(distribution={}, N={})".format(init_from, nwalkers))
@@ -229,53 +247,80 @@ class EmceeBackend(BaseFittingBackend):
             # EnsembleSampler kwargs
             esargs = {}
             esargs['nwalkers'] = nwalkers
-            esargs['dim'] = len(params_uniqueids)
-            esargs['log_prob_fn'] = self._loglikelihood
+            esargs['ndim'] = len(params_uniqueids)
+            esargs['log_prob_fn'] = self._lnlikelihood
             # esargs['a'] = kwargs.pop('a', None),
             # esargs['pool'] = self.pool
             # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
             bjson = b.exclude(context=['model', 'feedback', 'figure'], **_skip_filter_checks).exclude(
-                              fitting=[f for f in b.fittings if f!=fitting], **_skip_filter_checks).exclude(
-                              compute=[c for c in b.computes if c!=compute], **_skip_filter_checks).exclude(
-                              distribution=[d for d in b.distributions if d not in priors+init_from], **_skip_filter_checks).to_json(exclude=['description', 'advanced', 'copy_for'])
+                              fitting=[f for f in b.fittings if f!=fitting and fitting is not None], **_skip_filter_checks).exclude(
+                              compute=[c for c in b.computes if c!=compute and compute is not None], **_skip_filter_checks).exclude(
+                              distribution=[d for d in b.distributions if d not in priors+init_from], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
 
-            esargs['kwargs'] = {'bjson': bjson, 'params_uniqueids': params_uniqueids, 'priors': priors}
+            esargs['kwargs'] = {'bjson': bjson,
+                                'params_uniqueids': params_uniqueids,
+                                'compute': compute,
+                                'priors': priors,
+                                'feedback': kwargs.get('feedback', None)}
 
             # esargs['live_dangerously'] = kwargs.pop('live_dangerously', None)
             # esargs['runtime_sortingfn'] = kwargs.pop('runtime_sortingfn', None)
 
-            print("EnsembleSampler({})".format(esargs))
-            # sampler = emcee.EnsembleSampler(**esargs)
+            filename = os.path.join(os.getcwd(), filename)
+            # TODO: consider supporting passing name=feedback... but that
+            # seems to cause and hdf bug and also will need to be careful
+            # to match feedback in order to use continue_previous_run
+            logger.debug("using backend=HDFBackend('{}')".format(filename))
+            backend = emcee.backends.HDFBackend(filename) #, name=kwargs.get('feedback', None))
+            if not continue_previous_run:
+                logger.debug("backend.reset({}, {})".format(nwalkers, len(params_uniqueids)))
+                backend.reset(nwalkers, len(params_uniqueids))
+
+            esargs['backend'] = backend
+
+            logger.debug("EnsembleSampler({})".format(esargs))
+            sampler = emcee.EnsembleSampler(**esargs)
 
 
             sargs = {}
-            sargs['p0'] = p0
             # sargs['log_prob0'] = kwargs.pop('log_prob0', None)
             # sargs['rstate0'] = kwargs.pop('rstate0', None)
             # sargs['blobs0'] = kwargs.pop('blobls0', None)
             sargs['iterations'] = niters
-            sargs['thin'] = kwargs.pop('thin', 1)
-            sargs['store'] = kwargs.pop('store', True)
-            sargs['progress'] = kwargs.pop('progress', False)
+            # sargs['thin'] = kwargs.pop('thin', 1)  # TODO: make parameter - check if thin or thin_by
+            # sargs['store'] = True
+            sargs['progress'] = False  # TODO: make parameter? or set to True?  or check if necessary library is imported?
 
-            print("sampler.sample({})".format(sargs))
-            # positions = []
-            # logps = []
-            # filename = kwargs.pop('filename', self.bundle_file+'_emcee')
-            # for result in sampler.sample(**sargs):
-            #     position = result[0]
-            #     f = open(filename, "a")
-            #     for k in range(position.shape[0]):
-            #         f.write("%d %s %f\n" % (k, " ".join(['%.12f' % i for i in position[k]]), result[1][k]))
-            #     f.close()
+            logger.debug("sampler.sample(p0, {})".format(sargs))
+            # TODO: parameters for checking convergence
+            for sample in sampler.sample(np.asarray(p0).T, **sargs):
+                # Only check convergence every 10 steps
+                if sampler.iteration % 10:
+                    logger.debug("completed interation {}".format(sampler.iteration))
+                    continue
+
+                # Compute the autocorrelation time so far
+                # Using tol=0 means that we'll always get an estimate even
+                # if it isn't trustworthy
+                logger.debug("checking for convergence on iteration {}".format(sampler.iteration))
+                tau = sampler.get_autocorr_time(tol=0)
+                autocorr[index] = np.mean(tau)
+                index += 1
+
+                # Check convergence
+                converged = np.all(tau * 100 < sampler.iteration)
+                converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
+                if converged:
+                    break
+                old_tau = tau
 
         else:
             # NOTE: because we overrode self._run_worker to skip loading the
             # bundle, b is just a json string here.  If we ever need the
             # bundle in here, just remove the override for self._run_worker.
-            self.pool.wait()
-            sampler = None
+            # self.pool.wait()
+            pass
 
         # self.pool.close()
-        return
+        return {}
