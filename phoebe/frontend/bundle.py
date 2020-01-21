@@ -3325,7 +3325,7 @@ class Bundle(ParameterSet):
         for component in self.hierarchy.get_stars():
             if self.get_value(qualifier='pitch', component=component, context='component') != 0. or self.get_value(qualifier='yaw', component=component, context='component') != 0.:
                 recs = _add_reason(recs, 'Horvat et al. (2018)', 'support for misaligned system')
-        for ebv_param in self.filter(qualifier='ebv', context='dataset'):
+        for ebv_param in self.filter(qualifier='ebv', context='dataset').to_list():
             if ebv_param.get_value() > 0:
                 recs = _add_reason(recs, 'Jones et al. (2020)', 'support for interstellar extinction')
 
