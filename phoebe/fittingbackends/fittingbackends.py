@@ -240,7 +240,6 @@ class EmceeBackend(BaseFittingBackend):
             continue_previous_run = fitting_ps.get_value(qualifier='continue_previous_run', continue_previous_run=kwargs.get('continue_previous_run', None))
 
 
-            print("emcee sample_distribution(distribution={}, N={})".format(init_from, nwalkers))
             sample_dict = b.sample_distribution(distribution=init_from, N=nwalkers, keys='uniqueid', set_value=False)
             params_uniqueids, p0 = sample_dict.keys(), sample_dict.values()
 
