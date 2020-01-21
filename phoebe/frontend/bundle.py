@@ -7938,8 +7938,7 @@ class Bundle(ParameterSet):
         return self.filter(fitting=new_fitting)
 
     @send_if_client
-    def run_fitting(self, fitting=None, compute=None, feedback=None,
-                    **kwargs):
+    def run_fitting(self, fitting=None, compute=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset(s) using
         a specified set of fitting options.
@@ -8004,10 +8003,18 @@ class Bundle(ParameterSet):
         * a <phoebe.parameters.ParameterSet> of the newly-created fitting feedback.
 
         """
+        kwargs.setdefault('feedback',
+                          self._default_label('feedback',
+                                              **{'context': 'feedback'}))
+
         fitting_ps = self.get_fitting(fitting=fitting)
         fitting_class = getattr(_fittingbackends, '{}Backend'.format(fitting_ps.kind.title()))
-        out = fitting_class().run(self, fitting, compute, **kwargs)
-        print(out)
+        params = fitting_class().run(self, fitting, compute, **kwargs)
+        metawargs = {'context': 'feedback',
+                     'feedback': kwargs.get('feedback')}
+
+        self._attach_params(params, check_copy_for=False, **metawargs)
+
 
     def get_feedback(self, feedback=None, **kwargs):
         """

@@ -86,10 +86,7 @@ class BaseFittingBackend(object):
         packet['compute'] = compute
         packet['backend'] = self.__class__.__name__
 
-        parameters = []
-
-
-        return packet, _parameters.ParameterSet(parameters)
+        return packet, feedback_ps
 
     def _fill_feedback(self, feedback_ps, rpacketlists_per_worker):
         """
@@ -193,9 +190,10 @@ class EmceeBackend(BaseFittingBackend):
         for param in fitting_ps.to_list():
             kwargs.setdefault(param.qualifier, param.get_value())
 
-        # kwargs['compute'] = compute
+        feedback_params = []
+        feedback_params += [_parameters.StringParameter(qualifier='filename', value=fitting_ps.get_value(qualifier='filename', filename=kwargs.get('filename', None)), description='filename of emcee progress file (contents loaded on the fly, DO NOT DELETE FILE)')]
 
-        return kwargs, {}
+        return kwargs, _parameters.ParameterSet(feedback_params)
 
     @staticmethod
     def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback):
@@ -311,7 +309,7 @@ class EmceeBackend(BaseFittingBackend):
             # TODO: parameters for checking convergence
             for sample in sampler.sample(p0.T, **sargs):
                 # Only check convergence every 10 steps
-                print("*** iteration {} complete".format(sampler.iteration))
+                logger.info("emcee: iteration {} complete".format(sampler.iteration))
 
 
                 # if sampler.iteration % 10:
