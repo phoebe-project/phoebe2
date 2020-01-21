@@ -199,10 +199,6 @@ class EmceeBackend(BaseFittingBackend):
 
     @staticmethod
     def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback):
-        def _restore_mpirun(within_mpirun, mpi_enabled):
-            mpi._within_mpirun = within_mpirun
-            mpi._enabled = mpi_enabled
-
         # print("*** _lnlikelihood from rank: {}".format(mpi.myrank))
         # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
         # deferring constraints/checks until run_compute.
@@ -210,17 +206,12 @@ class EmceeBackend(BaseFittingBackend):
         # TODO: [OPTIMIZE] try to remove this deepcopy - for some reason distribution objects
         # are being stripped of their units without it
         b = phoebe.frontend.bundle.Bundle(deepcopy(bjson))
-        within_mpirun = mpi.within_mpirun
-        mpi_enabled = mpi.enabled
-        mpi._within_mpirun = False
-        mpi._enabled = False
 
         for uniqueid, value in zip(params_uniqueids, sampled_values):
             try:
                 b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
             except ValueError as err:
                 logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
-                _restore_mpirun(within_mpirun, mpi_enabled)
                 return -np.info
 
         # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
@@ -228,11 +219,9 @@ class EmceeBackend(BaseFittingBackend):
             b.run_compute(compute=compute, model=feedback)
         except Exception as err:
             logger.warning("received error from run_compute: {}.  lnlikelihood=-inf".format(err))
-            _restore_mpirun(within_mpirun, mpi_enabled)
             return -np.inf
 
         # print("*** _lnlikelihood returning from rank: {}".format(mpi.myrank))
-        _restore_mpirun(within_mpirun, mpi_enabled)
         return b.calculate_lnp(distribution=priors) + b.calculate_lnlikelihood(model=feedback)
 
 
@@ -348,9 +337,21 @@ class EmceeBackend(BaseFittingBackend):
             # NOTE: because we overrode self._run_worker to skip loading the
             # bundle, b is just a json string here.  If we ever need the
             # bundle in here, just remove the override for self._run_worker.
+
+            # temporarily disable MPI within run_compute to disabled parallelizing
+            # per-time.
+            within_mpirun = mpi.within_mpirun
+            mpi_enabled = mpi.enabled
+            mpi._within_mpirun = False
+            mpi._enabled = False
+
             pool.wait()
 
+            # restore previous MPI state
+            mpi._within_mpirun = within_mpirun
+            mpi._enabled = mpi_enabled
+
         if pool is not None:
-            print("*** closing pool on rank: {}".format(mpi.myrank))
             pool.close()
+
         return {}
