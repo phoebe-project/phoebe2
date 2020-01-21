@@ -196,7 +196,7 @@ class EmceeBackend(BaseFittingBackend):
         return kwargs, _parameters.ParameterSet(feedback_params)
 
     @staticmethod
-    def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback):
+    def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback, compute_kwargs={}):
         # print("*** _lnlikelihood from rank: {}".format(mpi.myrank))
         # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
         # deferring constraints/checks until run_compute.
@@ -214,7 +214,7 @@ class EmceeBackend(BaseFittingBackend):
 
         # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
         try:
-            b.run_compute(compute=compute, model=feedback)
+            b.run_compute(compute=compute, model=feedback, **compute_kwargs)
         except Exception as err:
             logger.warning("received error from run_compute: {}.  lnlikelihood=-inf".format(err))
             return -np.inf
@@ -275,7 +275,8 @@ class EmceeBackend(BaseFittingBackend):
                                 'params_uniqueids': params_uniqueids,
                                 'compute': compute,
                                 'priors': priors,
-                                'feedback': kwargs.get('feedback', None)}
+                                'feedback': kwargs.get('feedback', None),
+                                'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute).qualifiers}}
 
             # esargs['live_dangerously'] = kwargs.pop('live_dangerously', None)
             # esargs['runtime_sortingfn'] = kwargs.pop('runtime_sortingfn', None)

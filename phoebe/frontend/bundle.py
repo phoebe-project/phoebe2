@@ -7994,9 +7994,9 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
             pass checks.
-        * `**kwargs`:: any values in the compute options to temporarily
-            override for this single compute run (parameter values will revert
-            after run_compute is finished)
+        * `**kwargs`: any values in the fitting or compute options to temporarily
+            override for this single fitting run (parameter values will revert
+            after run_fitting is finished)
 
         Returns
         ----------
