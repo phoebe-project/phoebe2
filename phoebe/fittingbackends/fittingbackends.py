@@ -214,7 +214,7 @@ class EmceeBackend(BaseFittingBackend):
 
         # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
         try:
-            b.run_compute(compute=compute, model=feedback, **compute_kwargs)
+            b.run_compute(compute=compute, model=feedback, do_create_fig_params=False, **compute_kwargs)
         except Exception as err:
             logger.warning("received error from run_compute: {}.  lnlikelihood=-inf".format(err))
             return -np.inf
