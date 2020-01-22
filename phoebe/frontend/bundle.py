@@ -7314,8 +7314,6 @@ class Bundle(ParameterSet):
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
 
-        if draw_from is not None and draw_seed is None:
-            draw_seed = _npdists.get_random_seed()
 
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
 
