@@ -238,7 +238,7 @@ class EmceeBackend(BaseFittingBackend):
             pool = schwimmbad.MPIPool()
             is_master = pool.is_master()
         else:
-            pool = None
+            pool = schwimmbad.MultiPool()
             is_master = True
 
         if is_master:
