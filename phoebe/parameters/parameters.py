@@ -8009,11 +8009,6 @@ class FloatParameter(Parameter):
                 if value.unit != unit:
                     raise ValueError("value and unit do not agree")
 
-        elif value is None:
-            # allowed for FloatArrayParameter if self.allow_none.  This should
-            # already have been checked by self._check_type
-            value = value
-
         elif unit is not None:
             # print "*** converting value to quantity"
             value = value * unit
@@ -8080,14 +8075,12 @@ class FloatArrayParameter(FloatParameter):
 
         Additional arguments
         ---------------------
-        * `allow_none` (bool, optional, default=False)
         """
-        self._allow_none = kwargs.get('allow_none', False)
         super(FloatArrayParameter, self).__init__(*args, **kwargs)
 
         # NOTE: default_unit and value handled in FloatParameter.__init__()
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -8113,17 +8106,6 @@ class FloatArrayParameter(FloatParameter):
         str_ = super(FloatArrayParameter, self).__str__()
         np.set_printoptions(**opt)
         return str_
-
-    @property
-    def allow_none(self):
-        """
-        Return whether None is an acceptable value in addition to an array
-
-        Returns
-        --------
-        * (bool)
-        """
-        return self._allow_none
 
     def to_string_short(self):
         """
@@ -8418,10 +8400,7 @@ class FloatArrayParameter(FloatParameter):
     def _check_type(self, value):
         """
         """
-        if self.allow_none and value is None:
-            value = None
-
-        elif isinstance(value, u.Quantity):
+        if isinstance(value, u.Quantity):
             if isinstance(value.value, float) or isinstance(value.value, int):
                 value = np.array([value.value])*value.unit
 
