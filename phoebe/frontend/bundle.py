@@ -8009,11 +8009,119 @@ class Bundle(ParameterSet):
 
         fitting_ps = self.get_fitting(fitting=fitting)
         fitting_class = getattr(_fittingbackends, '{}Backend'.format(fitting_ps.kind.title()))
+        compute_ps = self.get_compute(compute=compute)
+        if len(compute_ps.computes) > 1:
+            raise ValueError("more than one set of compute options attached, must provide compute")
+        elif not len(compute_ps.computes):
+            raise ValueError("no compute options found")
+
         params = fitting_class().run(self, fitting, compute, **kwargs)
         metawargs = {'context': 'feedback',
+                     'fitting': fitting_ps.fitting,
+                     'compute': compute_ps.compute,
+                     'kind': fitting_ps.kind,
                      'feedback': kwargs.get('feedback')}
 
         self._attach_params(params, check_copy_for=False, **metawargs)
+
+    def process_feedback_diagnostics(self, feedback=None, **kwargs):
+        """
+        """
+        feedback_ps = self.get_feedback(feedback=feedback)
+        fitting_kind = feedback_ps.kind
+        if fitting_kind == 'emcee':
+            filename = feedback_ps.get_value(qualifier='filename')
+
+            reader = _fittingbackends.emcee.backends.HDFBackend(filename)
+            # TODO: remove quiet or re-implement logic as warning
+            autocorr_time = reader.get_autocorr_time(quiet=True)
+            try:
+                burnin = kwargs.get('burnin', int(kwargs.get('burnin_factor', 2) * np.max(autocorr_time)))
+            except:
+                logger.warning("could not compute burnin, falling back on 0")
+                burnin = 0
+            try:
+                thin = int(kwargs.get('thin', int(kwargs.get('thin_factor', 0.5) * np.min(autocorr_time))))
+            except:
+                logger.warning("could not compute thin, falling back on 1")
+                thin = 1
+            try:
+                samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
+            except:
+                logger.warning("could not get samples within burnin={}, thin={}".format(burnin, thin))
+                raise
+
+            log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
+
+            return {'autocorr_time': autocorr_time,
+                    'burnin': burnin,
+                    'thin': thin,
+                    'samples': samples,
+                    'lnp': log_prob_samples}
+
+        else:
+            raise NotImplementedError("process_feedback_diagnostics for kind='{}' not implemented".format(fitting_kind))
+
+    def get_distribution_from_feedback(self, feedback=None, **kwargs):
+        """
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_distribution_from_feedback>
+
+        Arguments
+        -----------
+        * `feedback`
+        * `**kwargs`
+
+        Returns
+        ----------
+        * dictionary of information.  Exact keys available are dependent on the
+            fitting backend.
+        """
+
+        feedback_ps = self.get_feedback(feedback=feedback)
+        fitting_kind = feedback_ps.kind
+        if fitting_kind == 'emcee':
+            diags = self.process_feedback_diagnostics(feedback=feedback, **kwargs)
+
+            # TODO: we need to access the corresponding parameters so we can set
+            # the labels and units, perhaps by storing uniqueids in an array
+            # parameter?  Or by storing uniqueids in the h5 file?
+            dist = _npdists.mvhistogram_from_data(diags['samples'], bins=kwargs.get('bins', 10), range=None, weights=None, unit=None, label=None, wrap_at=None)
+            return dist
+
+        else:
+            raise NotImplementedError("process_feedback_distributions for kind='{}' not implememented".format(fitting_kind))
+
+    def add_distribution_from_feedback(self, feedback=None, **kwargs):
+        """
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_distribution_from_feedback>
+
+        Arguments
+        ----------
+        * `feedback`
+        * `distribution` (string, optional, default=None)
+        * `**kwargs`: all additionaly keyword arguments are passed to
+            <phoebe.frontend.bundle.Bundle.get_distribution_from_feedback>
+
+        Returns
+        ---------
+        * ParameterSet of all added/changed parameters from
+            <phoebe.frontend.bundle.Bundle.add_distribution>.
+        """
+        raise NotImplementedError()
+        dist = self.get_distribution_from_feedback(feedback=feedback, **kwargs)
+
+        # TODO: we need to know what to attach to... if this isn't stored
+        # in the distribution object itself, then we may need another argument
+        # to get_distribution_from_feedback to also expose this information
+        # (or access it again from feedback)
+
+        # self.add_distribution(qualifier=..., value=dist, distribution=kwargs['distribution'])
+
+        return self.get_distribution(distribution=kwargs['distribution'])
 
 
     def get_feedback(self, feedback=None, **kwargs):
@@ -8039,9 +8147,9 @@ class Bundle(ParameterSet):
     def rerun_feedback(self, feedback=None, **kwargs):
         """
         Rerun run_fitting for a given feedback.  This simply retrieves the current
-        compute parameters given the same compute label used to create the original
-        feedback.  This does not, therefore, necessarily ensure that the exact
-        same compute options are used.
+        fitting/compute parameters given the same fitting/compute label used to
+        create the original feedback.  This does not, therefore, necessarily
+        ensure that the exact same fitting/compute options are used.
 
         See also:
         * <phoebe.frontend.bundle.Bundle.run_fitting>
@@ -8054,7 +8162,7 @@ class Bundle(ParameterSet):
 
         Returns
         ------------
-        * the output from <phoebe.frontend.bundle.Bundle.run_compute>
+        * the output from <phoebe.frontend.bundle.Bundle.run_fitting>
         """
         feedback_ps = self.get_feedback(feedback=feedback)
 

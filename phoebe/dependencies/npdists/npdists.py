@@ -419,7 +419,7 @@ def _sample_ppf_from_hist(ppf, bins, density):
     # 1D case
     #density, bins = np.histogram(np.random.rand(1000), normed=True)
     #bins = np.asarray([bins])
-    if np.any(pff > 1) or np.any(ppf < 0):
+    if _np.any(ppf > 1) or _np.any(ppf < 0):
         raise ValueError("ppf must be between 0 and 1")
 
     if isinstance(ppf, float):

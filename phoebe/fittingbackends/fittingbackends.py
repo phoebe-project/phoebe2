@@ -266,9 +266,10 @@ class EmceeBackend(BaseFittingBackend):
             # esargs['args'] = None
 
             # TODO: OPTIMIZE exclude disabled datasets?
+            # TODO: re-enable removing unused compute options - currently causes some constraints to fail
             bjson = b.exclude(context=['model', 'feedback', 'figure'], **_skip_filter_checks).exclude(
                               fitting=[f for f in b.fittings if f!=fitting and fitting is not None], **_skip_filter_checks).exclude(
-                              compute=[c for c in b.computes if c!=compute and compute is not None], **_skip_filter_checks).exclude(
+                              # compute=[c for c in b.computes if c!=compute and compute is not None], **_skip_filter_checks).exclude(
                               distribution=[d for d in b.distributions if d not in priors+init_from], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
 
             esargs['kwargs'] = {'bjson': bjson,
@@ -305,6 +306,7 @@ class EmceeBackend(BaseFittingBackend):
             # sargs['thin'] = kwargs.pop('thin', 1)  # TODO: make parameter - check if thin or thin_by
             # sargs['store'] = True
             sargs['progress'] = False  # TODO: make parameter? or set to True?  or check if necessary library is imported?
+            sargs['skip_initial_state_check'] = True  # TODO: remove this?  Or can we reproduce the logic in a warning?
 
             logger.debug("sampler.sample(p0, {})".format(sargs))
             # TODO: parameters for checking convergence
