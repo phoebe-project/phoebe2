@@ -210,7 +210,7 @@ class EmceeBackend(BaseFittingBackend):
                 b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
             except ValueError as err:
                 logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
-                return -np.info
+                return -np.inf
 
         # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
         try:
