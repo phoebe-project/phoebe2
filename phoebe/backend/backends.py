@@ -2028,7 +2028,7 @@ class EllcBackend(BaseBackendByDataset):
         """
         logger.debug("rank:{}/{} EllcBackend._worker_setup".format(mpi.myrank, mpi.nprocs))
 
-        computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
+        computeparams = b.get_compute(compute, force_ps=True, **_skip_filter_checks)
 
         b._compute_necessary_values(computeparams)
 
@@ -2039,43 +2039,45 @@ class EllcBackend(BaseBackendByDataset):
 
         orbitref = orbitrefs[0]
 
-        shape_1 = computeparams.get_value(qualifier='distortion_method', component=starrefs[0])
-        shape_2 = computeparams.get_value(qualifier='distortion_method', component=starrefs[1])
+        shape_1 = computeparams.get_value(qualifier='distortion_method', component=starrefs[0], **_skip_filter_checks)
+        shape_2 = computeparams.get_value(qualifier='distortion_method', component=starrefs[1], **_skip_filter_checks)
 
-        hf_1 = computeparams.get_value(qualifier='hf', component=starrefs[0], check_visible=False)
-        hf_2 = computeparams.get_value(qualifier='hf', component=starrefs[1], check_visible=False)
+        hf_1 = computeparams.get_value(qualifier='hf', component=starrefs[0], **_skip_filter_checks)
+        hf_2 = computeparams.get_value(qualifier='hf', component=starrefs[1], **_skip_filter_checks)
 
-        grid_1 = computeparams.get_value(qualifier='grid', component=starrefs[0])
-        grid_2 = computeparams.get_value(qualifier='grid', component=starrefs[1])
+        grid_1 = computeparams.get_value(qualifier='grid', component=starrefs[0], **_skip_filter_checks)
+        grid_2 = computeparams.get_value(qualifier='grid', component=starrefs[1], **_skip_filter_checks)
 
-        exact_grav = computeparams.get_value(qualifier='exact_grav')
+        exact_grav = computeparams.get_value(qualifier='exact_grav', **_skip_filter_checks)
 
-        a = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad)
-        radius_1 = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad) / a
-        radius_2 = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad) / a
+        comp_ps = b.filter(context='component')
 
-        sb_ratio = (b.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K)/b.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K))**4
+        a = comp_ps.get_value(qualifier='sma', component=orbitref, unit=u.solRad, **_skip_filter_checks)
+        radius_1 = comp_ps.get_value(qualifier='requiv', component=starrefs[0], unit=u.solRad, **_skip_filter_checks) / a
+        radius_2 = comp_ps.get_value(qualifier='requiv', component=starrefs[1], unit=u.solRad, **_skip_filter_checks) / a
 
-        period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d)
-        q = b.get_value(qualifier='q', component=orbitref, context='component')
+        sb_ratio = (comp_ps.get_value(qualifier='teff', component=starrefs[0], unit=u.K, **_skip_filter_checks)/comp_ps.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K, **_skip_filter_checks))**4
+
+        period = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
+        q = comp_ps.get_value(qualifier='q', component=orbitref, **_skip_filter_checks)
 
         # TODO: there seems to be a convention flip between primary and secondary star in ellc... maybe we can just address via t_zero?
-        t_zero = b.get_value(qualifier='t0_supconj', component=orbitref, context='component', unit=u.d)
+        t_zero = comp_ps.get_value(qualifier='t0_supconj', component=orbitref, unit=u.d, **_skip_filter_checks)
 
-        incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg)
+        incl = comp_ps.get_value(qualifier='incl', component=orbitref, unit=u.deg, **_skip_filter_checks)
         didt = 0.0
         # didt = b.get_value(qualifier='dincldt', component=orbitref, context='component', unit=u.deg/u.d) * period
 
-        ecc = b.get_value(qualifier='ecc', component=orbitref, context='component')
-        w = b.get_value(qualifier='per0', component=orbitref, context='component', unit=u.rad)
+        ecc = comp_ps.get_value(qualifier='ecc', component=orbitref, **_skip_filter_checks)
+        w = comp_ps.get_value(qualifier='per0', component=orbitref, unit=u.rad, **_skip_filter_checks)
 
-        domdt = b.get_value(qualifier='dperdt', component=orbitref, context='component', unit=u.deg/u.d) * period
+        domdt = comp_ps.get_value(qualifier='dperdt', component=orbitref, unit=u.deg/u.d, **_skip_filter_checks) * period
 
-        gdc_1 = b.get_value(qualifier='gravb_bol', component=starrefs[0], context='component')
-        gdc_2 = b.get_value(qualifier='gravb_bol', component=starrefs[1], context='component')
+        gdc_1 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[0], **_skip_filter_checks)
+        gdc_2 = comp_ps.get_value(qualifier='gravb_bol', component=starrefs[1], **_skip_filter_checks)
 
-        rotfac_1 = b.get_value(qualifier='syncpar', component=starrefs[0], context='component')
-        rotfac_2 = b.get_value(qualifier='syncpar', component=starrefs[1], context='component')
+        rotfac_1 = comp_ps.get_value(qualifier='syncpar', component=starrefs[0], **_skip_filter_checks)
+        rotfac_2 = comp_ps.get_value(qualifier='syncpar', component=starrefs[1], **_skip_filter_checks)
 
         f_c = np.sqrt(ecc) * np.cos(w)
         f_s = np.sqrt(ecc) * np.sin(w)
@@ -2120,7 +2122,7 @@ class EllcBackend(BaseBackendByDataset):
         radius_1 = kwargs.get('radius_2')
         radius_2 = kwargs.get('radius_1')
 
-        sb_ratio = kwargs.get('sbratio')
+        sb_ratio = kwargs.get('sb_ratio')
 
         incl = kwargs.get('incl')
 
@@ -2141,23 +2143,23 @@ class EllcBackend(BaseBackendByDataset):
         rotfac_1 = kwargs.get('rotfac_1')
         rotfac_2 = kwargs.get('rotfac_2')
 
-
+        ds_ps = b.get_dataset(dataset=info['dataset'], **_skip_filter_checks)
         # get dataset-dependent things that we need
-        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
-        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
+        ldfuncA = ds_ps.get_value(qualifier='ld_func', component=starrefs[0], **_skip_filter_checks)
+        ldfuncB = ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks)
 
         # use check_visible=False to access the ld_coeffs from
         # compute_ld_coeffs(set_value=True) done in _worker_setup
-        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
-        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsA = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[0], **_skip_filter_checks)
+        ldcoeffsB = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
         # albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component')
         # albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component')
 
         if info['kind'] == 'lc':
-            light_3 = b.get_value(qualifier='l3_frac', dataset=info['dataset'], context='dataset', check_visible=False)
+            light_3 = ds_ps.get_value(qualifier='l3_frac', **_skip_filter_checks)
 
-            t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
+            t_exp = ds_ps.get_value(qualifier='exptime', **_skip_filter_checks)
 
             # move outside above 'lc' if-statement once exptime is supported for RVs in phoebe
             if b.get_value(qualifier='fti_method', compute=compute, dataset=info['dataset'], context='compute') == 'oversample':
@@ -2192,7 +2194,7 @@ class EllcBackend(BaseBackendByDataset):
 
             # ellc returns "arbitrary" flux values... let's try to rescale
             # to our flux units to be compatible with other backends
-            fluxes *= b.get_value(qualifier='pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
+            fluxes *= b.get_value(qualifier='pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, **_skip_filter_checks)
 
             # fill packets
             packetlist = []
@@ -2208,7 +2210,7 @@ class EllcBackend(BaseBackendByDataset):
                                            info))
 
         elif info['kind'] == 'rv':
-            rv_method = b.get_value(qualifier='rv_method', compute=compute, dataset=info['dataset'], component=info['component'], context='compute')
+            rv_method = b.get_value(qualifier='rv_method', compute=compute, dataset=info['dataset'], component=info['component'], context='compute', **_skip_filter_checks)
             flux_weighted = rv_method == 'flux-weighted'
             if flux_weighted:
                 raise NotImplementedError("flux-weighted does not seem to work in ellc")
