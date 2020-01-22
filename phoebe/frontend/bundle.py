@@ -1610,7 +1610,7 @@ class Bundle(ParameterSet):
         ------
         * (bool) whether logging of history items (undo/redo) is enabled.
         """
-        return self.get_setting('log_history').get_value()\
+        return self.get_setting(qualifier='log_history').get_value()\
             if len(self.get_setting())\
             else False
 
@@ -1623,7 +1623,7 @@ class Bundle(ParameterSet):
 
         Shortcut to `b.get_setting('log_history').set_value(True)`
         """
-        self.get_setting('log_history').set_value(True)
+        self.get_setting(qualifier='log_history').set_value(True)
 
     def disable_history(self):
         """
@@ -1634,7 +1634,7 @@ class Bundle(ParameterSet):
 
         Shortcut to `b.get_setting('log_history').set_value(False)`
         """
-        self.get_setting('log_history').set_value(False)
+        self.get_setting(qualifier='log_history').set_value(False)
 
     def undo(self, i=-1):
         """
@@ -1752,25 +1752,25 @@ class Bundle(ParameterSet):
         affected_params = []
         changed_param = self.run_delayed_constraints()
 
-        dss_ps = self.filter(context='dataset', check_default=False, check_visible=False)
+        dss_ps = self.filter(context='dataset', **_skip_filter_checks)
 
         pbdep_datasets = dss_ps.filter(kind=_dataset._pbdep_columns.keys(),
-                                       check_default=False, check_visible=False).datasets
+                                       **_skip_filter_checks).datasets
 
         pbdep_columns = _dataset._mesh_columns[:] # force deepcopy
         for pbdep_dataset in pbdep_datasets:
             pbdep_kind = dss_ps.filter(dataset=pbdep_dataset,
                                        kind=_dataset._pbdep_columns.keys(),
-                                       check_default=False, check_visible=False).kind
+                                       **_skip_filter_checks).kind
 
             pbdep_columns += ["{}@{}".format(column, pbdep_dataset) for column in _dataset._pbdep_columns[pbdep_kind]]
 
         time_datasets = dss_ps.exclude(kind='mesh').datasets
 
-        t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component']).to_list()]
+        t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component'], **_skip_filter_checks).to_list()]
         t0s += ["t0@system"]
 
-        for param in dss_ps.filter(qualifier='columns', check_default=False, check_visible=False).to_list():
+        for param in dss_ps.filter(qualifier='columns', **_skip_filter_checks).to_list():
             choices_changed = False
             if return_changes and pbdep_columns != param._choices:
                 choices_changed = True
@@ -1779,7 +1779,7 @@ class Bundle(ParameterSet):
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
-        for param in dss_ps.filter(qualifier='include_times', check_default=False, check_visible=False).to_list():
+        for param in dss_ps.filter(qualifier='include_times', **_skip_filter_checks).to_list():
 
             # NOTE: existing value is updated in change_component
             choices_changed = False
@@ -1790,7 +1790,7 @@ class Bundle(ParameterSet):
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
-        for param in self.filter(context='figure', qualifier='datasets', check_default=False, check_visible=False).to_list():
+        for param in self.filter(context='figure', qualifier='datasets', **_skip_filter_checks).to_list():
             ds_same_kind = self.filter(context='dataset', kind=param.kind).datasets
 
             choices_changed = False
@@ -1806,24 +1806,24 @@ class Bundle(ParameterSet):
     def _handle_figure_time_source_params(self, rename={}, return_changes=False):
         affected_params = []
 
-        t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component']).to_list()]
+        t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component'], **_skip_filter_checks).to_list()]
         t0s += ["t0@system"]
 
         # here we have to use context='dataset' otherwise pb-dependent parameters
         # with context='model', kind='mesh' will show up
-        valid_datasets = self.filter(context='dataset', kind=['mesh', 'lp'], check_visible=False).datasets
+        valid_datasets = self.filter(context='dataset', kind=['mesh', 'lp'], **_skip_filter_checks).datasets
 
         mesh_times = []
         lp_times = []
         mesh_lp_times = []
         for t in self.filter(context='model', kind='mesh').times:
-            mesh_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t).datasets if ds in valid_datasets)))
+            mesh_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t, **_skip_filter_checks).datasets if ds in valid_datasets)))
         for t in self.filter(context='model', kind='lp').times:
-            lp_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t).datasets if ds in valid_datasets)))
+            lp_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t, **_skip_filter_checks).datasets if ds in valid_datasets)))
         for t in self.filter(context='model').times:
-            mesh_lp_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t).datasets if ds in valid_datasets)))
+            mesh_lp_times.append('{} ({})'.format(t, ', '.join(ds for ds in self.filter(context='model', time=t, **_skip_filter_checks).datasets if ds in valid_datasets)))
 
-        for param in self.filter(context='figure', qualifier=['default_time_source', 'time_source'], check_default=False, check_visible=False).to_list():
+        for param in self.filter(context='figure', qualifier=['default_time_source', 'time_source'], **_skip_filter_checks).to_list():
 
 
             if param.qualifier == 'default_time_source':
@@ -1869,9 +1869,9 @@ class Bundle(ParameterSet):
         affected_params = []
         changed_params = self.run_delayed_constraints()
 
-        computes = self.filter(context='compute', check_default=False, check_visible=False).computes
+        computes = self.filter(context='compute', **_skip_filter_checks).computes
 
-        for param in self.filter(qualifier='run_checks_compute', check_default=False, check_visible=False).to_list():
+        for param in self.filter(qualifier='run_checks_compute', **_skip_filter_checks).to_list():
             choices_changed = False
             if return_changes and computes != param._choices:
                 choices_changed = True
@@ -1937,15 +1937,15 @@ class Bundle(ParameterSet):
 
         # we'll cheat by checking in the dataset context to avoid getting the
         # pb-dependent entries with kind='mesh'
-        mesh_datasets = self.filter(context='dataset', kind='mesh').datasets
+        mesh_datasets = self.filter(context='dataset', kind='mesh', **_skip_filter_checks).datasets
 
         choices = ['None']
-        for p in self.filter(context='model', kind='mesh', check_visible=False).exclude(qualifier=ignore, check_visible=False).to_list():
+        for p in self.filter(context='model', kind='mesh', **_skip_filter_checks).exclude(qualifier=ignore, **_skip_filter_checks).to_list():
             item = p.qualifier if p.dataset in mesh_datasets else '{}@{}'.format(p.qualifier, p.dataset)
             if item not in choices:
                 choices.append(item)
 
-        for param in self.filter(context='figure', qualifier=['fc_column', 'ec_column'], check_default=False, check_visible=False).to_list():
+        for param in self.filter(context='figure', qualifier=['fc_column', 'ec_column'], **_skip_filter_checks).to_list():
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
@@ -1969,7 +1969,7 @@ class Bundle(ParameterSet):
 
         choices = self.distributions
 
-        for param in self.filter(context='fitting', qualifier=['init_from', 'priors'], check_default=False, check_visible=False).to_list():
+        for param in self.filter(context='fitting', qualifier=['init_from', 'priors'], **_skip_filter_checks).to_list():
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
@@ -2578,7 +2578,7 @@ class Bundle(ParameterSet):
 
         for component in hier_stars:
             kind = hier.get_kind_of(component) # shouldn't this always be 'star'?
-            comp_ps = self.get_component(component, **_skip_filter_checks)
+            comp_ps = self.get_component(component=component, **_skip_filter_checks)
 
             if not len(comp_ps):
                 report.add_item(b,
@@ -2587,7 +2587,7 @@ class Bundle(ParameterSet):
                                 True)
 
             parent = hier.get_parent_of(component)
-            parent_ps = self.get_component(parent, **_skip_filter_checks)
+            parent_ps = self.get_component(component=parent, **_skip_filter_checks)
             if kind in ['star']:
                 if self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs) >= 10000 and self.get_value(qualifier='ld_mode_bol', component=component, context='component') == 'lookup':
                     report.add_item(self,
@@ -7054,7 +7054,7 @@ class Bundle(ParameterSet):
 
             do_create_fig_params = kwargs.get('do_create_fig_params', False)
 
-            overwrite_ps = self.remove_model(model, remove_figure_params=do_create_fig_params)
+            overwrite_ps = self.remove_model(model=model, remove_figure_params=do_create_fig_params)
             # check the label again, just in case model belongs to something
             # other than model/figure
 
@@ -7098,7 +7098,7 @@ class Bundle(ParameterSet):
         # any kwargs that were used just to filter for get_compute should  be
         # removed so that they aren't passed on to all future get_value(...
         # **kwargs) calls
-        computes_ps = self.get_compute(compute=compute, **kwargs)
+        computes_ps = self.get_compute(compute=compute, check_visible=False, **kwargs)
         for k in parameters._meta_fields_filter:
             if k in kwargs.keys():
                 dump = kwargs.pop(k)
@@ -7320,7 +7320,7 @@ class Bundle(ParameterSet):
             self.as_client(server=detach)
             self.run_compute(compute=compute, model=model, times=times, **kwargs)
             self.as_client(False)
-            return self.get_model(model)
+            return self.get_model(model=model)
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
@@ -7387,7 +7387,7 @@ class Bundle(ParameterSet):
                                      uniqueid=jobid)
 
             metawargs = {'context': 'model', 'model': model}
-            self._attach_params([job_param], **metawargs)
+            self._attach_params([job_param], check_copy_for=False, **metawargs)
 
             if isinstance(detach, str):
                 self.save(detach)
@@ -7520,7 +7520,7 @@ class Bundle(ParameterSet):
                     ds_fluxes = ds_obs.get_value(qualifier='fluxes')
                     ds_sigmas = ds_obs.get_value(qualifier='sigmas')
 
-                    ds_model = self.get_model(model, dataset=param.dataset, check_visible=False)
+                    ds_model = self.get_model(model=model, dataset=param.dataset, check_visible=False)
                     model_fluxes = ds_model.get_value(qualifier='fluxes')
                     model_fluxes_interp = ds_model.get_parameter(qualifier='fluxes').interp_value(times=ds_times)
                     scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
@@ -7544,7 +7544,7 @@ class Bundle(ParameterSet):
 
                 fig_metawargs = {'context': 'figure',
                                  'model': model}
-                self._attach_params(fig_params, **fig_metawargs)
+                self._attach_params(fig_params, check_copy_for=False, **fig_metawargs)
 
             redo_kwargs = deepcopy(kwargs)
             redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
