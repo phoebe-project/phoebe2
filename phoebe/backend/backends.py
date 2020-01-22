@@ -2054,6 +2054,8 @@ class EllcBackend(BaseBackendByDataset):
         radius_1 = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad) / a
         radius_2 = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad) / a
 
+        sb_ratio = (b.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K)/b.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K))**4
+
         period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d)
         q = b.get_value(qualifier='q', component=orbitref, context='component')
 
@@ -2086,6 +2088,7 @@ class EllcBackend(BaseBackendByDataset):
                     grid_1=grid_1, grid_2=grid_2,
                     exact_grav=exact_grav,
                     radius_1=radius_1, radius_2=radius_2,
+                    sb_ratio=sb_ratio,
                     incl=incl,
                     t_zero=t_zero,
                     period=period,
@@ -2116,6 +2119,8 @@ class EllcBackend(BaseBackendByDataset):
 
         radius_1 = kwargs.get('radius_2')
         radius_2 = kwargs.get('radius_1')
+
+        sb_ratio = kwargs.get('sbratio')
 
         incl = kwargs.get('incl')
 
@@ -2151,13 +2156,6 @@ class EllcBackend(BaseBackendByDataset):
 
         if info['kind'] == 'lc':
             light_3 = b.get_value(qualifier='l3_frac', dataset=info['dataset'], context='dataset', check_visible=False)
-
-            # this is just a hack for now, we'll eventually want the true sb ratio
-            logger.info("computing sb_ratio from pblums and requivs for dataset='{}'".format(info['dataset']))
-            # note: these aren't true surface brightnesses, but the ratio should be fine
-            sb_primary = b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2
-            sb_secondary = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2
-            sb_ratio =  sb_secondary / sb_primary
 
             t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
 
@@ -2214,9 +2212,6 @@ class EllcBackend(BaseBackendByDataset):
             flux_weighted = rv_method == 'flux-weighted'
             if flux_weighted:
                 raise NotImplementedError("flux-weighted does not seem to work in ellc")
-
-            # surface-brightness ratio shouldn't matter for rvs...
-            sb_ratio = 1.0
 
             # enable once exptime for RVs is supported in PHOEBE
             # t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
