@@ -7222,7 +7222,6 @@ class Bundle(ParameterSet):
 
     @send_if_client
     def run_compute(self, compute=None, model=None,
-                    draw_from=None,
                     detach=False,
                     times=None, **kwargs):
         """
@@ -7259,16 +7258,6 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
             creation.
-        * `draw_from` (string, optional, default=None): distribution tag to
-            draw from before computing the model.  All parameters without a valid
-            distribution object with distribution=`draw_from` will fallback
-            on their face-values.  See <phoebe.parameters.FloatParameter.get_quantity>
-            for more details.
-        * `draw_seed` (int, optional): seed to use when sampling. Only applicable
-            for parameters that are drawn from distributions according to `draw_from`.
-            NOTE: as this is intended to be a single seed across multiple parameters,
-            the values drawn will not be the same as passing the same value of
-            `draw_seed` to each individual <phoebe.parameters.FloatParameter.get_quantity>.
         * `detach` (bool, optional, default=False, EXPERIMENTAL):
             whether to detach from the computation run,
             or wait for computations to complete.  If detach is True, see
