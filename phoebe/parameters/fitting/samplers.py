@@ -29,7 +29,7 @@ def emcee(**kwargs):
     For example:
 
     ```py
-    b.add_fitting('emcee')
+    b.add_fitting('samplers.emcee')
     b.run_fitting(kind='emcee')
     ```
 
@@ -42,6 +42,8 @@ def emcee(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = []
+
+    params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
 
     params += [IntParameter(qualifier='nwalkers', value=kwargs.get('nwalkers', 16), limits=(1,1e5), description='number of walkers')]
     params += [IntParameter(qualifier='niters', value=kwargs.get('niters', 100), limits=(1,1e12), description='number of iterations')]

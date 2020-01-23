@@ -1863,6 +1863,32 @@ class Bundle(ParameterSet):
 
         return affected_params
 
+    def _handle_compute_choiceparams(self, return_changes=False):
+        affected_params = []
+
+        choices = self.filter(context='compute', **_skip_filter_checks).computes
+
+        for param in self.filter(qualifier='compute', context='fitting', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                if param._value == 'None' and len(choices):
+                    param._value = choices[0]
+                else:
+                    param._value = 'None'
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+
     def _handle_compute_selectparams(self, rename={}, return_changes=False):
         """
         """
@@ -6937,7 +6963,8 @@ class Bundle(ParameterSet):
         # we'll only raise a warning
         self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
 
-        self._handle_compute_selectparams()
+        ret_ps += ParameterSet(self._handle_compute_selectparams(return_changes=True))
+        ret_ps += ParameterSet(self._handle_compute_choiceparams(return_changes=True))
 
         if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
             ret_ps += overwrite_ps
@@ -7802,6 +7829,9 @@ class Bundle(ParameterSet):
 
         self._check_label(kwargs['fitting'], allow_overwrite=kwargs.get('overwrite', False))
 
+        # some parameters can't have their values set until the choices are
+        # updated by self._handle* below
+        kwarg_compute = kwargs.pop('compute', None)
         params = func(**kwargs)
         # TODO: similar kwargs logic as in add_dataset (option to pass dict to
         # apply to different components this would be more complicated here if
@@ -7838,6 +7868,11 @@ class Bundle(ParameterSet):
             ret_ps += overwrite_ps
 
         self._handle_distribution_selectparams(return_changes=False)
+        self._handle_compute_choiceparams(return_changes=False)
+
+        # now set parameters that needed updated choices
+        if kwarg_compute is not None:
+            ret_ps.set_value_all(qualifier='compute', value=kwarg_compute, **_skip_filter_checks)
 
         return ret_ps
 
@@ -7925,7 +7960,7 @@ class Bundle(ParameterSet):
         return self.filter(fitting=new_fitting)
 
     @send_if_client
-    def run_fitting(self, fitting=None, compute=None, **kwargs):
+    def run_fitting(self, fitting=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset(s) using
         a specified set of fitting options.
@@ -7957,12 +7992,6 @@ class Bundle(ParameterSet):
             attached fitting options if only 1 exists.  If more than 1 exist,
             then fitting becomes a required argument.  If no fitting options
             exist, an error will be raised.
-        * `compute` (string, optional): name of the compute options to use.
-            If not provided or None, run_compute will use an existing set of
-            attached compute options if only 1 exists.  If more than 1 exist,
-            then compute becomes a required argument.  If no compute options
-            exist, then this will use default options and create and attach
-            a new set of compute options with a default label.
         * `feedback` (string, optional): name of the resulting feedback.  If not
             provided this will default to 'latest'.  NOTE: existing feedbacks
             with the same name will be overwritten depending on the value
@@ -7996,16 +8025,24 @@ class Bundle(ParameterSet):
 
         fitting_ps = self.get_fitting(fitting=fitting)
         fitting_class = getattr(_fittingbackends, '{}Backend'.format(fitting_ps.kind.title()))
-        compute_ps = self.get_compute(compute=compute)
-        if len(compute_ps.computes) > 1:
-            raise ValueError("more than one set of compute options attached, must provide compute")
-        elif not len(compute_ps.computes):
-            raise ValueError("no compute options found")
+        if 'compute' in fitting_ps.qualifiers:
+            compute = kwargs.pop('compute', fitting_ps.get_value(qualifier='compute', **_skip_filter_checks))
+            compute_ps = self.get_compute(compute=compute)
+
+            if len(compute_ps.computes) > 1:
+                raise ValueError("more than one set of compute options attached, must provide compute")
+            elif not len(compute_ps.computes):
+                raise ValueError("no compute options found")
+
+            compute = compute_ps.compute
+
+        else:
+            compute = None
 
         params = fitting_class().run(self, fitting, compute, **kwargs)
         metawargs = {'context': 'feedback',
                      'fitting': fitting_ps.fitting,
-                     'compute': compute_ps.compute,
+                     'compute': compute,
                      'kind': fitting_ps.kind,
                      'feedback': kwargs.get('feedback')}
 
