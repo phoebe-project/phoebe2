@@ -1270,7 +1270,7 @@ class ParameterSet(object):
             else:
                 setattr(self, '_'+field, None)
 
-    def _uniquetwig(self, param_or_twig, force_levels=['qualifier']):
+    def _uniquetwig(self, param_or_twig, force_levels=['qualifier'], exclude_levels=[]):
         """
         get the least unique twig for the parameter given by twig that
         will return this single result for THIS PS
@@ -1279,7 +1279,7 @@ class ParameterSet(object):
                 THIS PS
         :parameter list force_levels: (optional) a list of "levels"
             (eg. context) that should be included whether or not they are
-            necessary
+            necessary.  'context' will be appended unless `incl_context` is disabled.
         :return: the unique twig
         :rtype: str
         """
@@ -1294,12 +1294,17 @@ class ParameterSet(object):
             force_levels.append('context')
 
         for k in force_levels:
+            if k in exclude_levels:
+                continue
             metawargs[k] = getattr(for_this_param, k)
 
         prev_count = len(self)
         # just to fake in case no metawargs are passed at all
         ps_for_this_search = []
         for k in _meta_fields_twig:
+            if k in exclude_levels or k in force_levels:
+                continue
+
             metawargs[k] = getattr(for_this_param, k)
             if getattr(for_this_param, k) is None:
                 continue
@@ -1320,13 +1325,13 @@ class ParameterSet(object):
         # now we go in the other direction and try to remove each to make sure
         # the count goes up
         for k in _meta_fields_twig:
-            if metawargs[k] is None or k in force_levels:
+            if metawargs.get(k, None) is None or k in force_levels:
                 continue
 
             ps_for_this_search = self.filter(check_visible=False,
                                              **{ki: metawargs[ki]
                                                 for ki in _meta_fields_twig
-                                                if ki != k})
+                                                if ki != k and ki in metawargs.keys()})
 
             if len(ps_for_this_search) == 1:
                 # then we didn't need to use this tag
@@ -1340,7 +1345,7 @@ class ParameterSet(object):
 
         return "@".join([metawargs[k]
                          for k in _meta_fields_twig
-                         if metawargs[k] is not None])
+                         if metawargs.get(k, None) is not None])
 
     def _attach_params(self, params, check_copy_for=True, override_tags=False, **kwargs):
         """Attach a list of parameters (or ParameterSet) to this ParameterSet.
@@ -5553,7 +5558,7 @@ class Parameter(object):
         return self.get_uniquetwig()
 
 
-    def get_uniquetwig(self, ps=None):
+    def get_uniquetwig(self, ps=None, force_levels=['qualifier'], exclude_levels=[]):
         """
         Determine the shortest (more-or-less) twig which will point
         to this single <phoebe.parameters.Parameter> in a given parent
@@ -5569,6 +5574,12 @@ class Parameter(object):
             in which the returned uniquetwig will point to this Parameter.
             If not provided or None this will default to the parent
             <phoebe.frontend.bundle.Bundle>, if available.
+        * `force_levels` (list, optional, default=['qualifier']): levels to
+            always include in the returned twig.  In addition, the attribute
+            corresponding to the context of the parameter as well as the
+            context itself will ALWAYS be included (unless in `exclude_levels`).
+        * `exclude_levels` (bool, optional, default=True): levels to exclude
+            from the twig (takes precedence over `force_levels`)
 
         Returns
         --------
@@ -5581,7 +5592,7 @@ class Parameter(object):
         if ps is None:
             return self.twig
 
-        return ps._uniquetwig(self)
+        return ps._uniquetwig(self, force_levels=force_levels, exclude_levels=exclude_levels)
 
     @property
     def twig(self):

@@ -7987,6 +7987,12 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.disable_dataset>
 
         See also:
+        * <phoebe.frontend.bundle.Bundle.add_fitting>
+        * <phoebe.frontend.bundle.Bundle.get_fitting>
+        * <phoebe.frontend.bundle.Bundle.get_feedback>
+        * <phoebe.frontend.bundle.Bundle.process_feedback>
+        * <phoebe.frontend.bundle.Bundle.get_values_from_feedback>
+        * <phoebe.frontend.bundle.Bundle.get_distribution_from_feedback>
         * <phoebe.mpi_on>
         * <phoebe.mpi_off>
 
@@ -8053,7 +8059,7 @@ class Bundle(ParameterSet):
 
         self._attach_params(params, check_copy_for=False, **metawargs)
 
-    def process_feedback_diagnostics(self, feedback=None, **kwargs):
+    def process_feedback(self, feedback=None, **kwargs):
         """
         """
         feedback_ps = self.get_feedback(feedback=feedback)
@@ -8075,24 +8081,29 @@ class Bundle(ParameterSet):
                 logger.warning("could not compute thin, falling back on 1")
                 thin = 1
             try:
-                samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
+                samples = reader.get_chain(discard=burnin, thin=thin, flat=False)
             except:
                 logger.warning("could not get samples within burnin={}, thin={}".format(burnin, thin))
                 raise
 
-            log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
+            log_prob_samples = reader.get_log_prob(discard=burnin, thin=thin, flat=False)
+
+            ps = self.filter(context=['component', 'dataset'], **_skip_filter_checks)
+            fitted_params = [ps.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in feedback_ps.get_value(qualifier='fitted_parameters', **_skip_filter_checks)]
+            fitted_twigs = [param.get_uniquetwig(ps, exclude_levels=['context']) for param in fitted_params]
 
             return {'autocorr_time': autocorr_time,
                     'burnin': burnin,
                     'thin': thin,
                     'samples': samples,
+                    'fitted_twigs': fitted_twigs,
                     'lnp': log_prob_samples}
 
         elif fitting_kind in ['nelder_mead']:
             return {p.qualifier: p.get_value() for p in feedback_ps.to_list()}
 
         else:
-            raise NotImplementedError("process_feedback_diagnostics for kind='{}' not implemented".format(fitting_kind))
+            raise NotImplementedError("process_feedback for kind='{}' not implemented".format(fitting_kind))
 
     def get_values_from_feedback(self, feedback=None, keys='twig', set_value=False, **kwargs):
         """
@@ -8108,7 +8119,7 @@ class Bundle(ParameterSet):
             keys ('twig', 'qualifier', 'uniqueid').  Only applicable if
             `set_value` is False.
         * `**kwargs`: all additional keyword arguments are passed to
-            <phoebe.frontend.bundle.Bundle.process_feedback_diagnostics>
+            <phoebe.frontend.bundle.Bundle.process_feedback>
 
         Returns
         --------
@@ -8116,7 +8127,7 @@ class Bundle(ParameterSet):
             is False.  ParameterSet of changed Parameters (including those by
             constraints) if `set_value` is True.
         """
-        info = self.process_feedback_diagnostics(feedback=feedback, **kwargs)
+        info = self.process_feedback(feedback=feedback, **kwargs)
         if 'fitted_parameters' not in info.keys() or 'fitted_values' not in info.keys():
             raise NotImplementedError()
 
@@ -8163,12 +8174,20 @@ class Bundle(ParameterSet):
         feedback_ps = self.get_feedback(feedback=feedback)
         fitting_kind = feedback_ps.kind
         if fitting_kind == 'emcee':
-            diags = self.process_feedback_diagnostics(feedback=feedback, **kwargs)
+            info = self.process_feedback(feedback=feedback, **kwargs)
 
             # TODO: we need to access the corresponding parameters so we can set
             # the labels and units, perhaps by storing uniqueids in an array
             # parameter?  Or by storing uniqueids in the h5 file?
-            dist = _npdists.mvhistogram_from_data(diags['samples'], bins=kwargs.get('bins', 10), range=None, weights=None, unit=None, label=None, wrap_at=None)
+            ps = self.filter(context=['component', 'dataset'], **_skip_filter_checks)
+            fitted_params = [ps.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in feedback_ps.get_value(qualifier='fitted_parameters', **_skip_filter_checks)]
+            fitted_twigs = [param.get_uniquetwig(ps, exclude_levels=['context']) for param in fitted_params]
+            # TODO: this assumes the unit hasn't changed since the fitting run... alternatively we could store units in the feedback as 'fitted_units'
+            # TODO: npdists multivariate support needs to accept list of units
+            fitted_units = None
+            #fitted_units = [param.default_unit for param in fitted_params]
+
+            dist = _npdists.mvhistogram_from_data(info['samples'].reshape((-1,len(info['fitted_twigs']))), bins=kwargs.get('bins', 10), range=None, weights=None, unit=fitted_units, label=fitted_twigs, wrap_at=None)
             return dist
 
         else:

@@ -709,7 +709,7 @@ class BaseDistribution(object):
             unit = _units.Unit(unit)
 
         if not (unit is None or isinstance(unit, _units.Unit) or isinstance(unit, _units.CompositeUnit) or isinstance(unit, _units.IrreducibleUnit)):
-            raise TypeError("unit must be of type astropy.units.Unit")
+            raise TypeError("unit must be of type astropy.units.Unit, got {} (type: {})".format(unit, type(unit)))
 
         self._unit = unit
 

@@ -232,6 +232,7 @@ class EmceeBackend(BaseFittingBackend):
 
         feedback_params = []
         feedback_params += [_parameters.StringParameter(qualifier='filename', value=kwargs.get('filename', None), description='filename of emcee progress file (contents loaded on the fly, DO NOT DELETE FILE)')]
+        feedback_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
 
         return kwargs, _parameters.ParameterSet(feedback_params)
 
@@ -361,6 +362,8 @@ class EmceeBackend(BaseFittingBackend):
         if pool is not None:
             pool.close()
 
+        if is_master:
+            return [[{'qualifier': 'fitted_parameters', 'value': params_uniqueids}]]
         return {}
 
 
@@ -435,6 +438,7 @@ class Nelder_MeadBackend(BaseFittingBackend):
                    'maxfev': maxfev}
 
         logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(bjson, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('feedback', None), compute_kwargs, options))
+        # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
         res = optimize.minimize(_lnlikelihood_negative, p0,
                                 method='nelder-mead',
                                 args=(_bjson(b, fitting, compute, init_from+priors), params_uniqueids, compute, priors, kwargs.get('feedback', None), compute_kwargs),
