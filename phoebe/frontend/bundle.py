@@ -5774,12 +5774,12 @@ class Bundle(ParameterSet):
             sampled values for all relevant parameters.  Note that `N` must
             be None.
         * `keys` (string, optional, default='twig'): attribute to use for dictionary
-            keys ('twig', 'qualifier', 'uniqueid') or 'parameter' for the
-            parameter object itself.  Only applicable if `set_value` is False.
+            keys ('twig', 'qualifier', 'uniqueid').  Only applicable if
+            `set_value` is False.
 
         Returns
         --------
-        * (dict or ParameterSet): dictionary of twig, value pairs if `set_value`
+        * (dict or ParameterSet): dictionary of `keys`, value pairs if `set_value`
             is False.  ParameterSet of changed Parameters (including those by
             constraints) if `set_value` is True.
 
@@ -5827,10 +5827,7 @@ class Bundle(ParameterSet):
                 param.set_value(sampled_value)
                 changed_params.append(param)
             else:
-                if keys.lower() == 'parameter':
-                    ret[param] = sampled_value
-                else:
-                    ret[getattr(param, keys)] = sampled_value
+                ret[getattr(param, keys)] = sampled_value
 
         if set_value:
             changed_params += self.run_delayed_constraints()
@@ -7830,8 +7827,12 @@ class Bundle(ParameterSet):
         self._check_label(kwargs['fitting'], allow_overwrite=kwargs.get('overwrite', False))
 
         # some parameters can't have their values set until the choices are
-        # updated by self._handle* below
+        # updated by self._handle* below.  If this list gets too long or
+        # backend-dependent, we may want to just not pass **kwargs and
+        # loop through the whole list at the end
         kwarg_compute = kwargs.pop('compute', None)
+        kwarg_priors = kwargs.pop('priors', None)
+        kwarg_init_from = kwargs.pop('init_from', None)
         params = func(**kwargs)
         # TODO: similar kwargs logic as in add_dataset (option to pass dict to
         # apply to different components this would be more complicated here if
@@ -7873,6 +7874,10 @@ class Bundle(ParameterSet):
         # now set parameters that needed updated choices
         if kwarg_compute is not None:
             ret_ps.set_value_all(qualifier='compute', value=kwarg_compute, **_skip_filter_checks)
+        if kwarg_priors is not None:
+            ret_ps.set_value_all(qualifier='priors', value=kwarg_priors, **_skip_filter_checks)
+        if kwarg_init_from is not None:
+            ret_ps.set_value_all(qualifier='init_from', value=kwarg_init_from, **_skip_filter_checks)
 
         return ret_ps
 
@@ -8083,8 +8088,60 @@ class Bundle(ParameterSet):
                     'samples': samples,
                     'lnp': log_prob_samples}
 
+        elif fitting_kind in ['nelder_mead']:
+            return {p.qualifier: p.get_value() for p in feedback_ps.to_list()}
+
         else:
             raise NotImplementedError("process_feedback_diagnostics for kind='{}' not implemented".format(fitting_kind))
+
+    def get_values_from_feedback(self, feedback=None, keys='twig', set_value=False, **kwargs):
+        """
+        Get face-value values from the fitting feedback and (optionally) adopt
+        the values.
+
+        Arguments
+        ----------
+        * `feedback`: (string, optional, default=None): the label of the feedback.
+        * `set_value` (bool, optional, default=False): whether to adopt the
+            face values for all relevant parameters.
+        * `keys` (string, optional, default='twig'): attribute to use for dictionary
+            keys ('twig', 'qualifier', 'uniqueid').  Only applicable if
+            `set_value` is False.
+        * `**kwargs`: all additional keyword arguments are passed to
+            <phoebe.frontend.bundle.Bundle.process_feedback_diagnostics>
+
+        Returns
+        --------
+        * (dict or ParameterSet): dictionary of `keys`, value pairs if `set_value`
+            is False.  ParameterSet of changed Parameters (including those by
+            constraints) if `set_value` is True.
+        """
+        info = self.process_feedback_diagnostics(feedback=feedback, **kwargs)
+        if 'fitted_parameters' not in info.keys() or 'fitted_values' not in info.keys():
+            raise NotImplementedError()
+
+        if set_value:
+            user_interactive_constraints = conf.interactive_constraints
+            conf.interactive_constraints_off(suppress_warning=True)
+
+        ret = {}
+        changed_params = []
+        for uniqueid, value in zip(info.get('fitted_parameters'), info.get('fitted_values')):
+            param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+
+            if set_value:
+                param.set_value(value)
+                changed_params.append(param)
+            else:
+                ret[getattr(param, keys)] = value
+
+        if set_value:
+            changed_params += self.run_delayed_constraints()
+            if user_interactive_constraints:
+                conf.interactive_constraints_on()
+            return ParameterSet(changed_params)
+        else:
+            return ret
 
     def get_distribution_from_feedback(self, feedback=None, **kwargs):
         """

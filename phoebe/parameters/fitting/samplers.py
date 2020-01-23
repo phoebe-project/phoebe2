@@ -1,6 +1,4 @@
 
-import numpy as np
-
 from phoebe.parameters import *
 from phoebe import conf
 
@@ -44,12 +42,11 @@ def emcee(**kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
+    params += [SelectParameter(qualifier='init_from', value=kwargs.get('init_from', []), choices=[], description='distribution(s) to initialize samples from (all UNCONSTRAINED parameters with attached distributions will be sampled/fitted)')]
+    params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors')]
 
     params += [IntParameter(qualifier='nwalkers', value=kwargs.get('nwalkers', 16), limits=(1,1e5), description='number of walkers')]
     params += [IntParameter(qualifier='niters', value=kwargs.get('niters', 100), limits=(1,1e12), description='number of iterations')]
-
-    params += [SelectParameter(qualifier='init_from', value=kwargs.get('init_from', []), choices=[], description='distribution to initialize samples from (all UNCONSTRAINED parameters with attached distributions will be sampled/fitted)')]
-    params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution to use for priors')]
 
     params += [StringParameter(qualifier='filename', value=kwargs.get('filename', 'emcee_progress.hd5'), description='filename to use for storing progress and continuing from previous run')]
     params += [BoolParameter(qualifier='continue_previous_run', value=kwargs.get('continue_previous_run', False), description='continue previous run by reading contents in the file defined by filename')]

@@ -25,11 +25,51 @@ except ImportError:
 else:
     _use_emcee = True
 
+from scipy import optimize
+
 import logging
 logger = logging.getLogger("FITTING")
 logger.addHandler(logging.NullHandler())
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
+
+def _bjson(b, fitting, compute, distributions):
+    # TODO: OPTIMIZE exclude disabled datasets?
+    # TODO: re-enable removing unused compute options - currently causes some constraints to fail
+    return b.exclude(context=['model', 'feedback', 'figure'], **_skip_filter_checks).exclude(
+                      fitting=[f for f in b.fittings if f!=fitting and fitting is not None], **_skip_filter_checks).exclude(
+                      # compute=[c for c in b.computes if c!=compute and compute is not None], **_skip_filter_checks).exclude(
+                      distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
+
+
+def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback, compute_kwargs={}):
+    # print("*** _lnlikelihood from rank: {}".format(mpi.myrank))
+    # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
+    # deferring constraints/checks until run_compute.
+
+    # TODO: [OPTIMIZE] try to remove this deepcopy - for some reason distribution objects
+    # are being stripped of their units without it
+    b = phoebe.frontend.bundle.Bundle(deepcopy(bjson))
+
+    for uniqueid, value in zip(params_uniqueids, sampled_values):
+        try:
+            b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
+        except ValueError as err:
+            logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
+            return -np.inf
+
+    # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
+    try:
+        b.run_compute(compute=compute, model=feedback, do_create_fig_params=False, **compute_kwargs)
+    except Exception as err:
+        logger.warning("received error from run_compute: {}.  lnlikelihood=-inf".format(err))
+        return -np.inf
+
+    # print("*** _lnlikelihood returning from rank: {}".format(mpi.myrank))
+    return b.calculate_lnp(distribution=priors) + b.calculate_lnlikelihood(model=feedback)
+
+def _lnlikelihood_negative(sampled_values, bjson, params_uniqueids, compute, priors, feedback, compute_kwargs={}):
+    return -1 * _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback, compute_kwargs)
 
 class BaseFittingBackend(object):
     def __init__(self):
@@ -49,7 +89,7 @@ class BaseFittingBackend(object):
         """
         raise NotImplementedError("run_checks is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def _get_packet_and_feedback(self, b, fitting, compute, **kwargs):
+    def _get_packet_and_feedback(self, b, fitting, **kwargs):
         """
         see get_packet_and_feedback.  _get_packet_and_feedback provides the custom parts
         of the packet that are Backend-dependent.
@@ -61,7 +101,7 @@ class BaseFittingBackend(object):
         """
         raise NotImplementedError("_get_packet_and_feedback is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def get_packet_and_feedback(self, b, fitting, compute, **kwargs):
+    def get_packet_and_feedback(self, b, fitting, **kwargs):
         """
         get_packet_and_feedback is called by the master and must get all information necessary
         to send to all workers.  The returned packet will be passed on as
@@ -73,7 +113,12 @@ class BaseFittingBackend(object):
         * backend: the class name will be passed on in the packet so the worker can call the correct backend
         * all kwargs will be passed on verbatim
         """
-        packet, feedback_ps = self._get_packet_and_feedback(b, fitting, compute, **kwargs)
+        fitting_ps = b.get_fitting(fitting=fitting, **_skip_filter_checks)
+        for param in fitting_ps.to_list():
+            kwargs.setdefault(param.qualifier, param.get_value(expand=True))
+
+        packet, feedback_ps = self._get_packet_and_feedback(b, fitting, **kwargs)
+
         for k,v in kwargs.items():
             packet[k] = v
 
@@ -83,7 +128,7 @@ class BaseFittingBackend(object):
 
         packet['b'] = b.to_json() if mpi.enabled else b
         packet['fitting'] = fitting
-        packet['compute'] = compute
+        # packet['compute'] = compute  # should have been set by kwargs, when applicable
         packet['backend'] = self.__class__.__name__
 
         return packet, feedback_ps
@@ -131,7 +176,7 @@ class BaseFittingBackend(object):
         self.run_checks(b, fitting,  compute, **kwargs)
 
         logger.debug("rank:{}/{} calling get_packet_and_feedback".format(mpi.myrank, mpi.nprocs))
-        packet, feedback_ps = self.get_packet_and_feedback(b, fitting, compute, **kwargs)
+        packet, feedback_ps = self.get_packet_and_feedback(b, fitting, **kwargs)
 
         if mpi.enabled:
             # broadcast the packet to ALL workers
@@ -157,7 +202,7 @@ class BaseFittingBackend(object):
 
 class EmceeBackend(BaseFittingBackend):
     """
-    See <phoebe.parameters.fitting.emcee>.
+    See <phoebe.parameters.fitting.samplers.emcee>.
 
     The run method in this class will almost always be called through the bundle, using
     * <phoebe.frontend.bundle.Bundle.add_fitting>
@@ -182,46 +227,13 @@ class EmceeBackend(BaseFittingBackend):
             raise ValueError("cannot file filename='{}', cannot use continue_previous_run=True".format(filename))
 
 
-    def _get_packet_and_feedback(self, b, fitting, compute, **kwargs):
+    def _get_packet_and_feedback(self, b, fitting, **kwargs):
         # NOTE: b, fitting, compute, backend will be added by get_packet_and_feedback
 
-        fitting_ps = b.get_fitting(fitting=fitting)
-
-        for param in fitting_ps.to_list():
-            kwargs.setdefault(param.qualifier, param.get_value())
-
         feedback_params = []
-        feedback_params += [_parameters.StringParameter(qualifier='filename', value=fitting_ps.get_value(qualifier='filename', filename=kwargs.get('filename', None)), description='filename of emcee progress file (contents loaded on the fly, DO NOT DELETE FILE)')]
+        feedback_params += [_parameters.StringParameter(qualifier='filename', value=kwargs.get('filename', None), description='filename of emcee progress file (contents loaded on the fly, DO NOT DELETE FILE)')]
 
         return kwargs, _parameters.ParameterSet(feedback_params)
-
-    @staticmethod
-    def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback, compute_kwargs={}):
-        # print("*** _lnlikelihood from rank: {}".format(mpi.myrank))
-        # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
-        # deferring constraints/checks until run_compute.
-
-        # TODO: [OPTIMIZE] try to remove this deepcopy - for some reason distribution objects
-        # are being stripped of their units without it
-        b = phoebe.frontend.bundle.Bundle(deepcopy(bjson))
-
-        for uniqueid, value in zip(params_uniqueids, sampled_values):
-            try:
-                b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
-            except ValueError as err:
-                logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
-                return -np.inf
-
-        # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
-        try:
-            b.run_compute(compute=compute, model=feedback, do_create_fig_params=False, **compute_kwargs)
-        except Exception as err:
-            logger.warning("received error from run_compute: {}.  lnlikelihood=-inf".format(err))
-            return -np.inf
-
-        # print("*** _lnlikelihood returning from rank: {}".format(mpi.myrank))
-        return b.calculate_lnp(distribution=priors) + b.calculate_lnlikelihood(model=feedback)
-
 
     def _run_worker(self, packet):
         # here we'll override loading the bundle since it is not needed
@@ -242,6 +254,7 @@ class EmceeBackend(BaseFittingBackend):
             is_master = True
 
         if is_master:
+            # TODO: are these all already in kwargs from get_packet_and_feedback?
             fitting_ps = b.get_fitting(fitting=fitting)
             niters = fitting_ps.get_value(qualifier='niters', niters=kwargs.get('niters', None))
             nwalkers = fitting_ps.get_value(qualifier='nwalkers', nwalkers=kwargs.get('nwalkers', None))
@@ -260,19 +273,12 @@ class EmceeBackend(BaseFittingBackend):
             esargs['pool'] = pool
             esargs['nwalkers'] = nwalkers
             esargs['ndim'] = len(params_uniqueids)
-            esargs['log_prob_fn'] = self._lnlikelihood
+            esargs['log_prob_fn'] = _lnlikelihood
             # esargs['a'] = kwargs.pop('a', None),
             # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
 
-            # TODO: OPTIMIZE exclude disabled datasets?
-            # TODO: re-enable removing unused compute options - currently causes some constraints to fail
-            bjson = b.exclude(context=['model', 'feedback', 'figure'], **_skip_filter_checks).exclude(
-                              fitting=[f for f in b.fittings if f!=fitting and fitting is not None], **_skip_filter_checks).exclude(
-                              # compute=[c for c in b.computes if c!=compute and compute is not None], **_skip_filter_checks).exclude(
-                              distribution=[d for d in b.distributions if d not in priors+init_from], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
-
-            esargs['kwargs'] = {'bjson': bjson,
+            esargs['kwargs'] = {'bjson': _bjson(b, fitting, compute, init_from+priors),
                                 'params_uniqueids': params_uniqueids,
                                 'compute': compute,
                                 'priors': priors,
@@ -356,3 +362,88 @@ class EmceeBackend(BaseFittingBackend):
             pool.close()
 
         return {}
+
+
+class Nelder_MeadBackend(BaseFittingBackend):
+    """
+    See <phoebe.parameters.fitting.optimizers.nelder_mead>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_fitting>
+    * <phoebe.frontend.bundle.Bundle.run_fitting>
+    """
+    def run_checks(self, b, fitting, compute, **kwargs):
+        fitting_ps = b.get_fitting(fitting)
+        if not len(fitting_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None))):
+            raise ValueError("cannot run scipy.optimize.minimize(method='nelder-mead') without any distributions in init_from")
+
+
+    def _get_packet_and_feedback(self, b, fitting, **kwargs):
+        # NOTE: b, fitting, compute, backend will be added by get_packet_and_feedback
+        feedback_params = []
+
+        feedback_params += [_parameters.StringParameter(qualifier='message', value='', description='message from the minimizer')]
+        feedback_params += [_parameters.IntParameter(qualifier='nfev', value=0, limits=(0,None), description='number of completed function evaluations (forward models)')]
+        feedback_params += [_parameters.IntParameter(qualifier='niter', value=0, limits=(0,None), description='number of completed iterations')]
+        feedback_params += [_parameters.BoolParameter(qualifier='success', value=False, description='whether the minimizer returned a success message')]
+        feedback_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
+        # TODO: double check units here... is it current default units or those used by the backend?
+        feedback_params += [_parameters.FloatArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+
+        # ['final_simplex', 'fun', 'message', 'nfev', 'nit', 'status', 'success', 'x']
+        #  final_simplex: (array([[87.67655473,  6.07062189,  1.03531095],
+        #        [87.68511689,  6.07062189,  1.03531095],
+        #        [87.67655473,  6.07121473,  1.03531095],
+        #        [87.67655473,  6.07062189,  1.03541205]]), array([inf, inf, inf, inf]))
+        #            fun: inf
+        #        message: 'Maximum number of iterations has been exceeded.'
+        #           nfev: 49
+        #            nit: 10
+        #         status: 2
+        #        success: False
+        #              x: array([87.67655473,  6.07062189,  1.03531095])
+
+        return kwargs, _parameters.ParameterSet(feedback_params)
+
+    # def _run_worker(self, packet):
+    #     # here we'll override loading the bundle since it is not needed
+    #     # in run_worker (for the workers.... note that the master
+    #     # will enter run_worker through run, not here)
+    #     return self.run_worker(**packet)
+
+    def run_worker(self, b, fitting, compute, **kwargs):
+        if mpi.within_mpirun:
+            raise NotImplementedError("mpi support for scipy.optimize not yet implemented")
+            # TODO: we need to tell the workers to join the pool for time-parallelization?
+
+        # TODO: are these all already in kwargs from get_packet_and_feedback?
+        fitting_ps = b.get_fitting(fitting=fitting)
+        init_from = fitting_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None), expand=True)
+        priors = fitting_ps.get_value(qualifier='priors', priors=kwargs.get('priors', None), expand=True)
+
+        adaptive = fitting_ps.get_value(qualifier='adaptive', niters=kwargs.get('adaptive', None))
+        maxiter = fitting_ps.get_value(qualifier='maxiter', maxiter=kwargs.get('maxiter', None))
+        maxfev = fitting_ps.get_value(qualifier='maxfev', maxfev=kwargs.get('maxfev', None))
+
+
+        sample_dict = b.sample_distribution(distribution=init_from, N=None, keys='uniqueid', set_value=False)
+        params_uniqueids, p0 = list(sample_dict.keys()), np.asarray(list(sample_dict.values()))
+
+        compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute).qualifiers}
+
+        options = {'maxiter': maxiter,
+                   'maxfev': maxfev}
+
+        logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(bjson, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('feedback', None), compute_kwargs, options))
+        res = optimize.minimize(_lnlikelihood_negative, p0,
+                                method='nelder-mead',
+                                args=(_bjson(b, fitting, compute, init_from+priors), params_uniqueids, compute, priors, kwargs.get('feedback', None), compute_kwargs),
+                                options=options)
+
+
+        return [[{'qualifier': 'message', 'value': res.message},
+                {'qualifier': 'nfev', 'value': res.nfev},
+                {'qualifier': 'niter', 'value': res.nit},
+                {'qualifier': 'success', 'value': res.success},
+                {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
+                {'qualifier': 'fitted_values', 'value': res.x}]]
