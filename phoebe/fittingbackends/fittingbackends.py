@@ -256,15 +256,13 @@ class EmceeBackend(BaseFittingBackend):
 
         if is_master:
             # TODO: are these all already in kwargs from get_packet_and_feedback?
-            fitting_ps = b.get_fitting(fitting=fitting)
-            niters = fitting_ps.get_value(qualifier='niters', niters=kwargs.get('niters', None))
-            nwalkers = fitting_ps.get_value(qualifier='nwalkers', nwalkers=kwargs.get('nwalkers', None))
-            init_from = fitting_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None), expand=True)
-            priors = fitting_ps.get_value(qualifier='priors', priors=kwargs.get('priors', None), expand=True)
+            niters = kwargs.get('niters')
+            nwalkers = kwargs.get('nwalkers')
+            init_from = kwargs.get('init_from')
+            priors = kwargs.get('priors')
 
-            filename = fitting_ps.get_value(qualifier='filename', filename=kwargs.get('filename', None))
-            continue_previous_run = fitting_ps.get_value(qualifier='continue_previous_run', continue_previous_run=kwargs.get('continue_previous_run', None))
-
+            filename = kwargs.get('filename')
+            continue_previous_run = kwargs.get('continue_previous_run')
 
             sample_dict = b.sample_distribution(distribution=init_from, N=nwalkers, keys='uniqueid', set_value=False)
             params_uniqueids, p0 = list(sample_dict.keys()), np.asarray(list(sample_dict.values()))
@@ -419,14 +417,12 @@ class Nelder_MeadBackend(BaseFittingBackend):
             raise NotImplementedError("mpi support for scipy.optimize not yet implemented")
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
-        # TODO: are these all already in kwargs from get_packet_and_feedback?
-        fitting_ps = b.get_fitting(fitting=fitting)
-        init_from = fitting_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None), expand=True)
-        priors = fitting_ps.get_value(qualifier='priors', priors=kwargs.get('priors', None), expand=True)
+        init_from = kwargs.get('init_from')
+        priors = kwargs.get('priors')
 
-        adaptive = fitting_ps.get_value(qualifier='adaptive', niters=kwargs.get('adaptive', None))
-        maxiter = fitting_ps.get_value(qualifier='maxiter', maxiter=kwargs.get('maxiter', None))
-        maxfev = fitting_ps.get_value(qualifier='maxfev', maxfev=kwargs.get('maxfev', None))
+        adaptive = kwargs.get('adaptive')
+        maxiter = kwargs.get('maxiter')
+        maxfev = kwargs.get('maxfev')
 
 
         sample_dict = b.sample_distribution(distribution=init_from, N=None, keys='uniqueid', set_value=False)
