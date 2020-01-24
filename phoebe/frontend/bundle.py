@@ -8034,11 +8034,11 @@ class Bundle(ParameterSet):
                           self._default_label('feedback',
                                               **{'context': 'feedback'}))
 
-        fitting_ps = self.get_fitting(fitting=fitting)
+        fitting_ps = self.get_fitting(fitting=fitting, **_skip_filter_checks)
         fitting_class = getattr(_fittingbackends, '{}Backend'.format(fitting_ps.kind.title()))
         if 'compute' in fitting_ps.qualifiers:
             compute = kwargs.pop('compute', fitting_ps.get_value(qualifier='compute', **_skip_filter_checks))
-            compute_ps = self.get_compute(compute=compute)
+            compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
 
             if len(compute_ps.computes) > 1:
                 raise ValueError("more than one set of compute options attached, must provide compute")

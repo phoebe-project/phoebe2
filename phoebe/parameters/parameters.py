@@ -90,6 +90,7 @@ import logging
 logger = logging.getLogger("PARAMETERS")
 logger.addHandler(logging.NullHandler())
 
+_skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
                                         'ConstraintParameter', 'JobParameter']
@@ -3241,17 +3242,17 @@ class ParameterSet(object):
             `component`) do not result in a single parameter for comparison.
         * NotImplementedError: if the dataset kind is not supported for residuals.
         """
-        if not len(self.filter(context='dataset').datasets):
-            dataset_ps = self._bundle.get_dataset(dataset=dataset)
+        if not len(self.filter(context='dataset', **_skip_filter_checks).datasets):
+            dataset_ps = self._bundle.get_dataset(dataset=dataset, **_skip_filter_checks)
         else:
-            dataset_ps = self.filter(dataset=dataset, context='dataset')
+            dataset_ps = self.filter(dataset=dataset, context='dataset', **_skip_filter_checks)
 
         dataset_kind = dataset_ps.kind
 
-        if not len(self.filter(context='model').models):
-            model_ps = self._bundle.get_model(model=model).filter(dataset=dataset, component=component)
+        if not len(self.filter(context='model', **_skip_filter_checks).models):
+            model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
         else:
-            model_ps = self.filter(model=model, context='model').filter(dataset=dataset, component=component)
+            model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
 
         if dataset_kind == 'lc':
             qualifier = 'fluxes'
@@ -3262,12 +3263,12 @@ class ParameterSet(object):
             # NOTE: add to documentation if adding support for other datasets
             raise NotImplementedError("calculate_residuals not implemented for dataset with kind='{}' (model={}, dataset={}, component={})".format(dataset_kind, model, dataset, component))
 
-        dataset_param = dataset_ps.get_parameter(qualifier, component=component)
-        model_param = model_ps.get_parameter(qualifier)
+        dataset_param = dataset_ps.get_parameter(qualifier, component=component, **_skip_filter_checks)
+        model_param = model_ps.get_parameter(qualifier, **_skip_filter_checks)
 
         # TODO: do we need to worry about conflicting units?
         # NOTE: this should automatically handle interpolating in phases, if necessary
-        times = dataset_ps.get_value(qualifier='times', component=component)
+        times = dataset_ps.get_value(qualifier='times', component=component, **_skip_filter_checks)
         if not len(times):
             raise ValueError("no times in the dataset: {}@{}".format(dataset, component))
         if not len(dataset_param.get_value()) == len(times):
@@ -3339,19 +3340,19 @@ class ParameterSet(object):
 
         chi2 = 0
 
-        if not len(self.filter(context='model').models):
-            model_ps = self._bundle.get_model(model=model).filter(dataset=dataset, component=component)
+        if not len(self.filter(context='model', **_skip_filter_checks).models):
+            model_ps = self._bundle.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
         else:
-            model_ps = self.filter(model=model, context='model').filter(dataset=dataset, component=component)
+            model_ps = self.filter(model=model, context='model', dataset=dataset, component=component, **_skip_filter_checks)
 
         for ds in model_ps.datasets:
-            ds_comps = model_ps.filter(dataset=ds).components
+            ds_comps = model_ps.filter(dataset=ds, **_skip_filter_checks).components
             if not len(ds_comps):
                 ds_comps = [None]
 
             for ds_comp in ds_comps:
                 residuals = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True)
-                sigmas = self._bundle.get_dataset(dataset=ds).get_value('sigmas', component=ds_comp, unit=residuals.unit)
+                sigmas = self._bundle.get_dataset(dataset=ds, **_skip_filter_checks).get_value('sigmas', component=ds_comp, unit=residuals.unit, **_skip_filter_checks)
 
                 if len(sigmas):
                     chi2 += np.sum(residuals.value**2 / sigmas**2)
@@ -3460,7 +3461,7 @@ class ParameterSet(object):
         # also have attached distributions?
 
         lnp = 0
-        for dist_param in self._bundle.get_distribution(distribution=distribution).to_list():
+        for dist_param in self._bundle.get_distribution(distribution=distribution, **_skip_filter_checks).to_list():
             if dist_param not in self or dist_param.get_referenced_parameter() not in self:
                 logger.warning("'{}' outside filter, excluding from lnp calculation".format(dist_param.twig))
                 continue
@@ -5874,7 +5875,7 @@ class Parameter(object):
 
         metawargs = {k:v for k,v in self.meta.items() if k not in ['qualifier', 'twig', 'uniquetwig']}
 
-        return self._bundle.filter(**metawargs)
+        return self._bundle.filter(check_visible=False, check_default=False, **metawargs)
 
     #~ @property
     #~ def constraint(self):

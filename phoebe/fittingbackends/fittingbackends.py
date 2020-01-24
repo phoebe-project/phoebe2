@@ -282,7 +282,7 @@ class EmceeBackend(BaseFittingBackend):
                                 'compute': compute,
                                 'priors': priors,
                                 'feedback': kwargs.get('feedback', None),
-                                'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute).qualifiers}}
+                                'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}}
 
             # esargs['live_dangerously'] = kwargs.pop('live_dangerously', None)
             # esargs['runtime_sortingfn'] = kwargs.pop('runtime_sortingfn', None)
@@ -410,7 +410,7 @@ class Nelder_MeadBackend(BaseFittingBackend):
         sample_dict = b.sample_distribution(distribution=init_from, N=None, keys='uniqueid', set_value=False)
         params_uniqueids, p0 = list(sample_dict.keys()), np.asarray(list(sample_dict.values()))
 
-        compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute).qualifiers}
+        compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
         options = {k:v for k,v in kwargs.items() if k in ['maxiter', 'maxfex', 'xatol', 'fatol', 'adaptive']}
 
