@@ -140,9 +140,11 @@ def sample_from_dists(dists, *args, **kwargs):
     for dist in dists:
         dists_all += unpack_dists(dist)
 
-    for dist in dists_all:
-        seeds.setdefault(dist.hash, get_random_seed())
-    # print "*** seeds for hashes", seeds.keys()
+    for i,dist in enumerate(dists_all):
+        seeds.setdefault(dist.hash, get_random_seed()[i])
+
+    # print("*** seeds for {} dists by hashes {} ".format(len(dists_all), seeds))
+
     samples = [dist.sample(*args, seed=seeds, **kwargs) for dist in dists]
     if flatten:
         return samples[0]
@@ -1036,6 +1038,8 @@ class BaseDistribution(object):
         if isinstance(seed, dict):
             seed = seed.get(self.hash, None)
 
+        # print("{} seed: {}".format(self, seed))
+
         if seed is not None:
             _np.random.seed(seed)
 
@@ -1500,7 +1504,8 @@ class BaseDistribution(object):
     def hash(self):
         """
         """
-        return hash(frozenset({k:v for k,v in self.to_dict().items() if k not in ['dimension']}))
+        # return hash(frozenset({k:v for k,v in self.to_dict().items() if k not in ['dimension']}))
+        return hash(str({k:v for k,v in self.to_dict().items() if k not in ['dimension']}))
 
     def to_dict(self):
         """
@@ -2856,7 +2861,7 @@ class MVGaussian(BaseMultivariateDistribution):
         """
         return self.cov
 
-    def to_mvhistogram(self, N=1000, bins=10, range=None):
+    def to_mvhistogram(self, N=10000, bins=10, range=None):
         """
         Convert the <<class>> distribution to an <MVHistogram> distribution.
 
