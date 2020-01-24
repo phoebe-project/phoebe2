@@ -41,4 +41,7 @@ def nelder_mead(**kwargs):
     params += [IntParameter(qualifier='maxfev', value=kwargs.get('maxfev', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of function evaluations (forward models).')]
     params += [BoolParameter(qualifier='adaptive', value=kwargs.get('adaptive', False), description='passed directly to scipy.optimize.minimize.  Adapt algorithm parameters to dimensionality of problem. Useful for high-dimensional minimization')]
 
+    params += [FloatParameter(qualifier='xatol', value=kwargs.get('xatol', 1e-4), limits=[1e-12,0], description='passed directly to scipy.optimize.minimize.  Absolute error in xopt (input parameters) between iterations that is acceptable for convergence.')]
+    params += [FloatParameter(qualifier='fatol', value=kwargs.get('fatol', 1e-4), limits=[1e-12,0], description='passed directly to scipy.optimize.minimize.  Absolute error in func(xopt) (lnlikelihood + lnp(priors)) between iterations that is acceptable for convergence.')]
+
     return ParameterSet(params)

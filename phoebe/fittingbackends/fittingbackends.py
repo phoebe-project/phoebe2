@@ -391,19 +391,6 @@ class Nelder_MeadBackend(BaseFittingBackend):
         # TODO: double check units here... is it current default units or those used by the backend?
         feedback_params += [_parameters.FloatArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
 
-        # ['final_simplex', 'fun', 'message', 'nfev', 'nit', 'status', 'success', 'x']
-        #  final_simplex: (array([[87.67655473,  6.07062189,  1.03531095],
-        #        [87.68511689,  6.07062189,  1.03531095],
-        #        [87.67655473,  6.07121473,  1.03531095],
-        #        [87.67655473,  6.07062189,  1.03541205]]), array([inf, inf, inf, inf]))
-        #            fun: inf
-        #        message: 'Maximum number of iterations has been exceeded.'
-        #           nfev: 49
-        #            nit: 10
-        #         status: 2
-        #        success: False
-        #              x: array([87.67655473,  6.07062189,  1.03531095])
-
         return kwargs, _parameters.ParameterSet(feedback_params)
 
     # def _run_worker(self, packet):
@@ -420,18 +407,12 @@ class Nelder_MeadBackend(BaseFittingBackend):
         init_from = kwargs.get('init_from')
         priors = kwargs.get('priors')
 
-        adaptive = kwargs.get('adaptive')
-        maxiter = kwargs.get('maxiter')
-        maxfev = kwargs.get('maxfev')
-
-
         sample_dict = b.sample_distribution(distribution=init_from, N=None, keys='uniqueid', set_value=False)
         params_uniqueids, p0 = list(sample_dict.keys()), np.asarray(list(sample_dict.values()))
 
         compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute).qualifiers}
 
-        options = {'maxiter': maxiter,
-                   'maxfev': maxfev}
+        options = {k:v for k,v in kwargs.items() if k in ['maxiter', 'maxfex', 'xatol', 'fatol', 'adaptive']}
 
         logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(bjson, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('feedback', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
