@@ -6,12 +6,12 @@ from phoebe import conf
 
 def nelder_mead(**kwargs):
     """
-    Create a <phoebe.parameters.ParameterSet> for fitting options for the
+    Create a <phoebe.parameters.ParameterSet> for solver options for the
     scipy.optimize.minimize(method='nelder-mead') backend.
 
     Generally, this will be used as an input to the kind argument in
-    <phoebe.frontend.bundle.Bundle.add_fitting>.  If attaching through
-    <phoebe.frontend.bundle.Bundle.add_fitting>, all `**kwargs` will be
+    <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
     passed on to set the values as described in the arguments below.  Alternatively,
     see <phoebe.parameters.ParameterSet.set_value> to set/change the values
     after creating the Parameters.
@@ -19,8 +19,8 @@ def nelder_mead(**kwargs):
     For example:
 
     ```py
-    b.add_fitting('optimize.nelder_mead')
-    b.run_fitting(kind='nelder_mead')
+    b.add_solver('optimize.nelder_mead')
+    b.run_solver(kind='nelder_mead')
     ```
 
     Arguments

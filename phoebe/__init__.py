@@ -352,10 +352,10 @@ from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
 from .dependencies.npdists import gaussian, normal, boxcar, uniform, histogram_from_bins, histogram_from_data
 from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, list_passband_online_history, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
-from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure, fitting
+from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure, solver
 from .frontend.bundle import Bundle
 from .backend import backends as _backends
-from .fittingbackends import fittingbackends as _fittingbackends
+from .solverbackends import solverbackends as _solverbackends
 from . import utils as _utils
 
 from . import dynamics as dynamics
@@ -430,8 +430,8 @@ if mpi.within_mpirun and mpi.enabled and mpi.myrank != 0:
             backend = getattr(_backends, packet.pop('backend'))()
             backend._run_worker(packet)
 
-        elif hasattr(_fittingbackends, packet.get('backend', False)):
-            backend = getattr(_fittingbackends, packet.pop('backend'))()
+        elif hasattr(_solverbackends, packet.get('backend', False)):
+            backend = getattr(_solverbackends, packet.pop('backend'))()
             backend._run_worker(packet)
 
         else:
@@ -777,7 +777,7 @@ def _get_phoebe_funcs(module, devel=False):
         ignore += ['pulsation']
         ignore += ['ellc', 'jktebop', 'photodynam']
 
-    if module.__name__.split('.')[-1] == 'fitting':
+    if module.__name__.split('.')[-1] == 'solver':
         ret = []
         for sub_module in _inspect.getmembers(module):
             if _inspect.ismodule(sub_module[1]):
@@ -795,7 +795,7 @@ def list_available_components(devel=False):
     * <phoebe.list_available_features>
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_computes>
-    * <phoebe.list_available_fittings>
+    * <phoebe.list_available_solvers>
 
     Arguments
     -----------
@@ -816,7 +816,7 @@ def list_available_features(devel=False):
     * <phoebe.list_available_components>
     * <phoebe.list_available_datasets>
     * <phoebe.list_available_computes>
-    * <phoebe.list_available_fittings>
+    * <phoebe.list_available_solvers>
 
     Arguments
     -----------
@@ -837,7 +837,7 @@ def list_available_datasets(devel=False):
     * <phoebe.list_available_components>
     * <phoebe.list_available_features>
     * <phoebe.list_available_computes>
-    * <phoebe.list_available_fittings>
+    * <phoebe.list_available_solvers>
 
     Arguments
     -----------
@@ -858,7 +858,7 @@ def list_available_figures(devel=False):
     * <phoebe.list_available_components>
     * <phoebe.list_available_features>
     * <phoebe.list_available_computes>
-    * <phoebe.list_available_fittings>
+    * <phoebe.list_available_solvers>
 
     Arguments
     -----------
@@ -879,7 +879,7 @@ def list_available_computes(devel=False):
     * <phoebe.list_available_components>
     * <phoebe.list_available_features>
     * <phoebe.list_available_datasets>
-    * <phoebe.list_available_fittings>
+    * <phoebe.list_available_solvers>
 
     Arguments
     -----------
@@ -892,9 +892,9 @@ def list_available_computes(devel=False):
     """
     return _get_phoebe_funcs(compute, devel=devel)
 
-def list_available_fittings(devel=False):
+def list_available_solvers(devel=False):
     """
-    List all available 'kinds' for fitting from <phoebe.parameters.fitting>.
+    List all available 'kinds' for solver from <phoebe.parameters.solver>.
 
     See also:
     * <phoebe.list_available_components>
@@ -911,7 +911,7 @@ def list_available_fittings(devel=False):
     ---------
     * (list of strings)
     """
-    return _get_phoebe_funcs(fitting, devel=devel)
+    return _get_phoebe_funcs(solver, devel=devel)
 
 for pb in list_all_update_passbands_available():
     msg = 'passband "{}" has a newer version available.  Run phoebe.list_passband_online_history("{}") to get a list of available changes and phoebe.update_passband("{}") or phoebe.update_all_passbands() to update.'.format(pb, pb, pb)

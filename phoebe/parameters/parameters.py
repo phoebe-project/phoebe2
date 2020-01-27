@@ -97,7 +97,7 @@ _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
 
 _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
                      'dataset', 'constraint', 'distribution', 'compute', 'model',
-                     'fitting', 'feedback', 'figure', 'kind',
+                     'solver', 'feedback', 'figure', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
@@ -105,7 +105,7 @@ _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['history', 'system', 'component', 'feature',
              'dataset', 'constraint', 'distribution', 'compute', 'model',
-             'fitting', 'feedback', 'figure', 'setting']
+             'solver', 'feedback', 'figure', 'setting']
 
 # define a list of default_forbidden labels
 # an individual ParameterSet may build on this list with components, datasets,
@@ -195,7 +195,7 @@ _forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
                       'exact_grav', 'grid', 'hf'
                       ]
 
-# from fitting:
+# from solver:
 _forbidden_labels += ['nwalkers', 'niters']
 
 # from feature:
@@ -267,7 +267,7 @@ def send_if_client(fctn):
             logger.info('emitting {} ({}) to server'.format(method, d))
             b._socketio.emit(method, d)
 
-            if fctn.__name__ in ['run_compute', 'run_fitting']:
+            if fctn.__name__ in ['run_compute', 'run_solver']:
                 # then we're expecting a quick response with an added jobparam
                 # let's add that now
                 self._bundle.client_update()
@@ -446,7 +446,7 @@ class ParameterSet(object):
         self._distribution = None
         self._compute = None
         self._model = None
-        self._fitting = None
+        self._solver = None
         self._feedback = None
         # self._plugin = None
         self._kind = None
@@ -1121,38 +1121,38 @@ class ParameterSet(object):
         return self._options_for_tag('figure')
 
     @property
-    def fitting(self):
-        """Return the value for fitting if shared by ALL Parameters.
+    def solver(self):
+        """Return the value for solver if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.fittings>.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.solvers>.
 
         To see the value of a single <phoebe.parameters.Parameter> object, see
-        <phoebe.parameters.Parameter.fitting>.
+        <phoebe.parameters.Parameter.solver>.
 
         Returns
         --------
         (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
             objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
-        return self._fitting
+        return self._solver
 
     @property
-    def fittings(self):
-        """Return a list of all the fittings of the Parameters.
+    def solvers(self):
+        """Return a list of all the solvers of the Parameters.
 
         See also:
         * <phoebe.parameters.ParameterSet.tags>
 
         For the singular version, see:
-        * <phoebe.parameters.ParameterSet.fitting>
+        * <phoebe.parameters.ParameterSet.solver>
 
         Returns
         --------
-        * (list) a list of all fittings for each <phoebe.parameters.Parameter>
+        * (list) a list of all solvers for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self._options_for_tag('fitting')
+        return self._options_for_tag('solver')
 
     @property
     def feedback(self):
@@ -4817,7 +4817,7 @@ class Parameter(object):
         * `constraint` (string, optional): label for the constraint tag
         * `compute` (string, optional): label for the compute tag
         * `model` (string, optional): label for the model tag
-        * `fitting` (string, optional): label for the fitting tag
+        * `solver` (string, optional): label for the solver tag
         * `feedback` (string, optional): label for the feedback tag
         * `kind` (string, optional): label for the kind tag
         * `context` (string, optional): label for the context tag
@@ -4854,7 +4854,7 @@ class Parameter(object):
         self._distribution = kwargs.get('distribution', None)
         self._compute = kwargs.get('compute', None)
         self._model = kwargs.get('model', None)
-        self._fitting = kwargs.get('fitting', None)
+        self._solver = kwargs.get('solver', None)
         self._feedback = kwargs.get('feedback', None)
         # self._plugin = kwargs.get('plugin', None)
         self._kind = kwargs.get('kind', None)
@@ -5445,19 +5445,19 @@ class Parameter(object):
         return self._figure
 
     @property
-    def fitting(self):
+    def solver(self):
         """
-        Return the fitting of this <phoebe.parameters.Parameter>.
+        Return the solver of this <phoebe.parameters.Parameter>.
 
         See also:
-        * <phoebe.parameters.ParameterSet.fitting>
-        * <phoebe.parameters.ParameterSet.fittings>
+        * <phoebe.parameters.ParameterSet.solver>
+        * <phoebe.parameters.ParameterSet.solvers>
 
         Returns
         -------
-        * (str) the fitting tag of this Parameter.
+        * (str) the solver tag of this Parameter.
         """
-        return self._fitting
+        return self._solver
 
     @property
     def feedback(self):

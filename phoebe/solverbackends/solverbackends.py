@@ -28,16 +28,16 @@ else:
 from scipy import optimize
 
 import logging
-logger = logging.getLogger("FITTING")
+logger = logging.getLogger("SOLVER")
 logger.addHandler(logging.NullHandler())
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
-def _bjson(b, fitting, compute, distributions):
+def _bjson(b, solver, compute, distributions):
     # TODO: OPTIMIZE exclude disabled datasets?
     # TODO: re-enable removing unused compute options - currently causes some constraints to fail
     return b.exclude(context=['model', 'feedback', 'figure'], **_skip_filter_checks).exclude(
-                      fitting=[f for f in b.fittings if f!=fitting and fitting is not None], **_skip_filter_checks).exclude(
+                      solver=[f for f in b.solvers if f!=solver and solver is not None], **_skip_filter_checks).exclude(
                       # compute=[c for c in b.computes if c!=compute and compute is not None], **_skip_filter_checks).exclude(
                       distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
 
@@ -71,7 +71,7 @@ def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feed
 def _lnlikelihood_negative(sampled_values, bjson, params_uniqueids, compute, priors, feedback, compute_kwargs={}):
     return -1 * _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback, compute_kwargs)
 
-class BaseFittingBackend(object):
+class BaseSolverBackend(object):
     def __init__(self):
         return
 
@@ -89,7 +89,7 @@ class BaseFittingBackend(object):
         """
         raise NotImplementedError("run_checks is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def _get_packet_and_feedback(self, b, fitting, **kwargs):
+    def _get_packet_and_feedback(self, b, solver, **kwargs):
         """
         see get_packet_and_feedback.  _get_packet_and_feedback provides the custom parts
         of the packet that are Backend-dependent.
@@ -101,23 +101,23 @@ class BaseFittingBackend(object):
         """
         raise NotImplementedError("_get_packet_and_feedback is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def get_packet_and_feedback(self, b, fitting, **kwargs):
+    def get_packet_and_feedback(self, b, solver, **kwargs):
         """
         get_packet_and_feedback is called by the master and must get all information necessary
         to send to all workers.  The returned packet will be passed on as
         _run_chunk(**packet) with the following exceptions:
 
         * b: the bundle will be included in the packet serialized
-        * fitting: the label of the fitting options will be included in the packet
+        * solver: the label of the solver options will be included in the packet
         * compute: the label of the compute options will be included in the packet
         * backend: the class name will be passed on in the packet so the worker can call the correct backend
         * all kwargs will be passed on verbatim
         """
-        fitting_ps = b.get_fitting(fitting=fitting, **_skip_filter_checks)
-        for param in fitting_ps.to_list():
+        solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
+        for param in solver_ps.to_list():
             kwargs.setdefault(param.qualifier, param.get_value(expand=True))
 
-        packet, feedback_ps = self._get_packet_and_feedback(b, fitting, **kwargs)
+        packet, feedback_ps = self._get_packet_and_feedback(b, solver, **kwargs)
 
         for k,v in kwargs.items():
             packet[k] = v
@@ -127,7 +127,7 @@ class BaseFittingBackend(object):
         #         raise ValueError("more than {} computations detected ({} estimated).".format(kwargs.get('max_computations'), len(packet['infolists'])))
 
         packet['b'] = b.to_json() if mpi.enabled else b
-        packet['fitting'] = fitting
+        packet['solver'] = solver
         # packet['compute'] = compute  # should have been set by kwargs, when applicable
         packet['backend'] = self.__class__.__name__
 
@@ -169,14 +169,14 @@ class BaseFittingBackend(object):
         # send the results back to the master (root=0)
         mpi.comm.gather(rpacketlists, root=0)
 
-    def run(self, b, fitting, compute, **kwargs):
+    def run(self, b, solver, compute, **kwargs):
         """
         if within mpirun, workers should call _run_worker instead of run
         """
-        self.run_checks(b, fitting,  compute, **kwargs)
+        self.run_checks(b, solver,  compute, **kwargs)
 
         logger.debug("rank:{}/{} calling get_packet_and_feedback".format(mpi.myrank, mpi.nprocs))
-        packet, feedback_ps = self.get_packet_and_feedback(b, fitting, **kwargs)
+        packet, feedback_ps = self.get_packet_and_feedback(b, solver, **kwargs)
 
         if mpi.enabled:
             # broadcast the packet to ALL workers
@@ -200,15 +200,15 @@ class BaseFittingBackend(object):
 
 
 
-class EmceeBackend(BaseFittingBackend):
+class EmceeBackend(BaseSolverBackend):
     """
-    See <phoebe.parameters.fitting.samplers.emcee>.
+    See <phoebe.parameters.solver.sampler.emcee>.
 
     The run method in this class will almost always be called through the bundle, using
-    * <phoebe.frontend.bundle.Bundle.add_fitting>
-    * <phoebe.frontend.bundle.Bundle.run_fitting>
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
     """
-    def run_checks(self, b, fitting, compute, **kwargs):
+    def run_checks(self, b, solver, compute, **kwargs):
         # check whether emcee is installed
 
         if not _use_emcee:
@@ -217,18 +217,18 @@ class EmceeBackend(BaseFittingBackend):
         if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
             raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
 
-        fitting_ps = b.get_fitting(fitting)
-        if not len(fitting_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None))):
+        solver_ps = b.get_solver(solver)
+        if not len(solver_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None))):
             raise ValueError("cannot run emcee without any distributions in init_from")
 
-        filename = fitting_ps.get_value(qualifier='filename', filename=kwargs.get('filename', None))
-        continue_previous_run = fitting_ps.get_value(qualifier='continue_previous_run', continue_previous_run=kwargs.get('continue_previous_run', None))
+        filename = solver_ps.get_value(qualifier='filename', filename=kwargs.get('filename', None))
+        continue_previous_run = solver_ps.get_value(qualifier='continue_previous_run', continue_previous_run=kwargs.get('continue_previous_run', None))
         if continue_previous_run and not os.path.exists(filename):
             raise ValueError("cannot file filename='{}', cannot use continue_previous_run=True".format(filename))
 
 
-    def _get_packet_and_feedback(self, b, fitting, **kwargs):
-        # NOTE: b, fitting, compute, backend will be added by get_packet_and_feedback
+    def _get_packet_and_feedback(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_feedback
 
         feedback_params = []
         feedback_params += [_parameters.StringParameter(qualifier='filename', value=kwargs.get('filename', None), description='filename of emcee progress file (contents loaded on the fly, DO NOT DELETE FILE)')]
@@ -242,7 +242,7 @@ class EmceeBackend(BaseFittingBackend):
         # will enter run_worker through run, not here)
         return self.run_worker(**packet)
 
-    def run_worker(self, b, fitting, compute, **kwargs):
+    def run_worker(self, b, solver, compute, **kwargs):
         # emcee handles workers itself.  So here we'll just take the workers
         # from our own waiting loop in phoebe's __init__.py and subscribe them
         # to emcee's pool.
@@ -277,7 +277,7 @@ class EmceeBackend(BaseFittingBackend):
             # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
 
-            esargs['kwargs'] = {'bjson': _bjson(b, fitting, compute, init_from+priors),
+            esargs['kwargs'] = {'bjson': _bjson(b, solver, compute, init_from+priors),
                                 'params_uniqueids': params_uniqueids,
                                 'compute': compute,
                                 'priors': priors,
@@ -365,22 +365,22 @@ class EmceeBackend(BaseFittingBackend):
         return {}
 
 
-class Nelder_MeadBackend(BaseFittingBackend):
+class Nelder_MeadBackend(BaseSolverBackend):
     """
-    See <phoebe.parameters.fitting.optimizers.nelder_mead>.
+    See <phoebe.parameters.solver.optimizer.nelder_mead>.
 
     The run method in this class will almost always be called through the bundle, using
-    * <phoebe.frontend.bundle.Bundle.add_fitting>
-    * <phoebe.frontend.bundle.Bundle.run_fitting>
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
     """
-    def run_checks(self, b, fitting, compute, **kwargs):
-        fitting_ps = b.get_fitting(fitting)
-        if not len(fitting_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None))):
+    def run_checks(self, b, solver, compute, **kwargs):
+        solver_ps = b.get_solver(solver)
+        if not len(solver_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None))):
             raise ValueError("cannot run scipy.optimize.minimize(method='nelder-mead') without any distributions in init_from")
 
 
-    def _get_packet_and_feedback(self, b, fitting, **kwargs):
-        # NOTE: b, fitting, compute, backend will be added by get_packet_and_feedback
+    def _get_packet_and_feedback(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_feedback
         feedback_params = []
 
         feedback_params += [_parameters.StringParameter(qualifier='message', value='', description='message from the minimizer')]
@@ -399,7 +399,7 @@ class Nelder_MeadBackend(BaseFittingBackend):
     #     # will enter run_worker through run, not here)
     #     return self.run_worker(**packet)
 
-    def run_worker(self, b, fitting, compute, **kwargs):
+    def run_worker(self, b, solver, compute, **kwargs):
         if mpi.within_mpirun:
             raise NotImplementedError("mpi support for scipy.optimize not yet implemented")
             # TODO: we need to tell the workers to join the pool for time-parallelization?
@@ -418,7 +418,7 @@ class Nelder_MeadBackend(BaseFittingBackend):
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
         res = optimize.minimize(_lnlikelihood_negative, p0,
                                 method='nelder-mead',
-                                args=(_bjson(b, fitting, compute, init_from+priors), params_uniqueids, compute, priors, kwargs.get('feedback', None), compute_kwargs),
+                                args=(_bjson(b, solver, compute, init_from+priors), params_uniqueids, compute, priors, kwargs.get('feedback', None), compute_kwargs),
                                 options=options)
 
 

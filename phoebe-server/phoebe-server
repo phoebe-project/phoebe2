@@ -292,7 +292,7 @@ def _param_json_overview(param):
 
 
     for k,v in param.meta.items():
-        if k in ['history', 'fitting', 'feedback', 'plugin']:
+        if k in ['history', 'solver', 'feedback', 'plugin']:
             continue
         p[k] = v
 

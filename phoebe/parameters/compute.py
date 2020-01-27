@@ -46,7 +46,7 @@ def phoebe(**kwargs):
     Arguments
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
-        compute/fitting runs.
+        compute/solver runs.
     * `dynamics_method` (string, optional, default='keplerian'): which method to
         use to determine the dynamics of components.
     * `ltte` (bool, optional, default=False): whether to correct for light
@@ -85,8 +85,8 @@ def phoebe(**kwargs):
     """
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
     # DYNAMICS
     params += [ChoiceParameter(qualifier='dynamics_method', value=kwargs.get('dynamics_method', 'keplerian'), choices=['keplerian'], description='Which method to use to determine the dynamics of components')]
@@ -201,7 +201,7 @@ def legacy(**kwargs):
     Arguments
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
-        compute/fitting run.
+        compute/solver run.
     * `atm` (string, optional, default='extern_atmx'): atmosphere tables.
     * `gridsize` (int, optional, default=60): number of meshpoints for WD.
     * `distortion_method` (string, optional, default='roche'): method to use
@@ -221,8 +221,8 @@ def legacy(**kwargs):
     """
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'mesh'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'mesh'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
     # params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='method to pass passband luminosities to legacy from parameters in the bundle when pblum_mode is not \'decoupled\' or \'component-coupled\'.  Setting to \'phoebe\' will build the mesh at time t0 and compute luminosities.')]
 
@@ -337,7 +337,7 @@ def photodynam(**kwargs):
     Arguments
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
-        compute/fitting runs.
+        compute/solver runs.
     * `stepsize` (float, optional, default=0.01): stepsize to use for dynamics
         integration.
     * `orbiterror` (float, optional, default=1e-20): error to use for dynamics
@@ -357,8 +357,8 @@ def photodynam(**kwargs):
 
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
     # params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='method to pass passband luminosities to photodynam from parameters in the bundle when pblum_mode is not \'decoupled\'.  Setting to \'phoebe\' will build the mesh at time t0 and compute luminosities.')]
 
@@ -397,7 +397,7 @@ def jktebop(**kwargs):
     and ellipsoidal effects, and as spheres for the eclipse shapes."
 
     Note that the wrapper around jktebop only uses its forward model.
-    jktebop also includes its own fitting methods, including bootstrapping.
+    jktebop also includes its own solver methods, including bootstrapping.
     Those capabilities cannot be accessed from PHOEBE.
 
     The following parameters are "exported/translated" when using the jktebop
@@ -448,7 +448,7 @@ def jktebop(**kwargs):
     Arguments
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
-        compute/fitting runs.
+        compute/solver runs.
     * `ringsize` (float, optional, default=5): integration ring size.
     * `distortion_method` (string, optional, default='sphere/biaxial spheroid'):
         method to use for distorting stars.  See note above for jktebop's
@@ -467,8 +467,8 @@ def jktebop(**kwargs):
 
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
     # params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='method to pass passband luminosities to jktebop from parameters in the bundle when pblum_mode is not \'decoupled\'.  Setting to \'phoebe\' will build the mesh at time t0 and compute luminosities.')]
 
@@ -508,7 +508,7 @@ def ellc(**kwargs):
     * <phoebe.frontend.bundle.Bundle.references>
 
     Note that the wrapper around ellc only uses its forward model.
-    ellc also includes its own fitting methods, including emccee.
+    ellc also includes its own solver methods, including emccee.
     Those capabilities cannot be accessed from PHOEBE.
 
     The following parameters are "exported/translated" when using the ellc
@@ -568,7 +568,7 @@ def ellc(**kwargs):
     Arguments
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
-        compute/fitting runs.
+        compute/solver runs.
     * `distortion_method` (string, optional, default='roche'): method to use
         for distorting stars.
     * `hf` (float, optional, default=1.5): fluid second love number (only applicable
@@ -598,8 +598,8 @@ def ellc(**kwargs):
 
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
     # params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='method to pass passband luminosities to ellc from parameters in the bundle when pblum_mode is not \'decoupled\'.  Setting to \'phoebe\' will build the mesh at time t0 and compute luminosities.')]
 

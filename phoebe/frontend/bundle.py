@@ -26,13 +26,13 @@ from phoebe.parameters import component as _component
 from phoebe.parameters import setting as _setting
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import compute as _compute
-from phoebe.parameters import fitting as _fitting
+from phoebe.parameters import solver as _solver
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
 from phoebe.parameters.parameters import _uniqueid
 from phoebe.backend import backends, mesh
-from phoebe.fittingbackends import fittingbackends as _fittingbackends
+from phoebe.solverbackends import solverbackends as _solverbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
@@ -76,7 +76,7 @@ def _get_add_func(mod, func, return_none_if_not_found=False):
 
     if isinstance(func, str) and "." in func:
         # allow recursive submodule access
-        # example: mod=fitting, func='samplers.emcee'
+        # example: mod=solver, func='samplers.emcee'
         return _get_add_func(getattr(mod, func.split('.')[0]), ".".join(func.split('.')[1:]), return_none_if_not_found=return_none_if_not_found)
 
     if isinstance(func, str) and hasattr(mod, func):
@@ -364,12 +364,12 @@ class Bundle(ParameterSet):
     * <phoebe.frontend.bundle.Bundle.remove_figure>
     * <phoebe.frontend.bundle.Bundle.run_figure>
 
-    To run fitting backends, see:
-    * <phoebe.frontend.bundle.Bundle.add_fitting>
-    * <phoebe.frontend.bundle.Bundle.get_fitting>
-    * <phoebe.frontend.bundle.Bundle.rename_fitting>
-    * <phoebe.frontend.bundle.Bundle.remove_fitting>
-    * <phoebe.frontend.bundle.Bundle.run_fitting>
+    To run solver backends, see:
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.get_solver>
+    * <phoebe.frontend.bundle.Bundle.rename_solver>
+    * <phoebe.frontend.bundle.Bundle.remove_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
     * <phoebe.frontend.bundle.Bundle.get_feedback>
     * <phoebe.frontend.bundle.Bundle.rename_feedback>
     * <phoebe.frontend.bundle.Bundle.remove_feedback>
@@ -1868,7 +1868,7 @@ class Bundle(ParameterSet):
 
         choices = self.filter(context='compute', **_skip_filter_checks).computes
 
-        for param in self.filter(qualifier='compute', context='fitting', **_skip_filter_checks).to_list():
+        for param in self.filter(qualifier='compute', context='solver', **_skip_filter_checks).to_list():
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
@@ -1995,7 +1995,7 @@ class Bundle(ParameterSet):
 
         choices = self.distributions
 
-        for param in self.filter(context='fitting', qualifier=['init_from', 'priors'], **_skip_filter_checks).to_list():
+        for param in self.filter(context='solver', qualifier=['init_from', 'priors'], **_skip_filter_checks).to_list():
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
@@ -3287,7 +3287,7 @@ class Bundle(ParameterSet):
 
         return report
 
-    def references(self, compute=None, dataset=None, fitting=None):
+    def references(self, compute=None, dataset=None, solver=None):
         """
         Provides a list of used references from the given bundle based on the
         current parameter values and attached datasets/compute options.
@@ -3304,7 +3304,7 @@ class Bundle(ParameterSet):
         * Atmosphere table citations, when available/applicable.
         * Passband table citations, when available/applicable.
         * Dependency (astropy, numpy, etc) citations, when available/applicable.
-        * Alternate compute and/or fitting backends, when applicable.
+        * Alternate compute and/or solver backends, when applicable.
 
         Arguments
         ------------
@@ -3314,9 +3314,9 @@ class Bundle(ParameterSet):
         * `dataset` (string or list of strings, optional, default=None): only
             consider a single (or list of) datasets.  If None or not provided,
             will default to all attached datasets.
-        * `fitting` (string or list of strings, optional, default=None): only
-            consider a single (or list of) fitting options.  If None or not
-            provided, will default to all attached fitting options.
+        * `solver` (string or list of strings, optional, default=None): only
+            consider a single (or list of) solver options.  If None or not
+            provided, will default to all attached solver options.
 
         Returns
         ----------
@@ -3344,14 +3344,14 @@ class Bundle(ParameterSet):
         else:
             raise TypeError("dataset must be type None, string, or list")
 
-        if fitting is None:
-            fittings = self.fittings
-        elif isinstance(fitting, str):
-            fittings = [fitting]
-        elif isinstance(fitting, list):
-            fittings = fitting
+        if solver is None:
+            solvers = self.solvers
+        elif isinstance(solver, str):
+            solvers = [solver]
+        elif isinstance(solver, list):
+            solvers = solver
         else:
-            raise TypeError("fitting must be of type None, string, or list")
+            raise TypeError("solver must be of type None, string, or list")
 
 
         # ref: url pairs
@@ -3396,9 +3396,9 @@ class Bundle(ParameterSet):
             elif self.get_compute(compute).kind == 'ellc':
                 recs = _add_response(recs, 'Maxted (2016)', 'ellc compute backend')
 
-        for fitting in fittings:
-            if self.get_fitting(fitting).kind == 'emcee':
-                recs = _add_reason(recs, 'Foreman-Mackey et al. (2013)', 'emcee fitting backend')
+        for solver in solvers:
+            if self.get_solver(solver).kind == 'emcee':
+                recs = _add_reason(recs, 'Foreman-Mackey et al. (2013)', 'emcee solver backend')
 
         # check for presence of datasets that require PHOEBE releases
         for dataset in datasets:
@@ -3692,7 +3692,7 @@ class Bundle(ParameterSet):
         """
         Enable a `feature`.  Features that are enabled will be computed
         during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
-        during run_fitting .
+        during run_solver .
 
         If `compute` is not provided, the dataset will be enabled across all
         compute options.
@@ -3731,7 +3731,7 @@ class Bundle(ParameterSet):
         """
         Disable a `feature`.  Features that are enabled will be computed
         during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
-        during run_fitting.
+        during run_solver.
 
         If `compute` is not provided, the dataset will be disabled across all
         compute options.
@@ -4900,7 +4900,7 @@ class Bundle(ParameterSet):
         """
         Enable a `dataset`.  Datasets that are enabled will be computed
         during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
-        during run_fitting.
+        during run_solver.
 
         If `compute` is not provided, the dataset will be enabled across all
         compute options.
@@ -4938,7 +4938,7 @@ class Bundle(ParameterSet):
         """
         Disable a `dataset`.  Datasets that are enabled will be computed
         during <phoebe.frontend.bundle.Bundle.run_compute> and included in the cost function
-        during run_fitting.
+        during run_solver.
 
         If `compute` is not provided, the dataset will be disabled across all
         compute options.
@@ -7169,7 +7169,7 @@ class Bundle(ParameterSet):
         f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE'; os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE';\n")
         f.write("import phoebe; import json\n")
         # TODO: can we skip the history context?  And maybe even other models
-        # or datasets (except times and only for run_compute but not run_fitting)
+        # or datasets (except times and only for run_compute but not run_solver)
         f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['distribution', 'model', 'figure', 'feedback', 'constraint'], **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
@@ -7778,18 +7778,19 @@ class Bundle(ParameterSet):
 
 
     @send_if_client
-    def add_fitting(self, kind, **kwargs):
+    def add_solver(self, kind, **kwargs):
         """
-        Add a set of fitting options for a given backend to the bundle.
-        The label (`fitting`) can then be sent to <phoebe.frontend.bundle.Bundle.run_fitting>.
+        Add a set of solver options for a given backend to the bundle.
+        The label (`solver`) can then be sent to <phoebe.frontend.bundle.Bundle.run_solver>.
 
-        If not provided, `fitting` will be created for you and can be
-        accessed by the `fitting` attribute of the returned
+        If not provided, `solver` will be created for you and can be
+        accessed by the `solver` attribute of the returned
         <phoebe.parameters.ParameterSet>.
 
-        Available kinds can be found in <phoebe.parameters.fitting> or by calling
-        <phoebe.list_available_fittings> and include:
-        * <phoebe.parameters.fitting.emcee>
+        Available kinds can be found in <phoebe.parameters.solver> or by calling
+        <phoebe.list_available_solvers> and include:
+        * <phoebe.parameters.solver.sampler.emcee>
+        * <phoebe.parameters.solver.optimizer.nelder_mead>
 
         Arguments
         ----------
@@ -7798,10 +7799,10 @@ class Bundle(ParameterSet):
              <phoebe.parameters.Parameter> objects.  This must either be a
              callable function that accepts only default values, or the name
              of a function (as a string) that can be found in the
-             <phoebe.parameters.fitting> module.
-        * `fitting` (string, optional): name of the newly-created fitting options.
+             <phoebe.parameters.solver> module.
+        * `solver` (string, optional): name of the newly-created solver options.
         * `overwrite` (boolean, optional, default=False): whether to overwrite
-            an existing set of fitting options with the same `fitting` tag.  If False,
+            an existing set of solver options with the same `solver` tag.  If False,
             an error will be raised.
         * `return_overwrite` (boolean, optional, default=False): whether to include
             removed parameters due to `overwrite` in the returned ParameterSet.
@@ -7817,18 +7818,18 @@ class Bundle(ParameterSet):
         --------
         * NotImplementedError: if a required constraint is not implemented
         """
-        func = _get_add_func(_fitting, kind)
+        func = _get_add_func(_solver, kind)
 
         # remove if None
-        if kwargs.get('fitting', False) is None:
-            _ = kwargs.pop('fitting')
+        if kwargs.get('solver', False) is None:
+            _ = kwargs.pop('solver')
 
-        kwargs.setdefault('fitting',
+        kwargs.setdefault('solver',
                           self._default_label(func.__name__,
-                                              **{'context': 'fitting',
+                                              **{'context': 'solver',
                                                  'kind': func.__name__}))
 
-        self._check_label(kwargs['fitting'], allow_overwrite=kwargs.get('overwrite', False))
+        self._check_label(kwargs['solver'], allow_overwrite=kwargs.get('overwrite', False))
 
         # some parameters can't have their values set until the choices are
         # updated by self._handle* below.  If this list gets too long or
@@ -7842,28 +7843,28 @@ class Bundle(ParameterSet):
         # apply to different components this would be more complicated here if
         # allowing to also pass to different datasets
 
-        metawargs = {'context': 'fitting',
+        metawargs = {'context': 'solver',
                      'kind': func.__name__,
-                     'fitting': kwargs['fitting']}
+                     'solver': kwargs['solver']}
 
         if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_fitting(fitting=kwargs['fitting'])
-            # check the label again, just in case kwargs['fitting'] belongs to
-            # something other than fitting
-            self._check_label(kwargs['fitting'], allow_overwrite=False)
+            overwrite_ps = self.remove_solver(solver=kwargs['solver'])
+            # check the label again, just in case kwargs['solver'] belongs to
+            # something other than solver
+            self._check_label(kwargs['solver'], allow_overwrite=False)
 
-        logger.info("adding {} '{}' fitting to bundle".format(metawargs['kind'], metawargs['fitting']))
+        logger.info("adding {} '{}' solver to bundle".format(metawargs['kind'], metawargs['solver']))
         self._attach_params(params, **metawargs)
 
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['func'] = func.__name__
-        self._add_history(redo_func='add_fitting',
+        self._add_history(redo_func='add_solver',
                           redo_kwargs=redo_kwargs,
-                          undo_func='remove_fitting',
-                          undo_kwargs={'fitting': kwargs['fitting']})
+                          undo_func='remove_solver',
+                          undo_kwargs={'solver': kwargs['solver']})
 
 
-        ret_ps = self.get_fitting(check_visible=False, check_default=False, **metawargs)
+        ret_ps = self.get_solver(check_visible=False, check_default=False, **metawargs)
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -7885,72 +7886,72 @@ class Bundle(ParameterSet):
 
         return ret_ps
 
-    def get_fitting(self, fitting=None, **kwargs):
+    def get_solver(self, solver=None, **kwargs):
         """
-        Filter in the 'fitting' context
+        Filter in the 'solver' context
 
         See also:
         * <phoebe.parameters.ParameterSet.filter>
 
         Arguments
         ----------
-        * `fitting`: (string, optional, default=None): the name of the fitting options
-        * `**kwargs`: any other tags to do the filtering (excluding fitting and context)
+        * `solver`: (string, optional, default=None): the name of the solver options
+        * `**kwargs`: any other tags to do the filtering (excluding solver and context)
 
         Returns:
         * a <phoebe.parameters.ParameterSet> object.
         """
-        if fitting is not None:
-            kwargs['fitting'] = fitting
-        kwargs['context'] = 'fitting'
+        if solver is not None:
+            kwargs['solver'] = solver
+        kwargs['context'] = 'solver'
         return self.filter(**kwargs)
 
-    def remove_fitting(self, fitting, **kwargs):
+    def remove_solver(self, solver, **kwargs):
         """
-        Remove a 'fitting' from the bundle.
+        Remove a 'solver' from the bundle.
 
         See also:
         * <phoebe.parameters.ParameterSet.remove_parameters_all>
 
         Arguments
         ----------
-        * `fitting` (string): the label of the fitting options to be removed.
+        * `solver` (string): the label of the solver options to be removed.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
-            will be ignored: context, fitting.
+            will be ignored: context, solver.
 
         Returns
         -----------
         * ParameterSet of removed or changed parameters
         """
-        kwargs['fitting'] = fitting
-        kwargs['context'] = 'fitting'
+        kwargs['solver'] = solver
+        kwargs['context'] = 'solver'
         ret_ps = self.remove_parameters_all(**kwargs)
         ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
         return ret_ps
 
-    def remove_fittings_all(self):
+    def remove_solvers_all(self):
         """
-        Remove all fitting options from the bundle.  To remove a single set
-        of fitting options see <phoebe.frontend.bundle.Bundle.remove_fitting>.
+        Remove all solver options from the bundle.  To remove a single set
+        of solver options see <phoebe.frontend.bundle.Bundle.remove_solver>.
 
         Returns
         -----------
         * ParameterSet of removed parameters
         """
         removed_ps = ParameterSet()
-        for fitting in self.fittings:
-            removed_ps += self.remove_fitting(fitting)
+        for solver in self.solvers:
+            removed_ps += self.remove_solver(solver)
         return removed_ps
 
-    def rename_fitting(self, old_fitting, new_fitting):
+    def rename_solver(self, old_solver, new_solver):
         """
-        Change the label of fitting options attached to the Bundle.
+        Change the label of solver options attached to the Bundle.
 
         Arguments
         ----------
-        * `old_fitting` (string): current label of the fitting options (must exist)
-        * `new_fitting` (string): the desired new label of the fitting options
+        * `old_solver` (string): current label of the solver options (must exist)
+        * `new_solver` (string): the desired new label of the solver options
             (must not yet exist)
 
         Returns
@@ -7959,24 +7960,24 @@ class Bundle(ParameterSet):
 
         Raises
         --------
-        * ValueError: if the value of `new_fitting` is forbidden or already exists.
+        * ValueError: if the value of `new_solver` is forbidden or already exists.
         """
-        # TODO: raise error if old_fitting not found?
+        # TODO: raise error if old_solver not found?
 
-        self._check_label(new_fitting)
-        self._rename_label('fitting', old_fitting, new_fitting)
+        self._check_label(new_solver)
+        self._rename_label('solver', old_solver, new_solver)
 
-        return self.filter(fitting=new_fitting)
+        return self.filter(solver=new_solver)
 
     @send_if_client
-    def run_fitting(self, fitting=None, **kwargs):
+    def run_solver(self, solver=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset(s) using
-        a specified set of fitting options.
+        a specified set of solver options.
 
-        To attach and set custom values for fitting options, including choosing
+        To attach and set custom values for solver options, including choosing
         which backend to use, see:
-        * <phoebe.frontend.bundle.Bundle.add_fitting>
+        * <phoebe.frontend.bundle.Bundle.add_solver>
 
         To attach and set custom values for compute options, including choosing
         which backend to use, see:
@@ -7991,8 +7992,8 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.disable_dataset>
 
         See also:
-        * <phoebe.frontend.bundle.Bundle.add_fitting>
-        * <phoebe.frontend.bundle.Bundle.get_fitting>
+        * <phoebe.frontend.bundle.Bundle.add_solver>
+        * <phoebe.frontend.bundle.Bundle.get_solver>
         * <phoebe.frontend.bundle.Bundle.get_feedback>
         * <phoebe.frontend.bundle.Bundle.process_feedback>
         * <phoebe.frontend.bundle.Bundle.get_values_from_feedback>
@@ -8002,10 +8003,10 @@ class Bundle(ParameterSet):
 
         Arguments
         ------------
-        * `fitting` (string, optional): name of the fitting options to use.
-            If not provided or None, run_fitting will use an existing set of
-            attached fitting options if only 1 exists.  If more than 1 exist,
-            then fitting becomes a required argument.  If no fitting options
+        * `solver` (string, optional): name of the solver options to use.
+            If not provided or None, run_solver will use an existing set of
+            attached solver options if only 1 exists.  If more than 1 exist,
+            then solver becomes a required argument.  If no solver options
             exist, an error will be raised.
         * `feedback` (string, optional): name of the resulting feedback.  If not
             provided this will default to 'latest'.  NOTE: existing feedbacks
@@ -8025,23 +8026,23 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
             pass checks.
-        * `**kwargs`: any values in the fitting or compute options to temporarily
-            override for this single fitting run (parameter values will revert
-            after run_fitting is finished)
+        * `**kwargs`: any values in the solver or compute options to temporarily
+            override for this single solver run (parameter values will revert
+            after run_solver is finished)
 
         Returns
         ----------
-        * a <phoebe.parameters.ParameterSet> of the newly-created fitting feedback.
+        * a <phoebe.parameters.ParameterSet> of the newly-created solver feedback.
 
         """
         kwargs.setdefault('feedback',
                           self._default_label('feedback',
                                               **{'context': 'feedback'}))
 
-        fitting_ps = self.get_fitting(fitting=fitting, **_skip_filter_checks)
-        fitting_class = getattr(_fittingbackends, '{}Backend'.format(fitting_ps.kind.title()))
-        if 'compute' in fitting_ps.qualifiers:
-            compute = kwargs.pop('compute', fitting_ps.get_value(qualifier='compute', **_skip_filter_checks))
+        solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
+        solver_class = getattr(_solverbackends, '{}Backend'.format(solver_ps.kind.title()))
+        if 'compute' in solver_ps.qualifiers:
+            compute = kwargs.pop('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
             compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
 
             if len(compute_ps.computes) > 1:
@@ -8054,11 +8055,11 @@ class Bundle(ParameterSet):
         else:
             compute = None
 
-        params = fitting_class().run(self, fitting, compute, **kwargs)
+        params = solver_class().run(self, solver, compute, **kwargs)
         metawargs = {'context': 'feedback',
-                     'fitting': fitting_ps.fitting,
+                     'solver': solver_ps.solver,
                      'compute': compute,
-                     'kind': fitting_ps.kind,
+                     'kind': solver_ps.kind,
                      'feedback': kwargs.get('feedback')}
 
         self._attach_params(params, check_copy_for=False, **metawargs)
@@ -8067,11 +8068,11 @@ class Bundle(ParameterSet):
         """
         """
         feedback_ps = self.get_feedback(feedback=feedback)
-        fitting_kind = feedback_ps.kind
-        if fitting_kind == 'emcee':
+        solver_kind = feedback_ps.kind
+        if solver_kind == 'emcee':
             filename = feedback_ps.get_value(qualifier='filename')
 
-            reader = _fittingbackends.emcee.backends.HDFBackend(filename)
+            reader = _solverbackends.emcee.backends.HDFBackend(filename)
             # TODO: remove quiet or re-implement logic as warning
             autocorr_time = reader.get_autocorr_time(quiet=True)
             try:
@@ -8103,15 +8104,15 @@ class Bundle(ParameterSet):
                     'fitted_twigs': fitted_twigs,
                     'lnp': log_prob_samples}
 
-        elif fitting_kind in ['nelder_mead']:
+        elif solver_kind in ['nelder_mead']:
             return {p.qualifier: p.get_value() for p in feedback_ps.to_list()}
 
         else:
-            raise NotImplementedError("process_feedback for kind='{}' not implemented".format(fitting_kind))
+            raise NotImplementedError("process_feedback for kind='{}' not implemented".format(solver_kind))
 
     def get_values_from_feedback(self, feedback=None, keys='twig', set_value=False, **kwargs):
         """
-        Get face-value values from the fitting feedback and (optionally) adopt
+        Get face-value values from the solver feedback and (optionally) adopt
         the values.
 
         Arguments
@@ -8172,12 +8173,12 @@ class Bundle(ParameterSet):
         Returns
         ----------
         * dictionary of information.  Exact keys available are dependent on the
-            fitting backend.
+            solver backend.
         """
 
         feedback_ps = self.get_feedback(feedback=feedback)
-        fitting_kind = feedback_ps.kind
-        if fitting_kind == 'emcee':
+        solver_kind = feedback_ps.kind
+        if solver_kind == 'emcee':
             info = self.process_feedback(feedback=feedback, **kwargs)
 
             # TODO: we need to access the corresponding parameters so we can set
@@ -8186,7 +8187,7 @@ class Bundle(ParameterSet):
             ps = self.filter(context=['component', 'dataset'], **_skip_filter_checks)
             fitted_params = [ps.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in feedback_ps.get_value(qualifier='fitted_parameters', **_skip_filter_checks)]
             fitted_twigs = [param.get_uniquetwig(ps, exclude_levels=['context']) for param in fitted_params]
-            # TODO: this assumes the unit hasn't changed since the fitting run... alternatively we could store units in the feedback as 'fitted_units'
+            # TODO: this assumes the unit hasn't changed since the solver run... alternatively we could store units in the feedback as 'fitted_units'
             # TODO: npdists multivariate support needs to accept list of units
             fitted_units = None
             #fitted_units = [param.default_unit for param in fitted_params]
@@ -8195,7 +8196,7 @@ class Bundle(ParameterSet):
             return dist
 
         else:
-            raise NotImplementedError("process_feedback_distributions for kind='{}' not implememented".format(fitting_kind))
+            raise NotImplementedError("process_feedback_distributions for kind='{}' not implememented".format(solver_kind))
 
     def add_distribution_from_feedback(self, feedback=None, **kwargs):
         """
@@ -8250,13 +8251,13 @@ class Bundle(ParameterSet):
 
     def rerun_feedback(self, feedback=None, **kwargs):
         """
-        Rerun run_fitting for a given feedback.  This simply retrieves the current
-        fitting/compute parameters given the same fitting/compute label used to
+        Rerun run_solver for a given feedback.  This simply retrieves the current
+        solver/compute parameters given the same solver/compute label used to
         create the original feedback.  This does not, therefore, necessarily
-        ensure that the exact same fitting/compute options are used.
+        ensure that the exact same solver/compute options are used.
 
         See also:
-        * <phoebe.frontend.bundle.Bundle.run_fitting>
+        * <phoebe.frontend.bundle.Bundle.run_solver>
 
         Arguments
         ------------
@@ -8266,17 +8267,17 @@ class Bundle(ParameterSet):
 
         Returns
         ------------
-        * the output from <phoebe.frontend.bundle.Bundle.run_fitting>
+        * the output from <phoebe.frontend.bundle.Bundle.run_solver>
         """
         feedback_ps = self.get_feedback(feedback=feedback)
 
-        fitting = feedback_ps.fitting
-        kwargs.setdefault('fitting', fitting)
+        solver = feedback_ps.solver
+        kwargs.setdefault('solver', solver)
 
         compute = feedback_ps.compute
         kwargs.setdefault('compute', compute)
 
-        return self.run_fitting(feedback=feedback, **kwargs)
+        return self.run_solver(feedback=feedback, **kwargs)
 
     # def import_feedback(self, fname, feedback=None):
     #     """
@@ -8285,10 +8286,10 @@ class Bundle(ParameterSet):
     #     Generally this file will be the output after running a script generated
     #     by <phoebe.frontend.bundle.Bundle.export_compute>.  This is NOT necessary
     #     to be called if generating a feedback directly from
-    #     <phoebe.frontend.bundle.Bundle.run_fitting>.
+    #     <phoebe.frontend.bundle.Bundle.run_solver>.
     #
     #     See also:
-    #     * <phoebe.frontend.bundle.Bundle.export_fitting>
+    #     * <phoebe.frontend.bundle.Bundle.export_solver>
     #
     #     Arguments
     #     ------------
