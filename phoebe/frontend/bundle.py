@@ -5797,19 +5797,23 @@ class Bundle(ParameterSet):
 
         if isinstance(distribution, str) or distribution is None:
             dist_ps = self.get_distribution(distribution)
-            dists = [dist_param.get_value() for dist_param in dist_ps.to_list()]
+            dist_params = dist_ps.to_list()
+            dists = [dist_param.get_value() for dist_param in dist_params]
         elif isinstance(distribution, list):
             dists = []
+            dist_params = []
             uniqueids = []
             for dist in distribution:
                 dist_ps = self.get_distribution(dist)
                 for dist_param in dist_ps.to_list():
                     ref_param = dist_param.get_referenced_parameter()
                     if ref_param.uniqueid not in uniqueids:
+                        dist_params.append(dist_param)
                         dists.append(dist_param.get_value())
                         uniqueids.append(ref_param.uniqueid)
                     else:
                         logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
+
         else:
             raise TypeError("distribution must be of type None, string, or list")
 
@@ -5817,7 +5821,7 @@ class Bundle(ParameterSet):
 
         ret = {}
         changed_params = []
-        for sampled_value, dist_param in zip(sampled_values, dist_ps.to_list()):
+        for sampled_value, dist_param in zip(sampled_values, dist_params):
             param = self.exclude(context=['distribution', 'constraint'], check_visible=False, check_default=False).get_parameter(check_visible=False, check_default=False, qualifier=dist_param.qualifier, **{k:v for k,v in dist_param.meta.items() if k in parameters._contexts and k not in ['distribution']})
             if param.is_constraint:
                 logger.warning("skipping drawing from {} as {} is constrained".format(dist_param.twig, param.twig))
