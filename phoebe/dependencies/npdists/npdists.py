@@ -548,6 +548,8 @@ class BaseDistribution(object):
             descriptors += " wrap_at={}".format(self.wrap_at)
         if hasattr(self, 'dimension'):
             descriptors += " dimension={}".format(self.dimension)
+        if self.label is not None:
+            descriptors += " label={}".format(self.label)
         return "<npdists.{} {}>".format(self.__class__.__name__.lower(), descriptors)
 
     def __str__(self):
