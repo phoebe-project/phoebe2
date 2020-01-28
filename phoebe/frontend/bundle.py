@@ -34,6 +34,7 @@ from phoebe.parameters import figure as _figure
 from phoebe.parameters.parameters import _uniqueid
 from phoebe.backend import backends, mesh
 from phoebe.solverbackends import solverbackends as _solverbackends
+from phoebe.solutionbackends import solutionbackends as _solutionbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
@@ -8131,178 +8132,24 @@ class Bundle(ParameterSet):
 
         Returns
         ----------
-        """
-        solution_ps = self.get_solution(solution=solution)
-        solver_kind = solution_ps.kind
-        if solver_kind == 'emcee':
-            filename = solution_ps.get_value(qualifier='filename')
-            # TODO: do we need to be careful about full-path?
 
-            reader = _solverbackends.emcee.backends.HDFBackend(filename)
-            # TODO: remove quiet or re-implement logic as warning
-            autocorr_time = reader.get_autocorr_time(quiet=True)
-            try:
-                burnin = kwargs.get('burnin', int(kwargs.get('burnin_factor', 2) * np.max(autocorr_time)))
-            except:
-                logger.warning("could not compute burnin, falling back on 0")
-                burnin = 0
-            try:
-                thin = int(kwargs.get('thin', int(kwargs.get('thin_factor', 0.5) * np.min(autocorr_time))))
-            except:
-                logger.warning("could not compute thin, falling back on 1")
-                thin = 1
-            try:
-                samples = reader.get_chain(discard=burnin, thin=thin, flat=False)
-            except:
-                logger.warning("could not get samples within burnin={}, thin={}".format(burnin, thin))
-                raise
-
-            log_prob_samples = reader.get_log_prob(discard=burnin, thin=thin, flat=False)
-
-            ps = self.filter(context=['component', 'dataset'], **_skip_filter_checks)
-            fitted_params = [ps.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in solution_ps.get_value(qualifier='fitted_parameters', **_skip_filter_checks)]
-            fitted_twigs = [param.get_uniquetwig(ps, exclude_levels=['context']) for param in fitted_params]
-
-            return {'autocorr_time': autocorr_time,
-                    'burnin': burnin,
-                    'thin': thin,
-                    'samples': samples,
-                    'fitted_twigs': fitted_twigs,
-                    'lnp': log_prob_samples}
-
-        elif solver_kind in ['dynesty']:
-            filename = solution_ps.get_value(qualifier='filename')
-            # TODO: do we need to be careful about full-path?
-
-            with open(filename, 'rb') as pfile:
-                dynesty_results = _pickle.load(pfile)
-
-            return {k:v for k,v in dynesty_results.items() if k not in ['bound']}
-
-        elif solver_kind in ['nelder_mead']:
-            return {p.qualifier: p.get_value() for p in solution_ps.to_list()}
-
-        else:
-            raise NotImplementedError("process_solution for kind='{}' not implemented".format(solver_kind))
-
-    def get_values_from_solution(self, solution=None, keys='twig', set_value=False, **kwargs):
-        """
-        Get face-value values from the solver solution and (optionally) adopt
-        the values.
-
-        Arguments
-        ----------
-        * `solution`: (string, optional, default=None): the label of the solution.
-        * `set_value` (bool, optional, default=False): whether to adopt the
-            face values for all relevant parameters.
-        * `keys` (string, optional, default='twig'): attribute to use for dictionary
-            keys ('twig', 'qualifier', 'uniqueid').  Only applicable if
-            `set_value` is False.
-        * `**kwargs`: all additional keyword arguments are passed to
-            <phoebe.frontend.bundle.Bundle.process_solution>
-
-        Returns
-        --------
-        * (dict or ParameterSet): dictionary of `keys`, value pairs if `set_value`
-            is False.  ParameterSet of changed Parameters (including those by
-            constraints) if `set_value` is True.
-        """
-        info = self.process_solution(solution=solution, **kwargs)
-        if 'fitted_parameters' not in info.keys() or 'fitted_values' not in info.keys():
-            raise NotImplementedError()
-
-        if set_value:
-            user_interactive_constraints = conf.interactive_constraints
-            conf.interactive_constraints_off(suppress_warning=True)
-
-        ret = {}
-        changed_params = []
-        for uniqueid, value in zip(info.get('fitted_parameters'), info.get('fitted_values')):
-            param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
-
-            if set_value:
-                param.set_value(value)
-                changed_params.append(param)
-            else:
-                ret[getattr(param, keys)] = value
-
-        if set_value:
-            changed_params += self.run_delayed_constraints()
-            if user_interactive_constraints:
-                conf.interactive_constraints_on()
-            return ParameterSet(changed_params)
-        else:
-            return ret
-
-    def get_distribution_from_solution(self, solution=None, **kwargs):
-        """
-
-        See also:
-        * <phoebe.frontend.bundle.Bundle.add_distribution_from_solution>
-
-        Arguments
+        Raises
         -----------
-        * `solution`
-        * `**kwargs`
-
-        Returns
-        ----------
-        * dictionary of information.  Exact keys available are dependent on the
-            solver backend.
+        * ValueError: if `distribution` is provided but `adopt` is not set to True.
+        * ValueError: if `distribution` is provided but the referenced `solution`
+            does not expose distributions.
         """
+        if kwargs.get('distribution', None) is not None and adopt is False:
+            raise ValueError("distribution cannot be set if adopt is not set to True")
 
         solution_ps = self.get_solution(solution=solution)
         solver_kind = solution_ps.kind
-        if solver_kind == 'emcee':
-            info = self.process_solution(solution=solution, **kwargs)
-
-            # TODO: we need to access the corresponding parameters so we can set
-            # the labels and units, perhaps by storing uniqueids in an array
-            # parameter?  Or by storing uniqueids in the h5 file?
-            ps = self.filter(context=['component', 'dataset'], **_skip_filter_checks)
-            fitted_params = [ps.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in solution_ps.get_value(qualifier='fitted_parameters', **_skip_filter_checks)]
-            fitted_twigs = [param.get_uniquetwig(ps, exclude_levels=['context']) for param in fitted_params]
-            # TODO: this assumes the unit hasn't changed since the solver run... alternatively we could store units in the solution as 'fitted_units'
-            # TODO: npdists multivariate support needs to accept list of units
-            fitted_units = None
-            #fitted_units = [param.default_unit for param in fitted_params]
-
-            dist = _npdists.mvhistogram_from_data(info['samples'].reshape((-1,len(info['fitted_twigs']))), bins=kwargs.get('bins', 10), range=None, weights=None, unit=fitted_units, label=fitted_twigs, wrap_at=None)
-            return dist
-
+        c = getattr(_solutionbackends, "{}Solution".format(solver_kind.title()))(bundle=self, solution=solution, solution_kwargs={p.qualifier: p.get_value() for p in solution_ps.to_list()})
+        c.process(**kwargs)
+        if adopt:
+            return c.adopt(distribution=kwargs.get('distribution', None))
         else:
-            raise NotImplementedError("process_solution_distributions for kind='{}' not implememented".format(solver_kind))
-
-    def add_distribution_from_solution(self, solution=None, **kwargs):
-        """
-
-        See also:
-        * <phoebe.frontend.bundle.Bundle.get_distribution_from_solution>
-
-        Arguments
-        ----------
-        * `solution`
-        * `distribution` (string, optional, default=None)
-        * `**kwargs`: all additionaly keyword arguments are passed to
-            <phoebe.frontend.bundle.Bundle.get_distribution_from_solution>
-
-        Returns
-        ---------
-        * ParameterSet of all added/changed parameters from
-            <phoebe.frontend.bundle.Bundle.add_distribution>.
-        """
-        raise NotImplementedError()
-        dist = self.get_distribution_from_solution(solution=solution, **kwargs)
-
-        # TODO: we need to know what to attach to... if this isn't stored
-        # in the distribution object itself, then we may need another argument
-        # to get_distribution_from_solution to also expose this information
-        # (or access it again from solution)
-
-        # self.add_distribution(qualifier=..., value=dist, distribution=kwargs['distribution'])
-
-        return self.get_distribution(distribution=kwargs['distribution'])
-
+            return c
 
     def get_solution(self, solution=None, **kwargs):
         """
