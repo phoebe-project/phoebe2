@@ -405,6 +405,12 @@ class Bundle(ParameterSet):
             params = []
 
         self._params = []
+
+        # set to be not a client by default
+        self._is_client = False
+        self._last_client_update = None
+        self._lock = False
+
         super(Bundle, self).__init__(params=params)
 
 
@@ -419,11 +425,6 @@ class Bundle(ParameterSet):
         self._hierarchy_param = None
 
         self._af_figure = None
-
-        # set to be not a client by default
-        self._is_client = False
-        self._last_client_update = None
-        self._lock = False
 
         # handle delayed constraints when interactive mode is off
         self._delayed_constraints = []
@@ -5608,23 +5609,15 @@ class Bundle(ParameterSet):
         if value is None:
             value = _npdists.delta(ref_param.get_value())
 
-        if value.unit is None:
-            value.unit = ref_param.default_unit
-        else:
-            try:
-                value.unit.to(ref_param.default_unit)
-            except:
-                raise ValueError("units of {} on distribution not compatible with units of {} on parameter".format(value.unit, ref_param.default_unit))
-
-        dist_param = DistributionParameter(qualifier=ref_param.qualifier, value=value)
-
-
 
         metawargs = {'context': 'distribution',
                      'distribution': kwargs['distribution']}
         for k,v in ref_param.meta.items():
             if k in parameters._contexts:
                 metawargs.setdefault(k,v)
+
+        dist_param = DistributionParameter(bundle=self, qualifier=ref_param.qualifier, value=value, **metawargs)
+
 
         if kwargs.get('overwrite', False):
             overwrite_ps = self.remove_distribution(distribution=kwargs['distribution'])
@@ -5686,6 +5679,9 @@ class Bundle(ParameterSet):
         ---------
         * a <phoebe.parameters.ParameterSet> object.
         """
+        if '*' in distribution:
+            raise ValueError("distribution does not accept wildcards")
+
         kwargs['distribution'] = distribution
         kwargs['context'] = 'distribution'
         ret_ps = self.filter(**kwargs)
@@ -5754,7 +5750,66 @@ class Bundle(ParameterSet):
 
         return self.filter(distribution=new_distribution)
 
-    def sample_distribution(self, distribution=None, N=None, set_value=False, keys='twig'):
+    def get_distribution_objects(self, distribution=None,
+                                 combine='first', include_constrained=False,
+                                 keys='twig'):
+        """
+
+        Arguments
+        -------------
+        * `distribution`: (string or list of strings, optional, default=None):
+            the name of the distribution(s).  If a list: if a parameter has
+            multiple distributions matching the filter, those EARLIER in the
+            list will take precedence.
+        * `combine`
+        * `include_constrained` (bool, optional, default=False): whether to
+            include constrained parameters.
+        * `keys` (string, optional, default='twig'): attribute to use for dictionary
+            keys ('twig', 'qualifier', 'uniqueid').  NOTE: the attributes will
+            be called on the referenced parameter, not the distribution parameter.
+            See <phoebe.parameters.DistributionParameter.get_referenced_parameter>
+            and <phoebe.parameters.FloatParameter.get_distribution>.
+
+        Returns
+        ------------
+        * dictionary of `keys`-npdists objects pairs
+        """
+
+        if isinstance(distribution, str) or distribution is None:
+            distribution = [distribution]
+
+        ret = {}
+
+        if isinstance(distribution, list):
+            if len(distribution) and combine.lower() != 'first':
+                raise NotImplementedError("combine='{}' not supported".format(combine))
+
+            # TODO: if * in list, need to expand (currently forbidden with error in get_distribution)
+
+            uniqueids = []
+            for dist in distribution:
+                dist_ps = self.get_distribution(dist)
+                for dist_param in dist_ps.to_list():
+                    ref_param = dist_param.get_referenced_parameter()
+                    if not include_constrained and len(ref_param.constrained_by):
+                        continue
+                    if ref_param.uniqueid not in uniqueids:
+                        k = getattr(ref_param, keys)
+                        if k in ret.keys():
+                            raise ValueError("keys='{}' does not result in unique entries for each item".format(keys))
+                        ret[k] = dist_param.get_value()
+                        uniqueids.append(ref_param.uniqueid)
+                    else:
+                        logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
+
+        else:
+            raise TypeError("distribution must be of type None, string, or list")
+
+        return ret
+
+    def sample_distribution(self, distribution=None, N=None,
+                            combine='first', include_constrained=False,
+                            set_value=False, keys='twig'):
         """
         Sample from all distributions in a distribution set (tagged with
         distribution=`distribution`).  Note that distributions attached
@@ -5770,9 +5825,13 @@ class Bundle(ParameterSet):
         * `N` (int, optional, default=None): number of samples to draw from
             each distribution.  Note that this must be None if `set_value` is
             set to True.
+        * `combine`
+        * `include_constrained` (bool, optional, default=False): whether to
+            include constrained parameters.  Must be False to use `set_value`.
+            See also <phoebe.frontend.bundle.Bundle.get_distribution_objects>.
         * `set_value` (bool, optional, default=False): whether to adopt the
             sampled values for all relevant parameters.  Note that `N` must
-            be None.
+            be None and `include_constrained` must be False.
         * `keys` (string, optional, default='twig'): attribute to use for dictionary
             keys ('twig', 'qualifier', 'uniqueid').  Only applicable if
             `set_value` is False.
@@ -5787,51 +5846,35 @@ class Bundle(ParameterSet):
         -------
         * ValueError: if `set_value` is True and `N` is not None (as parameters
             cannot be set to multiple values)
+        * ValueError: if `set_value` is True and `include_constrained` is True
+            (as parameters that are constrained cannot adopt the sampled values)
         """
         if N is not None and set_value:
             raise ValueError("cannot use set_value and N together")
+        if include_constrained and set_value:
+            raise ValueError("cannot use include_constrained=True and set_value together")
 
         if set_value:
             user_interactive_constraints = conf.interactive_constraints
             conf.interactive_constraints_off(suppress_warning=True)
 
-        if isinstance(distribution, str) or distribution is None:
-            dist_ps = self.get_distribution(distribution)
-            dist_params = dist_ps.to_list()
-            dists = [dist_param.get_value() for dist_param in dist_params]
-        elif isinstance(distribution, list):
-            dists = []
-            dist_params = []
-            uniqueids = []
-            for dist in distribution:
-                dist_ps = self.get_distribution(dist)
-                for dist_param in dist_ps.to_list():
-                    ref_param = dist_param.get_referenced_parameter()
-                    if ref_param.uniqueid not in uniqueids:
-                        dist_params.append(dist_param)
-                        dists.append(dist_param.get_value())
-                        uniqueids.append(ref_param.uniqueid)
-                    else:
-                        logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
+        dists_dict = self.get_distribution_objects(distribution,
+                                                   combine=combine,
+                                                   include_constrained=include_constrained,
+                                                   keys='uniqueid')
 
-        else:
-            raise TypeError("distribution must be of type None, string, or list")
-
-        sampled_values = _npdists.sample_from_dists(dists, size=N).T
+        sampled_values = _npdists.sample_from_dists(dists_dict.values(), size=N).T
 
         ret = {}
         changed_params = []
-        for sampled_value, dist_param in zip(sampled_values, dist_params):
-            param = self.exclude(context=['distribution', 'constraint'], check_visible=False, check_default=False).get_parameter(check_visible=False, check_default=False, qualifier=dist_param.qualifier, **{k:v for k,v in dist_param.meta.items() if k in parameters._contexts and k not in ['distribution']})
-            if param.is_constraint:
-                logger.warning("skipping drawing from {} as {} is constrained".format(dist_param.twig, param.twig))
-                continue
+        for sampled_value, uniqueid in zip(sampled_values, dists_dict.keys()):
+            ref_param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
 
             if set_value:
-                param.set_value(sampled_value)
-                changed_params.append(param)
+                ref_param.set_value(sampled_value)
+                changed_params.append(ref_param)
             else:
-                ret[getattr(param, keys)] = sampled_value
+                ret[getattr(ref_param, keys)] = sampled_value
 
         if set_value:
             changed_params += self.run_delayed_constraints()

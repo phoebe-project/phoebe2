@@ -42,7 +42,7 @@ def _bjson(b, solver, compute, distributions):
                       distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
 
 
-def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback, compute_kwargs={}):
+def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, feedback, compute_kwargs={}):
     # print("*** _lnlikelihood from rank: {}".format(mpi.myrank))
     # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
     # deferring constraints/checks until run_compute.
@@ -66,10 +66,10 @@ def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feed
         return -np.inf
 
     # print("*** _lnlikelihood returning from rank: {}".format(mpi.myrank))
-    return b.calculate_lnp(distribution=priors) + b.calculate_lnlikelihood(model=feedback)
+    return b.calculate_lnp(distribution=priors, combine=priors_combine) + b.calculate_lnlikelihood(model=feedback)
 
-def _lnlikelihood_negative(sampled_values, bjson, params_uniqueids, compute, priors, feedback, compute_kwargs={}):
-    return -1 * _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, feedback, compute_kwargs)
+def _lnlikelihood_negative(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, feedback, compute_kwargs={}):
+    return -1 * _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, feedback, compute_kwargs)
 
 class BaseSolverBackend(object):
     def __init__(self):
@@ -255,16 +255,20 @@ class EmceeBackend(BaseSolverBackend):
             is_master = True
 
         if is_master:
-            # TODO: are these all already in kwargs from get_packet_and_feedback?
             niters = kwargs.get('niters')
             nwalkers = kwargs.get('nwalkers')
             init_from = kwargs.get('init_from')
+            init_from_combine = kwargs.get('init_from_combine')
             priors = kwargs.get('priors')
+            priors_combine = kwargs.get('priors_combine')
 
-            filename = kwargs.get('filename')
+            filename = os.path.join(os.getcwd(), kwargs.get('filename'))
             continue_previous_run = kwargs.get('continue_previous_run')
 
-            sample_dict = b.sample_distribution(distribution=init_from, N=nwalkers, keys='uniqueid', set_value=False)
+            sample_dict = b.sample_distribution(distribution=init_from, N=nwalkers,
+                                                combine=init_from_combine,
+                                                include_constrained=False,
+                                                keys='uniqueid', set_value=False)
             params_uniqueids, p0 = list(sample_dict.keys()), np.asarray(list(sample_dict.values()))
 
             # EnsembleSampler kwargs
@@ -281,13 +285,13 @@ class EmceeBackend(BaseSolverBackend):
                                 'params_uniqueids': params_uniqueids,
                                 'compute': compute,
                                 'priors': priors,
+                                'priors_combine': priors_combine,
                                 'feedback': kwargs.get('feedback', None),
                                 'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}}
 
             # esargs['live_dangerously'] = kwargs.pop('live_dangerously', None)
             # esargs['runtime_sortingfn'] = kwargs.pop('runtime_sortingfn', None)
 
-            filename = os.path.join(os.getcwd(), filename)
             # TODO: consider supporting passing name=feedback... but that
             # seems to cause and hdf bug and also will need to be careful
             # to match feedback in order to use continue_previous_run
@@ -405,9 +409,16 @@ class Nelder_MeadBackend(BaseSolverBackend):
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
         init_from = kwargs.get('init_from')
+        init_from_combine = kwargs.get('init_from_combine')
         priors = kwargs.get('priors')
+        priors_combine = kwargs.get('priors_combine')
 
-        sample_dict = b.sample_distribution(distribution=init_from, N=None, keys='uniqueid', set_value=False)
+        # TODO: replace this with twig SelectParameter
+        sample_dict = b.sample_distribution(distribution=init_from,
+                                            N=None, keys='uniqueid',
+                                            combine=init_from_combine,
+                                            include_constrained=False,
+                                            set_value=False)
         params_uniqueids, p0 = list(sample_dict.keys()), np.asarray(list(sample_dict.values()))
 
         compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
@@ -418,7 +429,7 @@ class Nelder_MeadBackend(BaseSolverBackend):
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
         res = optimize.minimize(_lnlikelihood_negative, p0,
                                 method='nelder-mead',
-                                args=(_bjson(b, solver, compute, init_from+priors), params_uniqueids, compute, priors, kwargs.get('feedback', None), compute_kwargs),
+                                args=(_bjson(b, solver, compute, init_from+priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('feedback', None), compute_kwargs),
                                 options=options)
 
 

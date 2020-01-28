@@ -93,7 +93,8 @@ logger.addHandler(logging.NullHandler())
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
-                                        'ConstraintParameter', 'JobParameter']
+                                        'ConstraintParameter', 'DistributionParameter',
+                                        'JobParameter']
 
 _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
                      'dataset', 'constraint', 'distribution', 'compute', 'model',
@@ -3400,7 +3401,9 @@ class ParameterSet(object):
 
         return -0.5 * self.calculate_chi2(model, dataset, component)
 
-    def calculate_lnp(self, distribution=None, **kwargs):
+    def calculate_lnp(self, distribution=None,
+                      combine='and', include_constrained=True,
+                      **kwargs):
         """
         Compute the log-probability between a distribution-set and the face values of
         the corresponding parameters (if `distribution` are priors, then this
@@ -3414,6 +3417,7 @@ class ParameterSet(object):
         * <phoebe.parameters.DistributionParameter.calculate_lnprobability>
         * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
         * <phoebe.frontend.bundle.Bundle.calculate_lnprobability>
+        * <phoebe.frontend.bundle.Bundle.get_distribution_objects>
 
         Arguments
         -----------
@@ -3422,6 +3426,8 @@ class ParameterSet(object):
             `distribution` available in the ParameterSet.  If distribution is
             a list, duplicate entries will still be considered
             (`calculate_lnp(distribution=['dist1', 'dist2']) = calculate_lnp(distribution='dist1')+calculate_lnp(distribution='dist2')`)
+        * `combine` (string, opjtional, default='add')
+        * `include_constrained` (bool, optional, default=True)
         * `**kwargs` (optional): all additional keyword arguments are used
             to filter the parameter set.
 
@@ -3434,6 +3440,9 @@ class ParameterSet(object):
         * ValueError: if `distribution` is not provided but more than one exist.
         * ValueError: if no distributions can be found labeled `distribution`
         """
+        if combine.lower() != 'and':
+            raise NotImplementedError("combine='{}' not supported".format(combine))
+
         if distribution is None:
             if len(self.distributions) == 1:
                 distribution = self.distributions[0]
@@ -3462,6 +3471,10 @@ class ParameterSet(object):
 
         lnp = 0
         for dist_param in self._bundle.get_distribution(distribution=distribution, **_skip_filter_checks).to_list():
+            ref_param = dist_param.get_referenced_parameter()
+            if not include_constrained and len(ref_param.constrained_by):
+                continue
+
             if dist_param not in self or dist_param.get_referenced_parameter() not in self:
                 logger.warning("'{}' outside filter, excluding from lnp calculation".format(dist_param.twig))
                 continue
@@ -7279,16 +7292,23 @@ class IntParameter(Parameter):
 
 
 class DistributionParameter(Parameter):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, bundle, value, **kwargs):
         """
         see <phoebe.parameters.Parameter.__init__>
 
         additional options:
         * `default_unit`
         """
-        super(DistributionParameter, self).__init__(*args, **kwargs)
+        super(DistributionParameter, self).__init__(**kwargs)
 
-        self.set_value(kwargs.get('value', ''))
+        self._bundle = bundle
+        # also have to set all attributes before calling set_value so that
+        # get_referenced_parameter works
+        for k,v in kwargs.items():
+            if hasattr(self, '_{}'.format(k)):
+                setattr(self, '_{}'.format(k), v)
+
+        self.set_value(value)
 
         self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
@@ -7379,6 +7399,19 @@ class DistributionParameter(Parameter):
         """
         _orig_value = deepcopy(self.get_value())
         value = self._check_value(value)
+
+        ref_param = self.get_referenced_parameter()
+        if value.unit is None:
+            value.unit = ref_param.default_unit
+        else:
+            try:
+                value.unit.to(ref_param.default_unit)
+            except:
+                raise ValueError("units of {} on distribution not compatible with units of {} on parameter".format(value.unit, ref_param.default_unit))
+
+        # TODO: apply the label, but use dist.__repr__ for Parameter and ParameterSet
+        # displays of the value (npdists falls back on {label} when available)
+        # value.label = ref_param.get_uniquetwig(self._bundle, exclude_levels=['context'])
 
         self._value = value
 
@@ -7708,6 +7741,12 @@ class FloatParameter(Parameter):
         """
         if self._bundle is None:
             raise ValueError("parameter must be attached to a Bundle to call get_distribution")
+
+        if not isinstance(distribution, str) and distribution is not None:
+            if isinstance(distribution, list):
+                raise NotImplementedError()
+            else:
+                raise TypeError("distribution must be of type string or None")
 
         if follow_constraints and len(self.constrained_by):
             # then this is a constrained parameter, so we want to propagate
