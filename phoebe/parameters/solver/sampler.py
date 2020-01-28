@@ -56,3 +56,59 @@ def emcee(**kwargs):
     params += [BoolParameter(qualifier='continue_previous_run', value=kwargs.get('continue_previous_run', False), description='continue previous run by reading contents in the file defined by filename')]
 
     return ParameterSet(params)
+
+def dynesty(**kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for solver options for the
+    dynesty backend.  To use this backend, you must have dynesty installed.
+
+    To install dynesty, see https://dynesty.readthedocs.io
+
+    If using this backend for solver, consider citing:
+    * https://ui.adsabs.harvard.edu/abs/2019arXiv190402180S
+    * https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S
+    * https://projecteuclid.org/euclid.ba/1340370944
+
+    and see:
+    * https://dynesty.readthedocs.io/en/latest/#citations
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    For example:
+
+    ```py
+    b.add_solver('sampler.dynesty')
+    b.run_solver(kind='dynesty')
+    ```
+
+    Arguments
+    ----------
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+    params = []
+
+    params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
+
+    params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors')]
+    params += [ChoiceParameter(qualifier='priors_combine', value=kwargs.get('priors_combine', 'first'), choices=['first'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter.')]
+
+    params += [IntParameter(qualifier='nlive', value=kwargs.get('nlive', 100), limits=(1,1e12), description='number of live points.   Larger numbers result in a more finely sampled posterior (more accurate evidence), but also a larger number of iterations required to converge.')]
+    params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 100), limits=(1,1e12), description='maximum number of iterations')]
+    params += [IntParameter(qualifier='maxcall', value=kwargs.get('maxcall', 1000), limits=(1,1e12), description='maximum number of calls (forward models)')]
+
+    params += [StringParameter(qualifier='filename', value=kwargs.get('filename', 'dynesty_progress.pkl'), description='filename to use for storing progress and continuing from previous run')]
+    # params += [BoolParameter(qualifier='continue_previous_run', value=kwargs.get('continue_previous_run', False), description='continue previous run by reading contents in the file defined by filename')]
+
+    return ParameterSet(params)

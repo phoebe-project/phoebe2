@@ -13,6 +13,7 @@ import json
 import atexit
 from datetime import datetime
 from distutils.version import StrictVersion
+import pickle as _pickle
 
 from scipy.optimize import curve_fit as cfit
 
@@ -3368,7 +3369,10 @@ class Bundle(ParameterSet):
                          'Carter et al. (2011)': 'https://ui.adsabs.harvard.edu/abs/2011Sci...331..562C',
                          'Andras (2012)': 'https://ui.adsabs.harvard.edu/abs/2012MNRAS.420.1630P',
                          'Maxted (2016)': 'https://ui.adsabs.harvard.edu/abs/2016A%26A...591A.111M',
-                         'Foreman-Mackey et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F'
+                         'Foreman-Mackey et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F',
+                         'Speagle (2019)': 'https://ui.adsabs.harvard.edu/abs/2019arXiv190402180S',
+                         'Skilling (2004)': 'https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S',
+                         'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944'
                         }
 
         # ref: [reasons] pairs
@@ -3398,8 +3402,14 @@ class Bundle(ParameterSet):
                 recs = _add_response(recs, 'Maxted (2016)', 'ellc compute backend')
 
         for solver in solvers:
-            if self.get_solver(solver).kind == 'emcee':
+            solver_kind = self.get_solver(solver).kind
+            if solver_kind == 'emcee':
                 recs = _add_reason(recs, 'Foreman-Mackey et al. (2013)', 'emcee solver backend')
+            elif solver_kind == 'dynesty':
+                recs = _add_reason(recs, 'Speagle (2019)', 'dynesty solver backend')
+                recs = _add_reason(recs, 'Skilling (2004)', 'nested sampling: dynesty solver backend')
+                recs = _add_reason(recs, 'Skilling (2006)', 'nested sampling: dynesty solver backend')
+
 
         # check for presence of datasets that require PHOEBE releases
         for dataset in datasets:
@@ -8114,6 +8124,7 @@ class Bundle(ParameterSet):
         solver_kind = feedback_ps.kind
         if solver_kind == 'emcee':
             filename = feedback_ps.get_value(qualifier='filename')
+            # TODO: do we need to be careful about full-path?
 
             reader = _solverbackends.emcee.backends.HDFBackend(filename)
             # TODO: remove quiet or re-implement logic as warning
@@ -8146,6 +8157,15 @@ class Bundle(ParameterSet):
                     'samples': samples,
                     'fitted_twigs': fitted_twigs,
                     'lnp': log_prob_samples}
+
+        elif solver_kind in ['dynesty']:
+            filename = feedback_ps.get_value(qualifier='filename')
+            # TODO: do we need to be careful about full-path?
+
+            with open(filename, 'rb') as pfile:
+                dynesty_results = _pickle.load(pfile)
+
+            return {k:v for k,v in dynesty_results.items() if k not in ['bound']}
 
         elif solver_kind in ['nelder_mead']:
             return {p.qualifier: p.get_value() for p in feedback_ps.to_list()}

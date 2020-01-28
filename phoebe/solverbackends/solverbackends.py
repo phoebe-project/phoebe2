@@ -25,6 +25,15 @@ except ImportError:
 else:
     _use_emcee = True
 
+try:
+    import dynesty
+    import schwimmbad
+    import pickle
+except ImportError:
+    _use_dynesty = False
+else:
+    _use_dynesty = True
+
 from scipy import optimize
 
 import logging
@@ -70,6 +79,17 @@ def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, prio
 
 def _lnlikelihood_negative(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, feedback, compute_kwargs={}):
     return -1 * _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, feedback, compute_kwargs)
+
+def _sample_ppf(ppf_values, distributions_list):
+    x = np.empty_like(ppf_values)
+
+    # TODO: replace with npdists.sample_ppf_from_dists(distributions, values)
+    # once implemented to support multivariate?
+
+    for i,dist in enumerate(distributions_list):
+        x[i] = dist.sample_ppf(ppf_values[i])
+
+    return x
 
 class BaseSolverBackend(object):
     def __init__(self):
@@ -367,6 +387,145 @@ class EmceeBackend(BaseSolverBackend):
         if is_master:
             return [[{'qualifier': 'fitted_parameters', 'value': params_uniqueids}]]
         return {}
+
+
+class DynestyBackend(BaseSolverBackend):
+    """
+    See <phoebe.parameters.solver.sampler.dynesty>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
+    def run_checks(self, b, solver, compute, **kwargs):
+        # check whether emcee is installed
+
+        if not _use_dynesty:
+            raise ImportError("could not import dynesty, pickle, and schwimbbad")
+
+        solver_ps = b.get_solver(solver)
+        if not len(solver_ps.get_value(qualifier='priors', init_from=kwargs.get('priors', None))):
+            raise ValueError("cannot run dynesty without any distributions in priors")
+
+        # filename = solver_ps.get_value(qualifier='filename', filename=kwargs.get('filename', None))
+        # continue_previous_run = solver_ps.get_value(qualifier='continue_previous_run', continue_previous_run=kwargs.get('continue_previous_run', None))
+        # if continue_previous_run and not os.path.exists(filename):
+            # raise ValueError("cannot file filename='{}', cannot use continue_previous_run=True".format(filename))
+
+
+    def _get_packet_and_feedback(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_feedback
+
+        feedback_params = []
+        feedback_params += [_parameters.StringParameter(qualifier='filename', value=kwargs.get('filename', None), description='filename of emcee progress file (contents loaded on the fly, DO NOT DELETE FILE)')]
+        feedback_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
+
+        return kwargs, _parameters.ParameterSet(feedback_params)
+
+    def _run_worker(self, packet):
+        # here we'll override loading the bundle since it is not needed
+        # in run_worker (for the workers.... note that the master
+        # will enter run_worker through run, not here)
+        return self.run_worker(**packet)
+
+    def run_worker(self, b, solver, compute, **kwargs):
+        # emcee handles workers itself.  So here we'll just take the workers
+        # from our own waiting loop in phoebe's __init__.py and subscribe them
+        # to emcee's pool.
+
+        if mpi.within_mpirun:
+            pool = schwimmbad.MPIPool()
+            is_master = pool.is_master()
+        else:
+            pool = schwimmbad.MultiPool()
+            is_master = True
+
+        if is_master:
+            priors = kwargs.get('priors')
+            priors_combine = kwargs.get('priors_combine')
+
+            filename = os.path.join(os.getcwd(), kwargs.get('filename'))
+
+            # NOTE: here it is important that _sample_ppf sees the parameters in the
+            # same order as _lnlikelihood (that is in the order of params_uniqueids)
+            priors_dict = b.get_distribution_objects(distribution=priors,
+                                                     combine=priors_combine,
+                                                     include_constrained=False,
+                                                     keys='uniqueid')
+            params_uniqueids = list(priors_dict.keys())
+            priors_list = list(priors_dict.values())
+
+            # NOTE: in dynesty we draw from the priors and pass the prior-transforms,
+            # but do NOT include the lnprior term in lnlikelihood, so we pass
+            # priors as []
+            lnlikelihood_kwargs = {'bjson': _bjson(b, solver, compute, []),
+                                   'params_uniqueids': params_uniqueids,
+                                   'compute': compute,
+                                   'priors': [],
+                                   'priors_combine': 'and',
+                                   'feedback': kwargs.get('feedback', None),
+                                   'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}}
+
+
+
+
+            logger.debug("dynesty.NestedSampler(_lnlikelihood, _sample_ppf, log_kwargs, ptform_kwargs, ndim, nlive)")
+            sampler = dynesty.NestedSampler(_lnlikelihood, _sample_ppf,
+                                        logl_kwargs=lnlikelihood_kwargs, ptform_kwargs={'distributions_list': priors_list},
+                                        ndim=len(params_uniqueids), nlive=kwargs.get('nlive'), pool=pool)
+
+            sargs = {}
+            sargs['maxiter'] = kwargs.get('maxiter')
+            sargs['maxcall'] = kwargs.get('maxcall')
+
+            # TODO: expose these via parameters?
+            sargs['dlogz'] = kwargs.get('dlogz', 0.01)
+            sargs['logl_max'] = kwargs.get('logl_max', np.inf)
+            sargs['n_effective'] = kwargs.get('n_effective',np.inf)
+            sargs['add_live'] = kwargs.get('add_live', True)
+            sargs['save_bounds'] = kwargs.get('save_bounds', True)
+            sargs['save_samples'] = kwargs.get('save_samples',True)
+
+
+            with open(filename, 'wb') as pfile:
+                for result in sampler.sample(**sargs):
+                    # TODO: does this append or over-write?  If it overwrites
+                    # can we just do it once at the end (or if
+                    # keyboard-interrupt?)  Or do we want to do this so we can
+                    # check in on the progress while it runs
+
+                    res = sampler.results
+                    # if res['niter']%saveiter == 0:
+                    # print('Saving results to %s...' % filename)
+                    pickle.dump(res, pfile)
+
+
+        else:
+            # NOTE: because we overrode self._run_worker to skip loading the
+            # bundle, b is just a json string here.  If we ever need the
+            # bundle in here, just remove the override for self._run_worker.
+
+            # temporarily disable MPI within run_compute to disabled parallelizing
+            # per-time.
+            within_mpirun = mpi.within_mpirun
+            mpi_enabled = mpi.enabled
+            mpi._within_mpirun = False
+            mpi._enabled = False
+
+            pool.wait()
+
+            # restore previous MPI state
+            mpi._within_mpirun = within_mpirun
+            mpi._enabled = mpi_enabled
+
+        if pool is not None:
+            pool.close()
+
+        if is_master:
+            return [[{'qualifier': 'fitted_parameters', 'value': params_uniqueids}]]
+        return {}
+
+
 
 
 class Nelder_MeadBackend(BaseSolverBackend):
