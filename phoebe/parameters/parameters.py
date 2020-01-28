@@ -98,7 +98,7 @@ _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
 
 _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
                      'dataset', 'constraint', 'distribution', 'compute', 'model',
-                     'solver', 'feedback', 'figure', 'kind',
+                     'solver', 'solution', 'figure', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
@@ -106,7 +106,7 @@ _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['history', 'system', 'component', 'feature',
              'dataset', 'constraint', 'distribution', 'compute', 'model',
-             'solver', 'feedback', 'figure', 'setting']
+             'solver', 'solution', 'figure', 'setting']
 
 # define a list of default_forbidden labels
 # an individual ParameterSet may build on this list with components, datasets,
@@ -448,7 +448,7 @@ class ParameterSet(object):
         self._compute = None
         self._model = None
         self._solver = None
-        self._feedback = None
+        self._solution = None
         # self._plugin = None
         self._kind = None
         self._context = None
@@ -1156,38 +1156,38 @@ class ParameterSet(object):
         return self._options_for_tag('solver')
 
     @property
-    def feedback(self):
-        """Return the value for feedback if shared by ALL Parameters.
+    def solution(self):
+        """Return the value for solution if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.feedbacks>.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.solutions>.
 
         To see the value of a single <phoebe.parameters.Parameter> object, see
-        <phoebe.parameters.Parameter.feedback>.
+        <phoebe.parameters.Parameter.solution>.
 
         Returns
         --------
         (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
             objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
-        return self._feedback
+        return self._solution
 
     @property
-    def feedbacks(self):
-        """Return a list of all the feedbacks of the Parameters.
+    def solutions(self):
+        """Return a list of all the solutions of the Parameters.
 
         See also:
         * <phoebe.parameters.ParameterSet.tags>
 
         For the singular version, see:
-        * <phoebe.parameters.ParameterSet.feedback>
+        * <phoebe.parameters.ParameterSet.solution>
 
         Returns
         --------
-        * (list) a list of all feedbacks for each <phoebe.parameters.Parameter>
+        * (list) a list of all solutions for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self._options_for_tag('feedback')
+        return self._options_for_tag('solution')
 
     @property
     def kind(self):
@@ -4831,7 +4831,7 @@ class Parameter(object):
         * `compute` (string, optional): label for the compute tag
         * `model` (string, optional): label for the model tag
         * `solver` (string, optional): label for the solver tag
-        * `feedback` (string, optional): label for the feedback tag
+        * `solution` (string, optional): label for the solution tag
         * `kind` (string, optional): label for the kind tag
         * `context` (string, optional): label for the context tag
         * `copy_for` (dictionary/False, optional, default=False): dictionary of
@@ -4868,7 +4868,7 @@ class Parameter(object):
         self._compute = kwargs.get('compute', None)
         self._model = kwargs.get('model', None)
         self._solver = kwargs.get('solver', None)
-        self._feedback = kwargs.get('feedback', None)
+        self._solution = kwargs.get('solution', None)
         # self._plugin = kwargs.get('plugin', None)
         self._kind = kwargs.get('kind', None)
         self._context = kwargs.get('context', None)
@@ -5473,19 +5473,19 @@ class Parameter(object):
         return self._solver
 
     @property
-    def feedback(self):
+    def solution(self):
         """
-        Return the feedback of this <phoebe.parameters.Parameter>.
+        Return the solution of this <phoebe.parameters.Parameter>.
 
         See also:
-        * <phoebe.parameters.ParameterSet.feedback>
-        * <phoebe.parameters.ParameterSet.feedbacks>
+        * <phoebe.parameters.ParameterSet.solution>
+        * <phoebe.parameters.ParameterSet.solutions>
 
         Returns
         -------
-        * (str) the feedback tag of this Parameter.
+        * (str) the solution tag of this Parameter.
         """
-        return self._feedback
+        return self._solution
 
     @property
     def kind(self):

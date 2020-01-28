@@ -45,13 +45,13 @@ _skip_filter_checks = {'check_default': False, 'check_visible': False}
 def _bjson(b, solver, compute, distributions):
     # TODO: OPTIMIZE exclude disabled datasets?
     # TODO: re-enable removing unused compute options - currently causes some constraints to fail
-    return b.exclude(context=['model', 'feedback', 'figure'], **_skip_filter_checks).exclude(
+    return b.exclude(context=['model', 'solution', 'figure'], **_skip_filter_checks).exclude(
                       solver=[f for f in b.solvers if f!=solver and solver is not None], **_skip_filter_checks).exclude(
                       # compute=[c for c in b.computes if c!=compute and compute is not None], **_skip_filter_checks).exclude(
                       distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
 
 
-def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, feedback, compute_kwargs={}):
+def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
     # print("*** _lnlikelihood from rank: {}".format(mpi.myrank))
     # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
     # deferring constraints/checks until run_compute.
@@ -69,16 +69,16 @@ def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, prio
 
     # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
     try:
-        b.run_compute(compute=compute, model=feedback, do_create_fig_params=False, **compute_kwargs)
+        b.run_compute(compute=compute, model=solution, do_create_fig_params=False, **compute_kwargs)
     except Exception as err:
         logger.warning("received error from run_compute: {}.  lnlikelihood=-inf".format(err))
         return -np.inf
 
     # print("*** _lnlikelihood returning from rank: {}".format(mpi.myrank))
-    return b.calculate_lnp(distribution=priors, combine=priors_combine) + b.calculate_lnlikelihood(model=feedback)
+    return b.calculate_lnp(distribution=priors, combine=priors_combine) + b.calculate_lnlikelihood(model=solution)
 
-def _lnlikelihood_negative(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, feedback, compute_kwargs={}):
-    return -1 * _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, feedback, compute_kwargs)
+def _lnlikelihood_negative(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
+    return -1 * _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs)
 
 def _sample_ppf(ppf_values, distributions_list):
     x = np.empty_like(ppf_values)
@@ -109,21 +109,21 @@ class BaseSolverBackend(object):
         """
         raise NotImplementedError("run_checks is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def _get_packet_and_feedback(self, b, solver, **kwargs):
+    def _get_packet_and_solution(self, b, solver, **kwargs):
         """
-        see get_packet_and_feedback.  _get_packet_and_feedback provides the custom parts
+        see get_packet_and_solution.  _get_packet_and_solution provides the custom parts
         of the packet that are Backend-dependent.
 
         This should return the packet to send to all workers and the new_syns to
         be sent to the master.
 
-        return packet, feedback_ps
+        return packet, solution_ps
         """
-        raise NotImplementedError("_get_packet_and_feedback is not implemented by the {} backend".format(self.__class__.__name__))
+        raise NotImplementedError("_get_packet_and_solution is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def get_packet_and_feedback(self, b, solver, **kwargs):
+    def get_packet_and_solution(self, b, solver, **kwargs):
         """
-        get_packet_and_feedback is called by the master and must get all information necessary
+        get_packet_and_solution is called by the master and must get all information necessary
         to send to all workers.  The returned packet will be passed on as
         _run_chunk(**packet) with the following exceptions:
 
@@ -137,7 +137,7 @@ class BaseSolverBackend(object):
         for param in solver_ps.to_list():
             kwargs.setdefault(param.qualifier, param.get_value(expand=True))
 
-        packet, feedback_ps = self._get_packet_and_feedback(b, solver, **kwargs)
+        packet, solution_ps = self._get_packet_and_solution(b, solver, **kwargs)
 
         for k,v in kwargs.items():
             packet[k] = v
@@ -151,14 +151,14 @@ class BaseSolverBackend(object):
         # packet['compute'] = compute  # should have been set by kwargs, when applicable
         packet['backend'] = self.__class__.__name__
 
-        return packet, feedback_ps
+        return packet, solution_ps
 
-    def _fill_feedback(self, feedback_ps, rpacketlists_per_worker):
+    def _fill_solution(self, solution_ps, rpacketlists_per_worker):
         """
         rpacket_per_worker is a list of packetlists as returned by _run_chunk
         """
         # TODO: move to BaseBackendByDataset or BaseBackend?
-        logger.debug("rank:{}/{} {}._fill_feedback".format(mpi.myrank, mpi.nprocs, self.__class__.__name__))
+        logger.debug("rank:{}/{} {}._fill_solution".format(mpi.myrank, mpi.nprocs, self.__class__.__name__))
 
         for packetlists in rpacketlists_per_worker:
             # single worker
@@ -167,11 +167,11 @@ class BaseSolverBackend(object):
                 for packet in packetlist:
                     # single parameter
                     try:
-                        feedback_ps.set_value(check_visible=False, check_default=False, **packet)
+                        solution_ps.set_value(check_visible=False, check_default=False, **packet)
                     except Exception as err:
                         raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, str(err)))
 
-        return feedback_ps
+        return solution_ps
 
     def run_worker(self):
         """
@@ -195,8 +195,8 @@ class BaseSolverBackend(object):
         """
         self.run_checks(b, solver,  compute, **kwargs)
 
-        logger.debug("rank:{}/{} calling get_packet_and_feedback".format(mpi.myrank, mpi.nprocs))
-        packet, feedback_ps = self.get_packet_and_feedback(b, solver, **kwargs)
+        logger.debug("rank:{}/{} calling get_packet_and_solution".format(mpi.myrank, mpi.nprocs))
+        packet, solution_ps = self.get_packet_and_solution(b, solver, **kwargs)
 
         if mpi.enabled:
             # broadcast the packet to ALL workers
@@ -214,8 +214,8 @@ class BaseSolverBackend(object):
         else:
             rpacketlists_per_worker = [self.run_worker(**packet)]
 
-        logger.debug("rank:{}/{} calling _fill_feedback".format(mpi.myrank, mpi.nprocs))
-        return self._fill_feedback(feedback_ps, rpacketlists_per_worker)
+        logger.debug("rank:{}/{} calling _fill_solution".format(mpi.myrank, mpi.nprocs))
+        return self._fill_solution(solution_ps, rpacketlists_per_worker)
 
 
 
@@ -247,14 +247,14 @@ class EmceeBackend(BaseSolverBackend):
             raise ValueError("cannot file filename='{}', cannot use continue_previous_run=True".format(filename))
 
 
-    def _get_packet_and_feedback(self, b, solver, **kwargs):
-        # NOTE: b, solver, compute, backend will be added by get_packet_and_feedback
+    def _get_packet_and_solution(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
 
-        feedback_params = []
-        feedback_params += [_parameters.StringParameter(qualifier='filename', value=kwargs.get('filename', None), description='filename of emcee progress file (contents loaded on the fly, DO NOT DELETE FILE)')]
-        feedback_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
+        solution_params = []
+        solution_params += [_parameters.StringParameter(qualifier='filename', value=kwargs.get('filename', None), description='filename of emcee progress file (contents loaded on the fly, DO NOT DELETE FILE)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
 
-        return kwargs, _parameters.ParameterSet(feedback_params)
+        return kwargs, _parameters.ParameterSet(solution_params)
 
     def _run_worker(self, packet):
         # here we'll override loading the bundle since it is not needed
@@ -306,17 +306,17 @@ class EmceeBackend(BaseSolverBackend):
                                 'compute': compute,
                                 'priors': priors,
                                 'priors_combine': priors_combine,
-                                'feedback': kwargs.get('feedback', None),
+                                'solution': kwargs.get('solution', None),
                                 'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}}
 
             # esargs['live_dangerously'] = kwargs.pop('live_dangerously', None)
             # esargs['runtime_sortingfn'] = kwargs.pop('runtime_sortingfn', None)
 
-            # TODO: consider supporting passing name=feedback... but that
+            # TODO: consider supporting passing name=solution... but that
             # seems to cause and hdf bug and also will need to be careful
-            # to match feedback in order to use continue_previous_run
+            # to match solution in order to use continue_previous_run
             logger.debug("using backend=HDFBackend('{}')".format(filename))
-            backend = emcee.backends.HDFBackend(filename) #, name=kwargs.get('feedback', None))
+            backend = emcee.backends.HDFBackend(filename) #, name=kwargs.get('solution', None))
             if not continue_previous_run:
                 logger.debug("backend.reset({}, {})".format(nwalkers, len(params_uniqueids)))
                 backend.reset(nwalkers, len(params_uniqueids))
@@ -413,14 +413,14 @@ class DynestyBackend(BaseSolverBackend):
             # raise ValueError("cannot file filename='{}', cannot use continue_previous_run=True".format(filename))
 
 
-    def _get_packet_and_feedback(self, b, solver, **kwargs):
-        # NOTE: b, solver, compute, backend will be added by get_packet_and_feedback
+    def _get_packet_and_solution(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
 
-        feedback_params = []
-        feedback_params += [_parameters.StringParameter(qualifier='filename', value=kwargs.get('filename', None), description='filename of emcee progress file (contents loaded on the fly, DO NOT DELETE FILE)')]
-        feedback_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
+        solution_params = []
+        solution_params += [_parameters.StringParameter(qualifier='filename', value=kwargs.get('filename', None), description='filename of emcee progress file (contents loaded on the fly, DO NOT DELETE FILE)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
 
-        return kwargs, _parameters.ParameterSet(feedback_params)
+        return kwargs, _parameters.ParameterSet(solution_params)
 
     def _run_worker(self, packet):
         # here we'll override loading the bundle since it is not needed
@@ -463,7 +463,7 @@ class DynestyBackend(BaseSolverBackend):
                                    'compute': compute,
                                    'priors': [],
                                    'priors_combine': 'and',
-                                   'feedback': kwargs.get('feedback', None),
+                                   'solution': kwargs.get('solution', None),
                                    'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}}
 
 
@@ -542,19 +542,19 @@ class Nelder_MeadBackend(BaseSolverBackend):
             raise ValueError("cannot run scipy.optimize.minimize(method='nelder-mead') without any distributions in init_from")
 
 
-    def _get_packet_and_feedback(self, b, solver, **kwargs):
-        # NOTE: b, solver, compute, backend will be added by get_packet_and_feedback
-        feedback_params = []
+    def _get_packet_and_solution(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
+        solution_params = []
 
-        feedback_params += [_parameters.StringParameter(qualifier='message', value='', description='message from the minimizer')]
-        feedback_params += [_parameters.IntParameter(qualifier='nfev', value=0, limits=(0,None), description='number of completed function evaluations (forward models)')]
-        feedback_params += [_parameters.IntParameter(qualifier='niter', value=0, limits=(0,None), description='number of completed iterations')]
-        feedback_params += [_parameters.BoolParameter(qualifier='success', value=False, description='whether the minimizer returned a success message')]
-        feedback_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.StringParameter(qualifier='message', value='', description='message from the minimizer')]
+        solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, limits=(0,None), description='number of completed function evaluations (forward models)')]
+        solution_params += [_parameters.IntParameter(qualifier='niter', value=0, limits=(0,None), description='number of completed iterations')]
+        solution_params += [_parameters.BoolParameter(qualifier='success', value=False, description='whether the minimizer returned a success message')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
         # TODO: double check units here... is it current default units or those used by the backend?
-        feedback_params += [_parameters.FloatArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
 
-        return kwargs, _parameters.ParameterSet(feedback_params)
+        return kwargs, _parameters.ParameterSet(solution_params)
 
     # def _run_worker(self, packet):
     #     # here we'll override loading the bundle since it is not needed
@@ -584,11 +584,11 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
         options = {k:v for k,v in kwargs.items() if k in ['maxiter', 'maxfex', 'xatol', 'fatol', 'adaptive']}
 
-        logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(bjson, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('feedback', None), compute_kwargs, options))
+        logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(bjson, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
         res = optimize.minimize(_lnlikelihood_negative, p0,
                                 method='nelder-mead',
-                                args=(_bjson(b, solver, compute, init_from+priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('feedback', None), compute_kwargs),
+                                args=(_bjson(b, solver, compute, init_from+priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs),
                                 options=options)
 
 
