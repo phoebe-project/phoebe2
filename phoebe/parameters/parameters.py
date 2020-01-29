@@ -6905,6 +6905,97 @@ class SelectParameter(Parameter):
 
         return [v for v in self.get_value() if v not in other]
 
+class SelectTwigParameter(SelectParameter):
+    @staticmethod
+    def _match_twig(value, choice):
+        if '@' in value:
+            value = value.split('@')
+        if '@' in choice:
+            choice = choice.split('@')
+        return np.all([vs in choice for vs in value])
+
+    def valid_selection(self, value):
+        """
+        Determine if `value` is valid given the current value of
+        <phoebe.parameters.SelectTwigParameter.choices>.
+
+        In order to be valid, each item in the list `value` can be one of the
+        items in the list of or match with at least one item by allowing for
+        '*' and '?' wildcards.  Wildcard matching is done via the fnmatch
+        python package.
+
+        See also:
+        * <phoebe.parameters.SelectTwigParameter.remove_not_valid_selections>
+        * <phoebe.parameters.SelectTwigParameter.expand_value>
+
+        Arguments
+        ----------
+        * `value` (string or list): the value to test against the list of choices
+
+        Returns
+        --------
+        * (bool): whether `value` is valid given the choices.
+        """
+        if isinstance(value, list):
+            return np.all([self.valid_selection(v) for v in value])
+
+        if super(SelectTwigParameter, self).valid_selection(value):
+            return True
+
+        twigsplit = value.split('@')
+
+        # need to do special twig matching
+        for choice in self.choices:
+            if self._match_twig(twigsplit, choice):
+                return True
+
+        return False
+
+    def expand_value(self, **kwargs):
+        """
+        Get the current value of the <phoebe.parameters.SelectTwigParameter>.
+
+        This is simply a shortcut to <phoebe.parameters.SelectTwigParameter.get_value>
+        but passing `expand=True`.
+
+        **default/override values**: if passing a keyword argument with the same
+            name as the Parameter qualifier (see
+            <phoebe.parameters.Parameter.qualifier>), then the value passed
+            to that keyword argument will be returned **instead of** the current
+            value of the Parameter.  This is mostly used internally when
+            wishing to override values sent to
+            <phoebe.frontend.bundle.Bundle.run_compute>, for example.
+
+        See also:
+        * <phoebe.parameters.SelectParameter.valid_selection>
+        * <phoebe.parameters.SelectParameter.remove_not_valid_selections>
+
+        Arguments
+        ----------
+        * `**kwargs`: passing a keyword argument that matches the qualifier
+            of the Parameter, will return that value instead of the stored value.
+            See above for how default values are treated.
+
+        Returns
+        --------
+        * (list) the current or overridden value of the Parameter
+        """
+
+        selection = []
+        for v in self.get_value(**kwargs):
+            vsplit = v.split('@')
+            for choice in self.choices:
+                if v==choice and choice not in selection and len(choice):
+                    selection.append(choice)
+                elif _fnmatch(choice, v) and choice not in selection and len(choice):
+                    selection.append(choice)
+                elif self._match_twig(vsplit, choice) and choice not in selection and len(choice):
+                    selection.append(choice)
+
+
+        return selection
+
+
 class BoolParameter(Parameter):
     def __init__(self, *args, **kwargs):
         """
@@ -10248,6 +10339,9 @@ class ConstraintParameter(Parameter):
         self.set_default_unit(newly_constrained_param.default_unit)
 
         self._update_bookkeeping()
+
+        if self._bundle is not None and not kwargs.get('from_flip_bundle_constraint', False):
+            self._bundle._handle_fitparameters_selecttwigparams(return_changes=False)
 
         self._add_history(redo_func='flip_constraint', redo_kwargs={'expression': expression, 'uniqueid': newly_constrained_param.uniqueid}, undo_func='flip_constraint', undo_kwargs={'expression': _orig_expression, 'uniqueid': currently_constrained_param.uniqueid})
 

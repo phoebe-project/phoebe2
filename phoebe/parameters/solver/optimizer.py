@@ -35,8 +35,7 @@ def nelder_mead(**kwargs):
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
 
-    params += [SelectParameter(qualifier='init_from', value=kwargs.get('init_from', []), choices=[], description='distribution(s) to draw from for initial guess (all UNCONSTRAINED parameters with attached distributions will be sampled/fitted)')]
-    params += [ChoiceParameter(qualifier='init_from_combine', value=kwargs.get('init_from_combine', 'first'), choices=['first'], description='Method to use to combine multiple distributions from init_from for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter.')]
+    params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors')]
     params += [ChoiceParameter(qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['and'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter.')]

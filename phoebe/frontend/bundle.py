@@ -2010,6 +2010,32 @@ class Bundle(ParameterSet):
 
         return affected_params
 
+    def _handle_fitparameters_selecttwigparams(self, rename={}, return_changes=False):
+        affected_params = []
+
+        params = self.filter(context='solver', qualifier=['fit_parameters'], **_skip_filter_checks).to_list()
+        if not len(params):
+            return affected_params
+
+        # TODO: should we also check to make sure p.component in [None]+self.hierarchy.get_components()?  If so, we'll need to call this method in set_hierarchy as well.
+
+        # parameters that can be fitted are only in the component or dataset context,
+        # must be float parameters and must not be constrained
+        ps = self.filter(context=['component', 'dataset', 'system'], **_skip_filter_checks)
+        choices = [p.twig for p in ps.to_list() if p.__class__.__name__ == 'FloatParameter' and not len(p.constrained_by)]
+
+        for param in params:
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
     def set_hierarchy(self, *args, **kwargs):
         """
         Set the hierarchy of the system, and recreate/rerun all necessary
@@ -3927,6 +3953,7 @@ class Bundle(ParameterSet):
 
         ret_ps += ParameterSet(self._handle_component_selectparams(return_changes=True))
         ret_ps += ParameterSet(self._handle_pblum_defaults(return_changes=True))
+        ret_ps += ParameterSet(self._handle_fitparameters_selecttwigparams(return_changes=True))
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -4761,6 +4788,8 @@ class Bundle(ParameterSet):
         if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
             ret_ps += overwrite_ps
 
+        ret_ps += ParameterSet(self._handle_fitparameters_selecttwigparams(return_changes=True))
+
         return ret_ps
 
     def get_dataset(self, dataset=None, **kwargs):
@@ -5330,7 +5359,10 @@ class Bundle(ParameterSet):
         undo_kwargs['solve_for'] = param.constrained_parameter.uniquetwig
 
         logger.info("flipping constraint '{}' to solve for '{}'".format(param.uniquetwig, solve_for))
-        param.flip_for(solve_for)
+        param.flip_for(solve_for, from_bundle_flip_constraint=True)
+
+        # TODO: include this in the return for the UI?
+        self._handle_fitparameters_selecttwigparams(return_changes=False)
 
         try:
             result = self.run_constraint(uniqueid=param.uniqueid, skip_kwargs_checks=True)
@@ -5341,6 +5373,7 @@ class Bundle(ParameterSet):
                 message_prefix = "Constraint '{}' raised the following error while flipping to solve for '{}'.  Consider flipping the constraint back or changing the value of one of {} until the constraint succeeds.  Original error: ".format(param.twig, solve_for, [p.twig for p in param.vars.to_list()])
 
                 logger.error(message_prefix + str(e))
+
 
         self._add_history(redo_func='flip_constraint',
                           redo_kwargs=redo_kwargs,
@@ -7889,9 +7922,10 @@ class Bundle(ParameterSet):
         # updated by self._handle* below.  If this list gets too long or
         # backend-dependent, we may want to just not pass **kwargs and
         # loop through the whole list at the end
-        kwarg_compute = kwargs.pop('compute', None)
-        kwarg_priors = kwargs.pop('priors', None)
-        kwarg_init_from = kwargs.pop('init_from', None)
+        kwargs_compute = kwargs.pop('compute', None)
+        kwargs_priors = kwargs.pop('priors', None)
+        kwargs_init_from = kwargs.pop('init_from', None)
+        kwargs_fit_parameters = kwargs.pop('init_parameters', None)
         params = func(**kwargs)
         # TODO: similar kwargs logic as in add_dataset (option to pass dict to
         # apply to different components this would be more complicated here if
@@ -7929,14 +7963,17 @@ class Bundle(ParameterSet):
 
         self._handle_distribution_selectparams(return_changes=False)
         self._handle_compute_choiceparams(return_changes=False)
+        self._handle_fitparameters_selecttwigparams(return_changes=False)
 
         # now set parameters that needed updated choices
-        if kwarg_compute is not None:
-            ret_ps.set_value_all(qualifier='compute', value=kwarg_compute, **_skip_filter_checks)
-        if kwarg_priors is not None:
-            ret_ps.set_value_all(qualifier='priors', value=kwarg_priors, **_skip_filter_checks)
-        if kwarg_init_from is not None:
-            ret_ps.set_value_all(qualifier='init_from', value=kwarg_init_from, **_skip_filter_checks)
+        if kwargs_compute is not None:
+            ret_ps.set_value_all(qualifier='compute', value=kwargs_compute, **_skip_filter_checks)
+        if kwargs_priors is not None:
+            ret_ps.set_value_all(qualifier='priors', value=kwargs_priors, **_skip_filter_checks)
+        if kwargs_init_from is not None:
+            ret_ps.set_value_all(qualifier='init_from', value=kwargs_init_from, **_skip_filter_checks)
+        if kwargs_fit_parameters is not None:
+            ret_ps.set_value_all(qualifier='fit_parameters', value=kwargs_fit_parameters, **_skip_filter_checks)
 
         return ret_ps
 

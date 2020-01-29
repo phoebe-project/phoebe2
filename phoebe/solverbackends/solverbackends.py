@@ -538,8 +538,8 @@ class Nelder_MeadBackend(BaseSolverBackend):
     """
     def run_checks(self, b, solver, compute, **kwargs):
         solver_ps = b.get_solver(solver)
-        if not len(solver_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None))):
-            raise ValueError("cannot run scipy.optimize.minimize(method='nelder-mead') without any distributions in init_from")
+        if not len(solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True)):
+            raise ValueError("cannot run scipy.optimize.minimize(method='nelder-mead') without any parameters in fit_parameters")
 
 
     def _get_packet_and_solution(self, b, solver, **kwargs):
@@ -567,18 +567,16 @@ class Nelder_MeadBackend(BaseSolverBackend):
             raise NotImplementedError("mpi support for scipy.optimize not yet implemented")
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
-        init_from = kwargs.get('init_from')
-        init_from_combine = kwargs.get('init_from_combine')
+        fit_parameters = kwargs.get('fit_parameters')
         priors = kwargs.get('priors')
         priors_combine = kwargs.get('priors_combine')
 
-        # TODO: replace this with twig SelectParameter
-        sample_dict = b.sample_distribution(distribution=init_from,
-                                            N=None, keys='uniqueid',
-                                            combine=init_from_combine,
-                                            include_constrained=False,
-                                            set_value=False)
-        params_uniqueids, p0 = list(sample_dict.keys()), np.asarray(list(sample_dict.values()))
+        params_uniqueids = []
+        p0 = []
+        for twig in fit_parameters:
+            p = b.get_parameter(twig=twig, context=['component', 'dataset'], **_skip_filter_checks)
+            params_uniqueids.append(p.uniqueid)
+            p0.append(p.get_value())
 
         compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
@@ -588,7 +586,7 @@ class Nelder_MeadBackend(BaseSolverBackend):
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
         res = optimize.minimize(_lnlikelihood_negative, p0,
                                 method='nelder-mead',
-                                args=(_bjson(b, solver, compute, init_from+priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs),
+                                args=(_bjson(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs),
                                 options=options)
 
 
