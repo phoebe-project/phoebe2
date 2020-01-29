@@ -19,7 +19,7 @@ def nelder_mead(**kwargs):
     For example:
 
     ```py
-    b.add_solver('optimize.nelder_mead')
+    b.add_solver('optimizer.nelder_mead')
     b.run_solver(kind='nelder_mead')
     ```
 
@@ -64,7 +64,7 @@ def differential_evolution(**kwargs):
     For example:
 
     ```py
-    b.add_solver('optimize.differential_evolution')
+    b.add_solver('optimizer.differential_evolution')
     b.run_solver(kind='differential_evolution')
     ```
 

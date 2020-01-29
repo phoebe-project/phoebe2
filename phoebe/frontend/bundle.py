@@ -2032,6 +2032,56 @@ class Bundle(ParameterSet):
 
         return affected_params
 
+    def _handle_lc_choiceparams(self, return_changes=False):
+        affected_params = []
+
+        choices = self.filter(context='dataset', kind='lc', **_skip_filter_checks).datasets
+
+        for param in self.filter(qualifier='lc', context='solver', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                if param._value == 'None' and len(choices):
+                    param._value = choices[0]
+                else:
+                    param._value = 'None'
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_orbit_choiceparams(self, return_changes=False):
+        affected_params = []
+
+        choices = self.filter(context='component', kind='orbit', **_skip_filter_checks).datasets
+
+        for param in self.filter(qualifier='orbit', context='solver', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                if param._value == 'None' and len(choices):
+                    param._value = choices[0]
+                else:
+                    param._value = self.hierarchy.get_top()
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
     def set_hierarchy(self, *args, **kwargs):
         """
         Set the hierarchy of the system, and recreate/rerun all necessary
@@ -3967,6 +4017,7 @@ class Bundle(ParameterSet):
         ret_ps += ParameterSet(self._handle_component_selectparams(return_changes=True))
         ret_ps += ParameterSet(self._handle_pblum_defaults(return_changes=True))
         ret_ps += ParameterSet(self._handle_fitparameters_selecttwigparams(return_changes=True))
+        ret_ps += ParameterSet(self._handle_orbit_choiceparams(return_changes=True))
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -4802,6 +4853,7 @@ class Bundle(ParameterSet):
             ret_ps += overwrite_ps
 
         ret_ps += ParameterSet(self._handle_fitparameters_selecttwigparams(return_changes=True))
+        ret_ps += ParameterSet(self._handle_lc_choiceparams(return_changes=True))
 
         return ret_ps
 
@@ -7969,9 +8021,13 @@ class Bundle(ParameterSet):
         if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
             ret_ps += overwrite_ps
 
+        # TODO: OPTIMIZE only trigger those necessary based on the solver-backend
         self._handle_distribution_selectparams(return_changes=False)
         self._handle_compute_choiceparams(return_changes=False)
         self._handle_fitparameters_selecttwigparams(return_changes=False)
+        self._handle_lc_choiceparams(return_changes=False)
+        self._handle_orbit_choiceparams(return_changes=False)
+
 
         # now set parameters that needed updated choices
         qualifiers = ret_ps.qualifiers

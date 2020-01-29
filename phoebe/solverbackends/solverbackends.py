@@ -10,11 +10,13 @@ import numpy as np
 # from phoebe.parameters import ParameterSet
 import phoebe.parameters as _parameters
 import phoebe.frontend.bundle
-# from phoebe import u, c
+from phoebe import u, c
 from phoebe import conf, mpi
 
 from distutils.version import LooseVersion, StrictVersion
 from copy import deepcopy
+
+from . import lc_eclipse_geometry
 
 try:
     import emcee
@@ -217,6 +219,86 @@ class BaseSolverBackend(object):
         logger.debug("rank:{}/{} calling _fill_solution".format(mpi.myrank, mpi.nprocs))
         return self._fill_solution(solution_ps, rpacketlists_per_worker)
 
+
+class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
+    """
+    See <phoebe.parameters.solver.estimator.lc_eclipse_geometry>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
+    def run_checks(self, b, solver, compute, **kwargs):
+        solver_ps = b.get_solver(solver)
+        if not len(solver_ps.get_value(qualifier='lc', fit_parameters=kwargs.get('lc', None))):
+            raise ValueError("cannot run ld_eclipse_geometry without any dataset in lc")
+
+        # TODO: check to make sure fluxes exist, etc
+
+
+    def _get_packet_and_solution(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
+        solution_params = []
+
+        solution_params += [_parameters.FloatParameter(qualifier='primary_width', value=0, unit=u.dimensionless_unscaled, description='phase-width of primary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='secondary_width', value=0, unit=u.dimensionless_unscaled, description='phase-width of secondary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='primary_phase', value=0, unit=u.dimensionless_unscaled, description='phase of primary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='secondary_phase', value=0, unit=u.dimensionless_unscaled, description='phase of secondary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='primary_depth', value=0, unit=u.dimensionless_unscaled, description='depth of primary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='secondary_depth', value=0, unit=u.dimensionless_unscaled, description='depth of secondary eclipse')]
+
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+
+        return kwargs, _parameters.ParameterSet(solution_params)
+
+    # def _run_worker(self, packet):
+    #     # here we'll override loading the bundle since it is not needed
+    #     # in run_worker (for the workers.... note that the master
+    #     # will enter run_worker through run, not here)
+    #     return self.run_worker(**packet)
+
+    def run_worker(self, b, solver, compute=None, **kwargs):
+        if mpi.within_mpirun:
+            raise NotImplementedError("mpi support for scipy.optimize not yet implemented")
+            # TODO: we need to tell the workers to join the pool for time-parallelization?
+
+        lc = kwargs.get('lc')
+        orbit = kwargs.get('orbit')
+
+        lc_ps = b.get_dataset(dataset=lc, **_skip_filter_checks)
+        times = lc_ps.get_value(qualifier='times', unit='d')
+        phases = b.to_phase(times, component=orbit, t0='t0_supconj')
+        fluxes = lc_ps.get_value(qualifier='fluxes')
+
+        # the light curve has to be smooth, uniformly sampled and phased on range (0,1), with 0 corresponding to supconj
+        phases[phases < 0] += 1
+        s = phases.argsort()
+        phases = phases[s]
+        fluxes = fluxes[s]
+
+        if not len(times) or len(times) != len(fluxes):
+            raise ValueError("times and fluxes must exist and be filled in the '{}' dataset".format(lc))
+
+        orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
+        ecc_param = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
+        per0_param = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
+
+        eclipse_dict = lc_eclipse_geometry.compute_eclipse_params(phases, fluxes)
+
+        # TODO: update to use widths as well (or alternate based on ecc?)
+        ecc, per0 = lc_eclipse_geometry.ecc_w_from_geometry(eclipse_dict.get('secondary_position') - eclipse_dict.get('primary_position'))
+
+        # TODO: correct t0_supconj?
+
+        return [[{'qualifier': 'primary_width', 'value': eclipse_dict.get('primary_width')},
+                 {'qualifier': 'secondary_width', 'value': eclipse_dict.get('secondary_width')},
+                 {'qualifier': 'primary_phase', 'value': eclipse_dict.get('primary_position')},
+                 {'qualifier': 'secondary_phase', 'value': eclipse_dict.get('secondary_position')},
+                 {'qualifier': 'primary_depth', 'value': eclipse_dict.get('primary_depth')},
+                 {'qualifier': 'secondary_depth', 'value': eclipse_dict.get('secondary_depth')},
+                 {'qualifier': 'fitted_parameters', 'value': [ecc_param.uniqueid, per0_param.uniqueid]},
+                 {'qualifier': 'fitted_values', 'value': [ecc, per0]}]]
 
 
 

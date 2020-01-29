@@ -30,7 +30,6 @@ except ImportError:
 else:
     _use_dynesty = True
 
-
 import logging
 logger = logging.getLogger("SOLUTION")
 logger.addHandler(logging.NullHandler())
@@ -252,6 +251,17 @@ class DynestySolution(BaseDistributionSolutionBackend):
         # TODO: how do we get distributions out of dynesty???
         ret['distribution'] = None
         return ret
+
+class Lc_Eclipse_GeometrySolution(BaseValueSolutionBackend):
+    """
+    See <phoebe.parameters.solver.optimizier.nelder_mead>.
+
+    Generally this class will be instantiated by
+    * <phoebe.frontend.bundle.Bundle.process_solution>
+
+    after calling
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
 
 class Nelder_MeadSolution(BaseValueSolutionBackend):
     """
