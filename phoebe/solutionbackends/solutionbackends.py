@@ -117,6 +117,22 @@ class BaseDistributionSolutionBackend(BaseSolutionBackend):
         raise NotImplementedError()
 
 class BaseValueSolutionBackend(BaseSolutionBackend):
+    def __init__(self, *args, **kwargs):
+        super(BaseValueSolutionBackend, self).__init__(*args, **kwargs)
+        self._needs_process = False
+
+    def _process(self, filename, **kwargs):
+        """
+        """
+        uniqueids = self.solution_kwargs.get('fitted_parameters')
+        values = self.solution_kwargs.get('fitted_values')
+
+        return {'values': {self.bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).get_uniquetwig(): value for uniqueid, value in zip(uniqueids, values)}}
+
+    def _preadopt_check(self):
+        if not self.get('success'):
+            logger.warning('success=False was returned by the {} backend.'.format(self._solver_kind))
+
     def adopt(self, distribution=None):
         """
         """
@@ -247,18 +263,15 @@ class Nelder_MeadSolution(BaseValueSolutionBackend):
     after calling
     * <phoebe.frontend.bundle.Bundle.run_solver>
     """
-    def __init__(self, *args, **kwargs):
-        super(Nelder_MeadSolution, self).__init__(*args, **kwargs)
-        self._needs_process = False
 
-    def _process(self, filename, **kwargs):
-        """
-        """
-        uniqueids = self.solution_kwargs.get('fitted_parameters')
-        values = self.solution_kwargs.get('fitted_values')
 
-        return {'values': {self.bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).get_uniquetwig(): value for uniqueid, value in zip(uniqueids, values)}}
+class Differential_EvolutionSolution(BaseValueSolutionBackend):
+    """
+    See <phoebe.parameters.solver.optimizier.differential_evolution>.
 
-    def _preadopt_check(self):
-        if not self.get('success'):
-            logger.warning('success=False was returned by the nelder-mead backend.')
+    Generally this class will be instantiated by
+    * <phoebe.frontend.bundle.Bundle.process_solution>
+
+    after calling
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """

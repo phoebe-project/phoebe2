@@ -1998,7 +1998,7 @@ class Bundle(ParameterSet):
 
         choices = self.distributions
 
-        for param in self.filter(context='solver', qualifier=['init_from', 'priors'], **_skip_filter_checks).to_list():
+        for param in self.filter(context='solver', qualifier=['init_from', 'priors', 'bounds'], **_skip_filter_checks).to_list():
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
@@ -7918,15 +7918,10 @@ class Bundle(ParameterSet):
 
         self._check_label(kwargs['solver'], allow_overwrite=kwargs.get('overwrite', False))
 
-        # some parameters can't have their values set until the choices are
-        # updated by self._handle* below.  If this list gets too long or
-        # backend-dependent, we may want to just not pass **kwargs and
-        # loop through the whole list at the end
-        kwargs_compute = kwargs.pop('compute', None)
-        kwargs_priors = kwargs.pop('priors', None)
-        kwargs_init_from = kwargs.pop('init_from', None)
-        kwargs_fit_parameters = kwargs.pop('fit_parameters', None)
-        params = func(**kwargs)
+        # NOTE: we don't pass kwargs here since so many require the choices
+        # to be populated.  Instead, we loop through kwargs and set the values
+        # later
+        params = func()
         # TODO: similar kwargs logic as in add_dataset (option to pass dict to
         # apply to different components this would be more complicated here if
         # allowing to also pass to different datasets
@@ -7966,14 +7961,11 @@ class Bundle(ParameterSet):
         self._handle_fitparameters_selecttwigparams(return_changes=False)
 
         # now set parameters that needed updated choices
-        if kwargs_compute is not None:
-            ret_ps.set_value_all(qualifier='compute', value=kwargs_compute, **_skip_filter_checks)
-        if kwargs_priors is not None:
-            ret_ps.set_value_all(qualifier='priors', value=kwargs_priors, **_skip_filter_checks)
-        if kwargs_init_from is not None:
-            ret_ps.set_value_all(qualifier='init_from', value=kwargs_init_from, **_skip_filter_checks)
-        if kwargs_fit_parameters is not None:
-            ret_ps.set_value_all(qualifier='fit_parameters', value=kwargs_fit_parameters, **_skip_filter_checks)
+        qualifiers = ret_ps.qualifiers
+        for k,v in kwargs.items():
+            if k in qualifiers:
+                ret_ps.set_value_all(qualifier=k, value=v, **_skip_filter_checks)
+            # TODO: else raise warning?
 
         return ret_ps
 

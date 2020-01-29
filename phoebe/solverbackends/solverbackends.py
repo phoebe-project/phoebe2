@@ -596,3 +596,126 @@ class Nelder_MeadBackend(BaseSolverBackend):
                 {'qualifier': 'success', 'value': res.success},
                 {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
                 {'qualifier': 'fitted_values', 'value': res.x}]]
+
+class Differential_EvolutionBackend(BaseSolverBackend):
+    """
+    See <phoebe.parameters.solver.optimizer.differential_evolution>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
+    def run_checks(self, b, solver, compute, **kwargs):
+        solver_ps = b.get_solver(solver)
+        if not len(solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True)):
+            raise ValueError("cannot run scipy.optimize.differential_evolution without any parameters in fit_parameters")
+
+
+    def _get_packet_and_solution(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
+        solution_params = []
+
+        solution_params += [_parameters.StringParameter(qualifier='message', value='', description='message from the minimizer')]
+        solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, limits=(0,None), description='number of completed function evaluations (forward models)')]
+        solution_params += [_parameters.IntParameter(qualifier='niter', value=0, limits=(0,None), description='number of completed iterations')]
+        solution_params += [_parameters.BoolParameter(qualifier='success', value=False, description='whether the minimizer returned a success message')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
+        # TODO: double check units here... is it current default units or those used by the backend?
+        solution_params += [_parameters.FloatArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+
+        return kwargs, _parameters.ParameterSet(solution_params)
+
+    # def _run_worker(self, packet):
+    #     # here we'll override loading the bundle since it is not needed
+    #     # in run_worker (for the workers.... note that the master
+    #     # will enter run_worker through run, not here)
+    #     return self.run_worker(**packet)
+
+    def run_worker(self, b, solver, compute, **kwargs):
+        def _get_bounds(param, dist, bounds_sigma):
+            if dist is None:
+                return param.limits
+
+            if dist.__class__.__name__ not in ['Uniform']:
+                dist = dist.to_uniform(sigma=bounds_sigma)
+
+            return (dist.low, dist.high)
+
+        if mpi.within_mpirun:
+            pool = schwimmbad.MPIPool()
+            is_master = pool.is_master()
+        else:
+            pool = schwimmbad.MultiPool()
+            is_master = True
+
+        if is_master:
+            fit_parameters = kwargs.get('fit_parameters')
+            priors = kwargs.get('priors')
+            priors_combine = kwargs.get('priors_combine')
+
+            params_uniqueids = []
+            params = []
+            for twig in fit_parameters:
+                p = b.get_parameter(twig=twig, context=['component', 'dataset'], **_skip_filter_checks)
+                params.append(p)
+                params_uniqueids.append(p.uniqueid)
+
+
+            bounds = kwargs.get('bounds')
+            bounds_combine = kwargs.get('bounds_combine')
+            bounds_sigma = kwargs.get('bounds_sigma')
+
+
+            # TODO: need to merge bounds with fit_parameters...
+            bounds_dict = b.get_distribution_objects(distribution=bounds,
+                                                     keys='uniqueid',
+                                                     combine=bounds_combine,
+                                                     include_constrained=False)
+
+            # for each parameter, if a distribution is found in bounds_dict (from
+            # the bounds parameter), then the bounds are adopted from that (taking
+            # bounds_combine and bounds_sigma into account).  Otherwise, the limits
+            # of the parameter itself are adopted.
+            bounds = [_get_bounds(param, bounds_dict.get(param.uniqueid, None), bounds_sigma) for param in params]
+
+            compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
+
+            options = {k:v for k,v in kwargs.items() if k in ['strategy', 'maxiter', 'popsize']}
+
+            logger.debug("calling scipy.optimize.differential_evolution(_lnlikelihood_negative, bounds={}, args=(bjson, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
+            # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
+            res = optimize.differential_evolution(_lnlikelihood_negative, bounds,
+                                    args=(_bjson(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs),
+                                    workers=pool.map,
+                                    **options)
+        else:
+            # NOTE: because we overrode self._run_worker to skip loading the
+            # bundle, b is just a json string here.  If we ever need the
+            # bundle in here, just remove the override for self._run_worker.
+
+            # temporarily disable MPI within run_compute to disabled parallelizing
+            # per-time.
+            within_mpirun = mpi.within_mpirun
+            mpi_enabled = mpi.enabled
+            mpi._within_mpirun = False
+            mpi._enabled = False
+
+            pool.wait()
+
+            # restore previous MPI state
+            mpi._within_mpirun = within_mpirun
+            mpi._enabled = mpi_enabled
+
+        if pool is not None:
+            pool.close()
+
+        if is_master:
+            # TODO: expose the adopted bounds?
+
+            return [[{'qualifier': 'message', 'value': res.message},
+                    {'qualifier': 'nfev', 'value': res.nfev},
+                    {'qualifier': 'niter', 'value': res.nit},
+                    {'qualifier': 'success', 'value': res.success},
+                    {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
+                    {'qualifier': 'fitted_values', 'value': res.x}]]
+        return {}

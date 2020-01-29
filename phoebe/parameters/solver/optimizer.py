@@ -48,3 +48,55 @@ def nelder_mead(**kwargs):
     params += [FloatParameter(qualifier='fatol', value=kwargs.get('fatol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Absolute error in func(xopt) (lnlikelihood + lnp(priors)) between iterations that is acceptable for convergence.')]
 
     return ParameterSet(params)
+
+def differential_evolution(**kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for solver options for the
+    scipy.optimize.differential_evolution() backend.
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    For example:
+
+    ```py
+    b.add_solver('optimize.differential_evolution')
+    b.run_solver(kind='differential_evolution')
+    ```
+
+    Arguments
+    ----------
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+    params = []
+
+    params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
+
+    params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
+
+    params += [SelectParameter(qualifier='bounds', value=kwargs.get('bounds', []), choices=[], description='distribution(s) to use for bounds.  Only those in fit_parameters will be considered.')]
+    params += [ChoiceParameter(qualifier='bounds_combine', value=kwargs.get('bounds_combine', 'first'), choices=['first'], description='Method to use to combine multiple distributions from bounds for the same parameter.  first: ignore duplicate entries and take the first in the bounds parameter.')]
+    params += [FloatParameter(qualifier='bounds_sigma', value=kwargs.get('bounds_sigma', 3), limits=(0,10), default_units=u.dimensionless_unscaled, description='sigma-level to use when converting non-uniform distributions for bounds to uniform bounds')]
+
+    params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors')]
+    params += [ChoiceParameter(qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['and'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter.')]
+
+    strategy_choices = ['best1bin', 'best1exp', 'rand1exp', 'randtobest1exp', 'currenttobest1exp',
+                        'best2exp', 'rand2exp', 'randtobest1bin', 'currenttobest1bin', 'best2bin',
+                        'rand2bin', 'rand1bin']
+    params += [ChoiceParameter(qualifier='strategy', value=kwargs.get('strategy', 'best1bin'), choices=strategy_choices, description='passed directly to scipy.optimize.differential_evolution.')]
+
+
+    params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.differential_evolution.  The maximum number of generations over which the entire population is evolved. The maximum number of function evaluations (with no polishing) is: (maxiter + 1) * popsize * len(x)')]
+    params += [IntParameter(qualifier='popsize', value=kwargs.get('popsize', 8), limits=[1,1e4], description='passed directly to scipy.optimize.differential_evolution.  A multiplier for setting the total population size. The population has popsize * len(x) individuals (unless the initial population is supplied via the init keyword)')]
+
+    # TODO: expose mutation, recombination, seed, tol, atol, polish, init
+    return ParameterSet(params)
