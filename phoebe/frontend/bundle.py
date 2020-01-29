@@ -7925,7 +7925,7 @@ class Bundle(ParameterSet):
         kwargs_compute = kwargs.pop('compute', None)
         kwargs_priors = kwargs.pop('priors', None)
         kwargs_init_from = kwargs.pop('init_from', None)
-        kwargs_fit_parameters = kwargs.pop('init_parameters', None)
+        kwargs_fit_parameters = kwargs.pop('fit_parameters', None)
         params = func(**kwargs)
         # TODO: similar kwargs logic as in add_dataset (option to pass dict to
         # apply to different components this would be more complicated here if
