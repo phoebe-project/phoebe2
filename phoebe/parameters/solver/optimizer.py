@@ -82,7 +82,7 @@ def differential_evolution(**kwargs):
 
     params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
 
-    params += [SelectParameter(qualifier='bounds', value=kwargs.get('bounds', []), choices=[], description='distribution(s) to use for bounds.  Only those in fit_parameters will be considered.')]
+    params += [SelectParameter(qualifier='bounds', value=kwargs.get('bounds', []), choices=[], description='distribution(s) to use for bounds.  Only those in fit_parameters will be considered.  Any in fit_parameters but not in bounds will use the limits on the parameter itself as bounds.')]
     params += [ChoiceParameter(qualifier='bounds_combine', value=kwargs.get('bounds_combine', 'first'), choices=['first'], description='Method to use to combine multiple distributions from bounds for the same parameter.  first: ignore duplicate entries and take the first in the bounds parameter.')]
     params += [FloatParameter(qualifier='bounds_sigma', value=kwargs.get('bounds_sigma', 3), limits=(0,10), default_units=u.dimensionless_unscaled, description='sigma-level to use when converting non-uniform distributions for bounds to uniform bounds')]
 
