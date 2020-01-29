@@ -2019,11 +2019,7 @@ class Bundle(ParameterSet):
 
         # TODO: should we also check to make sure p.component in [None]+self.hierarchy.get_components()?  If so, we'll need to call this method in set_hierarchy as well.
 
-        # parameters that can be fitted are only in the component or dataset context,
-        # must be float parameters and must not be constrained
-        ps = self.filter(context=['component', 'dataset', 'system'], **_skip_filter_checks)
-        choices = [p.twig for p in ps.to_list() if p.__class__.__name__ == 'FloatParameter' and not len(p.constrained_by)]
-
+        choices = self.get_adjustable_parameters().twigs
         for param in params:
             choices_changed = False
             if return_changes and choices != param._choices:
@@ -2431,6 +2427,23 @@ class Bundle(ParameterSet):
                           undo_kwargs=undo_kwargs)
 
         return
+
+    def get_adjustable_parameters(self):
+        """
+        Return a <phoebe.parameters.ParameterSet> of parameters that are
+        current adjustable (ie. by a solver).
+
+        Returns
+        ---------
+        * <phoebe.parameters.ParameterSet> of parameters
+        """
+        # TODO: OPTIMIZE profile if its cheaper to do check_visible/default in the filter or in the list comprehension
+
+        # parameters that can be fitted are only in the component or dataset context,
+        # must be float parameters and must not be constrained (and must be visible)
+        ps = self.filter(context=['component', 'dataset', 'system'], check_visible=True, check_default=True)
+        return ParameterSet([p for p in ps.to_list() if p.__class__.__name__=='FloatParameter' and not len(p.constrained_by)])
+
 
     def get_system(self, twig=None, **kwargs):
         """
