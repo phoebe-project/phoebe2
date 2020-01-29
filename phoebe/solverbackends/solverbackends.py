@@ -768,7 +768,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
             res = optimize.differential_evolution(_lnlikelihood_negative, bounds,
                                     args=(_bjson(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs),
-                                    workers=pool.map,
+                                    workers=pool.map, updating='deferred',
                                     **options)
         else:
             # NOTE: because we overrode self._run_worker to skip loading the
