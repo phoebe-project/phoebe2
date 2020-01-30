@@ -5757,7 +5757,7 @@ class Parameter(object):
                 elif isinstance(value, str) and "|" in value:
                     return param.get_value() in value.split("|")
                 elif value=='<notempty>':
-                    return len(param.get_value()) > 0
+                    return len(param.get_value(expand=True)) > 0
                 elif isinstance(value, str) and value[0] == '<' and value[-1] == '>':
                     return param.get_value() == getattr(self, value[1:-1])
                 else:
