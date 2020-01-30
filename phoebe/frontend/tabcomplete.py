@@ -99,8 +99,8 @@ class Completer:
                         '.get_solver(': {'context': 'solver'},
                         '.remove_solver(': {'context': 'solver'},
                         '.run_solver(': {'context': 'solver'},
-                        '.get_feedback(': {'context': 'feedback'},
-                        '.remove_feedback(': {'context': 'feedback'},
+                        '.get_solution(': {'context': 'solution'},
+                        '.remove_solution(': {'context': 'solution'},
                         # TODO: plots, plugins
                         }
 
