@@ -7225,8 +7225,8 @@ class Bundle(ParameterSet):
         overwrite_ps = None
 
         if model in self.models and kwargs.get('overwrite', model=='latest'):
-            if self.get_value(qualifier='detached_job', model=model, context='model', default='loaded') != 'loaded':
-                raise ValueError("model '{}' cannot be overwritten until it is complete and loaded.")
+            if self.get_value(qualifier='detached_job', model=model, context='model', detached_job='loaded') != 'loaded':
+                raise ValueError("model '{}' cannot be overwritten until it is complete and loaded.".format(model))
             if model=='latest':
                 logger.warning("overwriting model: {}".format(model))
             else:
@@ -7235,10 +7235,11 @@ class Bundle(ParameterSet):
             do_create_fig_params = kwargs.get('do_create_fig_params', False)
 
             overwrite_ps = self.remove_model(model=model, remove_figure_params=do_create_fig_params)
-            # check the label again, just in case model belongs to something
-            # other than model/figure
 
-            self.exclude(context='figure')._check_label(model, allow_overwrite=False)
+            if model!='latest':
+                # check the label again, just in case model belongs to something
+                # other than model/figure
+                self.exclude(context='figure')._check_label(model, allow_overwrite=False)
 
         else:
             do_create_fig_params = kwargs.get('do_create_fig_params', True)
@@ -8122,7 +8123,7 @@ class Bundle(ParameterSet):
         return self.filter(solver=new_solver)
 
     @send_if_client
-    def run_solver(self, solver=None, **kwargs):
+    def run_solver(self, solver=None, solution=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset(s) using
         a specified set of solver options.
@@ -8166,14 +8167,14 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_solution> to rename a solution after
             creation.
-        * `overwrite` (boolean, optional, default=model=='latest'): whether to overwrite
+        * `overwrite` (boolean, optional, default=solution=='latest'): whether to overwrite
             an existing model with the same `model` tag.  If False,
             an error will be raised.  This defaults to True if `model` is not provided
             or is 'latest', otherwise it will default to False.
         * `return_overwrite` (boolean, optional, default=False): whether to include
             removed parameters due to `overwrite` in the returned ParameterSet.
             Only applicable if `overwrite` is True (or defaults to True if
-            `model` is 'latest').
+            `solution` is 'latest').
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -8187,11 +8188,10 @@ class Bundle(ParameterSet):
         * a <phoebe.parameters.ParameterSet> of the newly-created solver solution.
 
         """
-        kwargs.setdefault('solution',
-                          self._default_label('solution',
-                                              **{'context': 'solution'}))
+        if solution is None:
+            solution = 'latest'
 
-        self._check_label(kwargs['solution'], allow_overwrite=kwargs.get('overwrite', False))
+        self._check_label(solution, allow_overwrite=kwargs.get('overwrite', solution=='latest'))
 
         solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
         solver_class = getattr(_solverbackends, '{}Backend'.format(solver_ps.kind.title()))
@@ -8209,24 +8209,33 @@ class Bundle(ParameterSet):
         else:
             compute = None
 
-        params = solver_class().run(self, solver, compute, **kwargs)
+        params = solver_class().run(self, solver, compute, solution=solution, **kwargs)
         metawargs = {'context': 'solution',
                      'solver': solver_ps.solver,
                      'compute': compute,
                      'kind': solver_ps.kind,
-                     'solution': kwargs.get('solution')}
+                     'solution': solution}
 
-        if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_solution(solution=kwargs['solution'])
-            # check the label again, just in case kwargs['solution'] belongs to
-            # something other than compute
-            self._check_label(kwargs['solution'], allow_overwrite=False)
+        if kwargs.get('overwrite', solution=='latest') and solution in self.solutions:
+            # if self.get_value(qualifier='detached_job', solution=solution, context='solution', detached_job='loaded') != 'loaded':
+                # raise ValueError("solution '{}' cannot be overwritten until it is complete and loaded.".format(solution))
+            if solution=='latest':
+                logger.warning("overwriting solution: {}".format(solution))
+            else:
+                logger.info("overwriting solution: {}".format(solution))
+
+            overwrite_ps = self.remove_solution(solution=solution)
+
+            # check the label again, just in case solution belongs to
+            # something other than solution (technically could belong to model if 'latest')
+            if solution!='latest':
+                self._check_label(solution, allow_overwrite=False)
 
 
         self._attach_params(params, check_copy_for=False, **metawargs)
 
-        ret_ps = self.get_solution(solution=kwargs['solution'])
-        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+        ret_ps = self.get_solution(solution=solution)
+        if kwargs.get('overwrite', solution=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
             ret_ps += overwrite_ps
 
         return ret_ps
