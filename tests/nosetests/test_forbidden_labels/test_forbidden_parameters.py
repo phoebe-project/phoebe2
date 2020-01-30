@@ -19,6 +19,13 @@ def test_forbidden(verbose=False):
     b.add_compute('jktebop')
     b.add_compute('ellc')
 
+    # b.add_solver('estimator.lc_eclipse_geometry')
+    # b.add_solver('optimizer.nelder_mead')
+    # b.add_solver('optimizer.differential_evolution')
+    # b.add_solver('sampler.emcee')
+    # b.add_solver('sampler.dynesty')
+
+
     # TODO: include constraint_func?  Shouldn't matter since they're not in twigs
     should_be_forbidden = b.qualifiers + b.contexts + b.kinds + [c.split('@')[0] for c in b.get_parameter('columns').choices]
 
