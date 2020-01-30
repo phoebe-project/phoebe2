@@ -7225,7 +7225,8 @@ class Bundle(ParameterSet):
         overwrite_ps = None
 
         if model in self.models and kwargs.get('overwrite', model=='latest'):
-            if self.get_value(qualifier='detached_job', model=model, context='model', detached_job='loaded') != 'loaded':
+            # NOTE: default (instead of detached_job=) is correct here
+            if self.get_value(qualifier='detached_job', model=model, context='model', default='loaded') != 'loaded':
                 raise ValueError("model '{}' cannot be overwritten until it is complete and loaded.".format(model))
             if model=='latest':
                 logger.warning("overwriting model: {}".format(model))
@@ -8217,7 +8218,8 @@ class Bundle(ParameterSet):
                      'solution': solution}
 
         if kwargs.get('overwrite', solution=='latest') and solution in self.solutions:
-            # if self.get_value(qualifier='detached_job', solution=solution, context='solution', detached_job='loaded') != 'loaded':
+            # NOTE: default (instead of detached_job=) is correct here
+            # if self.get_value(qualifier='detached_job', solution=solution, context='solution', default='loaded') != 'loaded':
                 # raise ValueError("solution '{}' cannot be overwritten until it is complete and loaded.".format(solution))
             if solution=='latest':
                 logger.warning("overwriting solution: {}".format(solution))
