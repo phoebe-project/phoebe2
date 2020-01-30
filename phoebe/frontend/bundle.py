@@ -5725,7 +5725,7 @@ class Bundle(ParameterSet):
             if k in parameters._contexts:
                 metawargs.setdefault(k,v)
 
-        dist_param = DistributionParameter(bundle=self, qualifier=ref_param.qualifier, value=value, **metawargs)
+        dist_param = DistributionParameter(bundle=self, qualifier=ref_param.qualifier, value=value, description='distribution for the referenced parameter', **metawargs)
 
 
         if kwargs.get('overwrite', False):
