@@ -8191,6 +8191,8 @@ class Bundle(ParameterSet):
                           self._default_label('solution',
                                               **{'context': 'solution'}))
 
+        self._check_label(kwargs['solution'], allow_overwrite=kwargs.get('overwrite', False))
+
         solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
         solver_class = getattr(_solverbackends, '{}Backend'.format(solver_ps.kind.title()))
         if 'compute' in solver_ps.qualifiers:
@@ -8214,7 +8216,21 @@ class Bundle(ParameterSet):
                      'kind': solver_ps.kind,
                      'solution': kwargs.get('solution')}
 
+        if kwargs.get('overwrite', False):
+            overwrite_ps = self.remove_solution(solution=kwargs['solution'])
+            # check the label again, just in case kwargs['solution'] belongs to
+            # something other than compute
+            self._check_label(kwargs['solution'], allow_overwrite=False)
+
+
         self._attach_params(params, check_copy_for=False, **metawargs)
+
+        ret_ps = self.get_solution(solution=kwargs['solution'])
+        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+            ret_ps += overwrite_ps
+
+        return ret_ps
+
 
     def process_solution(self, solution=None, adopt=False, **kwargs):
         """
