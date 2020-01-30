@@ -889,7 +889,12 @@ class PhoebeBackend(BaseBackendByTime):
                                          kind=kind,
                                          components=info['component'])
 
-                    rv = obs['rv']
+                    rv = obs['rv'] + b.get_value(qualifier='rv_offset',
+                                                 component=info['component'],
+                                                 dataset=info['dataset'],
+                                                 context='dataset',
+                                                unit=u.solRad/u.d,
+                                                 **_skip_filter_checks)
                 else:
                     # then rv_method == 'dynamical'
                     rv = -1*vzi[cind]
@@ -1340,6 +1345,12 @@ class LegacyBackend(BaseBackendByDataset):
             phb1.setpar(proximity_par, rv_method=='flux-weighted')
 
             rvs = np.array(rv_call(tuple(info['times'].tolist()), rvind))
+            rvs += b.get_value(qualifier='rv_offset',
+                               component=info['component'],
+                               dataset=info['dataset'],
+                               context='dataset',
+                               unit=u.km/u.s,
+                               **_skip_filter_checks)
 
             packetlist.append(_make_packet('rvs',
                                            rvs*u.km/u.s,
@@ -1721,13 +1732,21 @@ class PhotodynamBackend(BaseBackendByDataset):
         elif info['kind']=='rv':
             cind = starrefs.index(info['component'])
 
+            rvs = -stuff[3*nbodies+4+(cind*3)]
+            rvs += b.get_value(qualifier='rv_offset',
+                               component=info['component'],
+                               dataset=info['dataset'],
+                               context='dataset',
+                               unit=u.AU/u.d,
+                               **_skip_filter_checks)
+
             packetlist.append(_make_packet('times',
                                            stuff[0]*u.d,
                                            None,
                                            info))
 
             packetlist.append(_make_packet('rvs',
-                                           -stuff[3*nbodies+4+(cind*3)] * u.AU/u.d,
+                                           rvs * u.AU/u.d,
                                            None,
                                            info))
 
@@ -2254,6 +2273,12 @@ class EllcBackend(BaseBackendByDataset):
                                            info))
 
             rvs = rvs1 if b.hierarchy.get_primary_or_secondary(info['component'])=='primary' else rvs2
+            rvs += b.get_value(qualifier='rv_offset',
+                               component=info['component'],
+                               dataset=info['dataset'],
+                               context='dataset',
+                               unit=u.km/u.s,
+                               **_skip_filter_checks)
             packetlist.append(_make_packet('rvs',
                                            rvs*u.km/u.s,
                                            None,
