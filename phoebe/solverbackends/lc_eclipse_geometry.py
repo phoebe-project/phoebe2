@@ -1,8 +1,16 @@
 import numpy as np
-from scipy.signal import find_peaks
-from scipy.optimize import newton
+try:
+    from scipy.signal import find_peaks
+    from scipy.optimize import newton
+except ImportError:
+    _can_compute_eclipse_params = False
+else:
+    _can_compute_eclipse_params = True
 
 def compute_eclipse_params(phase, flux):
+    if not _can_compute_eclipse_params:
+        raise ImportError("could not import scipy.signal.find_peaks and scipy.optimize.newton")
+
     # compute the primary gradient and differences between consecutive points in the gradient
     # mask only those larger than the mean (this filters out the eclipses)
     # the light curve has to be smooth, uniformly sampled and phased on range (0,1), with 0 corresponding to supconj
@@ -52,6 +60,7 @@ def compute_eclipse_params(phase, flux):
 
 
 def ecc_w_from_geometry(dphi):
+
 
     "dphi =  secondary_position - primary_position (returned from  compute_eclipse_params)"
 
