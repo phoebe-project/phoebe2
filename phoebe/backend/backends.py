@@ -7,8 +7,11 @@ except:
   import subprocess as commands
 
 import tempfile
+from copy import deepcopy
+import itertools
+
 from phoebe.parameters import dataset as _dataset
-from phoebe.parameters import ParameterSet
+from phoebe.parameters import StringParameter, ParameterSet
 from phoebe import dynamics
 from phoebe.backend import universe, etvs, horizon_analytic
 from phoebe.atmospheres import passbands
@@ -36,6 +39,16 @@ except ImportError:
     _use_ellc = False
 else:
     _use_ellc = True
+
+try:
+    import schwimmbad
+except ImportError:
+    _can_schwimmbad = False
+else:
+    _can_schwimmbad = True
+
+from scipy.stats import norm as _norm
+
 
 import logging
 logger = logging.getLogger("BACKENDS")
@@ -115,7 +128,7 @@ def _expand_mesh_times(b, dataset_ps, component):
     return this_times
 
 def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
-                         by_time=True, **kwargs):
+                         by_time=True, include_mesh=True, **kwargs):
     """
     Extract a list of sorted times and the datasets that need to be
     computed at each of those times.  Any backend can then loop through
@@ -174,7 +187,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
         for component in dataset_components:
             if provided_times:
                 this_times = provided_times
-            elif dataset_kind == 'mesh':
+            elif dataset_kind == 'mesh' and include_mesh:
                 this_times = _expand_mesh_times(b, dataset_ps, component)
             elif dataset_kind in ['lp']:
                 this_times = np.unique(dataset_ps.get_value(qualifier='compute_times', unit=u.d))
@@ -231,7 +244,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                         'needs_mesh': _needs_mesh(b, dataset, dataset_kind, component, compute),
                         }
 
-                if dataset_kind == 'mesh':
+                if dataset_kind == 'mesh' and include_mesh:
                     # then we may be requesting passband-dependent columns be
                     # copied to the mesh from other datasets based on the values
                     # of columns@mesh.  Let's store the needed information here,
@@ -556,7 +569,119 @@ class BaseBackendByDataset(BaseBackend):
 
         return packetlists
 
+def _call_run_single_model(args):
+    # TODO: make copy of the bundle?
+    bjson, samples, compute, times, compute_kwargs, i = args
+    b = phoebe.frontend.bundle.Bundle(bjson)
 
+    # b.sample_distribution(distribution=sample_from, combine=sample_from_combine, set_value=True)
+
+    # TODO: temporarily disable constraints if not already
+    for uniqueid, value in samples.items():
+        b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+
+    model_ps = b.run_compute(compute=compute, times=times, sample_from=[], do_create_fig_params=False, model='sample_{}'.format(i), **compute_kwargs)
+    return model_ps.to_json()
+
+
+class SampleOverModel(object):
+    def __init__(self):
+        return
+
+    def run_worker(self, packet):
+        """
+        run_worker will receive the packet (with the bundle deserialized if necessary)
+        and is responsible for any work done by a worker within MPI
+        """
+        logger.debug("rank:{}/{} run_worker".format(mpi.myrank, mpi.nprocs))
+        # packet['b'] = phoebe.frontend.bundle.Bundle(packet['b'])
+        # do the computations requested for this worker
+        # rpacketlists = self.run_single_model(**packet)
+        # send the results back to the master (root=0)
+        # mpi.comm.gather(rpacketlists, root=0)
+        return self.run(**packet)
+
+    def run(self, b, compute, times=[], **kwargs):
+        """
+        if within mpirun, workers should call _run_worker instead of run
+        """
+        if not _can_schwimmbad:
+            raise ImportError("schwimmbad required for sampling within run_compute")
+
+        # TODO: can we run the checks of the requested backend?
+        #self.run_checks(b, compute, times, **kwargs)
+
+
+        # TODO: use serial if not _can_schwimmbad? (can we use MPI even without schwimmbad)
+
+        if mpi.within_mpirun:
+            pool = schwimmbad.MPIPool()
+            is_master = pool.is_master()
+        else:
+            pool = schwimmbad.MultiPool()
+            # pool = schwimmbad.SerialPool()
+            is_master = True
+
+        if is_master:
+            compute_ps = b.get_compute(compute=compute, **_skip_filter_checks)
+            compute_kwargs = {k:v for k,v in kwargs.items() if k in compute_ps.qualifiers and 'sample' not in k}
+
+            sample_from = compute_ps.get_value(qualifier='sample_from', sample_from=kwargs.get('sample_from', None), **_skip_filter_checks)
+            sample_from_combine = compute_ps.get_value(qualifier='sample_from_combine', sample_from_combine=kwargs.get('sample_from_combine', None), **_skip_filter_checks)
+            sample_num = compute_ps.get_value(qualifier='sample_num', sample_num=kwargs.get('sample_num', None), **_skip_filter_checks)
+            sample_mode = compute_ps.get_value(qualifier='sample_mode', sample_mode=kwargs.get('sample_mode', None), **_skip_filter_checks)
+
+            # samples = range(sample_num)
+            sample_dict = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=sample_num, keys='uniqueid')
+            bjson = b.exclude(context=['model', 'solver', 'solution', 'figure'], **_skip_filter_checks).exclude(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
+            args_per_sample = [(deepcopy(bjson), {k:v[i] for k,v in sample_dict.items()}, compute, times, compute_kwargs, i) for i in range(sample_num)]
+
+            # models = [_call_run_single_model(args) for args in args_per_sample]
+            models = list(pool.map(_call_run_single_model, args_per_sample))
+        else:
+            # temporarily disable MPI within run_compute to disabled parallelizing
+            # per-time.
+            within_mpirun = mpi.within_mpirun
+            mpi_enabled = mpi.enabled
+            mpi._within_mpirun = False
+            mpi._enabled = False
+
+            pool.wait()
+
+            # restore previous MPI state
+            mpi._within_mpirun = within_mpirun
+            mpi._enabled = mpi_enabled
+
+        if pool is not None:
+            pool.close()
+
+        if is_master:
+            # TODO: merge the models as requested by sample_mode
+
+            # the first entry only has the figure parameter, so we'll make a copy of that to re-popluate with new values
+            # TODO: make sample_mode a read-only parameter
+            ret_ps = ParameterSet(models[0])
+            all_models_ps = ParameterSet(list(itertools.chain.from_iterable(models)))
+
+            for param in ret_ps.to_list():
+                param._bundle = None
+                if param.qualifier in ['fluxes', 'rvs']:
+                    all_values = np.array([p.get_value() for p in all_models_ps.filter(qualifier=param.qualifier, dataset=param.dataset, component=param.component, **_skip_filter_checks).to_list()])
+                    if sample_mode == 'all':
+                        param.set_value(all_values)
+                    elif sample_mode == 'median':
+                        param.set_value(np.median(all_values, axis=0))
+                    elif sample_mode in ['1-sigma', '3-sigma', '5-sigma']:
+                        sigma = int(sample_mode[0])
+                        bounds = np.percentile(all_values, 100 * _norm.cdf([-sigma, 0, sigma]), axis=0)
+                        param.set_value(bounds)
+                    else:
+                        raise NotImplementedError("sample_mode='{}' not implemented".format(sample_mode))
+                param._bundle = b
+                param._model = kwargs.get('model')
+
+            return ret_ps + ParameterSet([StringParameter(qualifier='sample_mode', value=sample_mode, description='mode used for sampling - CHANGE WITH CAUTION')])
+        return
 
 
 

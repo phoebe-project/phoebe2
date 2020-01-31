@@ -1998,7 +1998,7 @@ class Bundle(ParameterSet):
 
         choices = self.distributions
 
-        for param in self.filter(context='solver', qualifier=['init_from', 'priors', 'bounds'], **_skip_filter_checks).to_list():
+        for param in self.filter(context=['solver', 'compute'], qualifier=['init_from', 'priors', 'bounds', 'sample_from'], **_skip_filter_checks).to_list():
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
@@ -5758,6 +5758,7 @@ class Bundle(ParameterSet):
         if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
             ret_ps += overwrite_ps
 
+        # TODO: only include these if requested?
         ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
 
         return ret_ps
@@ -7079,6 +7080,7 @@ class Bundle(ParameterSet):
 
         self._check_label(kwargs['compute'], allow_overwrite=kwargs.get('overwrite', False))
 
+        sample_from = kwargs.pop('sample_from', None)
         params = func(**kwargs)
         # TODO: similar kwargs logic as in add_dataset (option to pass dict to
         # apply to different components this would be more complicated here if
@@ -7115,6 +7117,11 @@ class Bundle(ParameterSet):
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
         self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
+
+
+        self._handle_distribution_selectparams(return_changes=False)
+        if sample_from is not None:
+            ret_ps.set_value_all(qualifier='sample_from', value=sample_from, **_skip_filter_checks)
 
         ret_ps += ParameterSet(self._handle_compute_selectparams(return_changes=True))
         ret_ps += ParameterSet(self._handle_compute_choiceparams(return_changes=True))
@@ -7616,11 +7623,23 @@ class Bundle(ParameterSet):
                 if not computeparams.kind:
                     raise KeyError("could not recognize backend from compute: {}".format(compute))
 
+                metawargs = {'compute': compute, 'model': model, 'context': 'model'}  # dataset, component, etc will be set by the compute_func
+
+                # if sampling is enabled then we need to pass things off now
+                # to the sampler.  The sampler will then make handle parallelization
+                # and per-sample calls to run_compute.
+                sample_from = computeparams.get_value('sample_from', expand=True, sample_from=kwargs.get('sample_from', None))
+                if len(sample_from):
+                    params = backends.SampleOverModel().run(self, compute, times=times, **kwargs)
+                    self._attach_params(params, check_copy_for=False, **metawargs)
+                    # continue to the next iteration of the for-loop.  Any dataset-scaling,
+                    # etc, will be handled within each individual model run within the sampler.
+                    continue
+
                 logger.info("running {} backend to create '{}' model".format(computeparams.kind, model))
                 compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
                 # compute_func = getattr(backends, computeparams.kind)
 
-                metawargs = {'compute': compute, 'model': model, 'context': 'model'}  # dataset, component, etc will be set by the compute_func
 
                 params = compute_class().run(self, compute, times=times, **kwargs)
 

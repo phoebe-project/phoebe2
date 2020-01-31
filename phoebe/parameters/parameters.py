@@ -251,7 +251,7 @@ def send_if_client(fctn):
                     'set_value': 'set_value',
                     'set_default_unit': 'set_default_unit'}
         b = self._bundle
-        if b is not None and b.is_client:
+        if b is not None and hasattr(b, 'is_client') and b.is_client:
             # TODO: self._filter???
             # TODO: args???
             method = fctn_map.get(fctn.__name__, 'bundle_method')

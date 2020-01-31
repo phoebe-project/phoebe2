@@ -13,6 +13,18 @@ from phoebe import conf
 passbands._init_passbands()  # TODO: move to module import
 _atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb['atms'] if atm in passbands._supported_atms]))
 
+def _sampling_params(**kwargs):
+    """
+    """
+    params = []
+
+    params += [SelectParameter(qualifier='sample_from', value=kwargs.get('sample_from', []), choices=[], description='distributions to use for sampling')]
+    params += [ChoiceParameter(visible_if='sample_from:<notempty>', qualifier='sample_from_combine', value=kwargs.get('sample_from_combine', 'first'), choices=['first'], description='Method to use to combine multiple distributions from sample_from for the same parameter.  first: ignore duplicate entries and take the first in the sample_from parameter')]
+    params += [IntParameter(visible_if='sample_from:<notempty>', qualifier='sample_num', value=kwargs.get('sample_num', 10), limits=(8, 1e6), description='Number of forward models to run sampling from the distributions defined in sample_from and sample_from_combine.')]
+    params += [ChoiceParameter(visible_if='sample_from:<notempty>', qualifier='sample_mode', value=kwargs.get('sample_mode', '1-sigma'), choices=['all', 'median', '1-sigma', '3-sigma', '5-sigma'], description='Mode to use when exposing model after sampling.  all: expose all sampled forward-models.  median: only return the median of all sampled models.  1/3/5-sigma: expose the synthetic variable at the median and +/- n-sigma.')]
+
+    return params
+
 def phoebe(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for the
@@ -83,7 +95,7 @@ def phoebe(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _sampling_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
@@ -219,7 +231,7 @@ def legacy(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _sampling_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'mesh'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
@@ -355,7 +367,7 @@ def photodynam(**kwargs):
     if not conf.devel:
         raise NotImplementedError("'photodynam' backend not officially supported for this release.  Enable developer mode to test.")
 
-    params = []
+    params = _sampling_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
@@ -465,7 +477,7 @@ def jktebop(**kwargs):
     if not conf.devel:
         raise NotImplementedError("'jktebop' backend not officially supported for this release.  Enable developer mode to test.")
 
-    params = []
+    params = _sampling_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
@@ -596,7 +608,7 @@ def ellc(**kwargs):
     if not conf.devel:
         raise NotImplementedError("'ellc' backend not officially supported for this release.  Enable developer mode to test.")
 
-    params = []
+    params = _sampling_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]

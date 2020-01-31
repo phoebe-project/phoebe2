@@ -375,9 +375,9 @@ null
 "qualifier": "ld_func_bol"
 }, 
 {
+"context": "component", 
 "kind": "star", 
-"description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)", 
-"visible_if": "ld_mode_bol:lookup", 
+"qualifier": "ld_coeffs_source_bol", 
 "component": "primary", 
 "value": "auto", 
 "choices": [
@@ -385,27 +385,26 @@ null
 "ck2004", 
 "phoenix"
 ], 
-"context": "component", 
+"visible_if": "ld_mode_bol:lookup", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
 "advanced": true, 
-"qualifier": "ld_coeffs_source_bol"
+"description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)"
 }, 
 {
+"context": "component", 
 "kind": "star", 
-"description": "Bolometric limb darkening coefficients (used only for irradiation).", 
-"visible_if": "ld_mode_bol:manual", 
-"component": "primary", 
+"qualifier": "ld_coeffs_bol", 
 "default_unit": "", 
+"component": "primary", 
 "value": [
 0.5, 
 0.5
 ], 
-"allow_none": false, 
-"context": "component", 
+"visible_if": "ld_mode_bol:manual", 
 "copy_for": false, 
 "Class": "FloatArrayParameter", 
-"qualifier": "ld_coeffs_bol"
+"description": "Bolometric limb darkening coefficients (used only for irradiation)."
 }, 
 {
 "kind": "star", 
@@ -720,9 +719,9 @@ null
 "qualifier": "ld_func_bol"
 }, 
 {
+"context": "component", 
 "kind": "star", 
-"description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)", 
-"visible_if": "ld_mode_bol:lookup", 
+"qualifier": "ld_coeffs_source_bol", 
 "component": "secondary", 
 "value": "auto", 
 "choices": [
@@ -730,27 +729,26 @@ null
 "ck2004", 
 "phoenix"
 ], 
-"context": "component", 
+"visible_if": "ld_mode_bol:lookup", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
 "advanced": true, 
-"qualifier": "ld_coeffs_source_bol"
+"description": "Source for bolometric limb darkening coefficients (used only for irradiation; 'auto' to interpolate from the applicable table according to the 'atm' parameter, or the name of a specific atmosphere table)"
 }, 
 {
+"context": "component", 
 "kind": "star", 
-"description": "Bolometric limb darkening coefficients (used only for irradiation).", 
-"visible_if": "ld_mode_bol:manual", 
-"component": "secondary", 
+"qualifier": "ld_coeffs_bol", 
 "default_unit": "", 
+"component": "secondary", 
 "value": [
 0.5, 
 0.5
 ], 
-"allow_none": false, 
-"context": "component", 
+"visible_if": "ld_mode_bol:manual", 
 "copy_for": false, 
 "Class": "FloatArrayParameter", 
-"qualifier": "ld_coeffs_bol"
+"description": "Bolometric limb darkening coefficients (used only for irradiation)."
 }, 
 {
 "kind": "star", 
@@ -1719,7 +1717,67 @@ null
 {
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Whether to create synthetics in compute/fitting run", 
+"description": "distributions to use for sampling", 
+"value": [], 
+"choices": [], 
+"context": "compute", 
+"copy_for": false, 
+"Class": "SelectParameter", 
+"qualifier": "sample_from"
+}, 
+{
+"context": "compute", 
+"kind": "phoebe", 
+"compute": "phoebe01", 
+"qualifier": "sample_from_combine", 
+"value": "first", 
+"choices": [
+"first"
+], 
+"visible_if": "sample_from:<notempty>", 
+"copy_for": false, 
+"Class": "ChoiceParameter", 
+"advanced": false, 
+"description": "Method to use to combine multiple distributions from sample_from for the same parameter.  first: ignore duplicate entries and take the first in the sample_from parameter"
+}, 
+{
+"context": "compute", 
+"kind": "phoebe", 
+"compute": "phoebe01", 
+"qualifier": "sample_num", 
+"limits": [
+8, 
+1000000.0
+], 
+"value": 10, 
+"visible_if": "sample_from:<notempty>", 
+"copy_for": false, 
+"Class": "IntParameter", 
+"advanced": false, 
+"description": "Number of forward models to run sampling from the distributions defined in sample_from and sample_from_combine."
+}, 
+{
+"context": "compute", 
+"kind": "phoebe", 
+"compute": "phoebe01", 
+"qualifier": "sample_mode", 
+"value": "1-sigma", 
+"choices": [
+"all", 
+"1-sigma", 
+"3-sigma", 
+"5-sigma"
+], 
+"visible_if": "sample_from:<notempty", 
+"copy_for": false, 
+"Class": "ChoiceParameter", 
+"advanced": false, 
+"description": "Mode to use when exposing model after sampling.  all: expose all sampled forward-models.  1/3/5-sigma: expose the synthetic variable at the median and +/- n-sigma."
+}, 
+{
+"kind": "phoebe", 
+"compute": "phoebe01", 
+"description": "Whether to create synthetics in compute/solver run", 
 "value": true, 
 "dataset": "_default", 
 "context": "compute", 
@@ -1734,7 +1792,7 @@ null
 {
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Whether to enable the feature in compute/fitting run", 
+"description": "Whether to enable the feature in compute/solver run", 
 "feature": "_default", 
 "value": true, 
 "context": "compute", 
@@ -1802,16 +1860,16 @@ null
 "qualifier": "boosting_method"
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Which method to use for discretizing the surface", 
-"visible_if": "hierarchy.is_meshable:true", 
+"qualifier": "mesh_method", 
 "component": "_default", 
 "value": "marching", 
 "choices": [
 "marching"
 ], 
-"context": "compute", 
+"visible_if": "hierarchy.is_meshable:true", 
 "copy_for": {
 "kind": [
 "star", 
@@ -1821,9 +1879,10 @@ null
 }, 
 "Class": "ChoiceParameter", 
 "advanced": false, 
-"qualifier": "mesh_method"
+"description": "Which method to use for discretizing the surface"
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
 "qualifier": "ntriangles", 
@@ -1833,7 +1892,7 @@ null
 ], 
 "component": "_default", 
 "value": 1500, 
-"context": "compute", 
+"visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
 "copy_for": {
 "kind": [
 "star", 
@@ -1841,16 +1900,15 @@ null
 ], 
 "component": "*"
 }, 
-"visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
 "Class": "IntParameter", 
 "advanced": false, 
 "description": "Requested number of triangles (won't be exact)."
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Method to use for distorting stars", 
-"visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
+"qualifier": "distortion_method", 
 "component": "_default", 
 "value": "roche", 
 "choices": [
@@ -1859,7 +1917,7 @@ null
 "sphere", 
 "none"
 ], 
-"context": "compute", 
+"visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
 "copy_for": {
 "kind": [
 "star"
@@ -1868,7 +1926,7 @@ null
 }, 
 "Class": "ChoiceParameter", 
 "advanced": false, 
-"qualifier": "distortion_method"
+"description": "Method to use for distorting stars"
 }, 
 {
 "kind": "phoebe", 
@@ -1886,19 +1944,19 @@ null
 "qualifier": "eclipse_method"
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Type of horizon method", 
-"visible_if": "eclipse_method:native", 
+"qualifier": "horizon_method", 
 "value": "boolean", 
 "choices": [
 "boolean"
 ], 
-"context": "compute", 
+"visible_if": "eclipse_method:native", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
 "advanced": true, 
-"qualifier": "horizon_method"
+"description": "Type of horizon method"
 }, 
 {
 "kind": "phoebe", 
@@ -1908,9 +1966,9 @@ null
 "value": "ck2004", 
 "choices": [
 "blackbody", 
-"extern_atmx", 
 "ck2004", 
 "phoenix", 
+"extern_atmx", 
 "extern_planckint"
 ], 
 "context": "compute", 
@@ -1966,6 +2024,7 @@ null
 "qualifier": "fti_method"
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
 "qualifier": "fti_oversample", 
@@ -1975,14 +2034,13 @@ null
 ], 
 "value": 5, 
 "dataset": "_default", 
-"context": "compute", 
+"visible_if": "fti_method:oversample", 
 "copy_for": {
 "kind": [
 "lc"
 ], 
 "dataset": "*"
 }, 
-"visible_if": "fti_method:oversample", 
 "Class": "IntParameter", 
 "advanced": false, 
 "description": "Number of times to sample per-datapoint for finite-time integration"
@@ -2012,14 +2070,14 @@ null
 "qualifier": "rv_method"
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Whether gravitational redshift effects are enabled for RVs", 
-"visible_if": "rv_method:flux-weighted", 
+"qualifier": "rv_grav", 
 "component": "_default", 
 "value": false, 
 "dataset": "_default", 
-"context": "compute", 
+"visible_if": "rv_method:flux-weighted", 
 "copy_for": {
 "component": {
 "kind": "star"
@@ -2030,57 +2088,58 @@ null
 }, 
 "Class": "BoolParameter", 
 "advanced": false, 
-"qualifier": "rv_grav"
+"description": "Whether gravitational redshift effects are enabled for RVs"
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Which method to use for discretizing the surface", 
-"visible_if": "hierarchy.is_meshable:true", 
+"qualifier": "mesh_method", 
 "component": "primary", 
 "value": "marching", 
 "choices": [
 "marching"
 ], 
-"context": "compute", 
+"visible_if": "hierarchy.is_meshable:true", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
 "advanced": false, 
-"qualifier": "mesh_method"
+"description": "Which method to use for discretizing the surface"
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Which method to use for discretizing the surface", 
-"visible_if": "hierarchy.is_meshable:true", 
+"qualifier": "mesh_method", 
 "component": "secondary", 
 "value": "marching", 
 "choices": [
 "marching"
 ], 
-"context": "compute", 
+"visible_if": "hierarchy.is_meshable:true", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
 "advanced": false, 
-"qualifier": "mesh_method"
+"description": "Which method to use for discretizing the surface"
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Which method to use for discretizing the surface", 
-"visible_if": "hierarchy.is_meshable:true", 
+"qualifier": "mesh_method", 
 "component": "contact_envelope", 
 "value": "marching", 
 "choices": [
 "marching"
 ], 
-"context": "compute", 
+"visible_if": "hierarchy.is_meshable:true", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
 "advanced": false, 
-"qualifier": "mesh_method"
+"description": "Which method to use for discretizing the surface"
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
 "qualifier": "ntriangles", 
@@ -2090,14 +2149,14 @@ null
 ], 
 "component": "primary", 
 "value": 1500, 
-"context": "compute", 
-"copy_for": false, 
 "visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
+"copy_for": false, 
 "Class": "IntParameter", 
 "advanced": false, 
 "description": "Requested number of triangles (won't be exact)."
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
 "qualifier": "ntriangles", 
@@ -2107,14 +2166,14 @@ null
 ], 
 "component": "secondary", 
 "value": 1500, 
-"context": "compute", 
-"copy_for": false, 
 "visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
+"copy_for": false, 
 "Class": "IntParameter", 
 "advanced": false, 
 "description": "Requested number of triangles (won't be exact)."
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
 "qualifier": "ntriangles", 
@@ -2124,18 +2183,17 @@ null
 ], 
 "component": "contact_envelope", 
 "value": 3000, 
-"context": "compute", 
-"copy_for": false, 
 "visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
+"copy_for": false, 
 "Class": "IntParameter", 
 "advanced": false, 
 "description": "Requested number of triangles (won't be exact)."
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Method to use for distorting stars", 
-"visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
+"qualifier": "distortion_method", 
 "component": "primary", 
 "value": "roche", 
 "choices": [
@@ -2144,17 +2202,17 @@ null
 "sphere", 
 "none"
 ], 
-"context": "compute", 
+"visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
 "advanced": false, 
-"qualifier": "distortion_method"
+"description": "Method to use for distorting stars"
 }, 
 {
+"context": "compute", 
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "Method to use for distorting stars", 
-"visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
+"qualifier": "distortion_method", 
 "component": "secondary", 
 "value": "roche", 
 "choices": [
@@ -2163,11 +2221,11 @@ null
 "sphere", 
 "none"
 ], 
-"context": "compute", 
+"visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
 "advanced": false, 
-"qualifier": "distortion_method"
+"description": "Method to use for distorting stars"
 }, 
 {
 "kind": "phoebe", 
@@ -2177,9 +2235,9 @@ null
 "value": "ck2004", 
 "choices": [
 "blackbody", 
-"extern_atmx", 
 "ck2004", 
 "phoenix", 
+"extern_atmx", 
 "extern_planckint"
 ], 
 "context": "compute", 
@@ -2196,9 +2254,9 @@ null
 "value": "ck2004", 
 "choices": [
 "blackbody", 
-"extern_atmx", 
 "ck2004", 
 "phoenix", 
+"extern_atmx", 
 "extern_planckint"
 ], 
 "context": "compute", 
