@@ -578,7 +578,7 @@ def mesh(syn=False, as_ps=True, **kwargs):
         params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
-        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), advanced=True, description='append to compute_times from the following datasets/time standards', choices=['t0@system'])]
+        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), advanced=False, description='append to compute_times from the following datasets/time standards', choices=['t0@system'])]
         params += [SelectParameter(qualifier='coordinates', value=kwargs.get('coordinates', ['xyz', 'uvw']), choices=['xyz', 'uvw'], advanced=True, description='coordinates to expose the mesh.  uvw (plane of sky) and/or xyz (roche)')]
         params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', []), description='columns to expose within the mesh', choices=_mesh_columns)]
 
