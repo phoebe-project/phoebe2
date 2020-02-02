@@ -134,7 +134,8 @@ _available_kinds = {'component': phoebe.list_available_components(),
                     'feature': phoebe.list_available_features(),
                     'dataset': phoebe.list_available_datasets(),
                     'figure': phoebe.list_available_figures(),
-                    'compute': phoebe.list_available_computes()}
+                    'compute': phoebe.list_available_computes(),
+                    'solver': phoebe.list_available_solvers()}
 
 # logger = phoebe.logger('INFO')
 _dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
@@ -224,7 +225,7 @@ def _value_string(param):
         return param.get_value()
     elif param_type in ['ConstraintParameter']:
         return "f({})".format(",".join([p.qualifier for p in param.vars.to_list() if p != param.constrained_parameter]))
-    elif param_type in ['SelectParameter']:
+    elif param_type in ['SelectParameter', 'SelectTwigParameter']:
         v = param.get_value()
         ev = param.expand_value()
         if len(v) == 0:
@@ -292,7 +293,7 @@ def _param_json_overview(param):
 
 
     for k,v in param.meta.items():
-        if k in ['history', 'solver', 'solution', 'plugin']:
+        if k in ['history', 'plugin']:
             continue
         p[k] = v
 
@@ -341,7 +342,7 @@ def _param_json_detailed(param):
 def _sort_tags(group, tags):
     if group=='contexts':
         # try to order contexts in same order as shown in UI.. then fill in with the rest
-        lst = [k for k in ['constraint', 'component', 'feature', 'dataset', 'figure', 'compute', 'model', 'time'] if k in tags]
+        lst = [k for k in ['constraint', 'component', 'feature', 'dataset', 'distribution', 'figure', 'compute', 'model', 'solver', 'solution'] if k in tags]
         for k in tags:
             if k not in lst:
                 lst.append(k)
@@ -613,6 +614,24 @@ def parameter(bundleid, uniqueid):
     data = _param_json_detailed(param)
 
     return _get_response({'success': True, 'parameter': data}, api=True)
+
+@app.route('/adjustable_parameters/<string:bundleid>', methods=['GET'])
+@crossdomain(origin='*')
+def adjustable_parameters(bundleid):
+    """
+    """
+    if app._verbose:
+        print("adjustable_parameters(bundleid={})".format(bundleid))
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    adjustable_parameters = {p.uniqueid: p.twig for p in b.get_adjustable_parameters().to_list()}
+
+    return _get_response({'success': True, 'adjustable_parameters': adjustable_parameters}, api=True)
 
 @app.route('/nparray/<string:input>', methods=['GET'])
 @crossdomain(origin='*')
