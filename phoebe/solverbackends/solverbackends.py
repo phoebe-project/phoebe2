@@ -248,7 +248,8 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         solution_params += [_parameters.FloatParameter(qualifier='secondary_depth', value=0, unit=u.dimensionless_unscaled, description='depth of secondary eclipse')]
 
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
-        solution_params += [_parameters.FloatArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -298,7 +299,8 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
                  {'qualifier': 'primary_depth', 'value': eclipse_dict.get('primary_depth')},
                  {'qualifier': 'secondary_depth', 'value': eclipse_dict.get('secondary_depth')},
                  {'qualifier': 'fitted_parameters', 'value': [ecc_param.uniqueid, per0_param.uniqueid]},
-                 {'qualifier': 'fitted_values', 'value': [ecc, per0]}]]
+                 {'qualifier': 'fitted_values', 'value': [ecc, per0]},
+                 {'qualifier': 'fitted_units', 'value': [u.dimensionless_unscaled, u.rad]}]]
 
 
 
@@ -633,8 +635,8 @@ class Nelder_MeadBackend(BaseSolverBackend):
         solution_params += [_parameters.IntParameter(qualifier='niter', value=0, limits=(0,None), description='number of completed iterations')]
         solution_params += [_parameters.BoolParameter(qualifier='success', value=False, description='whether the minimizer returned a success message')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
-        # TODO: double check units here... is it current default units or those used by the backend?
-        solution_params += [_parameters.FloatArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -655,10 +657,12 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
         params_uniqueids = []
         p0 = []
+        fitted_units
         for twig in fit_parameters:
             p = b.get_parameter(twig=twig, context=['component', 'dataset'], **_skip_filter_checks)
             params_uniqueids.append(p.uniqueid)
             p0.append(p.get_value())
+            fitted_units.append(p.get_default_unit())
 
         compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
@@ -677,7 +681,8 @@ class Nelder_MeadBackend(BaseSolverBackend):
                 {'qualifier': 'niter', 'value': res.nit},
                 {'qualifier': 'success', 'value': res.success},
                 {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
-                {'qualifier': 'fitted_values', 'value': res.x}]]
+                {'qualifier': 'fitted_values', 'value': res.x},
+                {'qualifier': 'fitted_units', 'value': fitted_units}]]
 
 class Differential_EvolutionBackend(BaseSolverBackend):
     """
@@ -702,8 +707,8 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         solution_params += [_parameters.IntParameter(qualifier='niter', value=0, limits=(0,None), description='number of completed iterations')]
         solution_params += [_parameters.BoolParameter(qualifier='success', value=False, description='whether the minimizer returned a success message')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
-        # TODO: double check units here... is it current default units or those used by the backend?
-        solution_params += [_parameters.FloatArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -737,10 +742,12 @@ class Differential_EvolutionBackend(BaseSolverBackend):
 
             params_uniqueids = []
             params = []
+            fitted_units = []
             for twig in fit_parameters:
                 p = b.get_parameter(twig=twig, context=['component', 'dataset'], **_skip_filter_checks)
                 params.append(p)
                 params_uniqueids.append(p.uniqueid)
+                fitted_units.append(p.get_default_unit())
 
 
             bounds = kwargs.get('bounds')
@@ -799,5 +806,6 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                     {'qualifier': 'niter', 'value': res.nit},
                     {'qualifier': 'success', 'value': res.success},
                     {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
-                    {'qualifier': 'fitted_values', 'value': res.x}]]
+                    {'qualifier': 'fitted_values', 'value': res.x},
+                    {'qualifier': 'fitted_units', 'value': fitted_units}]]
         return {}

@@ -124,9 +124,12 @@ class BaseValueSolutionBackend(BaseSolutionBackend):
         """
         """
         uniqueids = self.solution_kwargs.get('fitted_parameters')
-        values = self.solution_kwargs.get('fitted_values')
+        fitted_values = self.solution_kwargs.get('fitted_values')
+        fitted_units = self.solution_kwargs.get('fitted_units')
 
-        return {'values': {self.bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).get_uniquetwig(): value for uniqueid, value in zip(uniqueids, values)}}
+        quantities = {self.bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).get_uniquetwig(): value*unit for uniqueid, value, unit in zip(uniqueids, fitted_values, fitted_units)}
+        values = {k: v.value for k,v in quantities.items()}
+        return {'values': values, 'quantities': quantities}
 
     def _preadopt_check(self):
         if not self.get('success'):
@@ -148,12 +151,13 @@ class BaseValueSolutionBackend(BaseSolutionBackend):
 
         uniqueids = self.solution_kwargs.get('fitted_parameters')
         values = self.solution_kwargs.get('fitted_values')
+        units = self.solution_kwargs.get('fitted_units')
 
         changed_params = []
-        for uniqueid, value in zip(uniqueids, values):
+        for uniqueid, value, unit in zip(uniqueids, values, units):
             param = self.bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
 
-            param.set_value(value)
+            param.set_value(value, unit=unit)
             changed_params.append(param)
 
         changed_params += self.bundle.run_delayed_constraints()
