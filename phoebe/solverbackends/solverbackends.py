@@ -83,13 +83,15 @@ def _lnlikelihood_negative(sampled_values, bjson, params_uniqueids, compute, pri
     return -1 * _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs)
 
 def _sample_ppf(ppf_values, distributions_list):
+    # NOTE: this will treat each item in the collection independently, ignoring any covariances
+
     x = np.empty_like(ppf_values)
 
-    # TODO: replace with npdists.sample_ppf_from_dists(distributions, values)
+    # TODO: replace with distl.sample_ppf_from_dists(distributions, values)
     # once implemented to support multivariate?
 
     for i,dist in enumerate(distributions_list):
-        x[i] = dist.sample_ppf(ppf_values[i])
+        x[i] = dist.ppf(ppf_values[i])
 
     return x
 
@@ -532,12 +534,11 @@ class DynestyBackend(BaseSolverBackend):
 
             # NOTE: here it is important that _sample_ppf sees the parameters in the
             # same order as _lnlikelihood (that is in the order of params_uniqueids)
-            priors_dict = b.get_distribution_objects(distribution=priors,
-                                                     combine=priors_combine,
-                                                     include_constrained=False,
-                                                     keys='uniqueid')
-            params_uniqueids = list(priors_dict.keys())
-            priors_list = list(priors_dict.values())
+            priors_dc, params_uniqueids = b.get_distribution_colleciton(distribution=priors,
+                                                                        combine=priors_combine,
+                                                                        include_constrained=False,
+                                                                        keys='uniqueid',
+                                                                        set_labels=False)
 
             # NOTE: in dynesty we draw from the priors and pass the prior-transforms,
             # but do NOT include the lnprior term in lnlikelihood, so we pass
@@ -555,7 +556,7 @@ class DynestyBackend(BaseSolverBackend):
 
             logger.debug("dynesty.NestedSampler(_lnlikelihood, _sample_ppf, log_kwargs, ptform_kwargs, ndim, nlive)")
             sampler = dynesty.NestedSampler(_lnlikelihood, _sample_ppf,
-                                        logl_kwargs=lnlikelihood_kwargs, ptform_kwargs={'distributions_list': priors_list},
+                                        logl_kwargs=lnlikelihood_kwargs, ptform_kwargs={'distributions_list': priors_dc.distributions},
                                         ndim=len(params_uniqueids), nlive=kwargs.get('nlive'), pool=pool)
 
             sargs = {}
@@ -657,7 +658,7 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
         params_uniqueids = []
         p0 = []
-        fitted_units
+        fitted_units = []
         for twig in fit_parameters:
             p = b.get_parameter(twig=twig, context=['component', 'dataset'], **_skip_filter_checks)
             params_uniqueids.append(p.uniqueid)
@@ -755,17 +756,17 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             bounds_sigma = kwargs.get('bounds_sigma')
 
 
-            # TODO: need to merge bounds with fit_parameters...
-            bounds_dict = b.get_distribution_objects(distribution=bounds,
-                                                     keys='uniqueid',
-                                                     combine=bounds_combine,
-                                                     include_constrained=False)
+            bounds_dc, uniqueids = b.get_distribution_collection(distribution=bounds,
+                                                                 keys='uniqueid',
+                                                                 combine=bounds_combine,
+                                                                 include_constrained=False,
+                                                                 set_labels=False)
 
             # for each parameter, if a distribution is found in bounds_dict (from
             # the bounds parameter), then the bounds are adopted from that (taking
             # bounds_combine and bounds_sigma into account).  Otherwise, the limits
             # of the parameter itself are adopted.
-            bounds = [_get_bounds(param, bounds_dict.get(param.uniqueid, None), bounds_sigma) for param in params]
+            bounds = [_get_bounds(param, bounds_dc.distributions[uniqueids.index(param.uniqueid)] if param.uniqueid in uniqueids else None, bounds_sigma) for param in params]
 
             compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 

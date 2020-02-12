@@ -11,7 +11,7 @@ from phoebe.parameters import ParameterSet
 import phoebe.parameters as _parameters
 import phoebe.frontend.bundle
 from phoebe import conf
-from phoebe.dependencies import npdists as _npdists
+from phoebe.dependencies import distl as _distl
 
 
 try:
@@ -212,11 +212,11 @@ class EmceeSolution(BaseDistributionSolutionBackend):
         fitted_twigs = [param.get_uniquetwig(ps, exclude_levels=['context']) for param in fitted_params]
 
         # TODO: this assumes the unit hasn't changed since the solver run... alternatively we could store units in the solution as 'fitted_units'
-        # TODO: npdists multivariate support needs to accept list of units
+        # TODO: distl multivariate support needs to accept list of units
         fitted_units = None
         #fitted_units = [param.default_unit for param in fitted_params]
 
-        dist = _npdists.mvhistogram_from_data(samples.reshape((-1,len(fitted_twigs))), bins=kwargs.get('bins', 10), range=None, weights=None, unit=fitted_units, label=fitted_twigs, wrap_at=None)
+        dist = _distl.mvhistogram_from_data(samples.reshape((-1,len(fitted_twigs))), bins=kwargs.get('bins', 10), range=None, weights=None, units=fitted_units, labels=fitted_twigs, wrap_ats=None)
 
 
         return {'autocorr_time': autocorr_time,

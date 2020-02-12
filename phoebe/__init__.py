@@ -350,7 +350,7 @@ conf = Settings()
 # make packages available at top-level
 from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
-from .dependencies.npdists import gaussian, normal, boxcar, uniform, histogram_from_bins, histogram_from_data
+from .dependencies.distl import gaussian, normal, boxcar, uniform, histogram_from_bins, histogram_from_data
 from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, list_passband_online_history, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
 from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure, solver
 from .frontend.bundle import Bundle

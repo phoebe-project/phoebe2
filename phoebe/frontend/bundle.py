@@ -38,7 +38,7 @@ from phoebe.solutionbackends import solutionbackends as _solutionbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
-from phoebe.dependencies import npdists as _npdists
+from phoebe.dependencies import distl as _distl
 from phoebe.utils import _bytes, parse_json
 import libphoebe
 
@@ -5680,7 +5680,7 @@ class Bundle(ParameterSet):
         * `twig` (string, optional, default=None): twig pointing to an existing
             parameter to reference with this distribution.  If provided, this
             (along with `**kwargs`) must point to a single parameter.
-        * `value` (npdists Distribution object, optional, default=None): the
+        * `value` (distl Distribution object, optional, default=None): the
             distribution to be applied to the created <phoebe.parameters.DistributionParameter>.
             If not provided, will be a delta function around the current value
             of the referenced parameter.
@@ -5716,7 +5716,7 @@ class Bundle(ParameterSet):
         else:
             ref_param = self.exclude(context=['distribution', 'constraint']).get_parameter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']})
         if value is None:
-            value = _npdists.delta(ref_param.get_value())
+            value = _distl.delta(ref_param.get_value())
 
 
         metawargs = {'context': 'distribution',
@@ -5860,9 +5860,9 @@ class Bundle(ParameterSet):
 
         return self.filter(distribution=new_distribution)
 
-    def get_distribution_objects(self, distribution=None,
-                                 combine='first', include_constrained=False,
-                                 keys='twig'):
+    def get_distribution_collection(self, distribution=None,
+                                    combine='first', include_constrained=False,
+                                    keys='twig', set_labels=True):
         """
 
         Arguments
@@ -5874,15 +5874,17 @@ class Bundle(ParameterSet):
         * `combine`
         * `include_constrained` (bool, optional, default=False): whether to
             include constrained parameters.
-        * `keys` (string, optional, default='twig'): attribute to use for dictionary
-            keys ('twig', 'qualifier', 'uniqueid').  NOTE: the attributes will
-            be called on the referenced parameter, not the distribution parameter.
+        * `keys` (string, optional, default='twig'): attribute to use for the
+            second returned object ('twig', 'qualifier', 'uniqueid').  NOTE: the
+            attributes will be called on the referenced parameter, not the distribution parameter.
             See <phoebe.parameters.DistributionParameter.get_referenced_parameter>
             and <phoebe.parameters.FloatParameter.get_distribution>.
+        * `set_labels` (bool, optional, default=True): set the labels of the
+            distribution objects to be the twigs of the referenced parameters.
 
         Returns
         ------------
-        * dictionary of `keys`-npdists objects pairs
+        * distl.DistributionCollection, list of `keys`
         """
 
         if isinstance(distribution, str) or distribution is None:
@@ -5908,6 +5910,8 @@ class Bundle(ParameterSet):
                         if k in ret.keys():
                             raise ValueError("keys='{}' does not result in unique entries for each item".format(keys))
                         ret[k] = dist_param.get_value()
+                        if set_labels:
+                            ret[k].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
                         uniqueids.append(ref_param.uniqueid)
                     else:
                         logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
@@ -5915,7 +5919,7 @@ class Bundle(ParameterSet):
         else:
             raise TypeError("distribution must be of type None, string, or list")
 
-        return ret
+        return _distl.DistributionCollection(*list(ret.values())), list(ret.keys())
 
     def sample_distribution(self, distribution=None, N=None,
                             combine='first', include_constrained=False,
@@ -5938,7 +5942,7 @@ class Bundle(ParameterSet):
         * `combine`
         * `include_constrained` (bool, optional, default=False): whether to
             include constrained parameters.  Must be False to use `set_value`.
-            See also <phoebe.frontend.bundle.Bundle.get_distribution_objects>.
+            See also <phoebe.frontend.bundle.Bundle.get_distribution_collection>.
         * `set_value` (bool, optional, default=False): whether to adopt the
             sampled values for all relevant parameters.  Note that `N` must
             be None and `include_constrained` must be False.
@@ -5968,16 +5972,16 @@ class Bundle(ParameterSet):
             user_interactive_constraints = conf.interactive_constraints
             conf.interactive_constraints_off(suppress_warning=True)
 
-        dists_dict = self.get_distribution_objects(distribution,
-                                                   combine=combine,
-                                                   include_constrained=include_constrained,
-                                                   keys='uniqueid')
+        dc, uniqueids = self.get_distribution_collection(distribution,
+                                                         combine=combine,
+                                                         include_constrained=include_constrained,
+                                                         keys='uniqueid')
 
-        sampled_values = _npdists.sample_from_dists(dists_dict.values(), size=N).T
+        sampled_values = dc.sample(size=N).T
 
         ret = {}
         changed_params = []
-        for sampled_value, uniqueid in zip(sampled_values, dists_dict.keys()):
+        for sampled_value, uniqueid in zip(sampled_values, uniqueids):
             ref_param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
 
             if set_value:

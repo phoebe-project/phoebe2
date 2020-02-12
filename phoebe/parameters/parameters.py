@@ -9,7 +9,7 @@ from phoebe.constraints.expression import ConstraintVar
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete
-from phoebe.dependencies import nparray, npdists
+from phoebe.dependencies import nparray, distl
 from phoebe.utils import parse_json
 
 import sys
@@ -5172,7 +5172,7 @@ class Parameter(object):
                         v = self._value.to(self.default_unit).to_dict()
                     else:
                         v = self._value.to_dict()
-                elif isinstance(self._value, npdists.BaseDistribution):
+                elif isinstance(self._value, distl.BaseDistribution):
                     v = self._value.to_dict()
                 if isinstance(v, u.Quantity):
                     v = self.get_value() # force to be in default units
@@ -7450,7 +7450,7 @@ class DistributionParameter(Parameter):
         else:
             raise TypeError("value must be of type None, Quantity, float, or int")
 
-        return self.get_value().logp(param_quantity.value, unit=param_quantity.unit)
+        return self.get_value().pdf(param_quantity.value, unit=param_quantity.unit)
 
     @update_if_client
     def get_value(self, **kwargs):
@@ -7462,13 +7462,13 @@ class DistributionParameter(Parameter):
         return self._value
 
     def _check_value(self, value):
-        if isinstance(value, npdists.BaseDistribution):
+        if isinstance(value, distl.BaseDistribution):
             return value
-        elif isinstance(value, dict) and 'npdists' in value.keys():
+        elif isinstance(value, dict) and 'distl' in value.keys():
             # then we're loading the JSON version of an nparray object
-            return npdists.from_dict(value)
+            return distl.from_dict(value)
         else:
-            raise TypeError("must be a npdists Distribution object, got {} (type: {})".format(value, type(value)))
+            raise TypeError("must be a distl Distribution object, got {} (type: {})".format(value, type(value)))
 
     @send_if_client
     def set_value(self, value, force=False, run_checks=None, run_constraints=None, **kwargs):
@@ -7477,7 +7477,7 @@ class DistributionParameter(Parameter):
 
         Arguments
         -------------
-        * `value` (npdists distribution object): the distribution object
+        * `value` (distl distribution object): the distribution object
         * `run_checks` (bool, optional): whether to call
             <phoebe.frontend.bundle.Bundle.run_checks> after setting the value.
             If `None`, the value in `phoebe.conf.interactive_checks` will be used.
@@ -7501,7 +7501,7 @@ class DistributionParameter(Parameter):
                 raise ValueError("units of {} on distribution not compatible with units of {} on parameter".format(value.unit, ref_param.default_unit))
 
         # TODO: apply the label, but use dist.__repr__ for Parameter and ParameterSet
-        # displays of the value (npdists falls back on {label} when available)
+        # displays of the value (distl falls back on {label} when available)
         # value.label = ref_param.get_uniquetwig(self._bundle, exclude_levels=['context'])
 
         self._value = value
@@ -7510,7 +7510,7 @@ class DistributionParameter(Parameter):
 
     def set_property(self, **kwargs):
         """
-        Set any property of the underlying [npdists](https://npdists.readthedocs.io)
+        Set any property of the underlying [distl](https://distl.readthedocs.io)
         object.
 
         Example:
@@ -7520,7 +7520,7 @@ class DistributionParameter(Parameter):
 
         Arguments
         ----------
-        * `**kwargs`: properties to be set on the underlying npdists object.
+        * `**kwargs`: properties to be set on the underlying distl object.
         """
         for property, value in kwargs.items():
             setattr(self._value, property, value)
@@ -7530,7 +7530,7 @@ class DistributionParameter(Parameter):
         Plot both the analytic distribution function as well as a sampled
         histogram from the distribution.  Requires matplotlib to be installed.
 
-        This is simply a shortcut to [npdists.BaseDistribution.plot](https://npdists.readthedocs.io/en/latest/api/BaseDistribution.plot/)
+        This is simply a shortcut to [distl.BaseDistribution.plot](https://distl.readthedocs.io/en/latest/api/BaseDistribution.plot/)
 
         Raises
         --------
@@ -7779,7 +7779,7 @@ class FloatParameter(Parameter):
 
         Arguments
         ------------
-        * `value` (npdists Distribution object, optional, default=None): the
+        * `value` (distl Distribution object, optional, default=None): the
             distribution to be applied to the created <phoebe.parameters.DistributionParameter>.
             If not provided, will be a delta function around the current value
             of the referenced parameter.
@@ -10079,7 +10079,7 @@ class ConstraintParameter(Parameter):
                     if isinstance(v, np.ndarray) and string_safe_arrays:
                         v = v.tolist()
                     return v
-                elif isinstance(quantity, npdists.BaseDistribution):
+                elif isinstance(quantity, distl.BaseDistribution):
                     if self.in_solar_units:
                         v = quantity.to_solar()
                     else:
@@ -10094,7 +10094,7 @@ class ConstraintParameter(Parameter):
                 if use_distribution:
                     param = var.get_parameter()
                     if use_distribution in param.in_distributions:
-                        return "npdists_from_json('{}')".format(_single_value(param.get_distribution(use_distribution, follow_constraints=False)).to_json())
+                        return "distl_from_json('{}')".format(_single_value(param.get_distribution(use_distribution, follow_constraints=False)).to_json())
 
 
                 if var.get_parameter() != self.constrained_parameter:
@@ -10212,7 +10212,7 @@ class ConstraintParameter(Parameter):
         # let's assume the math was correct to give SI and we want units stored in self.default_units
 
         if self.default_unit is not None:
-            if isinstance(value, npdists.BaseDistribution):
+            if isinstance(value, distl.BaseDistribution):
                 value = value.to(self.default_unit)
             else:
                 if self.in_solar_units:
