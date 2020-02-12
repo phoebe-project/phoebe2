@@ -3440,48 +3440,43 @@ class ParameterSet(object):
         * ValueError: if `distribution` is not provided but more than one exist.
         * ValueError: if no distributions can be found labeled `distribution`
         """
-        if combine.lower() != 'and':
-            raise NotImplementedError("combine='{}' not supported".format(combine))
-
         if distribution is None:
             if len(self.distributions) == 1:
                 distribution = self.distributions[0]
             else:
-                raise ValueError("distribution must be provided (one of {})".format(self.distributions))
-
-        elif (isinstance(distribution, str) and distribution not in self.distributions) or (isinstance(distribution, list) and not np.all([dist in self.distributions for dist in distribution])):
-            # TODO: improve this check and message for the case of a list
-            raise ValueError("no distributions found with distribution='{}'".format(distribution))
+                raise ValueError("distribution must be provided (one or list of {})".format(self.distributions))
 
         if len(kwargs.items()):
             kwargs.setdefault('check_visible', False)
             return self.filter(**kwargs).calculate_lnp(distribution=distribution)
 
-        if isinstance(distribution, list):
-            lnp = 0
-            for dist in distribution:
-                lnp += self.calculate_lnp(distribution=dist)
-            return lnp
-
-        self.run_delayed_constraints()
+        self._bundle.run_delayed_constraints()
 
         # TODO: check to see if dist_param references a constrained parameter,
         # and if so, raise a warning if all other parameters in the constraint
         # also have attached distributions?
 
-        lnp = 0
-        for dist_param in self._bundle.get_distribution(distribution=distribution, **_skip_filter_checks).to_list():
-            ref_param = dist_param.get_referenced_parameter()
-            if not include_constrained and len(ref_param.constrained_by):
-                continue
+        dc, uniqueids = self._bundle.get_distribution_collection(distribution=distribution,
+                                                                 combine=combine,
+                                                                 include_constrained=include_constrained,
+                                                                 keys='uniqueid')
 
-            if dist_param not in self or dist_param.get_referenced_parameter() not in self:
-                logger.warning("'{}' outside filter, excluding from lnp calculation".format(dist_param.twig))
-                continue
+        # remove any that are not in the current filter
+        uniqueids_keep = [uid for uid in uniqueids if uid in self.uniqueids]
+        if len(uniqueids_keep) != len(uniqueids):
+            dc.distributions = [dc.distributions[uniqueids.index(ui)] for uid in uniqueids_keep]
 
-            lnp += dist_param.lnp()
+        values = [self._bundle.get_value(uniqueid=uid, unit=dist.unit, **_skip_filter_checks) for uid, dist in zip(uniqueids_keep, dc.dists)]
 
-        return lnp
+        # TODO: need to think about the as_univariate here... if we do
+        # include_constrained=False we shouldn't have to worry about math.
+        # But either way, we'll need to use dc.distributions_unpacked and
+        # somehow get the corresponding uniqueids (and go "up-the-tree" for
+        # any that were composite set by the user, not via or/and when
+        # combining).
+
+        # print("{} .logpdf(values={})".format(dc.distributions, values))
+        return dc.logpdf(values, as_univariates=True)
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
@@ -7450,7 +7445,7 @@ class DistributionParameter(Parameter):
         else:
             raise TypeError("value must be of type None, Quantity, float, or int")
 
-        return self.get_value().pdf(param_quantity.value, unit=param_quantity.unit)
+        return self.get_value().logpdf(param_quantity.value, unit=param_quantity.unit)
 
     @update_if_client
     def get_value(self, **kwargs):

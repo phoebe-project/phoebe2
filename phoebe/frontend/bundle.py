@@ -5890,36 +5890,53 @@ class Bundle(ParameterSet):
         if isinstance(distribution, str) or distribution is None:
             distribution = [distribution]
 
-        ret = {}
+        uid_dist_dict = {}
+        uniqueids = []
+        ret_keys = []
 
-        if isinstance(distribution, list):
-            if len(distribution) and combine.lower() != 'first':
-                raise NotImplementedError("combine='{}' not supported".format(combine))
-
-            # TODO: if * in list, need to expand (currently forbidden with error in get_distribution)
-
-            uniqueids = []
-            for dist in distribution:
-                dist_ps = self.get_distribution(dist)
-                for dist_param in dist_ps.to_list():
-                    ref_param = dist_param.get_referenced_parameter()
-                    if not include_constrained and len(ref_param.constrained_by):
-                        continue
-                    if ref_param.uniqueid not in uniqueids:
-                        k = getattr(ref_param, keys)
-                        if k in ret.keys():
-                            raise ValueError("keys='{}' does not result in unique entries for each item".format(keys))
-                        ret[k] = dist_param.get_value()
-                        if set_labels:
-                            ret[k].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
-                        uniqueids.append(ref_param.uniqueid)
-                    else:
-                        logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
-
-        else:
+        if not isinstance(distribution, list):
             raise TypeError("distribution must be of type None, string, or list")
 
-        return _distl.DistributionCollection(*list(ret.values())), list(ret.keys())
+        for dist in distribution:
+            # TODO: if * in list, need to expand (currently forbidden with error in get_distribution)
+
+            dist_ps = self.get_distribution(dist)
+            for dist_param in dist_ps.to_list():
+                ref_param = dist_param.get_referenced_parameter()
+                uid = ref_param.uniqueid
+                if not include_constrained and len(ref_param.constrained_by):
+                    continue
+                if uid not in uniqueids:
+                    k = getattr(ref_param, keys)
+                    if k in uid_dist_dict.keys():
+                        raise ValueError("keys='{}' does not result in unique entries for each item".format(keys))
+
+                    uid_dist_dict[uid] = dist_param.get_value()
+                    uniqueids.append(ref_param.uniqueid)
+                    ret_keys.append(k)
+                elif combine.lower() == 'first':
+                    logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
+                elif combine.lower() == 'and':
+                    dist_obj = dist_param.get_value()
+                    old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [uid_dist_dict[uid].to_univariate()] if hasattr(uid_dist_dict[uid], 'to_univariate') else [uid_dist_dict[uid]]
+                    new_dist = dist_obj.to_univariate() if hasattr(dist_obj, 'to_univariate') else dist_obj
+                    combined_dist = _distl._distl.Composite('__and__', old_dists + [new_dist])
+                    uid_dist_dict[uid] = combined_dist
+                elif combine.lower() == 'or':
+                    dist_obj = dist_param.get_value()
+                    old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [uid_dist_dict[uid].to_univariate()] if hasattr(uid_dist_dict[uid], 'to_univariate') else [uid_dist_dict[uid]]
+                    new_dist = dist_obj.to_univariate() if hasattr(dist_obj, 'to_univariate') else dist_obj
+                    combined_dist = _distl._distl.Composite('__or__', old_dists + [new_dist])
+                    uid_dist_dict[uid] = combined_dist
+                else:
+                    raise NotImplementedError("combine='{}' not supported".format(combine))
+
+                if set_labels:
+                    uid_dist_dict[uid].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
+
+
+
+        return _distl.DistributionCollection(*[uid_dist_dict.get(uid) for uid in uniqueids]), ret_keys
 
     def sample_distribution(self, distribution=None, N=None,
                             combine='first', include_constrained=False,

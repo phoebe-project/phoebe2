@@ -8,6 +8,9 @@ from collections import OrderedDict
 
 from . import stats_custom as _stats_custom
 
+if _sys.version_info[0] > 2:
+    unicode = str
+
 try:
     import matplotlib.pyplot as _plt
 except ImportError:
@@ -29,7 +32,7 @@ except ImportError:
 else:
     _has_astropy = True
 
-__version__ = '0.1.0-dev'
+__version__ = '0.1.0.dev1'
 version = __version__
 
 _math_symbols = {'__mul__': '*', '__add__': '+', '__sub__': '-', '__div__': '/', '__and__': '&', '__or__': '|'}
@@ -77,7 +80,7 @@ def from_dict(d):
     ----------
     * The appropriate distribution object.
     """
-    if isinstance(d, str):
+    if isinstance(d, str) or isinstance(d, unicode):
         return from_json(d)
 
     if not isinstance(d, dict):
@@ -172,8 +175,10 @@ def to_unit(unit):
     """
     Convert a string to an astropy unit object
     """
-    if isinstance(unit, str):
+    if isinstance(unit, str) or isinstance(unit, unicode):
         unit = _units.Unit(unit)
+
+    return unit
 
 def _json_safe(v):
     if isinstance(v, _np.ndarray):
@@ -182,7 +187,7 @@ def _json_safe(v):
         return [_json_safe(li) for li in v]
     elif isinstance(v, BaseDistribution):
         return v.to_dict()
-    # elif is_unit(v)[0]:
+    # elif _is_unit(v):
     #     return v.to_string()
     else:
         return v
@@ -199,123 +204,118 @@ def _any_in_types(objects, types):
 # NOTE: the docstring is used as the error message if the test fails
 
 def is_distribution(value):
-    """must be a distl Distribution object"""
     if isinstance(value, dict) and 'distl' in value.keys():
-        return True, from_dict(value)
-    return isinstance(value, BaseDistribution), value
+        return from_dict(value)
+    if isinstance(value, BaseDistribution):
+        return value
+    raise TypeError('must be a distl Distribution object')
 
 def is_distribution_univariate_or_slice(value):
-    """must be a distl Distribution object (uniariate or multivariate-slice, not multivariate)"""
-    truth, value = is_distribution(value)
-    if not truth:
-        return truth, value
-    return isinstance(value, BaseUnivariateDistribution) or isinstance(value, BaseMultivariateSliceDistribution), value
+    value = is_distribution(value)
+    if isinstance(value, BaseUnivariateDistribution) or isinstance(value, BaseMultivariateSliceDistribution):
+        return value
+    raise TypeError('must be a Univariate or MultivariateSlice distl Distribution object')
 
 def is_distribution_or_none(value):
-    """must be a distl Distribution object or None"""
     if value is None:
-        return True, value
-    else:
+        return value
+
+    try:
         return is_distribution(value)
+    except TypeError:
+        raise TypeError('must be a distl Distribution object or None')
 
 def is_math(value):
-    """must be a valid math operator"""
-    # TODO: make this more robust checking
     valid_maths = ['__add__', '__radd__', '__sub__', '__rsub__', '__mul__', '__rmul__', '__div__', '__rdiv__']
     valid_maths += ['sin', 'cos', 'tan']
     valid_maths += ['__and__', '__or__']
-    return value in valid_maths, value
+    if value in valid_maths:
+        return value
+    raise TypeError('must be a valid math operator (one of {})'.format(valid_maths))
 
-def is_callable(value):
-    """must be a callable function"""
-    if isinstance(value, str):
-        # try to "undill"
-        if _has_dill:
-            value = _dill.loads(value)
-        else:
-            raise ImportError("'dill' package required to load functions")
-    return hasattr(value, 'func_name'), value
-
-def is_callable_or_none(value):
-    if value is None:
-        return True, value
-    else:
-        return is_callable(value)
-
-def is_unit(value):
-    """must be an astropy unit"""
+def _is_unit(value):
     if not _has_astropy:
         raise ImportError("astropy must be installed for unit support")
-    if (isinstance(value, _units.Unit) or isinstance(value, _units.IrreducibleUnit) or isinstance(value, _units.CompositeUnit)):
-        return True, value
-    else:
-        return False, value
+    return (isinstance(value, _units.Unit) or isinstance(value, _units.IrreducibleUnit) or isinstance(value, _units.CompositeUnit))
+
+
+def is_unit(value):
+    if _is_unit(value):
+        return value
+    raise TypeError('must be an astropy unit')
 
 def is_unit_or_unitstring(value):
-    """must be an astropy.unit"""
-    if is_unit(value)[0]:
-        return True, value
     try:
-        unit = _units.Unit(value)
+        return to_unit(value)
     except:
-        return False, value
-    else:
-        return True, unit
+        raise TypeError('must be an astropy unit or valid string')
 
 def is_unit_or_unitstring_or_none(value):
-    """must be an astropy unit or None"""
     if value is None:
-        return True, value
+        return value
     return is_unit_or_unitstring(value)
 
 def is_bool(value):
-    """must be boolean"""
-    return isinstance(value, bool), value
+    if isinstance(value, bool):
+        return value
+    raise TypeError("must be boolean")
 
 def is_float(value):
-    """must be a float"""
     try:
         value = float(value)
     except:
-        return False, value
+        raise TypeError("must be a float")
     else:
-        return True, value
-
-    # return isinstance(value, float) or isinstance(value, int) or isinstance(value, _np.float64), float(value)
+        return value
 
 def is_int(value):
-    """must be an integer"""
-    return isinstance(value, int), value
+    if isinstance(value, int):
+        return value
+    raise TypeError('must be an integer')
 
 def is_int_positive(value):
-    """must be a positive integer"""
-    return isinstance(value, int) and value > 0, value
+    if isinstance(value, int) and value > 0:
+        return value
+    raise TypeError("must be a positive integer")
 
 def is_int_positive_or_none(value):
-    """must be a postive integer or None"""
-    return is_int_positive or value is None, value
-
-def is_valid_shape(value):
-    """must be a positive integer or a tuple/list of positive integers"""
-    if is_int_positive(value):
-        return True, value
-    elif isinstance(value, tuple) or isinstance(value, list):
-        for v in value:
-            if not is_int_positive(v):
-                return False, value
-        return True, value
-    else:
-        return False, value
+    if value is None:
+        return value
+    return is_int_positive(value)
 
 def is_iterable(value):
     """must be an iterable (list, array, tuple)"""
-    return isinstance(value, _np.ndarray) or isinstance(value, list) or isinstance(value, tuple), value
+    if _all_in_types((value,), (_np.ndarray, list, tuple)):
+        return value
+    raise TypeError("must be a numpy array, list, or tuple")
+
+def is_1d_array(value):
+    try:
+        value = _np.asarray(value)
+    except:
+        raise TypeError("must be a 1d array")
+    else:
+        if len(value.shape)==1:
+            return value
+        raise TypeError("must be a 1d array")
+
+def is_nd_array(value):
+    try:
+        value = _np.asarray(value)
+    except:
+        raise TypeError("must be an nd array")
+    else:
+        if len(value.shape) > 1:
+            return value
+        raise TypeError("must be a 1d array")
 
 def is_square_matrix(value):
-    """must be a square 2D matrix"""
     if isinstance(value, list):
         value = _np.asarray(value)
-    return isinstance(value, _np.ndarray) and len(value.shape)==2 and value.shape[0]==value.shape[1], value
+
+    if isinstance(value, _np.ndarray) and len(value.shape)==2 and value.shape[0]==value.shape[1]:
+        return value
+    raise TypeError("must be a square matrix")
 
 
 ################################################################################
@@ -346,28 +346,14 @@ class BaseDistribution(object):
 
     * <BaseDistribution.__init__>
     """
-    def __init__(self, dist_constructor_func, dist_constructor_argnames,
-                 *args):
+    def __init__(self, dist_constructor_func, dist_constructor_argnames, **kwargs):
         """
         BaseDistribution is the parent class for all distributions and should
         not be used directly by the user.
 
         Any subclass distribution should override the init but call this via
-        super.
-
-        For example:
-
-        ```py
-        def __init__(self, start, stop, step):
-            super(MyClass, self).__init__(('start', start, is_float), ('stop', stop, is_float), ('step', step, is_float))
-        ```
-
-        All of these "descriptors" will then be available to get and set via
-        their attribute names
+        super.  See <Gaussian.__init__> for an example for subclassing.
         """
-        self._descriptors = OrderedDict()
-        self._validators = OrderedDict()
-
         self._cached_sample = None
 
         self._dist_constructor_func = dist_constructor_func
@@ -376,49 +362,10 @@ class BaseDistribution(object):
         self._dist_constructor_object_cache = None
         self._parents_with_constructor_object_cache = []
 
-        for item in args:
-            if item[0] in _builtin_attrs:
-                raise KeyError("{} is a protected attribute.".format(item[0]))
+        self._descriptors = kwargs.pop('descriptors', list(kwargs.keys()))
 
-            valid, validated_value = item[2](item[1])
-            if valid:
-                self._descriptors[item[0]] = validated_value
-            else:
-                raise ValueError("{} {}, got {} ({})".format(item[0], item[2].__doc__, item[1], type(item[1])))
-            self._validators[item[0]] = item[2]
-
-    def __getattr__(self, name):
-        """
-        for anything that isn't overriden here, expose the values in self._descriptors
-        """
-        if not name.startswith('_') and name in self._descriptors.keys():
-            # then get the item in the dictionary
-            return self._descriptors.get(name)
-        else:
-            try:
-                return super(BaseDistribution, self).__getattr__(name)
-            except AttributeError:
-                raise AttributeError("{} does not have attribute {}".format(self.__class__.__name__.lower(), name))
-
-    def __setattr__(self, name, value):
-        """
-        """
-        if not name.startswith('_') and name in self._descriptors.keys():
-            valid, validated_value = self._validators[name](value)
-            if valid:
-                # clear the cache first since the underlying constructor object
-                # will now need to be rebuilt.  This also bubbles up to anything
-                # in self._parents_with_constructor_object_cache
-                self._dist_constructor_object_clear_cache()
-                # and then set the value in the dictionary
-                self._descriptors[name] = validated_value
-            else:
-                raise ValueError("{} {}".format(name, validator.__doc__))
-        else:
-            try:
-                return super(BaseDistribution, self).__setattr__(name, value)
-            except AttributeError:
-                raise AttributeError("{} does not have attribute '{}'".format(self.__class__.__name__.lower(), name))
+        for k,v in kwargs.items():
+            setattr(self, k, v)
 
     ### REPRESENTATIONS
 
@@ -477,13 +424,7 @@ class BaseDistribution(object):
         --------
         * string
         """
-        try:
-            return _json.dumps(self.to_dict(), ensure_ascii=True, **kwargs)
-        except:
-            if _has_dill:
-                return _dill.dumps(self)
-            else:
-                raise ImportError("dumping file requires 'dill' package")
+        return _json.dumps(self.to_dict(), ensure_ascii=True, **kwargs)
 
     def to_file(self, filename, **kwargs):
         """
@@ -535,13 +476,13 @@ class BaseDistribution(object):
         return self.__float__() >= other
 
     def __mul__(self, other):
-        if _has_astropy and is_unit(other)[0]:
+        if _has_astropy and _is_unit(other):
             copy = self.copy()
             copy.unit = other
             return copy
 
         elif _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
-            return Composite("__mul__", self, other)
+            return Composite("__mul__", (self, other))
         elif isinstance(other, float) or isinstance(other, int):
             return self.__mul__(Delta(other))
         else:
@@ -552,7 +493,7 @@ class BaseDistribution(object):
 
     def __div__(self, other):
         if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
-            return Composite("__div__", self, other)
+            return Composite("__div__", (self, other))
         elif isinstance(other, float) or isinstance(other, int):
             return self.__div__(Delta(other))
         else:
@@ -560,7 +501,7 @@ class BaseDistribution(object):
 
     def __rdiv__(self, other):
         if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
-            return Composite("__rdiv__", self, other)
+            return Composite("__rdiv__", (self, other))
         elif isinstance(other, float) or isinstance(other, int):
             return self.__rdiv__(Delta(other))
         else:
@@ -568,7 +509,7 @@ class BaseDistribution(object):
 
     def __add__(self, other):
         if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
-            return Composite("__add__", self, other)
+            return Composite("__add__", (self, other))
         elif isinstance(other, float) or isinstance(other, int):
             return self.__add__(Delta(other))
         else:
@@ -579,7 +520,7 @@ class BaseDistribution(object):
 
     def __sub__(self, other):
         if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
-            return Composite("__sub__", self, other)
+            return Composite("__sub__", (self, other))
         elif isinstance(other, float) or isinstance(other, int):
             return self.__sub__(Delta(other))
         else:
@@ -592,13 +533,13 @@ class BaseDistribution(object):
         if not _all_in_types((self, other), (BaseUnivariateDistribution,)):
             raise TypeError("cannot use & (and) logic between types {} and {}".format(self.__class__.__name__, type(other)))
 
-        return Composite("__and__", self, other)
+        return Composite("__and__", (self, other))
 
     def __or__(self, other):
         if not _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
             raise TypeError("cannot use | (or) logic between types {} and {}".format(self.__class__.__name__, type(other)))
 
-        return Composite("__or__", self, other)
+        return Composite("__or__", (self, other))
 
     def sin(self):
         if not _all_in_types((self,), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
@@ -609,7 +550,7 @@ class BaseDistribution(object):
         else:
             dist = self
 
-        return Composite("sin", dist)
+        return Composite("sin", (dist,))
 
     def cos(self):
         if not _all_in_types((self,), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
@@ -620,7 +561,7 @@ class BaseDistribution(object):
         else:
             dist = self
 
-        return Composite("cos", dist)
+        return Composite("cos", (dist,))
 
     def tan(self):
         if not _all_in_types((self,), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
@@ -631,7 +572,7 @@ class BaseDistribution(object):
         else:
             dist = self
 
-        return Composite("tan", dist)
+        return Composite("tan", (dist,))
 
     ### SAMPLE CACHING
     @property
@@ -1408,7 +1349,7 @@ class BaseUnivariateDistribution(BaseDistribution):
         self.wrap_at = wrap_at
 
     def __repr__(self):
-        descriptors = " ".join(["{}={}".format(k,v) for k,v in self._descriptors.items()])
+        descriptors = " ".join(["{}={}".format(k,getattr(self,k)) for k in self._descriptors])
         if self.unit is not None:
             descriptors += " unit={}".format(self.unit)
         if self.wrap_at is not None:
@@ -1439,7 +1380,7 @@ class BaseUnivariateDistribution(BaseDistribution):
         --------
         * dictionary
         """
-        d = {k:_json_safe(v) for k,v in self._descriptors.items()}
+        d = {k: _json_safe(getattr(self, k)) for k in self._descriptors}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
         if self.unit is not None:
@@ -1463,8 +1404,11 @@ class BaseUnivariateDistribution(BaseDistribution):
 
     @label.setter
     def label(self, label):
-        if not (label is None or isinstance(label, str)):
-            raise TypeError("label must be of type str")
+        if label is not None:
+            try:
+                label = str(label)
+            except:
+                raise TypeError("label must be of type str")
 
         self._label = label
 
@@ -1484,7 +1428,7 @@ class BaseUnivariateDistribution(BaseDistribution):
 
     @unit.setter
     def unit(self, unit):
-        if isinstance(unit, str):
+        if isinstance(unit, str) or isinstance(unit, unicode):
             unit = _units.Unit(unit)
 
         if not (unit is None or isinstance(unit, _units.Unit) or isinstance(unit, _units.CompositeUnit) or isinstance(unit, _units.IrreducibleUnit)):
@@ -1544,10 +1488,11 @@ class BaseUnivariateDistribution(BaseDistribution):
         if not _has_astropy:
             raise ImportError("astropy required to handle units")
 
-        if self.unit is None:
-            raise ValueError("distribution object does not have a unit")
-
-        factor = self.unit.to(unit)
+        if self.unit is None or self.unit in [_units.dimensionless_unscaled]:
+            # then we'll just adopt the units without applying any scaling
+            factor = 1.0
+        else:
+            factor = self.unit.to(unit)
 
         new_dist = self.copy()
         new_dist.unit = unit
@@ -1965,8 +1910,8 @@ class BaseUnivariateDistribution(BaseDistribution):
         """
         try:
             median = self.dist_constructor_object.median()
-        except AttributeError:
-            raise NotImplementedError("{} does not support median".format(self.__class__.__name__))
+        except AttributeError as err:
+            raise NotImplementedError("{} does not support median.  Original error: {}".format(self.__class__.__name__, err))
 
         return self._return_with_units(self.wrap(median, wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
 
@@ -2256,7 +2201,7 @@ class BaseMultivariateDistribution(BaseDistribution):
         self.wrap_ats = wrap_ats
 
     def __repr__(self):
-        descriptors = " ".join(["{}={}".format(k,v) for k,v in self._descriptors.items()])
+        descriptors = " ".join(["{}={}".format(k,getattr(self,k)) for k in self._descriptors])
         if self.units is not None:
             descriptors += " units={}".format(self.units)
         if self.wrap_ats is not None:
@@ -2288,11 +2233,11 @@ class BaseMultivariateDistribution(BaseDistribution):
         * dictionary
         """
 
-        d = {k:_json_safe(v) for k,v in self._descriptors.items()}
+        d = {k:_json_safe(getattr(self,k)) for k in self._descriptors}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
         if self.units is not None:
-            d['units'] = str(self.units.to_string())
+            d['units'] = [u.to_string() if u is not None else None for u in self.units]
         if self.labels is not None:
             d['labels'] = self.labels
         if self.wrap_ats is not None:
@@ -2300,7 +2245,7 @@ class BaseMultivariateDistribution(BaseDistribution):
         return d
 
     def _get_dimension_index(self, dimension):
-        if isinstance(dimension, str):
+        if isinstance(dimension, str) or isinstance(dimension, unicode):
             if dimension not in self.labels:
                 raise ValueError("dimension must be one of {}".format(self.labels))
 
@@ -2333,7 +2278,7 @@ class BaseMultivariateDistribution(BaseDistribution):
 
     @labels.setter
     def labels(self, labels):
-        if isinstance(labels, str):
+        if isinstance(labels, str) or isinstance(labels, unicode):
             raise NotImplementedError()
             # labels = [label for _ in range(self._ndimensions_available)]
 
@@ -2388,7 +2333,7 @@ class BaseMultivariateDistribution(BaseDistribution):
         units = [to_unit(u) for u in units]
 
 
-        if not np.all([unit is None or isinstance(unit, _units.Unit) or isinstance(unit, _units.CompositeUnit) or isinstance(unit, _units.IrreducibleUnit) for unit in units]):
+        if not _np.all([unit is None or isinstance(unit, _units.Unit) or isinstance(unit, _units.CompositeUnit) or isinstance(unit, _units.IrreducibleUnit) for unit in units]):
             raise TypeError("units must be a list of type astropy.units.Unit")
 
         self._units = units
@@ -2611,7 +2556,7 @@ class BaseMultivariateDistribution(BaseDistribution):
                 raise ImportError("corner must be installed to plot multivariate distributions.  Either install corner or pass a value to dimension to plot a 1D distribution.")
 
 
-            return corner.corner(self.sample(size=int(1e5), cache_sample=False), labels=self.labels, **kwargs)
+            return corner.corner(self.sample(size=int(1e5), cache_sample=False), labels=[self._xlabel(dim) for dim in range(self.ndimensions)], **kwargs)
 
     def plot(self, **kwargs):
         """
@@ -2632,11 +2577,6 @@ class BaseMultivariateDistribution(BaseDistribution):
 
 class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
     def __init__(self, multivariate, dimension):
-        # we don't have any descriptors (since we'll handle dimension manually)
-        # but since we're subclassing BaseUnivariateDistribution, we need
-        # to have an empty dictionary so that __getattr__ and __setattr__ work.
-        self._descriptors = {}
-
         self._dist_constructor_object_cache = None
         self._parents_with_constructor_object_cache = []
 
@@ -2652,7 +2592,7 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
 
 
     def __repr__(self):
-        descriptors = " ".join(["{}={}".format(k,v) for k,v in self.multivariate._descriptors.items()])
+        descriptors = " ".join(["{}={}".format(k,getattr(self.multivariate,k)) for k in self.multivariate._descriptors])
         if self.unit is not None:
             descriptors += " unit={}".format(self.unit)
         if self.wrap_at is not None:
@@ -2798,6 +2738,8 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
     ### SAMPLE CACHING
     @property
     def cached_sample(self):
+        if self.multivariate.cached_sample is None:
+            return None
         return self.multivariate.cached_sample[self.dimension]
 
     def clear_cached_sample(self):
@@ -2810,7 +2752,7 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
 
     ### SAMPLING & PLOTTING
 
-    def sample(self, size=None, seed=None, cache_sample=True):
+    def sample(self, size=None, wrap_at=None, seed=None, cache_sample=True):
         """
         Sample the underlying <<class>.multivariate> distribution in the dimension
         defined in <<class>.dimension>.
@@ -2820,6 +2762,15 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         return self.multivariate.sample(size=size, seed=seed, dimension=self.dimension, cache_sample=cache_sample)
 
     def plot_sample(self, *args, **kwargs):
+        if hasattr(self, 'bins'):
+            # for MVHistogramSlice, we want to take the correct bins to pass on
+            # to plotting so we don't access the ndimensional MVHistogram.bins
+            kwargs.setdefault('bins', self.bins)
+            # if wrap_at or (hasattr(self, 'wrap_at') and self.wrap_at):
+            #     kwargs.setdefault('bins', len(self.bins))
+            # else:
+            #     kwargs.setdefault('bins', self.bins)
+
         return self.multivariate.plot_sample(*args, dimension=self.dimension, **kwargs)
 
     def to_univariate(self):
@@ -2834,11 +2785,11 @@ class DistributionCollection(object):
     <DistributionCollection> allows sampling from multiple distribution objects
     simultaneously, respecting all underlying covariances whenever possible.
     """
-    def __init__(self, *distributions):
-        if isinstance(distributions, BaseDistribution):
-            distributions = [distributions]
+    def __init__(self, *dists):
+        if isinstance(dists, BaseDistribution):
+            dists = [dists]
 
-        self.distributions = distributions
+        self.dists = dists
 
         self._cached_sample = None
 
@@ -2862,37 +2813,35 @@ class DistributionCollection(object):
         d = {}
         d['distl'] = self.__class__.__name__
         d['distl.version'] = __version__
-        d['args'] = [distribution.to_dict() for distribution in self.distributions]
+        d['args'] = [distribution.to_dict() for distribution in self.dists]
         return d
 
     @property
-    def distributions(self):
+    def dists(self):
         """
         """
         return self._dists
 
-    @distributions.setter
-    def distributions(self, distributions):
+    @dists.setter
+    def dists(self, distributions):
         # TODO: OPTIMIZE simplify this logic
-        if is_distribution(distributions)[0]:
+        if isinstance(distributions, BaseDistribution):
             distributions = [distributions]
 
         if not (isinstance(distributions, list) or isinstance(distributions, tuple)):
             raise TypeError('distributions must be a list of distribution objects')
 
-        if not _np.all([is_distribution_univariate_or_slice(distribution)[0] for distribution in distributions]):
-            raise TypeError('distributions must be a list of distribution objects (where each must be a univariate or multivariate-slice)')
-
-        self._dists = [is_distribution_univariate_or_slice(distribution)[1] for distribution in distributions]
+        # TODO: clear caches?
+        self._dists = [is_distribution_univariate_or_slice(distribution) for distribution in distributions]
 
     @property
     def labels(self):
         """
         """
-        return [d.label for d in self.distributions]
+        return [d.label for d in self.dists]
 
     @property
-    def distributions_unpacked(self):
+    def dists_unpacked(self):
         """
         """
         # first well expand any Composite distributions to access the underlying
@@ -2907,7 +2856,7 @@ class DistributionCollection(object):
                 return [dist]
 
         dists_all = []
-        for dist in self.distributions:
+        for dist in self.dists:
             dists_all += unpack_dists(dist)
 
         return dists_all
@@ -2916,7 +2865,7 @@ class DistributionCollection(object):
     def labels_unpacked(self):
         """
         """
-        return [d.label for d in self.distributions_unpacked]
+        return [d.label for d in self.dists_unpacked]
 
     @property
     def cached_sample(self):
@@ -2926,9 +2875,10 @@ class DistributionCollection(object):
     def cached_sample_unpacked(self):
         """
         """
-        return _np.asarray([d.cached_sample for d in self.distributions_unpacked])
+        return _np.asarray([d.cached_sample for d in self.dists_unpacked])
 
     def _method_on_values(self, method, npmethod, values, as_univariates):
+        # TODO: add support for units?
         dist_values_dict = self.get_distributions_with_values(values, as_univariates)
         return getattr(_np, npmethod)([getattr(dist, method)(value) for dist, value in dist_values_dict.items()])
 
@@ -2968,7 +2918,7 @@ class DistributionCollection(object):
         """
         # values_dict, dists_dict = self._get_unique_values_dists(self._get_cached_values(values, as_univariates), as_univariates)
         values = self._get_cached_values(values, as_univariates)
-        dists = self.distributions if as_univariates else self.distributions_unpacked
+        dists = self.dists if as_univariates else self.dists_unpacked
 
         if len(values) != len(dists):
             raise ValueError("values must be same length as self.{} (length={}).  To use self.{} instead, pass as_univariates={}".format('distributions' if as_univariates else 'distributions_unpacked', len(dists), 'distributions' if not as_univariates else 'distributions_unpacked', not as_univariates))
@@ -3198,12 +3148,12 @@ class DistributionCollection(object):
         if seeds is None:
             seeds = {}
 
-        for i,dist in enumerate(self.distributions_unpacked):
+        for i,dist in enumerate(self.dists_unpacked):
             seeds.setdefault(dist.hash, get_random_seed()[i])
 
         sample_kwargs = {k:v for k,v in kwargs.items() if k not in ['seeds']}
         # print("*** seeds: {}, sample_kwargs: {}".format(seeds, sample_kwargs))
-        samples = _np.asarray([dist.sample(*args, seed=seeds, cache_sample=cache_sample, **sample_kwargs) for dist in self.distributions]).T
+        samples = _np.asarray([dist.sample(*args, seed=seeds, cache_sample=cache_sample, **sample_kwargs) for dist in self.dists]).T
 
         if cache_sample:
             self._cached_sample = samples
@@ -3247,7 +3197,7 @@ class DistributionCollection(object):
             raise ImportError("corner must be installed to plot multivariate distributions.  Either install corner or pass a value to dimension to plot a 1D distribution.")
 
 
-        return corner.corner(self.sample(size=int(1e5), cache_sample=False), labels=self.labels, **kwargs)
+        return corner.corner(self.sample(size=int(1e5), cache_sample=False), labels=[dist._xlabel() for dist in self.dists], **kwargs)
 
     def plot(self, **kwargs):
         """
@@ -3353,8 +3303,8 @@ class Composite(BaseUnivariateDistribution):
         fit to the pdf and integrated to create the cdf (which is inverted to
         create the ppf function).  Each of these are then linearly interpolated
         to create the underlying scipy.stats object.  This object is then used
-        for sampling as well as accessing the <<class>.pdf>, <<class>.cdf>,
-        <<class>.ppf>, etc.  For this reason, the and operator does not support
+        for sampling as well as accessing the <Composite.pdf>, <Composite.cdf>,
+        <Composite.ppf>, etc.  For this reason, the and operator does not support
         retaining covariances at all.
 
     * |: the pdfs and cdfs of the two underlying distributions are sampled over their
@@ -3364,8 +3314,8 @@ class Composite(BaseUnivariateDistribution):
         object is then used for any call to the underlying call EXCEPT for sampling.
         Sampling is handled by randomly choosing which child distribution to sample
         from and then sampling from that distribution.  Or operators are therefore
-        able to retain covariances for <<class>.sample>, but not for any calls
-        to <<class>.pdf>, <<class>.cdf>, or <<class>.ppf>.
+        able to retain covariances for <Composite.sample>, but not for any calls
+        to <Composite.pdf>, <Composite.cdf>, or <Composite.ppf>.
 
     * all others: sampling is handled by sampling the underyling children and
         therefore can retain covariances.  The pdfs, cdfs, and ppfs are
@@ -3373,7 +3323,7 @@ class Composite(BaseUnivariateDistribution):
         and linearly interpolating between the bins, thereby losing all covariances.
 
     """
-    def __init__(self, math, dist1, dist2=None, unit=None, label=None, wrap_at=None):
+    def __init__(self, math, dists, unit=None, label=None, wrap_at=None):
         """
         Create a <Composite> distribution from two other distributions.
 
@@ -3382,12 +3332,11 @@ class Composite(BaseUnivariateDistribution):
 
         Arguments
         ----------
-        * `math`: operator to be used between the two distributions.  Must
+        * `math`: operator to be used between the `dists`.  Must
             be a valid and implemented operator.
-        * `dist1` (<BaseDistribution>)
-        * `dist2` (<BaseDistribution>, optional, default=None): the second
-            distribution is required for most operators.  Some operators
-            (e.g. sin, cos, tan) only take one distribution as an argument.
+        * `dists` (list of distribution objects): distribution objects
+            to apply `math` operator.  Some operators (e.g. sin, cos, tan) only
+            take one distribution as an argument, but most require 2 or more.
         * `unit` (astropy.units object, optional): the units of the provided values.
         * `label` (string, optional): a label for the distribution.  This is used
             for the x-label while plotting the distribution, as well as a shorthand
@@ -3401,103 +3350,116 @@ class Composite(BaseUnivariateDistribution):
         ---------
         * a <Composite> object.
         """
-
-        # TODO: do we need to make copies of dist1 and dist2?
-        dist1 = dist1.copy()
-        if dist2 is not None:
-            dist2 = dist2.copy()
-
-        if isinstance(dist1, dict):
-            dist1 = from_dict(dist1)
-        if isinstance(dist2, dict):
-            dist2 = from_dict(dist2)
-
-        if label is None:
-            if dist2 is None and dist1.label is not None:
-                label = '{}({})'.format(math, dist1.label)
-            elif dist1.label is not None and dist2.label is not None:
-                label = '{} {} {}'.format(dist1.label, _math_symbols.get(math, math), dist2.label)
-
         super(Composite, self).__init__(unit, label, wrap_at,
                                         _stats_custom.generic_pdf_cdf_ppf, ('_pdf_cdf_ppf_callables'),
-                                        ('math', math, is_math), ('dist1', dist1, is_distribution), ('dist2', dist2, is_distribution_or_none))
+                                        math=math, dists=dists)
+
+        if label is None:
+            if len(dists) == 1:
+                if dists[0].label is not None:
+                    self.label = '{}({})'.format(math, dists[0].label)
+            else:
+                if _np.all([d.label is not None for d in dists]):
+                    self.label = ' {} '.format(_math_symbols.get(math, math)).join([d.label for d in dists])
+
+
+        def recursive_math(math, items):
+            if len(items) > 2:
+                return getattr(items[0], math)(items[1])
+            return getattr(items[0], math)(recursive_math(math, items[1:]))
 
         if _has_astropy:
-            if dist1.unit is not None:
-                if dist2 is None:
+            if len(dists) == 1:
+                if dists[0].unit is None:
                     # trig always gives unitless
                     self.unit = _units.dimensionless_unscaled
-                elif dist2.unit is not None:
-                    if math in ['__add__', '__sub__', '__and__', '__or__']:
-                        if dist1.unit == dist2.unit:
-                            self.unit = dist1.unit
-                        else:
-                            # TODO: if they're convertible, we should handle the scaling automatically
-                            raise ValueError("units do not match")
-                    elif hasattr(dist1.unit, math):
-                        self.unit = getattr(dist1.unit, math)(dist2.unit)
+            elif _np.all([d.unit is not None for d in dists]):
+                if math in ['__add__', '__sub__', '__and__', '__or__']:
+                    # all units must match
+                    if _np.all([d.unit==dists[0].unit for d in dists]):
+                        self.unit = dists[0].unit
                     else:
-                        raise ValueError("cannot determine new unit from {}{}{}".format(dist1.unit, _math_symbols.get(math, math), dist2.unit))
+                        # TODO: if they're convertible, we should handle the scaling automatically?
+                        raise ValueError("units do not match for {} operator".format(math))
+                elif hasattr(dists[0].unit, math):
+                    self.unit = recursive_math(math, [d.unit for d in dists])
                 else:
-                    self.unit = dist1.unit
-            elif dist2 is not None and dist2.unit is not None:
-                self.unit = dist2.unit
-            else:
-                self.unit = None
+                    raise ValueError("cannot determine new units from {}".format(" {} ".format(_math_symbols.get(math, math)).join([d.unit for d in dists])))
 
         # do some paperwork so changes to descriptors in the children bubble
         # up and will call self._dist_constructor_object_clear_cache()
-        dist1._parents_with_constructor_object_cache.append(self)
-        if dist2 is not None:
-            dist2._parents_with_constructor_object_cache.append(self)
+        for dist in dists:
+            dist._parents_with_constructor_object_cache.append(self)
 
+    @property
+    def math(self):
+        """
+        operator to be used between the <Composite.dists>.  Must be a valid and
+        implemented operator.
+        """
+        return self._math
+
+    @math.setter
+    def math(self, value):
+        self._math = is_math(value)
+
+    @property
+    def dists(self):
+        """
+        distribution objects to apply <Composite.math> operator.  Some operators (e.g. sin,
+        cos, tan) only take one distribution as an argument, but most require
+        2 or more.
+        """
+        return self._dists
+
+    @dists.setter
+    def dists(self, value):
+        if isinstance(value, BaseDistribution):
+            value = [value]
+
+        if not (isinstance(value, tuple) or isinstance(value, list)):
+            raise TypeError("dists must be a tuple or list of distributions, got {}".format(type(value)))
+
+        for i,dist in enumerate(value):
+            if isinstance(dist, dict):
+                value[i] = from_dict(dist)
+
+        if not _all_in_types(value, (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            raise TypeError("dists must be a tuple or list of distributions (univariate or multivariate slices)")
+
+        if len(value)==1 and self.math not in ['sin', 'cos', 'tan']:
+            raise ValueError("math with operator '{}' requires more than one distribution".format(self.math))
+
+        self._dists = value
 
     def __repr__(self):
         return "<distl.{} {} unit={}>".format(self.__class__.__name__.lower(), self.__str__(), self.unit if self.unit is not None else "None")
 
     def __str__(self):
-        if self.dist2 is not None:
-            return "{}{}{}".format(self.dist1.__str__(), _math_symbols.get(self.math, self.math), self.dist2.__str__())
+        if len(self.dists) == 1:
+            return "{}({})".format(_math_symbols.get(self.math, self.math), self.dists[0].__str__())
         else:
-            return "{}({})".format(_math_symbols.get(self.math, self.math), self.dist1.__str__())
-
-    @property
-    def dists(self):
-        if self.dist2 is not None:
-            return [self.dist1, self.dist2]
-        else:
-            return [self.dist1]
+            return " {} ".format(_math_symbols.get(self.math, self.math)).join(d.__str__() for d in self.dists)
 
     @property
     def hash(self):
         """
         """
-        if self.dist2 is not None:
-            if self.dist1.hash == self.dist2.hash:
-                return self.dist1.hash
-            else:
-                # NOTE (IMPORTANT): then we are going to "forget" these when
-                # nesting CompositeDistributions
-                # return super(CompositeDistribution, self).hash()
-                return "{},{}".format(self.dist1.hash, self.dist2.hash)
-        else:
-            return self.dist1.hash
+        # NOTE (IMPORTANT): then we are going to "forget" these when
+        # nesting CompositeDistributions
+        # return super(CompositeDistribution, self).hash()
+        return ",".join([str(d.hash) for d in self.dists])
 
     ### SAMPLE CACHING
 
     @property
     def cached_sample_children(self):
-        if self.dist2 is not None:
-            return _np.asarray([self.dist1.cached_sample, self.dist2.cached_sample])
-        else:
-            return self.dist1.cached_sample
+        return _np.asarray([d.cached_sample for d in self.dists])
 
     def clear_cached_sample(self):
         super(Composite, self).clear_cached_sample()
-        self.dist1.clear_cached_sample()
-        if self.dist2 is not None:
-            self.dist2.clear_cached_sample()
-
+        for d in self.dists:
+            d.clear_cached_sample()
 
     @property
     def _pdf_cdf_ppf_callables(self):
@@ -3506,24 +3468,24 @@ class Composite(BaseUnivariateDistribution):
         # on units after?
 
         if self.math in ['__and__', '__or__']:
-            dist1range = self.dist1.interval(0.9999, wrap_at=False)
-            dist2range = self.dist2.interval(0.9999, wrap_at=False)
+            ranges = [d.interval(0.9999, wrap_at=False) for d in self.dists]
+            # dist1range = self.dist1.interval(0.9999, wrap_at=False)
+            # dist2range = self.dist2.interval(0.9999, wrap_at=False)
 
             # we'll set the sampling so each distribution gets its range sample 1000 times, append, and then sort
-            x = _np.append(_np.linspace(dist1range[0]-0.1*(dist1range[1]-dist1range[0]),
-                                        dist1range[1]+0.1*(dist1range[1]-dist1range[0]),
-                                        int(1e4)),
-                           _np.linspace(dist2range[0]-0.1*(dist2range[1]-dist2range[0]),
-                                        dist2range[1]+0.1*(dist2range[1]-dist2range[0]),
-                                        int(1e4)))
+            x = _np.concatenate([_np.linspace(r[0]-0.1*(r[1]-r[0]),
+                                              r[1]+0.1*(r[1]-r[0]),
+                                              int(1e4)) for r in ranges])
+
+            # TODO: do we need to remove duplicates?
             x.sort()
             if self.math == '__and__':
-                pdf = self.dist1.pdf(x) * self.dist2.pdf(x)
+                pdf = _np.product([d.pdf(x) for d in self.dists], axis=0)
                 # unfortunately we'll need to integrate to get the cdf... we'll do that later
                 cdf = None
             elif self.math == '__or__':
-                pdf = self.dist1.pdf(x) + self.dist2.pdf(x)
-                cdf = self.dist1.cdf(x) + self.dist2.cdf(x)
+                pdf = _np.sum([d.pdf(x) for d in self.dists], axis=0)
+                cdf = _np.sum([d.cdf(x) for d in self.dists], axis=0)
             else:
                 raise NotImplementedError()
 
@@ -3552,38 +3514,6 @@ class Composite(BaseUnivariateDistribution):
 
             return pdf_call, cdf_call, ppf_call
 
-        # elif self.dist2 is not None:
-
-
-        # elif self.dist2 is None:
-        #     dist1range = self.dist1.interval(0.9999, wrap_at=False)
-        #     xorig = _np.linspace(dist1range[0]-0.1*(dist1range[1]-dist1range[0]),
-        #                          dist1range[1]+0.1*(dist1range[1]-dist1range[0]),
-        #                          int(1e4))
-        #
-        #     # TODO: handle angle units correctly! (if self.dist1.unit is degrees, convert to radians first!)
-        #     x = getattr(_np, self.math)(xorig)
-        #     sort = x.argsort()
-        #     x = x[sort]
-        #     pdf = self.dist1.pdf(xorig)[sort]
-        #     cdf = self.dist1.cdf(xorig)[sort]
-        #
-        #     # make sure pdf is normalized correctly
-        #     pdf_integral = _np.sum(pdf[1:]*abs(x[1:]-x[:-1]))
-        #     pdf /= pdf_integral
-        #
-        #     pdf_call = _stats_custom.interpolate_callable(x, pdf)
-        #
-        #     # make sure cdf is normalized correctly
-        #     cdf /= cdf[-1]
-        #
-        #     ppf_call = _stats_custom.interpolate_callable(cdf, x)
-        #
-        #     # make sure interpolation on the right always gives 1, not the fill_value of 0
-        #     cdf_call = _stats_custom.interpolate_callable(_np.append(x, _np.inf), _np.append(cdf, 1.0))
-        #
-        #     return pdf_call, cdf_call, ppf_call
-
         else:
             # TODO: how do we send reasonable defaults here to know how to bin?
             # Should we look at the ranges of the children like we do for
@@ -3594,37 +3524,32 @@ class Composite(BaseUnivariateDistribution):
     def dist_constructor_args(self):
         return self._pdf_cdf_ppf_callables
 
-    def _sample_from_children(self, math, dist1, dist2, seed={}, size=None, cache_sample=True):
+    def _sample_from_children(self, math, dists, seed={}, size=None, cache_sample=True):
         if math == '__and__':
             raise NotImplementedError("cannot sample from children with & logic")
         elif self.math == '__or__':
             # choose randomly between the two child Distributions
-            choice = _np.random.randint(0,2)
+            choice = _np.random.randint(0,len(dists))
             if size is None:
-                dist = [dist1, dist2][choice]
+                dist = dists[choice]
                 return dist.sample(size=size, seed=seed, cache_sample=cache_sample, as_quantity=_has_astropy and self.unit not in [None, _units.dimensionless_unscaled])
             else:
                 # NOTE: // for python2 and 3 will do floor division, returning an integer
-                size1 = size//2
-                size2 = size//2
-                if (size % 2) != 0:
-                    # then size is odd, so we'll use the randomly drawn choice
-                    # to determine which child distribution gets the extra sample
-                    if choice == 0:
-                        size1 += 1
-                    else:
-                        size2 += 1
+                sizes = [size//len(dists)]*len(dists)
+                remainder = (sizes[0] % len(dists))
+                for i in range(remainder):
+                    choice = _np.random.randint(0, len(dists))
+                    sizes[choice] += 1
 
-                return _np.concatenate((dist1.sample(size=size1, seed=seed, cache_sample=cache_sample, as_quantity=_has_astropy and self.unit not in [None, _units.dimensionless_unscaled]),
-                                        dist2.sample(size=size2, seed=seed, cache_sample=cache_sample, as_quantity=_has_astropy and self.unit not in [None, _units.dimensionless_unscaled])))
+                return _np.concatenate([d.sample(size=s, seed=seed, cache_sample=cache_sample, as_quantity=_has_astropy and self.unit not in [None, _units.dimensionless_unscaled]) for d,s in zip(dists, sizes)])
 
-        elif self.dist2 is not None:
+        elif len(dists) > 1:
             # NOTE: this will account for multivariate, but only for THESE 2
             # if there are nested CompositeDistributions, then the seed will be lost
 
             # samples = sample_from_dists((dist1, dist2), seeds=seed, size=size)
             # TODO: OPTIMIZE: should we cache the collection? (in which case we should pass cache_sample)
-            samples = DistributionCollection(dist1, dist2).sample(seeds=seed, size=size, cache_sample=cache_sample)
+            samples = DistributionCollection(*dists).sample(seeds=seed, size=size, cache_sample=cache_sample)
             if size is not None:
                 return getattr(samples[:,0], math)(samples[:,1])
             else:
@@ -3634,12 +3559,12 @@ class Composite(BaseUnivariateDistribution):
             #     unit = _units.rad
             # else:
             #     unit = None
-            return getattr(_np, math)(dist1.sample(size=size, seed=seed, cache_sample=cache_sample, as_quantity=_has_astropy and self.unit not in [None, _units.dimensionless_unscaled]))
+            return getattr(_np, math)(dists[0].sample(size=size, seed=seed, cache_sample=cache_sample, as_quantity=_has_astropy and self.unit not in [None, _units.dimensionless_unscaled]))
 
 
     def sample(self, size=None, unit=None, as_quantity=False, wrap_at=None, seed={}, as_univariate=False, cache_sample=True):
         """
-        Sample from the distribution.
+        Sample from the <Composite> distribution.
 
         Arguments
         -----------
@@ -3677,9 +3602,9 @@ class Composite(BaseUnivariateDistribution):
             # fallback on using the interpolated combined pdf/cdf/ppf
 
             # TODO: test if doing this will cause issues with caching expecting the children to have cache filled
-            self.dist1.clear_cached_sample()
-            if self.dist2 is not None:
-                self.dist2.clear_cached_sample()
+            for d in self.dists:
+                d.clear_cached_sample()
+
             return super(Composite, self).sample(size=size, unit=unit, as_quantity=as_quantity, wrap_at=wrap_at, seed=seed, cache_sample=cache_sample)
         else:
             # NOTE: even though in these cases we sample from the underlying children
@@ -3687,14 +3612,19 @@ class Composite(BaseUnivariateDistribution):
             # calls to pdf/cdf/ppf will still need to merge and interpolate
             # and will ignore these covariances.
 
-            sample =  self._sample_from_children(self.math, self.dist1, self.dist2, size=size, seed=seed, cache_sample=cache_sample)
+            sample = self._sample_from_children(self.math, self.dists, size=size, seed=seed, cache_sample=cache_sample)
+
+            if isinstance(sample, _units.Quantity):
+                if sample.unit is None or sample.unit in [_units.dimensionless_unscaled]:
+                    sample = sample.value
+                else:
+                    sample = sample.to(self.unit).value
 
             if cache_sample:
                 self._cached_sample = sample
 
             return self._return_with_units(self.wrap(sample, wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
 
-            # return self._return_with_units(self.wrap(self._sample_from_children(self.math, self.dist1, self.dist2, size=size, seed=seed), wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
 
 
     def to_gaussian(self, N=1000, bins=10, range=None):
@@ -3761,8 +3691,8 @@ class Histogram(BaseUnivariateDistribution):
     a pdf (which is normalized to an integral of 1).  A numerical integral
     of the bins is then performed to create the cdf (again, normalized to 1)
     and inverted to create the ppf.  Each of these are then interpolated
-    whenever accessing <<class>.pdf>, <<class>.cdf>, <<class>.ppf>, etc as
-    well as used when calling <<class>.sample>.
+    whenever accessing <Histogram.pdf>, <Histogram.cdf>, <Histogram.ppf>, etc as
+    well as used when calling <Histogram.sample>.
     """
     def __init__(self, bins, density, unit=None, label=None, wrap_at=None):
         """
@@ -3798,7 +3728,29 @@ class Histogram(BaseUnivariateDistribution):
         """
         super(Histogram, self).__init__(unit, label, wrap_at,
                                         _stats_custom.generic_pdf_cdf_ppf, ('_pdf_cdf_ppf_callables'),
-                                        ('bins', bins, is_iterable), ('density', density, is_iterable))
+                                        bins=bins, density=density)
+
+    @property
+    def bins(self):
+        """
+        the value of the bin-edges.  Must have one more entry than <Histogram.density>.
+        """
+        return self._bins
+
+    @bins.setter
+    def bins(self, value):
+        self._bins = is_1d_array(value)
+
+    @property
+    def density(self):
+        """
+        the value of the bin-densities.  Must have one less entry than <Histogram.bins>.
+        """
+        return self._density
+
+    @density.setter
+    def density(self, value):
+        self._density = is_1d_array(value)
 
     @classmethod
     def from_data(cls, data, bins=10, range=None, weights=None,
@@ -3878,7 +3830,7 @@ class Histogram(BaseUnivariateDistribution):
         --------
         * a <Uniform> object
         """
-        return self.to_gaussian(label=self.label, unit=self.unit).to_uniform(sigma=sigma)
+        return self.to_gaussian().to_uniform(sigma=sigma)
 
 class Delta(BaseUnivariateDistribution):
     """
@@ -3915,7 +3867,18 @@ class Delta(BaseUnivariateDistribution):
         """
         super(Delta, self).__init__(unit, label, wrap_at,
                                     _stats_custom.delta, ('loc',),
-                                    ('loc', loc, is_float))
+                                    loc=loc)
+
+    @property
+    def loc(self):
+        """
+        the loc at which the delta function is True.
+        """
+        return self._loc
+
+    @loc.setter
+    def loc(self, value):
+        self._loc = is_float(value)
 
     def __mul__(self, other):
         if isinstance(other, Delta):
@@ -4015,7 +3978,30 @@ class Gaussian(BaseUnivariateDistribution):
         """
         super(Gaussian, self).__init__(unit, label, wrap_at,
                                        _stats.norm, ('loc', 'scale'),
-                                       ('loc', loc, is_float), ('scale', scale, is_float))
+                                       loc=loc, scale=scale)
+
+
+    @property
+    def loc(self):
+        """
+        the central value (mean) of the gaussian distribution.
+        """
+        return self._loc
+
+    @loc.setter
+    def loc(self, value):
+        self._loc = is_float(value)
+
+    @property
+    def scale(self):
+        """
+        the scale (sigma) of the gaussian distribution.
+        """
+        return self._scale
+
+    @scale.setter
+    def scale(self, value):
+        self._scale = is_float(value)
 
     def __mul__(self, other):
         if isinstance(other, Delta):
@@ -4108,7 +4094,44 @@ class Uniform(BaseUnivariateDistribution):
         """
         super(Uniform, self).__init__(unit, label, wrap_at,
                                        _stats.uniform, ('low', 'width'),
-                                       ('low', low, is_float), ('high', high, is_float))
+                                       low=low, high=high)
+
+    @property
+    def low(self):
+        """
+        the lower limit of the uniform distribution.
+        """
+        return self._low
+
+    @low.setter
+    def low(self, value):
+        self._low = is_float(value)
+
+    @property
+    def high(self):
+        """
+        the upper limits of the uniform distribution.
+
+        Must be higher than <Uniform.low> unless <Uniform.wrap_at> is provided or
+        <Uniform.unit> is provided as angular (rad, deg, cycles).
+        """
+        return self._high
+
+    @high.setter
+    def high(self, value):
+        self._high = is_float(value)
+
+    @property
+    def width(self):
+        """
+        Access the width of the <Uniform> distribution, defined as
+        <Uniform.high> - <Uniform.low>
+
+        Returns
+        ----------
+        * float
+        """
+        return self.high - self.low
 
     def __mul__(self, other):
         if isinstance(other, Delta):
@@ -4148,18 +4171,6 @@ class Uniform(BaseUnivariateDistribution):
     def __sub__(self, other):
         return self.__add__(-1*other)
 
-    @property
-    def width(self):
-        """
-        Access the width of the <Uniform> distribution, defined as
-        <Uniform.high> - <Uniform.low>
-
-        Returns
-        ----------
-        * float
-        """
-        return self.high - self.low
-
     def to_gaussian(self, sigma=1.0):
         """
         Convert the <Uniform> distribution to a <Gaussian> distribution by
@@ -4186,7 +4197,7 @@ class MVGaussian(BaseMultivariateDistribution):
     def __init__(self, mean=0.0, cov=1.0, allow_singular=False,
                  units=None, labels=None, wrap_ats=None):
         """
-        A Multivariate Gaussian distribution uses [scipy.stats.norm](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.multivariate_normal.html)
+        A Multivariate Gaussian distribution uses [scipy.stats.multivariate_normal](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.multivariate_normal.html)
         to sample values from a multivariate gaussian/normal function.
 
         This can also be created from a function at the top-level as:
@@ -4195,10 +4206,10 @@ class MVGaussian(BaseMultivariateDistribution):
 
         Arguments
         --------------
-        * `mean` (float or int, default=0.0): the central value of the gaussian
-            distribution.
-        * `cov` (float or int, default=1.0): the scale (sigma) of the gaussian
-            distribution.
+        * `mean` (float or int, default=0.0): the central value of the
+            multivariate gaussian distribution.
+        * `cov` (float or int, default=1.0): the covariance matrix of the multivariate
+            gaussian distribution.
         * `allow_singular` (bool, optional, default=False): passed directly to
             scipy (see link above).
         * `units` (list of astropy.units objects, optional): the units of the provided values.
@@ -4217,7 +4228,41 @@ class MVGaussian(BaseMultivariateDistribution):
         """
         super(MVGaussian, self).__init__(units, labels, wrap_ats,
                                          _stats.multivariate_normal, ('mean', 'cov', 'allow_singular'),
-                                         ('mean', mean, is_iterable), ('cov', cov, is_square_matrix), ('allow_singular', allow_singular, is_bool))
+                                         mean=mean, cov=cov, allow_singular=allow_singular)
+
+
+    @property
+    def mean(self):
+        """
+        the central value of the multivariate gaussian distribution.
+        """
+        return self._mean
+
+    @mean.setter
+    def mean(self, value):
+        self._mean = is_iterable(value)
+
+    @property
+    def cov(self):
+        """
+        the covariance matrix of the multivariate gaussian distribution
+        """
+        return self._cov
+
+    @cov.setter
+    def cov(self, value):
+        self._cov = is_square_matrix(value)
+
+    @property
+    def allow_singular(self):
+        """
+        passed directly to scipy (see [scipy.stats.multivariate_normal](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.multivariate_normal.html))
+        """
+        return self._allow_singular
+
+    @allow_singular.setter
+    def allow_singular(self, value):
+        self._allow_singular = is_bool(value)
 
     @property
     def ndimensions(self):
@@ -4274,7 +4319,7 @@ class MVGaussian(BaseMultivariateDistribution):
         ----------
         * <MVGaussian> object or <Gaussian> if only one dimension provided
         """
-        if isinstance(dimensions, int) or isinstance(dimensions, str):
+        if isinstance(dimensions, int) or isinstance(dimensions, str) or isinstance(dimensions, unicode):
             dimensions = [dimensions]
 
         dimensions = [self._get_dimension_index(d) for d in dimensions]
@@ -4401,20 +4446,66 @@ class MVHistogram(BaseMultivariateDistribution):
     in which to sample, as well as the relative location in the bin.  The selected
     bin is then artificially subdivided by the same shape grid as the original
     binning and linearly interpolated based on the remainder to return a single
-    value for <<class>.sample>.
+    value for <MVHistogram.sample>.
 
-    * Means and covariances (see <<class>.calculate_means_covariances>,
-    <<class>.calculate_means>, <<class>.calculate_covariances>) are calculated
+    * Means and covariances (see <MVHistogram.calculate_means_covariances>,
+    <MVHistogram.calculate_means>, <MVHistogram.calculate_covariances>) are calculated
     by sampling (with a default size of 1e5), and determining the mean and covariances
     on that sample.
 
     """
     def __init__(self, bins, density, units=None, labels=None, wrap_ats=None):
         """
+        Create an <MVHistogram> distribution from bins and density.
+
+        See also:
+
+        * <MVHistogram.from_data>
+        * <distl.mvhistogram_from_data>
+
+        Arguments
+        --------------
+        * `bins` (np.array object): the value of the bin-edges (n-dimensional).
+        * `density` (np.array object): the value of the bin-densities (n-dimensional).
+        * `units` (list of astropy.units objects, optional): the units of the provided values.
+        * `labels` (list of strings, optional): labels for each dimension in the
+            distribution.  This is used
+            for the x-labels while plotting the distribution, as well as a shorthand
+            notation when creating a <Composite> distribution.
+        * `wrap_ats` (list of floats, None, or False, optional, default=None): values to
+            use for wrapping.  If None and `unit` are angles, will default to
+            2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+            to 1.0.
+
+        Returns
+        --------
+        * an <MVHistogram> object
         """
         super(MVHistogram, self).__init__(units, labels, wrap_ats,
                                           None, None,
-                                          ('bins', bins, is_iterable), ('density', density, is_iterable))
+                                          bins=bins, density=density)
+
+    @property
+    def bins(self):
+        """
+        the value of the bin-edges (n-dimensional).
+        """
+        return self._bins
+
+    @bins.setter
+    def bins(self, value):
+        self._bins = is_nd_array(value)
+
+    @property
+    def density(self):
+        """
+        the value of the bin-densities (n-dimensional).
+        """
+        return self._density
+
+    @density.setter
+    def density(self, value):
+        self._density = is_nd_array(value)
 
     @classmethod
     def from_data(cls, data, bins=10, range=None, weights=None,
@@ -4430,12 +4521,12 @@ class MVHistogram(BaseMultivariateDistribution):
 
         return cls(_np.asarray(bin_edges), hist, units=units, labels=labels, wrap_ats=wrap_ats)
 
-    def pdf(self, x):
+    def pdf(self, x, unit=None):
         # TODO: N-dimension interpolation of (self.bins, self.density)
         raise NotImplementedError("pdf not supported for {} distribution".format(self.__class__.__name__))
 
-    def logpdf(self, x):
-        raise NotImplementedError("pdf not supported for {} distribution".format(self.__class__.__name__))
+    def logpdf(self, x, unit=None):
+        raise NotImplementedError("logpdf not supported for {} distribution".format(self.__class__.__name__))
 
     @property
     def _cdf_per_bin(self):
@@ -4443,12 +4534,12 @@ class MVHistogram(BaseMultivariateDistribution):
         cdf /= float(cdf[-1])
         return cdf
 
-    def cdf(self, x):
+    def cdf(self, x, unit=None):
         # TODO: N-dimensional interpolation of (self.bins, self._cdf_per_bin)
-        raise NotImplementedError("pdf not supported for {} distribution".format(self.__class__.__name__))
+        raise NotImplementedError("cdf not supported for {} distribution".format(self.__class__.__name__))
 
-    def logcdf(self, x):
-        raise NotImplementedError("pdf not supported for {} distribution".format(self.__class__.__name__))
+    def logcdf(self, x, unit=None):
+        raise NotImplementedError("logcdf not supported for {} distribution".format(self.__class__.__name__))
 
     def _ppf(self, q, dimension=None):
         # this is hidden because although it does work for random drawing, I'm
@@ -4563,7 +4654,7 @@ class MVHistogram(BaseMultivariateDistribution):
         ----------
         * <MVHistogram> object or <Histogram> if only one dimension provided
         """
-        if isinstance(dimensions, int) or isinstance(dimensions, str):
+        if isinstance(dimensions, int) or isinstance(dimensions, str) or isinstance(dimensions, unicode):
             dimensions = [dimensions]
 
         dimensions = [self._get_dimension_index(d) for d in dimensions]
@@ -4754,7 +4845,7 @@ class MVHistogram(BaseMultivariateDistribution):
                          label=self.labels[dimension] if self.labels is not None else None,
                          wrap_at=self.wrap_ats[dimension] if self.wrap_ats is not None else None)
 
-    def to_gaussian(self, dimension, size):
+    def to_gaussian(self, dimension):
         """
         Convert the <MVHistogram> distribution to a <Gaussian> univariate distribution.
 
@@ -4783,6 +4874,20 @@ class MVHistogramSlice(BaseMultivariateSliceDistribution):
     @property
     def dist_constructor_args(self):
         return _hist_pdf_cdf_ppf_callables(self.bins, self.density)
+
+    # def pdf(self, x, unit=None):
+    #     # TODO: N-dimension interpolation of (self.bins, self.density)
+    #     raise NotImplementedError("pdf not supported for {} distribution".format(self.__class__.__name__))
+    #
+    # def logpdf(self, x, unit=None):
+    #     raise NotImplementedError("logpdf not supported for {} distribution".format(self.__class__.__name__))
+    #
+    # def cdf(self, x, unit=None):
+    #     # TODO: N-dimensional interpolation of (self.bins, self._cdf_per_bin)
+    #     raise NotImplementedError("cdf not supported for {} distribution".format(self.__class__.__name__))
+    #
+    # def logcdf(self, x, unit=None):
+    #     raise NotImplementedError("logcdf not supported for {} distribution".format(self.__class__.__name__))
 
     @property
     def bins(self):

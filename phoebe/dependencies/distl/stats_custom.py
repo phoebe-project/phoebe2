@@ -48,48 +48,48 @@ class interpolate_callable(base_callable):
 #        return getattr(self._d1_call(x), self._math)(self._d2_call(x))
 
 
-class generic_pdf_gen(_stats.rv_continuous):
-    """
-    this class takes simply a callable function to expose an arbitrary pdf,
-    and relies on the stats.rv_continuous infrastructure to compute and expose
-    everything else (cdf, ppf, etc).  This results in overheads which should
-    be avoided whenever possible, but does allow for full flexibility when it
-    isn't.
+# class generic_pdf_gen(_stats.rv_continuous):
+#     """
+#     this class takes simply a callable function to expose an arbitrary pdf,
+#     and relies on the stats.rv_continuous infrastructure to compute and expose
+#     everything else (cdf, ppf, etc).  This results in overheads which should
+#     be avoided whenever possible, but does allow for full flexibility when it
+#     isn't.
+#
+#     NOTE: it is important that the pdf_callable has an integral of 1
+#     """
+#     def _pdf(self, x, pdf_callable):
+#         # TODO: I have ZERO idea why sometimes this is receiving an array with
+#         # the interpolator and other times just gets the interpolator, but for
+#         # now we'll just add another hack ;-)
+#         if hasattr(pdf_callable, '__iter__'):
+#             # if len(pdf_callable) > 1:
+#             #     raise ValueError("could not parse arguments")
+#             return pdf_callable[0](x)
+#         return pdf_callable(x)
 
-    NOTE: it is important that the pdf_callable has an integral of 1
-    """
-    def _pdf(self, x, pdf_callable):
-        # TODO: I have ZERO idea why sometimes this is receiving an array with
-        # the interpolator and other times just gets the interpolator, but for
-        # now we'll just add another hack ;-)
-        if hasattr(pdf_callable, '__iter__'):
-            # if len(pdf_callable) > 1:
-            #     raise ValueError("could not parse arguments")
-            return pdf_callable[0](x)
-        return pdf_callable(x)
+# class generic_cdf_gen(_stats.rv_continuous):
+#     """
+#     this class takes simply a callable function to expose an arbitrary cdf,
+#     and relies on the stats.rv_continuous infrastructure to compute and expose
+#     everything else (pdf, ppf, etc).  This results in overheads which should
+#     be avoided whenever possible, but does allow for full flexibility when it
+#     isn't.
+#
+#     NOTE: it is important that the cdf_callable starts at 0 (at -inf) and ends at 1 (at +inf)
+#     """
+#
+#     def _cdf(self, x, cdf_callable):
+#         # TODO: I have ZERO idea why sometimes this is receiving an array with
+#         # the interpolator and other times just gets the interpolator, but for
+#         # now we'll just add another hack ;-)
+#         if hasattr(cdf_callable, '__iter__'):
+#             # if len(cdf_callable) > 1:
+#             #     raise ValueError("could not parse arguments")
+#             return cdf_callable[0](x)
+#         return cdf_callable(x)
 
-class generic_cdf_gen(_stats.rv_continuous):
-    """
-    this class takes simply a callable function to expose an arbitrary cdf,
-    and relies on the stats.rv_continuous infrastructure to compute and expose
-    everything else (pdf, ppf, etc).  This results in overheads which should
-    be avoided whenever possible, but does allow for full flexibility when it
-    isn't.
-
-    NOTE: it is important that the cdf_callable starts at 0 (at -inf) and ends at 1 (at +inf)
-    """
-
-    def _cdf(self, x, cdf_callable):
-        # TODO: I have ZERO idea why sometimes this is receiving an array with
-        # the interpolator and other times just gets the interpolator, but for
-        # now we'll just add another hack ;-)
-        if hasattr(cdf_callable, '__iter__'):
-            # if len(cdf_callable) > 1:
-            #     raise ValueError("could not parse arguments")
-            return cdf_callable[0](x)
-        return cdf_callable(x)
-
-class generic_pdf_cdf_ppf_gen(generic_pdf_gen):
+class generic_pdf_cdf_ppf_gen(_stats.rv_continuous):
     """
     this class takes callable functions for each of pdf, cdf, and ppf.
 
@@ -127,6 +127,6 @@ class generic_pdf_cdf_ppf_gen(generic_pdf_gen):
             return ppf_callable[0](x)
         return ppf_callable(x)
 
-generic_pdf = generic_pdf_gen(name='generic_pdf')
-generic_cdf = generic_cdf_gen(name='generic_cdf')
+# generic_pdf = generic_pdf_gen(name='generic_pdf')
+# generic_cdf = generic_cdf_gen(name='generic_cdf')
 generic_pdf_cdf_ppf = generic_pdf_cdf_ppf_gen(name='generic_pdf_cdf_ppf')
