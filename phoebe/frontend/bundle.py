@@ -5860,20 +5860,109 @@ class Bundle(ParameterSet):
 
         return self.filter(distribution=new_distribution)
 
-    def get_distribution_collection(self, distribution=None,
-                                    combine='first', include_constrained=False,
-                                    keys='twig', set_labels=True):
+    def _distribution_collection_defaults(self, twig=None, **kwargs):
+        if isinstance(twig, list):
+            raise TypeError("twig must be a string, not list.  To filter for multiple distributions, pass distribution={}".format(twig))
+
+        filter_kwargs = {k:v for k,v in kwargs.items() if k not in ['combine', 'include_constrained']}
+
+        ps = self.filter(twig=twig, **filter_kwargs)
+        if len(ps.contexts) != 1:
+            raise ValueError("twig and kwargs must point to a single context (solver or distribution), found contexts={}".format(ps.contexts))
+        elif ps.context == 'distribution':
+            distribution = ps.distributions
+            if kwargs.get('distribution', None) is not None and len(kwargs.get('distribution')) == len(distribution):
+                # then respect the passed order
+                distribution = kwargs.get('distribution')
+        elif ps.context == 'solver':
+            # then we must point to a SINGLE parameter
+            if len(ps.to_list()) > 1:
+                raise ValueError("twig and kwargs must point to a single parameter in the solver options (e.g. qualifier='priors')")
+            kind = ps.kind
+
+            if kind in ['emcee']:
+
+                if ps.qualifier in ['priors']:
+                    kwargs.setdefault('include_constrained', True)
+                    kwargs.setdefault('to_univariates', False)
+                elif ps.qualifier in ['init_from']:
+                    kwargs.setdefault('include_constrained', False)
+                    kwargs.setdefault('to_univariates', False)
+                else:
+                    raise NotImplementedError("get_distribution_collection for solver kind='{}' and qualifier='{}' not implemented".format(kind, ps.qualifier))
+
+            elif kind in ['dynesty']:
+                if ps.qualifier in ['priors']:
+                    # TODO: need to support flattening to univariates
+                    kwargs.setdefault('include_constrained', False)
+                    kwargs.setdefault('to_univariates', True)
+                else:
+                    raise NotImplementedError("get_distribution_collection for solver kind='{}' and qualifier='{}' not implemented".format(kind, ps.qualifier))
+
+            elif kind in ['differential_evolution']:
+                if ps.qualifier in ['bounds']:
+                    kwargs.setdefault('include_constrained', True)
+                    kwargs.setdefault('to_univariates', True)
+                    kwargs.setdefault('to_uniforms', self.get_value('{}_sigma'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
+
+            else:
+                raise NotImplementedError("get_distribution_collection for solver kind='{}' not implemented".format(kind))
+
+            distribution = ps.get_value(expand=True)
+            kwargs.setdefault('combine', self.get_value(qualifier='{}_combine'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
+
+
+        else:
+            raise ValueError("twig and kwargs must point to the solver or distribution context")
+
+        combine = kwargs.get('combine', 'first')
+        include_constrained = kwargs.get('include_constrained', False)
+        to_univariates = kwargs.get('to_univariates', False)
+        to_uniforms = kwargs.get('to_uniforms', False)
+
+        if to_uniforms and not to_univariates:
+            raise ValueError("to_univariates must be True in order to use to_uniforms")
+
+        if isinstance(distribution, str) or distribution is None:
+            distribution = [distribution]
+
+        if not isinstance(distribution, list):
+            raise TypeError("distribution must be of type None, string, or list")
+
+
+        return distribution, combine, include_constrained, to_univariates, to_uniforms
+
+    def get_distribution_collection(self, twig=None,
+                                    keys='twig', set_labels=True,
+                                    **kwargs):
         """
 
         Arguments
         -------------
-        * `distribution`: (string or list of strings, optional, default=None):
-            the name of the distribution(s).  If a list: if a parameter has
-            multiple distributions matching the filter, those EARLIER in the
-            list will take precedence.
-        * `combine`
-        * `include_constrained` (bool, optional, default=False): whether to
-            include constrained parameters.
+        * `twig`: (string, optional, default=None): twig to use for filtering.
+            `twig` and `**kwargs` must result in either a single supported
+            parameter in a solver ParameterSet, or a ParameterSet of distribution
+            parameters.
+        * `combine`: (str, optional) how to combine multiple distributions for the same parameter.
+            first: ignore duplicate entries and take the first entry.
+            and: combine duplicate entries via AND logic, dropping covariances.
+            or: combine duplicate entries via OR logic, dropping covariances.'
+            Defaults to 'first' if `twig` and `**kwargs` point to distributions,
+            otherwise will default to the value of the relevant parameter in the
+            solver options.
+        * `include_constrained` (bool, optional): whether to
+            include constrained parameters.  Defaults to False if `twig` and
+            `**kwargs` point to distributions, otherwise will default to the
+            value necessary for the solver backend.
+        * `to_univariates` (bool, optional): whether to convert any multivariate
+            distributions to univariates before adding to the collection.  Defaults
+            to False if `twig` and `**kwargs` point to distributions, otherwise
+            will default to the value necessary for the solver backend.
+        * `to_uniforms` (bool or int, optional): whether to convert all distributions
+            to uniforms (and if an int, then what sigma to adopt for non-uniform
+            distributions).  Defaults to False if `twig` and `**kwargs` point to
+            distributions, otherwise will default to the value necessary for the
+            solver backend.
         * `keys` (string, optional, default='twig'): attribute to use for the
             second returned object ('twig', 'qualifier', 'uniqueid').  NOTE: the
             attributes will be called on the referenced parameter, not the distribution parameter.
@@ -5881,23 +5970,33 @@ class Bundle(ParameterSet):
             and <phoebe.parameters.FloatParameter.get_distribution>.
         * `set_labels` (bool, optional, default=True): set the labels of the
             distribution objects to be the twigs of the referenced parameters.
+        * `**kwargs`: additional keyword arguments are used for filtering.
+            `twig` and `**kwargs` must result in either a single supported
+            parameter in a solver ParameterSet, or a ParameterSet of distribution
+            parameters.
 
         Returns
         ------------
         * distl.DistributionCollection, list of `keys`
         """
-
-        if isinstance(distribution, str) or distribution is None:
-            distribution = [distribution]
+        distributions, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
 
         uid_dist_dict = {}
         uniqueids = []
         ret_keys = []
 
-        if not isinstance(distribution, list):
-            raise TypeError("distribution must be of type None, string, or list")
 
-        for dist in distribution:
+        def _to_dist(dist, to_univariates=False, to_uniform=False):
+            if to_univariates:
+                if hasattr(dist, 'to_univariate'):
+                    dist = dist.to_univariate()
+            if to_uniform:
+                if hasattr(dist, 'to_uniform'):
+                    dist = dist.to_uniform(sigma=int(to_uniform))
+
+            return dist
+
+        for dist in distributions:
             # TODO: if * in list, need to expand (currently forbidden with error in get_distribution)
 
             dist_ps = self.get_distribution(dist)
@@ -5911,21 +6010,21 @@ class Bundle(ParameterSet):
                     if k in uid_dist_dict.keys():
                         raise ValueError("keys='{}' does not result in unique entries for each item".format(keys))
 
-                    uid_dist_dict[uid] = dist_param.get_value()
+                    uid_dist_dict[uid] = _to_dist(dist_param.get_value(), to_univariates, to_uniforms)
                     uniqueids.append(ref_param.uniqueid)
                     ret_keys.append(k)
                 elif combine.lower() == 'first':
                     logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
                 elif combine.lower() == 'and':
                     dist_obj = dist_param.get_value()
-                    old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [uid_dist_dict[uid].to_univariate()] if hasattr(uid_dist_dict[uid], 'to_univariate') else [uid_dist_dict[uid]]
-                    new_dist = dist_obj.to_univariate() if hasattr(dist_obj, 'to_univariate') else dist_obj
+                    old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [_to_dist(uid_dist_dict[uid], True, to_uniforms)]
+                    new_dist = _to_dist(dist_obj, True, to_uniforms)
                     combined_dist = _distl._distl.Composite('__and__', old_dists + [new_dist])
                     uid_dist_dict[uid] = combined_dist
                 elif combine.lower() == 'or':
                     dist_obj = dist_param.get_value()
-                    old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [uid_dist_dict[uid].to_univariate()] if hasattr(uid_dist_dict[uid], 'to_univariate') else [uid_dist_dict[uid]]
-                    new_dist = dist_obj.to_univariate() if hasattr(dist_obj, 'to_univariate') else dist_obj
+                    old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [_to_dist(uid_dist_dict[uid], True, to_uniforms)]
+                    new_dist = _to_dist(dist_obj, True, to_uniforms)
                     combined_dist = _distl._distl.Composite('__or__', old_dists + [new_dist])
                     uid_dist_dict[uid] = combined_dist
                 else:
@@ -5938,9 +6037,9 @@ class Bundle(ParameterSet):
 
         return _distl.DistributionCollection(*[uid_dist_dict.get(uid) for uid in uniqueids]), ret_keys
 
-    def sample_distribution(self, distribution=None, N=None,
-                            combine='first', include_constrained=False,
-                            set_value=False, keys='twig'):
+    def sample_distribution(self, twig=None, N=None,
+                            set_value=False, keys='twig',
+                            **kwargs):
         """
         Sample from all distributions in a distribution set (tagged with
         distribution=`distribution`).  Note that distributions attached
@@ -5949,23 +6048,43 @@ class Bundle(ParameterSet):
 
         Arguments
         ----------
-        * `distribution`: (string or list of strings, optional, default=None):
-            the name of the distribution(s).  If a list: if a parameter has
-            multiple distributions matching the filter, those EARLIER in the
-            list will take precedence.
+        * `twig`: (string, optional, default=None): twig to use for filtering.
+            `twig` and `**kwargs` must result in either a single supported
+            parameter in a solver ParameterSet, or a ParameterSet of distribution
+            parameters.
         * `N` (int, optional, default=None): number of samples to draw from
             each distribution.  Note that this must be None if `set_value` is
             set to True.
-        * `combine`
-        * `include_constrained` (bool, optional, default=False): whether to
-            include constrained parameters.  Must be False to use `set_value`.
-            See also <phoebe.frontend.bundle.Bundle.get_distribution_collection>.
+        * `combine`: (str, optional) how to combine multiple distributions for the same parameter.
+            first: ignore duplicate entries and take the first entry.
+            and: combine duplicate entries via AND logic, dropping covariances.
+            or: combine duplicate entries via OR logic, dropping covariances.'
+            Defaults to 'first' if `twig` and `**kwargs` point to distributions,
+            otherwise will default to the value of the relevant parameter in the
+            solver options.
+        * `include_constrained` (bool, optional): whether to
+            include constrained parameters.  Defaults to False if `twig` and
+            `**kwargs` point to distributions, otherwise will default to the
+            value necessary for the solver backend.
+        * `to_univariates` (bool, optional): whether to convert any multivariate
+            distributions to univariates before adding to the collection.  Defaults
+            to False if `twig` and `**kwargs` point to distributions, otherwise
+            will default to the value necessary for the solver backend.
+        * `to_uniforms` (bool or int, optional): whether to convert all distributions
+            to uniforms (and if an int, then what sigma to adopt for non-uniform
+            distributions).  Defaults to False if `twig` and `**kwargs` point to
+            distributions, otherwise will default to the value necessary for the
+            solver backend.
         * `set_value` (bool, optional, default=False): whether to adopt the
             sampled values for all relevant parameters.  Note that `N` must
             be None and `include_constrained` must be False.
         * `keys` (string, optional, default='twig'): attribute to use for dictionary
             keys ('twig', 'qualifier', 'uniqueid').  Only applicable if
             `set_value` is False.
+        * `**kwargs`: additional keyword arguments are used for filtering.
+            `twig` and `**kwargs` must result in either a single supported
+            parameter in a solver ParameterSet, or a ParameterSet of distribution
+            parameters.
 
         Returns
         --------
@@ -5982,6 +6101,9 @@ class Bundle(ParameterSet):
         """
         if N is not None and set_value:
             raise ValueError("cannot use set_value and N together")
+
+        distributions, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
+
         if include_constrained and set_value:
             raise ValueError("cannot use include_constrained=True and set_value together")
 
@@ -5989,10 +6111,13 @@ class Bundle(ParameterSet):
             user_interactive_constraints = conf.interactive_constraints
             conf.interactive_constraints_off(suppress_warning=True)
 
-        dc, uniqueids = self.get_distribution_collection(distribution,
+        dc, uniqueids = self.get_distribution_collection(distribution=distributions,
                                                          combine=combine,
                                                          include_constrained=include_constrained,
+                                                         to_univariates=to_univariates,
+                                                         to_uniforms=to_uniforms,
                                                          keys='uniqueid')
+
 
         sampled_values = dc.sample(size=N).T
 

@@ -724,9 +724,6 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             if dist is None:
                 return param.limits
 
-            if dist.__class__.__name__ not in ['Uniform']:
-                dist = dist.to_uniform(sigma=bounds_sigma)
-
             return (dist.low, dist.high)
 
         if mpi.within_mpirun:
@@ -760,6 +757,8 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                                                                  keys='uniqueid',
                                                                  combine=bounds_combine,
                                                                  include_constrained=False,
+                                                                 to_univariates=True,
+                                                                 to_uniforms=bound_sigma,
                                                                  set_labels=False)
 
             # for each parameter, if a distribution is found in bounds_dict (from

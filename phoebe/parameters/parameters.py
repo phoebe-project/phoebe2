@@ -3428,6 +3428,7 @@ class ParameterSet(object):
             (`calculate_lnp(distribution=['dist1', 'dist2']) = calculate_lnp(distribution='dist1')+calculate_lnp(distribution='dist2')`)
         * `combine` (string, opjtional, default='add')
         * `include_constrained` (bool, optional, default=True)
+        * `to_univariates`
         * `**kwargs` (optional): all additional keyword arguments are used
             to filter the parameter set.
 
@@ -3437,9 +3438,11 @@ class ParameterSet(object):
 
         Raises
         ----------
-        * ValueError: if `distribution` is not provided but more than one exist.
+        * ValueError: if `distribution` is not provided but more than one exists.
         * ValueError: if no distributions can be found labeled `distribution`
         """
+
+        # TODO: take same arguments as get_distribution_collection et al.
         if distribution is None:
             if len(self.distributions) == 1:
                 distribution = self.distributions[0]
@@ -3459,6 +3462,7 @@ class ParameterSet(object):
         dc, uniqueids = self._bundle.get_distribution_collection(distribution=distribution,
                                                                  combine=combine,
                                                                  include_constrained=include_constrained,
+                                                                 to_univariates=to_univariates,
                                                                  keys='uniqueid')
 
         # remove any that are not in the current filter
