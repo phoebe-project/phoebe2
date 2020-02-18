@@ -82,7 +82,7 @@ def differential_evolution(**kwargs):
 
     params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
 
-    params += [SelectParameter(qualifier='bounds', value=kwargs.get('bounds', []), choices=[], description='distribution(s) to use for bounds.  Only those in fit_parameters will be considered.  Any in fit_parameters but not in bounds will use the limits on the parameter itself as bounds.')]
+    params += [SelectParameter(qualifier='bounds', value=kwargs.get('bounds', []), choices=[], description='distribution(s) to use for bounds.  For any non-uniform distributions, bounds will be adopted based on the bounds_sigma parameter.  Only those in fit_parameters will be considered.  Any in fit_parameters but not in bounds will use the limits on the parameter itself as bounds.  Any covariances will be ignored.')]
     params += [ChoiceParameter(visible_if='bounds:<notempty>', qualifier='bounds_combine', value=kwargs.get('bounds_combine', 'first'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from bounds for the same parameter.  irst: ignore duplicate entries and take the first in the bounds parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances..')]
     params += [FloatParameter(visible_if='bounds:<notempty>', qualifier='bounds_sigma', value=kwargs.get('bounds_sigma', 3), limits=(0,10), default_units=u.dimensionless_unscaled, description='sigma-level to use when converting non-uniform distributions for bounds to uniform bounds')]
 
