@@ -2576,13 +2576,13 @@ class BaseMultivariateDistribution(BaseDistribution):
 
 
 class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
-    def __init__(self, multivariate, dimension):
+    def __init__(self, multivariate, dimension, unit=None, label=None, wrap_at=None):
         self._dist_constructor_object_cache = None
         self._parents_with_constructor_object_cache = []
 
-        self._unit = None
-        self._label = None
-        self._wrap_at = None
+        self.unit = unit
+        self.label = label
+        self.wrap_at = wrap_at
 
         if isinstance(multivariate, dict):
             multivariate = from_dict(multivariate)
