@@ -8209,6 +8209,13 @@ class Bundle(ParameterSet):
                           undo_kwargs={'solver': kwargs['solver']})
 
 
+        # TODO: OPTIMIZE only trigger those necessary based on the solver-backend
+        self._handle_distribution_selectparams(return_changes=False)
+        self._handle_compute_choiceparams(return_changes=False)
+        self._handle_fitparameters_selecttwigparams(return_changes=False)
+        self._handle_lc_choiceparams(return_changes=False)
+        self._handle_orbit_choiceparams(return_changes=False)
+
         ret_ps = self.get_solver(check_visible=False, check_default=False, **metawargs)
 
         # since we've already processed (so that we can get the new qualifiers),
@@ -8217,14 +8224,6 @@ class Bundle(ParameterSet):
 
         if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
             ret_ps += overwrite_ps
-
-        # TODO: OPTIMIZE only trigger those necessary based on the solver-backend
-        self._handle_distribution_selectparams(return_changes=False)
-        self._handle_compute_choiceparams(return_changes=False)
-        self._handle_fitparameters_selecttwigparams(return_changes=False)
-        self._handle_lc_choiceparams(return_changes=False)
-        self._handle_orbit_choiceparams(return_changes=False)
-
 
         # now set parameters that needed updated choices
         qualifiers = ret_ps.qualifiers
