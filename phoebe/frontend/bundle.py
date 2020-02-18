@@ -5028,6 +5028,11 @@ class Bundle(ParameterSet):
         ---------
         * a <phoebe.parameters.ParameterSet> object of the enabled dataset
         """
+        if 'kind' in kwargs.keys():
+            # we'll disable this for now as kind could either refer to dataset
+            # (which the enabled parameter is not tagged with) or compute
+            raise ValueError("cannot pass kind to enable_dataset")
+
         kwargs['context'] = 'compute'
         kwargs['dataset'] = dataset
         kwargs['qualifier'] = 'enabled'
@@ -5066,6 +5071,11 @@ class Bundle(ParameterSet):
         ---------
         * a <phoebe.parameters.ParameterSet> object of the disabled dataset
         """
+        if 'kind' in kwargs.keys():
+            # we'll disable this for now as kind could either refer to dataset
+            # (which the enabled parameter is not tagged with) or compute
+            raise ValueError("cannot pass kind to disable_dataset")
+
         kwargs['context'] = 'compute'
         kwargs['dataset'] = dataset
         kwargs['qualifier'] = 'enabled'
