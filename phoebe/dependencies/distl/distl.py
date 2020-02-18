@@ -2580,6 +2580,10 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         self._dist_constructor_object_cache = None
         self._parents_with_constructor_object_cache = []
 
+        self._unit = None
+        self._label = None
+        self._wrap_at = None
+
         if isinstance(multivariate, dict):
             multivariate = from_dict(multivariate)
 
@@ -2629,6 +2633,12 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         d['distl.version'] = __version__
         d['multivariate'] = self.multivariate.to_dict()
         d['dimension'] = self.dimension
+        if self._unit is not None:
+            d['unit'] = str(self._unit.to_string())
+        if self._label is not None:
+            d['label'] = self._label
+        if self._wrap_at is not None:
+            d['wrap_at'] = self._wrap_at
         return d
 
     @property
@@ -2657,7 +2667,7 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
     def unit(self):
         """
         Access the unit of the multivariate distribution corresponsing to the
-        sliced dimension
+        sliced dimension, or the overridden value for this <<class>>.
 
         See also:
 
@@ -2668,13 +2678,23 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         ---------
         * Unit or None
         """
-        return self.multivariate.units[self.dimension] if self.multivariate.units is not None else None
+        return self._unit if self._unit is not None else self.multivariate.units[self.dimension] if self.multivariate.units is not None else None
+
+    @unit.setter
+    def unit(self, unit):
+        if isinstance(unit, str) or isinstance(unit, unicode):
+            unit = _units.Unit(unit)
+
+        if not (unit is None or isinstance(unit, _units.Unit) or isinstance(unit, _units.CompositeUnit) or isinstance(unit, _units.IrreducibleUnit)):
+            raise TypeError("unit must be of type astropy.units.Unit, got {} (type: {})".format(unit, type(unit)))
+
+        self._unit = unit
 
     @property
     def label(self):
         """
         Access the label of the multivariate distribution corresponsing to the
-        sliced dimension
+        sliced dimension, or the overridden value for this <<class>>.
 
         See also:
 
@@ -2685,13 +2705,23 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         -------------
         * string or None
         """
-        return self.multivariate.labels[self.dimension] if self.multivariate.labels is not None else None
+        return self._label if self._label is not None else self.multivariate.labels[self.dimension] if self.multivariate.labels is not None else None
+
+    @label.setter
+    def label(self, label):
+        if label is not None:
+            try:
+                label = str(label)
+            except:
+                raise TypeError("label must be of type str")
+
+        self._label = label
 
     @property
     def wrap_at(self):
         """
         Access the wrap_at of the multivariate distribution corresponsing to the
-        sliced dimension
+        sliced dimension, or the overridden value for this <<class>>.
 
         See also:
 
@@ -2702,7 +2732,18 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         ---------
         * float or None
         """
-        return self.multivariate.wrap_ats[self.dimension] if self.multivariate.wrap_ats is not None else None
+        return self._wrap_at if self._wrap_at is not None else self.multivariate.wrap_ats[self.dimension] if self.multivariate.wrap_ats is not None else None
+
+    @wrap_at.setter
+    def wrap_at(self, wrap_at):
+        if wrap_at is None or wrap_at is False:
+            self._wrap_at = wrap_at
+
+        elif not (isinstance(wrap_at, float) or isinstance(wrap_at, int)):
+            raise TypeError("wrap_at={} must be of type float, int, False, or None".format(wrap_at))
+
+        else:
+            self._wrap_at = wrap_at
 
     @property
     def dimension(self):
