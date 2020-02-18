@@ -71,6 +71,8 @@ def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, prio
 
     # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
     try:
+        # override sample_from that may be set in the compute options
+        compute_kwargs['sample_from'] = []
         b.run_compute(compute=compute, model=solution, do_create_fig_params=False, **compute_kwargs)
     except Exception as err:
         logger.warning("received error from run_compute: {}.  lnlikelihood=-inf".format(err))
