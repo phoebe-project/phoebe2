@@ -8463,6 +8463,8 @@ class Bundle(ParameterSet):
 
         solution_ps = self.get_solution(solution=solution)
         solver_kind = solution_ps.kind
+        if solver_kind is None:
+            raise ValueError("could not find solution='{}'".format(solution))
         c = getattr(_solutionbackends, "{}Solution".format(solver_kind.title()))(bundle=self, solution=solution, solution_kwargs={p.qualifier: p.get_value() for p in solution_ps.to_list()})
         c.process(**kwargs)
         if adopt:
