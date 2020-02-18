@@ -228,6 +228,25 @@ class EmceeSolution(BaseDistributionSolutionBackend):
                 'distribution': dist,
                 'object': reader}
 
+    def adopt(self, distribution):
+        """
+        """
+        if not isinstance(distribution, str):
+            # TODO: check for validity in bundle or leave that for later?
+            raise ValueError("distribution must be a valid string")
+
+        if self._needs_process and not len(self._process_cache.keys()):
+            self.process()
+
+        dc = self.solution_kwargs.get('distribution')
+        uniqueids = self.solution_kwargs.get('fitted_parameters')
+
+        for i, uniqueid in enumerate(uniqueids):
+            self.bundle.add_distribution(uniqueid=uniqueid, value=dc.slice(i), distribution=distribution)
+
+        # TODO: do we want to only return newly added distributions?
+        return self.bundle.get_distribution(distribution=distribution)
+
 class DynestySolution(BaseDistributionSolutionBackend):
     """
     See <phoebe.parameters.solver.sampler.dynesty>.
