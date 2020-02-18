@@ -37,8 +37,8 @@ def nelder_mead(**kwargs):
 
     params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
 
-    params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors')]
-    params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
+    # params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors')]
+    # params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
 
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of iterations.')]
     params += [IntParameter(qualifier='maxfev', value=kwargs.get('maxfev', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of function evaluations (forward models).')]
@@ -86,8 +86,8 @@ def differential_evolution(**kwargs):
     params += [ChoiceParameter(visible_if='bounds:<notempty>', qualifier='bounds_combine', value=kwargs.get('bounds_combine', 'first'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from bounds for the same parameter.  irst: ignore duplicate entries and take the first in the bounds parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances..')]
     params += [FloatParameter(visible_if='bounds:<notempty>', qualifier='bounds_sigma', value=kwargs.get('bounds_sigma', 3), limits=(0,10), default_units=u.dimensionless_unscaled, description='sigma-level to use when converting non-uniform distributions for bounds to uniform bounds')]
 
-    params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors')]
-    params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  irst: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
+    # params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors')]
+    # params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  irst: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
 
     strategy_choices = ['best1bin', 'best1exp', 'rand1exp', 'randtobest1exp', 'currenttobest1exp',
                         'best2exp', 'rand2exp', 'randtobest1bin', 'currenttobest1bin', 'best2bin',

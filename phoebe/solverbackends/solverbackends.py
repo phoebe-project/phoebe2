@@ -653,8 +653,10 @@ class Nelder_MeadBackend(BaseSolverBackend):
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
         fit_parameters = kwargs.get('fit_parameters')
-        priors = kwargs.get('priors')
-        priors_combine = kwargs.get('priors_combine')
+        # priors = kwargs.get('priors')
+        # priors_combine = kwargs.get('priors_combine')
+        priors = []
+        priors_combine = ''
 
         params_uniqueids = []
         p0 = []
