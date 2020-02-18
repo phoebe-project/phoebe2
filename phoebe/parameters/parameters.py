@@ -3403,6 +3403,7 @@ class ParameterSet(object):
 
     def calculate_lnp(self, distribution=None,
                       combine='and', include_constrained=True,
+                      to_univariates=False,
                       **kwargs):
         """
         Compute the log-probability between a distribution-set and the face values of
@@ -3428,7 +3429,7 @@ class ParameterSet(object):
             (`calculate_lnp(distribution=['dist1', 'dist2']) = calculate_lnp(distribution='dist1')+calculate_lnp(distribution='dist2')`)
         * `combine` (string, opjtional, default='add')
         * `include_constrained` (bool, optional, default=True)
-        * `to_univariates`
+        * `to_univariates` (bool, optional, default=False)
         * `**kwargs` (optional): all additional keyword arguments are used
             to filter the parameter set.
 
@@ -3448,6 +3449,9 @@ class ParameterSet(object):
                 distribution = self.distributions[0]
             else:
                 raise ValueError("distribution must be provided (one or list of {})".format(self.distributions))
+
+        if not len(distribution):
+            return 0.0 # (np.log(1))
 
         if len(kwargs.items()):
             kwargs.setdefault('check_visible', False)
