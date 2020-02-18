@@ -623,7 +623,7 @@ def ellc(**kwargs):
 
     params += [BoolParameter(qualifier='exact_grav', value=kwargs.get('exact_grav', False), description='Whether to use point-by-point calculation of local surface gravity for calculation of gravity darkening or a (much faster) approximation based on functional form fit to local gravity at 4 points on the star.')]
 
-    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default',
+    params += [ChoiceParameter(qualifier='rv_method', copy_for = {'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default',
                                value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
 
 
