@@ -571,17 +571,27 @@ class BaseBackendByDataset(BaseBackend):
 
 def _call_run_single_model(args):
     # TODO: make copy of the bundle?
-    bjson, samples, compute, times, compute_kwargs, i = args
+    bjson, samples, sample_from, sample_from_combine, compute, times, compute_kwargs, i = args
+    # override sample_from
+    compute_kwargs['sample_from'] = []
     b = phoebe.frontend.bundle.Bundle(bjson)
-
-    # b.sample_distribution(distribution=sample_from, combine=sample_from_combine, set_value=True)
 
     # TODO: temporarily disable constraints if not already
     for uniqueid, value in samples.items():
         b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
 
-    model_ps = b.run_compute(compute=compute, times=times, sample_from=[], do_create_fig_params=False, model='sample_{}'.format(i), **compute_kwargs)
-    return model_ps.to_json()
+    while True:
+        try:
+            # print("running model with samples={}".format(samples))
+            model_ps = b.run_compute(compute=compute, times=times, do_create_fig_params=False, model='sample_{}'.format(i), **compute_kwargs)
+        except:
+            # new random draw for the next attempt
+            logger.warning("model failed: drawing new sample")
+            # print("model failed: drawing new sample")
+            b.sample_distribution(distribution=sample_from, combine=sample_from_combine, set_value=True)
+        else:
+            # print("model success")
+            return model_ps.to_json()
 
 
 class SampleOverModel(object):
@@ -634,7 +644,7 @@ class SampleOverModel(object):
             # samples = range(sample_num)
             sample_dict = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=sample_num, keys='uniqueid')
             bjson = b.exclude(context=['model', 'solver', 'solution', 'figure'], **_skip_filter_checks).exclude(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
-            args_per_sample = [(deepcopy(bjson), {k:v[i] for k,v in sample_dict.items()}, compute, times, compute_kwargs, i) for i in range(sample_num)]
+            args_per_sample = [(deepcopy(bjson), {k:v[i] for k,v in sample_dict.items()}, sample_from, sample_from_combine, compute, times, compute_kwargs, i) for i in range(sample_num)]
 
             # models = [_call_run_single_model(args) for args in args_per_sample]
             models = list(pool.map(_call_run_single_model, args_per_sample))
