@@ -5718,6 +5718,13 @@ class Bundle(ParameterSet):
                                               **{'context': 'distribution',
                                                  'kind': 'dist'}))
 
+        # # allow twig and/or kwargs to include lists - if so, any lists must
+        # # be the same length and must be the length of the passed multivariate
+        # # distribution... in which case we can call slice internally and attach
+        # # to multiple parameters at once.
+        # if isinstance(twig, list) or np.any([isinstance(v, list) for k,v in kwargs.items()]):
+
+
         # if kwargs.pop('check_label', True):
             # self._check_label(kwargs['distribution'], allow_overwrite=kwargs.get('overwrite', False))
 
@@ -5995,16 +6002,29 @@ class Bundle(ParameterSet):
         uniqueids = []
         ret_keys = []
 
+        raised_univariate_warning = False
+        raised_uniform_warning = False
 
         def _to_dist(dist, to_univariates=False, to_uniform=False):
+            # TODO: test this for python2
+            nonlocal raised_univariate_warning
+            nonlocal raised_uniform_warning
+
             if to_univariates:
                 if hasattr(dist, 'to_univariate'):
+                    if not raised_univariate_warning:
+                        logger.warning("covariances will be dropped and all distributions converted to univariates")
+                        raised_univariate_warning = True
                     dist = dist.to_univariate()
             if to_uniform:
                 if hasattr(dist, 'to_uniform'):
+                    if not raised_uniform_warning:
+                        logger.warning("all non-uniform distributions will be converted to uniforms by adopting sigma={}".format(int(to_uniforms)))
+                        raised_uniform_warning = True
                     dist = dist.to_uniform(sigma=int(to_uniform))
 
             return dist
+
 
         for dist in distributions:
             # TODO: if * in list, need to expand (currently forbidden with error in get_distribution)
