@@ -7731,6 +7731,7 @@ class Bundle(ParameterSet):
             # Unfortunately right now an error just results in the job hanging.
             f = open(err_fname, 'w')
             subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
+            f.close()
 
             # create model parameter and attach (and then return that instead of None)
             job_param = JobParameter(self,
@@ -7748,7 +7749,7 @@ class Bundle(ParameterSet):
             if not detach:
                 return job_param.attach()
             else:
-                logger.info("detaching from run_compute.  Call get_model('{}').attach() to re-attach".format(model))
+                logger.info("detaching from run_compute.  Call get_parameter(model='{}').attach() to re-attach".format(model))
 
             # TODO: make sure the figureparams are returned when attaching
 
@@ -8418,7 +8419,7 @@ class Bundle(ParameterSet):
 
 
     @send_if_client
-    def run_solver(self, solver=None, solution=None, **kwargs):
+    def run_solver(self, solver=None, solution=None, detach=False, **kwargs):
         """
         Run a forward model of the system on the enabled dataset(s) using
         a specified set of solver options.
@@ -8462,6 +8463,12 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_solution> to rename a solution after
             creation.
+        * `detach` (bool, optional, default=False, EXPERIMENTAL):
+            whether to detach from the solver run,
+            or wait for computations to complete.  If detach is True, see
+            <phoebe.frontend.bundle.Bundle.get_solution> and
+            <phoebe.parameters.JobParameter>
+            for details on how to check the job status and retrieve the results.
         * `overwrite` (boolean, optional, default=solution=='latest'): whether to overwrite
             an existing model with the same `model` tag.  If False,
             an error will be raised.  This defaults to True if `model` is not provided
@@ -8483,7 +8490,81 @@ class Bundle(ParameterSet):
         * a <phoebe.parameters.ParameterSet> of the newly-created solver solution.
 
         """
+        if isinstance(detach, str) or isinstance(detach, unicode):
+            # then we want to temporarily go in to client mode
+            raise NotImplementedError("detach currently must be a bool")
+            self.as_client(server=detach)
+            self.run_solver(solver=solver, solution=solution, **kwargs)
+            self.as_client(False)
+            return self.get_solution(solution=solution)
+
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
+
+        # now if we're supposed to detach we'll just prepare the job for submission
+        # either in another subprocess or through some queuing system
+        if detach and mpi.within_mpirun:
+            logger.warning("cannot detach when within mpirun, ignoring")
+            detach = False
+
+        if (detach or mpi.enabled) and not mpi.within_mpirun:
+            if detach:
+                logger.warning("detach support is EXPERIMENTAL")
+
+            # if kwargs.get('max_computations', None) is not None:
+            #     # then we need to estimate computations in advance so we can
+            #     # raise an error immediately
+            #     logger.info("estimating number of computations to ensure not over max_computations={}".format(kwargs['max_computations']))
+            #     for compute in computes:
+            #         computeparams = self.get_compute(compute=compute)
+            #
+            #         if not computeparams.kind:
+            #             raise KeyError("could not recognize backend from compute: {}".format(compute))
+            #         compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
+            #         out = compute_class().get_packet_and_syns(self, compute, times=times, **kwargs)
+
+            # we'll track everything through the solution name as well as
+            # a random string, to avoid any conflicts
+            jobid = kwargs.get('jobid', parameters._uniqueid())
+
+            script_fname = "_{}.py".format(jobid)
+            out_fname = "_{}.out".format(jobid)
+            err_fname = "_{}.err".format(jobid)
+            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, kwargs)
+
+            script_fname = os.path.abspath(script_fname)
+            cmd = mpi.detach_cmd.format(script_fname)
+            # TODO: would be nice to catch errors caused by the detached script...
+            # but that would probably need to be the responsibility of the
+            # jobparam to return a failed status and message.
+            # Unfortunately right now an error just results in the job hanging.
+            f = open(err_fname, 'w')
+            subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=f)
+            f.close()
+
+            # create model parameter and attach (and then return that instead of None)
+            job_param = JobParameter(self,
+                                     location=os.path.dirname(script_fname),
+                                     status_method='exists',
+                                     retrieve_method='local',
+                                     uniqueid=jobid)
+
+            metawargs = {'context': 'solution', 'solution': solution}
+            self._attach_params([job_param], check_copy_for=False, **metawargs)
+
+            if isinstance(detach, str):
+                self.save(detach)
+
+            if not detach:
+                return job_param.attach()
+            else:
+                logger.info("detaching from run_solver.  Call get_parameter(solution='{}').attach() to re-attach".format(solution))
+
+
+            if kwargs.get('overwrite', solution=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
+                return ParameterSet([job_param]) + overwrite_ps
+
+            return job_param
+
 
         solver_class = getattr(_solverbackends, '{}Backend'.format(solver_ps.kind.title()))
         params = solver_class().run(self, solver, compute, solution=solution, **kwargs)

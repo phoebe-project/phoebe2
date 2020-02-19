@@ -10756,7 +10756,12 @@ class JobParameter(Parameter):
         if not wait and status not in ['complete', 'error']:
             if status in ['loaded']:
                 logger.info("job already loaded")
-                return self._bundle.get_model(self.model)
+                if self.context == 'model':
+                    return self._bundle.get_model(self.model)
+                elif self.context == 'solution':
+                    return self._bundle.get_solution(self.solution)
+                else:
+                    raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
             else:
                 logger.info("current status: {}, check again or use wait=True".format(status))
                 return self
@@ -10797,14 +10802,20 @@ class JobParameter(Parameter):
 
             self._value = 'error'
 
-            raise RuntimeError("compute job failed with error: {}".format(msg))
+            raise RuntimeError("job failed with error: {}".format(msg))
         else:
             logger.info("current status: {}, pulling job results".format(self.status))
             result_ps = self._retrieve_results()
 
             # now we need to attach result_ps to self._bundle
             # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
-            metawargs = {'compute': str(result_ps.compute), 'model': str(result_ps.model), 'context': 'model'}
+            if self.context == 'model':
+                metawargs = {'compute': str(result_ps.compute), 'model': str(result_ps.model), 'context': 'model'}
+            elif self.context == 'solution':
+                metawargs = {'solver': str(result_ps.solver), 'solution': str(result_ps.solution), 'context': 'solution'}
+            else:
+                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+
             self._bundle._attach_params(result_ps, **metawargs)
 
             if cleanup:
@@ -10815,7 +10826,13 @@ class JobParameter(Parameter):
             self._value = 'loaded'
 
             # TODO: add history?
+            if self.context == 'model':
+                self._bundle._handle_model_selectparams()
 
-            self._bundle._handle_model_selectparams()
+                return self._bundle.filter(model=self.model)
 
-            return self._bundle.filter(model=self.model)
+            elif self.context == 'solution':
+                return self._bundle.filter(solution=self.solution)
+
+            else:
+                raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
