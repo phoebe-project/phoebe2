@@ -54,7 +54,6 @@ def _bjson(b, solver, compute, distributions):
 
 
 def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
-    # print("*** _lnlikelihood from rank: {}".format(mpi.myrank))
     # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
     # deferring constraints/checks until run_compute.
 
@@ -211,11 +210,7 @@ class BaseSolverBackend(object):
 
             # now even the master can become a worker and take on a chunk
             packet['b'] = b
-            rpacketlists = self.run_worker(**packet)
-
-            # now receive all packetlists
-            logger.debug("rank:{}/{} gathering packetlists from all workers".format(mpi.myrank, mpi.nprocs))
-            rpacketlists_per_worker = mpi.comm.gather(rpacketlists, root=0)
+            rpacketlists_per_worker = [self.run_worker(**packet)]
 
         else:
             rpacketlists_per_worker = [self.run_worker(**packet)]
@@ -354,13 +349,19 @@ class EmceeBackend(BaseSolverBackend):
         # emcee handles workers itself.  So here we'll just take the workers
         # from our own waiting loop in phoebe's __init__.py and subscribe them
         # to emcee's pool.
-
         if mpi.within_mpirun:
             pool = schwimmbad.MPIPool()
             is_master = pool.is_master()
         else:
             pool = schwimmbad.MultiPool()
             is_master = True
+
+        # temporarily disable MPI within run_compute to disabled parallelizing
+        # per-time.
+        within_mpirun = mpi.within_mpirun
+        mpi_enabled = mpi.enabled
+        mpi._within_mpirun = False
+        mpi._enabled = False
 
         if is_master:
             niters = kwargs.get('niters')
@@ -455,26 +456,18 @@ class EmceeBackend(BaseSolverBackend):
             # NOTE: because we overrode self._run_worker to skip loading the
             # bundle, b is just a json string here.  If we ever need the
             # bundle in here, just remove the override for self._run_worker.
-
-            # temporarily disable MPI within run_compute to disabled parallelizing
-            # per-time.
-            within_mpirun = mpi.within_mpirun
-            mpi_enabled = mpi.enabled
-            mpi._within_mpirun = False
-            mpi._enabled = False
-
             pool.wait()
-
-            # restore previous MPI state
-            mpi._within_mpirun = within_mpirun
-            mpi._enabled = mpi_enabled
 
         if pool is not None:
             pool.close()
 
+        # restore previous MPI state
+        mpi._within_mpirun = within_mpirun
+        mpi._enabled = mpi_enabled
+
         if is_master:
             return [[{'qualifier': 'fitted_parameters', 'value': params_uniqueids}]]
-        return {}
+        return
 
 
 class DynestyBackend(BaseSolverBackend):
@@ -517,16 +510,20 @@ class DynestyBackend(BaseSolverBackend):
         return self.run_worker(**packet)
 
     def run_worker(self, b, solver, compute, **kwargs):
-        # emcee handles workers itself.  So here we'll just take the workers
-        # from our own waiting loop in phoebe's __init__.py and subscribe them
-        # to emcee's pool.
-
         if mpi.within_mpirun:
             pool = schwimmbad.MPIPool()
             is_master = pool.is_master()
         else:
             pool = schwimmbad.MultiPool()
             is_master = True
+
+
+        # temporarily disable MPI within run_compute to disabled parallelizing
+        # per-time.
+        within_mpirun = mpi.within_mpirun
+        mpi_enabled = mpi.enabled
+        mpi._within_mpirun = False
+        mpi._enabled = False
 
         if is_master:
             priors = kwargs.get('priors')
@@ -591,26 +588,18 @@ class DynestyBackend(BaseSolverBackend):
             # NOTE: because we overrode self._run_worker to skip loading the
             # bundle, b is just a json string here.  If we ever need the
             # bundle in here, just remove the override for self._run_worker.
-
-            # temporarily disable MPI within run_compute to disabled parallelizing
-            # per-time.
-            within_mpirun = mpi.within_mpirun
-            mpi_enabled = mpi.enabled
-            mpi._within_mpirun = False
-            mpi._enabled = False
-
             pool.wait()
-
-            # restore previous MPI state
-            mpi._within_mpirun = within_mpirun
-            mpi._enabled = mpi_enabled
 
         if pool is not None:
             pool.close()
 
+        # restore previous MPI state
+        mpi._within_mpirun = within_mpirun
+        mpi._enabled = mpi_enabled
+
         if is_master:
             return [[{'qualifier': 'fitted_parameters', 'value': params_uniqueids}]]
-        return {}
+        return
 
 
 
@@ -737,6 +726,13 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             pool = schwimmbad.MultiPool()
             is_master = True
 
+        # temporarily disable MPI within run_compute to disabled parallelizing
+        # per-time.
+        within_mpirun = mpi.within_mpirun
+        mpi_enabled = mpi.enabled
+        mpi._within_mpirun = False
+        mpi._enabled = False
+
         if is_master:
             fit_parameters = kwargs.get('fit_parameters')
             priors = kwargs.get('priors')
@@ -785,22 +781,14 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             # NOTE: because we overrode self._run_worker to skip loading the
             # bundle, b is just a json string here.  If we ever need the
             # bundle in here, just remove the override for self._run_worker.
-
-            # temporarily disable MPI within run_compute to disabled parallelizing
-            # per-time.
-            within_mpirun = mpi.within_mpirun
-            mpi_enabled = mpi.enabled
-            mpi._within_mpirun = False
-            mpi._enabled = False
-
             pool.wait()
-
-            # restore previous MPI state
-            mpi._within_mpirun = within_mpirun
-            mpi._enabled = mpi_enabled
 
         if pool is not None:
             pool.close()
+
+        # restore previous MPI state
+        mpi._within_mpirun = within_mpirun
+        mpi._enabled = mpi_enabled
 
         if is_master:
             # TODO: expose the adopted bounds?
@@ -812,4 +800,4 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                     {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
                     {'qualifier': 'fitted_values', 'value': res.x},
                     {'qualifier': 'fitted_units', 'value': fitted_units}]]
-        return {}
+        return

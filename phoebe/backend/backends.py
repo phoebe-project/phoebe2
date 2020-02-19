@@ -632,6 +632,13 @@ class SampleOverModel(object):
             # pool = schwimmbad.SerialPool()
             is_master = True
 
+        # temporarily disable MPI within run_compute to disabled parallelizing
+        # per-time.
+        within_mpirun = mpi.within_mpirun
+        mpi_enabled = mpi.enabled
+        mpi._within_mpirun = False
+        mpi._enabled = False
+
         if is_master:
             compute_ps = b.get_compute(compute=compute, **_skip_filter_checks)
             compute_kwargs = {k:v for k,v in kwargs.items() if k in compute_ps.qualifiers and 'sample' not in k}
@@ -649,21 +656,14 @@ class SampleOverModel(object):
             # models = [_call_run_single_model(args) for args in args_per_sample]
             models = list(pool.map(_call_run_single_model, args_per_sample))
         else:
-            # temporarily disable MPI within run_compute to disabled parallelizing
-            # per-time.
-            within_mpirun = mpi.within_mpirun
-            mpi_enabled = mpi.enabled
-            mpi._within_mpirun = False
-            mpi._enabled = False
-
             pool.wait()
-
-            # restore previous MPI state
-            mpi._within_mpirun = within_mpirun
-            mpi._enabled = mpi_enabled
 
         if pool is not None:
             pool.close()
+
+        # restore previous MPI state
+        mpi._within_mpirun = within_mpirun
+        mpi._enabled = mpi_enabled
 
         if is_master:
             # TODO: merge the models as requested by sample_mode

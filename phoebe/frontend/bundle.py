@@ -7520,6 +7520,7 @@ class Bundle(ParameterSet):
         else:
             f.write("import sys\n")
             f.write("model_ps.save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+            out_fname = script_fname+'.out'
 
         f.close()
 
@@ -8317,6 +8318,105 @@ class Bundle(ParameterSet):
 
         return self.filter(solver=new_solver)
 
+
+    def _prepare_solver(self, solver, solution, **kwargs):
+        """
+        """
+
+        if solution is None:
+            solution = 'latest'
+
+        self._check_label(solution, allow_overwrite=kwargs.get('overwrite', solution=='latest'))
+
+        solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
+        if 'compute' in solver_ps.qualifiers:
+            compute = kwargs.pop('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
+            compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
+
+            if len(compute_ps.computes) > 1:
+                raise ValueError("more than one set of compute options attached, must provide compute")
+            elif not len(compute_ps.computes):
+                raise ValueError("no compute options found")
+
+            compute = compute_ps.compute
+
+        else:
+            compute = None
+
+        return solver, solution, compute, solver_ps
+
+
+    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, import_from_older, kwargs):
+        """
+        """
+        f = open(script_fname, 'w')
+        f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE'; os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE';\n")
+        f.write("import phoebe; import json\n")
+        # TODO: can we skip the history context?  And maybe even other models
+        # or datasets (except times and only for run_compute but not run_solver)
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['model', 'figure', 'solution'], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced']))))
+        f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
+        solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
+        solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in solver_kwargs])
+        f.write("solution_ps = b.run_solver({})\n".format(solver_kwargs_string))
+
+        if out_fname is not None:
+            f.write("solution_ps.save('{}', incl_uniqueid=True)\n".format(out_fname))
+        else:
+            f.write("import sys\n")
+            f.write("solution_ps.save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+            out_fname = script_fname+'.out'
+
+        f.close()
+
+        return script_fname, out_fname
+
+    def export_solver(self, script_fname, out_fname=None,
+                      solver=None, solution=None,
+                      import_from_older=False,
+                      **kwargs):
+        """
+        Export a script to call run_solver externally (in a different thread
+        or on a different machine).
+
+        After running the resulting `script_fname`, `out_fname` will be created,
+        which will contain a ParameterSet of the solution parameters.  To attach
+        that solution to this bundle, see <phoebe.frontend.bundle.Bundle.import_solution>.
+
+        Arguments
+        ------------
+        * `script_fname` (string): the filename of the python script to be generated.
+        * `out_fname` (string, optional): the filename of the output file that `script_fname`
+            will write when executed.  Once executed, pass this filename to
+            <phoebe.frontend.bundle.Bundle.import_model> to load the resulting
+            model.  If not provided, the script will automatically export
+            to `script_fname`.out (where the filename is determined at runtime,
+            so if you rename the script exported here, the resulting filename
+            will reflect that change and be appended with '.out').
+        * `solver` (string, optional, default=None):
+        * `solution` (string, optional, default=None):
+        * `import_from_older` (boolean, optional, default=False): whether to allow
+            the script to run on a newer version of PHOEBE.  If True and executing
+            the outputed script (`script_fname`) on a newer version of PHOEBE,
+            the bundle will attempt to migrate to the newer version.  If False,
+            an error will be raised when attempting to run the script.  See
+            also: <phoebe.frontend.bundle.Bundle.open>.
+        * `**kwargs`:: any values in the solver or compute options to temporarily
+            override for this single solver run (parameter values will revert
+            after run_solver is finished).
+
+        Returns
+        -----------
+        * `script_fname`, `out_fname`.  Where running `script_fname` will result
+          in the model being written to `out_fname`.
+
+        """
+        solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
+        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, import_from_older, kwargs)
+        return script_fname, out_fname
+
+
+
     @send_if_client
     def run_solver(self, solver=None, solution=None, **kwargs):
         """
@@ -8383,27 +8483,9 @@ class Bundle(ParameterSet):
         * a <phoebe.parameters.ParameterSet> of the newly-created solver solution.
 
         """
-        if solution is None:
-            solution = 'latest'
+        solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
 
-        self._check_label(solution, allow_overwrite=kwargs.get('overwrite', solution=='latest'))
-
-        solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
         solver_class = getattr(_solverbackends, '{}Backend'.format(solver_ps.kind.title()))
-        if 'compute' in solver_ps.qualifiers:
-            compute = kwargs.pop('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
-            compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
-
-            if len(compute_ps.computes) > 1:
-                raise ValueError("more than one set of compute options attached, must provide compute")
-            elif not len(compute_ps.computes):
-                raise ValueError("no compute options found")
-
-            compute = compute_ps.compute
-
-        else:
-            compute = None
-
         params = solver_class().run(self, solver, compute, solution=solution, **kwargs)
         metawargs = {'context': 'solution',
                      'solver': solver_ps.solver,
@@ -8426,7 +8508,6 @@ class Bundle(ParameterSet):
             # something other than solution (technically could belong to model if 'latest')
             if solution!='latest':
                 self._check_label(solution, allow_overwrite=False)
-
 
         self._attach_params(params, check_copy_for=False, **metawargs)
 
@@ -8522,39 +8603,39 @@ class Bundle(ParameterSet):
 
         return self.run_solver(solution=solution, **kwargs)
 
-    # def import_solution(self, fname, solution=None):
-    #     """
-    #     Import and attach a solution from a file.
-    #
-    #     Generally this file will be the output after running a script generated
-    #     by <phoebe.frontend.bundle.Bundle.export_compute>.  This is NOT necessary
-    #     to be called if generating a solution directly from
-    #     <phoebe.frontend.bundle.Bundle.run_solver>.
-    #
-    #     See also:
-    #     * <phoebe.frontend.bundle.Bundle.export_solver>
-    #
-    #     Arguments
-    #     ------------
-    #     * `fname` (string): the path to the file containing the solution.  Likely
-    #         `out_fname` from <phoebe.frontend.bundle.Bundle.export_compute>.
-    #         Alternatively, this can be the json of the solution.  Must be
-    #         able to be parsed by <phoebe.parameters.ParameterSet.open>.
-    #     * `solution` (string, optional): the name of the solution to be attached
-    #         to the Bundle.  If not provided, the solution will be adopted from
-    #         the tags in the file.
-    #
-    #     Returns
-    #     -----------
-    #     * ParameterSet of added and changed parameters
-    #     """
-    #     result_ps = ParameterSet.open(fname)
-    #     metawargs = {}
-    #     if solution is not None:
-    #         metawargs['solution'] = solution
-    #     self._attach_params(result_ps, override_tags=True, **metawargs)
-    #
-    #     return ParameterSet(changed_params) + self.get_solution(solution=solution if solution is not None else result_ps.solutions)
+    def import_solution(self, fname, solution=None):
+        """
+        Import and attach a solution from a file.
+
+        Generally this file will be the output after running a script generated
+        by <phoebe.frontend.bundle.Bundle.export_solver>.  This is NOT necessary
+        to be called if generating a solution directly from
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.export_solver>
+
+        Arguments
+        ------------
+        * `fname` (string): the path to the file containing the solution.  Likely
+            `out_fname` from <phoebe.frontend.bundle.Bundle.export_compute>.
+            Alternatively, this can be the json of the solution.  Must be
+            able to be parsed by <phoebe.parameters.ParameterSet.open>.
+        * `solution` (string, optional): the name of the solution to be attached
+            to the Bundle.  If not provided, the solution will be adopted from
+            the tags in the file.
+
+        Returns
+        -----------
+        * ParameterSet of added and changed parameters
+        """
+        result_ps = ParameterSet.open(fname)
+        metawargs = {}
+        if solution is not None:
+            metawargs['solution'] = solution
+        self._attach_params(result_ps, override_tags=True, **metawargs)
+
+        return self.get_solution(solution=solution if solution is not None else result_ps.solutions)
 
     def remove_solution(self, solution, **kwargs):
         """
