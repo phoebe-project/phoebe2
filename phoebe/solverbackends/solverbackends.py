@@ -315,7 +315,7 @@ class EmceeBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_emcee:
-            raise ImportError("could not import emcee, schwimbbad, and h5py")
+            raise ImportError("could not import emcee, schwimmbad, and h5py")
 
         if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
             raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
@@ -482,7 +482,7 @@ class DynestyBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_dynesty:
-            raise ImportError("could not import dynesty, pickle, and schwimbbad")
+            raise ImportError("could not import dynesty, pickle, and schwimmbad")
 
         solver_ps = b.get_solver(solver)
         if not len(solver_ps.get_value(qualifier='priors', init_from=kwargs.get('priors', None))):
