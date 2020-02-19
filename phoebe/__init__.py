@@ -707,12 +707,16 @@ def mpi_on(nprocs=None):
 
     When MPI is enabled, PHOEBE will do the following:
     * if within mpirun: uses PHOEBE's built-in per-dataset or per-time
-        parallelization
+        parallelization for <phoebe.frontend.bundle.Bundle.run_compute>
+        and per-model parallelization when possible for
+        <phoebe.frontend.bundle.Bundle.run_solver>.
     * if not within mpirun (ie. in a serial python environment): will spawn a
-        separate thread at <phoebe.frontend.bundle.Bundle.run_compute>,
+        separate thread at <phoebe.frontend.bundle.Bundle.run_compute>
+        and <phoebe.frontend.bundle.Bundle.run_solver>,
         using `nprocs` processors.  This separate thread will be detached
         from the main thread if sending `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute>.
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
 
     See also:
     * <phoebe.mpi_off>
@@ -739,7 +743,8 @@ def mpi_off():
     * if not within mpirun (ie. in a serial python environment): PHOEBE will
         run on a single processor in serial-mode.  Compute jobs can still
         be detached from the main thread by sending `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute> but will stll run
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver> but will still run
         on a single processor.
 
     See also:
