@@ -6002,25 +6002,23 @@ class Bundle(ParameterSet):
         uniqueids = []
         ret_keys = []
 
-        raised_univariate_warning = False
-        raised_uniform_warning = False
+        # NOTE: in python3 we could do this with booleans and nonlocal variables,
+        # but for python2 support we can only fake it by mutating a dictionary.
+        # https://stackoverflow.com/questions/3190706/nonlocal-keyword-in-python-2-x
+        raised = {'univariate': False, 'uniform': False}
 
         def _to_dist(dist, to_univariates=False, to_uniform=False):
-            # TODO: test this for python2
-            nonlocal raised_univariate_warning
-            nonlocal raised_uniform_warning
-
             if to_univariates:
                 if hasattr(dist, 'to_univariate'):
-                    if not raised_univariate_warning:
+                    if not raised['univariate']:
                         logger.warning("covariances will be dropped and all distributions converted to univariates")
-                        raised_univariate_warning = True
+                        raised['univariate'] = True
                     dist = dist.to_univariate()
             if to_uniform:
                 if hasattr(dist, 'to_uniform'):
-                    if not raised_uniform_warning:
+                    if not raised['uniform']:
                         logger.warning("all non-uniform distributions will be converted to uniforms by adopting sigma={}".format(int(to_uniforms)))
-                        raised_uniform_warning = True
+                        raised['uniform'] = True
                     dist = dist.to_uniform(sigma=int(to_uniform))
 
             return dist
@@ -7161,11 +7159,13 @@ class Bundle(ParameterSet):
             return
 
         enabled_datasets = computeparams.filter(qualifier='enabled', value=True).datasets
+
         # handle any limb-darkening interpolation
-        dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_coeffs_source').exclude(value='none').datasets
         if computeparams.kind == 'photodynam':
             # then we're ignoring anything that isn't quadratic anyways
             dataset_compute_ld_coeffs = self.filter(dataset=dataset_compute_ld_coeffs, qualifier='ld_func', value='quadratic').datasets
+        else:
+            dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_coeffs_source').exclude(value='none').datasets
 
         if len(dataset_compute_ld_coeffs):
             logger.warning("{} does not natively support interpolating ld coefficients.  These will be interpolated by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
