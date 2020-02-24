@@ -533,7 +533,7 @@ class DynestyBackend(BaseSolverBackend):
 
             # NOTE: here it is important that _sample_ppf sees the parameters in the
             # same order as _lnlikelihood (that is in the order of params_uniqueids)
-            priors_dc, params_uniqueids = b.get_distribution_colleciton(distribution=priors,
+            priors_dc, params_uniqueids = b.get_distribution_collection(distribution=priors,
                                                                         combine=priors_combine,
                                                                         include_constrained=False,
                                                                         keys='uniqueid',
@@ -555,7 +555,7 @@ class DynestyBackend(BaseSolverBackend):
 
             logger.debug("dynesty.NestedSampler(_lnlikelihood, _sample_ppf, log_kwargs, ptform_kwargs, ndim, nlive)")
             sampler = dynesty.NestedSampler(_lnlikelihood, _sample_ppf,
-                                        logl_kwargs=lnlikelihood_kwargs, ptform_kwargs={'distributions_list': priors_dc.distributions},
+                                        logl_kwargs=lnlikelihood_kwargs, ptform_kwargs={'distributions_list': priors_dc.dists},
                                         ndim=len(params_uniqueids), nlive=kwargs.get('nlive'), pool=pool)
 
             sargs = {}
