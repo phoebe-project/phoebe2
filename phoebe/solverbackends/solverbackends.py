@@ -556,7 +556,7 @@ class DynestyBackend(BaseSolverBackend):
             logger.debug("dynesty.NestedSampler(_lnlikelihood, _sample_ppf, log_kwargs, ptform_kwargs, ndim, nlive)")
             sampler = dynesty.NestedSampler(_lnlikelihood, _sample_ppf,
                                         logl_kwargs=lnlikelihood_kwargs, ptform_kwargs={'distributions_list': priors_dc.dists},
-                                        ndim=len(params_uniqueids), nlive=kwargs.get('nlive'), pool=pool)
+                                        ndim=len(params_uniqueids), nlive=int(kwargs.get('nlive')), pool=pool)
 
             sargs = {}
             sargs['maxiter'] = kwargs.get('maxiter')
@@ -567,21 +567,23 @@ class DynestyBackend(BaseSolverBackend):
             sargs['logl_max'] = kwargs.get('logl_max', np.inf)
             sargs['n_effective'] = kwargs.get('n_effective',np.inf)
             sargs['add_live'] = kwargs.get('add_live', True)
-            sargs['save_bounds'] = kwargs.get('save_bounds', True)
-            sargs['save_samples'] = kwargs.get('save_samples',True)
+            # sargs['save_bounds'] = kwargs.get('save_bounds', True)
+            # sargs['save_samples'] = kwargs.get('save_samples', True)
 
+
+            sampler.run_nested(**sargs)
+            # for result in sampler.sample(**sargs):
+                # continue
+                # TODO: does this append or over-write?  If it overwrites
+                # can we just do it once at the end (or if
+                # keyboard-interrupt?)  Or do we want to do this so we can
+                # check in on the progress while it runs
 
             with open(filename, 'wb') as pfile:
-                for result in sampler.sample(**sargs):
-                    # TODO: does this append or over-write?  If it overwrites
-                    # can we just do it once at the end (or if
-                    # keyboard-interrupt?)  Or do we want to do this so we can
-                    # check in on the progress while it runs
-
-                    res = sampler.results
-                    # if res['niter']%saveiter == 0:
-                    # print('Saving results to %s...' % filename)
-                    pickle.dump(res, pfile)
+                res = sampler.results
+                # if res['niter']%saveiter == 0:
+                # print('Saving results to %s...' % filename)
+                pickle.dump(res, pfile)
 
 
         else:

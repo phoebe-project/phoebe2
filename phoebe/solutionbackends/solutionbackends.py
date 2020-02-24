@@ -110,10 +110,24 @@ class BaseSolutionBackend(object):
         raise NotImplementedError("adopt not subclassed by {}".format(self.__class__.__name__))
 
 class BaseDistributionSolutionBackend(BaseSolutionBackend):
-    def adopt(self, distribution=None):
+    def adopt(self, distribution):
         """
         """
-        raise NotImplementedError()
+        if not isinstance(distribution, str):
+            # TODO: check for validity in bundle or leave that for later?
+            raise ValueError("distribution must be a valid string")
+
+        if self._needs_process and not len(self._process_cache.keys()):
+            self.process()
+
+        dc = self.solution_kwargs.get('distribution')
+        uniqueids = self.solution_kwargs.get('fitted_parameters')
+
+        for i, uniqueid in enumerate(uniqueids):
+            self.bundle.add_distribution(uniqueid=uniqueid, value=dc.slice(i), distribution=distribution)
+
+        # TODO: do we want to only return newly added distributions?
+        return self.bundle.get_distribution(distribution=distribution)
 
 class BaseValueSolutionBackend(BaseSolutionBackend):
     def __init__(self, *args, **kwargs):
@@ -228,24 +242,6 @@ class EmceeSolution(BaseDistributionSolutionBackend):
                 'distribution': dist,
                 'object': reader}
 
-    def adopt(self, distribution):
-        """
-        """
-        if not isinstance(distribution, str):
-            # TODO: check for validity in bundle or leave that for later?
-            raise ValueError("distribution must be a valid string")
-
-        if self._needs_process and not len(self._process_cache.keys()):
-            self.process()
-
-        dc = self.solution_kwargs.get('distribution')
-        uniqueids = self.solution_kwargs.get('fitted_parameters')
-
-        for i, uniqueid in enumerate(uniqueids):
-            self.bundle.add_distribution(uniqueid=uniqueid, value=dc.slice(i), distribution=distribution)
-
-        # TODO: do we want to only return newly added distributions?
-        return self.bundle.get_distribution(distribution=distribution)
 
 class DynestySolution(BaseDistributionSolutionBackend):
     """
@@ -271,8 +267,18 @@ class DynestySolution(BaseDistributionSolutionBackend):
 
         ret = {k:v for k,v in dynesty_results.items() if k not in ['bound']}
         ret['object'] = dynesty_results
-        # TODO: how do we get distributions out of dynesty???
-        ret['distribution'] = None
+
+        ps = self.bundle.filter(context=['component', 'dataset'], **_skip_filter_checks)
+        fitted_params = [ps.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in self.get('fitted_parameters', kwargs)]
+        fitted_twigs = [param.get_uniquetwig(ps, exclude_levels=['context']) for param in fitted_params]
+
+        # TODO: this assumes the unit hasn't changed since the solver run... alternatively we could store units in the solution as 'fitted_units'
+        # TODO: distl multivariate support needs to accept list of units
+        fitted_units = None
+        #fitted_units = [param.default_unit for param in fitted_params]
+
+        dist = _distl.mvhistogram_from_data(dynesty_results.samples, bins=kwargs.get('bins', 10), range=None, weights=None, units=fitted_units, labels=fitted_twigs, wrap_ats=None)
+        ret['distribution'] = dist
         return ret
 
 class Lc_Eclipse_GeometrySolution(BaseValueSolutionBackend):
