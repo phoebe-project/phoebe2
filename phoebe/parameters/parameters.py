@@ -4074,6 +4074,8 @@ class ParameterSet(object):
         if 'phases' not in [_singular_to_plural_get(kwargs['{}qualifier'.format(af_direction)].split(':')[0]) for af_direction in ['x', 'y', 'z'] if isinstance(kwargs.get('{}qualifier'.format(af_direction), None), str)]:
             iqualifier_default = 'times'
         elif self._bundle.hierarchy.is_time_dependent():
+            if 'i' not in kwargs.keys():
+                logger.warning("defaulting to i='times' to plot in time-order because system is time_dependent.  Pass i='phases' to override.")
             iqualifier_default = 'times'
         else:
             iqualifier_default = 'phases'
