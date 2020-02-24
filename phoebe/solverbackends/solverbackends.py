@@ -735,8 +735,6 @@ class Differential_EvolutionBackend(BaseSolverBackend):
 
         if is_master:
             fit_parameters = kwargs.get('fit_parameters')
-            priors = kwargs.get('priors')
-            priors_combine = kwargs.get('priors_combine')
 
             params_uniqueids = []
             params = []
@@ -758,23 +756,23 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                                                                  combine=bounds_combine,
                                                                  include_constrained=False,
                                                                  to_univariates=True,
-                                                                 to_uniforms=bound_sigma,
+                                                                 to_uniforms=bounds_sigma,
                                                                  set_labels=False)
 
             # for each parameter, if a distribution is found in bounds_dict (from
             # the bounds parameter), then the bounds are adopted from that (taking
             # bounds_combine and bounds_sigma into account).  Otherwise, the limits
             # of the parameter itself are adopted.
-            bounds = [_get_bounds(param, bounds_dc.distributions[uniqueids.index(param.uniqueid)] if param.uniqueid in uniqueids else None, bounds_sigma) for param in params]
+            bounds = [_get_bounds(param, bounds_dc.dists[uniqueids.index(param.uniqueid)] if param.uniqueid in uniqueids else None, bounds_sigma) for param in params]
 
             compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
             options = {k:v for k,v in kwargs.items() if k in ['strategy', 'maxiter', 'popsize']}
 
-            logger.debug("calling scipy.optimize.differential_evolution(_lnlikelihood_negative, bounds={}, args=(bjson, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
+            logger.debug("calling scipy.optimize.differential_evolution(_lnlikelihood_negative, bounds={}, args=(bjson, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, [], kwargs.get('solution', None), compute_kwargs, options))
             # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
             res = optimize.differential_evolution(_lnlikelihood_negative, bounds,
-                                    args=(_bjson(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs),
+                                    args=(_bjson(b, solver, compute, []), params_uniqueids, compute, [], 'first', kwargs.get('solution', None), compute_kwargs),
                                     workers=pool.map, updating='deferred',
                                     **options)
         else:
