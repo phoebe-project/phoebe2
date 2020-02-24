@@ -655,7 +655,7 @@ class Nelder_MeadBackend(BaseSolverBackend):
         p0 = []
         fitted_units = []
         for twig in fit_parameters:
-            p = b.get_parameter(twig=twig, context=['component', 'dataset'], **_skip_filter_checks)
+            p = b.get_parameter(twig=twig, context=['component', 'dataset', 'feature', 'system'], **_skip_filter_checks)
             params_uniqueids.append(p.uniqueid)
             p0.append(p.get_value())
             fitted_units.append(p.get_default_unit())

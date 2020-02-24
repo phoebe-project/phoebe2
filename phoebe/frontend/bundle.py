@@ -2491,7 +2491,7 @@ class Bundle(ParameterSet):
 
         # parameters that can be fitted are only in the component or dataset context,
         # must be float parameters and must not be constrained (and must be visible)
-        ps = self.filter(context=['component', 'dataset', 'system'], check_visible=True, check_default=True)
+        ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=True, check_default=True)
         return ParameterSet([p for p in ps.to_list() if p.__class__.__name__=='FloatParameter' and not len(p.constrained_by)])
 
 
@@ -8329,7 +8329,10 @@ class Bundle(ParameterSet):
 
         self._check_label(solution, allow_overwrite=kwargs.get('overwrite', solution=='latest'))
 
-        solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
+        kwargs['check_default'] = False
+        kwargs['check_visible'] = False
+
+        solver_ps = self.get_solver(solver=solver, **kwargs)
         if 'compute' in solver_ps.qualifiers:
             compute = kwargs.pop('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
             compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
