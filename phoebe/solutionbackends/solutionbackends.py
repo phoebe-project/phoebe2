@@ -221,7 +221,7 @@ class EmceeSolution(BaseDistributionSolutionBackend):
 
         log_prob_samples = reader.get_log_prob(discard=burnin, thin=thin, flat=False)
 
-        ps = self.bundle.filter(context=['component', 'dataset'], **_skip_filter_checks)
+        ps = self.bundle.filter(context=['component', 'dataset', 'feature', 'system'], **_skip_filter_checks)
         fitted_params = [ps.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in self.get('fitted_parameters', kwargs)]
         fitted_twigs = [param.get_uniquetwig(ps, exclude_levels=['context']) for param in fitted_params]
 
@@ -268,7 +268,7 @@ class DynestySolution(BaseDistributionSolutionBackend):
         ret = {k:v for k,v in dynesty_results.items() if k not in ['bound']}
         ret['object'] = dynesty_results
 
-        ps = self.bundle.filter(context=['component', 'dataset'], **_skip_filter_checks)
+        ps = self.bundle.filter(context=['component', 'dataset', 'feature', 'system'], **_skip_filter_checks)
         fitted_params = [ps.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in self.get('fitted_parameters', kwargs)]
         fitted_twigs = [param.get_uniquetwig(ps, exclude_levels=['context']) for param in fitted_params]
 
