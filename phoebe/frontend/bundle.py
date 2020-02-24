@@ -8503,6 +8503,22 @@ class Bundle(ParameterSet):
 
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
 
+        if kwargs.get('overwrite', solution=='latest') and solution in self.solutions:
+            # NOTE: default (instead of detached_job=) is correct here
+            if self.get_value(qualifier='detached_job', solution=solution, context='solution', default='loaded') != 'loaded':
+                raise ValueError("solution '{}' cannot be overwritten until it is complete and loaded.".format(solution))
+            if solution=='latest':
+                logger.warning("overwriting solution: {}".format(solution))
+            else:
+                logger.info("overwriting solution: {}".format(solution))
+
+            overwrite_ps = self.remove_solution(solution=solution)
+
+            # check the label again, just in case solution belongs to
+            # something other than solution (technically could belong to model if 'latest')
+            if solution!='latest':
+                self._check_label(solution, allow_overwrite=False)
+
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
         if detach and mpi.within_mpirun:
@@ -8577,22 +8593,6 @@ class Bundle(ParameterSet):
                      'kind': solver_ps.kind,
                      'solution': solution}
 
-        if kwargs.get('overwrite', solution=='latest') and solution in self.solutions:
-            # NOTE: default (instead of detached_job=) is correct here
-            # if self.get_value(qualifier='detached_job', solution=solution, context='solution', default='loaded') != 'loaded':
-                # raise ValueError("solution '{}' cannot be overwritten until it is complete and loaded.".format(solution))
-            if solution=='latest':
-                logger.warning("overwriting solution: {}".format(solution))
-            else:
-                logger.info("overwriting solution: {}".format(solution))
-
-            overwrite_ps = self.remove_solution(solution=solution)
-
-            # check the label again, just in case solution belongs to
-            # something other than solution (technically could belong to model if 'latest')
-            if solution!='latest':
-                self._check_label(solution, allow_overwrite=False)
-
         self._attach_params(params, check_copy_for=False, **metawargs)
 
         ret_ps = self.get_solution(solution=solution)
@@ -8626,7 +8626,7 @@ class Bundle(ParameterSet):
         if kwargs.get('distribution', None) is not None and adopt is False:
             raise ValueError("distribution cannot be set if adopt is not set to True")
 
-        solution_ps = self.get_solution(solution=solution)
+        solution_ps = self.get_solution(solution=solution, **kwargs)
         solver_kind = solution_ps.kind
         if solver_kind is None:
             raise ValueError("could not find solution='{}'".format(solution))
