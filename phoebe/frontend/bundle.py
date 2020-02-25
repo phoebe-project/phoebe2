@@ -7259,7 +7259,7 @@ class Bundle(ParameterSet):
         # handle any limb-darkening interpolation
         if computeparams.kind == 'photodynam':
             # then we're ignoring anything that isn't quadratic anyways
-            dataset_compute_ld_coeffs = self.filter(dataset=dataset_compute_ld_coeffs, qualifier='ld_func', value='quadratic').datasets
+            dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_func', value='quadratic').datasets
         else:
             dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_coeffs_source').exclude(value='none').datasets
 
