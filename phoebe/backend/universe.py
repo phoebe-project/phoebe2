@@ -67,7 +67,7 @@ def _compute_pblum_scales(b, abs_pblums, hier_stars):
                 # a mesh or estimated using Stefan-Boltzmann/spherical
                 # approximation)
                 pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component, **_skip_filter_checks)
-                pblum_scales[dataset][component] = pblum / abs_pblums[dataset][comonent]
+                pblum_scales[dataset][component] = pblum / abs_pblums[dataset][component] if abs_pblums[dataset][component] != 0.0 else 0.0
 
         elif pblum_mode == 'component-coupled':
 
@@ -82,7 +82,7 @@ def _compute_pblum_scales(b, abs_pblums, hier_stars):
                     # then we do the same as in the decoupled case
                     # for this component
                     pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component, **_skip_filter_checks)
-                    pblum_scales[dataset][component] = pblum / abs_pblums[dataset][component]
+                    pblum_scales[dataset][component] = pblum / abs_pblums[dataset][component] if abs_pblums[dataset][component] != 0.0 else 0.0
                 else:
                     # then this component wants to copy the scale from another component
                     # in the system.  We'll just store this now so that we make sure the

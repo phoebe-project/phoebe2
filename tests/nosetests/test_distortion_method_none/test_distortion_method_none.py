@@ -19,6 +19,8 @@ def test_binary(plot=False):
     for comp in ['primary', 'secondary']:
         b.set_value_all('distortion_method', value='roche')
         b.set_value('distortion_method', component=comp, value='none')
+        b.compute_pblums(use_sb_approx=True, pblum_ext=False, pbflux_ext=False)
+        b.compute_pblums()
 
         b.run_compute()
 
