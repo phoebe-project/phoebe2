@@ -24,8 +24,103 @@ logger.addHandler(logging.NullHandler())
 
 _basedir = os.path.dirname(os.path.abspath(__file__))
 _pbdir = os.path.abspath(os.path.join(_basedir, '..', 'atmospheres', 'tables', 'passbands'))
+_skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 
+def l3_frac_to_flux(l3_frac, flux_tot):
+    return (l3_frac * flux_tot) / (1  - l3_frac) # u.W / u.m**2
+
+def l3_flux_to_frac(l3_flux, flux_tot):
+    return l3_flux / flux_tot
+
+def _compute_pblum_scales(b, abs_pblums, hier_stars):
+    # abs_pblums = {dataset: {component: abs_pblum}}
+    # hier_stars = list of components, probably b.hierarchy.get_stars()
+
+
+    # NOTE: we could copy abs_pblums here but then 'dataset-scaled'
+    # entries will need to be set to 1.0 and excluded manually later
+    pblum_scales = {}
+    pblum_scale_copy_ds = {}
+
+    for dataset in abs_pblums.keys():
+        pblum_scales[dataset] = {}
+
+        ds = b.get_dataset(dataset=dataset, **_skip_filter_checks)
+
+        try:
+            pblum_mode = ds.get_value(qualifier='pblum_mode', **_skip_filter_checks)
+        except ValueError:
+            # RVs etc don't have pblum_mode, but may still want luminosities
+            pblum_mode = 'absolute'
+
+        ds_components = hier_stars
+
+        if pblum_mode == 'decoupled':
+            for component in ds_components:
+                if component=='_default':
+                    continue
+
+                # then we want the pblum defined in the dataset, so the
+                # scale must be the requested pblum over the absolute value
+                # that was passed (which was likely either computed through
+                # a mesh or estimated using Stefan-Boltzmann/spherical
+                # approximation)
+                pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component, **_skip_filter_checks)
+                pblum_scales[dataset][component] = pblum / abs_pblums[dataset][comonent]
+
+        elif pblum_mode == 'component-coupled':
+
+            # now for each component we need to store the scaling factor between
+            # absolute and relative intensities
+            pblum_scale_copy_comp = {}
+            pblum_component = ds.get_value(qualifier='pblum_component', **_skip_filter_checks)
+            for component in ds_components:
+                if component=='_default':
+                    continue
+                if pblum_component==component:
+                    # then we do the same as in the decoupled case
+                    # for this component
+                    pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component, **_skip_filter_checks)
+                    pblum_scales[dataset][component] = pblum / abs_pblums[dataset][component]
+                else:
+                    # then this component wants to copy the scale from another component
+                    # in the system.  We'll just store this now so that we make sure the
+                    # component we're copying from has a chance to compute its scale
+                    # first.
+                    pblum_scale_copy_comp[component] = pblum_component
+
+            # now let's copy all the scales for those that are just referencing another component
+            for comp, comp_copy in pblum_scale_copy_comp.items():
+                pblum_scales[dataset][component] = pblum_scales[dataset][comp_copy]
+
+        elif pblum_mode == 'dataset-coupled':
+            pblum_ref = ds.get_value(qualifier='pblum_dataset', **_skip_filter_checks)
+            # similarly to the component-coupled case, we'll store
+            # the referenced dataset and apply the scalings to the
+            # dictionary once outside of the dataset loop.
+            pblum_scale_copy_ds[dataset] = pblum_ref
+
+        elif pblum_mode == 'dataset-scaled':
+            # for now we'll allow the scaling to fallback on 1.0, but not
+            # set the actual value so that these are EXCLUDED from b.compute_pblums
+            continue
+
+        elif pblum_mode == 'absolute':
+            # even those these will default to 1.0, we'll set them in the dictionary
+            # so the resulting pblums are available to b.compute_pblums()
+            for comp in ds_components:
+                pblum_scales[dataset][comp] = 1.0
+
+        else:
+            raise NotImplementedError("pblum_mode='{}' not supported".format(pblum_mode))
+
+
+        for ds, ds_copy in pblum_scale_copy_ds.items():
+            for comp in ds_components:
+                pblum_scales[ds][comp] = pblum_scales[ds_copy][comp]
+
+    return pblum_scales
 
 """
 Class/SubClass Structure of Universe.py:
@@ -347,94 +442,29 @@ class System(object):
 
         hier_stars = b.hierarchy.get_stars()
 
-        pblum_scale_copy_ds = {}
+
+        abs_pblums = {}
         for dataset in datasets:
-            ds = b.get_dataset(dataset=dataset)
+            ds = b.get_dataset(dataset=dataset, **_skip_filter_checks)
             kind = ds.kind
             if kind not in ['lc'] and lc_only:
                 # only LCs need pblum scaling
                 continue
 
-            try:
-                pblum_mode = ds.get_value(qualifier='pblum_mode')
-            except ValueError:
-                # RVs etc don't have pblum_mode, but may still want luminosities
-                pblum_mode = 'absolute'
-
-            logger.debug("system.compute_pblum_scalings: populating observables for dataset={} with for pblum_mode={}".format(dataset, pblum_mode))
+            logger.debug("system.compute_pblum_scalings: populating observables for dataset={}".format(dataset))
             self.populate_observables(t0, [kind], [dataset],
                                         ignore_effects=True)
 
-            ds_components = hier_stars
-            #ds_components = ds.filter(qualifier='pblum_ref', check_visible=False).components
 
-            if pblum_mode == 'decoupled':
-                for component in ds_components:
-                    if component=='_default':
-                        continue
+            abs_pblums[dataset] = {component: self.get_body(component).compute_luminosity(dataset) for component in hier_stars}
 
-                    pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component)
-                    # ld_mode = ds.get_value(qualifier='ld_mode', component=component)
-                    # ld_func = ds.get_value(qualifier='ld_func', component=component, check_visible=False)
-                    # ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
+        # abs_pblums = {dataset: {component: abs_pblum}}
+        # pblum_scales = {dataset: {component: pblum_scales}}
+        pblum_scales = _compute_pblum_scales(b, abs_pblums, hier_stars)
 
-                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
-                    self.get_body(component).compute_pblum_scale(dataset, pblum, component=component)
-
-            elif pblum_mode == 'component-coupled':
-
-                # now for each component we need to store the scaling factor between
-                # absolute and relative intensities
-                pblum_scale_copy_comp = {}
-                pblum_component = ds.get_value(qualifier='pblum_component')
-                for component in ds_components:
-                    if component=='_default':
-                        continue
-                    if pblum_component==component:
-                        pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component)
-                        # ld_mode = ds.get_value(qualifier='ld_mode', component=component)
-                        # ld_func = ds.get_value(qualifier='ld_func', component=component, check_visible=False)
-                        # ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
-
-                        # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
-                        self.get_body(component).compute_pblum_scale(dataset, pblum, component=component)
-                    else:
-                        # then this component wants to copy the scale from another component
-                        # in the system.  We'll just store this now so that we make sure the
-                        # component we're copying from has a chance to compute its scale
-                        # first.
-                        pblum_scale_copy_comp[component] = pblum_component
-
-                # now let's copy all the scales for those that are just referencing another component
-                for comp, comp_copy in pblum_scale_copy_comp.items():
-                    pblum_scale = self.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
-                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
-
-            elif pblum_mode == 'dataset-coupled':
-                pblum_ref = ds.get_value(qualifier='pblum_dataset')
-                pblum_scale_copy_ds[dataset] = pblum_ref
-
-            elif pblum_mode == 'dataset-scaled':
-                # for now we'll allow the scaling to fallback on 1.0, but not
-                # set the actual value so that these are EXCLUDED from b.compute_pblums
-                continue
-
-            elif pblum_mode == 'absolute':
-                # even those these will default to 1.0, we'll set them in the dictionary
-                # so the resulting pblums are available to b.compute_pblums()
-                for comp in ds_components:
-                    self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=1.0)
-
-            else:
-                raise NotImplementedError("pblum_mode='{}' not supported".format(pblum_mode))
-
-
-            # now let's copy all the scales for those that are just referencing another dataset
-            for ds, ds_copy in pblum_scale_copy_ds.items():
-                for comp in ds_components:
-                    pblum_scale = self.get_body(comp).get_pblum_scale(ds_copy, component=comp)
-                    self.get_body(comp).set_pblum_scale(ds, component=comp, pblum_scale=pblum_scale)
-
+        for dataset in list(pblum_scales.keys()):
+            for comp, pblum_scale in pblum_scales[dataset].items():
+                self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
         if reset:
             self.reset(force_recompute_instantaneous=True)
@@ -473,8 +503,7 @@ class System(object):
                 if flux_tot is None:
                     flux_tot = _compute_flux_tot(dataset)
                 l3_frac = l3.get('frac')
-                l3_flux = (l3_frac * flux_tot) / (1  - l3_frac) # u.W / u.m**2
-                self.l3s[dataset]['flux'] = l3_flux
+                self.l3s[dataset]['flux'] = l3_frac_to_flux(l3_frac, flux_tot)
 
 
             if compute_l3_frac and 'frac' not in l3.keys():
@@ -486,8 +515,7 @@ class System(object):
                 if flux_tot is None:
                     flux_tot = _compute_flux_tot(dataset)
                 l3_flux = l3.get('flux')
-                l3_frac = l3_flux / flux_tot
-                self.l3s[dataset]['frac'] = l3_frac
+                self.l3s[dataset]['frac'] = l3_flux_to_frac(l3_flux, flux_tot)
 
         if reset:
             self.reset(force_recompute_instantaneous=True)

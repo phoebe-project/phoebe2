@@ -33,6 +33,7 @@ from phoebe.parameters import feature as _feature
 from phoebe.parameters import figure as _figure
 from phoebe.parameters.parameters import _uniqueid
 from phoebe.backend import backends, mesh
+from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
 from phoebe.solutionbackends import solutionbackends as _solutionbackends
 from phoebe.distortions import roche
@@ -6798,7 +6799,8 @@ class Bundle(ParameterSet):
 
         return system
 
-    def compute_l3s(self, compute=None, set_value=False, **kwargs):
+    def compute_l3s(self, compute=None, use_pbflux={},
+                   set_value=False, **kwargs):
         """
         Compute third lights (`l3`) that will be applied to the system from
         fractional third light (`l3_frac`) and vice-versa by assuming that the
@@ -6817,6 +6819,10 @@ class Bundle(ParameterSet):
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets in which an `l3_mode` Parameter exists.
+        * `use_pbflux` (dictionary, optional): dictionary of dataset-total
+            passband fluxes to use when converting between `l3` and `l3_flux`.
+            For any dataset not included in the dictionary, the pblums
+            will be computed and adopted.  See also <phoebe.frontend.bundle.Bundle.compute_pblums>.
         * `set_value` (bool, optional, default=False): apply the computed
             values to the respective `l3` or `l3_frac` parameters (even if not
             currently visible).
@@ -6856,19 +6862,31 @@ class Bundle(ParameterSet):
                                      raise_logger_warning=True, raise_error=True,
                                      **kwargs)
 
-        system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets, compute_l3=True, compute_l3_frac=True, **kwargs))
+        datasets_need_pbflux = [d for d in datasets if d not in use_pbflux.keys()]
+        if len(datasets_need_pbflux):
+            system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets_need_pbflux, compute_l3=True, compute_l3_frac=True, **kwargs))
 
         l3s = {}
         for dataset in datasets:
-            l3_mode = self.get_value(qualifier='l3_mode', dataset=dataset)
+            l3_mode = self.get_value(qualifier='l3_mode', dataset=dataset, **_skip_filter_checks)
             if l3_mode == 'flux':
-                l3_frac = system.l3s[dataset]['frac']
+                if dataset in use_pbflux.keys():
+                    l3_flux = self.get_value(qualifier='l3', dataset=dataset, unit=u.W/u.m**2, **_skip_filter_checks)
+                    l3_frac = _universe.l3_flux_to_frac(l3_flux, use_pbflux.get(dataset).value)
+                else:
+                    l3_frac = system.l3s[dataset]['frac']
+
                 l3s['l3_frac@{}'.format(dataset)] = l3_frac
                 if set_value:
                     self.set_value(qualifier='l3_frac', dataset=dataset, check_visible=False, value=l3_frac)
 
             elif l3_mode == 'fraction':
-                l3_flux = system.l3s[dataset]['flux'] * u.W / u.m**2
+                if dataset in use_pbflux.keys():
+                    l3_frac = self.get_value(qualifier='l3_frac', dataset=dataset, **_skip_filter_checks)
+                    l3_flux = _universe.l3_frac_to_flux(l3_frac, use_pbflux.get(dataset)) * u.W / u.m**2
+                else:
+                    l3_flux = system.l3s[dataset]['flux'] * u.W / u.m**2
+
                 l3s['l3@{}'.format(dataset)] = l3_flux
 
                 if set_value:
@@ -6881,6 +6899,7 @@ class Bundle(ParameterSet):
 
     def compute_pblums(self, compute=None, pblum=True, pblum_ext=True,
                        pbflux=False, pbflux_ext=False,
+                       use_sb_approx=False,
                        set_value=False, **kwargs):
         """
         Compute the passband luminosities that will be applied to the system,
@@ -6974,6 +6993,9 @@ class Bundle(ParameterSet):
             with pblum_mode='dataset-scaled' will be ommitted from the output
             without raising an error (but will raise a <phoebe.logger> warning,
             if enabled).
+        * `use_sb_approx` (bool, optional, default=False): use stefan-boltzmann
+            approximation treating the whole star as a uniform sphere instead
+            of meshing the roche surface.
         * `set_value` (bool, optional, default=False): apply the computed
             values to the respective `pblum` parameters (even if not
             currently visible).  Note that extrinsic values (`pblum_ext` and
@@ -7056,24 +7078,97 @@ class Bundle(ParameterSet):
                     raise ValueError("dataset '{}' is not a valid dataset attached to the bundle".format(dataset))
                 raise ValueError("dataset '{}' is not passband-dependent".format(dataset))
             for pblum_ref_param in self.filter(qualifier='pblum_dataset', dataset=dataset).to_list():
-                ref_dataset = pblum_ref_param.get_value()
+                ref_dataset = pblum_ref_param.get_value(**_skip_filter_checks)
                 if ref_dataset in self.datasets and ref_dataset not in pblum_datasets:
                     # then we need to compute the system at this dataset too,
                     # even though it isn't requested to be returned
                     pblum_datasets.append(ref_dataset)
 
             ds_kind = self.get_dataset(dataset=dataset, check_visible=False).kind
-            if ds_kind == 'lc' and self.get_value(qualifier='pblum_mode', dataset=dataset, check_visible=False) == 'dataset-scaled':
+            if ds_kind == 'lc' and self.get_value(qualifier='pblum_mode', dataset=dataset, **_skip_filter_checks) == 'dataset-scaled':
                 logger.warning("cannot expose pblum for dataset={} with pblum_mode@{}='dataset-scaled'".format(dataset, dataset))
                 pblum_datasets.remove(dataset)
 
-        t0 = self.get_value(qualifier='t0', context='system', unit=u.d)
+        t0 = self.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
 
         # we'll need to make sure we've done any necessary interpolation if
         # any ld_bol or ld_mode_bol are set to 'lookup'.
         self.compute_ld_coeffs(compute=compute, set_value=True, **kwargs)
 
         ret = {}
+        if use_sb_approx:
+            if pblum_ext or pbflux_ext:
+                raise NotImplementedError("cannot use use_sb_approx with pblum_ext or pbflux_ext")
+
+            compute_ps = self.filter(compute=compute, context='compute', **_skip_filter_checks)
+
+            # pblum_abs: {dataset: component: {pblum_abs}}
+            pblum_abs = {dataset: {} for dataset in datasets}
+
+            for dataset in datasets:
+                for component in components:
+                    # TODO cache these per component before dataset loop?
+                    requiv = self.get_value(qualifier='requiv', component=component, context='component', unit='solRad', **_skip_filter_checks)
+                    teff = self.get_value(qualifier='teff', component=component, context='component', unit='K', **_skip_filter_checks)
+                    logg = self.get_value(qualifier='logg', component=component, context='component', **_skip_filter_checks)
+                    abun = self.get_value(qualifier='abun', component=component, context='component', **_skip_filter_checks)
+
+                    passband = self.get_value(qualifier='passband', dataset=dataset, context='dataset', **_skip_filter_checks)
+                    # TODO: atm not in all compute options... what should we fallback on?
+                    if 'atm' in compute_ps.qualifiers:
+                        atm = compute_ps.get_value(qualifier='atm', component=component, **_skip_filter_checks)
+                        if atm == 'blackbody':
+                            raise NotImplementedError("use_sb_approx not currently implemented for atm='blackody'")
+                    else:
+                        logger.warning("no atm in compute='{}', falling back on atm='ck2004'".format(compute))
+                        atm = 'ck2004'
+
+                    # TODO: blackbody:ldint doesn't exist...
+                    pb = get_passband(passband, content=['{}:Inorm'.format(atm), '{}:ldint'.format(atm)])
+                    # TODO: what should we do with photon_weighted here?
+                    # TODO: why is Inorm returning an array when passing all floats but ldint isn't??
+                    Inorm = pb.Inorm(Teff=teff, logg=logg, abun=abun, atm=atm, ldatm=atm, ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False)
+                    ldint = pb.ldint(Teff=teff, logg=logg, abun=abun, ldatm=atm, ld_func='interp', ld_coeffs=None, photon_weighted=False)
+
+                    pblum_abs[dataset][component] = 4 * np.pi * requiv**2 * Inorm[0] * ldint
+
+            pblum_scales = _universe._compute_pblum_scales(self, pblum_abs, components)
+            # print("*** pblum_abs", pblum_abs)
+            # print("*** pblum_scales", pblum_scales)
+            for dataset in datasets:
+                pbflux_this_dataset = 0.0
+                for component in components:
+                    pblum = pblum_abs[dataset][component] * pblum_scales[dataset][component]
+                    pbflux_this_dataset += pblum / (4*np.pi)
+
+                    if set_value:
+                        self.set_value(qualifier='pblum', component=component, dataset=dataset, context='dataset', value=pblum*u.W, **_skip_filter_checks)
+
+                    ret["{}@{}@{}".format('pblum', component, dataset)] = pblum*u.W
+
+
+                if pbflux:
+
+                    pbflux_this_dataset /= self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)**2
+
+                    l3_mode = self.get_value(qualifier='l3_mode', dataset=dataset, context='dataset', **_skip_filter_checks)
+                    if l3_mode == 'flux':
+                        l3_flux = self.get_value(qualifier='l3', dataset=dataset, context='dataset', unit=u.W/u.m**2, **_skip_filter_checks)
+                    elif l3_mode == 'fraction':
+                        l3_frac = self.get_value(qualifier='l3_frac', dataset=dataset, context='dataset', **_skip_filter_checks)
+                        l3_flux = _universe.l3_frac_to_flux(l3_frac, pbflux_this_dataset)
+                    else:
+                        raise NotImplementedError("not implemented for l3_mode='{}'".format(l3_mode))
+
+                    pbflux_this_dataset += l3_flux
+
+                    if set_value:
+                        self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', value=pbflux_this_dataset*u.W/u.m**2, **_skip_filter_checks)
+
+                    ret["{}@{}".format('pbflux', dataset)] = pbflux_this_dataset*u.W/u.m**2
+
+            return ret
+
         l3s = None
         for compute_extrinsic in [True, False]:
             # we need to compute the extrinsic case if we're requesting pblum_ext
@@ -7131,23 +7226,23 @@ class Bundle(ParameterSet):
 
                 if (compute_extrinsic and pbflux_ext) or (not compute_extrinsic and pbflux):
 
-                    pbflux_this_dataset /= self.get_value(qualifier='distance', context='system', unit=u.m)**2
+                    pbflux_this_dataset /= self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)**2
 
                     if l3s is None:
                         # then we didn't need to compute l3s, so we can pull straight from the parameter
-                        pbflux_this_dataset += self.get_value(qualifier='l3', dataset=dataset, context='dataset', unit=u.W/u.m**2)
+                        pbflux_this_dataset += self.get_value(qualifier='l3', dataset=dataset, context='dataset', unit=u.W/u.m**2, **_skip_filter_checks)
                     else:
                         pbflux_this_dataset += l3s[dataset]
 
 
                     if not compute_extrinsic and set_value:
-                        self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', check_visible=False, value=pbflux_this_dataset*u.W/u.m**2)
+                        self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', check_visible=False, value=pbflux_this_dataset*u.W/u.m**2, **_skip_filter_checks)
 
                     ret["{}@{}".format('pbflux_ext' if compute_extrinsic else 'pbflux', dataset)] = pbflux_this_dataset*u.W/u.m**2
 
         return ret
 
-    def _compute_necessary_values(self, computeparams, **kwargs):
+    def _compute_necessary_values(self, computeparams, pbflux=False, use_sb_approx=False, **kwargs):
         # we'll manually disable skip_checks anyways to avoid them being done twice
         _ = kwargs.pop('backend', None)
         _ = kwargs.pop('skip_checks', None)
@@ -7172,14 +7267,6 @@ class Bundle(ParameterSet):
             logger.debug("calling compute_ld_coeffs(compute={}, dataset={}, set_value=True, skip_checks=True, **{})".format(dataset_compute_ld_coeffs, compute, kwargs))
             self.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True, skip_checks=True, **kwargs)
 
-        # handle any necessary pblum computations
-        allowed_pblum_modes = ['decoupled', 'component-coupled'] if computeparams.kind == 'legacy' else ['decoupled']
-        dataset_compute_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode').exclude(value=allowed_pblum_modes).datasets
-        if len(dataset_compute_pblums):
-            logger.warning("{} does not natively support pblum_mode={}.  pblum values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, [p.get_value() for p in self.filter(qualifier='pblum_mode').exclude(value=allowed_pblum_modes).to_list()], computeparams.kind))
-            logger.debug("calling compute_pblums(compute={}, dataset={}, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True, **{})".format(compute, dataset_compute_pblums, kwargs))
-            self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=True, pbflux_ext=False, set_value=True, skip_checks=True, **kwargs)
-
         # handle any necessary l3 computations
         if computeparams.kind == 'ellc':
             dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='flux').datasets
@@ -7191,6 +7278,19 @@ class Bundle(ParameterSet):
             if len(list(set(l3_modes))) <= 1:
                 dataset_compute_l3s = []
 
+        # handle any necessary pblum computations
+        allowed_pblum_modes = ['decoupled', 'component-coupled'] if computeparams.kind == 'legacy' else ['decoupled']
+        dataset_compute_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode').exclude(value=allowed_pblum_modes).datasets
+        dataset_compute_pblums += [ds for ds in dataset_compute_l3s if ds not in dataset_compute_pblums]
+
+        if len(dataset_compute_pblums):
+            logger.warning("{} does not natively support pblum_mode={}.  pblum values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, [p.get_value() for p in self.filter(qualifier='pblum_mode').exclude(value=allowed_pblum_modes).to_list()], computeparams.kind))
+            logger.debug("calling compute_pblums(compute={}, dataset={}, pblum=True, pblum_ext=False, pbflux={}, pbflux_ext=False, set_value=True, skip_checks=True, use_sb_approx={}, **{})".format(compute, dataset_compute_pblums, pbflux, use_sb_approx, kwargs))
+            # we'll do pbflux here so that it doesn't need to be recomputed for l3s
+            pblums_dict = self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=len(dataset_compute_l3s), pbflux_ext=False, set_value=True, skip_checks=True, use_sb_approx=use_sb_approx, **kwargs)
+        else:
+            pblums_dict = {}
+
         if len(dataset_compute_l3s):
             if computeparams.kind == 'legacy':
                 logger.warning("{} does not natively support mixed values for l3_mode.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
@@ -7198,8 +7298,9 @@ class Bundle(ParameterSet):
                 logger.warning("{} does not natively support l3_mode='flux'.  l3_frac values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
             else:
                 logger.warning("{} does not natively support l3_mode='fraction'.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
-            logger.debug("calling compute_l3s(compute={}, dataset={}, set_value=True, skip_checks=True, **{})".format(compute, dataset_compute_l3s, kwargs))
-            self.compute_l3s(compute, dataset=dataset_compute_l3s, set_value=True, skip_checks=True, **kwargs)
+            use_pbflux = {dataset: pblums_dict.get('pbflux@{}'.format(dataset)) for dataset in dataset_compute_pblums}
+            logger.debug("calling compute_l3s(compute={}, dataset={}, use_pbflux={}, set_value=True, skip_checks=True, **{})".format(compute, dataset_compute_l3s, use_pbflux, kwargs))
+            self.compute_l3s(compute, dataset=dataset_compute_l3s, use_pbflux=use_pbflux, set_value=True, skip_checks=True, **kwargs)
 
 
     @send_if_client

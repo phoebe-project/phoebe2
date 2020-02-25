@@ -813,7 +813,7 @@ class PhoebeBackend(BaseBackendByTime):
         # if ld_mode_bol is lookup, we need to pre-compute those and store
         # them in the (hidden) ld_coeffs_bol parameters
         # TODO [optimize]: skip this if irrad_method is 'none' or albedos are 0?
-        b._compute_necessary_values(computeparams, **kwargs)
+        b._compute_necessary_values(computeparams, use_sb_approx=False, **kwargs)
 
         do_horizon = False #computeparams.get_value(qualifier='horizon', **kwargs)
         dynamics_method = computeparams.get_value(qualifier='dynamics_method', dynamics_method=kwargs.pop('dynamics_method', None), **_skip_filter_checks)
@@ -1685,7 +1685,7 @@ class PhotodynamBackend(BaseBackendByDataset):
 
         computeparams = b.get_compute(compute, force_ps=True)
 
-        b._compute_necessary_values(computeparams)
+        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=True)
 
         hier = b.get_hierarchy()
 
@@ -1930,7 +1930,7 @@ class JktebopBackend(BaseBackendByDataset):
 
         computeparams = b.get_compute(compute, force_ps=True)
 
-        b._compute_necessary_values(computeparams)
+        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=True)
 
         hier = b.get_hierarchy()
 
@@ -2184,7 +2184,8 @@ class EllcBackend(BaseBackendByDataset):
 
         computeparams = b.get_compute(compute, force_ps=True, **_skip_filter_checks)
 
-        b._compute_necessary_values(computeparams)
+        # TODO: toggle using use_sb_approx based on estimating the overfill amount?
+        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=True)
 
         hier = b.get_hierarchy()
 
