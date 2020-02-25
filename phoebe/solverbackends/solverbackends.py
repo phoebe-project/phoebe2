@@ -53,14 +53,22 @@ def _bjson(b, solver, compute, distributions):
                       distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
 
 
-def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
+def _bexclude(b, solver, compute, distributions):
+    # TODO: OPTIMIZE exclude disabled datasets?
+    # TODO: re-enable removing unused compute options - currently causes some constraints to fail
+    # TODO: is it quicker to initialize a new bundle around b.exclude?  Or just leave everything?
+    bexcl = b.copy()
+    bexcl.remove_parameters_all(context=['model', 'solution', 'figure'], **_skip_filter_checks)
+    if len(b.solvers) > 1:
+        bexcl.remove_parameters_all(solver=[f for f in b.solvers if f!=solver and solver is not None], **_skip_filter_checks)
+    bexcl.remove_parameters_all(distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks)
+    return bexcl
+
+
+def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
     # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
     # deferring constraints/checks until run_compute.
-
-    # TODO: [OPTIMIZE] try to remove this deepcopy - for some reason distribution objects
-    # are being stripped of their units without it
-    b = phoebe.frontend.bundle.Bundle(deepcopy(bjson))
-
+    b = b.copy()
     for uniqueid, value in zip(params_uniqueids, sampled_values):
         try:
             b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
@@ -80,8 +88,8 @@ def _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, prio
     # print("*** _lnlikelihood returning from rank: {}".format(mpi.myrank))
     return b.calculate_lnp(distribution=priors, combine=priors_combine) + b.calculate_lnlikelihood(model=solution)
 
-def _lnlikelihood_negative(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
-    return -1 * _lnlikelihood(sampled_values, bjson, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs)
+def _lnlikelihood_negative(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
+    return -1 * _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs)
 
 def _sample_ppf(ppf_values, distributions_list):
     # NOTE: this will treat each item in the collection independently, ignoring any covariances
@@ -390,7 +398,7 @@ class EmceeBackend(BaseSolverBackend):
             # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
 
-            esargs['kwargs'] = {'bjson': _bjson(b, solver, compute, init_from+priors),
+            esargs['kwargs'] = {'b': _bexclude(b, solver, compute, init_from+priors),
                                 'params_uniqueids': params_uniqueids,
                                 'compute': compute,
                                 'priors': priors,
@@ -542,7 +550,7 @@ class DynestyBackend(BaseSolverBackend):
             # NOTE: in dynesty we draw from the priors and pass the prior-transforms,
             # but do NOT include the lnprior term in lnlikelihood, so we pass
             # priors as []
-            lnlikelihood_kwargs = {'bjson': _bjson(b, solver, compute, []),
+            lnlikelihood_kwargs = {'b': _bexclude(b, solver, compute, []),
                                    'params_uniqueids': params_uniqueids,
                                    'compute': compute,
                                    'priors': [],
@@ -664,11 +672,11 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
         options = {k:v for k,v in kwargs.items() if k in ['maxiter', 'maxfex', 'xatol', 'fatol', 'adaptive']}
 
-        logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(bjson, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
+        logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(b, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
         res = optimize.minimize(_lnlikelihood_negative, p0,
                                 method='nelder-mead',
-                                args=(_bjson(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs),
+                                args=(_bexclude(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs),
                                 options=options)
 
 
@@ -771,10 +779,10 @@ class Differential_EvolutionBackend(BaseSolverBackend):
 
             options = {k:v for k,v in kwargs.items() if k in ['strategy', 'maxiter', 'popsize']}
 
-            logger.debug("calling scipy.optimize.differential_evolution(_lnlikelihood_negative, bounds={}, args=(bjson, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, [], kwargs.get('solution', None), compute_kwargs, options))
+            logger.debug("calling scipy.optimize.differential_evolution(_lnlikelihood_negative, bounds={}, args=(b, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, [], kwargs.get('solution', None), compute_kwargs, options))
             # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
             res = optimize.differential_evolution(_lnlikelihood_negative, bounds,
-                                    args=(_bjson(b, solver, compute, []), params_uniqueids, compute, [], 'first', kwargs.get('solution', None), compute_kwargs),
+                                    args=(_bexclude(b, solver, compute, []), params_uniqueids, compute, [], 'first', kwargs.get('solution', None), compute_kwargs),
                                     workers=pool.map, updating='deferred',
                                     **options)
         else:

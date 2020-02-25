@@ -570,11 +570,10 @@ class BaseBackendByDataset(BaseBackend):
         return packetlists
 
 def _call_run_single_model(args):
-    # TODO: make copy of the bundle?
-    bjson, samples, sample_from, sample_from_combine, compute, times, compute_kwargs, i = args
+    # NOTE: b should be a deepcopy here to prevent conflicts
+    b, samples, sample_from, sample_from_combine, compute, times, compute_kwargs, i = args
     # override sample_from
     compute_kwargs['sample_from'] = []
-    b = phoebe.frontend.bundle.Bundle(bjson)
 
     # TODO: temporarily disable constraints if not already
     for uniqueid, value in samples.items():
@@ -650,8 +649,11 @@ class SampleOverModel(object):
 
             # samples = range(sample_num)
             sample_dict = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=sample_num, keys='uniqueid')
-            bjson = b.exclude(context=['model', 'solver', 'solution', 'figure'], **_skip_filter_checks).exclude(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
-            args_per_sample = [(deepcopy(bjson), {k:v[i] for k,v in sample_dict.items()}, sample_from, sample_from_combine, compute, times, compute_kwargs, i) for i in range(sample_num)]
+
+            bexcl = b.copy()
+            bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
+            bexcl.remove_parameters_all(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks)
+            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_from, sample_from_combine, compute, times, compute_kwargs, i) for i in range(sample_num)]
 
             # models = [_call_run_single_model(args) for args in args_per_sample]
             models = list(pool.map(_call_run_single_model, args_per_sample))

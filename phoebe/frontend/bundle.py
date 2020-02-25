@@ -13,6 +13,7 @@ import json
 import atexit
 from datetime import datetime
 from distutils.version import StrictVersion
+from copy import deepcopy as _deepcopy
 import pickle as _pickle
 
 from scipy.optimize import curve_fit as cfit
@@ -3641,7 +3642,7 @@ class Bundle(ParameterSet):
         # attach params called _check_copy_for, but only on it's own parameterset
         self._check_copy_for()
 
-        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs = _deepcopy(kwargs)
         redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_feature',
                           redo_kwargs=redo_kwargs,
@@ -3992,7 +3993,7 @@ class Bundle(ParameterSet):
         # attach params called _check_copy_for, but only on it's own parameterset
         self._check_copy_for()
 
-        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs = _deepcopy(kwargs)
         redo_kwargs['func'] = fname
         self._add_history(redo_func='add_component',
                           redo_kwargs=redo_kwargs,
@@ -4833,7 +4834,7 @@ class Bundle(ParameterSet):
             conf._interactive_checks = True
             self.run_checks(raise_logger_warning=True)
 
-        redo_kwargs = deepcopy({k:_to_safe_value(v) for k,v in kwargs.items()})
+        redo_kwargs = _deepcopy({k:_to_safe_value(v) for k,v in kwargs.items()})
         redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_dataset',
                           redo_kwargs=redo_kwargs,
@@ -5179,7 +5180,7 @@ class Bundle(ParameterSet):
         # TODO: be smart enough to take kwargs (especially for undoing a
         # remove_constraint) for kind, value (expression),
 
-        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs = _deepcopy(kwargs)
 
         if len(args) == 1 and \
                 isinstance(args[0], str) and \
@@ -5337,7 +5338,7 @@ class Bundle(ParameterSet):
         changed_params = self.run_delayed_constraints()
 
         kwargs['twig'] = twig
-        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs = _deepcopy(kwargs)
 
         kwargs['context'] = 'constraint'
 
@@ -5410,8 +5411,8 @@ class Bundle(ParameterSet):
         kwargs['twig'] = twig
         # kwargs['check_default'] = False
         # kwargs['check_visible'] = False
-        redo_kwargs = deepcopy(kwargs)
-        undo_kwargs = deepcopy(kwargs)
+        redo_kwargs = _deepcopy(kwargs)
+        undo_kwargs = _deepcopy(kwargs)
 
         changed_params = self.run_delayed_constraints()
 
@@ -5758,7 +5759,7 @@ class Bundle(ParameterSet):
             raise ValueError("distribution parameter for {} already exists with distribution='{}'".format(ref_param.twig, kwargs['distribution']))
         self._attach_params([dist_param], **metawargs)
 
-        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs = _deepcopy(kwargs)
         self._add_history(redo_func='add_distribution',
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_distribution',
@@ -6262,7 +6263,7 @@ class Bundle(ParameterSet):
         # attach params called _check_copy_for, but only on it's own parameterset
         # self._check_copy_for()
 
-        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs = _deepcopy(kwargs)
         self._add_history(redo_func='add_figure',
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_figure',
@@ -7381,7 +7382,7 @@ class Bundle(ParameterSet):
             for envelope in self.hierarchy.get_envelopes():
                 self.set_value(qualifier='ntriangles', compute=kwargs['compute'], component=envelope, value=3000, check_visible=False)
 
-        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs = _deepcopy(kwargs)
         redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_compute',
                           redo_kwargs=redo_kwargs,
@@ -8013,7 +8014,7 @@ class Bundle(ParameterSet):
                                  'model': model}
                 self._attach_params(fig_params, check_copy_for=False, **fig_metawargs)
 
-            redo_kwargs = deepcopy(kwargs)
+            redo_kwargs = _deepcopy(kwargs)
             redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
             redo_kwargs['model'] = model
 
@@ -8304,7 +8305,7 @@ class Bundle(ParameterSet):
         logger.info("adding {} '{}' solver to bundle".format(metawargs['kind'], metawargs['solver']))
         self._attach_params(params, **metawargs)
 
-        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs = _deepcopy(kwargs)
         redo_kwargs['func'] = func.__name__
         self._add_history(redo_func='add_solver',
                           redo_kwargs=redo_kwargs,

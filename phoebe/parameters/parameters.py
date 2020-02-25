@@ -25,7 +25,7 @@ import time
 import types
 from collections import OrderedDict
 from fnmatch import fnmatch
-from copy import deepcopy
+from copy import deepcopy as _deepcopy
 import readline
 import numpy as np
 
@@ -112,7 +112,7 @@ _contexts = ['history', 'system', 'component', 'feature',
 # an individual ParameterSet may build on this list with components, datasets,
 # etc for labels
 # components and datasets should also forbid this list
-_forbidden_labels = deepcopy(_meta_fields_all)
+_forbidden_labels = _deepcopy(_meta_fields_all)
 
 # forbid all "contexts", although should already be in _meta_fields_all
 _forbidden_labels += _contexts
@@ -507,6 +507,15 @@ class ParameterSet(object):
 
     def __ne__(self, other):
         raise NotImplementedError("comparison operators with ParameterSets are not supported")
+
+    def copy(self):
+        """
+        Deepcopy the <<class>>.
+        """
+        return _deepcopy(self)
+
+    def __copy__(self):
+        return self.copy()
 
     @property
     def info(self):
@@ -1772,9 +1781,10 @@ class ParameterSet(object):
             return self.filter(**kwargs).to_list_of_dicts()
         return [param.to_dict() for param in self._params]
 
-    def __dict__(self):
-        """Dictionary representation of a ParameterSet."""
-        return self.to_dict()
+    # @property
+    # def __dict__(self):
+    #     """Dictionary representation of a ParameterSet."""
+    #     return self.to_dict()
 
     def to_flat_dict(self, **kwargs):
         """
@@ -1880,7 +1890,7 @@ class ParameterSet(object):
         ---------
         * (list) list of strings
         """
-        return list(self.__dict__().keys())
+        return list(self.to_dict().keys())
 
     def values(self):
         """
@@ -1891,7 +1901,7 @@ class ParameterSet(object):
         * (list) list of <phoebe.paramters.ParameterSet> or
             <phoebe.parameters.Parameter> objects.
         """
-        return self.__dict__().values()
+        return self.to_dict().values()
 
     def items(self):
         """
@@ -1900,7 +1910,7 @@ class ParameterSet(object):
 
         :return: string, :class:`Parameter` or :class:`ParameterSet` pairs
         """
-        return self.__dict__().items()
+        return self.to_dict().items()
 
     def set(self, key, value, **kwargs):
         """
@@ -1986,7 +1996,7 @@ class ParameterSet(object):
     def __contains__(self, twig):
         """
         """
-        # may not be an exact match with __dict__.keys()
+        # may not be an exact match with to_dict().keys()
         if isinstance(twig, Parameter):
             return len(self.filter(uniqueid=twig.uniqueid))
         elif isinstance(twig, str):
@@ -2002,7 +2012,7 @@ class ParameterSet(object):
     def __iter__(self):
         """
         """
-        return iter(self.__dict__())
+        return iter(self.to_dict())
 
     def to_json(self, incl_uniqueid=False, exclude=[]):
         """
@@ -2399,7 +2409,7 @@ class ParameterSet(object):
         # now do twig matching
         method = None
         if twig is not None:
-            _user_twig = deepcopy(twig)
+            _user_twig = _deepcopy(twig)
             twigsplit = twig.split('@')
             if twigsplit[0] == 'value':
                 twig = '@'.join(twigsplit[1:])
@@ -2699,7 +2709,10 @@ class ParameterSet(object):
         params = self.filter(twig=twig, **kwargs)
 
         for param in params.to_list():
-            self._remove_parameter(param)
+            param._bundle = None
+
+        removed_ids = [p.uniqueid for p in params.to_list()]
+        self._params = [p for p in self._params if p.uniqueid not in removed_ids]
 
         return params
 
@@ -5019,9 +5032,12 @@ class Parameter(object):
         * (<phoebe.parameters.Parameter>): the copied Parameter object
         """
         s = self.to_json()
-        cpy = parameter_from_json(s)
-        # TODO: may need to subclass for Parameters that require bundle by using this line instead:
-        # cpy = parameter_from_json(s, bundle=self._bundle)
+
+        if self.__class__.__name__ in _parameter_class_that_require_bundle:
+            cpy = parameter_from_json(s, bundle=self._bundle)
+        else:
+            cpy = parameter_from_json(s)
+
         cpy.set_uniqueid(_uniqueid())
         return cpy
 
@@ -5055,14 +5071,11 @@ class Parameter(object):
         else:
             return "{:>32}: {}".format(self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
 
-    def __dict__(self):
-        """
-        """
-        # including uniquetwig for everything can be VERY SLOW, so let's not
-        # include that in the dictionary
-        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig']}
-        d['Class'] = self.__class__.__name__
-        return d
+    # @property
+    # def __dict__(self):
+    #     """
+    #     """
+    # return self.to_dict()
 
     def to_dict(self):
         """
@@ -5072,12 +5085,16 @@ class Parameter(object):
         -------
         * (dict): the dictionary representation of the Parameter.
         """
-        return self.__dict__()
+        # including uniquetwig for everything can be VERY SLOW, so let's not
+        # include that in the dictionary
+        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig']}
+        d['Class'] = self.__class__.__name__
+        return d
 
     def __getitem__(self, key):
         """
         """
-        return self.__dict__()[key]
+        return self.to_dict()[key]
 
     def __setitem__(self, key, value):
         """
@@ -6352,7 +6369,7 @@ class StringParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
-        _orig_value = deepcopy(value)
+        _orig_value = _deepcopy(value)
 
         try:
             value = str(value)
@@ -6444,7 +6461,7 @@ class TwigParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
 
         # first make sure only returns one results
         if self._bundle is None:
@@ -6554,7 +6571,7 @@ class ChoiceParameter(Parameter):
         * ValueError: if `value` is not one of
             <phoebe.parameters.ChoiceParameter.choices>
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
 
         try:
             value = str(value)
@@ -6812,7 +6829,7 @@ class SelectParameter(Parameter):
             <phoebe.parameters.SelectParameter.choices>.
             See also <phoebe.parameters.SelectParameter.valid_selection>
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
 
         if isinstance(value, str):
             value = [value]
@@ -7058,7 +7075,7 @@ class BoolParameter(Parameter):
         ---------
         * ValueError: if `value` could not be converted to a boolean
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
 
         if value in ['false', 'False', '0']:
             value = False
@@ -7141,7 +7158,7 @@ class UnitParameter(ChoiceParameter):
         * ValueError: if `value` cannot be mapped to one of
             <phoebe.parameters.UnitParameter.choices>
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
 
         value = self._check_type(value)
 
@@ -7210,7 +7227,7 @@ class DictParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
 
         try:
             value = dict(value)
@@ -7378,7 +7395,7 @@ class IntParameter(Parameter):
             <phoebe.parameters.IntParameter.get_limits> and
             <phoebe.parameters.IntParameter.within_limits>
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
 
         value = self._check_value(value)
 
@@ -7493,7 +7510,7 @@ class DistributionParameter(Parameter):
             will be used.
         * `**kwargs`: IGNORED
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
         value = self._check_value(value)
 
         ref_param = self.get_referenced_parameter()
@@ -8132,7 +8149,7 @@ class FloatParameter(Parameter):
             <phoebe.parameters.FloatParameter.get_limits> and
             <phoebe.parameters.FloatParameter.within_limits>
         """
-        _orig_quantity = deepcopy(self.get_quantity())
+        _orig_quantity = _deepcopy(self.get_quantity())
 
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
@@ -8671,7 +8688,7 @@ class ArrayParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
-        _orig_value = deepcopy(self._value)
+        _orig_value = _deepcopy(self._value)
         self._value = np.array(value)
 
         if self.context not in ['setting', 'history']:
@@ -8727,7 +8744,7 @@ class HierarchyParameter(StringParameter):
 
         # TODO: check to make sure valid
 
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
 
         try:
             value = str(value)
@@ -9852,7 +9869,7 @@ class ConstraintParameter(Parameter):
         * ValueError: if `value` could not be converted to a string.
         * Error: if `value` could not be parsed into a valid constraint expression.
         """
-        _orig_value = deepcopy(self.get_value())
+        _orig_value = _deepcopy(self.get_value())
 
         if self._bundle is None:
             raise ValueError("ConstraintParameters must be attached from the bundle, and cannot be standalone")
@@ -10457,7 +10474,7 @@ class HistoryParameter(Parameter):
     def redo_kwargs(self):
         """
         """
-        _redo_kwargs = deepcopy(self._redo_kwargs)
+        _redo_kwargs = _deepcopy(self._redo_kwargs)
         if 'uniqueid' in _redo_kwargs.keys():
             uniqueid = _redo_kwargs.pop('uniqueid')
             try:
@@ -10477,7 +10494,7 @@ class HistoryParameter(Parameter):
     def undo_kwargs(self):
         """
         """
-        _undo_kwargs = deepcopy(self._undo_kwargs)
+        _undo_kwargs = _deepcopy(self._undo_kwargs)
         if 'uniqueid' in _undo_kwargs.keys():
             uniqueid = _undo_kwargs.pop('uniqueid')
             try:
