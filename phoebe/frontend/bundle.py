@@ -1444,8 +1444,12 @@ class Bundle(ParameterSet):
 
         return "{}{:02d}".format(base, params+1)
 
-    def _rename_label(self, tag, old_value, new_value):
-        self._check_label(new_value)
+    def _rename_label(self, tag, old_value, new_value, overwrite=False):
+        if overwrite and new_value in getattr(self, '{}s'.format(tag)):
+            getattr(self, 'remove_{}'.format(tag))(new_value)
+        else:
+            self._check_label(new_value)
+
         affected_params = []
 
         for param in self.filter(check_visible=False, check_default=False, **{tag: old_value}).to_list():
@@ -3693,30 +3697,6 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
 
-    def rename_feature(self, old_feature, new_feature):
-        """
-        Rename a 'feature' in the bundle
-
-        :parameter old_feature: current label for the feature
-        :parameter new_feature: new label for the feature
-
-        Returns
-        --------
-        * <phoebe.parameters.ParameterSet> the renamed feature
-        """
-        for param in self.filter(feature=old_feature).to_list():
-            param._feature = new_feature
-
-        redo_kwargs = {'old_feature': old_feature, 'new_feature': new_feature}
-        undo_kwargs = {'old_feature': new_feature, 'new_feature': old_feature}
-
-        self._add_history(redo_func='rename_feature',
-                          redo_kwargs=redo_kwargs,
-                          undo_func='rename_feature',
-                          undo_kwargs=undo_kwargs)
-
-        return self.filter(feature=new_feature)
-
     def remove_feature(self, feature=None, **kwargs):
         """
         Remove a 'feature' from the bundle.
@@ -3777,7 +3757,7 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_feature(feature=feature)
         return removed_ps
 
-    def rename_feature(self, old_feature, new_feature):
+    def rename_feature(self, old_feature, new_feature, overwrite=False):
         """
         Change the label of a feature attached to the Bundle.
 
@@ -3785,7 +3765,9 @@ class Bundle(ParameterSet):
         ----------
         * `old_feature` (string): current label of the feature (must exist)
         * `new_feature` (string): the desired new label of the feature
-            (must not yet exist)
+            (must not yet exist, unless `overwrite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
 
         Returns
         --------
@@ -3796,9 +3778,7 @@ class Bundle(ParameterSet):
         * ValueError: if the value of `new_feature` is forbidden or already exists.
         """
         # TODO: raise error if old_feature not found?
-
-        self._check_label(new_feature)
-        self._rename_label('feature', old_feature, new_feature)
+        self._rename_label('feature', old_feature, new_feature, overwrite)
 
         return self.filter(feature=new_feature)
 
@@ -3909,12 +3889,11 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'spot')
         return self.get_feature(feature, **kwargs)
 
-    def rename_spot(self, old_feature, new_feature):
+    def rename_spot(self, old_feature, new_feature, overwrite=False):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.remove_feature> but with kind='spot'.
         """
-        kwargs.setdefault('kind', 'spot')
-        return self.remove_feature(feature, **kwargs)
+        return self.rename_feature(old_feature, new_feature, overwrite=overwrite)
 
     @send_if_client
     def add_component(self, kind, **kwargs):
@@ -4094,6 +4073,8 @@ class Bundle(ParameterSet):
         """
         Change the label of a component attached to the Bundle.
 
+        Note: `overwrite` is not supported for `rename_component`
+
         Arguments
         ----------
         * `old_component` (string): current label of the component (must exist)
@@ -4122,7 +4103,7 @@ class Bundle(ParameterSet):
 
         # NOTE: _handle_component_selectparams and _handle_pblum_defaults
         # is handled by _rename_label
-        ret_params = self._rename_label('component', old_component, new_component)
+        ret_params = self._rename_label('component', old_component, new_component, overwrite=False)
         self.hierarchy._update_cache()
         ret_params += [self.hierarchy]
 
@@ -4154,12 +4135,11 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'orbit')
         return self.get_component(component, **kwargs)
 
-    def rename_orbit(self, old_orbit, new_orbit):
+    def rename_orbit(self, old_orbit, new_orbit, overwrite=False):
         """
-        Shortcut to <phoebe.frontend.bundle.Bundle.remove_component> but with kind='star'.
+        Shortcut to <phoebe.frontend.bundle.Bundle.rename_component> but with kind='star'.
         """
-        kwargs.setdefault('kind', 'orbit')
-        return self.remove_component(component, **kwargs)
+        return self.rename_component(old_orbit, new_orbit, overwrite=overwrite)
 
     def add_star(self, component=None, **kwargs):
         """
@@ -4186,11 +4166,11 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'star')
         return self.get_component(component, **kwargs)
 
-    def rename_star(self, old_star, new_star):
+    def rename_star(self, old_star, new_star, overwrite=False):
         """
-        Shortcut to :meth:`rename_component`
+        Shortcut to <phoebe.frontend.bundle.Bundle.rename_component> but with kind='star'.
         """
-        return self.rename_component(old_star, new_star)
+        return self.rename_component(old_star, new_star, overwrite=overwrite)
 
     def remove_star(self, component=None, **kwargs):
         """
@@ -4225,11 +4205,11 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'envelope')
         return self.get_component(component, **kwargs)
 
-    def rename_envelope(self, old_envelope, new_envelope):
+    def rename_envelope(self, old_envelope, new_envelope, overwrite=False):
         """
-        Shortcut to :meth:`rename_component`
+        Shortcut to <phoebe.frontend.bundle.Bundle.rename_component> but with kind='envelope'
         """
-        return self.rename_component(old_envelope, new_envelope)
+        return self.rename_component(old_envelope, new_envelope, overwrite=overwrite)
 
     def remove_envelope(self, component=None, **kwargs):
         """
@@ -4984,7 +4964,7 @@ class Bundle(ParameterSet):
 
         return removed_ps
 
-    def rename_dataset(self, old_dataset, new_dataset):
+    def rename_dataset(self, old_dataset, new_dataset, overwrite=False):
         """
         Change the label of a dataset attached to the Bundle.
 
@@ -4992,7 +4972,9 @@ class Bundle(ParameterSet):
         ----------
         * `old_dataset` (string): current label of the dataset (must exist)
         * `new_dataset` (string): the desired new label of the dataset
-            (must not yet exist)
+            (must not yet exist, unless `overwrite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
 
         Returns
         --------
@@ -5003,9 +4985,7 @@ class Bundle(ParameterSet):
         * ValueError: if the value of `new_dataset` is forbidden or already exists.
         """
         # TODO: raise error if old_component not found?
-
-        self._check_label(new_dataset)
-        self._rename_label('dataset', old_dataset, new_dataset)
+        self._rename_label('dataset', old_dataset, new_dataset, overwrite)
 
         ret_ps = self.filter(dataset=new_dataset)
 
@@ -5861,7 +5841,7 @@ class Bundle(ParameterSet):
         ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
         return ret_ps
 
-    def rename_distribution(self, old_distribution, new_distribution):
+    def rename_distribution(self, old_distribution, new_distribution, overwrite=False):
         """
         Change the label of a distribution-set attached to the Bundle.
 
@@ -5874,7 +5854,9 @@ class Bundle(ParameterSet):
         ----------
         * `old_distribution` (string): current label of the distribution (must exist)
         * `new_distribution` (string): the desired new label of the distribution
-            (must not yet exist)
+            (must not yet exist, unless `overwrite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
 
         Returns
         --------
@@ -5885,9 +5867,7 @@ class Bundle(ParameterSet):
         * ValueError: if the value of `new_distribution` is forbidden or already exists.
         """
         # TODO: raise error if old_distribution not found?
-
-        self._check_label(new_distribution)
-        self._rename_label('distribution', old_distribution, new_distribution)
+        self._rename_label('distribution', old_distribution, new_distribution, overwrite)
 
         return self.filter(distribution=new_distribution)
 
@@ -6360,7 +6340,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'figure'
         return self.remove_parameters_all(**kwargs)
 
-    def rename_figure(self, old_figure, new_figure):
+    def rename_figure(self, old_figure, new_figure, overwrite=False):
         """
         Change the label of a figure attached to the Bundle.
 
@@ -6374,7 +6354,9 @@ class Bundle(ParameterSet):
         ----------
         * `old_figure` (string): current label of the figure (must exist)
         * `new_figure` (string): the desired new label of the figure
-            (must not yet exist)
+            (must not yet exist, unless `overwrite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
 
         Returns
         --------
@@ -6385,9 +6367,7 @@ class Bundle(ParameterSet):
         * ValueError: if the value of `new_figure` is forbidden or already exists.
         """
         # TODO: raise error if old_figure not found?
-
-        self._check_label(new_figure)
-        self._rename_label('figure', old_figure, new_figure)
+        self._rename_label('figure', old_figure, new_figure, overwrite)
 
         return self.filter(figure=new_figure)
 
@@ -7480,7 +7460,7 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_compute(compute)
         return removed_ps
 
-    def rename_compute(self, old_compute, new_compute):
+    def rename_compute(self, old_compute, new_compute, overwrite=False):
         """
         Change the label of compute options attached to the Bundle.
 
@@ -7488,7 +7468,9 @@ class Bundle(ParameterSet):
         ----------
         * `old_compute` (string): current label of the compute options (must exist)
         * `new_compute` (string): the desired new label of the compute options
-            (must not yet exist)
+            (must not yet exist unless `overwite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
 
         Returns
         --------
@@ -7499,9 +7481,7 @@ class Bundle(ParameterSet):
         * ValueError: if the value of `new_compute` is forbidden or already exists.
         """
         # TODO: raise error if old_compute not found?
-
-        self._check_label(new_compute)
-        self._rename_label('compute', old_compute, new_compute)
+        self._rename_label('compute', old_compute, new_compute, overwrite)
 
         return self.filter(compute=new_compute)
 
@@ -8182,7 +8162,7 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_model(model=model)
         return removed_ps
 
-    def rename_model(self, old_model, new_model):
+    def rename_model(self, old_model, new_model, overwrite=False):
         """
         Change the label of a model attached to the Bundle.
 
@@ -8190,7 +8170,9 @@ class Bundle(ParameterSet):
         ----------
         * `old_model` (string): current label of the model (must exist)
         * `new_model` (string): the desired new label of the model
-            (must not yet exist)
+            (must not yet exist, unless `overwrite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
 
         Returns
         --------
@@ -8201,9 +8183,7 @@ class Bundle(ParameterSet):
         * ValueError: if the value of `new_model` is forbidden or already exists.
         """
         # TODO: raise error if old_feature not found?
-
-        self._check_label(new_model)
-        self._rename_label('model', old_model, new_model)
+        self._rename_label('model', old_model, new_model, overwrite)
 
         ret_ps = self.filter(model=new_model)
 
@@ -8409,7 +8389,7 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_solver(solver)
         return removed_ps
 
-    def rename_solver(self, old_solver, new_solver):
+    def rename_solver(self, old_solver, new_solver, overwrite=False):
         """
         Change the label of solver options attached to the Bundle.
 
@@ -8417,7 +8397,9 @@ class Bundle(ParameterSet):
         ----------
         * `old_solver` (string): current label of the solver options (must exist)
         * `new_solver` (string): the desired new label of the solver options
-            (must not yet exist)
+            (must not yet exist, unless `overwrite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
 
         Returns
         --------
@@ -8428,9 +8410,7 @@ class Bundle(ParameterSet):
         * ValueError: if the value of `new_solver` is forbidden or already exists.
         """
         # TODO: raise error if old_solver not found?
-
-        self._check_label(new_solver)
-        self._rename_label('solver', old_solver, new_solver)
+        self._rename_label('solver', old_solver, new_solver, overwrite)
 
         return self.filter(solver=new_solver)
 
@@ -8880,7 +8860,7 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_solution(solution=solution)
         return removed_ps
 
-    def rename_solution(self, old_solution, new_solution):
+    def rename_solution(self, old_solution, new_solution, overwrite=False):
         """
         Change the label of a solution attached to the Bundle.
 
@@ -8888,7 +8868,9 @@ class Bundle(ParameterSet):
         ----------
         * `old_solution` (string): current label of the solution (must exist)
         * `new_solution` (string): the desired new label of the solution
-            (must not yet exist)
+            (must not yet exist, unless `overwrite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
 
         Returns
         --------
@@ -8899,9 +8881,7 @@ class Bundle(ParameterSet):
         * ValueError: if the value of `new_solution` is forbidden or already exists.
         """
         # TODO: raise error if old_feature not found?
-
-        self._check_label(new_solution)
-        self._rename_label('solution', old_solution, new_solution)
+        self._rename_label('solution', old_solution, new_solution, overwrite)
 
         ret_ps = self.filter(solution=new_solution)
 
