@@ -518,6 +518,9 @@ class Bundle(ParameterSet):
         * RuntimeError: if the version of the imported file fails to load according
             to `import_from_older` or `import_from_newer`.
         """
+        def _ps_dict(ps):
+            return {p.qualifier: p.get_quantity() if hasattr(p, 'get_quantity') else p.get_value() for p in ps.to_list()}
+
         if io._is_file(filename):
             f = filename
         elif isinstance(filename, str) or isinstance(filename, unicode):
@@ -539,8 +542,8 @@ class Bundle(ParameterSet):
         b = cls(data)
 
         version = b.get_value(qualifier='phoebe_version', check_default=False, check_visible=False)
-        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.2.0')
-        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.2.0')
+        phoebe_version_import = StrictVersion(version if version != 'devel' else '2.3.0')
+        phoebe_version_this = StrictVersion(__version__ if __version__ != 'devel' else '2.3.0')
 
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
@@ -559,6 +562,18 @@ class Bundle(ParameterSet):
         elif not import_from_older:
             raise RuntimeError("The file/bundle is from an older version of PHOEBE ({}) than installed ({}). Attempt importing by passing import_from_older=True.".format(phoebe_version_import, phoebe_version_this))
 
+
+        if phoebe_version_import < StrictVersion("2.3.0"):
+            warning = "importing from an older version ({}) of PHOEBE which did not support sample_from, etc... all compute options will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+
+            for compute in b.filter(context='compute').computes:
+                logger.info("attempting to update compute='{}' to new version requirements".format(compute))
+                ps_compute = b.filter(context='compute', compute=compute)
+                compute_kind = ps_compute.kind
+                dict_compute = _ps_dict(ps_compute)
+                # NOTE: we will not remove (or update) the dataset from any existing models
+                b.remove_compute(compute, context=['compute'])
+                b.add_compute(compute_kind, compute=compute, check_label=False, **dict_compute)
 
         if phoebe_version_import < StrictVersion("2.2.0"):
             warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
@@ -673,9 +688,6 @@ class Bundle(ParameterSet):
 
         if phoebe_version_import < StrictVersion("2.1.0"):
             logger.warning("importing from an older version ({}) of PHOEBE into version {}".format(phoebe_version_import, phoebe_version_this))
-
-            def _ps_dict(ps):
-                return {p.qualifier: p.get_quantity() if hasattr(p, 'get_quantity') else p.get_value() for p in ps.to_list()}
 
             # rpole -> requiv: https://github.com/phoebe-project/phoebe2/pull/300
             dict_stars = {}
@@ -7356,7 +7368,8 @@ class Bundle(ParameterSet):
                                               **{'context': 'compute',
                                                  'kind': func.__name__}))
 
-        self._check_label(kwargs['compute'], allow_overwrite=kwargs.get('overwrite', False))
+        if kwargs.get('check_label', True):
+            self._check_label(kwargs['compute'], allow_overwrite=kwargs.get('overwrite', False))
 
         sample_from = kwargs.pop('sample_from', None)
         params = func(**kwargs)

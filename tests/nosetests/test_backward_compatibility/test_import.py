@@ -49,8 +49,8 @@ def test_21(verbose=False, plot=False):
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
 
-    if LooseVersion(phoebe.__version__) >= LooseVersion("2.1.0") and LooseVersion(phoebe.__version__) < LooseVersion("2.2.0"):
-        _export('21_export.phoebe')
-        exit()
+    # if LooseVersion(phoebe.__version__) >= LooseVersion("2.1.0") and LooseVersion(phoebe.__version__) < LooseVersion("2.2.0"):
+        # _export('21_export.phoebe')
+        # exit()
 
     b = test_21(verbose=True, plot=True)
