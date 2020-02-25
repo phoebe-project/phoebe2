@@ -68,6 +68,9 @@ def _bexclude(b, solver, compute, distributions):
 def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
     # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
     # deferring constraints/checks until run_compute.
+
+    # copy the bundle to make sure any changes by setting values/running models
+    # doesn't affect the user-copy (or in other processors)
     b = b.copy()
     for uniqueid, value in zip(params_uniqueids, sampled_values):
         try:
@@ -196,7 +199,6 @@ class BaseSolverBackend(object):
     def _run_worker(self, packet):
         # the worker receives the bundle serialized, so we need to unpack it
         logger.debug("rank:{}/{} _run_worker".format(mpi.myrank, mpi.nprocs))
-        packet['b'] = phoebe.frontend.bundle.Bundle(packet['b'])
         # do the computations requested for this worker
         rpacketlists = self.run_worker(**packet)
         # send the results back to the master (root=0)
