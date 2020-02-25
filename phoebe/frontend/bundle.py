@@ -6821,8 +6821,8 @@ class Bundle(ParameterSet):
             dataset(s) requested.  If not provided, will be provided for all
             datasets in which an `l3_mode` Parameter exists.
         * `use_pbflux` (dictionary, optional): dictionary of dataset-total
-            passband fluxes to use when converting between `l3` and `l3_flux`.
-            For any dataset not included in the dictionary, the pblums
+            passband fluxes (in W/m**2) to use when converting between `l3` and
+            `l3_flux`.  For any dataset not included in the dictionary, the pblums
             will be computed and adopted.  See also <phoebe.frontend.bundle.Bundle.compute_pblums>.
         * `set_value` (bool, optional, default=False): apply the computed
             values to the respective `l3` or `l3_frac` parameters (even if not
@@ -6884,9 +6884,9 @@ class Bundle(ParameterSet):
             elif l3_mode == 'fraction':
                 if dataset in use_pbflux.keys():
                     l3_frac = self.get_value(qualifier='l3_frac', dataset=dataset, **_skip_filter_checks)
-                    l3_flux = _universe.l3_frac_to_flux(l3_frac, use_pbflux.get(dataset)) * u.W / u.m**2
+                    l3_flux = _universe.l3_frac_to_flux(l3_frac, use_pbflux.get(dataset).value) * (u.W / u.m**2)
                 else:
-                    l3_flux = system.l3s[dataset]['flux'] * u.W / u.m**2
+                    l3_flux = system.l3s[dataset]['flux'] * (u.W / u.m**2)
 
                 l3s['l3@{}'.format(dataset)] = l3_flux
 
@@ -7237,7 +7237,7 @@ class Bundle(ParameterSet):
 
 
                     if not compute_extrinsic and set_value:
-                        self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', check_visible=False, value=pbflux_this_dataset*u.W/u.m**2, **_skip_filter_checks)
+                        self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', value=pbflux_this_dataset*u.W/u.m**2, **_skip_filter_checks)
 
                     ret["{}@{}".format('pbflux_ext' if compute_extrinsic else 'pbflux', dataset)] = pbflux_this_dataset*u.W/u.m**2
 
