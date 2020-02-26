@@ -93,6 +93,29 @@ def plot(*args, **kwargs):
     """
     return gcf().plot(*args, **kwargs)
 
+def fill_between(*args, **kwargs):
+    """
+    Add a new <autofig.call.FillBetween> call to the current <autofig.figure.Figure>.
+
+    See also:
+
+    * <autofig.gcf>
+    * <autofig.figure.Figure.fill_between>
+    * <autofig.call.FillBetween.__init__>
+
+    Arguments
+    -----------
+    * `*args`: all arguments are passed on to <autofig.figure.Figure.fill_between>,
+        most of which are then passed on to <autofig.call.FillBetween.__init__>.
+    * `**kwargs`: all keyword arguments are passed on to <autofig.figure.Figure.fill_between>,
+        most of which are then passed on to <autofig.call.FillBetween.__init__>.
+
+    Returns
+    ---------
+    * the return from <Figure.fill_between>
+    """
+    return gcf().fill_between(*args, **kwargs)
+
 def mesh(*args, **kwargs):
     """
     Add a new <autofig.plot.Mesh> call to the current <autofig.figure.Figure>.

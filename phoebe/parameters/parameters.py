@@ -3502,7 +3502,17 @@ class ParameterSet(object):
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
-
+        def _handle_additional_calls(ps, kwargss):
+            for kwargs in kwargss:
+                additional_calls = kwargs.pop('additional_calls', [])
+                if additional_calls:
+                    ps = additional_calls.pop('ps', ps)
+                    kw_additional = {k:v for k,v in kwargs.items() if k not in ['autofig_method', 'i', 'iqualifier', 'x', 'xqualifier', 'xerror', 'y', 'yqualifier', 'yerror', 'z', 'zqualifier', 'zerror']}
+                    for k,v in additional_calls.items():
+                        kw_additional[k] = v
+                    # print("*** kw_additional", kw_additional)
+                    kwargss += ps._unpack_plotting_kwargs(animate=animate, **kw_additional)
+            return kwargss
 
         # We now need to unpack if the contents within kwargs contain multiple
         # contexts/datasets/kinds/components/etc.
@@ -3536,13 +3546,13 @@ class ParameterSet(object):
             for context in ps.contexts:
                 this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
         if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             for dataset in ps.datasets:
                 this_return = ps.filter(check_visible=False, dataset=dataset)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
         # If we are asking to plot a dataset that also shows up in columns in
         # the mesh, then remove the mesh kind.  In other words: mesh stuff
@@ -3555,21 +3565,21 @@ class ParameterSet(object):
             for kind in pskinds:
                 this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
         if len(ps.models) > 1:
             for model in ps.models:
                 # TODO: change linestyle for models instead of color?
                 this_return = ps.filter(check_visible=False, model=model)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
         if len(ps.times) > 1 and kwargs.get('x', None) not in ['time', 'times'] and kwargs.get('y', None) not in ['time', 'times'] and kwargs.get('z', None) not in ['time', 'times']:
             # only meshes, lp, spectra, etc will be able to iterate over times
             for time in ps.times:
                 this_return = ps.filter(check_visible=False, time=time)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
         if len(ps.components) > 1 and ps.kind not in ['lc']:
             # lc has per-component passband-dependent parameters in the dataset which are not plottable
@@ -3577,7 +3587,7 @@ class ParameterSet(object):
             for component in ps.components:
                 this_return = ps.filter(check_visible=False, component=component)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
-            return return_
+            return _handle_additional_calls(ps, return_)
 
 
         if ps.kind in ['mesh', 'orb'] and \
@@ -3718,7 +3728,7 @@ class ParameterSet(object):
 
                     elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
-                        array_value = ps._bundle.get_value(qualifier='times', dataset=ps.dataset, component=ps.component, context='dataset')
+                        array_value = ps._bundle.get_quantity(qualifier='times', dataset=ps.dataset, component=ps.component, context='dataset')
                     else:
                         if '@' in current_value:
                             # then we need to remove the dataset from the filter
@@ -3735,6 +3745,9 @@ class ParameterSet(object):
                             array_value = np.array([psff.get_quantity(time=time).to(unit).value for time in psff.times])*unit
                         else:
                             raise ValueError("could not find Parameter for {} in {}".format(current_value, psf.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])))
+
+                        # if len(array_value.shape) > 1:
+                        #     print("*** DETECTED SAMPLE FROM", kwargs)
 
                     kwargs[direction] = array_value
 
@@ -3806,11 +3819,27 @@ class ParameterSet(object):
                     kwargs.setdefault('linebreak', '{}-'.format(direction))
 
                     return kwargs
+                elif current_value in ['residuals_spread']:
+                    if ps.model is None:
+                        logger.info("skipping residuals_spread for dataset")
+                        return {}
+
+                    if '-sigma' in self._bundle.get_value(qualifier='sample_mode', model=ps.model, context='model', default='none', **_skip_filter_checks):
+                        kwargs[direction] = ps.get_quantity(qualifier=['fluxes', 'rvs'], model=ps.model, dataset=ps.dataset, component=ps.component, context='model', **_skip_filter_checks)
+                        kwargs[direction] -= kwargs[direction][1]
+                        kwargs['{}qualifier'.format(direction)] = 'residuals'
+                        return kwargs
+                    else:
+                        return {}
 
                 elif current_value in ['residuals']:
                     if ps.model is None:
                         logger.info("skipping residuals for dataset")
                         return {}
+
+                    if '-sigma' in self._bundle.get_value(qualifier='sample_mode', model=ps.model, context='model', default='none', **_skip_filter_checks):
+                        # TODO: if we ever use this for anything else, then we'll need to make it a list instead and append new items
+                        kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps}
 
                     # we're currently within the MODEL context
                     kwargs[direction] = ps.calculate_residuals(model=ps.model, dataset=ps.dataset, component=ps.component, as_quantity=True)
@@ -3831,7 +3860,6 @@ class ParameterSet(object):
                         sigmas = self._bundle.get_quantity(qualifier='sigmas', dataset=ps.dataset, component=ps.component, context='dataset', check_visible=False)
                         if len(sigmas):
                             kwargs.setdefault(errorkey, sigmas)
-
 
                     return kwargs
 
@@ -4065,7 +4093,7 @@ class ParameterSet(object):
             if self.time is not None:
                 kwargs['i'] = float(self.time) * u.d
         else:
-            kwargs['autofig_method'] = 'plot'
+            kwargs['autofig_method'] = 'plot'  # may use 'fill_between' later
 
         #### GET DATA ARRAY FOR EACH AUTOFIG "DIRECTION"
         for af_direction in ['x', 'y', 'z', 'c', 's', 'fc', 'ec']:
@@ -4078,6 +4106,10 @@ class ParameterSet(object):
 
             # logger.debug("_kwargs_fill_dimension {} {} {}".format(kwargs, af_direction, ps.twigs))
             kwargs = _kwargs_fill_dimension(kwargs, af_direction, ps)
+            if af_direction == 'y' and len(kwargs.get('y', np.asarray([])).shape) > 1:
+                if '-sigma' in self._bundle.get_value(qualifier='sample_mode', context='model', model=ps.model, default='none', **_skip_filter_checks):
+                    kwargs['autofig_method'] = 'fill_between'
+                    kwargs['y'] = np.asarray(kwargs['y'].value).T * kwargs['y'].unit
             if kwargs is None:
                 # cannot plot
                 logger.warning("cannot plot {}-dimension of {}@{}, skipping".format(af_direction, ps.component, ps.dataset))
@@ -4572,6 +4604,7 @@ class ParameterSet(object):
 
         try:
             plot_kwargss = self._unpack_plotting_kwargs(animate=animate, **kwargs)
+            # print("*** plot_kwargss", plot_kwargss)
             # this loop handles any of the automatically-generated
             # multiple plotting calls, passing each on to autofig
             for plot_kwargs in plot_kwargss:
@@ -4586,10 +4619,16 @@ class ParameterSet(object):
                 # we kept the qualifiers around so we could do some default-logic,
                 # but it isn't necessary to pass them on to autofig.
                 dump = kwargs.pop('qualifier', None)
-                logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({})>".format(v.shape)) for k,v in plot_kwargs.items()])))
                 func = getattr(self.gcf(), autofig_method)
 
-                func(**plot_kwargs)
+                if autofig_method == 'plot' and len(plot_kwargs.get('y', np.array([])).shape) > 1:
+                    # then we want to loop over the y index
+                    for y in plot_kwargs.get('y'):
+                        func(y=y, **{k:v for k,v in plot_kwargs.items() if k!='y'})
+                else:
+                    logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({} unit={})>".format(v.shape, v.unit if hasattr(v, 'unit') else None)) for k,v in plot_kwargs.items()])))
+
+                    func(**plot_kwargs)
         except Exception as err:
             restore_conf()
             raise
@@ -8331,6 +8370,10 @@ class FloatArrayParameter(FloatParameter):
         available range, phase-interpolation will automatically be attempted,
         with a warning raised via the <phoebe.logger>.
 
+        Note: if this parameter is a model parameter where `sample_mode`
+        was 'all', an error will be raised.  If `sample_mode` was 'n-sigma',
+        then the median will be used when determining residuals.
+
         See also:
         * <phoebe.parameters.FloatArrayParameter.interp_quantity>
 
@@ -8409,6 +8452,17 @@ class FloatArrayParameter(FloatParameter):
                 qualifier_interp_value_str = "({} -> {})".format(min(qualifier_interp_value), max(qualifier_interp_value)) if hasattr(qualifier_interp_value, '__iter__') else qualifier_interp_value
                 logger.warning("times={} outside of interpolation limits ({} -> {}), attempting to interpolate at phases={}".format(qualifier_interp_value_time_str, times.min(), times.max(), qualifier_interp_value_str))
 
+        self_value = self.get_value()
+        if len(self_value.shape) > 1:
+            # then we need to check to see if this is in a model with sample_mode set
+            if self.context != 'model':
+                raise NotImplementedError("only 1D arrays supported unless in context='model' with sample_mode='n-sigma'")
+            sample_mode = self._bundle.get_value(qualifier='sample_mode', context='model', model=self.model, default='none', **_skip_filter_checks)
+            if '-sigma' in sample_mode:
+                logger.warning("using median for interpolation for sample_mode='{}'".format(sample_mode))
+                self_value = self_value[1]
+            else:
+                raise NotImplementedError("iterpolation not supported for sample_mode='{}'".format(sample_mode))
 
         if qualifier=='phases':
             if self._bundle.hierarchy.is_time_dependent():
@@ -8419,7 +8473,7 @@ class FloatArrayParameter(FloatParameter):
 
             sort = phases.argsort()
 
-            value = np.interp(qualifier_interp_value, phases[sort], self.get_value()[sort])
+            value = np.interp(qualifier_interp_value, phases[sort], self_value[sort])
 
         else:
 
@@ -8431,7 +8485,7 @@ class FloatArrayParameter(FloatParameter):
             qualifier_value = qualifier_parameter.get_value()
             sort = qualifier_value.argsort()
 
-            value = np.interp(qualifier_interp_value, qualifier_value[sort], self.get_value()[sort])
+            value = np.interp(qualifier_interp_value, qualifier_value[sort], self_value[sort])
 
         if unit is not None:
             if return_quantity:
