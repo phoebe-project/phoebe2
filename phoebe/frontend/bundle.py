@@ -55,6 +55,8 @@ logger.addHandler(logging.NullHandler())
 if sys.version_info[0] == 3:
   unicode = str
   from io import IOBase
+elif sys.version_info[0] < 3:
+  input = raw_input
 
 _bundle_cache_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_bundles'))+'/'
 
@@ -1111,8 +1113,7 @@ class Bundle(ParameterSet):
 
         return b
 
-    def save(self, filename, clear_history=True, incl_uniqueid=False,
-             compact=False):
+    def save(self, filename, clear_history=True, compact=False):
         """
         Save the bundle to a JSON-formatted ASCII file.
 
@@ -7622,7 +7623,7 @@ class Bundle(ParameterSet):
         return script_fname, out_fname
 
     def export_compute(self, script_fname, out_fname=None,
-                       compute=None, model=None,
+                       compute=None, model=None, pause=False,
                        import_from_older=False, **kwargs):
         """
         Export a script to call run_compute externally (in a different thread
@@ -7656,6 +7657,10 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
             creation.
+        * `pause` (bool, optional, default=False): whether to raise an input
+            with instructions for running the exported script and calling
+            <phoebe.frontend.bundle.Bundle.import_model>.  Particularly
+            useful if running in an interactive notebook or a script.
         * `import_from_older` (boolean, optional, default=False): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
@@ -7678,6 +7683,15 @@ class Bundle(ParameterSet):
         """
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
         script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs)
+
+        if pause:
+            input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
+                  "* run {} (within mpirun or on an external machine, if desired)\n".format(script_fname)+
+                  "* once completed, copy {} to this directory, if necessary\n".format(out_fname)+
+                  "* press enter to exit this pause\n"+
+                  "* call b.import_model('{}')\n".format(out_fname)+
+                  "\n(press enter to continue)")
+
         return script_fname, out_fname
 
 
@@ -8472,6 +8486,7 @@ class Bundle(ParameterSet):
 
     def export_solver(self, script_fname, out_fname=None,
                       solver=None, solution=None,
+                      pause=False,
                       import_from_older=False,
                       **kwargs):
         """
@@ -8494,6 +8509,10 @@ class Bundle(ParameterSet):
             will reflect that change and be appended with '.out').
         * `solver` (string, optional, default=None):
         * `solution` (string, optional, default=None):
+        * `pause` (bool, optional, default=False): whether to raise an input
+            with instructions for running the exported script and calling
+            <phoebe.frontend.bundle.Bundle.import_solution>.  Particularly
+            useful if running in an interactive notebook or a script.
         * `import_from_older` (boolean, optional, default=False): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
@@ -8512,6 +8531,15 @@ class Bundle(ParameterSet):
         """
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
         script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, import_from_older, kwargs)
+
+        if pause:
+            input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
+                  "* run {} (within mpirun or on an external machine, if desired)\n".format(script_fname)+
+                  "* once completed, copy {} to this directory, if necessary\n".format(out_fname)+
+                  "* press enter to exit this pause\n"+
+                  "* call b.import_solution('{}')\n".format(out_fname)+
+                  "\n(press enter to continue)")
+
         return script_fname, out_fname
 
 
