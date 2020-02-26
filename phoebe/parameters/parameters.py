@@ -3828,7 +3828,7 @@ class ParameterSet(object):
                         errors = self._bundle.get_quantity(qualifier=kwargs.get(errorkey), dataset=ps.dataset, context='dataset', check_visible=False)
                         kwargs[errorkey] = errors
                     else:
-                        sigmas = self._bundle.get_quantity(qualifier='sigmas', dataset=ps.dataset, context='dataset', check_visible=False)
+                        sigmas = self._bundle.get_quantity(qualifier='sigmas', dataset=ps.dataset, component=ps.component, context='dataset', check_visible=False)
                         if len(sigmas):
                             kwargs.setdefault(errorkey, sigmas)
 
