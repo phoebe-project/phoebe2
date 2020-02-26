@@ -8746,6 +8746,9 @@ class Bundle(ParameterSet):
         if kwargs.get('distribution', None) is not None and adopt is False:
             raise ValueError("distribution cannot be set if adopt is not set to True")
 
+        # make sure we don't pass distribution to the filter
+        distribution = kwargs.pop('distribution', None)
+
         solution_ps = self.get_solution(solution=solution, **kwargs)
         solver_kind = solution_ps.kind
         if solver_kind is None:
@@ -8753,7 +8756,7 @@ class Bundle(ParameterSet):
         c = getattr(_solutionbackends, "{}Solution".format(solver_kind.title()))(bundle=self, solution=solution, solution_kwargs={p.qualifier: p.get_value() for p in solution_ps.to_list()})
         c.process(**kwargs)
         if adopt:
-            return c.adopt(distribution=kwargs.get('distribution', None))
+            return c.adopt(distribution=distribution)
         else:
             return c
 
