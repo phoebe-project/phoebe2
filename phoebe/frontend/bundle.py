@@ -1126,9 +1126,6 @@ class Bundle(ParameterSet):
         * `filename` (string): relative or full path to the file
         * `clear_history` (bool, optional, default=True): whether to clear
             history log items before saving.
-        * `incl_uniqueid` (bool, optional, default=False): whether to including
-            uniqueids in the file (only needed if its necessary to maintain the
-            uniqueids when reloading)
         * `compact` (bool, optional, default=False): whether to use compact
             file-formatting (may be quicker to save/load, but not as easily readable)
 
@@ -1143,7 +1140,7 @@ class Bundle(ParameterSet):
 
         # TODO: add option for clear_models, clear_solution
         # NOTE: PS.save will handle os.path.expanduser
-        return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
+        return super(Bundle, self).save(filename, incl_uniqueid=True,
                                         compact=compact)
 
     def export_legacy(self, filename, compute=None, skip_checks=False):
