@@ -72,12 +72,13 @@ def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_c
     # copy the bundle to make sure any changes by setting values/running models
     # doesn't affect the user-copy (or in other processors)
     b = b.copy()
-    for uniqueid, value in zip(params_uniqueids, sampled_values):
-        try:
-            b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
-        except ValueError as err:
-            logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
-            return -np.inf
+    if sampled_values is not False:
+        for uniqueid, value in zip(params_uniqueids, sampled_values):
+            try:
+                b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
+            except ValueError as err:
+                logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
+                return -np.inf
 
     # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
     try:
@@ -746,6 +747,12 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
+        solution_params += [_parameters.ArrayParameter(qualifier='bounds', value=kwargs.get('bounds', []), description='bound limits adopted and used internally.')]
+
+
+        if kwargs.get('expose_lnlikelihoods', False):
+            solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -788,7 +795,6 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                 params_uniqueids.append(p.uniqueid)
                 fitted_units.append(p.get_default_unit())
 
-
             bounds = kwargs.get('bounds')
             bounds_combine = kwargs.get('bounds_combine')
             bounds_sigma = kwargs.get('bounds_sigma')
@@ -814,8 +820,9 @@ class Differential_EvolutionBackend(BaseSolverBackend):
 
             logger.debug("calling scipy.optimize.differential_evolution(_lnlikelihood_negative, bounds={}, args=(b, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, [], kwargs.get('solution', None), compute_kwargs, options))
             # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
+            args = (_bexclude(b, solver, compute, []), params_uniqueids, compute, [], 'first', kwargs.get('solution', None), compute_kwargs)
             res = optimize.differential_evolution(_lnlikelihood_negative, bounds,
-                                    args=(_bexclude(b, solver, compute, []), params_uniqueids, compute, [], 'first', kwargs.get('solution', None), compute_kwargs),
+                                    args=args,
                                     workers=pool.map, updating='deferred',
                                     **options)
         else:
@@ -834,11 +841,24 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         if is_master:
             # TODO: expose the adopted bounds?
 
-            return [[{'qualifier': 'message', 'value': res.message},
-                    {'qualifier': 'nfev', 'value': res.nfev},
-                    {'qualifier': 'niter', 'value': res.nit},
-                    {'qualifier': 'success', 'value': res.success},
-                    {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
-                    {'qualifier': 'fitted_values', 'value': res.x},
-                    {'qualifier': 'fitted_units', 'value': fitted_units}]]
+            return_ = [{'qualifier': 'message', 'value': res.message},
+                       {'qualifier': 'nfev', 'value': res.nfev},
+                       {'qualifier': 'niter', 'value': res.nit},
+                       {'qualifier': 'success', 'value': res.success},
+                       {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
+                       {'qualifier': 'fitted_values', 'value': res.x},
+                       {'qualifier': 'fitted_units', 'value': fitted_units},
+                       {'qualifier': 'bounds', 'value': bounds}]
+
+            if kwargs.get('expose_lnlikelihoods', False):
+                initial_lnlikelihood = _lnlikelihood(False, *args)
+                final_likelihood = _lnlikelihood(res.x, *args)
+
+                return_ += [{'qualifier': 'initial_lnlikelihood', 'value': initial_lnlikelihood},
+                            {'qualifier': 'fitted_lnlikelihood', 'value': final_likelihood}]
+
+
+
+            return [return_]
+
         return

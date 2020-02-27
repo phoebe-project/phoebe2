@@ -81,6 +81,7 @@ def differential_evolution(**kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
+    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial an final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
 
     params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
 
