@@ -214,6 +214,10 @@ def is_distribution_univariate_or_slice(value):
     value = is_distribution(value)
     if isinstance(value, BaseUnivariateDistribution) or isinstance(value, BaseMultivariateSliceDistribution):
         return value
+    if isinstance(value, BaseAroundGenerator):
+        if value.value is None:
+            raise TypeError("{} must have value set in order to create a Distribution object".format(value.__class__.__name__))
+        return value()
     raise TypeError('must be a Univariate or MultivariateSlice distl Distribution object')
 
 def is_distribution_or_none(value):
@@ -337,45 +341,12 @@ def _hist_pdf_cdf_ppf_callables(bins, density):
 
 ######################## DISTRIBUTION ABSTRACT CLASS ###########################
 
-class BaseDistribution(object):
-    """
-    BaseDistribution is the parent class for all distributions and should
-    not be used directly by the user.
-
-    Any subclass distribution should override the following:
-
-    * <BaseDistribution.__init__>
-    """
-    def __init__(self, dist_constructor_func, dist_constructor_argnames, **kwargs):
-        """
-        BaseDistribution is the parent class for all distributions and should
-        not be used directly by the user.
-
-        Any subclass distribution should override the init but call this via
-        super.  See <Gaussian.__init__> for an example for subclassing.
-        """
-        self._cached_sample = None
-
-        self._dist_constructor_func = dist_constructor_func
-        self._dist_constructor_argnames = dist_constructor_argnames
-
-        self._dist_constructor_object_cache = None
-        self._parents_with_constructor_object_cache = []
-
+class BaseDistlObject(object):
+    def __init__(self, **kwargs):
         self._descriptors = kwargs.pop('descriptors', list(kwargs.keys()))
 
         for k,v in kwargs.items():
             setattr(self, k, v)
-
-    ### REPRESENTATIONS
-
-    def __float__(self):
-        """
-        by default, have the float representation come from sampling, but
-        subclasses can/should override this to be the central/median/mode if
-        possible
-        """
-        return self.median()
 
     ### COPYING
 
@@ -452,6 +423,44 @@ class BaseDistribution(object):
         f.write(self.to_json(**kwargs))
         f.close()
         return filename
+
+
+class BaseDistribution(BaseDistlObject):
+    """
+    BaseDistribution is the parent class for all distributions and should
+    not be used directly by the user.
+
+    Any subclass distribution should override the following:
+
+    * <BaseDistribution.__init__>
+    """
+    def __init__(self, dist_constructor_func, dist_constructor_argnames, **kwargs):
+        """
+        BaseDistribution is the parent class for all distributions and should
+        not be used directly by the user.
+
+        Any subclass distribution should override the init but call this via
+        super.  See <Gaussian.__init__> for an example for subclassing.
+        """
+        self._cached_sample = None
+
+        self._dist_constructor_func = dist_constructor_func
+        self._dist_constructor_argnames = dist_constructor_argnames
+
+        self._dist_constructor_object_cache = None
+        self._parents_with_constructor_object_cache = []
+
+        super(BaseDistribution, self).__init__(**kwargs)
+
+    ### REPRESENTATIONS
+
+    def __float__(self):
+        """
+        by default, have the float representation come from sampling, but
+        subclasses can/should override this to be the central/median/mode if
+        possible
+        """
+        return self.median()
 
     ### MATH AND COMPARISON OPERATORS
 
@@ -1470,6 +1479,8 @@ class BaseUnivariateDistribution(BaseDistribution):
         See also:
 
         * <<class>.unit>
+        * <<class>.to_si>
+        * <<class>.to_solar>
 
         Arguments
         ------------
@@ -1503,6 +1514,12 @@ class BaseUnivariateDistribution(BaseDistribution):
 
     def to_si(self):
         """
+        Convert to SI units.
+
+        See also:
+
+        * <<class>.to>
+        * <<class>.to_solar>
         """
         physical_type = self.unit.physical_type
 
@@ -1513,6 +1530,12 @@ class BaseUnivariateDistribution(BaseDistribution):
 
     def to_solar(self):
         """
+        Convert to solar units.
+
+        See also:
+
+        * <<class>.to>
+        * <<class>.to_si>
         """
         physical_type = self.unit.physical_type
 
@@ -4937,3 +4960,437 @@ class MVHistogramSlice(BaseMultivariateSliceDistribution):
     @property
     def density(self):
         return _np.sum(self.multivariate.density, axis=tuple([d for d in range(self.multivariate.ndimensions) if d!=self.dimension]))
+
+
+############################# GENERATORS ######################################
+
+class BaseAroundGenerator(BaseDistlObject):
+    def __init__(self, value=None, unit=None, label=None, wrap_at=None, **kwargs):
+        self.value = value
+        self.unit = unit
+        self.label = label
+        self.wrap_at = wrap_at
+        super(BaseAroundGenerator, self).__init__(**kwargs)
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        if value is None:
+            self._value = None
+            return
+
+        self._value = is_float(value)
+
+    # def __getattr__(self, attr):
+    #     try:
+    #         return super(BaseAroundGenerator, self).__getattr__(attr)
+    #     except AttributeError:
+    #         if self.value is not None:
+    #             return getattr(self.__call__(), attr)
+    #         else:
+    #             raise ValueError("cannot access attribute of distl distribution object without setting value first")
+
+    def __call__(self, value=None, unit=None, label=None, wrap_at=None):
+        unit = unit if unit is not None else self._unit
+        label = label if label is not None else self._label
+        wrap_at = wrap_at if wrap_at is not None else self._wrap_at
+        value = value if value is not None else self.value
+        if value is None:
+            raise ValueError("value must be passed or set in order to create distl distribution object")
+
+        return self.__create_distl__(value, unit, label, wrap_at)
+
+    def __repr__(self):
+        descriptors = " ".join(["{}={}".format(k,getattr(self,k)) for k in self._descriptors])
+        descriptors += " value={}".format(self.value if self.value is not None else "UNSET")
+        if self.unit is not None:
+            descriptors += " unit={}".format(self.unit)
+        if self.wrap_at is not None:
+            descriptors += " wrap_at={}".format(self.wrap_at)
+        if self.label is not None:
+            descriptors += " label={}".format(self.label)
+        return "<distl.{} {}>".format(self.__class__.__name__.lower(), descriptors)
+
+    def __str__(self):
+        if self.label is not None:
+            return "{"+self.label+"}"
+        else:
+            return self.__repr__()
+
+    def to_dict(self):
+        """
+        Return the dictionary representation of the distribution object.
+
+        The resulting dictionary can be restored to the original object
+        via <distl.from_dict>.
+
+        See also:
+
+        * <<class>.to_json>
+        * <<class>.to_file>
+
+        Returns
+        --------
+        * dictionary
+        """
+        d = {k: _json_safe(getattr(self, k)) for k in self._descriptors}
+        d['distl'] = self.__class__.__name__
+        d['distl.version'] = __version__
+        if self.value is not None:
+            d['value'] = self.value
+        if self.unit is not None:
+            d['unit'] = str(self.unit.to_string())
+        if self.label is not None:
+            d['label'] = self.label
+        if self.wrap_at is not None:
+            d['wrap_at'] = self.wrap_at
+        return d
+
+    ### LABEL
+
+    @property
+    def label(self):
+        """
+        The label of the distribution object.  When not None, this is used for
+        the x-label when plotting (see <<class>.plot>) and for the
+        string representation for any math in a <Composite>.
+        """
+        return self._label
+
+    @label.setter
+    def label(self, label):
+        if label is not None:
+            try:
+                label = str(label)
+            except:
+                raise TypeError("label must be of type str")
+
+        self._label = label
+
+    ### UNITS AND UNIT CONVERSIONS
+
+    @property
+    def unit(self):
+        """
+        The units of the distribution.  Astropy is required in order to set
+        and/or use distributions with units.
+        """
+        return self._unit
+
+    @unit.setter
+    def unit(self, unit):
+        if isinstance(unit, str) or isinstance(unit, unicode):
+            unit = _units.Unit(unit)
+
+        if not (unit is None or isinstance(unit, _units.Unit) or isinstance(unit, _units.CompositeUnit) or isinstance(unit, _units.IrreducibleUnit)):
+            raise TypeError("unit must be of type astropy.units.Unit, got {} (type: {})".format(unit, type(unit)))
+
+        self._unit = unit
+
+
+    def to(self, unit):
+        """
+        Convert to different units.  This creates a copy and returns the
+        new distribution with the new units.  Astropy is required in order to
+        set and/or use units.
+
+        See also:
+
+        * <<class>.unit>
+        * <<class>.to_si>
+        * <<class>.to_solar>
+
+        Arguments
+        ------------
+        * `unit` (astropy.unit object): unit to use in the new distribution.
+            The current units (see <<class>.unit>) must be able to
+            convert to the requested units.
+
+        Returns
+        ------------
+        * the new distribution object
+
+        Raises
+        -----------
+        * ImportError: if astropy dependency is not met.
+        """
+        if not _has_astropy:
+            raise ImportError("astropy required to handle units")
+
+        if self.unit is None or self.unit in [_units.dimensionless_unscaled]:
+            # then we'll just adopt the units without applying any scaling
+            factor = 1.0
+        else:
+            factor = self.unit.to(unit)
+
+        new_dist = self.copy()
+        new_dist.unit = unit
+        if new_dist.wrap_at is not None and new_dist.wrap_at is not False:
+            new_dist.wrap_at *= factor
+        new_dist *= factor
+        return new_dist
+
+    def to_si(self):
+        """
+        Convert to SI units.
+
+        See also:
+
+        * <<class>.to>
+        * <<class>.to_solar>
+        """
+        physical_type = self.unit.physical_type
+
+        if physical_type not in _physical_types_to_si.keys():
+            raise NotImplementedError("cannot convert object with physical_type={} to SI units".format(physical_type))
+
+        return self.to(_units.Unit(_physical_types_to_si.get(physical_type)))
+
+    def to_solar(self):
+        """
+        Convert to solar units.
+
+        See also:
+
+        * <<class>.to>
+        * <<class>.to_si>
+        """
+        physical_type = self.unit.physical_type
+
+        if physical_type not in _physical_types_to_solar.keys():
+            raise NotImplementedError("cannot convert object with physical_type={} to solar units".format(physical_type))
+
+        return self.to(_units.Unit(_physical_types_to_solar.get(physical_type)))
+
+
+    ### CONVENIENCE METHODS FOR SAMPLING/WRAPPING/PLOTTING
+
+    @property
+    def wrap_at(self):
+        """
+        Value at which to wrap all sampled values.  If <<class>.unit> is not None,
+        then the value of `wrap_at` is the same as the set units.
+
+        If `False`: will not wrap
+        If `None`: will wrap on range 0-2pi (0-360 deg) if <<class>.unit> are angular
+            or 0-1 if <<class>.unit> are cycles.
+        If float: will wrap on range 0-`wrap_at`.
+
+        See also:
+
+        * <<class>.get_wrap_at>
+        * <<class>.wrap>
+
+        Returns
+        ---------
+        * (float or None)
+        """
+        return self._wrap_at
+
+    @wrap_at.setter
+    def wrap_at(self, wrap_at):
+        if wrap_at is None or wrap_at is False:
+            self._wrap_at = wrap_at
+
+        elif not (isinstance(wrap_at, float) or isinstance(wrap_at, int)):
+            raise TypeError("wrap_at={} must be of type float, int, False, or None".format(wrap_at))
+
+        else:
+            self._wrap_at = wrap_at
+
+
+    def sample(self, *args, **kwargs):
+        return self.__call__(value=kwargs.pop('value', None)).sample(*args, **kwargs)
+
+    def plot(self, *args, **kwargs):
+        return self.__call__(value=kwargs.pop('value', None)).plot(*args, **kwargs)
+
+    def pdf(self, *args, **kwargs):
+        return self.__call__(value=kwargs.pop('value', None)).pdf(*args, **kwargs)
+
+
+class Uniform_Around(BaseAroundGenerator):
+    """
+    Create a <Uniform> distribution which will always be centered to the face-value
+    of the parameter.  Some methods of the underlying <Uniform> distribution are
+    available, but must either have <Uniform_Around.value> set or passed as
+    a keyword-argument.  Calling the object with a value will also return
+    the underlying "frozen" <Uniform> distribution (see <Uniform_Around.to_uniform>).
+
+
+    For example:
+
+    ```py
+    ua = distl.uniform_around(width=2)
+    ua.sample(value=5)
+    ua.value = 6
+    ua.sample()
+    ua(7).sample()
+    ```
+
+    """
+    def __init__(self, width, value=None, unit=None, label=None, wrap_at=None):
+        super(Uniform_Around, self).__init__(value, unit, label, wrap_at, width=width)
+
+    def __create_distl__(self, value, unit, label, wrap_at):
+        return Uniform(value-self._width/2, value+self._width/2, unit, label, wrap_at)
+
+    @property
+    def width(self):
+        return self._width
+
+    @width.setter
+    def width(self, value):
+        self._width = is_float(value)
+
+    def __mul__(self, other):
+        if (isinstance(other, float) or isinstance(other, int)):
+            dist = self.copy()
+            if dist.value is not None:
+                dist.value *= other
+            dist.width *= other
+            return dist
+        else:
+            raise NotImplementedError()
+
+    def to_uniform(self, value=None):
+        """
+        Expose the "frozen" <Uniform> distribution at a certain
+        <Uniform_Around.value> as the central value.
+
+        * <Uniform.low> will be set to <Uniform_Around.value> - <Uniform_Around.width> / 2
+        * <Uniform.high> will be set to <Uniform_Around.value> + <Uniform_Around.width> / 2
+
+        Arguments
+        ----------
+        * `value` (float, default=None): value to use for the central value.
+            If not provided, will default to <Uniform_Around.value>.  If
+            that is not set, then an error will be raised.
+
+        Returns
+        ----------
+        * <Uniform> object
+        """
+        return self.__call__(value=value)
+
+
+class Delta_Around(BaseAroundGenerator):
+    """
+    Create a <Delta> distribution which will always be set to the face-value
+    of the parameter.  Some methods of the underlying <Delta> distribution are
+    available, but must either have <Delta_Around.value> set or passed as
+    a keyword-argument.  Calling the object with a value will also return
+    the underlying "frozen" <Delta> distribution (see <Delta_Around.to_delta>).
+
+
+    For example:
+
+    ```py
+    da = distl.delta_around()
+    da.sample(value=5)
+    da.value = 6
+    da.sample()
+    da(7).sample()
+    ```
+
+    """
+    def __init__(self, value=None, unit=None, label=None, wrap_at=None):
+        super(Delta_Around, self).__init__(value, unit, label, wrap_at)
+
+    def __create_distl__(self, value, unit, label, wrap_at):
+        return Delta(value, unit, label, wrap_at)
+
+
+    def __mul__(self, other):
+        if (isinstance(other, float) or isinstance(other, int)):
+            dist = self.copy()
+            if dist.value is not None:
+                dist.value *= other
+            return dist
+        else:
+            raise NotImplementedError()
+
+    def to_delta(self, value=None):
+        """
+        Expose the "frozen" <Delta> distribution at a certain
+        <Delta_Around.value> as the central value.
+
+        Arguments
+        ----------
+        * `value` (float, default=None): value to use for the central value.
+            If not provided, will default to <Delta_Around.value>.  If
+            that is not set, then an error will be raised.
+
+        Returns
+        ----------
+        * <Delta> object
+        """
+        return self.__call__(value=value)
+
+
+class Gaussian_Around(BaseAroundGenerator):
+    """
+    Create a <Gaussian> distribution which will always be centered to the face-value
+    of the parameter.  Some methods of the underlying <Gaussian> distribution are
+    available, but must either have <Gaussian_Around.value> set or passed as
+    a keyword-argument.  Calling the object with a value will also return
+    the underlying "frozen" <Gaussian> distribution (see <Gaussian_Around.to_gaussian>).
+
+
+    For example:
+
+    ```py
+    ga = distl.gaussian_around(scale=2)
+    ga.sample(value=5)
+    ga.value = 6
+    ga.sample()
+    ga(7).sample()
+    ```
+
+    """
+    def __init__(self, scale, value=None, unit=None, label=None, wrap_at=None):
+        super(Gaussian_Around, self).__init__(value, unit, label, wrap_at, scale=scale)
+
+    def __create_distl__(self, value, unit, label, wrap_at):
+        return Gaussian(value, self._scale, unit, label, wrap_at)
+
+    @property
+    def scale(self):
+        """
+        See <Gaussian.scale>
+        """
+        return self._scale
+
+    @scale.setter
+    def scale(self, value):
+        self._scale = is_float(value)
+
+    def __mul__(self, other):
+        if (isinstance(other, float) or isinstance(other, int)):
+            dist = self.copy()
+            if dist.value is not None:
+                dist.value *= other
+            dist.scale *= other
+            return dist
+        else:
+            raise NotImplementedError()
+
+    def to_gaussian(self, value=None):
+        """
+        Expose the "frozen" <Gaussian> distribution at a certain
+        <Gaussian_Around.value> as <Gaussian.loc>.
+
+        Arguments
+        ----------
+        * `value` (float, default=None): value to use for <Gaussian.loc>.
+            If not provided, will default to <Gaussian_Around.value>.  If
+            that is not set, then an error will be raised.
+
+        Returns
+        ----------
+        * <Gaussian> object
+        """
+        return self.__call__(value=value)

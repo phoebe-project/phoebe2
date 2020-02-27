@@ -5234,7 +5234,7 @@ class Parameter(object):
                         v = self._value.to(self.default_unit).to_dict()
                     else:
                         v = self._value.to_dict()
-                elif isinstance(self._value, distl.BaseDistribution):
+                elif isinstance(self._value, distl.BaseDistlObject):
                     v = self._value.to_dict()
                 if isinstance(v, u.Quantity):
                     v = self.get_value() # force to be in default units
@@ -7521,10 +7521,20 @@ class DistributionParameter(Parameter):
         """
         default = super(DistributionParameter, self).get_value(**kwargs)
         if default is not None: return default
-        return self._value
+        dist = self._value
+
+        if isinstance(dist, distl.BaseAroundGenerator):
+            if dist.unit is not None:
+                value = self.get_referenced_parameter().get_quantity().to(dist.unit).value
+            else:
+                value = self.get_referenced_parameter().get_value()
+
+            dist.value = value
+
+        return dist
 
     def _check_value(self, value):
-        if isinstance(value, distl.BaseDistribution):
+        if isinstance(value, distl.BaseDistlObject):
             return value
         elif isinstance(value, dict) and 'distl' in value.keys():
             # then we're loading the JSON version of an nparray object
@@ -7926,11 +7936,16 @@ class FloatParameter(Parameter):
             # raise NotImplementedError("constraint propagation for distributions not yet implemented")
             return self.is_constraint.get_result(use_distribution=distribution)
 
-        return self._bundle.get_parameter(qualifier=self.qualifier,
+        dist = self._bundle.get_parameter(qualifier=self.qualifier,
                                           distribution=distribution,
                                           context='distribution',
                                           check_visible=False,
                                           **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
+
+        if isinstance(dist, distl.BaseAroundGenerator):
+            dist.value = self.get_value()
+
+        return dist
 
     def sample_distribution(self, distribution=None, follow_constraints=True,
                             seed=None, set_value=False):
@@ -10156,7 +10171,7 @@ class ConstraintParameter(Parameter):
                     if isinstance(v, np.ndarray) and string_safe_arrays:
                         v = v.tolist()
                     return v
-                elif isinstance(quantity, distl.BaseDistribution):
+                elif isinstance(quantity, distl.BaseDistlObject):
                     if self.in_solar_units:
                         v = quantity.to_solar()
                     else:
@@ -10289,7 +10304,7 @@ class ConstraintParameter(Parameter):
         # let's assume the math was correct to give SI and we want units stored in self.default_units
 
         if self.default_unit is not None:
-            if isinstance(value, distl.BaseDistribution):
+            if isinstance(value, distl.BaseDistlObject):
                 value = value.to(self.default_unit)
             else:
                 if self.in_solar_units:

@@ -1,7 +1,7 @@
 from . import distl as _distl
 from .distl import DistributionCollection, from_dict, from_json, from_file, get_random_seed, _has_astropy, _units, __version__, version # , sample_from_dists, sample_ppf_from_dists, logp_from_dists, sample_func_from_dists, plot_func_from_dists,
 import numpy as _np
-from .distl import BaseDistribution # for isinstance checking
+from .distl import BaseDistlObject, BaseDistribution, BaseAroundGenerator # for isinstance checking
 import json as _json
 
 try:
@@ -173,3 +173,26 @@ def mvhistogram_from_data(data, bins=10, range=None, weights=None,
     """
     return _distl.MVHistogram.from_data(data, bins=bins, range=range, weights=weights,
                                         units=units, labels=labels, wrap_ats=wrap_ats)
+
+#### GENERATORS ####
+def gaussian_around(scale,
+                    unit=None, label=None, wrap_at=None):
+    """
+    Create a <Gaussian_Around> distribution.
+    """
+
+    return _distl.Gaussian_Around(scale, unit, label, wrap_at)
+
+def uniform_around(width,
+                   unit=None, label=None, wrap_at=None):
+    """
+    Create a <Uniform_Around> distribution.
+    """
+
+    return _distl.Uniform_Around(width, unit, label, wrap_at)
+
+def delta_around(unit=None, label=None, wrap_at=None):
+    """
+    Create a <Delta_Around> distribution.
+    """
+    return _distl.Delta_Around(unit, label, wrap_at)

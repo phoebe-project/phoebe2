@@ -6000,6 +6000,9 @@ class Bundle(ParameterSet):
         raised = {'univariate': False, 'uniform': False}
 
         def _to_dist(dist, to_univariates=False, to_uniform=False):
+            if isinstance(dist, _distl.BaseAroundGenerator):
+                # freeze to the current value
+                dist = dist()
             if to_univariates:
                 if hasattr(dist, 'to_univariate'):
                     if not raised['univariate']:

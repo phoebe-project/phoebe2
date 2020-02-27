@@ -350,7 +350,7 @@ conf = Settings()
 # make packages available at top-level
 from .dependencies.unitsiau2015 import u,c
 from .dependencies.nparray import array, linspace, arange, logspace, geomspace
-from .dependencies.distl import gaussian, normal, boxcar, uniform, histogram_from_bins, histogram_from_data, mvgaussian, mvhistogram_from_data
+from .dependencies.distl import gaussian, gaussian_around, normal, boxcar, uniform, uniform_around, histogram_from_bins, histogram_from_data, mvgaussian, mvhistogram_from_data
 from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, list_passband_online_history, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
 from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure, solver
 from .frontend.bundle import Bundle
@@ -756,19 +756,36 @@ def mpi_off():
 atexit.register(mpi.shutdown_workers)
 
 # edit API docs for imported functions
-array, linspace, arange, logspace, geomspace
 
 def add_nparray_docstring(obj):
 
-    nparraydocsprefix = """This is an included dependency from [nparray 1.1.0](https://nparray.readthedocs.io/en/1.1.0/).\n\n===============================================================\n\n"""
+    docsprefix = """This is an included dependency from [nparray 1.1.0](https://nparray.readthedocs.io/en/1.1.0/).\n\n===============================================================\n\n"""
 
-    obj.__doc__ = nparraydocsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    obj.__doc__ = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
 
 add_nparray_docstring(array)
 add_nparray_docstring(linspace)
 add_nparray_docstring(arange)
 add_nparray_docstring(logspace)
 add_nparray_docstring(geomspace)
+
+
+def add_distl_docstring(obj):
+    docsprefix = """This is an included dependency from [distl](https://distl.readthedocs.io).\n\n===============================================================\n\n"""
+
+    obj.__doc__ = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+
+add_distl_docstring(uniform)
+add_distl_docstring(boxcar)
+# add_distl_docstring(delta)
+add_distl_docstring(gaussian)
+add_distl_docstring(normal)
+add_distl_docstring(histogram_from_bins)
+add_distl_docstring(histogram_from_data)
+add_distl_docstring(mvgaussian)
+add_distl_docstring(mvhistogram_from_data)
+add_distl_docstring(uniform_around)
+add_distl_docstring(gaussian_around)
 
 
 # expose available "kinds" per-context
