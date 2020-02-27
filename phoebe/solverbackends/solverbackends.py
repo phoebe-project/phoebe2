@@ -639,8 +639,12 @@ class Nelder_MeadBackend(BaseSolverBackend):
         solution_params += [_parameters.IntParameter(qualifier='niter', value=0, limits=(0,None), description='number of completed iterations')]
         solution_params += [_parameters.BoolParameter(qualifier='success', value=False, description='whether the minimizer returned a success message')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_parameters', value=[], description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='initial_values', value=[], description='initial values before running the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
+        if kwargs.get('expose_lnlikelihoods', False):
+            solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -655,7 +659,8 @@ class Nelder_MeadBackend(BaseSolverBackend):
             raise NotImplementedError("mpi support for scipy.optimize not yet implemented")
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
-        fit_parameters = kwargs.get('fit_parameters')
+        fit_parameters = kwargs.get('fit_parameters') # list of twigs
+        initial_values = kwargs.get('initial_values') # dictionary
         # priors = kwargs.get('priors')
         # priors_combine = kwargs.get('priors_combine')
         priors = []
@@ -670,25 +675,51 @@ class Nelder_MeadBackend(BaseSolverBackend):
             p0.append(p.get_value())
             fitted_units.append(p.get_default_unit())
 
+        # now override from initial values
+        fitted_params_ps = b.filter(uniqueid=params_uniqueids, **_skip_filter_checks)
+        for twig,v in initial_values.items():
+            p = fitted_params_ps.get_parameter(twig=twig, **_skip_filter_checks)
+            if p.uniqueid in params_uniqueids:
+                index = params_uniqueids.index(p.uniqueid)
+                if hasattr(v, 'unit'):
+                    v = v.to(fitted_units[index]).value
+                p0[index] = v
+            else:
+                logger.warning("ignoring {}={} in initial_values as was not found in fit_parameters".format(twig, value))
+
         compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
         options = {k:v for k,v in kwargs.items() if k in ['maxiter', 'maxfex', 'xatol', 'fatol', 'adaptive']}
 
         logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(b, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
+        args = (_bexclude(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs)
         res = optimize.minimize(_lnlikelihood_negative, p0,
                                 method='nelder-mead',
-                                args=(_bexclude(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs),
+                                args=args,
                                 options=options)
 
-
-        return [[{'qualifier': 'message', 'value': res.message},
+        return_ = [{'qualifier': 'message', 'value': res.message},
                 {'qualifier': 'nfev', 'value': res.nfev},
                 {'qualifier': 'niter', 'value': res.nit},
                 {'qualifier': 'success', 'value': res.success},
                 {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
+                {'qualifier': 'initial_values', 'value': p0},
                 {'qualifier': 'fitted_values', 'value': res.x},
-                {'qualifier': 'fitted_units', 'value': fitted_units}]]
+                {'qualifier': 'fitted_units', 'value': fitted_units}]
+
+
+
+        if kwargs.get('expose_lnlikelihoods', False):
+            initial_lnlikelihood = _lnlikelihood(p0, *args)
+            final_likelihood = _lnlikelihood(res.x, *args)
+
+            return_ += [{'qualifier': 'initial_lnlikelihood', 'value': initial_lnlikelihood},
+                         {'qualifier': 'fitted_lnlikelihood', 'value': final_likelihood}]
+
+
+
+        return [return_]
 
 class Differential_EvolutionBackend(BaseSolverBackend):
     """
