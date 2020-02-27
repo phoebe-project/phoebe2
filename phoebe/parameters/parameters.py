@@ -8135,7 +8135,7 @@ class FloatParameter(Parameter):
 
         elif not (isinstance(value, float) or isinstance(value, int)):
             # TODO: probably need to change this to be flexible with all the cast_types
-            raise ValueError("value could not be cast to float")
+            raise ValueError("value ({}) could not be cast to float".format(value))
 
         return value
 

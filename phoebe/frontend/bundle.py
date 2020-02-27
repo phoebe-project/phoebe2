@@ -7877,6 +7877,11 @@ class Bundle(ParameterSet):
             logger.debug("temporarily disabling interactive_checks")
             conf._interactive_checks = False
 
+        conf_interactive_constraints = conf.interactive_constraints
+        if conf_interactive_constraints:
+            logger.debug("temporarily disabling interactive_constraints")
+            conf._interactive_constraints = False
+
         conf_check_default = conf.check_default
         if conf_check_default:
             logger.debug("temporarily disabling check_default")
@@ -7892,6 +7897,11 @@ class Bundle(ParameterSet):
             if conf_interactive_checks:
                 logger.debug("restoring interactive_checks={}".format(conf_interactive_checks))
                 conf._interactive_checks = conf_interactive_checks
+
+            if conf_interactive_constraints:
+                logger.debug("restoring interactive_constraints={}".format(conf_interactive_constraints))
+                conf._interactive_constraints = conf_interactive_constraints
+                self.run_delayed_constraints()
 
             if conf_check_visible:
                 logger.debug("restoring check_visible")
@@ -7915,7 +7925,7 @@ class Bundle(ParameterSet):
                 # if sampling is enabled then we need to pass things off now
                 # to the sampler.  The sampler will then make handle parallelization
                 # and per-sample calls to run_compute.
-                sample_from = computeparams.get_value('sample_from', expand=True, sample_from=kwargs.get('sample_from', None))
+                sample_from = computeparams.get_value(qualifier='sample_from', expand=True, sample_from=kwargs.get('sample_from', None), **_skip_filter_checks)
                 if len(sample_from):
                     params = backends.SampleOverModel().run(self, compute, times=times, **kwargs)
                     self._attach_params(params, check_copy_for=False, **metawargs)
@@ -8626,6 +8636,46 @@ class Bundle(ParameterSet):
 
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
 
+        # temporarily disable interactive_checks, check_default, and check_visible
+        conf_interactive_checks = conf.interactive_checks
+        if conf_interactive_checks:
+            logger.debug("temporarily disabling interactive_checks")
+            conf._interactive_checks = False
+
+        conf_interactive_constraints = conf.interactive_constraints
+        if conf_interactive_constraints:
+            logger.debug("temporarily disabling interactive_constraints")
+            conf._interactive_constraints = False
+
+        conf_check_default = conf.check_default
+        if conf_check_default:
+            logger.debug("temporarily disabling check_default")
+            conf.check_default_off()
+
+        conf_check_visible = conf.check_visible
+        if conf_check_visible:
+            logger.debug("temporarily disabling check_visible")
+            conf.check_visible_off()
+
+        def restore_conf():
+            # restore user-set interactive checks
+            if conf_interactive_checks:
+                logger.debug("restoring interactive_checks={}".format(conf_interactive_checks))
+                conf._interactive_checks = conf_interactive_checks
+
+            if conf_interactive_constraints:
+                logger.debug("restoring interactive_constraints={}".format(conf_interactive_constraints))
+                conf._interactive_constraints = conf_interactive_constraints
+                self.run_delayed_constraints()
+
+            if conf_check_visible:
+                logger.debug("restoring check_visible")
+                conf.check_visible_on()
+
+            if conf_check_default:
+                logger.debug("restoring check_default")
+                conf.check_default_on()
+
         if kwargs.get('overwrite', solution=='latest') and solution in self.solutions:
             # NOTE: default (instead of detached_job=) is correct here
             if self.get_value(qualifier='detached_job', solution=solution, context='solution', default='loaded') != 'loaded':
@@ -8696,6 +8746,8 @@ class Bundle(ParameterSet):
             if isinstance(detach, str):
                 self.save(detach)
 
+            restore_conf()
+
             if not detach:
                 return job_param.attach()
             else:
@@ -8717,6 +8769,8 @@ class Bundle(ParameterSet):
                      'solution': solution}
 
         self._attach_params(params, check_copy_for=False, **metawargs)
+
+        restore_conf()
 
         ret_ps = self.get_solution(solution=solution)
         if kwargs.get('overwrite', solution=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
