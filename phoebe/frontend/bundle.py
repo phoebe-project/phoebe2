@@ -5798,7 +5798,7 @@ class Bundle(ParameterSet):
         ---------
         * a <phoebe.parameters.ParameterSet> object.
         """
-        if '*' in distribution:
+        if distribution is not None and '*' in distribution:
             raise ValueError("distribution does not accept wildcards")
 
         kwargs['distribution'] = distribution
