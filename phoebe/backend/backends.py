@@ -575,19 +575,26 @@ def _call_run_single_model(args):
     # override sample_from
     compute_kwargs['sample_from'] = []
 
-    # TODO: temporarily disable constraints if not already
-    for uniqueid, value in samples.items():
-        b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
 
     while True:
+        # print("trying with samples={}".format(samples))
+        for uniqueid, value in samples.items():
+
+            # TODO: for some reason when redrawing we're getting arrays with length
+            # one as if we had passed N=1 to sample_distribution.  For now, we'll
+            # just work around the issue.
+            if isinstance(value, np.ndarray):
+                value = value[0]
+            # print("setting uniqueid={}, value={}".format(uniqueid, value))
+            b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+
         try:
-            # print("running model with samples={}".format(samples))
             model_ps = b.run_compute(compute=compute, times=times, do_create_fig_params=False, model='sample_{}'.format(i), **compute_kwargs)
         except:
             # new random draw for the next attempt
             logger.warning("model failed: drawing new sample")
-            # print("model failed: drawing new sample")
-            b.sample_distribution(distribution=sample_from, combine=sample_from_combine, set_value=True)
+            samples = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=None, keys='uniqueid')
+            # print("redrawing samples after failed: {}".format(samples))
         else:
             # print("model success")
             return model_ps.to_json()
@@ -654,7 +661,6 @@ class SampleOverModel(object):
             bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
             bexcl.remove_parameters_all(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks)
             args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_from, sample_from_combine, compute, times, compute_kwargs, i) for i in range(sample_num)]
-
             # models = [_call_run_single_model(args) for args in args_per_sample]
             models = list(pool.map(_call_run_single_model, args_per_sample))
         else:
