@@ -187,8 +187,8 @@ def _json_safe(v):
         return [_json_safe(li) for li in v]
     elif isinstance(v, BaseDistribution):
         return v.to_dict()
-    # elif _is_unit(v):
-    #     return v.to_string()
+    elif _is_unit(v):
+        return str(v.to_string())
     else:
         return v
 
@@ -241,7 +241,6 @@ def _is_unit(value):
     if not _has_astropy:
         raise ImportError("astropy must be installed for unit support")
     return (isinstance(value, _units.Unit) or isinstance(value, _units.IrreducibleUnit) or isinstance(value, _units.CompositeUnit))
-
 
 def is_unit(value):
     if _is_unit(value):

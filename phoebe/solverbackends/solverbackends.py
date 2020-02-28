@@ -310,7 +310,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
                  {'qualifier': 'secondary_depth', 'value': eclipse_dict.get('secondary_depth')},
                  {'qualifier': 'fitted_parameters', 'value': [ecc_param.uniqueid, per0_param.uniqueid]},
                  {'qualifier': 'fitted_values', 'value': [ecc, per0]},
-                 {'qualifier': 'fitted_units', 'value': [u.dimensionless_unscaled, u.rad]}]]
+                 {'qualifier': 'fitted_units', 'value': [u.dimensionless_unscaled.to_string(), u.rad.to_string()]}]]
 
 
 
@@ -707,7 +707,7 @@ class Nelder_MeadBackend(BaseSolverBackend):
                 {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
                 {'qualifier': 'initial_values', 'value': p0},
                 {'qualifier': 'fitted_values', 'value': res.x},
-                {'qualifier': 'fitted_units', 'value': fitted_units}]
+                {'qualifier': 'fitted_units', 'value': [u.to_string() for u in fitted_units]}]
 
 
 
@@ -847,7 +847,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                        {'qualifier': 'success', 'value': res.success},
                        {'qualifier': 'fitted_parameters', 'value': params_uniqueids},
                        {'qualifier': 'fitted_values', 'value': res.x},
-                       {'qualifier': 'fitted_units', 'value': fitted_units},
+                       {'qualifier': 'fitted_units', 'value': [u.to_string() for u in fitted_units]},
                        {'qualifier': 'bounds', 'value': bounds}]
 
             if kwargs.get('expose_lnlikelihoods', False):

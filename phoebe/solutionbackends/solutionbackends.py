@@ -10,7 +10,7 @@ import numpy as np
 from phoebe.parameters import ParameterSet
 import phoebe.parameters as _parameters
 import phoebe.frontend.bundle
-from phoebe import conf
+from phoebe import conf, u
 from phoebe.dependencies import distl as _distl
 
 
@@ -141,7 +141,7 @@ class BaseValueSolutionBackend(BaseSolutionBackend):
         fitted_values = self.solution_kwargs.get('fitted_values')
         fitted_units = self.solution_kwargs.get('fitted_units')
 
-        quantities = {self.bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).get_uniquetwig(): value*unit for uniqueid, value, unit in zip(uniqueids, fitted_values, fitted_units)}
+        quantities = {self.bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).get_uniquetwig(): value*u.Unit(unit) for uniqueid, value, unit in zip(uniqueids, fitted_values, fitted_units)}
         values = {k: v.value for k,v in quantities.items()}
         return {'values': values, 'quantities': quantities}
 

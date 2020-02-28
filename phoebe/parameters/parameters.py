@@ -5240,7 +5240,7 @@ class Parameter(object):
                     v = self.get_value() # force to be in default units
                 if isinstance(v, np.ndarray):
                     v = v.tolist()
-                if isinstance(v, u.Unit) or isinstance(v, u.CompositeUnit) or isinstance(v, u.IrreducibleUnit):
+                if _is_unit(v):
                     v = str(v.to_string())
                 return v
             elif k=='limits':
