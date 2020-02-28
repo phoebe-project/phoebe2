@@ -2076,7 +2076,7 @@ class Bundle(ParameterSet):
     def _handle_orbit_choiceparams(self, return_changes=False):
         affected_params = []
 
-        choices = self.filter(context='component', kind='orbit', **_skip_filter_checks).datasets
+        choices = self.filter(context='component', kind='orbit', **_skip_filter_checks).components
 
         for param in self.filter(qualifier='orbit', context='solver', **_skip_filter_checks).to_list():
             choices_changed = False
