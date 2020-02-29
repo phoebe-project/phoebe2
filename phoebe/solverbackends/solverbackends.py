@@ -72,6 +72,7 @@ def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_c
     # copy the bundle to make sure any changes by setting values/running models
     # doesn't affect the user-copy (or in other processors)
     b = b.copy()
+    b._within_sampling = True
     if sampled_values is not False:
         for uniqueid, value in zip(params_uniqueids, sampled_values):
             try:

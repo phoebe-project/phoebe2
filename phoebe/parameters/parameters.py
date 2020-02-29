@@ -7523,7 +7523,7 @@ class DistributionParameter(Parameter):
         if default is not None: return default
         dist = self._value
 
-        if isinstance(dist, distl.BaseAroundGenerator):
+        if isinstance(dist, distl.BaseAroundGenerator) and not self._bundle._within_sampling:
             if dist.unit is not None:
                 value = self.get_referenced_parameter().get_quantity().to(dist.unit).value
             else:
