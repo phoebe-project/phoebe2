@@ -43,9 +43,16 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
         _use_corner = False
     else:
         _use_corner = True
+    try:
+        from dynesty import plotting as dyplot
+    except (ImportError, TypeError):
+        _use_dyplot = False
+    else:
+        _use_dyplot = True
 else:
     _use_autofig = False
     _use_corner = False
+    _use_dyplot = False
 
 def _autofig_import_check():
     if not _use_autofig:
@@ -55,11 +62,18 @@ def _autofig_import_check():
             raise ImportError("autofig not imported, cannot plot")
 
 def _corner_import_check():
-    if not _use_autofig:
+    if not _use_corner:
         if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
             raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disabled")
         else:
             raise ImportError("corner not imported, cannot plot")
+
+def _dyplot_import_check():
+    if not _use_dyplot:
+        if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
+            raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disabled")
+        else:
+            raise ImportError("dynesty.plotting not imported, cannot plot")
 
 import logging
 logger = logging.getLogger("SOLUTION")
@@ -428,6 +442,40 @@ class DynestySolution(BaseDistributionSolutionBackend):
         dist = _distl.mvhistogram_from_data(dynesty_results.samples, bins=kwargs.get('bins', 10), range=None, weights=None, units=fitted_units, labels=fitted_twigs, wrap_ats=None)
         ret['distribution'] = dist
         return ret
+
+    def plot_diagnostics(self):
+        """
+        Plot dynesty diagnostics via dynesty.plotting.run_plot
+
+        Returns
+        ----------
+        * matplotlib figure
+        """
+        _dyplot_import_check()
+
+        dynesty_results = self.get('object')
+        fig, axes = dyplot.runplot(dynesty_results)
+
+        return fig
+
+    def plot_corner(self):
+        """
+        Plot the corner plot of the samples.  Requires the corner package to be
+        installed.
+
+        Returns
+        ----------
+        * matplotlib figure
+        """
+        _corner_import_check()
+
+        param_list = [self.bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in self.get('fitted_parameters')]
+
+        dynesty_results = self.get('object')
+        return corner.corner(dynesty_results.samples,
+                             labels=[_to_label(param) for param in param_list])
+
+
 
 class Lc_Eclipse_GeometrySolution(BaseValueSolutionBackend):
     """
