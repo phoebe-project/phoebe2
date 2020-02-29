@@ -72,6 +72,8 @@ def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_c
     # copy the bundle to make sure any changes by setting values/running models
     # doesn't affect the user-copy (or in other processors)
     b = b.copy()
+    # prevent any *_around distributions from adjusting to the changes in
+    # face-values
     b._within_sampling = True
     if sampled_values is not False:
         for uniqueid, value in zip(params_uniqueids, sampled_values):
@@ -80,6 +82,11 @@ def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_c
             except ValueError as err:
                 logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
                 return -np.inf
+
+    lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine)
+    if not np.isfinite(lnpriors):
+        # no point in calculating the model then
+        return lnpriors
 
     # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
     try:
@@ -91,7 +98,7 @@ def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_c
         return -np.inf
 
     # print("*** _lnlikelihood returning from rank: {}".format(mpi.myrank))
-    return b.calculate_lnp(distribution=priors, combine=priors_combine) + b.calculate_lnlikelihood(model=solution)
+    return lnpriors + b.calculate_lnlikelihood(model=solution)
 
 def _lnlikelihood_negative(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
     return -1 * _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs)
