@@ -4528,7 +4528,7 @@ class ParameterSet(object):
         """
         if not _use_autofig:
             if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
-                raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disasbled")
+                raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disabled")
             else:
                 raise ImportError("autofig not imported, cannot plot")
 

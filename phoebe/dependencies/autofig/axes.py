@@ -18,6 +18,9 @@ def _consistent_allow_none(thing1, thing2):
     else:
         return thing1 == thing2
 
+def _finite(array):
+    return array[np.isfinite(array)]
+
 class AxesGroup(common.Group):
     def __init__(self, items):
         super(AxesGroup, self).__init__(Axes, [], items)
@@ -1558,8 +1561,8 @@ class AxDimension(AxArray):
                     elif isinstance(call, _call.Mesh):
                         # then interp_in_direction should be [polygon, vertex]
                         interp_in_direction_flat = interp_in_direction.flatten()
-                        central_values.append(np.nanmin(interp_in_direction_flat))
-                        central_values.append(np.nanmax(interp_in_direction_flat))
+                        central_values.append(np.nanmin(_finite(interp_in_direction_flat)))
+                        central_values.append(np.nanmax(_finite(interp_in_direction_flat)))
                     else:
                         central_values.append(interp_in_direction)
 
@@ -1631,7 +1634,7 @@ class AxDimension(AxArray):
                     if not len(central_values):
                         continue
 
-                    rang_at_indep = np.nanmax(central_values) - np.nanmin(central_values)
+                    rang_at_indep = np.nanmax(_finite(central_values)) - np.nanmin(_finite(central_values))
                     if rang_at_indep > rang:
                         rang = rang_at_indep
 
@@ -1688,10 +1691,11 @@ class AxDimension(AxArray):
                 if error is None:
                     error = np.zeros_like(array_flat)
 
-                if not fixed_min and (lim[0] is None or np.nanmin(array_flat-error) < lim[0]):
-                    lim[0] = np.nanmin(array_flat-error)
-                if not fixed_max and (lim[1] is None or np.nanmax(array_flat+error) > lim[1]):
-                    lim[1] = np.nanmax(array_flat+error)
+                if not fixed_min and (lim[0] is None or np.nanmin(_finite(array_flat-error)) < lim[0]):
+                    lim[0] = np.nanmin(_finite(array_flat-error))
+                if not fixed_max and (lim[1] is None or np.nanmax(_finite(array_flat+error)) > lim[1]):
+                    lim[1] = np.nanmax(_finite(array_flat+error))
+
 
         else:
             raise NotImplementedError

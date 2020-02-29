@@ -30,11 +30,52 @@ except ImportError:
 else:
     _use_dynesty = True
 
+if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
+    try:
+        from phoebe.dependencies import autofig
+    except (ImportError, TypeError):
+        _use_autofig = False
+    else:
+        _use_autofig = True
+    try:
+        import corner
+    except (ImportError, TypeError):
+        _use_corner = False
+    else:
+        _use_corner = True
+else:
+    _use_autofig = False
+    _use_corner = False
+
+def _autofig_import_check():
+    if not _use_autofig:
+        if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
+            raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disabled")
+        else:
+            raise ImportError("autofig not imported, cannot plot")
+
+def _corner_import_check():
+    if not _use_autofig:
+        if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() != 'TRUE':
+            raise ImportError("cannot plot because PHOEBE_ENABLE_PLOTTING environment variable is disabled")
+        else:
+            raise ImportError("corner not imported, cannot plot")
+
 import logging
 logger = logging.getLogger("SOLUTION")
 logger.addHandler(logging.NullHandler())
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
+
+
+
+def _twig(param):
+    return '{}@{}'.format(param.qualifier, getattr(param, param.context))
+
+def _to_label(param):
+    if param.default_unit.to_string():
+        return '{} [{}]'.format(_twig(param), param.default_unit)
+    return _twig(param)
 
 
 class BaseSolutionBackend(object):
@@ -219,7 +260,7 @@ class EmceeSolution(BaseDistributionSolutionBackend):
             logger.warning("could not get samples within burnin={}, thin={}".format(burnin, thin))
             raise
 
-        log_prob_samples = reader.get_log_prob(discard=burnin, thin=thin, flat=False)
+        lnlikelihood = reader.get_log_prob(discard=burnin, thin=thin, flat=False)
 
         ps = self.bundle.filter(context=['component', 'dataset', 'feature', 'system'], **_skip_filter_checks)
         fitted_params = [ps.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in self.get('fitted_parameters', kwargs)]
@@ -230,7 +271,8 @@ class EmceeSolution(BaseDistributionSolutionBackend):
         fitted_units = None
         #fitted_units = [param.default_unit for param in fitted_params]
 
-        dist = _distl.mvhistogram_from_data(samples.reshape((-1,len(fitted_twigs))), bins=kwargs.get('bins', 10), range=None, weights=None, units=fitted_units, labels=fitted_twigs, wrap_ats=None)
+        plot_samples = samples[np.isfinite(lnlikelihood)]
+        dist = _distl.mvhistogram_from_data(plot_samples, bins=kwargs.get('bins', 10), range=None, weights=None, units=fitted_units, labels=fitted_twigs, wrap_ats=None)
 
 
         return {'autocorr_time': autocorr_time,
@@ -238,9 +280,115 @@ class EmceeSolution(BaseDistributionSolutionBackend):
                 'thin': thin,
                 'samples': samples,
                 'fitted_twigs': fitted_twigs,
-                'lnp': log_prob_samples,
+                'lnlikelihood': lnlikelihood,
                 'distribution': dist,
                 'object': reader}
+
+    def plot_lnlikelihood(self, show=True, **kwargs):
+        """
+        Plot the lnlikelihood vs iteration
+
+        Arguments
+        ------------
+        * `show` (bool, optional, default=True): draw the plot and show
+        * `**kwargs`: all additional keyword arguments passed to autofig.plot.
+
+        Returns
+        ---------
+        * (afig, mplfig if `show=True` or None)
+        """
+        _autofig_import_check()
+
+        if self._needs_process and not len(self._process_cache.keys()):
+            self.process()
+
+        burnin = self.get('burnin') #, kwargs)
+        thin = self.get('thin') #, kwargs)
+        kwargs.setdefault('linestyle', 'solid')
+        kwargs.setdefault('marker', 'none')
+        for lnp in self.get('lnlikelihood').T:
+            autofig.plot(x=np.arange(len(lnp))*thin+burnin, xlabel='iteration (thin={}, burnin={})'.format(thin, burnin),
+                         y=lnp, ylabel='lnlikelihood',
+                         **kwargs)
+
+        afig = autofig.gcf()
+
+        if show:
+            mplfig = afig.draw(show=True)
+            autofig.reset()
+
+            return afig, mplfig
+        else:
+            return afig, None
+
+    def plot_walks(self, twig=None, show=True, **kwargs):
+        """
+        Plot the walks vs iteration for a given parameter.
+
+        Arguments
+        -----------
+        * `twig` (string, optional, default=None): twig to use for filtering
+        * `show` (bool, optional, default=True): draw and show the figure
+        * `**kwargs`: additional keyword arguments are sent for filtering
+            and passed to autofig.plot
+
+        Returns
+        ---------
+        * (afig, mplfig if `show=True` or None)
+        """
+        _autofig_import_check()
+
+        if self._needs_process and not len(self._process_cache.keys()):
+            self.process()
+
+        param_ps = self.bundle.filter(uniqueid=self.get('fitted_parameters').tolist(), **_skip_filter_checks)
+        param = param_ps.get_parameter(twig, check_visible=False, check_default=False, **kwargs)
+
+        index = self.get('fitted_parameters').tolist().index(param.uniqueid)
+
+        lnlikelihood = self.get('lnlikelihood')
+        samples = self.get('samples')
+        thin = self.get('thin') #, kwargs)
+        burnin = self.get('burnin') #, kwargs)
+
+        # TODO: not sure if units may be the issue here...
+        kwargs.setdefault('linestyle', 'solid')
+        kwargs.setdefault('marker', 'none')
+        for walker in range(samples.shape[1]):
+            finite_inds = np.isfinite(lnlikelihood[:, walker])
+            x = np.arange(samples.shape[0])*thin+burnin
+            autofig.plot(x=x[finite_inds], xlabel='iteration (thin={}, burnin={})'.format(thin, burnin),
+                         y=samples[finite_inds,walker,index], ylabel=_twig(param), yunit=param.default_unit,
+                         **kwargs)
+
+        afig = autofig.gcf()
+
+        if show:
+            mplfig = afig.draw(show=True)
+            autofig.reset()
+
+            return afig, mplfig
+        else:
+            return afig, None
+
+    def plot_corner(self):
+        """
+        Plot the corner plot of the samples.  Requires the corner package to be
+        installed.
+
+        Returns
+        ----------
+        * matplotlib figure
+        """
+        _corner_import_check()
+
+        param_list = [self.bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in self.get('fitted_parameters')]
+
+        lnlikelihood = self.get('lnlikelihood')
+        samples = self.get('samples')
+        plot_samples = samples[np.isfinite(lnlikelihood)]
+        return corner.corner(plot_samples,
+                             labels=[_to_label(param) for param in param_list])
 
 
 class DynestySolution(BaseDistributionSolutionBackend):
