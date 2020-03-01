@@ -7111,21 +7111,38 @@ class Bundle(ParameterSet):
 
                     passband = self.get_value(qualifier='passband', dataset=dataset, context='dataset', **_skip_filter_checks)
                     # TODO: atm not in all compute options... what should we fallback on?
+
+                    ld_mode = self.get_value(qualifier='ld_mode', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
+                    intens_weighting = self.get_value(qualifier='intens_weighting', dataset=dataset, context='dataset', **_skip_filter_checks)
+                    if ld_mode == 'manual':
+                        ld_func = self.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
+                        ld_coeffs = self.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
+
                     if 'atm' in compute_ps.qualifiers:
                         atm = compute_ps.get_value(qualifier='atm', component=component, **_skip_filter_checks)
-                        if atm == 'blackbody':
-                            raise NotImplementedError("use_sb_approx not currently implemented for atm='blackody'")
+                        if atm == 'blackbody' and ld_mode!='manual':
+                            raise NotImplementedError("use_sb_approx not currently implemented for atm='blackbody' unless ld_mode='manual'")
                     else:
-                        logger.warning("no atm in compute='{}', falling back on atm='ck2004'".format(compute))
-                        atm = 'ck2004'
+                        atm = 'blackbody' if ld_mode == 'manual' else 'ck2004'
+                        logger.warning("no atm in compute='{}', falling back on atm='{}'".format(compute, atm))
 
-                    # TODO: blackbody:ldint doesn't exist...
-                    pb = get_passband(passband, content=['{}:Inorm'.format(atm), '{}:ldint'.format(atm)])
-                    # TODO: what should we do with photon_weighted here?
+
+                    ld_func=ld_func if ld_mode=='manual' else 'interp'
+                    ld_coeffs=ld_coeffs if ld_mode=='manual' else None
+                    required_content = ['{}:Inorm'.format(atm)]
+                    if atm != 'blackbody':
+                        required_content += ['{}:ldint'.format(atm)]
+                    pb = get_passband(passband, content=required_content)
                     # TODO: why is Inorm returning an array when passing all floats but ldint isn't??
-                    Inorm = pb.Inorm(Teff=teff, logg=logg, abun=abun, atm=atm, ldatm=atm, ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False)
-                    ldint = pb.ldint(Teff=teff, logg=logg, abun=abun, ldatm=atm, ld_func='interp', ld_coeffs=None, photon_weighted=False)
+                    Inorm = pb.Inorm(Teff=teff, logg=logg, abun=abun, atm=atm,
+                                     ldatm=atm, ldint=None, ld_func=ld_func, ld_coeffs=ld_coeffs,
+                                     photon_weighted=intens_weighting=='photon')
 
+                    ldint = pb.ldint(Teff=teff, logg=logg, abun=abun,
+                                     ldatm=atm, ld_func=ld_func, ld_coeffs=ld_coeffs,
+                                     photon_weighted=intens_weighting=='photon')
+
+                    logger.info("estimating pblum for {}@{} using atm='{}'".format(dataset, component, atm))
                     pblum_abs[dataset][component] = 4 * np.pi * requiv**2 * Inorm[0] * ldint
 
             pblum_scales = _universe._compute_pblum_scales(self, pblum_abs, components)
