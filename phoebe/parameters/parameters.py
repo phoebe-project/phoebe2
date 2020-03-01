@@ -8444,7 +8444,7 @@ class FloatArrayParameter(FloatParameter):
         if isinstance(qualifier_interp_value, str):
             # then assume its a twig and try to resolve
             # for example: time='t0_supconj'
-            qualifier_interp_value = self._bundle.get_value(qualifier_interp_value, context=['system', 'component'])
+            qualifier_interp_value = self._bundle.get_value(qualifier=qualifier_interp_value, context=['system', 'component'], **_skip_filter_checks)
 
         parent_ps = self.get_parent_ps()
 
@@ -8452,12 +8452,13 @@ class FloatArrayParameter(FloatParameter):
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
 
         if isinstance(qualifier_interp_value, u.Quantity):
-            default_unit = parent_ps.get_parameter(qualifier=qualifier).default_unit
+            default_unit = parent_ps.get_parameter(qualifier=qualifier, **_skip_filter_checks).default_unit
             logger.warning("converting from provided quantity with units {} to default units ({}) of {}".format(qualifier_interp_value.unit, default_unit, qualifier))
             qualifier_interp_value = qualifier_interp_value.to(default_unit).value
 
         if qualifier=='times':
-            times = parent_ps.get_value(qualifier='times')
+            # TODO: do we need to worry about units here?
+            times = parent_ps.get_value(qualifier='times', **_skip_filter_checks)
             if np.any(qualifier_interp_value < times.min()) or np.any(qualifier_interp_value > times.max()):
                 qualifier_interp_value_time = qualifier_interp_value
                 qualifier = 'phases'
@@ -8483,7 +8484,7 @@ class FloatArrayParameter(FloatParameter):
             if self._bundle.hierarchy.is_time_dependent():
                 raise ValueError("cannot interpolate in phase for time-dependent systems")
 
-            times = parent_ps.get_value(qualifier='times')
+            times = parent_ps.get_value(qualifier='times', **_skip_filter_checks)
             phases = self._bundle.to_phase(times, component=component, t0=t0)
 
             sort = phases.argsort()
