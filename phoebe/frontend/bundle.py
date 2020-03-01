@@ -7293,7 +7293,7 @@ class Bundle(ParameterSet):
 
         # handle any necessary pblum computations
         allowed_pblum_modes = ['decoupled', 'component-coupled'] if computeparams.kind == 'legacy' else ['decoupled']
-        dataset_compute_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode').exclude(value=allowed_pblum_modes).datasets
+        dataset_compute_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode', **_skip_filter_checks).exclude(value=allowed_pblum_modes, **_skip_filter_checks).datasets
         dataset_compute_pblums += [ds for ds in dataset_compute_l3s if ds not in dataset_compute_pblums]
 
         if len(dataset_compute_pblums):
@@ -7312,6 +7312,10 @@ class Bundle(ParameterSet):
             else:
                 logger.warning("{} does not natively support l3_mode='fraction'.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
             use_pbflux = {dataset: pblums_dict.get('pbflux@{}'.format(dataset)) for dataset in dataset_compute_pblums}
+            # for any that were dataset-scaled, we still want to pass pbflux to avoid needing to build a mesh
+            dataset_scaled_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode', value='dataset-scaled', **_skip_filter_checks).datasets
+            for dataset in dataset_scaled_pblums:
+                use_pbflux[dataset] = 1.0 * u.W/u.m**2
             logger.debug("calling compute_l3s(compute={}, dataset={}, use_pbflux={}, set_value=True, skip_checks=True, **{})".format(compute, dataset_compute_l3s, use_pbflux, kwargs))
             self.compute_l3s(compute, dataset=dataset_compute_l3s, use_pbflux=use_pbflux, set_value=True, skip_checks=True, **kwargs)
 
