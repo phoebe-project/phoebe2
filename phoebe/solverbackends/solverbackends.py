@@ -450,7 +450,7 @@ class EmceeBackend(BaseSolverBackend):
             sargs['iterations'] = niters
             # sargs['thin'] = kwargs.pop('thin', 1)  # TODO: make parameter - check if thin or thin_by
             # sargs['store'] = True
-            sargs['progress'] = False  # TODO: make parameter? or set to True?  or check if necessary library is imported?
+            sargs['progress'] = True
             sargs['skip_initial_state_check'] = True  # TODO: remove this?  Or can we reproduce the logic in a warning?
 
             # sampler.run_mcmc(p0.T, niters)
