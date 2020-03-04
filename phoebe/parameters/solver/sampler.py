@@ -43,17 +43,23 @@ def emcee(**kwargs):
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
 
-    params += [SelectParameter(qualifier='init_from', value=kwargs.get('init_from', []), choices=[], description='distribution(s) to initialize samples from (all unconstrained parameters with attached distributions will be sampled/fitted, constrained parameters will be ignored, covariances will be respected)')]
-    params += [ChoiceParameter(visible_if='init_from:<notempty>', qualifier='init_from_combine', value=kwargs.get('init_from_combine', 'first'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from init_from for the same parameter.  first: ignore duplicate entries and take the first in the init_from parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
+    params += [ChoiceParameter(qualifier='continue_from', value=kwargs.get('continue_from', 'None'), choices=['None'], description='continue the MCMC run from an existing emcee solution.  Chains will be appended to existing chains (so it is safe to overwrite the existing solution).  If None, will start a new run using init_from.')]
+    params += [SelectParameter(visible_if='continue_from:None', qualifier='init_from', value=kwargs.get('init_from', []), choices=[], description='distribution(s) to initialize samples from (all unconstrained parameters with attached distributions will be sampled/fitted, constrained parameters will be ignored, covariances will be respected)')]
+    params += [ChoiceParameter(visible_if='continue_from:None,init_from:<notempty>', qualifier='init_from_combine', value=kwargs.get('init_from_combine', 'first'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from init_from for the same parameter.  first: ignore duplicate entries and take the first in the init_from parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
 
     params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors (constrained and unconstrained parameters will be included, covariances will be respected except for distributions merge via priors_combine)')]
     params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  irst: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
 
-    params += [IntParameter(qualifier='nwalkers', value=kwargs.get('nwalkers', 16), limits=(1,1e5), description='number of walkers')]
+    params += [IntParameter(visible_if='continue_from:None', qualifier='nwalkers', value=kwargs.get('nwalkers', 16), limits=(1,1e5), description='number of walkers')]
     params += [IntParameter(qualifier='niters', value=kwargs.get('niters', 100), limits=(1,1e12), description='number of iterations')]
 
-    params += [StringParameter(qualifier='filename', value=kwargs.get('filename', 'emcee_progress.hd5'), description='filename to use for storing progress and continuing from previous run')]
-    params += [BoolParameter(qualifier='continue_previous_run', value=kwargs.get('continue_previous_run', False), description='continue previous run by reading contents in the file defined by filename')]
+    params += [FloatParameter(qualifier='burnin_factor', value=kwargs.get('burnin_factor', 2), default_unit=u.dimensionless_unscaled, limits=(1, 1000), description='factor of max(autocorr_time) to apply for burnin (burnin not applied until process solution)')]
+    params += [FloatParameter(qualifier='thin_factor', value=kwargs.get('thin_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.001, 1000), description='factor of min(autocorr_time) to apply for thinning (thinning not applied until process solution)')]
+
+    params += [IntParameter(qualifier='save_every_niters', value=kwargs.get('save_every_niters', 0), limits=(0,1e6), description='save the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps within run_solver, or the output filename provided to export_solver.  If 0 will not save and will only return after completion.')]
+
+    # params += [StringParameter(qualifier='filename', value=kwargs.get('filename', 'emcee_progress.hd5'), description='filename to use for storing progress and continuing from previous run')]
+    # params += [BoolParameter(qualifier='continue_previous_run', value=kwargs.get('continue_previous_run', False), description='continue previous run by reading contents in the file defined by filename')]
 
     return ParameterSet(params)
 
@@ -108,7 +114,6 @@ def dynesty(**kwargs):
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 100), limits=(1,1e12), description='maximum number of iterations')]
     params += [IntParameter(qualifier='maxcall', value=kwargs.get('maxcall', 1000), limits=(1,1e12), description='maximum number of calls (forward models)')]
 
-    params += [StringParameter(qualifier='filename', value=kwargs.get('filename', 'dynesty_progress.pkl'), description='filename to use for storing progress and continuing from previous run')]
-    # params += [BoolParameter(qualifier='continue_previous_run', value=kwargs.get('continue_previous_run', False), description='continue previous run by reading contents in the file defined by filename')]
+    params += [IntParameter(qualifier='save_every_niters', value=kwargs.get('save_every_niters', 0), limits=(0,1e6), description='save the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps within run_solver, or the output filename provided to export_solver.  If 0 will not save and will only return after completion.')]
 
     return ParameterSet(params)

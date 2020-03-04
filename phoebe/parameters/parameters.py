@@ -83,8 +83,26 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
         _use_autofig = False
     else:
         _use_autofig = True
+
+    try:
+        import corner
+    except (ImportError, TypeError):
+        _use_corner = False
+    else:
+        _use_corner = True
+    try:
+        from dynesty import plotting as dyplot
+    except (ImportError, TypeError):
+        _use_dyplot = False
+    else:
+        _use_dyplot = True
+
 else:
     _use_autofig = False
+    _use_corner = False
+    _use_dyplot = False
+
+
 
 import logging
 logger = logging.getLogger("PARAMETERS")
@@ -1628,7 +1646,7 @@ class ParameterSet(object):
 
         return cls(data)
 
-    def save(self, filename, incl_uniqueid=False, compact=False):
+    def save(self, filename, incl_uniqueid=False, compact=False, sort_by_context=True):
         """
         Save the ParameterSet to a JSON-formatted ASCII file.
 
@@ -1653,15 +1671,15 @@ class ParameterSet(object):
         f = open(filename, 'w')
         if compact:
             if _can_ujson:
-                ujson.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
-                           sort_keys=False, indent=0)
+                ujson.dump(self.to_json(incl_uniqueid=incl_uniqueid, sort_by_context=sort_by_context),
+                           f, sort_keys=False, indent=0)
             else:
                 logger.warning("for faster compact saving, install ujson")
-                json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
-                          sort_keys=False, indent=0)
+                json.dump(self.to_json(incl_uniqueid=incl_uniqueid, sort_by_context=sort_by_context),
+                          f, sort_keys=False, indent=0)
         else:
-            json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
-                      sort_keys=True, indent=0, separators=(',', ': '))
+            json.dump(self.to_json(incl_uniqueid=incl_uniqueid, sort_by_context=sort_by_context),
+                      f, sort_keys=True, indent=0, separators=(',', ': '))
         f.close()
 
         return filename
@@ -2015,7 +2033,7 @@ class ParameterSet(object):
         """
         return iter(self.to_dict())
 
-    def to_json(self, incl_uniqueid=False, exclude=[]):
+    def to_json(self, incl_uniqueid=False, exclude=[], sort_by_context=True):
         """
         Convert the <phoebe.parameters.ParameterSet> to a json-compatible
         object.
@@ -2041,11 +2059,14 @@ class ParameterSet(object):
         * (list of dicts)
         """
         lst = []
-        for context in _contexts:
-            lst += [v.to_json(incl_uniqueid=incl_uniqueid, exclude=exclude)
-                    for v in self.filter(context=context,
-                                         check_visible=False,
-                                         check_default=False).to_list()]
+        if sort_by_context:
+            for context in _contexts:
+                lst += [v.to_json(incl_uniqueid=incl_uniqueid, exclude=exclude)
+                        for v in self.filter(context=context,
+                                             check_visible=False,
+                                             check_default=False).to_list()]
+        else:
+            lst = [v.to_json(incl_uniqueid=incl_uniqueid, exclude=exclude) for v in self.to_list()]
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
@@ -3518,7 +3539,7 @@ class ParameterSet(object):
         # contexts/datasets/kinds/components/etc.
         # the dataset tag can appear in the compute context as well, so if the
         # context tag isn't in kwargs, let's default it to dataset or model
-        kwargs.setdefault('context', ['dataset', 'model'])
+        kwargs.setdefault('context', ['dataset', 'model', 'solution'])
 
         filter_kwargs = {}
         for k in list(self.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).keys())+['twig']:
@@ -3545,6 +3566,12 @@ class ParameterSet(object):
         if len(ps.contexts) > 1:
             for context in ps.contexts:
                 this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(animate=animate, **kwargs)
+                return_ += this_return
+            return _handle_additional_calls(ps, return_)
+
+        if len(ps.solutions)>1:
+            for solution in ps.solutions:
+                this_return = ps.filter(check_visible=False, solution=solution)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
@@ -3660,6 +3687,14 @@ class ParameterSet(object):
                 if '{}errors'.format(d) in kwargs.keys():
                     logger.warning("assuming you meant '{}error' instead of '{}errors'".format(d,d))
                     kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
+
+        def _corner_twig(param):
+            return '{}@{}'.format(param.qualifier, getattr(param, param.context))
+
+        def _corner_label(param):
+            if param.default_unit.to_string():
+                return '{} [{}]'.format(_corner_twig(param), param.default_unit)
+            return _corner_twig(param)
 
         def _kwargs_fill_dimension(kwargs, direction, ps):
             # kwargs[direction] is currently one of the following:
@@ -4077,6 +4112,12 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
+        elif ps.kind in ['emcee', 'dynesty']:
+            pass
+            # handled below
+        elif ps.context == 'solution':
+            # ignore non-implemented solution parameters
+            return []
         else:
             logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
             raise NotImplementedError("defaults for kind {} (dataset: {}) not yet implemented".format(ps.kind, ps.dataset))
@@ -4084,7 +4125,103 @@ class ParameterSet(object):
         #### DETERMINE AUTOFIG PLOT TYPE
         # NOTE: this must be done before calling _kwargs_fill_dimension below
         cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
-        if ps.kind == 'mesh':
+        if ps.kind == 'dynesty':
+            kwargs['plot_package'] = 'dynesty'
+            kwargs.setdefault('style', 'corner')
+            kwargs['results'] = {p.qualifier: p.value for p in self._bundle.filter(solution=ps.solution, context='solution', **_skip_filter_checks).to_list()}
+            if kwargs.get('style') == 'corner':
+                kwargs['dynesty_method'] = 'cornerplot'
+            elif kwargs.get('style') == 'trace':
+                kwargs['dynesty_method'] = 'traceplot'
+            elif kwargs.get('style') == 'run':
+                kwargs['dynesty_method'] = 'runplot'
+            else:
+                raise ValueError("dynesty plots with style='{}' not recognized".format(kwargs.get('style')))
+            return (kwargs,)
+        elif ps.kind == 'emcee':
+            kwargs.setdefault('style', ['trace', 'lnprobability'])
+            burnin = ps.get_value(qualifier='burnin', burnin=kwargs.get('burnin', None), **_skip_filter_checks)
+            thin = ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
+            lnprobabilities = ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
+
+            return_ = []
+            styles = kwargs.get('style')
+            if isinstance(styles, str):
+                styles = [styles]
+            for style in styles:
+                kwargs = _deepcopy(kwargs)
+
+                if style == 'corner':
+                    kwargs['plot_package'] = 'corner'
+                    lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
+
+                    samples = ps.get_value(qualifier='samples', **_skip_filter_checks)
+                    samples = samples[burnin:, :, :][::thin, : :]
+
+                    kwargs['data'] = samples[np.isfinite(lnprobabilities)]
+                    param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)]
+                    # TODO: use units from fitted_units instead of parameter?
+                    kwargs['labels'] = [_corner_label(param) for param in param_list]
+                    return_ += [kwargs]
+
+                elif style in ['lnprobability']:
+                    kwargs['plot_package'] = 'autofig'
+                    kwargs['autofig_method'] = 'plot'
+                    kwargs.setdefault('marker', 'None')
+                    kwargs.setdefault('linestyle', 'solid')
+
+                    lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
+
+                    for lnp in lnprobabilities.T:
+                        if not np.any(np.isfinite(lnp)):
+                            continue
+                        kwargs = _deepcopy(kwargs)
+                        kwargs['x'] = np.arange(len(lnp))*thin+burnin
+                        kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
+                        kwargs['y'] = lnp
+                        kwargs['ylabel'] = 'lnprobability'
+                        return_ += [kwargs]
+
+                elif style in ['trace', 'walks']:
+                    kwargs['plot_package'] = 'autofig'
+                    kwargs['autofig_method'] = 'plot'
+                    kwargs.setdefault('marker', 'None')
+                    kwargs.setdefault('linestyle', 'solid')
+
+                    fitted_uniqueids = list(self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks))
+                    fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    fitted_ps = self._bundle.filter(uniqueid=fitted_uniqueids, **_skip_filter_checks)
+
+                    samples = self._bundle.get_value(qualifier='samples', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    samples = samples[burnin:, :, :][::thin, : :]
+                    # samples [niters, nwalkers, parameter]
+                    ys = kwargs.get('y', fitted_ps.twigs)
+                    if isinstance(ys, str):
+                        ys = [ys]
+
+                    for y in ys:
+                        param = fitted_ps.get_parameter(y, **_skip_filter_checks)
+                        parameter_ind = fitted_uniqueids.index(param.uniqueid)
+
+                        for walker_ind in range(samples.shape[1]):
+                            kwargs = _deepcopy(kwargs)
+
+                            samples_y = samples[:, walker_ind, parameter_ind]
+
+                            kwargs['x'] = np.arange(len(samples_y))*thin+burnin
+                            kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
+
+                            kwargs['y'] = samples_y
+                            kwargs['ylabel'] = _corner_twig(param)
+                            # TODO: use fitted_units instead?
+                            kwargs['yunit'] = fitted_units[parameter_ind]
+                            return_ += [kwargs]
+                else:
+                    raise NotImplementedError()
+
+            return return_
+
+        elif ps.kind == 'mesh':
             if mesh_all_cartesian:
                 kwargs['autofig_method'] = 'mesh'
             else:
@@ -4608,27 +4745,50 @@ class ParameterSet(object):
             # this loop handles any of the automatically-generated
             # multiple plotting calls, passing each on to autofig
             for plot_kwargs in plot_kwargss:
-                y = plot_kwargs.get('y', [])
-                if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
-                    pass
-                elif not len(y):
-                    # a dataset without observational data, for example
-                    continue
+                plot_package = plot_kwargs.pop('plot_package', 'autofig')
+                if plot_package == 'corner':
+                    if not _use_corner:
+                        raise ImportError("corner not imported, cannot plot")
+                    if len(plot_kwargss) > 1:
+                        raise ValueError("corner plots not supported with other axes")
 
-                autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-                # we kept the qualifiers around so we could do some default-logic,
-                # but it isn't necessary to pass them on to autofig.
-                dump = kwargs.pop('qualifier', None)
-                func = getattr(self.gcf(), autofig_method)
+                    return None, corner.corner(plot_kwargs['data'], labels=plot_kwargs.get('labels', None))
 
-                if autofig_method == 'plot' and len(plot_kwargs.get('y', np.array([])).shape) > 1:
-                    # then we want to loop over the y index
-                    for y in plot_kwargs.get('y'):
-                        func(y=y, **{k:v for k,v in plot_kwargs.items() if k!='y'})
+                elif plot_package == 'dynesty':
+                    if not _use_dyplot:
+                        raise ImportError("dynesty not imported, cannot plot")
+                    if len(plot_kwargss) > 1:
+                        raise ValueError("dynesty plots not supported with other axes")
+
+                    style = plot_kwargs.pop('style')
+                    dynesty_method = plot_kwargs.pop('dynesty_method')
+                    func = getattr(dyplot, dynesty_method)
+                    return func(**plot_kwargs)
+
+                elif plot_package == 'autofig':
+                    y = plot_kwargs.get('y', [])
+                    if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
+                        pass
+                    elif not len(y):
+                        # a dataset without observational data, for example
+                        continue
+
+                    autofig_method = plot_kwargs.pop('autofig_method', 'plot')
+                    # we kept the qualifiers around so we could do some default-logic,
+                    # but it isn't necessary to pass them on to autofig.
+                    dump = kwargs.pop('qualifier', None)
+                    func = getattr(self.gcf(), autofig_method)
+
+                    if autofig_method == 'plot' and len(plot_kwargs.get('y', np.array([])).shape) > 1:
+                        # then we want to loop over the y index
+                        for y in plot_kwargs.get('y'):
+                            func(y=y, **{k:v for k,v in plot_kwargs.items() if k!='y'})
+                    else:
+                        logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({} unit={})>".format(v.shape, v.unit if hasattr(v, 'unit') else None)) for k,v in plot_kwargs.items()])))
+
+                        func(**plot_kwargs)
                 else:
-                    logger.info("calling autofig.{}({})".format(autofig_method, ", ".join(["{}={}".format(k,v if not isinstance(v, np.ndarray) else "<data ({} unit={})>".format(v.shape, v.unit if hasattr(v, 'unit') else None)) for k,v in plot_kwargs.items()])))
-
-                    func(**plot_kwargs)
+                    raise ValueError("plot_package={} not recognized".format(plot_package))
         except Exception as err:
             restore_conf()
             raise
@@ -5198,8 +5358,8 @@ class Parameter(object):
         """
         filename = os.path.expanduser(filename)
         f = open(filename, 'w')
-        json.dump(self.to_json(incl_uniqueid=incl_uniqueid), f,
-                   sort_keys=True, indent=0, separators=(',', ': '))
+        json.dump(self.to_json(incl_uniqueid=incl_uniqueid),
+                  f, sort_keys=True, indent=0, separators=(',', ': '))
         f.close()
 
         return filename
@@ -5820,6 +5980,8 @@ class Parameter(object):
                     return param.get_value() in value.split("|")
                 elif value=='<notempty>':
                     return len(param.get_value(expand=True)) > 0
+                elif value=='<empty>':
+                    return len(param.get_value(expand=True)) == 0
                 elif isinstance(value, str) and value[0] == '<' and value[-1] == '>':
                     return param.get_value() == getattr(self, value[1:-1])
                 else:

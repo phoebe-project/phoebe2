@@ -183,7 +183,8 @@ def to_unit(unit):
 def _json_safe(v):
     if isinstance(v, _np.ndarray):
         return v.tolist()
-    elif isinstance(v, list) or isinstance(v, tuple):
+
+    if isinstance(v, list) or isinstance(v, tuple):
         return [_json_safe(li) for li in v]
     elif isinstance(v, BaseDistribution):
         return v.to_dict()
@@ -2234,7 +2235,7 @@ class BaseMultivariateDistribution(BaseDistribution):
 
     def __str__(self):
         if self.labels is not None:
-            return "{"+self.labels+"}"
+            return "{"+", ".join(self.labels)+"}"
         else:
             return self.__repr__()
 

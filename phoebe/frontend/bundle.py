@@ -36,7 +36,6 @@ from phoebe.parameters.parameters import _uniqueid
 from phoebe.backend import backends, mesh
 from phoebe.backend import universe as _universe
 from phoebe.solverbackends import solverbackends as _solverbackends
-from phoebe.solutionbackends import solutionbackends as _solutionbackends
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import list_installed_passbands, list_online_passbands, get_passband, update_passband, _timestamp_to_dt
@@ -2092,6 +2091,32 @@ class Bundle(ParameterSet):
                     param._value = choices[0]
                 else:
                     param._value = self.hierarchy.get_top()
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_solution_choiceparams(self, return_changes=False):
+        affected_params = []
+
+        # currently hardcoded to emcee only
+        choices = ['None'] + self.filter(context='solution', kind='emcee', **_skip_filter_checks).solutions
+
+        for param in self.filter(qualifier='continue_from', context='solver', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                # if param._value == 'None' and len(choices):
+                #     param._value = choices[0]
+                # else:
+                param._value = 'None'
             else:
                 changed = False
 
@@ -8503,12 +8528,13 @@ class Bundle(ParameterSet):
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in solver_kwargs])
-        f.write("solution_ps = b.run_solver({})\n".format(solver_kwargs_string))
 
         if out_fname is not None:
+            f.write("solution_ps = b.run_solver(out_fname='{}', {})\n".format(out_fname, solver_kwargs_string))
             f.write("solution_ps.save('{}', incl_uniqueid=True)\n".format(out_fname))
         else:
             f.write("import sys\n")
+            f.write("solution_ps = b.run_solver(out_fname=sys.argv[0]+'.out', {})\n".format(solver_kwargs_string))
             f.write("solution_ps.save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
             out_fname = script_fname+'.out'
 
@@ -8709,6 +8735,11 @@ class Bundle(ParameterSet):
 
             overwrite_ps = self.remove_solution(solution=solution)
 
+            # for solver backends that allow continuing, we need to keep and pass
+            # the deleted PS if it matches continue_from
+            if solver_ps.get_value(qualifier='continue_from', continue_from=kwargs.get('continue_from', None), default='None') == overwrite_ps.solution:
+                kwargs['continue_from_ps'] = overwrite_ps
+
             # check the label again, just in case solution belongs to
             # something other than solution (technically could belong to model if 'latest')
             if solution!='latest':
@@ -8790,6 +8821,7 @@ class Bundle(ParameterSet):
                      'kind': solver_ps.kind,
                      'solution': solution}
 
+
         self._attach_params(params, check_copy_for=False, **metawargs)
 
         restore_conf()
@@ -8798,16 +8830,31 @@ class Bundle(ParameterSet):
         if kwargs.get('overwrite', solution=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
             ret_ps += overwrite_ps
 
+
+        # Figure options for this solutiion
+        # if do_create_fig_params:
+        #     fig_params = _figure._run_solver(self, **kwargs)
+        #
+        #     fig_metawargs = {'context': 'figure',
+        #                      'solution': solution}
+        #     self._attach_params(fig_params, check_copy_for=False, **fig_metawargs)
+        #
+        #     ret_ps += fig_params
+
+        ret_ps += ParameterSet(self._handle_solution_choiceparams(return_changes=True))
+
+
+
+
         return ret_ps
 
 
-    def process_solution(self, solution=None, adopt=False, **kwargs):
+    def adopt_solution(self, solution=None, **kwargs):
         """
 
         Arguments
         ------------
         * `solution`
-        * `adopt`
         * `distribution` (string, optional, default=None): applicable only
             for solver backends that return distributions and `adopt` is True.
             Distribution to use when adding distributions to the bundle.  See
@@ -8818,13 +8865,9 @@ class Bundle(ParameterSet):
 
         Raises
         -----------
-        * ValueError: if `distribution` is provided but `adopt` is not set to True.
         * ValueError: if `distribution` is provided but the referenced `solution`
             does not expose distributions.
         """
-        if kwargs.get('distribution', None) is not None and adopt is False:
-            raise ValueError("distribution cannot be set if adopt is not set to True")
-
         # make sure we don't pass distribution to the filter
         distribution = kwargs.pop('distribution', None)
 
@@ -8832,12 +8875,72 @@ class Bundle(ParameterSet):
         solver_kind = solution_ps.kind
         if solver_kind is None:
             raise ValueError("could not find solution='{}'".format(solution))
-        c = getattr(_solutionbackends, "{}Solution".format(solver_kind.title()))(bundle=self, solution=solution, solution_kwargs={p.qualifier: p.get_value() for p in solution_ps.to_list()})
-        c.process(**kwargs)
-        if adopt:
-            return c.adopt(distribution=distribution)
+
+
+        if solver_kind in ['emcee', 'dynesty']:
+            fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
+            fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+            fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
+
+            if solver_kind == 'emcee':
+                lnprobabilities = solution_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
+                samples = solution_ps.get_value(qualifier='samples', **_skip_filter_checks)
+
+                burnin = solution_ps.get_value(qualifier='burnin', burnin=kwargs.get('burnin', None), **_skip_filter_checks)
+                thin = solution_ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
+
+                lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
+                samples = samples[burnin:, :, :][::thin, : :]
+
+
+                samples = samples[np.isfinite(lnprobabilities)]
+                weights = None
+
+            elif solver_kind == 'dynesty':
+                samples = solution_ps.get_value(qualifier='samples', **_skip_filter_checks)
+                logwt = solution_ps.get_value(qualifier='logwt', **_skip_filter_checks)
+                logz = solution_ps.get_value(qualifier='logz', **_skip_filter_checks)
+
+                weights = np.exp(logwt - logz[-1])
+
+            else:
+                raise NotImplementedError()
+
+            dist = _distl.mvhistogram_from_data(samples,
+                                                bins=kwargs.get('bins', 10),
+                                                range=None,
+                                                weights=weights,
+                                                units=[u.Unit(unit) for unit in fitted_units],
+                                                labels=list(fitted_twigs),
+                                                wrap_ats=None)
+
+            for i, uniqueid in enumerate(fitted_uniqueids):
+                self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution)
+
+            # TODO: do we want to only return newly added distributions?
+            return self.get_distribution(distribution=distribution)
+
         else:
-            return c
+            fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
+            fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+            fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
+            fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
+
+            user_interactive_constraints = conf.interactive_constraints
+            conf.interactive_constraints_off(suppress_warning=True)
+
+            changed_params = []
+            for uniqueid, value, unit in zip(fitted_uniqueids, fitted_values, fitted_units):
+                param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+
+                param.set_value(value, unit=unit)
+                changed_params.append(param)
+
+            changed_params += self.run_delayed_constraints()
+            if user_interactive_constraints:
+                conf.interactive_constraints_on()
+
+            return ParameterSet(changed_params)
 
     def get_solution(self, solution=None, **kwargs):
         """
@@ -8921,7 +9024,12 @@ class Bundle(ParameterSet):
             metawargs['solution'] = solution
         self._attach_params(result_ps, override_tags=True, **metawargs)
 
-        return self.get_solution(solution=solution if solution is not None else result_ps.solutions)
+        ret_ps = self.get_solution(solution=solution if solution is not None else result_ps.solutions)
+
+        ret_ps += ParameterSet(self._handle_solution_choiceparams(return_changes=True))
+
+        return ret_ps
+
 
     def remove_solution(self, solution, **kwargs):
         """
