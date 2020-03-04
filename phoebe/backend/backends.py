@@ -2219,7 +2219,7 @@ class EllcBackend(BaseBackendByDataset):
         radius_1 = comp_ps.get_value(qualifier='requiv', component=starrefs[0], unit=u.solRad, **_skip_filter_checks) / a
         radius_2 = comp_ps.get_value(qualifier='requiv', component=starrefs[1], unit=u.solRad, **_skip_filter_checks) / a
 
-        sb_ratio = (comp_ps.get_value(qualifier='teff', component=starrefs[0], unit=u.K, **_skip_filter_checks)/comp_ps.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K, **_skip_filter_checks))**4
+        sb_ratio = (comp_ps.get_value(qualifier='teff', component=starrefs[1], unit=u.K, **_skip_filter_checks)/comp_ps.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
 
         period = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
         q = comp_ps.get_value(qualifier='q', component=orbitref, **_skip_filter_checks)
