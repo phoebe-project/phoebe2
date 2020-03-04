@@ -7030,7 +7030,6 @@ class Bundle(ParameterSet):
         if isinstance(datasets, str):
             datasets = [datasets]
 
-
         valid_components = self.hierarchy.get_stars()+self.hierarchy.get_envelopes()
         if 'component' in kwargs.keys():
             components = kwargs.pop('component')
@@ -7151,7 +7150,7 @@ class Bundle(ParameterSet):
             for dataset in datasets:
                 pbflux_this_dataset = 0.0
                 for component in components:
-                    pblum = pblum_abs[dataset][component] * pblum_scales[dataset][component]
+                    pblum = pblum_abs[dataset][component] * pblum_scales[dataset].get(component, 1.0)
                     pbflux_this_dataset += pblum / (4*np.pi)
 
                     if set_value:

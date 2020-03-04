@@ -86,7 +86,7 @@ def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_c
     lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine)
     if not np.isfinite(lnpriors):
         # no point in calculating the model then
-        return lnpriors
+        return -np.inf
 
     # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
     try:
@@ -348,6 +348,14 @@ class EmceeBackend(BaseSolverBackend):
         if continue_previous_run and not os.path.exists(filename):
             raise ValueError("cannot file filename='{}', cannot use continue_previous_run=True".format(filename))
 
+        # require sigmas for all enabled datasets
+        computes = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), **_skip_filter_checks)
+        datasets = b.filter(compute=computes, qualifier='enabled', value=True).datasets
+        for sigma_param in b.filter(qualifier='sigmas', dataset=datasets, check_visible=True).to_list():
+            if not len(sigma_param.get_value()):
+                raise ValueError("emcee requires sigmas for all datasets (not found for {})".format(sigma_param.twig))
+
+
 
     def _get_packet_and_solution(self, b, solver, **kwargs):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
@@ -442,8 +450,10 @@ class EmceeBackend(BaseSolverBackend):
             sargs['iterations'] = niters
             # sargs['thin'] = kwargs.pop('thin', 1)  # TODO: make parameter - check if thin or thin_by
             # sargs['store'] = True
-            sargs['progress'] = False  # TODO: make parameter? or set to True?  or check if necessary library is imported?
+            sargs['progress'] = True
             sargs['skip_initial_state_check'] = True  # TODO: remove this?  Or can we reproduce the logic in a warning?
+
+            # sampler.run_mcmc(p0.T, niters)
 
             logger.debug("sampler.sample(p0, {})".format(sargs))
             # TODO: parameters for checking convergence
