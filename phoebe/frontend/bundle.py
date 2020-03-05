@@ -7688,7 +7688,7 @@ class Bundle(ParameterSet):
             f.write("model_ps.save('{}', incl_uniqueid=True)\n".format(out_fname))
         else:
             f.write("import sys\n")
-            f.write("model_ps.save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+            f.write("model_ps.filter(context='model').save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
             out_fname = script_fname+'.out'
 
         f.close()
@@ -7986,6 +7986,7 @@ class Bundle(ParameterSet):
 
 
         try:
+            kwargs_sample_from = kwargs.pop('sample_from', None)
             for compute in computes:
 
                 computeparams = self.get_compute(compute=compute)
@@ -7998,7 +7999,7 @@ class Bundle(ParameterSet):
                 # if sampling is enabled then we need to pass things off now
                 # to the sampler.  The sampler will then make handle parallelization
                 # and per-sample calls to run_compute.
-                sample_from = computeparams.get_value(qualifier='sample_from', expand=True, sample_from=kwargs.pop('sample_from', None), **_skip_filter_checks)
+                sample_from = computeparams.get_value(qualifier='sample_from', expand=True, sample_from=kwargs_sample_from, **_skip_filter_checks)
                 remove_dists = []
                 if len(sample_from):
                     for sample_from_item in sample_from:
@@ -8579,7 +8580,7 @@ class Bundle(ParameterSet):
         else:
             f.write("import sys\n")
             f.write("solution_ps = b.run_solver(out_fname=sys.argv[0]+'.out', {})\n".format(solver_kwargs_string))
-            f.write("solution_ps.save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+            f.write("solution_ps.filter(context='solution').save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
             out_fname = script_fname+'.out'
 
         f.close()
