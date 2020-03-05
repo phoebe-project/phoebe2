@@ -175,6 +175,7 @@ class BaseSolverBackend(object):
         #         raise ValueError("more than {} computations detected ({} estimated).".format(kwargs.get('max_computations'), len(packet['infolists'])))
 
         # packet['b'] = b.to_json() if mpi.enabled else b
+        packet['b'] = b
         packet['solver'] = solver
         # packet['compute'] = compute  # should have been set by kwargs, when applicable
         packet['backend'] = self.__class__.__name__
@@ -239,10 +240,10 @@ class BaseSolverBackend(object):
             mpi.comm.bcast(packet, root=0)
 
             # now even the master can become a worker and take on a chunk
-            rpacketlists_per_worker = [self.run_worker(b=b, **packet)]
+            rpacketlists_per_worker = [self.run_worker(**packet)]
 
         else:
-            rpacketlists_per_worker = [self.run_worker(b=b, **packet)]
+            rpacketlists_per_worker = [self.run_worker(**packet)]
 
         logger.debug("rank:{}/{} calling _fill_solution".format(mpi.myrank, mpi.nprocs))
         return self._fill_solution(solution_ps, rpacketlists_per_worker)
@@ -392,6 +393,7 @@ class EmceeBackend(BaseSolverBackend):
         # here we'll override loading the bundle since it is not needed
         # in run_worker (for the workers.... note that the master
         # will enter run_worker through run, not here)
+
         return self.run_worker(**packet)
 
     def run_worker(self, b, solver, compute, **kwargs):
