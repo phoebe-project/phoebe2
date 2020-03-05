@@ -2015,7 +2015,26 @@ class Bundle(ParameterSet):
 
         choices = self.distributions
 
-        for param in self.filter(context=['solver', 'compute'], qualifier=['init_from', 'priors', 'bounds', 'sample_from'], **_skip_filter_checks).to_list():
+        for param in self.filter(context='solver', qualifier=['init_from', 'priors', 'bounds', 'sample_from'], **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_computesamplefrom_selectparams(self, rename={}, return_changes=False):
+        """
+        """
+        affected_params = []
+
+        choices = self.distributions + self.solutions
+
+        for param in self.filter(context='compute', qualifier=['sample_from'], **_skip_filter_checks).to_list():
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
@@ -5796,6 +5815,7 @@ class Bundle(ParameterSet):
 
         # TODO: only include these if requested?
         ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
+        ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
 
         return ret_ps
 
@@ -5864,6 +5884,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'distribution'
         ret_ps = self.remove_parameters_all(**kwargs)
         ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
+        ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
         return ret_ps
 
     def rename_distribution(self, old_distribution, new_distribution, overwrite=False):
@@ -5904,7 +5925,7 @@ class Bundle(ParameterSet):
 
         ps = self.filter(twig=twig, **filter_kwargs)
         if len(ps.contexts) != 1:
-            raise ValueError("twig and kwargs must point to a single context (solver or distribution), found contexts={}".format(ps.contexts))
+            raise ValueError("twig={} and kwargs={} must point to a single context (solver or distribution), found contexts={}".format(twig, filter_kwargs, ps.contexts))
         elif ps.context == 'distribution':
             distribution = ps.distributions
             if kwargs.get('distribution', None) is not None and len(kwargs.get('distribution')) == len(distribution):
@@ -6167,6 +6188,11 @@ class Bundle(ParameterSet):
                                                          to_univariates=to_univariates,
                                                          to_uniforms=to_uniforms,
                                                          keys='uniqueid')
+
+        if np.all([isinstance(dist, _distl._distl.Delta) for dist in dc.dists]):
+            if N is not None and N > 1:
+                logger.warning("all distributions are delta, using N=1 instead of N={}".format(N))
+                N = 1
 
 
         sampled_values = dc.sample(size=N).T
@@ -7972,10 +7998,28 @@ class Bundle(ParameterSet):
                 # if sampling is enabled then we need to pass things off now
                 # to the sampler.  The sampler will then make handle parallelization
                 # and per-sample calls to run_compute.
-                sample_from = computeparams.get_value(qualifier='sample_from', expand=True, sample_from=kwargs.get('sample_from', None), **_skip_filter_checks)
+                sample_from = computeparams.get_value(qualifier='sample_from', expand=True, sample_from=kwargs.pop('sample_from', None), **_skip_filter_checks)
+                remove_dists = []
                 if len(sample_from):
-                    params = backends.SampleOverModel().run(self, compute, times=times, **kwargs)
+                    for sample_from_item in sample_from:
+                        if sample_from_item not in self.distributions:
+                            if sample_from_item in self.solutions:
+                                # then we'll temporarily adopt the solution as
+                                # a distribution set, point to the random distribution
+                                # label instead of the solution label, and track
+                                # the random distribution label so we can remove
+                                # it after
+                                distribution = _uniqueid()
+                                self.adopt_solution(solution=sample_from_item, as_distributions=True, distribution=distribution, **kwargs)
+                                remove_dists.append(distribution)
+                                sample_from[sample_from.index(sample_from_item)] = distribution
+                            else:
+                                raise ValueError("could not find '{}' in distributions or solutions".format(sample_from_item))
+
+                    params = backends.SampleOverModel().run(self, compute, times=times, sample_from=sample_from, **kwargs)
                     self._attach_params(params, check_copy_for=False, **metawargs)
+
+                    self.remove_distribution(distribution=remove_dists)
                     # continue to the next iteration of the for-loop.  Any dataset-scaling,
                     # etc, will be handled within each individual model run within the sampler.
                     continue
@@ -8842,23 +8886,28 @@ class Bundle(ParameterSet):
         #     ret_ps += fig_params
 
         ret_ps += ParameterSet(self._handle_solution_choiceparams(return_changes=True))
-
-
-
+        ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
 
         return ret_ps
 
 
-    def adopt_solution(self, solution=None, **kwargs):
+    def adopt_solution(self, solution=None, as_distributions=False, **kwargs):
         """
 
         Arguments
         ------------
-        * `solution`
+        * `solution` (string, optional, default=None): label of the solution
+            to adopt.  Must be provided if more than one are attached to the
+            bundle.
+        * `as_distributions` (bool, optional, default=False): force a solution
+            that returns face-values to adopt as delta distributions instead
+            of setting the face-values.  Only applicable for solver backends
+            that do NOT return distributions.
         * `distribution` (string, optional, default=None): applicable only
-            for solver backends that return distributions and `adopt` is True.
+            for solver backends that return distributions or if `as_distributions=True`.
             Distribution to use when adding distributions to the bundle.  See
             <phoebe.frontend.bundle.Bundle.add_distribution>.
+
 
         Returns
         ----------
@@ -8878,6 +8927,8 @@ class Bundle(ParameterSet):
 
 
         if solver_kind in ['emcee', 'dynesty']:
+            if distribution is None:
+                raise ValueError("must provide distribution for solution='{}'".format(solution))
             fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
             fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
             fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
@@ -8926,19 +8977,29 @@ class Bundle(ParameterSet):
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
             fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
 
-            user_interactive_constraints = conf.interactive_constraints
-            conf.interactive_constraints_off(suppress_warning=True)
+            if as_distributions:
+                if distribution is None:
+                    raise ValueError("must provide distribution if as_distributions=True")
 
-            changed_params = []
-            for uniqueid, value, unit in zip(fitted_uniqueids, fitted_values, fitted_units):
-                param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                for uniqueid, value, unit in zip(fitted_uniqueids, fitted_values, fitted_units):
+                    dist = _distl.delta(value, unit=unit)
+                    self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution)
 
-                param.set_value(value, unit=unit)
-                changed_params.append(param)
+                return self.get_distribution(distribution=distribution)
+            else:
+                user_interactive_constraints = conf.interactive_constraints
+                conf.interactive_constraints_off(suppress_warning=True)
 
-            changed_params += self.run_delayed_constraints()
-            if user_interactive_constraints:
-                conf.interactive_constraints_on()
+                changed_params = []
+                for uniqueid, value, unit in zip(fitted_uniqueids, fitted_values, fitted_units):
+                    param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+
+                    param.set_value(value, unit=unit)
+                    changed_params.append(param)
+
+                changed_params += self.run_delayed_constraints()
+                if user_interactive_constraints:
+                    conf.interactive_constraints_on()
 
             return ParameterSet(changed_params)
 
@@ -9027,6 +9088,7 @@ class Bundle(ParameterSet):
         ret_ps = self.get_solution(solution=solution if solution is not None else result_ps.solutions)
 
         ret_ps += ParameterSet(self._handle_solution_choiceparams(return_changes=True))
+        ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
 
         return ret_ps
 

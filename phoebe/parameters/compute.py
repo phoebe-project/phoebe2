@@ -18,7 +18,7 @@ def _sampling_params(**kwargs):
     """
     params = []
 
-    params += [SelectParameter(qualifier='sample_from', value=kwargs.get('sample_from', []), choices=[], description='distributions to use for sampling')]
+    params += [SelectParameter(qualifier='sample_from', value=kwargs.get('sample_from', []), choices=[], description='distributions or solutions to use for sampling.  If pointing to a solution, adopt_solution(as_distributions=True, **kwargs) will be called to create a temporary distribution which will be removed automatically.  If all distributions are delta functions (face-values), sample_mode and sample_num will be ignored with a warning.')]
     params += [ChoiceParameter(visible_if='sample_from:<notempty>', qualifier='sample_from_combine', value=kwargs.get('sample_from_combine', 'first'), choices=['first'], description='Method to use to combine multiple distributions from sample_from for the same parameter.  first: ignore duplicate entries and take the first in the sample_from parameter')]
     params += [IntParameter(visible_if='sample_from:<notempty>', qualifier='sample_num', value=kwargs.get('sample_num', 10), limits=(8, 1e6), description='Number of forward models to run sampling from the distributions defined in sample_from and sample_from_combine.')]
     params += [ChoiceParameter(visible_if='sample_from:<notempty>', qualifier='sample_mode', value=kwargs.get('sample_mode', '1-sigma'), choices=['all', 'median', '1-sigma', '3-sigma', '5-sigma'], description='Mode to use when exposing model after sampling.  all: expose all sampled forward-models.  median: only return the median of all sampled models.  1/3/5-sigma: expose the synthetic variable at the median and +/- n-sigma.')]

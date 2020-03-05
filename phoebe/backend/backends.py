@@ -656,6 +656,10 @@ class SampleOverModel(object):
 
             # samples = range(sample_num)
             sample_dict = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=sample_num, keys='uniqueid')
+            if len(list(sample_dict.values())[0]) == 1 and sample_mode != 'all':
+                logger.warning("only one sample, falling back on sample_mode='all', sample_num=1 instead of sample_mode='{}', sample_num={}".format(sample_mode, sample_num))
+                sample_num = 1
+                sample_mode = 'all'
 
             bexcl = b.copy()
             bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
