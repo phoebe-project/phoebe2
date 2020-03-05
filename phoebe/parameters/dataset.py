@@ -204,6 +204,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
+        params += [FloatParameter(qualifier='sigmas_lnf', visible_if='sigmas:<notempty>', value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
 
         params += [ChoiceParameter(qualifier='pblum_mode', value=kwargs.get('pblum_mode', 'component-coupled'),
                                    choices=['decoupled', 'component-coupled', 'dataset-coupled', 'dataset-scaled', 'absolute'],
@@ -303,6 +304,8 @@ def rv(syn=False, as_ps=True, **kwargs):
 
     if not syn:
         params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
+        params += [FloatParameter(qualifier='sigmas_lnf', visible_if='sigmas:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None,None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
+
         params += [FloatParameter(qualifier='rv_offset', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('rv_offset', 0.0), default_unit=u.km/u.s, description='Per-component offset to add to synthetic RVs (i.e. for hot stars)')]
 
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
@@ -428,6 +431,7 @@ def lp(syn=False, as_ps=True, **kwargs):
 
         if not syn:
             params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
+            params += [FloatParameter(qualifier='sigmas_lnf', visible_if='[time]sigmas:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
 
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times of individual entries.  Note that interpolation is not currently supported for lp datasets.')]

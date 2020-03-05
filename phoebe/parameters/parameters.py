@@ -3237,7 +3237,8 @@ class ParameterSet(object):
         """
         return self.get_parameter(twig=twig, **kwargs).get_description()
 
-    def calculate_residuals(self, model=None, dataset=None, component=None, as_quantity=True):
+    def calculate_residuals(self, model=None, dataset=None, component=None,
+                            as_quantity=True, return_interp_model=False):
         """
         Compute residuals between the observed values in a dataset and the
         corresponding model.
@@ -3266,11 +3267,16 @@ class ParameterSet(object):
             Required only if more than one component exist in the dataset (for
             RVs, for example)
         * `as_quantity` (bool, default=True): whether to return a quantity object.
+        * `return_interp_model` (bool, default=False): whether to also return
+            the interpolated model used to compute the residuals.
+
 
         Returns
         -----------
         * (array) array of residuals with same length as the times array of the
-            corresponding dataset.
+            corresponding dataset.  If `return_interp_model = True`, a second
+            array will be returned corresponding to the interpolated values of
+            the model with the same length.
 
         Raises
         ----------
@@ -3320,12 +3326,19 @@ class ParameterSet(object):
         if dataset_param.default_unit != model_param.default_unit:
             raise ValueError("model and dataset do not have the same default_unit, cannot interpolate")
 
-        residuals = np.asarray(dataset_param.interp_value(times=times) - model_param.interp_value(times=times))
+        model_interp = model_param.interp_value(times=times)
+        residuals = np.asarray(dataset_param.interp_value(times=times) - model_interp)
 
         if as_quantity:
-            return residuals * dataset_param.default_unit
+            if return_interp_model:
+                return residuals * dataset_param.default_unit, model_interp * dataset_param.default_unit
+            else:
+                return residuals * dataset_param.default_unit
         else:
-            return residuals
+            if return_interp_model:
+                return residuals, model_interp
+            else:
+                return residuals
 
     def calculate_chi2(self, model=None, dataset=None, component=None):
         """
@@ -3346,6 +3359,12 @@ class ParameterSet(object):
         chi2 value is then the sum over the chi2 of each dataset, where each
         dataset's chi2 value is computed as the sum of squares of residuals
         over the squares of sigmas (if available).
+
+        If `sigmas_lnf` is not -inf (default value), then the following term
+        is added to the squares of sigmas:
+
+        `interpolated_model**2 * np.exp(2 * sigmas_lnf)`
+
 
         See also:
         * <phoebe.parameters.ParameterSet.calculate_residuals>
@@ -3387,11 +3406,17 @@ class ParameterSet(object):
                 ds_comps = [None]
 
             for ds_comp in ds_comps:
-                residuals = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True)
-                sigmas = self._bundle.get_dataset(dataset=ds, **_skip_filter_checks).get_value('sigmas', component=ds_comp, unit=residuals.unit, **_skip_filter_checks)
+                residuals, model_interp = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True, return_interp_model=True)
+                ds_ps = self._bundle.get_dataset(dataset=ds, **_skip_filter_checks)
+                sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, unit=residuals.unit, **_skip_filter_checks)
+                sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=1.0, **_skip_filter_checks)
 
                 if len(sigmas):
-                    chi2 += np.sum(residuals.value**2 / sigmas**2)
+                    sigmas2 = sigmas**2
+                    if sigmas_lnf != -np.inf:
+                        sigmas2 += model_interp.value ** 2 * np.exp(2 * sigmas_lnf)
+
+                    chi2 += np.sum(residuals.value**2 / sigmas2)
                 else:
                     chi2 += np.sum(residuals.value**2)
 
@@ -3405,7 +3430,7 @@ class ParameterSet(object):
         * <phoebe.parameters.dataset.lc>
         * <phoebe.parameters.dataset.rv>
 
-        This returns -0.5 * chi2 (see <phoebe.parameters.ParameterSet.calculate_lnlikelihood>)
+        This returns -0.5 * chi2 (see <phoebe.parameters.ParameterSet.calculate_chi2>)
 
         See also:
         * <phoebe.parameters.ParameterSet.calculate_residuals>
