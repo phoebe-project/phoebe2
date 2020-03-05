@@ -8409,7 +8409,7 @@ class Bundle(ParameterSet):
             overwrite_ps = self.remove_solver(solver=kwargs['solver'])
             # check the label again, just in case kwargs['solver'] belongs to
             # something other than solver
-            self._check_label(kwargs['solver'], allow_overwrite=False)
+            self.exclude(kind='solution', **_skip_filter_checks)._check_label(kwargs['solver'], allow_overwrite=False)
 
         logger.info("adding {} '{}' solver to bundle".format(metawargs['kind'], metawargs['solver']))
         self._attach_params(params, **metawargs)
