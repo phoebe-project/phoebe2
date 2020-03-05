@@ -259,7 +259,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
     def run_checks(self, b, solver, compute, **kwargs):
         solver_ps = b.get_solver(solver)
         if not len(solver_ps.get_value(qualifier='lc', fit_parameters=kwargs.get('lc', None))):
-            raise ValueError("cannot run ld_eclipse_geometry without any dataset in lc")
+            raise ValueError("cannot run lc_eclipse_geometry without any dataset in lc")
 
         # TODO: check to make sure fluxes exist, etc
 

@@ -58,9 +58,6 @@ def emcee(**kwargs):
 
     params += [IntParameter(qualifier='save_every_niters', value=kwargs.get('save_every_niters', 0), limits=(0,1e6), description='save the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps within run_solver, or the output filename provided to export_solver.  If 0 will not save and will only return after completion.')]
 
-    # params += [StringParameter(qualifier='filename', value=kwargs.get('filename', 'emcee_progress.hd5'), description='filename to use for storing progress and continuing from previous run')]
-    # params += [BoolParameter(qualifier='continue_previous_run', value=kwargs.get('continue_previous_run', False), description='continue previous run by reading contents in the file defined by filename')]
-
     return ParameterSet(params)
 
 def dynesty(**kwargs):
