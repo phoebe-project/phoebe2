@@ -43,16 +43,8 @@ logger.addHandler(logging.NullHandler())
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
-def _bjson(b, solver, compute, distributions):
-    # TODO: OPTIMIZE exclude disabled datasets?
-    # TODO: re-enable removing unused compute options - currently causes some constraints to fail
-    return b.exclude(context=['model', 'solution', 'figure'], **_skip_filter_checks).exclude(
-                      solver=[f for f in b.solvers if f!=solver and solver is not None], **_skip_filter_checks).exclude(
-                      # compute=[c for c in b.computes if c!=compute and compute is not None], **_skip_filter_checks).exclude(
-                      distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced', 'copy_for'])
 
-
-def _bexclude(b, solver, compute, distributions):
+def _bsolver(b, solver, compute, distributions):
     # TODO: OPTIMIZE exclude disabled datasets?
     # TODO: re-enable removing unused compute options - currently causes some constraints to fail
     # TODO: is it quicker to initialize a new bundle around b.exclude?  Or just leave everything?
@@ -61,6 +53,27 @@ def _bexclude(b, solver, compute, distributions):
     if len(b.solvers) > 1:
         bexcl.remove_parameters_all(solver=[f for f in b.solvers if f!=solver and solver is not None], **_skip_filter_checks)
     bexcl.remove_parameters_all(distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks)
+
+    # handle solver_times
+    for param in bexcl.filter(qualifier='solver_times', **_skip_filter_checks).to_list():
+        solver_times = param.get_value()
+        if solver_times == 'times':
+            logger.debug("solver_times=times: resetting compute_times in copied bundle")
+            bexcl.set_value_all(qualifier='compute_times', dataset=param.dataset, value=[], **_skip_filter_checks)
+        elif solver_times == 'auto':
+            compute_times = bexcl.get_value(qualifier='compute_times', dataset=param.dataset, **_skip_filter_checks)
+            times = np.unique(np.concatenate([time_param.get_value() for time_param in bexcl.filter(qualifier='times', dataset=param.dataset, **_skip_filter_checks).to_list()]))
+            if len(times) < len(compute_times):
+                logger.debug("solver_times=auto: using times instead of compute_times")
+                bexcl.set_value_all(qualifier='compute_times', dataset=param.dataset, value=[], **_skip_filter_checks)
+            else:
+                logger.debug("solver_times=auto: using compute_times")
+        elif solver_times == 'compute_times':
+            logger.debug("solver_times=compute_times")
+            pass
+        else:
+            raise NotImplementedError("solver_times='{}' not implemented".format(solver_times))
+
     return bexcl
 
 
@@ -509,7 +522,7 @@ class EmceeBackend(BaseSolverBackend):
             # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
 
-            esargs['kwargs'] = {'b': _bexclude(b, solver, compute, init_from+priors),
+            esargs['kwargs'] = {'b': _bsolver(b, solver, compute, init_from+priors),
                                 'params_uniqueids': params_uniqueids,
                                 'compute': compute,
                                 'priors': priors,
@@ -706,7 +719,7 @@ class DynestyBackend(BaseSolverBackend):
             # NOTE: in dynesty we draw from the priors and pass the prior-transforms,
             # but do NOT include the lnprior term in lnlikelihood, so we pass
             # priors as []
-            lnlikelihood_kwargs = {'b': _bexclude(b, solver, compute, []),
+            lnlikelihood_kwargs = {'b': _bsolver(b, solver, compute, []),
                                    'params_uniqueids': params_uniqueids,
                                    'compute': compute,
                                    'priors': [],
@@ -849,7 +862,7 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
         logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(b, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
-        args = (_bexclude(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs)
+        args = (_bsolver(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs)
         res = optimize.minimize(_lnlikelihood_negative, p0,
                                 method='nelder-mead',
                                 args=args,
@@ -980,7 +993,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
 
             logger.debug("calling scipy.optimize.differential_evolution(_lnlikelihood_negative, bounds={}, args=(b, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, [], kwargs.get('solution', None), compute_kwargs, options))
             # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
-            args = (_bexclude(b, solver, compute, []), params_uniqueids, compute, [], 'first', kwargs.get('solution', None), compute_kwargs)
+            args = (_bsolver(b, solver, compute, []), params_uniqueids, compute, [], 'first', kwargs.get('solution', None), compute_kwargs)
             res = optimize.differential_evolution(_lnlikelihood_negative, bounds,
                                     args=args,
                                     workers=pool.map, updating='deferred',
