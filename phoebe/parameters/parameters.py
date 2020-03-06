@@ -4184,7 +4184,12 @@ class ParameterSet(object):
                     samples = samples[burnin:, :, :][::thin, : :]
 
                     kwargs['data'] = samples[np.isfinite(lnprobabilities)]
-                    param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)]
+                    try:
+                        param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)]
+                    except:
+                        logger.warning("could not match to fitted_uniqueids, falling back on fitted_twigs")
+                        param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)]
+
                     # TODO: use units from fitted_units instead of parameter?
                     kwargs['labels'] = [_corner_label(param) for param in param_list]
                     return_ += [kwargs]

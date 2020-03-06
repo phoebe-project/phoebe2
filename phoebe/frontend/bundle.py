@@ -8949,6 +8949,7 @@ class Bundle(ParameterSet):
         if solver_kind is None:
             raise ValueError("could not find solution='{}'".format(solution))
 
+        b_uniqueids = self.uniqueids
 
         if solver_kind in ['emcee', 'dynesty']:
             if distribution is None:
@@ -8990,7 +8991,11 @@ class Bundle(ParameterSet):
                                                 wrap_ats=None)
 
             for i, uniqueid in enumerate(fitted_uniqueids):
-                self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution)
+                if uniqueid in b_uniqueids:
+                    self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution)
+                else:
+                    logger.warning("uniqueid not found, falling back on twig={}".format(fitted_twigs[i]))
+                    self.add_distribution(twig=twig, value=dist.slice(i), distribution=distribution)
 
             # TODO: do we want to only return newly added distributions?
             return self.get_distribution(distribution=distribution)
@@ -9005,9 +9010,14 @@ class Bundle(ParameterSet):
                 if distribution is None:
                     raise ValueError("must provide distribution if as_distributions=True")
 
-                for uniqueid, value, unit in zip(fitted_uniqueids, fitted_values, fitted_units):
+                for uniqueid, twig, value, unit in zip(fitted_uniqueids, fitted_twigs, fitted_values, fitted_units):
                     dist = _distl.delta(value, unit=unit)
-                    self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution)
+                    if uniqueid in b_uniqueids:
+                        self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution)
+                    else:
+                        logger.warning("uniqueid not found, falling back on twig={}".format(twig))
+                        self.add_distribution(twig=twig, value=dist, distribution=distribution)
+
 
                 return self.get_distribution(distribution=distribution)
             else:
@@ -9015,8 +9025,12 @@ class Bundle(ParameterSet):
                 conf.interactive_constraints_off(suppress_warning=True)
 
                 changed_params = []
-                for uniqueid, value, unit in zip(fitted_uniqueids, fitted_values, fitted_units):
-                    param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                for uniqueid, twig, value, unit in zip(fitted_uniqueids, fitted_twigs, fitted_values, fitted_units):
+                    if uniqueid in b_uniqueids:
+                        param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                    else:
+                        logger.warning("uniqueid not found, falling back on twig={}".format(twig))
+                        param = self.get_parameter(twig=twig, **_skip_filter_checks)
 
                     param.set_value(value, unit=unit)
                     changed_params.append(param)
