@@ -77,7 +77,7 @@ def _bsolver(b, solver, compute, distributions):
     return bexcl
 
 
-def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
+def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}, custom_lnprobability_callable=None):
     # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
     # deferring constraints/checks until run_compute.
 
@@ -110,10 +110,13 @@ def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_c
         return -np.inf
 
     # print("*** _lnlikelihood returning from rank: {}".format(mpi.myrank))
-    return lnpriors + b.calculate_lnlikelihood(model=solution)
+    if custom_lnprobability_callable is None:
+        return lnpriors + b.calculate_lnlikelihood(model=solution)
+    else:
+        return custom_lnprobability_callable(b, model=solution, lnpriors=lnpriors, priors=priors, priors_combine=priors_combine)
 
-def _lnlikelihood_negative(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}):
-    return -1 * _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs)
+def _lnlikelihood_negative(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}, custom_lnprobability_callable=None):
+    return -1 * _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs, custom_lnprobability_callable)
 
 def _sample_ppf(ppf_values, distributions_list):
     # NOTE: this will treat each item in the collection independently, ignoring any covariances
@@ -528,7 +531,8 @@ class EmceeBackend(BaseSolverBackend):
                                 'priors': priors,
                                 'priors_combine': priors_combine,
                                 'solution': kwargs.get('solution', None),
-                                'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}}
+                                'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers},
+                                'custom_lnprobability_callable': kwargs.pop('custom_lnprobability_callable', None)}
 
             # esargs['live_dangerously'] = kwargs.pop('live_dangerously', None)
             # esargs['runtime_sortingfn'] = kwargs.pop('runtime_sortingfn', None)
@@ -725,7 +729,8 @@ class DynestyBackend(BaseSolverBackend):
                                    'priors': [],
                                    'priors_combine': 'and',
                                    'solution': kwargs.get('solution', None),
-                                   'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}}
+                                   'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers},
+                                   'custom_lnprobability_callable': kwargs.pop('custom_lnprobability_callable', None)}
 
 
 
@@ -862,7 +867,7 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
         logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(b, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
-        args = (_bsolver(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs)
+        args = (_bsolver(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs, kwargs.pop('custom_lnprobability_callable', None))
         res = optimize.minimize(_lnlikelihood_negative, p0,
                                 method='nelder-mead',
                                 args=args,

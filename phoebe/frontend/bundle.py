@@ -15,6 +15,7 @@ from datetime import datetime
 from distutils.version import StrictVersion
 from copy import deepcopy as _deepcopy
 import pickle as _pickle
+from inspect import getsource as _getsource
 
 from scipy.optimize import curve_fit as cfit
 
@@ -8574,6 +8575,12 @@ class Bundle(ParameterSet):
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in solver_kwargs])
 
+        custom_lnprobability_callable = kwargs.get('custom_lnprobability_callable', None)
+        if custom_lnprobability_callable is not None:
+            code = _getsource(custom_lnprobability_callable)
+            f.write(code)
+            kwargs['custom_lnprobability_callable'] = custom_lnprobability_callable.__name__
+
         if out_fname is not None:
             f.write("solution_ps = b.run_solver(out_fname='{}', {})\n".format(out_fname, solver_kwargs_string))
             f.write("solution_ps.save('{}', incl_uniqueid=True)\n".format(out_fname))
@@ -8622,6 +8629,14 @@ class Bundle(ParameterSet):
             the bundle will attempt to migrate to the newer version.  If False,
             an error will be raised when attempting to run the script.  See
             also: <phoebe.frontend.bundle.Bundle.open>.
+        * `custom_lnprobability_callable` (callable, optional, default=None):
+            custom callable function which takes the following arguments:
+            `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
+            to override the built-in lnlikelihood of <phoebe.parameters.ParameterSet.calculate_lnpriors>
+            + <phoebe.parameters.ParameterSet.calculate_lnlikelihood>.  For
+            optimizers that minimize, the negative returned values will be minimized.
+            NOTE: if defined in an interactive session and inspect.getsource fails,
+            this will raise an error.
         * `**kwargs`:: any values in the solver or compute options to temporarily
             override for this single solver run (parameter values will revert
             after run_solver is finished).
@@ -8710,6 +8725,14 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
             pass checks.
+        * `custom_lnprobability_callable` (callable, optional, default=None):
+            custom callable function which takes the following arguments:
+            `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
+            to override the built-in lnlikelihood of <phoebe.parameters.ParameterSet.calculate_lnpriors>
+            + <phoebe.parameters.ParameterSet.calculate_lnlikelihood>.  For
+            optimizers that minimize, the negative returned values will be minimized.
+            NOTE: if defined in an interactive session, passing `custom_lnlikelihood_callable`
+            may throw an error if `detach=True`.
         * `**kwargs`: any values in the solver or compute options to temporarily
             override for this single solver run (parameter values will revert
             after run_solver is finished)
