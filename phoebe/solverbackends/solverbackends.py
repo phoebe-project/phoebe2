@@ -179,7 +179,8 @@ class BaseSolverBackend(object):
         """
         solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         for param in solver_ps.to_list():
-            kwargs.setdefault(param.qualifier, param.get_value(expand=True))
+            # we need to make sure SelectParameters are expanded correctly if sent through kwargs
+            kwargs[param.qualifier] = param.get_value(expand=True, **{param.qualifier: kwargs.get(param.qualifier, None)})
 
         packet, solution_ps = self._get_packet_and_solution(b, solver, **kwargs)
 
