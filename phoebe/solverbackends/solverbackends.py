@@ -858,7 +858,7 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
         compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
-        options = {k:v for k,v in kwargs.items() if k in ['maxiter', 'maxfex', 'xatol', 'fatol', 'adaptive']}
+        options = {k:v for k,v in kwargs.items() if k in ['maxiter', 'maxfev', 'xatol', 'fatol', 'adaptive']}
 
         logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(b, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
