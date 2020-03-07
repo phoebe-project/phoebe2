@@ -12,6 +12,7 @@ import phoebe.parameters as _parameters
 import phoebe.frontend.bundle
 from phoebe import u, c
 from phoebe import conf, mpi
+from phoebe.backend.backends import _simplify_error_message
 
 from distutils.version import LooseVersion, StrictVersion
 from copy import deepcopy
@@ -77,9 +78,19 @@ def _bsolver(b, solver, compute, distributions):
     return bexcl
 
 
-def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}, custom_lnprobability_callable=None):
-    # TODO: [OPTIMIZE] make sure that run_checks=False, run_constraints=False is
-    # deferring constraints/checks until run_compute.
+def _lnprobability(sampled_values, b, params_uniqueids, compute,
+                  priors, priors_combine,
+                  solution,
+                  compute_kwargs={},
+                  custom_lnprobability_callable=None,
+                  return_blob=False):
+
+
+    def _return(lnprob, msg):
+        if return_blob:
+            return lnprob, (_simplify_error_message(msg), sampled_values) if msg != 'success' else (None, None)
+        else:
+            return lnprob
 
     # copy the bundle to make sure any changes by setting values/running models
     # doesn't affect the user-copy (or in other processors)
@@ -92,31 +103,44 @@ def _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_c
             try:
                 b.set_value(uniqueid=uniqueid, value=value, run_checks=False, run_constraints=False, **_skip_filter_checks)
             except ValueError as err:
-                logger.warning("received error while setting values: {}. lnlikelihood=-inf".format(err))
-                return -np.inf
+                logger.warning("received error while setting values: {}. lnprobability=-inf".format(err))
+                return _return(-np.inf, str(err))
 
     lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine)
     if not np.isfinite(lnpriors):
         # no point in calculating the model then
-        return -np.inf
+        return _return(-np.inf, 'lnpriors = -inf')
 
-    # print("*** _lnlikelihood run_compute from rank: {}".format(mpi.myrank))
+    # print("*** _lnprobability run_compute from rank: {}".format(mpi.myrank))
     try:
         # override sample_from that may be set in the compute options
         compute_kwargs['sample_from'] = []
         b.run_compute(compute=compute, model=solution, do_create_fig_params=False, **compute_kwargs)
     except Exception as err:
-        logger.warning("received error from run_compute: {}.  lnlikelihood=-inf".format(err))
-        return -np.inf
+        logger.warning("received error from run_compute: {}.  lnprobability=-inf".format(err))
+        return _return(-np.inf, str(err))
 
-    # print("*** _lnlikelihood returning from rank: {}".format(mpi.myrank))
+    # print("*** _lnprobability returning from rank: {}".format(mpi.myrank))
     if custom_lnprobability_callable is None:
-        return lnpriors + b.calculate_lnlikelihood(model=solution)
+        lnprob = lnpriors + b.calculate_lnlikelihood(model=solution)
     else:
-        return custom_lnprobability_callable(b, model=solution, lnpriors=lnpriors, priors=priors, priors_combine=priors_combine)
+        lnprob = custom_lnprobability_callable(b, model=solution, lnpriors=lnpriors, priors=priors, priors_combine=priors_combine)
 
-def _lnlikelihood_negative(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs={}, custom_lnprobability_callable=None):
-    return -1 * _lnlikelihood(sampled_values, b, params_uniqueids, compute, priors, priors_combine, solution, compute_kwargs, custom_lnprobability_callable)
+    return _return(lnprob, 'success')
+
+def _lnprobability_negative(sampled_values, b, params_uniqueids, compute,
+                           priors, priors_combine,
+                           solution,
+                           compute_kwargs={},
+                           custom_lnprobability_callable=None,
+                           return_blob=False):
+
+    return -1 * _lnprobability(sampled_values, b, params_uniqueids, compute,
+                              priors, priors_combine,
+                              solution,
+                              compute_kwargs,
+                              custom_lnprobability_callable,
+                              return_blob)
 
 def _sample_ppf(ppf_values, distributions_list):
     # NOTE: this will treat each item in the collection independently, ignoring any covariances
@@ -395,6 +419,8 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of parameters fitted by the sampler')]
 
         solution_params += [_parameters.ArrayParameter(qualifier='samples', value=[], description='MCMC samples with shape (niters, nwalkers, len(fitted_uniqueids))')]
+        if kwargs.get('expose_failed', True):
+            solution_params += [_parameters.DictParameter(qualifier='failed_samples', value={}, description='MCMC samples that returned lnprobability=-inf.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
         solution_params += [_parameters.ArrayParameter(qualifier='lnprobabilities', value=[], description='log probabilities with shape (niters, nwalkers)')]
 
         # solution_params += [_parameters.ArrayParameter(qualifier='accepteds', value=[], description='whether each iteration was an accepted move with shape (niters)')]
@@ -416,15 +442,19 @@ class EmceeBackend(BaseSolverBackend):
     def run_worker(self, b, solver, compute, **kwargs):
 
         def _get_packetlist():
-            return [[{'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
+            return_ = [{'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
                      {'qualifier': 'fitted_units', 'value': params_units},
                      {'qualifier': 'samples', 'value': samples},
-                     # {'qualifier': 'accepteds', 'value': accepteds},
                      {'qualifier': 'lnprobabilities', 'value': lnprobabilities},
                      {'qualifier': 'acceptance_fractions', 'value': acceptance_fractions},
                      {'qualifier': 'burnin', 'value': burnin},
-                     {'qualifier': 'thin', 'value': thin}]]
+                     {'qualifier': 'thin', 'value': thin}]
+
+            if kwargs.get('expose_failed'):
+                return_ += [{'qualifier': 'failed_samples', 'value': failed_samples}]
+
+            return [return_]
 
         # emcee handles workers itself.  So here we'll just take the workers
         # from our own waiting loop in phoebe's __init__.py and subscribe them
@@ -471,6 +501,8 @@ class EmceeBackend(BaseSolverBackend):
 
             if continue_from == 'None':
 
+                expose_failed = kwargs.get('expose_failed')
+
                 dc, params_uniqueids = b.get_distribution_collection(distribution=init_from,
                                                                      combine=init_from_combine,
                                                                      include_constrained=False,
@@ -479,6 +511,7 @@ class EmceeBackend(BaseSolverBackend):
                 p0 = dc.sample(size=nwalkers).T
                 params_units = [dist.unit.to_string() for dist in dc.dists]
 
+                continued_failed_samples = {}
                 start_iteration = 0
             else:
                 # ignore the value from init_from (hidden parameter)
@@ -487,6 +520,12 @@ class EmceeBackend(BaseSolverBackend):
                 params_uniqueids = continue_from_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
                 params_units = continue_from_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
                 continued_samples = continue_from_ps.get_value(qualifier='samples', **_skip_filter_checks)
+                expose_failed = 'failed_samples' in continue_from_ps.qualifiers
+                if expose_failed:
+                    continued_failed_samples = continue_from_ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
+                else:
+                    continued_failed_samples = {}
+
                 # continued_samples [iterations, walkers, parameter]
                 # continued_accepteds = continue_from_ps.get_value(qualifier='accepteds', **_skip_filter_checks)
                 # # continued_accepted [iterations, walkers]
@@ -512,7 +551,9 @@ class EmceeBackend(BaseSolverBackend):
                 backend.log_prob = continued_lnprobabilities
                 backend.initialized = True
                 backend.random_state = None
-                backend.blobs = None
+                # reconstructing blobs will be messy, so we'll just get the correct
+                # shape with nones, but add to the existing dictionary later
+                backend.blobs = np.full(tuple(list(continued_samples.shape[:-1])+[2]), fill_value=None)
 
                 esargs['backend'] = backend
 
@@ -521,7 +562,7 @@ class EmceeBackend(BaseSolverBackend):
             esargs['pool'] = pool
             esargs['nwalkers'] = nwalkers
             esargs['ndim'] = len(params_uniqueids)
-            esargs['log_prob_fn'] = _lnlikelihood
+            esargs['log_prob_fn'] = _lnprobability
             # esargs['a'] = kwargs.pop('a', None),
             # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
@@ -533,7 +574,8 @@ class EmceeBackend(BaseSolverBackend):
                                 'priors_combine': priors_combine,
                                 'solution': kwargs.get('solution', None),
                                 'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers},
-                                'custom_lnprobability_callable': kwargs.pop('custom_lnprobability_callable', None)}
+                                'custom_lnprobability_callable': kwargs.pop('custom_lnprobability_callable', None),
+                                'return_blob': kwargs.get('expose_failed')}
 
             # esargs['live_dangerously'] = kwargs.pop('live_dangerously', None)
             # esargs['runtime_sortingfn'] = kwargs.pop('runtime_sortingfn', None)
@@ -566,6 +608,17 @@ class EmceeBackend(BaseSolverBackend):
                     else:
                         burnin =0
                         thin = 1
+
+                    # print("**********************")
+                    # print(sampler.get_blobs())
+                    # print(sampler.get_blobs(flat=True))
+
+                    failed_samples = deepcopy(continued_failed_samples)
+                    if kwargs.get('expose_failed'):
+                        for blob in sampler.get_blobs(flat=True):
+                            if blob is None or blob[0] is None:
+                                continue
+                            failed_samples[blob[0]] = failed_samples.get(blob[0], []) + [blob[1].tolist()]
 
                     if save_every_niters > 0:
                         logger.info("emcee: saving output from iteration {}".format(sampler.iteration))
@@ -711,7 +764,7 @@ class DynestyBackend(BaseSolverBackend):
                          'solution': solution}
 
             # NOTE: here it is important that _sample_ppf sees the parameters in the
-            # same order as _lnlikelihood (that is in the order of params_uniqueids)
+            # same order as _lnprobability (that is in the order of params_uniqueids)
             priors_dc, params_uniqueids = b.get_distribution_collection(distribution=priors,
                                                                         combine=priors_combine,
                                                                         include_constrained=False,
@@ -736,8 +789,8 @@ class DynestyBackend(BaseSolverBackend):
 
 
 
-            logger.debug("dynesty.NestedSampler(_lnlikelihood, _sample_ppf, log_kwargs, ptform_kwargs, ndim, nlive)")
-            sampler = dynesty.NestedSampler(_lnlikelihood, _sample_ppf,
+            logger.debug("dynesty.NestedSampler(_lnprobability, _sample_ppf, log_kwargs, ptform_kwargs, ndim, nlive)")
+            sampler = dynesty.NestedSampler(_lnprobability, _sample_ppf,
                                         logl_kwargs=lnlikelihood_kwargs, ptform_kwargs={'distributions_list': priors_dc.dists},
                                         ndim=len(params_uniqueids), nlive=int(kwargs.get('nlive')), pool=pool)
 
@@ -866,10 +919,10 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
         options = {k:v for k,v in kwargs.items() if k in ['maxiter', 'maxfev', 'xatol', 'fatol', 'adaptive']}
 
-        logger.debug("calling scipy.optimize.minimize(_lnlikelihood_negative, p0, method='nelder-mead', args=(b, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
+        logger.debug("calling scipy.optimize.minimize(_lnprobability_negative, p0, method='nelder-mead', args=(b, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
         args = (_bsolver(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs, kwargs.pop('custom_lnprobability_callable', None))
-        res = optimize.minimize(_lnlikelihood_negative, p0,
+        res = optimize.minimize(_lnprobability_negative, p0,
                                 method='nelder-mead',
                                 args=args,
                                 options=options)
@@ -887,8 +940,8 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
 
         if kwargs.get('expose_lnlikelihoods', False):
-            initial_lnlikelihood = _lnlikelihood(p0, *args)
-            final_likelihood = _lnlikelihood(res.x, *args)
+            initial_lnlikelihood = _lnprobability(p0, *args)
+            final_likelihood = _lnprobability(res.x, *args)
 
             return_ += [{'qualifier': 'initial_lnlikelihood', 'value': initial_lnlikelihood},
                          {'qualifier': 'fitted_lnlikelihood', 'value': final_likelihood}]
@@ -997,10 +1050,10 @@ class Differential_EvolutionBackend(BaseSolverBackend):
 
             options = {k:v for k,v in kwargs.items() if k in ['strategy', 'maxiter', 'popsize']}
 
-            logger.debug("calling scipy.optimize.differential_evolution(_lnlikelihood_negative, bounds={}, args=(b, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, [], kwargs.get('solution', None), compute_kwargs, options))
+            logger.debug("calling scipy.optimize.differential_evolution(_lnprobability_negative, bounds={}, args=(b, {}, {}, {}, {}, {}), options={})".format(bounds, params_uniqueids, compute, [], kwargs.get('solution', None), compute_kwargs, options))
             # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
             args = (_bsolver(b, solver, compute, []), params_uniqueids, compute, [], 'first', kwargs.get('solution', None), compute_kwargs)
-            res = optimize.differential_evolution(_lnlikelihood_negative, bounds,
+            res = optimize.differential_evolution(_lnprobability_negative, bounds,
                                     args=args,
                                     workers=pool.map, updating='deferred',
                                     **options)
@@ -1031,8 +1084,8 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                        {'qualifier': 'bounds', 'value': bounds}]
 
             if kwargs.get('expose_lnlikelihoods', False):
-                initial_lnlikelihood = _lnlikelihood(False, *args)
-                final_likelihood = _lnlikelihood(res.x, *args)
+                initial_lnlikelihood = _lnprobability(False, *args)
+                final_likelihood = _lnprobability(res.x, *args)
 
                 return_ += [{'qualifier': 'initial_lnlikelihood', 'value': initial_lnlikelihood},
                             {'qualifier': 'fitted_lnlikelihood', 'value': final_likelihood}]

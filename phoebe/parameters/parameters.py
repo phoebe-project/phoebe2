@@ -91,6 +91,12 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
     else:
         _use_corner = True
     try:
+        import chainconsumer
+    except (ImportError, TypeError):
+        _use_chainconsumer = False
+    else:
+        _use_chainconsumer = True
+    try:
         from dynesty import plotting as dyplot
     except (ImportError, TypeError):
         _use_dyplot = False
@@ -100,6 +106,7 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
 else:
     _use_autofig = False
     _use_corner = False
+    _use_chainconsumer = False
     _use_dyplot = False
 
 
@@ -4150,7 +4157,32 @@ class ParameterSet(object):
         #### DETERMINE AUTOFIG PLOT TYPE
         # NOTE: this must be done before calling _kwargs_fill_dimension below
         cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
-        if ps.kind == 'dynesty':
+        if ps.context == 'model' and kwargs.get('style', None) in ['corner', 'failed']:
+            kwargs['data'] = ps.get_value(qualifier='samples', default=[], **_skip_filter_checks)
+
+            try:
+                param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='sampled_uniqueids', **_skip_filter_checks)]
+            except:
+                logger.warning("could not match to sampled_uniqueids, falling back on sampled_twigs")
+                param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='sampled_twigs', **_skip_filter_checks)]
+
+            # TODO: use units from fitted_units instead of parameter?
+            kwargs['labels'] = [_corner_label(param) for param in param_list]
+
+            if kwargs.get('style') == 'failed':
+                if not _use_chainconsumer:
+                    raise ImportError("chainconsumer required to plot failed samples")
+
+                kwargs['plot_package'] = 'chainconsumer'
+
+
+                kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', default={}, **_skip_filter_checks)
+            else:
+                kwargs['plot_package'] = 'corner'
+
+            return (kwargs,)
+
+        elif ps.kind == 'dynesty':
             kwargs['plot_package'] = 'dynesty'
             kwargs.setdefault('style', 'corner')
             kwargs['results'] = {p.qualifier: p.value for p in self._bundle.filter(solution=ps.solution, context='solution', **_skip_filter_checks).to_list()}
@@ -4176,8 +4208,7 @@ class ParameterSet(object):
             for style in styles:
                 kwargs = _deepcopy(kwargs)
 
-                if style == 'corner':
-                    kwargs['plot_package'] = 'corner'
+                if style in ['corner', 'failed']:
                     lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
 
                     samples = ps.get_value(qualifier='samples', **_skip_filter_checks)
@@ -4192,6 +4223,19 @@ class ParameterSet(object):
 
                     # TODO: use units from fitted_units instead of parameter?
                     kwargs['labels'] = [_corner_label(param) for param in param_list]
+
+
+                    if style=='failed':
+                        if _use_chainconsumer:
+                            kwargs['plot_package'] = 'chainconsumer'
+                            kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
+
+                        else:
+                            logger.warning("failed_samples can only be plotted if chainconsumer is installed... falling back on style='corner'")
+                            kwargs['plot_package'] = 'corner'
+                    else:
+                        kwargs['plot_package'] = 'corner'
+
                     return_ += [kwargs]
 
                 elif style in ['lnprobability']:
@@ -4783,6 +4827,21 @@ class ParameterSet(object):
                         raise ValueError("corner plots not supported with other axes")
 
                     return None, corner.corner(plot_kwargs['data'], labels=plot_kwargs.get('labels', None))
+
+                elif plot_package == 'chainconsumer':
+                    c = chainconsumer.ChainConsumer()
+
+                    samples = plot_kwargs.get('data', None)
+                    if samples is not None:
+                        c.add_chain(samples, parameters=plot_kwargs.get('labels', None), name='samples', smooth=False, bar_shade=False)
+
+                    for msg, samples in plot_kwargs.get('failed_samples', {}).items():
+                        samples = np.asarray(samples)
+                        # print(msg, samples.shape)
+                        c.add_chain(samples, parameters=plot_kwargs.get('labels', None), name=msg, smooth=False, bar_shade=False)
+
+
+                    return None, c.plotter.plot(figsize=1.5)
 
                 elif plot_package == 'dynesty':
                     if not _use_dyplot:

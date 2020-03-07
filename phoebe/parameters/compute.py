@@ -22,6 +22,8 @@ def _sampling_params(**kwargs):
     params += [ChoiceParameter(visible_if='sample_from:<notempty>', qualifier='sample_from_combine', value=kwargs.get('sample_from_combine', 'first'), choices=['first'], description='Method to use to combine multiple distributions from sample_from for the same parameter.  first: ignore duplicate entries and take the first in the sample_from parameter')]
     params += [IntParameter(visible_if='sample_from:<notempty>', qualifier='sample_num', value=kwargs.get('sample_num', 10), limits=(8, 1e6), description='Number of forward models to run sampling from the distributions defined in sample_from and sample_from_combine.')]
     params += [ChoiceParameter(visible_if='sample_from:<notempty>', qualifier='sample_mode', value=kwargs.get('sample_mode', '1-sigma'), choices=['all', 'median', '1-sigma', '3-sigma', '5-sigma'], description='Mode to use when exposing model after sampling.  all: expose all sampled forward-models.  median: only return the median of all sampled models.  1/3/5-sigma: expose the synthetic variable at the median and +/- n-sigma.')]
+    params += [BoolParameter(visible_if='sample_from:<notempty>', qualifier='expose_samples', value=kwargs.get('expose_samples', True), description='Whether to expose failed samples along with the simplified error messages.')]
+    params += [BoolParameter(visible_if='sample_from:<notempty>', qualifier='expose_failed', value=kwargs.get('expose_failed', True), description='Whether to expose failed samples along with the simplified error messages.')]
 
     return params
 

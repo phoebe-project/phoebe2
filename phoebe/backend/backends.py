@@ -11,7 +11,7 @@ from copy import deepcopy
 import itertools
 
 from phoebe.parameters import dataset as _dataset
-from phoebe.parameters import StringParameter, ParameterSet
+from phoebe.parameters import StringParameter, DictParameter, ArrayParameter, ParameterSet
 from phoebe import dynamics
 from phoebe.backend import universe, etvs, horizon_analytic
 from phoebe.atmospheres import passbands
@@ -58,6 +58,18 @@ logger.addHandler(logging.NullHandler())
 _backends_that_require_meshing = ['phoebe', 'legacy']
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
+
+def _simplify_error_message(msg):
+    # simplify error messages so values, etc, don't create separate
+    # entries in the returned dictionary.
+    msg = str(msg) # in case an exception object
+    if 'not within limits' in msg:
+        msg = 'outside parameter limits'
+    elif 'overflow' in msg:
+        msg = 'roche overflow'
+    elif 'lookup ld_coeffs' in msg:
+        msg = 'ld_coeffs lookup out-of-bounds'
+    return msg
 
 def _needs_mesh(b, dataset, kind, component, compute):
     """
@@ -571,10 +583,12 @@ class BaseBackendByDataset(BaseBackend):
 
 def _call_run_single_model(args):
     # NOTE: b should be a deepcopy here to prevent conflicts
-    b, samples, sample_from, sample_from_combine, compute, times, compute_kwargs, i = args
+    b, samples, sample_from, sample_from_combine, compute, times, compute_kwargs, expose_samples, expose_failed, i = args
     # override sample_from
     compute_kwargs['sample_from'] = []
 
+    success_samples = []
+    failed_samples = {}
 
     while True:
         # print("trying with samples={}".format(samples))
@@ -586,18 +600,31 @@ def _call_run_single_model(args):
             if isinstance(value, np.ndarray):
                 value = value[0]
             # print("setting uniqueid={}, value={}".format(uniqueid, value))
-            b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+            try:
+                b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+            except Exception as err:
+                if expose_samples:
+                    msg = _simplify_error_message(err)
+                    failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
+
+                samples = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=None, keys='uniqueid')
+                break
 
         try:
             model_ps = b.run_compute(compute=compute, times=times, do_create_fig_params=False, model='sample_{}'.format(i), **compute_kwargs)
-        except:
+        except Exception as err:
             # new random draw for the next attempt
             logger.warning("model failed: drawing new sample")
+            if expose_failed:
+                msg = _simplify_error_message(err)
+                failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
+
             samples = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=None, keys='uniqueid')
             # print("redrawing samples after failed: {}".format(samples))
         else:
-            # print("model success")
-            return model_ps.to_json()
+            if expose_samples:
+                success_samples += list(samples.values())
+            return model_ps.to_json(), success_samples, failed_samples
 
 
 class SampleOverModel(object):
@@ -653,6 +680,8 @@ class SampleOverModel(object):
             sample_from_combine = compute_ps.get_value(qualifier='sample_from_combine', sample_from_combine=kwargs.get('sample_from_combine', None), **_skip_filter_checks)
             sample_num = compute_ps.get_value(qualifier='sample_num', sample_num=kwargs.get('sample_num', None), **_skip_filter_checks)
             sample_mode = compute_ps.get_value(qualifier='sample_mode', sample_mode=kwargs.get('sample_mode', None), **_skip_filter_checks)
+            expose_samples = compute_ps.get_value(qualifier='expose_samples', expose_samples=kwargs.get('expose_samples', None), **_skip_filter_checks)
+            expose_failed = compute_ps.get_value(qualifier='expose_failed', expose_failed=kwargs.get('expose_failed', None), **_skip_filter_checks)
 
             # samples = range(sample_num)
             sample_dict = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=sample_num, keys='uniqueid')
@@ -664,9 +693,9 @@ class SampleOverModel(object):
             bexcl = b.copy()
             bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
             bexcl.remove_parameters_all(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks)
-            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_from, sample_from_combine, compute, times, compute_kwargs, i) for i in range(sample_num)]
+            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_from, sample_from_combine, compute, times, compute_kwargs, expose_samples, expose_failed, i) for i in range(sample_num)]
             # models = [_call_run_single_model(args) for args in args_per_sample]
-            models = list(pool.map(_call_run_single_model, args_per_sample))
+            models_success_failed = list(pool.map(_call_run_single_model, args_per_sample))
         else:
             pool.wait()
 
@@ -681,9 +710,20 @@ class SampleOverModel(object):
             # TODO: merge the models as requested by sample_mode
 
             # the first entry only has the figure parameter, so we'll make a copy of that to re-popluate with new values
-            # TODO: make sample_mode a read-only parameter
+            models = [msf[0] for msf in models_success_failed]
             ret_ps = ParameterSet(models[0])
             all_models_ps = ParameterSet(list(itertools.chain.from_iterable(models)))
+
+            # merge failed dicts
+            if expose_samples:
+                success_samples = [msf[1] for msf in models_success_failed]
+
+            if expose_failed:
+                samples_dicts = [msf[2] for msf in models_success_failed]
+                failed_samples = {}
+                for samples_dict in samples_dicts:
+                    for msg, samples in samples_dict.items():
+                        failed_samples[msg] = failed_samples.get(msg, []) + samples
 
             for param in ret_ps.to_list():
                 param._bundle = None
@@ -702,7 +742,16 @@ class SampleOverModel(object):
                 param._bundle = b
                 param._model = kwargs.get('model')
 
-            return ret_ps + ParameterSet([StringParameter(qualifier='sample_mode', value=sample_mode, description='mode used for sampling - CHANGE WITH CAUTION')])
+            addl_params = []
+            addl_params += [StringParameter(qualifier='sample_mode', value=sample_mode, description='mode used for sampling - CHANGE WITH CAUTION')]
+            addl_params += [ArrayParameter(qualifier='sampled_uniqueids', value=list(sample_dict.keys()), description='uniqueids of sampled parameters')]
+            addl_params += [ArrayParameter(qualifier='sampled_twigs', value=[b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in sample_dict.keys()], description='twigs of sampled parameters')]
+            if expose_samples:
+                addl_params += [ArrayParameter(qualifier='samples', value=success_samples, description='samples that were drawn and successfully computed.')]
+            if expose_failed:
+                addl_params += [DictParameter(qualifier='failed_samples', value=failed_samples, description='samples that were drawn but failed to compute.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
+
+            return ret_ps + ParameterSet(addl_params)
         return
 
 
