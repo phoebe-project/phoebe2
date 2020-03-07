@@ -546,7 +546,7 @@ class EmceeBackend(BaseSolverBackend):
             sargs['iterations'] = niters
             sargs['progress'] = True
             # TODO: remove this?  Or can we reproduce the logic in a warning?
-            sargs['skip_initial_state_check'] = True
+            sargs['skip_initial_state_check'] = False
 
 
             logger.debug("sampler.sample(p0, {})".format(sargs))
