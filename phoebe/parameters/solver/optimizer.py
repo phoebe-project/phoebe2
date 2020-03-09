@@ -39,15 +39,97 @@ def nelder_mead(**kwargs):
     params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
     params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
 
-    # params += [SelectParameter(qualifier='priors', value=kwargs.get('priors', []), choices=[], description='distribution(s) to use for priors')]
-    # params += [ChoiceParameter(visible_if='priors:<notempty>', qualifier='priors_combine', value=kwargs.get('priors_combine', 'and'), choices=['first', 'and', 'or'], description='Method to use to combine multiple distributions from priors for the same parameter.  first: ignore duplicate entries and take the first in the priors parameter. and: combine duplicate entries via AND logic, dropping covariances.  or: combine duplicate entries via OR logic, dropping covariances.')]
-
     params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of iterations.')]
     params += [IntParameter(qualifier='maxfev', value=kwargs.get('maxfev', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of function evaluations (forward models).')]
     params += [BoolParameter(qualifier='adaptive', value=kwargs.get('adaptive', False), description='passed directly to scipy.optimize.minimize.  Adapt algorithm parameters to dimensionality of problem. Useful for high-dimensional minimization')]
 
     params += [FloatParameter(qualifier='xatol', value=kwargs.get('xatol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Absolute error in xopt (input parameters) between iterations that is acceptable for convergence.')]
     params += [FloatParameter(qualifier='fatol', value=kwargs.get('fatol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Absolute error in func(xopt) (lnlikelihood + lnp(priors)) between iterations that is acceptable for convergence.')]
+
+    return ParameterSet(params)
+
+def powell(**kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for solver options for the
+    scipy.optimize.minimize(method='powell') backend.
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    For example:
+
+    ```py
+    b.add_solver('optimizer.powell')
+    b.run_solver(kind='powell')
+    ```
+
+    Arguments
+    ----------
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+    params = []
+
+    params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
+    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial an final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
+
+    params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
+    params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
+
+    params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of iterations.')]
+    params += [IntParameter(qualifier='maxfev', value=kwargs.get('maxfev', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of function evaluations (forward models).')]
+
+    params += [FloatParameter(qualifier='xtol', value=kwargs.get('xtol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Relative error in xopt (input parameters) between iterations that is acceptable for convergence.')]
+    params += [FloatParameter(qualifier='ftol', value=kwargs.get('ftol', 1e-4), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Relative error in func(xopt) (lnlikelihood + lnp(priors)) between iterations that is acceptable for convergence.')]
+
+    return ParameterSet(params)
+
+def cg(**kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for solver options for the
+    scipy.optimize.minimize(method='cg') "conjugate gradient" backend.
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    For example:
+
+    ```py
+    b.add_solver('optimizer.cg')
+    b.run_solver(kind='cg')
+    ```
+
+    Arguments
+    ----------
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+    params = []
+
+    params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
+    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial an final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
+
+    params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
+    params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
+
+    params += [IntParameter(qualifier='maxiter', value=kwargs.get('maxiter', 1e6), limits=[1,1e12], description='passed directly to scipy.optimize.minimize.  Maximum allowed number of iterations.')]
+
+    params += [FloatParameter(qualifier='gtol', value=kwargs.get('gtol', 1e-5), limits=[1e-12,None], description='passed directly to scipy.optimize.minimize.  Gradient norm must be less than gtol before successful termination.')]
+    params += [FloatParameter(qualifier='norm', value=kwargs.get('norm', np.inf), limits=[None,None], description='passed directly to scipy.optimize.minimize.  Order of norm (Inf is max, -Inf is min).')]
 
     return ParameterSet(params)
 

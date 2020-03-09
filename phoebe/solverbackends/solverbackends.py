@@ -921,7 +921,7 @@ class DynestyBackend(BaseSolverBackend):
 
 
 
-class Nelder_MeadBackend(BaseSolverBackend):
+class _ScipyOptimizeBaseBackend(BaseSolverBackend):
     """
     See <phoebe.parameters.solver.optimizer.nelder_mead>.
 
@@ -955,12 +955,6 @@ class Nelder_MeadBackend(BaseSolverBackend):
             solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
-
-    # def _run_worker(self, packet):
-    #     # here we'll override loading the bundle since it is not needed
-    #     # in run_worker (for the workers.... note that the master
-    #     # will enter run_worker through run, not here)
-    #     return self.run_worker(**packet)
 
     def run_worker(self, b, solver, compute, **kwargs):
         if mpi.within_mpirun:
@@ -999,13 +993,13 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
         compute_kwargs = {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers}
 
-        options = {k:v for k,v in kwargs.items() if k in ['maxiter', 'maxfev', 'xatol', 'fatol', 'adaptive']}
+        options = {k:v for k,v in kwargs.items() if k in self.valid_options}
 
-        logger.debug("calling scipy.optimize.minimize(_lnprobability_negative, p0, method='nelder-mead', args=(b, {}, {}, {}, {}, {}), options={})".format(params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
+        logger.debug("calling scipy.optimize.minimize(_lnprobability_negative, p0, method='{}', args=(b, {}, {}, {}, {}, {}), options={})".format(self.method, params_uniqueids, compute, priors, kwargs.get('solution', None), compute_kwargs, options))
         # TODO: would it be cheaper to pass the whole bundle (or just make one copy originally so we restore original values) than copying for each iteration?
         args = (_bsolver(b, solver, compute, priors), params_uniqueids, compute, priors, priors_combine, kwargs.get('solution', None), compute_kwargs, kwargs.pop('custom_lnprobability_callable', None))
         res = optimize.minimize(_lnprobability_negative, p0,
-                                method='nelder-mead',
+                                method=self.method,
                                 args=args,
                                 options=options)
 
@@ -1031,6 +1025,35 @@ class Nelder_MeadBackend(BaseSolverBackend):
 
 
         return [return_]
+
+class Nelder_MeadBackend(_ScipyOptimizeBaseBackend):
+    @property
+    def method(self):
+        return 'nelder-mead'
+
+    @property
+    def valid_options(self):
+        return ['maxiter', 'maxfev', 'xatol', 'fatol', 'adaptive']
+
+class PowellBackend(_ScipyOptimizeBaseBackend):
+    @property
+    def method(self):
+        return 'powell'
+
+    @property
+    def valid_options(self):
+        return ['maxiter', 'maxfev', 'xtol', 'ftol']
+
+class CgBackend(_ScipyOptimizeBaseBackend):
+    @property
+    def method(self):
+        return 'cg'
+
+    @property
+    def valid_options(self):
+        return ['maxiter', 'gtol', 'norm']
+
+
 
 class Differential_EvolutionBackend(BaseSolverBackend):
     """
