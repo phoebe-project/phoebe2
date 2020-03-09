@@ -7560,7 +7560,7 @@ class Bundle(ParameterSet):
 
         return self.filter(compute=new_compute)
 
-    def _prepare_compute(self, compute, model, **kwargs):
+    def _prepare_compute(self, compute, model, dataset, **kwargs):
         """
         """
         # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
@@ -7655,21 +7655,26 @@ class Bundle(ParameterSet):
         # compute_ so we don't write over compute which we need if detach=True
         for compute_ in computes:
             # TODO: filter by value instead of if statement once implemented
-            for enabled_param in self.filter(qualifier='enabled',
-                                             compute=compute_,
-                                             context='compute',
-                                             check_visible=False).to_list():
-                if enabled_param.feature is None and enabled_param.get_value():
-                    item = (enabled_param.dataset, enabled_param.component)
-                    if item in datasets:
-                        raise ValueError("dataset {}@{} is enabled in multiple compute options".format(item[0], item[1]))
-                    datasets.append(item)
+            if dataset is None:
+                for enabled_param in self.filter(qualifier='enabled',
+                                                 compute=compute_,
+                                                 context='compute',
+                                                 check_visible=False).to_list():
+                    if enabled_param.feature is None and enabled_param.get_value():
+                        item = (enabled_param.dataset, enabled_param.component)
+                        if item in datasets:
+                            raise ValueError("dataset {}@{} is enabled in multiple compute options".format(item[0], item[1]))
+                        datasets.append(item)
+            elif isinstance(dataset, list) or isinstance(dataset, tuple) or isinstance(dataset, str):
+                datasets += self.filter(dataset=dataset, context='dataset', **_skip_filter_checks).datasets
+            elif isinstance(dataset, dict):
+                datasets += self.filter(dataset=dataset.get(compute_, []), context='dataset', **_skip_filter_checks).datasets
 
 
         return model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps
 
 
-    def _write_export_compute_script(self, script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs):
+    def _write_export_compute_script(self, script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, kwargs):
         """
         """
         f = open(script_fname, 'w')
@@ -7680,7 +7685,7 @@ class Bundle(ParameterSet):
         f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['distribution', 'model', 'figure', 'solution', 'constraint'], **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
-        compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('do_create_fig_params', do_create_fig_params)]
+        compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
         compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
         f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
         # as the return from run_compute just does a filter on model=model,
@@ -7697,7 +7702,8 @@ class Bundle(ParameterSet):
         return script_fname, out_fname
 
     def export_compute(self, script_fname, out_fname=None,
-                       compute=None, model=None, pause=False,
+                       compute=None, model=None, dataset=None,
+                       pause=False,
                        import_from_older=False, **kwargs):
         """
         Export a script to call run_compute externally (in a different thread
@@ -7731,6 +7737,10 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
             creation.
+        * `dataset` (list, dict, or string, optional, default=None): filter for which datasets
+            should be computed.  If provided as a dictionary, keys should be compute
+            labels provided in `compute`.  If None, will use the `enabled` parameters in the
+            `compute` options.  If not None, will override all `enabled` parameters.
         * `pause` (bool, optional, default=False): whether to raise an input
             with instructions for running the exported script and calling
             <phoebe.frontend.bundle.Bundle.import_model>.  Particularly
@@ -7755,8 +7765,8 @@ class Bundle(ParameterSet):
           in the model being written to `out_fname`.
 
         """
-        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
-        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, dataset, **kwargs)
+        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -7772,7 +7782,7 @@ class Bundle(ParameterSet):
     @send_if_client
     def run_compute(self, compute=None, model=None,
                     detach=False,
-                    times=None, **kwargs):
+                    dataset=None, times=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset(s) using
         a specified set of compute options.
@@ -7813,6 +7823,10 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.get_model> and
             <phoebe.parameters.JobParameter>
             for details on how to check the job status and retrieve the results.
+        * `dataset` (list, dict, or string, optional, default=None): filter for which datasets
+            should be computed.  If provided as a dictionary, keys should be compute
+            labels provided in `compute`.  If None, will use the `enabled` parameters in the
+            `compute` options.  If not None, will override all `enabled` parameters.
         * `times` (list, optional, EXPERIMENTAL): override the times at which to compute the model.
             NOTE: this only (temporarily) replaces the time array for datasets
             with times provided (ie empty time arrays are still ignored).  So if
@@ -7864,7 +7878,7 @@ class Bundle(ParameterSet):
             times = [times]
 
 
-        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, dataset, **kwargs)
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
@@ -7904,7 +7918,7 @@ class Bundle(ParameterSet):
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
-            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, False, kwargs)
+            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, False, kwargs)
 
             script_fname = os.path.abspath(script_fname)
             cmd = mpi.detach_cmd.format(script_fname)
@@ -8018,7 +8032,12 @@ class Bundle(ParameterSet):
                             else:
                                 raise ValueError("could not find '{}' in distributions or solutions".format(sample_from_item))
 
-                    params = backends.SampleOverModel().run(self, compute, times=times, sample_from=sample_from, **kwargs)
+                    params = backends.SampleOverModel().run(self, compute,
+                                                            dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
+                                                            times=times,
+                                                            sample_from=sample_from,
+                                                            **kwargs)
+
                     self._attach_params(params, check_copy_for=False, **metawargs)
 
                     self.remove_distribution(distribution=remove_dists)
@@ -8030,8 +8049,10 @@ class Bundle(ParameterSet):
                 compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
                 # compute_func = getattr(backends, computeparams.kind)
 
-
-                params = compute_class().run(self, compute, times=times, **kwargs)
+                params = compute_class().run(self, compute,
+                                             dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
+                                             times=times,
+                                             **kwargs)
 
 
                 # average over any exposure times before attaching parameters
@@ -8043,19 +8064,19 @@ class Bundle(ParameterSet):
                     # backends._extract_info_from_bundle_by_dataset.  We'd also
                     # need to make sure that exptime is not being passed to any
                     # alternate backend - and ALWAYS handle it here
-                    for dataset in params.datasets:
+                    for ds in params.datasets:
                         # not all dataset-types currently support exposure times.
                         # Once they do, this ugly if statement can be removed
-                        if len(self.filter(dataset=dataset, qualifier='exptime')):
-                            exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
+                        if len(self.filter(dataset=ds, qualifier='exptime')):
+                            exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
                             if exptime > 0:
-                                logger.info("handling fti for dataset='{}'".format(dataset))
-                                if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
-                                    times_ds = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset')
+                                logger.info("handling fti for dataset='{}'".format(ds))
+                                if self.get_value(qualifier='fti_method', dataset=ds, compute=compute, context='compute', **kwargs)=='oversample':
+                                    times_ds = self.get_value(qualifier='compute_times', dataset=ds, context='dataset')
                                     if not len(times_ds):
-                                        times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
-                                    # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
-                                    fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
+                                        times_ds = self.get_value(qualifier='times', dataset=ds, context='dataset')
+                                    # exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
+                                    fti_oversample = self.get_value(qualifier='fti_oversample', dataset=ds, compute=compute, context='compute', check_visible=False, **kwargs)
                                     # NOTE: this is hardcoded for LCs which is the
                                     # only dataset that currently supports oversampling,
                                     # but this will need to be generalized if/when
@@ -8067,8 +8088,8 @@ class Bundle(ParameterSet):
                                     # exposures to "overlap" each other, so we'll
                                     # later need to determine which times (and
                                     # therefore fluxes) belong to which datapoint
-                                    times_oversampled_sorted = params.get_value(qualifier='times', dataset=dataset)
-                                    fluxes_oversampled = params.get_value(qualifier='fluxes', dataset=dataset)
+                                    times_oversampled_sorted = params.get_value(qualifier='times', dataset=ds)
+                                    fluxes_oversampled = params.get_value(qualifier='fluxes', dataset=ds)
 
                                     for i,t in enumerate(times_ds):
                                         # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
@@ -8078,8 +8099,8 @@ class Bundle(ParameterSet):
 
                                         fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
 
-                                    params.set_value(qualifier='times', dataset=dataset, value=times_ds)
-                                    params.set_value(qualifier='fluxes', dataset=dataset, value=fluxes)
+                                    params.set_value(qualifier='times', dataset=ds, value=times_ds)
+                                    params.set_value(qualifier='fluxes', dataset=ds, value=fluxes)
 
 
                 self._attach_params(params, check_copy_for=False, **metawargs)
@@ -8088,7 +8109,8 @@ class Bundle(ParameterSet):
                     return model_fluxes * scale_factor
 
                 # scale fluxes whenever pblum_mode = 'dataset-scaled'
-                for param in self.filter(qualifier='pblum_mode', value='dataset-scaled').to_list():
+                model_ps = self.get_model(model=model, **_skip_filter_checks)
+                for param in self.filter(qualifier='pblum_mode', dataset=model_ps.datasets, value='dataset-scaled').to_list():
                     if not self.get_value(qualifier='enabled', compute=compute, dataset=param.dataset):
                         continue
 
@@ -8098,7 +8120,7 @@ class Bundle(ParameterSet):
                     ds_fluxes = ds_obs.get_value(qualifier='fluxes')
                     ds_sigmas = ds_obs.get_value(qualifier='sigmas')
 
-                    ds_model = self.get_model(model=model, dataset=param.dataset, check_visible=False)
+                    ds_model = model_ps.filter(dataset=param.dataset, check_visible=False)
                     model_fluxes = ds_model.get_value(qualifier='fluxes')
                     model_fluxes_interp = ds_model.get_parameter(qualifier='fluxes').interp_value(times=ds_times)
                     scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
