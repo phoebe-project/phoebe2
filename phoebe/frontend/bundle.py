@@ -2119,6 +2119,29 @@ class Bundle(ParameterSet):
 
         return affected_params
 
+    def _handle_component_choiceparams(self, return_changes=False):
+        affected_params = []
+
+        # currently assuming we want a component with period (which is the case for bls_period component parameter)
+        choices = self.filter(context='component', qualifier='period', **_skip_filter_checks).components
+
+        for param in self.filter(qualifier='component', context='solver', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                param._value = self.hierarchy.get_top()
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
     def _handle_solution_choiceparams(self, return_changes=False):
         affected_params = []
 
@@ -4056,6 +4079,7 @@ class Bundle(ParameterSet):
         ret_ps += ParameterSet(self._handle_pblum_defaults(return_changes=True))
         ret_ps += ParameterSet(self._handle_fitparameters_selecttwigparams(return_changes=True))
         ret_ps += ParameterSet(self._handle_orbit_choiceparams(return_changes=True))
+        ret_ps += ParameterSet(self._handle_component_choiceparams(return_changes=True))
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -8451,6 +8475,7 @@ class Bundle(ParameterSet):
         self._handle_fitparameters_selecttwigparams(return_changes=False)
         self._handle_lc_choiceparams(return_changes=False)
         self._handle_orbit_choiceparams(return_changes=False)
+        self._handle_component_choiceparams(return_changes=False)
 
         ret_ps = self.get_solver(check_visible=False, check_default=False, **metawargs)
 
@@ -9027,6 +9052,9 @@ class Bundle(ParameterSet):
             fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
             fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
+
+            if solver_kind == 'bls_period':
+                fitted_values *= solution_ps.get_value(qualifier='adopt_factor', adopt_factor=kwargs.get('adopt_factor', None), **_skip_filter_checks)
 
             if as_distributions:
                 if distribution is None:

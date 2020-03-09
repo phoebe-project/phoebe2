@@ -4144,7 +4144,7 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
-        elif ps.kind in ['emcee', 'dynesty']:
+        elif ps.kind in ['emcee', 'dynesty', 'bls_period']:
             pass
             # handled below
         elif ps.context == 'solution':
@@ -4181,6 +4181,24 @@ class ParameterSet(object):
                 kwargs['plot_package'] = 'corner'
 
             return (kwargs,)
+
+        elif ps.kind == 'bls_period':
+            kwargs['plot_package'] = 'autofig'
+            kwargs['x'] = ps.get_quantity(qualifier='period', **_skip_filter_checks)
+            kwargs['xlabel'] = 'period'
+            kwargs['y'] = ps.get_value(qualifier='power', **_skip_filter_checks)
+            kwargs['ylabel'] = 'power'
+
+            kwargs.setdefault('marker', 'None')
+            # kwargs.setdefault('linestyle', 'solid')
+
+            axvline_kwargs = {'plot_package': 'autofig', 'autofig_method': 'plot'}
+            axvline_kwargs['x'] = ps.get_value(qualifier='fitted_values', **_skip_filter_checks)[0] * ps.get_value(qualifier='adopt_factor', adopt_factor=kwargs.get('adopt_factor', None), **_skip_filter_checks) * u.d
+            axvline_kwargs['linestyle'] = 'dashed'
+            axvline_kwargs['axvline'] = True # to avoid the empty y ignore in plot
+
+
+            return (kwargs, axvline_kwargs)
 
         elif ps.kind == 'dynesty':
             kwargs['plot_package'] = 'dynesty'
@@ -4856,7 +4874,8 @@ class ParameterSet(object):
 
                 elif plot_package == 'autofig':
                     y = plot_kwargs.get('y', [])
-                    if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
+                    axvline = plot_kwargs.pop('axvline', False)
+                    if axvline or (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
                         pass
                     elif not len(y):
                         # a dataset without observational data, for example

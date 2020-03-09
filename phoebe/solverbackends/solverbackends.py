@@ -36,6 +36,13 @@ except ImportError:
 else:
     _use_dynesty = True
 
+try:
+    from astropy.timeseries import BoxLeastSquares
+except ImportError:
+    _use_bls = False
+else:
+    _use_bls = True
+
 from scipy import optimize
 
 import logging
@@ -300,7 +307,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
     """
     def run_checks(self, b, solver, compute, **kwargs):
         solver_ps = b.get_solver(solver)
-        if not len(solver_ps.get_value(qualifier='lc', fit_parameters=kwargs.get('lc', None))):
+        if not len(solver_ps.get_value(qualifier='lc', lc=kwargs.get('lc', None))):
             raise ValueError("cannot run lc_eclipse_geometry without any dataset in lc")
 
         # TODO: check to make sure fluxes exist, etc
@@ -323,12 +330,6 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
-
-    # def _run_worker(self, packet):
-    #     # here we'll override loading the bundle since it is not needed
-    #     # in run_worker (for the workers.... note that the master
-    #     # will enter run_worker through run, not here)
-    #     return self.run_worker(**packet)
 
     def run_worker(self, b, solver, compute=None, **kwargs):
         if mpi.within_mpirun:
@@ -373,6 +374,87 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
                  {'qualifier': 'fitted_twigs', 'value': [ecc_param.twig, per0_param.twig]},
                  {'qualifier': 'fitted_values', 'value': [ecc, per0]},
                  {'qualifier': 'fitted_units', 'value': [u.dimensionless_unscaled.to_string(), u.rad.to_string()]}]]
+
+
+
+class Bls_PeriodBackend(BaseSolverBackend):
+    """
+    See <phoebe.parameters.solver.estimator.bls_period>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
+    def run_checks(self, b, solver, compute, **kwargs):
+        if not _use_bls:
+            raise ImportError("astropy.timeseries.BoxLeastSquares not installed")
+
+        solver_ps = b.get_solver(solver)
+        if not len(solver_ps.get_value(qualifier='lc', lc=kwargs.get('lc', None))):
+            raise ValueError("cannot run bls_period without any dataset in lc")
+
+        # TODO: check to make sure fluxes exist, etc
+
+
+    def _get_packet_and_solution(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
+        solution_params = []
+
+        solution_params += [_parameters.FloatArrayParameter(qualifier='period', value=[], default_unit=u.d, description='periodogram test periods')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='power', value=[], default_unit=u.dimensionless_unscaled, description='periodogram power')]
+
+        solution_params += [_parameters.FloatParameter(qualifier='adopt_factor', value=1.0, default_unit=u.dimensionless_unscaled, description='factor to apply to the max peak period when adopting the solution')]
+
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], description='twigs of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
+
+        return kwargs, _parameters.ParameterSet(solution_params)
+
+    def run_worker(self, b, solver, compute=None, **kwargs):
+        if mpi.within_mpirun:
+            raise NotImplementedError("mpi support for BLS_period not yet implemented")
+            # TODO: we need to tell the workers to join the pool for time-parallelization?
+
+        lc = kwargs.get('lc')
+        component = kwargs.get('component')
+
+        lc_ps = b.get_dataset(dataset=lc, **_skip_filter_checks)
+        times = lc_ps.get_value(qualifier='times', unit='d', **_skip_filter_checks)
+        fluxes = lc_ps.get_value(qualifier='fluxes', **_skip_filter_checks)
+        sigmas = lc_ps.get_value(qualifier='sigmas', **_skip_filter_checks)
+        if not len(sigmas):
+            sigmas = None
+
+        objective = kwargs.get('objective')
+        sample_mode = kwargs.get('sample_mode')
+
+        # TODO: options for duration to autopower/power (not sure what it does from the astropy docs)
+        model = BoxLeastSquares(times, fluxes, dy=sigmas)
+        if sample_mode == 'auto':
+            periodogram = model.autopower(0.2, objective=objective)
+        elif sample_mode == 'manual':
+            sample_periods = kwargs.get('sample_periods')
+            periodogram = model.power(sample_periods, 0.2, objective=objective)
+        else:
+            raise ValueError("sample_mode='{}' not supported".format(sample_mode))
+
+        max_power = np.argmax(periodogram.power)
+        stats = model.compute_stats(periodogram.period[max_power],
+                                    periodogram.duration[max_power],
+                                    periodogram.transit_time[max_power])
+
+        period = periodogram.period[max_power]
+
+        period_param = b.get_parameter(qualifier='period', component=component, context='component', **_skip_filter_checks)
+
+        return [[{'qualifier': 'period', 'value': periodogram.period},
+                 {'qualifier': 'power', 'value': periodogram.power},
+                 {'qualifier': 'fitted_uniqueids', 'value': [period_param.uniqueid]},
+                 {'qualifier': 'fitted_twigs', 'value': [period_param.twig]},
+                 {'qualifier': 'fitted_values', 'value': [period]},
+                 {'qualifier': 'fitted_units', 'value': ['d']}]]
 
 
 
