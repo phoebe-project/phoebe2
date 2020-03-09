@@ -8026,6 +8026,14 @@ class Bundle(ParameterSet):
 
         try:
             kwargs_sample_from = kwargs.pop('sample_from', None)
+
+            if 'solution' in kwargs.keys():
+                if kwargs_sample_from is not None or np.any([len(p.get_value()) for p in self.filter(qualifier='sample_from', compute=computes, **_skip_filter_checks).to_list()]) :
+                    raise ValueError("cannot apply both solution and sample_from")
+                else:
+                    logger.warning("applying passed solution ({}) to sample_from".format(kwargs.get('solution')))
+                    kwargs_sample_from = kwargs.pop('solution')
+
             for compute in computes:
 
                 computeparams = self.get_compute(compute=compute)
