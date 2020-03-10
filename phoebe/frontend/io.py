@@ -764,8 +764,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             if fti_ts_ind != 'Mid-exposure':
                 logger.warning('Phoebe 2 only uses Mid-Exposure for calculating finite exposure times.')
 
-        #    print 'phoebe_lc_cadence_switch['+str(x)+']', fti_ind
-
         except:
 
             logger.warning('Your .phoebe file was created using a version of phoebe which does not support dataset dependent finite integration time parameters')
@@ -789,6 +787,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             else:
                 lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = 'None'
 
+            
             lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = fti_exp
 
 #            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
@@ -2005,7 +2004,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
                 val = '1'
                 ptype = 'boolean'
                 for y in range(len(pname)):    
-                    legacy_dict[pname[y]] = val[y]
+                    legacy_dict[pname] = val
             #    parnames.append(pname)
             #    parvals.append(val)
             #    types.append(ptype)
