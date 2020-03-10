@@ -75,6 +75,14 @@ except ImportError:
 else:
     _can_client = True
 
+try:
+    import celerite as _celerite
+except ImportError:
+    logger.warning("celerite not installed: only required for gaussian processes")
+    _use_celerite = False
+else:
+    _use_celerite = True
+
 
 def _get_add_func(mod, func, return_none_if_not_found=False):
     if isinstance(func, unicode):
@@ -3370,6 +3378,12 @@ class Bundle(ParameterSet):
                             self.filter(uniqueid=self._failed_constraints).to_list(),
                             True)
 
+        # dependency checks
+        if not _use_celerite and len(self.filter(context='feature', kind='gaussian_process').features):
+            report.add_item(self,
+                            "Gaussian process features attached, but celerite dependency not installed",
+                            [],
+                            True)
 
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol and irrad_frac_refl_bol
@@ -3548,7 +3562,8 @@ class Bundle(ParameterSet):
                          'Foreman-Mackey et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F',
                          'Speagle (2019)': 'https://ui.adsabs.harvard.edu/abs/2019arXiv190402180S',
                          'Skilling (2004)': 'https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S',
-                         'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944'
+                         'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
+                         'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F'
                         }
 
         # ref: [reasons] pairs
@@ -3624,6 +3639,10 @@ class Bundle(ParameterSet):
             elif atmname == 'phoenix':
                 recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables for limb-darkening interpolation')
 
+        # provide any references from features
+        if len(self.filter(context='feature', kind='gaussian_process').features):
+            recs = _add_reason(recs, 'Foreman-Mackey et al. (2017)', 'celerite for gaussian processes')
+
         # provide references from dependencies
         recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
         recs = _add_reason(recs, 'astropy', 'astropy dependency within PHOEBE')
@@ -3631,9 +3650,10 @@ class Bundle(ParameterSet):
         return {r: {'url': citation_urls.get(r, None), 'uses': v} for r,v in recs.items()}
 
 
-    def add_feature(self, kind, component=None, **kwargs):
+    def add_feature(self, kind, component=None, dataset=None, **kwargs):
         """
-        Add a new feature (spot, etc) to a component in the system.  If not
+        Add a new feature (spot, gaussian process, etc) to a component or
+        dataset in the system.  If not
         provided, `feature` (the name of the new feature) will be created
         for you and can be accessed by the `feature` attribute of the returned
         <phoebe.parameters.ParameterSet>.
@@ -3651,6 +3671,12 @@ class Bundle(ParameterSet):
         Available kinds can be found in <phoebe.parameters.feature> or by calling
         <phoebe.list_available_features> and include:
         * <phoebe.parameters.feature.spot>
+        * <phoebe.parameters.feature.gaussian_process>
+
+        See the entries above to see the valid kinds for `component` and `dataset`
+        based on the type of feature.  An error will be raised if the passed value
+        for `component` and/or `dataset` are not allowed by the type of feature
+        with kind `kind`.
 
         Arguments
         -----------
@@ -3661,7 +3687,9 @@ class Bundle(ParameterSet):
              of a function (as a string) that can be found in the
              <phoebe.parameters.compute> module.
         * `component` (string, optional): name of the component to attach the
-            feature.  Note: only optional if only a single possibility otherwise.
+            feature.  Required for features that must be attached to a component.
+        * `dataset` (string, optional): name of the dataset to attach the feature.
+            Required for features that must be attached to a dataset.
         * `feature` (string, optional): name of the newly-created feature.
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing feature with the same `feature` tag.  If False,
@@ -3680,7 +3708,10 @@ class Bundle(ParameterSet):
         Raises
         ----------
         * NotImplementedError: if a required constraint is not implemented.
-        * ValueError: if `component` is required but is not provided.
+        * ValueError: if `component` is required but is not provided or is of
+            the wrong kind.
+        * ValueError: if `dataset` is required but it not provided or is of the
+            wrong kind.
         """
         func = _get_add_func(_feature, kind)
 
@@ -3695,24 +3726,33 @@ class Bundle(ParameterSet):
 
         self._check_label(kwargs['feature'], allow_overwrite=kwargs.get('overwrite', False))
 
-        if component is None:
-            stars = self.hierarchy.get_meshables()
-            if len(stars) == 1:
-                component = stars[0]
-            else:
-                raise ValueError("must provide component")
+        if component is not None:
+            if component not in self.components:
+                raise ValueError("component '{}' not one of {}".format(component, self.components))
 
-        if component not in self.components:
-            raise ValueError('component not recognized')
+            component_kind = self.filter(component=component, context='component').kind
+        else:
+            component_kind = None
 
-        component_kind = self.filter(component=component, context='component').kind
         if not _feature._component_allowed_for_feature(func.__name__, component_kind):
             raise ValueError("{} does not support component with kind {}".format(func.__name__, component_kind))
+
+        if dataset is not None:
+            if dataset not in self.datasets:
+                raise ValueError("dataset '{}' not one of {}".format(dataset, self.datasets))
+
+            dataset_kind = self.filter(dataset=dataset, context='dataset').kind
+        else:
+            dataset_kind = None
+
+        if not _feature._dataset_allowed_for_feature(func.__name__, dataset_kind):
+            raise ValueError("{} does not support dataset with kind {}".format(func.__name__, dataset_kind))
 
         params, constraints = func(**kwargs)
 
         metawargs = {'context': 'feature',
                      'component': component,
+                     'dataset': dataset,
                      'feature': kwargs['feature'],
                      'kind': func.__name__}
 
@@ -3959,7 +3999,42 @@ class Bundle(ParameterSet):
 
     def rename_spot(self, old_feature, new_feature, overwrite=False):
         """
-        Shortcut to <phoebe.frontend.bundle.Bundle.remove_feature> but with kind='spot'.
+        Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='spot'.
+        """
+        return self.rename_feature(old_feature, new_feature, overwrite=overwrite)
+
+    def add_gaussian_process(self, dataset=None, feature=None, **kwargs):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='gaussian_process'.
+        """
+        if dataset is None:
+            if len(self.datasets)==1:
+                dataset = self.datasets[0]
+            else:
+                raise ValueError("must provide dataset for gaussian_process")
+
+        kwargs.setdefault('dataset', dataset)
+        kwargs.setdefault('feature', feature)
+        return self.add_feature('gaussian_process', **kwargs)
+
+    def get_gaussian_process(self, feature=None, **kwargs):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.get_feature> but with kind='gaussian_process'.
+
+        Arguments
+        ----------
+        * `feature`: (string, optional, default=None): the name of the feature
+        * `**kwargs`: any other tags to do the filtering (excluding feature, kind, and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        kwargs.setdefault('kind', 'gaussian_process')
+        return self.get_feature(feature, **kwargs)
+
+    def rename_gaussian_process(self, old_feature, new_feature, overwrite=False):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='gaussian_process'.
         """
         return self.rename_feature(old_feature, new_feature, overwrite=overwrite)
 
@@ -8086,7 +8161,6 @@ class Bundle(ParameterSet):
                                              times=times,
                                              **kwargs)
 
-
                 # average over any exposure times before attaching parameters
                 if computeparams.kind == 'phoebe':
                     # TODO: we could eventually do this for all backends - we would
@@ -8137,11 +8211,69 @@ class Bundle(ParameterSet):
 
                 self._attach_params(params, check_copy_for=False, **metawargs)
 
+                model_ps = self.get_model(model=model, **_skip_filter_checks)
+
+                # add any GPs (gaussian processes) to the returned model
+                enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
+                gp_kernel_classes = {'matern32': _celerite.terms.Matern32Term,
+                                      'sho': _celerite.terms.SHOTerm,
+                                      'jitter': _celerite.terms.JitterTerm}
+
+                for ds in model_ps.datasets:
+                    gp_features = self.filter(feature=enabled_features, dataset=ds, kind='gaussian_process', **_skip_filter_checks).features
+                    if len(gp_features):
+                        if not _use_celerite:
+                            raise ImportError("gaussian processes require celerite to be installed")
+
+                        # build the celerite GP object from the enabled GP features attached to this dataset
+                        gp_kernels = []
+                        for gp in gp_features:
+                            gp_ps = self.filter(feature=gp, context='feature', **_skip_filter_checks)
+                            kind = gp_ps.get_value(qualifier='kernel', **_skip_filter_checks)
+
+                            kwargs = {p.qualifier: p.value for p in gp_ps.exclude(qualifier=['kernel', 'enabled']).to_list() if p.is_visible}
+                            gp_kernels.append(gp_kernel_classes.get(kind)(**kwargs))
+
+                        if len(gp_kernels) == 1:
+                            gp_kernel = _celerite.GP(gp_kernels[0])
+                        else:
+                            gp_kernel = _celerite.GP(_celerite.terms.TermSum(*gp_kernels))
+
+
+                        ds_ps = self.get_dataset(dataset=ds, **_skip_filter_checks)
+                        xqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'times')
+                        yqualifier = {'lp': 'flux_densities', 'rv': 'rvs', 'lc': 'fluxes'}.get(ds_ps.kind)
+                        # we'll loop over components (for RVs or LPs, for example)
+                        if ds_ps.kind in ['lc']:
+                            ds_comps = [None]
+                        else:
+                            ds_comps = ds_ps.filter(qualifier=xqualifier, check_visible=True).components
+                        for ds_comp in ds_comps:
+                            ds_x = ds_ps.get_value(qualifier=xqualifier, component=ds_comp, **_skip_filter_checks)
+                            model_x = model_ps.get_value(qualifier=xqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
+                            ds_sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, **_skip_filter_checks)
+                            # TODO: do we need to inflate sigmas by lnf?
+                            if len(ds_sigmas) != len(ds_x):
+                                raise ValueError("gaussian_process requires sigma of same length as {}".format(xqualifier))
+                            gp_kernel.compute(ds_x, ds_sigmas, check_sorted=True)
+
+                            residuals = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=False)
+                            gp_y = gp_kernel.predict(residuals, model_x, return_cov=False)
+                            model_y = model_ps.get_quantity(qualifier=yqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
+
+                            # store just the GP component in the model PS as well
+                            gp_param = FloatArrayParameter(qualifier='gps', value=gp_y, default_unit=model_y.unit, readonly=True, description='GP contribution to the model {}'.format(yqualifier))
+                            y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
+                            self._attach_params([gp_param, y_nogp_param], check_copy_for=False, **metawargs)
+
+                            # update the model to include the GP contribution
+                            model_ps.set_value(qualifier=yqualifier, value=model_y.value+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
+
+
                 def _scale_fluxes(model_fluxes, scale_factor):
                     return model_fluxes * scale_factor
 
                 # scale fluxes whenever pblum_mode = 'dataset-scaled'
-                model_ps = self.get_model(model=model, **_skip_filter_checks)
                 for param in self.filter(qualifier='pblum_mode', dataset=model_ps.datasets, value='dataset-scaled').to_list():
                     if not self.get_value(qualifier='enabled', compute=compute, dataset=param.dataset):
                         continue

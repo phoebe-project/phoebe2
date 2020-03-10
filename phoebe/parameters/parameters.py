@@ -228,7 +228,10 @@ _forbidden_labels += ['nwalkers', 'niters']
 
 # from feature:
 _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
-                      'radamp', 'freq', 'l', 'm', 'teffext'
+                      'radamp', 'freq', 'l', 'm', 'teffext',
+                      'spot', 'gaussian_process', 'pulsation',
+                      'kernel', 'log_S0', 'log_Q', 'log_rho',
+                      'log_omega0', 'log_sigma', 'eps'
                       ]
 
 # from figure:
@@ -3417,7 +3420,7 @@ class ParameterSet(object):
                 residuals, model_interp = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True, return_interp_model=True)
                 ds_ps = self._bundle.get_dataset(dataset=ds, **_skip_filter_checks)
                 sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, unit=residuals.unit, **_skip_filter_checks)
-                sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=1.0, **_skip_filter_checks)
+                sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=-np.inf, **_skip_filter_checks)
 
                 if len(sigmas):
                     sigmas2 = sigmas**2
@@ -3887,6 +3890,13 @@ class ParameterSet(object):
                     kwargs.setdefault('linebreak', '{}-'.format(direction))
 
                     return kwargs
+                elif current_value.split('_')[-1] in ['gps', 'nogps']:
+                    if ps.model is None:
+                        logger.info("skipping {} for dataset".format(current_value))
+                        return {}
+                    kwargs['{}qualifier'.format(direction)] = current_value
+                    return kwargs
+
                 elif current_value in ['residuals_spread']:
                     if ps.model is None:
                         logger.info("skipping residuals_spread for dataset")
@@ -9895,6 +9905,7 @@ class HierarchyParameter(StringParameter):
         * `dperdt` is non-zero
         * a feature (eg. spot) is attached to an asynchronous star (with
             non-unity value for `syncpar`).
+        * a gaussian_process feature is attached to any dataset
 
         Returns
         ---------
@@ -9912,6 +9923,10 @@ class HierarchyParameter(StringParameter):
             if self._bundle.get_value('syncpar', component=component, context='component') != 1 and len(self._bundle.filter(context='feature', component=component)):
                 # spots on asynchronous stars
                 return True
+
+        # TODO: allow passing compute to do only enabled features attached to enabled datasets?
+        if len(self._bundle.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features):
+            return True
 
         return False
 
