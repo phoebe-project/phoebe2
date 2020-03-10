@@ -247,7 +247,7 @@ class BaseSolverBackend(object):
                 for packet in packetlist:
                     # single parameter
                     try:
-                        solution_ps.set_value(check_visible=False, check_default=False, **packet)
+                        solution_ps.set_value(check_visible=False, check_default=False, ignore_readonly=True, **packet)
                     except Exception as err:
                         raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, str(err)))
 
@@ -317,17 +317,17 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
 
-        solution_params += [_parameters.FloatParameter(qualifier='primary_width', value=0, unit=u.dimensionless_unscaled, description='phase-width of primary eclipse')]
-        solution_params += [_parameters.FloatParameter(qualifier='secondary_width', value=0, unit=u.dimensionless_unscaled, description='phase-width of secondary eclipse')]
-        solution_params += [_parameters.FloatParameter(qualifier='primary_phase', value=0, unit=u.dimensionless_unscaled, description='phase of primary eclipse')]
-        solution_params += [_parameters.FloatParameter(qualifier='secondary_phase', value=0, unit=u.dimensionless_unscaled, description='phase of secondary eclipse')]
-        solution_params += [_parameters.FloatParameter(qualifier='primary_depth', value=0, unit=u.dimensionless_unscaled, description='depth of primary eclipse')]
-        solution_params += [_parameters.FloatParameter(qualifier='secondary_depth', value=0, unit=u.dimensionless_unscaled, description='depth of secondary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='primary_width', value=0, readonly=True, unit=u.dimensionless_unscaled, description='phase-width of primary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='secondary_width', value=0, readonly=True, unit=u.dimensionless_unscaled, description='phase-width of secondary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='primary_phase', value=0, readonly=True, unit=u.dimensionless_unscaled, description='phase of primary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='secondary_phase', value=0, readonly=True, unit=u.dimensionless_unscaled, description='phase of secondary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='primary_depth', value=0, readonly=True, unit=u.dimensionless_unscaled, description='depth of primary eclipse')]
+        solution_params += [_parameters.FloatParameter(qualifier='secondary_depth', value=0, readonly=True, unit=u.dimensionless_unscaled, description='depth of secondary eclipse')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], description='uniqueids of parameters fitted by the minimizer')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], description='twigs of parameters fitted by the minimizer')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -400,15 +400,15 @@ class Bls_PeriodBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
 
-        solution_params += [_parameters.FloatArrayParameter(qualifier='period', value=[], default_unit=u.d, description='periodogram test periods')]
-        solution_params += [_parameters.FloatArrayParameter(qualifier='power', value=[], default_unit=u.dimensionless_unscaled, description='periodogram power')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='period', value=[], readonly=True, default_unit=u.d, description='periodogram test periods')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='power', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='periodogram power')]
 
         solution_params += [_parameters.FloatParameter(qualifier='adopt_factor', value=1.0, default_unit=u.dimensionless_unscaled, description='factor to apply to the max peak period when adopting the solution')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], description='uniqueids of parameters fitted by the minimizer')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], description='twigs of parameters fitted by the minimizer')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -496,19 +496,19 @@ class EmceeBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
 
         solution_params = []
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], description='uniqueids of parameters fitted by the sampler')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], description='twigs of parameters fitted by the sampler')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of parameters fitted by the sampler')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='samples', value=[], description='MCMC samples with shape (niters, nwalkers, len(fitted_uniqueids))')]
+        solution_params += [_parameters.ArrayParameter(qualifier='samples', value=[], readonly=True, description='MCMC samples with shape (niters, nwalkers, len(fitted_uniqueids))')]
         if kwargs.get('expose_failed', True):
-            solution_params += [_parameters.DictParameter(qualifier='failed_samples', value={}, description='MCMC samples that returned lnprobability=-inf.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
-        solution_params += [_parameters.ArrayParameter(qualifier='lnprobabilities', value=[], description='log probabilities with shape (niters, nwalkers)')]
+            solution_params += [_parameters.DictParameter(qualifier='failed_samples', value={}, readonly=True, description='MCMC samples that returned lnprobability=-inf.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
+        solution_params += [_parameters.ArrayParameter(qualifier='lnprobabilities', value=[], readonly=True, description='log probabilities with shape (niters, nwalkers)')]
 
         # solution_params += [_parameters.ArrayParameter(qualifier='accepteds', value=[], description='whether each iteration was an accepted move with shape (niters)')]
-        solution_params += [_parameters.ArrayParameter(qualifier='acceptance_fractions', value=[], description='fraction of proposed steps that were accepted with shape (nwalkers)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='acceptance_fractions', value=[], readonly=True, description='fraction of proposed steps that were accepted with shape (nwalkers)')]
 
-        solution_params += [_parameters.IntParameter(qualifier='autocorr_time', value=0, description='measured autocorrelation time')]
+        solution_params += [_parameters.IntParameter(qualifier='autocorr_time', value=0, readonly=True, description='measured autocorrelation time')]
         solution_params += [_parameters.IntParameter(qualifier='burnin', value=0, limits=(0,1e6), description='burnin to use when processing the solution')]
         solution_params += [_parameters.IntParameter(qualifier='thin', value=1, limits=(1,1e6), description='thin to use when processing the solution')]
 
@@ -757,29 +757,29 @@ class DynestyBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
 
         solution_params = []
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], description='uniqueids of parameters fitted by the sampler')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], description='twigs of parameters fitted by the sampler')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of parameters fitted by the sampler')]
 
 
-        solution_params += [_parameters.IntParameter(qualifier='nlive', value=0, description='')]
-        solution_params += [_parameters.IntParameter(qualifier='niter', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='ncall', value=0, description='')]
-        solution_params += [_parameters.IntParameter(qualifier='eff', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='samples', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='samples_id', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='samples_it', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='samples_u', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='logwt', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='logl', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='logvol', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='logz', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='logzerr', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='information', value=0, description='')]
-        # solution_params += [_parameters.ArrayParameter(qualifier='bound', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='bound_iter', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='samples_bound', value=0, description='')]
-        solution_params += [_parameters.ArrayParameter(qualifier='scale', value=0, description='')]
+        solution_params += [_parameters.IntParameter(qualifier='nlive', value=0, readonly=True, description='')]
+        solution_params += [_parameters.IntParameter(qualifier='niter', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='ncall', value=0, readonly=True, description='')]
+        solution_params += [_parameters.IntParameter(qualifier='eff', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='samples', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='samples_id', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='samples_it', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='samples_u', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='logwt', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='logl', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='logvol', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='logz', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='logzerr', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='information', value=0, readonly=True, description='')]
+        # solution_params += [_parameters.ArrayParameter(qualifier='bound', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='bound_iter', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='samples_bound', value=0, readonly=True, description='')]
+        solution_params += [_parameters.ArrayParameter(qualifier='scale', value=0, readonly=True, description='')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -939,20 +939,20 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], description='uniqueids of parameters fitted by the minimizer')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], description='twigs of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
 
 
-        solution_params += [_parameters.StringParameter(qualifier='message', value='', description='message from the minimizer')]
-        solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, limits=(0,None), description='number of completed function evaluations (forward models)')]
-        solution_params += [_parameters.IntParameter(qualifier='niter', value=0, limits=(0,None), description='number of completed iterations')]
-        solution_params += [_parameters.BoolParameter(qualifier='success', value=False, description='whether the minimizer returned a success message')]
-        solution_params += [_parameters.ArrayParameter(qualifier='initial_values', value=[], description='initial values before running the minimizer (in current default units of each parameter)')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
+        solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
+        solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, readonly=True, limits=(0,None), description='number of completed function evaluations (forward models)')]
+        solution_params += [_parameters.IntParameter(qualifier='niter', value=0, readonly=True, limits=(0,None), description='number of completed iterations')]
+        solution_params += [_parameters.BoolParameter(qualifier='success', value=False, readonly=True, description='whether the minimizer returned a success message')]
+        solution_params += [_parameters.ArrayParameter(qualifier='initial_values', value=[], readonly=True, description='initial values before running the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of the fitted_values')]
         if kwargs.get('expose_lnlikelihoods', False):
-            solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
-            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -1073,21 +1073,21 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], description='uniqueids of parameters fitted by the minimizer')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], description='twigs of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
 
-        solution_params += [_parameters.StringParameter(qualifier='message', value='', description='message from the minimizer')]
-        solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, limits=(0,None), description='number of completed function evaluations (forward models)')]
-        solution_params += [_parameters.IntParameter(qualifier='niter', value=0, limits=(0,None), description='number of completed iterations')]
-        solution_params += [_parameters.BoolParameter(qualifier='success', value=False, description='whether the minimizer returned a success message')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], description='final values returned by the minimizer (in current default units of each parameter)')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], description='units of the fitted_values')]
-        solution_params += [_parameters.ArrayParameter(qualifier='bounds', value=kwargs.get('bounds', []), description='bound limits adopted and used internally.')]
+        solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
+        solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, readonly=True, limits=(0,None), description='number of completed function evaluations (forward models)')]
+        solution_params += [_parameters.IntParameter(qualifier='niter', value=0, readonly=True, limits=(0,None), description='number of completed iterations')]
+        solution_params += [_parameters.BoolParameter(qualifier='success', value=False, readonly=True, description='whether the minimizer returned a success message')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[],readonly=True,  description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of the fitted_values')]
+        solution_params += [_parameters.ArrayParameter(qualifier='bounds', value=kwargs.get('bounds', []), readonly=True, description='bound limits adopted and used internally.')]
 
 
         if kwargs.get('expose_lnlikelihoods', False):
-            solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
-            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
+            solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 

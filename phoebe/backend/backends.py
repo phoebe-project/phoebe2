@@ -449,7 +449,7 @@ class BaseBackend(object):
                 for packet in packetlist:
                     # single parameter
                     try:
-                        new_syns.set_value(check_visible=False, check_default=False, **packet)
+                        new_syns.set_value(check_visible=False, check_default=False, ignore_readonly=True, **packet)
                     except Exception as err:
                         raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, str(err)))
 

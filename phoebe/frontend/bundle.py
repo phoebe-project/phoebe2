@@ -552,7 +552,7 @@ class Bundle(ParameterSet):
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
         # update the entry in the PS, so if this is saved again it will have the new version
-        b.set_value(qualifier='phoebe_version', value=__version__, check_default=False, check_visible=False)
+        b.set_value(qualifier='phoebe_version', value=__version__, check_default=False, check_visible=False, ignore_readonly=True)
 
         if phoebe_version_import == phoebe_version_this:
             return b
@@ -8131,8 +8131,8 @@ class Bundle(ParameterSet):
 
                                         fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
 
-                                    params.set_value(qualifier='times', dataset=ds, value=times_ds)
-                                    params.set_value(qualifier='fluxes', dataset=ds, value=fluxes)
+                                    params.set_value(qualifier='times', dataset=ds, value=times_ds, ignore_readonly=True)
+                                    params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True)
 
 
                 self._attach_params(params, check_copy_for=False, **metawargs)
@@ -8163,12 +8163,12 @@ class Bundle(ParameterSet):
                     scale_factor = popt[0]
 
                     logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, param.dataset))
-                    ds_model.set_value(qualifier='fluxes', value=model_fluxes*scale_factor)
+                    ds_model.set_value(qualifier='fluxes', value=model_fluxes*scale_factor, ignore_readonly=True)
 
                     for param in ds_model.filter(kind='mesh').to_list():
                         if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
                             logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
-                            param.set_value(param.get_value() * scale_factor)
+                            param.set_value(param.get_value() * scale_factor, ignore_readonly=True)
 
             # Figure options for this model
             if do_create_fig_params:

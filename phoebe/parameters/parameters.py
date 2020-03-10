@@ -5176,6 +5176,7 @@ class Parameter(object):
         self._is_constraint = None  # label of the constraint that defines the value of this parameter
 
         self._description = description
+        self._readonly = kwargs.get('readonly', False)
         self._advanced = kwargs.get('advanced', False)
         self._bundle = bundle
         self._value = None
@@ -5206,7 +5207,7 @@ class Parameter(object):
 
         self._visible_if = kwargs.get('visible_if', None)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
         # loading from json can result in unicodes instead of strings - this then
@@ -5375,9 +5376,13 @@ class Parameter(object):
         * (str): the string representation
         """
         if hasattr(self, 'constrained_by') and len(self.constrained_by) > 0:
-            return "* {:>30}: {}".format(self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+            prefix = 'C '
+        elif self.readonly:
+            prefix = 'R '
         else:
-            return "{:>32}: {}".format(self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+            prefix = '  '
+
+        return "{} {:>30}: {}".format(prefix, self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
 
     # @property
     # def __dict__(self):
@@ -5395,7 +5400,7 @@ class Parameter(object):
         """
         # including uniquetwig for everything can be VERY SLOW, so let's not
         # include that in the dictionary
-        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig']}
+        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig'] and (k not in ['readonly', 'advanced'] or getattr(self,k))}
         d['Class'] = self.__class__.__name__
         return d
 
@@ -5612,6 +5617,14 @@ class Parameter(object):
         * (dict) a dictionary of all singular tag attributes.
         """
         return self.get_meta(ignore=['uniqueid', 'history', 'twig', 'uniquetwig'])
+
+    @property
+    def readonly(self):
+        """
+        Whether the parameter is readonly.  To force setting the value, pass
+        `ignore_readonly=True` to <<class>.set_value>.
+        """
+        return self._readonly
 
     @property
     def advanced(self):
@@ -6621,6 +6634,12 @@ class Parameter(object):
         """
         raise NotImplementedError # <--- leave this in place, should be subclassed
 
+    def _readonly_check(self, **kwargs):
+        if 'ignore_readonly' in kwargs.keys():
+            return
+        if self.readonly:
+            raise ValueError("Parameter is read-only.  Pass ignore_readonly=True to force setting value (use with caution).")
+
 
 class StringParameter(Parameter):
     """
@@ -6632,9 +6651,9 @@ class StringParameter(Parameter):
         """
         super(StringParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', ''))
+        self.set_value(kwargs.get('value', ''), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -6679,6 +6698,8 @@ class StringParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(value)
 
         try:
@@ -6707,9 +6728,9 @@ class TwigParameter(Parameter):
         # bundle is necessary in order to intialize and set the value
         self._bundle = bundle
 
-        self.set_value(kwargs.get('value', ''))
+        self.set_value(kwargs.get('value', ''), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_parameter(self):
@@ -6771,6 +6792,8 @@ class TwigParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         # first make sure only returns one results
@@ -6798,9 +6821,9 @@ class ChoiceParameter(Parameter):
 
         self._choices = kwargs.get('choices', [''])
 
-        self.set_value(kwargs.get('value', ''))
+        self.set_value(kwargs.get('value', ''), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -6881,6 +6904,8 @@ class ChoiceParameter(Parameter):
         * ValueError: if `value` is not one of
             <phoebe.parameters.ChoiceParameter.choices>
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         try:
@@ -6950,7 +6975,7 @@ class ChoiceParameter(Parameter):
             return False
 
         if value in self.choices:
-            self.set_value(value)
+            self.set_value(value, ignore_readonly=True)
             return True
         else:
             raise ValueError("could not set value to a valid entry in choices: {}".format(self.choices))
@@ -6967,9 +6992,9 @@ class SelectParameter(Parameter):
 
         self._choices = kwargs.get('choices', [])
 
-        self.set_value(kwargs.get('value', []))
+        self.set_value(kwargs.get('value', []), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'readonly', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -7139,6 +7164,8 @@ class SelectParameter(Parameter):
             <phoebe.parameters.SelectParameter.choices>.
             See also <phoebe.parameters.SelectParameter.valid_selection>
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         if isinstance(value, str):
@@ -7190,14 +7217,14 @@ class SelectParameter(Parameter):
         changed = len(rename.keys())
 
         if remove_not_valid:
-            self.set_value(value, run_checks=False)
+            self.set_value(value, run_checks=False, ignore_readonly=True)
             return changed or self.remove_not_valid_selections()
 
         else:
             if np.any([not self.is_valid_selection(v) for v in value]):
                 raise ValueError("not all are valid after renaming")
 
-            self.set_value(value, run_checks=False)
+            self.set_value(value, run_checks=False, ignore_readonly=True)
             return changed
 
 
@@ -7215,7 +7242,7 @@ class SelectParameter(Parameter):
         """
         value = [v for v in self.get_value() if self.valid_selection(v)]
         changed = len(value) != len(self.get_value())
-        self.set_value(value, run_checks=False)
+        self.set_value(value, run_checks=False, ignore_readonly=True)
         return changed
 
     def __add__(self, other):
@@ -7335,9 +7362,9 @@ class BoolParameter(Parameter):
         """
         super(BoolParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', True))
+        self.set_value(kwargs.get('value', True), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -7385,6 +7412,8 @@ class BoolParameter(Parameter):
         ---------
         * ValueError: if `value` could not be converted to a boolean
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         if value in ['false', 'False', '0']:
@@ -7411,7 +7440,7 @@ class UnitParameter(ChoiceParameter):
         value = self._check_type(value)
         self._value = value
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def _check_type(self, value):
@@ -7468,6 +7497,8 @@ class UnitParameter(ChoiceParameter):
         * ValueError: if `value` cannot be mapped to one of
             <phoebe.parameters.UnitParameter.choices>
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         value = self._check_type(value)
@@ -7490,9 +7521,9 @@ class DictParameter(Parameter):
         """
         super(DictParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', {}))
+        self.set_value(kwargs.get('value', {}), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -7537,6 +7568,8 @@ class DictParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         try:
@@ -7559,9 +7592,9 @@ class IntParameter(Parameter):
         limits = kwargs.get('limits', (None, None))
         self.set_limits(limits)
 
-        self.set_value(kwargs.get('value', 1))
+        self.set_value(kwargs.get('value', 1), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -7705,6 +7738,8 @@ class IntParameter(Parameter):
             <phoebe.parameters.IntParameter.get_limits> and
             <phoebe.parameters.IntParameter.within_limits>
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         value = self._check_value(value)
@@ -7731,9 +7766,9 @@ class DistributionParameter(Parameter):
             if hasattr(self, '_{}'.format(k)):
                 setattr(self, '_{}'.format(k), v)
 
-        self.set_value(value)
+        self.set_value(value, ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_referenced_parameter(self):
@@ -7830,6 +7865,8 @@ class DistributionParameter(Parameter):
             will be used.
         * `**kwargs`: IGNORED
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
         value = self._check_value(value)
 
@@ -7905,9 +7942,9 @@ class FloatParameter(Parameter):
         timederiv = kwargs.get('timederiv', None)
         self.set_timederiv(timederiv)
 
-        self.set_value(kwargs.get('value', ''), unit)
+        self.set_value(kwargs.get('value', ''), unit, ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'advanced'] # TODO: add adjust?  or is that a different subclass?
+        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'readonly', 'advanced'] # TODO: add adjust?  or is that a different subclass?
         if conf.devel:
             # NOTE: this check will take place when CREATING the parameter,
             # so toggling devel after won't affect whether timederiv is included
@@ -8254,7 +8291,7 @@ class FloatParameter(Parameter):
         dist = self.get_distribution(distribution, follow_constraints=follow_constraints)
         value = dist.sample(seed=seed)
         if set_value:
-            self.set_value(value)
+            self.set_value(value, ignore_readonly=True)
         return value
 
     #@update_if_client is on the called get_quantity
@@ -8474,6 +8511,8 @@ class FloatParameter(Parameter):
             <phoebe.parameters.FloatParameter.get_limits> and
             <phoebe.parameters.FloatParameter.within_limits>
         """
+        self._readonly_check(**kwargs)
+
         _orig_quantity = _deepcopy(self.get_quantity())
 
         if len(self.constrained_by) and not force:
@@ -8569,7 +8608,7 @@ class FloatArrayParameter(FloatParameter):
 
         # NOTE: default_unit and value handled in FloatParameter.__init__()
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -8834,7 +8873,7 @@ class FloatArrayParameter(FloatParameter):
 
         return self.interp_value(unit=unit, return_quantity=True, **kwargs)
 
-    def append(self, value):
+    def append(self, value, ignore_readonly=False):
         """
         Append a value to the end of the array.
 
@@ -8850,7 +8889,7 @@ class FloatArrayParameter(FloatParameter):
             value = value.to_array()
 
         new_value = np.append(self.get_value(), value) * self.default_unit
-        self.set_value(new_value)
+        self.set_value(new_value, ignore_readonly=ignore_readonly)
 
     def set_index_value(self, index, value, **kwargs):
         """
@@ -8870,7 +8909,7 @@ class FloatArrayParameter(FloatParameter):
             #value = value*self.default_unit
         lst =self.get_value()#.value
         lst[index] = value
-        self.set_value(lst)
+        self.set_value(lst, ignore_readonly=kwargs.get('ignore_readonly', False))
 
     def __add__(self, other):
         if not (isinstance(other, list) or isinstance(other, np.ndarray)):
@@ -8958,9 +8997,9 @@ class ArrayParameter(Parameter):
         """
         super(ArrayParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', []))
+        self.set_value(kwargs.get('value', []), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def append(self, value):
@@ -9029,6 +9068,8 @@ class ArrayParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self._value)
         self._value = np.array(value)
 
@@ -9082,6 +9123,7 @@ class HierarchyParameter(StringParameter):
         ---------
         * ValueError: if `value` could not be converted to a string.
         """
+        self._readonly_check(**kwargs)
 
         # TODO: check to make sure valid
 
@@ -9912,9 +9954,9 @@ class ConstraintParameter(Parameter):
         self._constraint_func = kwargs.get('constraint_func', None)
         self._constraint_kwargs = kwargs.get('constraint_kwargs', {})
         self._in_solar_units = kwargs.get('in_solar_units', False)
-        self.set_value(value)
+        self.set_value(value, ignore_readonly=True)
         self.set_default_unit(default_unit)
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'constraint_addl_vars', 'in_solar_units', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'constraint_addl_vars', 'in_solar_units', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -10210,6 +10252,8 @@ class ConstraintParameter(Parameter):
         * ValueError: if `value` could not be converted to a string.
         * Error: if `value` could not be parsed into a valid constraint expression.
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         if self._bundle is None:
@@ -10757,7 +10801,7 @@ class HistoryParameter(Parameter):
 
         # TODO: how can we hold other parameters affect (ie. if the user calls set_value('incl', 80) and there is a constraint on asini that changes a... how do we log that here)
 
-        self._dict_fields_other = ['redo_func', 'redo_kwargs', 'undo_func', 'undo_kwargs', 'advanced']
+        self._dict_fields_other = ['redo_func', 'redo_kwargs', 'undo_func', 'undo_kwargs', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -10906,7 +10950,7 @@ class JobParameter(Parameter):
 
         # TODO: add a description?
 
-        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __str__(self):

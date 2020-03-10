@@ -16,7 +16,7 @@ def settings(**kwargs):
 
     params = []
 
-    params += [StringParameter(qualifier='phoebe_version', value=kwargs.get('phoebe_version', __version__), advanced=True, description='Version of PHOEBE - change with caution')]
+    params += [StringParameter(qualifier='phoebe_version', value=kwargs.get('phoebe_version', __version__), advanced=True, readonly=True, description='Version of PHOEBE')]
     params += [BoolParameter(qualifier='log_history', value=kwargs.get('log_history', False), advanced=True, description='Whether to log history (undo/redo)')]
     params += [DictParameter(qualifier='dict_filter', value=kwargs.get('dict_filter', {}), advanced=True, description='Filters to use when using dictionary access')]
     params += [BoolParameter(qualifier='dict_set_all', value=kwargs.get('dict_set_all', False), advanced=True, description='Whether to set all values for dictionary access that returns more than 1 result')]
