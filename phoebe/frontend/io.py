@@ -544,7 +544,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         fti = False
         fti_exp = '1766'
-        fti_ovs = '0'
+        fti_ovs = '1'
         fti_ts = 'Mid-exposure'
 #    params =  np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch')], axis=0)#, list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
 
@@ -608,6 +608,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         pname = params[:,0][x]
         pname = pname.split('.')[0]
+
         val = params[:,1][x].strip('"')
         pnew, d = ret_dict(pname, val)
 
@@ -763,7 +764,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             if fti_ts_ind != 'Mid-exposure':
                 logger.warning('Phoebe 2 only uses Mid-Exposure for calculating finite exposure times.')
-
+           
         except:
 
             logger.warning('Your .phoebe file was created using a version of phoebe which does not support dataset dependent finite integration time parameters')
@@ -771,24 +772,24 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             ftia = np.array(['phoebe_lc_cadence_switch['+str(x)+']', fti_val])
             fti_expa = np.array(['phoebe_lc_cadence['+str(x)+']', fti_exp])
             fti_ovsa = np.array(['phoebe_lc_cadence_rate['+str(x)+']', fti_ovs])
-            fti_tsa = np.array(['phoebe_lc_cadence_timestamp['+str(x)+']', fti_ts])
-            lcpt = np.vstack((lcpt,ftia,fti_expa,fti_ovsa, fti_tsa))
+            #fti_tsa = np.array(['phoebe_lc_cadence_timestamp['+str(x)+']', fti_ts])
+            lcpt = np.vstack((lcpt,ftia,fti_expa,fti_ovsa))#, fti_tsa))
 
             fti_ind = False
+            
 
+#        if not fti_ind:
 
-        if not fti_ind:
+#            if fti_ts != 'Mid-exposure':
+#                logger.warning('Phoebe 2 only uses Mid-Exposure times for calculating finite exposure times.')
+#            if fti:
+#                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
 
-            if fti_ts != 'Mid-exposure':
-                logger.warning('Phoebe 2 only uses Mid-Exposure times for calculating finite exposure times.')
-            if fti:
-                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
-
-            else:
-                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = 'None'
+#            else:
+#                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = '0'
 
             
-            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = fti_exp
+#            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = fti_exp
 
 #            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
 
@@ -914,7 +915,30 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         for k in lc_dict:
 
-            pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
+            # deal with fti
+            if 'cadence' in k:
+              
+                pieces = k.split('_')
+                
+                if pieces[-1] == 'switch':
+                    pnew = 'fti_method'
+                    bool_fti = {0:'none', 1:'oversample'}
+                    val = int(lc_dict[k])
+                    value = bool_fti[val]
+                    d ={'qualifier': pnew, 'dataset':dataid, 'context':'compute', 'value':value}
+                
+                if pieces[-1] == 'rate':
+                    pnew = 'fti_oversample'
+                    value = int(lc_dict[k])
+                    d ={'qualifier': pnew, 'dataset':dataid, 'context':'compute', 'value':value}
+                    
+                if pieces[-1] == 'timestamp':
+                    pass
+                if pieces[-1] == 'cadence':
+                    pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
+            
+            else:
+                pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
 
 #            print d
         # as long as the parameter exists add it
