@@ -8612,6 +8612,7 @@ class Bundle(ParameterSet):
 
 
         # TODO: OPTIMIZE only trigger those necessary based on the solver-backend
+        # TODO: return these for the UI
         self._handle_distribution_selectparams(return_changes=False)
         self._handle_compute_choiceparams(return_changes=False)
         self._handle_fitparameters_selecttwigparams(return_changes=False)

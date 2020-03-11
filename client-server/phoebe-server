@@ -45,7 +45,7 @@ app.config['JSON_SORT_KEYS'] = False
 
 # Configure socket.io
 app.config['SECRET_KEY'] = 'phoebesecret'
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 def _uniqueid(N=16):
     """
@@ -83,8 +83,13 @@ import os
 import sys
 import tempfile
 import traceback
-import urllib2
-import StringIO
+# if _sys.version_info[0] < 3:
+#     import urllib2 as urllib
+# else:
+#     import urllib
+# import StringIO
+if sys.version_info[0] == 3:
+  unicode = str
 import inspect
 from time import sleep
 from collections import OrderedDict
@@ -694,9 +699,9 @@ def error_handler(err):
 
     if app._verbose:
         ex_type, ex, tb = sys.exc_info()
-        print traceback.print_tb(tb)
+        print(traceback.print_tb(tb))
 
-    emit('msg', {'success': False, 'id': None, 'level': 'error', 'msg': 'websocket: '+err.message}, broadcast=False)
+    emit('msg', {'success': False, 'id': None, 'level': 'error', 'msg': 'websocket: '+str(err)}, broadcast=False)
 
 
 
@@ -770,7 +775,7 @@ def _run_checks(b, bundleid, do_emit=True):
     try:
         b.run_failed_constraints()
     except Exception as err:
-        emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': err.message}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': str(err)}, broadcast=False)
     # if len(b._failed_constraints):
         # msg = 'Constraints for the following parameters failed to run: {}.  Affected values will not be updated until the constraints can succeed.'.format(', '.join([b.get_parameter(uniqueid=c, check_visible=False).constrained_parameter.uniquetwig for c in b._failed_constraints]))
         # emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
@@ -837,10 +842,12 @@ def _update_figures(b, bundleid, affected_ps=None):
             # draw_title=draw_title,
             # tight_layout=tight_layout,
             # subplot_grid=subplot_grid,
+            print("*** afig", afig)
             afig.save(os.path.join(_dir_tmpimages, '{}_{}.afig'.format(bundleid, figure)), renders=[render_kwargs])
         except Exception as err:
             if app._verbose:
                 print("_update_figures error: {}".format(str(err)))
+                raise
             # notify the client that the figure is now failing (and probably shouldn't be shown)
             figure_update_times[figure] = 'failed'
             # remove any existing cached file so that loading won't work
@@ -890,16 +897,16 @@ def set_value(msg):
         ps_constraints = b.run_delayed_constraints()
     except Exception as err:
         if app._verbose:
-            print("set_value {} error: {}".format(msg, err.message))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            print("set_value {} error: {}".format(msg, str(err)))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
         return
 
     try:
         ps_list = ps_constraints + b.filter(**{k:v for k,v in msg.items() if k not in ['value']}).to_list()
     except Exception as err:
         if app._verbose:
-            print("set_value {} error on filter: {}".format(msg, err.message))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            print("set_value {} error on filter: {}".format(msg, str(err)))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
         return
     else:
         if 'web' in client_types or 'desktop' in client_types:
@@ -965,16 +972,16 @@ def set_default_unit(msg):
         b.set_default_unit_all(**msg)
     except Exception as err:
         if app._verbose:
-            print("set_default_unit {} error: {}".format(msg, err.message))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            print("set_default_unit {} error: {}".format(msg, str(err)))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
         return
 
     try:
         ps_list = b.filter(**{k:v for k,v in msg.items() if k not in ['unit']}).to_list()
     except Exception as err:
         if app._verbose:
-            print("set_default_unit {} error on filter: {}".format(msg, err.message))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            print("set_default_unit {} error on filter: {}".format(msg, str(err)))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
         return
     else:
         if 'web' in client_types or 'desktop' in client_types:
@@ -1030,7 +1037,7 @@ def bundle_method(msg):
 
     method = msg.pop('method')
 
-    if method in ['run_compute']:
+    if method in ['run_compute', 'run_solver']:
         # TODO: have this be a environment variable or flag at the top-level?
         # forbid expensive computations on this server
         msg['max_computations'] = _max_computations
@@ -1050,17 +1057,17 @@ def bundle_method(msg):
         ps_list = ps.to_list() if hasattr(ps, 'to_list') else [ps] if isinstance(ps, phoebe.parameters.Parameter) else []
     except Exception as err:
         if app._verbose:
-            print("bundle_method ERROR ({}): {}".format(msg, err.message))
+            print("bundle_method ERROR ({}): {}".format(msg, str(err)))
         if app._debug:
             raise
 
-        if method=='attach_job' and 'Expecting object' in err.message:
+        if method=='attach_job' and 'Expecting object' in str(err):
             # then its likely the object just hasn't been completely written to
             # disk yet, this error is expected.
             # TODO: catch this within PHOEBE instead and return a reasonable status
             pass
         else:
-            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
 
 
             if method=='attach_job' and ('web' in client_types or 'desktop' in client_types):
@@ -1122,7 +1129,7 @@ def bundle_method(msg):
             context = method.split('_')[1]
             packet['add_filter'] = {context: getattr(ps, context)}
         elif method.split('_')[0] == 'run':
-            new_context = {'compute': 'model'}[method.split('_')[1]]
+            new_context = {'compute': 'model', 'solver': 'solution'}[method.split('_')[1]]
             packet['add_filter'] = {new_context: getattr(ps, new_context)}
         elif method == 'import_model':
             new_context = 'model'
