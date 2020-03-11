@@ -495,7 +495,7 @@ def jktebop(**kwargs):
 
 def ellc(**kwargs):
     """
-    **This backend is EXPERIMENTAL and requires developer mode to be enabled**
+    **This backend is EXPERIMENTAL and still NEEDS TESTING**
 
     **DO NOT USE FOR SCIENCE**
 
@@ -607,8 +607,8 @@ def ellc(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    if not conf.devel:
-        raise NotImplementedError("'ellc' backend not officially supported for this release.  Enable developer mode to test.")
+    # if not conf.devel:
+        # raise NotImplementedError("'ellc' backend not officially supported for this release.  Enable developer mode to test.")
 
     params = _sampling_params(**kwargs)
 
