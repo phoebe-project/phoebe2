@@ -247,7 +247,7 @@ def _value_string(param):
         return str(param.get_value())
     elif param_type in ['FloatParameter']:
         return str(param.get_value())
-    elif param_type in ['FloatArrayParameter']:
+    elif param_type in ['FloatArrayParameter', 'ArrayParameter']:
         if isinstance(param._value, phoebe.dependencies.nparray.nparray.ArrayWrapper):
             return param._value.__str__()
         else:
@@ -274,9 +274,9 @@ def _param_json_overview(param):
     p = {'uniqueid': param.uniqueid,
          'class': param.__class__.__name__,
          'valuestr': _value_string(param),
-         'len': len(param.get_value()) if param.__class__.__name__ in ['SelectParameter', 'FloatArrayParameter'] else None,
+         'len': len(param.get_value()) if param.__class__.__name__ in ['SelectParameter', 'FloatArrayParameter', 'ArrayParameter'] else None,
          'unitstr': param.default_unit.to_string() if hasattr(param, 'default_unit') else '',
-         'readonly': param.context in ['model'] or param.qualifier in ['phoebe_version'] or (hasattr(param, 'is_constraint') and param.is_constraint is not None),
+         'readonly': param.readonly or (hasattr(param, 'is_constraint') and param.is_constraint is not None),
          }
 
     advanced_filter = []
@@ -326,7 +326,7 @@ def _param_json_detailed(param):
 
     if param.__class__.__name__ in ['SelectParameter']:
         p['value'] = param.get_value()
-    elif param.__class__.__name__ in ['FloatArrayParameter']:
+    elif param.__class__.__name__ in ['FloatArrayParameter', 'ArrayParameter']:
         value = param.to_json()['value']
         if isinstance(value, list):
             value = ",".join(str(vi) for vi in value)
