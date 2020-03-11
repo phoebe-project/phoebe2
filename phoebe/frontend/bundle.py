@@ -8137,7 +8137,7 @@ class Bundle(ParameterSet):
                                 remove_dists.append(distribution)
                                 sample_from[sample_from.index(sample_from_item)] = distribution
                             else:
-                                raise ValueError("could not find '{}' in distributions or solutions".format(sample_from_item))
+                                raise ValueError("could not find '{}' in distributions ({}) or solutions ({})".format(sample_from_item, self.distributions, self.solutions))
 
                     params = backends.SampleOverModel().run(self, compute,
                                                             dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
@@ -8501,7 +8501,8 @@ class Bundle(ParameterSet):
         Attach the results from an existing <phoebe.parameters.JobParameter>.
 
         Jobs are created when passing `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute>.
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
         * <phoebe.parameters.JobParameter.attach>
@@ -9102,8 +9103,10 @@ class Bundle(ParameterSet):
         #
         #     ret_ps += fig_params
 
-        ret_ps += ParameterSet(self._handle_solution_choiceparams(return_changes=True))
-        ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
+        # ret_ps += ParameterSet(self._handle_solution_choiceparams(return_changes=True))
+        # ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
+        self._handle_solution_choiceparams(return_changes=False)
+        self._handle_computesamplefrom_selectparams(return_changes=False)
 
         return ret_ps
 

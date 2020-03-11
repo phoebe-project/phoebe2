@@ -67,13 +67,13 @@ def _bsolver(b, solver, compute, distributions):
         solver_times = param.get_value()
         if solver_times == 'times':
             logger.debug("solver_times=times: resetting compute_times in copied bundle")
-            bexcl.set_value_all(qualifier='compute_times', dataset=param.dataset, value=[], **_skip_filter_checks)
+            bexcl.set_value_all(qualifier='compute_times', dataset=param.dataset, context='dataset', value=[], **_skip_filter_checks)
         elif solver_times == 'auto':
-            compute_times = bexcl.get_value(qualifier='compute_times', dataset=param.dataset, **_skip_filter_checks)
+            compute_times = bexcl.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
             times = np.unique(np.concatenate([time_param.get_value() for time_param in bexcl.filter(qualifier='times', dataset=param.dataset, **_skip_filter_checks).to_list()]))
             if len(times) < len(compute_times):
                 logger.debug("solver_times=auto: using times instead of compute_times")
-                bexcl.set_value_all(qualifier='compute_times', dataset=param.dataset, value=[], **_skip_filter_checks)
+                bexcl.set_value_all(qualifier='compute_times', dataset=param.dataset, context='dataset', value=[], **_skip_filter_checks)
             else:
                 logger.debug("solver_times=auto: using compute_times")
         elif solver_times == 'compute_times':
@@ -324,10 +324,10 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         solution_params += [_parameters.FloatParameter(qualifier='primary_depth', value=0, readonly=True, unit=u.dimensionless_unscaled, description='depth of primary eclipse')]
         solution_params += [_parameters.FloatParameter(qualifier='secondary_depth', value=0, readonly=True, unit=u.dimensionless_unscaled, description='depth of secondary eclipse')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of the fitted_values')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -405,10 +405,10 @@ class Bls_PeriodBackend(BaseSolverBackend):
 
         solution_params += [_parameters.FloatParameter(qualifier='adopt_factor', value=1.0, default_unit=u.dimensionless_unscaled, description='factor to apply to the max peak period when adopting the solution')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of the fitted_values')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -496,13 +496,13 @@ class EmceeBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
 
         solution_params = []
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
 
-        solution_params += [_parameters.ArrayParameter(qualifier='samples', value=[], readonly=True, description='MCMC samples with shape (niters, nwalkers, len(fitted_uniqueids))')]
+        solution_params += [_parameters.ArrayParameter(qualifier='samples', value=[], readonly=True, description='MCMC samples with shape (niters, nwalkers, len(fitted_twigs))')]
         if kwargs.get('expose_failed', True):
-            solution_params += [_parameters.DictParameter(qualifier='failed_samples', value={}, readonly=True, description='MCMC samples that returned lnprobability=-inf.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
+            solution_params += [_parameters.DictParameter(qualifier='failed_samples', value={}, readonly=True, description='MCMC samples that returned lnprobability=-inf.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_twigs))')]
         solution_params += [_parameters.ArrayParameter(qualifier='lnprobabilities', value=[], readonly=True, description='log probabilities with shape (niters, nwalkers)')]
 
         # solution_params += [_parameters.ArrayParameter(qualifier='accepteds', value=[], description='whether each iteration was an accepted move with shape (niters)')]
@@ -757,9 +757,9 @@ class DynestyBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
 
         solution_params = []
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of parameters fitted by the sampler')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
 
 
         solution_params += [_parameters.IntParameter(qualifier='nlive', value=0, readonly=True, description='')]
@@ -939,7 +939,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
 
 
@@ -949,7 +949,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         solution_params += [_parameters.BoolParameter(qualifier='success', value=False, readonly=True, description='whether the minimizer returned a success message')]
         solution_params += [_parameters.ArrayParameter(qualifier='initial_values', value=[], readonly=True, description='initial values before running the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of the fitted_values')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
         if kwargs.get('expose_lnlikelihoods', False):
             solution_params += [_parameters.FloatParameter(qualifier='initial_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the initial_values')]
             solution_params += [_parameters.FloatParameter(qualifier='fitted_lnlikelihood', value=0.0, readonly=True, default_unit=u.dimensionless_unscaled, description='lnlikelihood of the fitted_values')]
@@ -1073,7 +1073,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
 
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
 
         solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
@@ -1081,7 +1081,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         solution_params += [_parameters.IntParameter(qualifier='niter', value=0, readonly=True, limits=(0,None), description='number of completed iterations')]
         solution_params += [_parameters.BoolParameter(qualifier='success', value=False, readonly=True, description='whether the minimizer returned a success message')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[],readonly=True,  description='final values returned by the minimizer (in current default units of each parameter)')]
-        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], readonly=True, description='units of the fitted_values')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
         solution_params += [_parameters.ArrayParameter(qualifier='bounds', value=kwargs.get('bounds', []), readonly=True, description='bound limits adopted and used internally.')]
 
 
