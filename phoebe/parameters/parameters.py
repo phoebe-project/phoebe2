@@ -10949,7 +10949,7 @@ class JobParameter(Parameter):
         see <phoebe.parameters.Parameter.__init__>
         """
         _qualifier = kwargs.pop('qualifier', None)
-        super(JobParameter, self).__init__(qualifier='detached_job', **kwargs)
+        super(JobParameter, self).__init__(qualifier='detached_job', readonly=True, **kwargs)
 
         self._bundle = b
         self._server_status = server_status
