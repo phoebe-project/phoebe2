@@ -34,7 +34,7 @@ def nelder_mead(**kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
-    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial an final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
+    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial and final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
 
     params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
     params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
@@ -78,7 +78,7 @@ def powell(**kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
-    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial an final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
+    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial and final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
 
     params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
     params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
@@ -121,7 +121,7 @@ def cg(**kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
-    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial an final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
+    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial and final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
 
     params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
     params += [DictParameter(qualifier='initial_values', value=kwargs.get('initial_values', {}), description='twig-value pairs to (optionally) override the current values in the bundle.  Any items not in fit_parameters will be silently ignored.')]
@@ -163,7 +163,7 @@ def differential_evolution(**kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
-    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial an final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
+    params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial and final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
 
     params += [SelectTwigParameter(qualifier='fit_parameters', value=kwargs.get('fit_parameters', []), choices=[], description='parameters to optimize')]
 
