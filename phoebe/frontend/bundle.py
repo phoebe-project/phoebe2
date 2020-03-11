@@ -8215,15 +8215,17 @@ class Bundle(ParameterSet):
 
                 # add any GPs (gaussian processes) to the returned model
                 enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
-                gp_kernel_classes = {'matern32': _celerite.terms.Matern32Term,
-                                      'sho': _celerite.terms.SHOTerm,
-                                      'jitter': _celerite.terms.JitterTerm}
+
 
                 for ds in model_ps.datasets:
                     gp_features = self.filter(feature=enabled_features, dataset=ds, kind='gaussian_process', **_skip_filter_checks).features
                     if len(gp_features):
                         if not _use_celerite:
                             raise ImportError("gaussian processes require celerite to be installed")
+
+                        gp_kernel_classes = {'matern32': _celerite.terms.Matern32Term,
+                                              'sho': _celerite.terms.SHOTerm,
+                                              'jitter': _celerite.terms.JitterTerm}
 
                         # build the celerite GP object from the enabled GP features attached to this dataset
                         gp_kernels = []
@@ -8999,6 +9001,9 @@ class Bundle(ParameterSet):
             # something other than solution (technically could belong to model if 'latest')
             if solution!='latest':
                 self._check_label(solution, allow_overwrite=False)
+        else:
+            overwrite_ps = None
+
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
