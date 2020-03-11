@@ -111,7 +111,7 @@ def tolist(value):
         return [value]
 
 def arraytolistrecursive(value):
-    if hasattr(value, '__iter__'):
+    if hasattr(value, '__iter__') and not isinstance(value, str):
         return [arraytolistrecursive(v) for v in value]
     else:
         return value
