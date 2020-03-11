@@ -842,7 +842,6 @@ def _update_figures(b, bundleid, affected_ps=None):
             # draw_title=draw_title,
             # tight_layout=tight_layout,
             # subplot_grid=subplot_grid,
-            print("*** afig", afig)
             afig.save(os.path.join(_dir_tmpimages, '{}_{}.afig'.format(bundleid, figure)), renders=[render_kwargs])
         except Exception as err:
             if app._verbose:
@@ -1092,11 +1091,19 @@ def bundle_method(msg):
     # TODO: these should now already be handled in ps_list for rename_*
     # we could also include these in the output to all methods from PHOEBE
     # and then could remove all the logic here?
-    if method not in ['run_compute', 'attach_job']:
+    if method in ['add_solver', 'add_dataset', 'remove_solver', 'remove_dataset', 'rename_dataset']:
+        ps_list += b._handle_lc_choiceparams(return_changes=True)
+
+    if method in ['add_distribution', 'remove_distribution', 'rename_distribution', 'run_solver', 'import_solution', 'rename_solution', 'remove_solution']:
+        ps_list += b._handle_computesamplefrom_selectparams(return_changes=True)
+
+    if method not in ['run_compute', 'run_solver', 'attach_job']:
         ps_list += b._handle_pblum_defaults(return_changes=True)
         ps_list += b._handle_dataset_selectparams(return_changes=True)
         ps_list += b._handle_compute_selectparams(return_changes=True)
         ps_list += b._handle_component_selectparams(return_changes=True)
+        ps_list += b._handle_solution_choiceparams(return_changes=True)
+        ps_list += b._handle_computesamplefrom_selectparams(return_changes=True)
 
     if method in ['attach_job'] and b.get_value(uniqueid=msg['uniqueid'], check_visible=False) == 'loaded':
         # we want to wait to do this until attach_job, if we do it after run_compute
@@ -1134,6 +1141,9 @@ def bundle_method(msg):
         elif method == 'import_model':
             new_context = 'model'
             packet['add_filter'] = {'model': ps.model}
+        elif method == 'import_solution':
+            new_context = 'solution'
+            packet['add_filter'] = {'solution': ps.solution}
 
         emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
         # flush so the changes goes through before running checks and updating figures
