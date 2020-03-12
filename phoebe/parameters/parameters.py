@@ -4279,7 +4279,7 @@ class ParameterSet(object):
                         if not np.any(np.isfinite(lnp)):
                             continue
                         kwargs = _deepcopy(kwargs)
-                        kwargs['x'] = np.arange(len(lnp))*thin+burnin
+                        kwargs['x'] = np.arange(len(lnp), dtype=float)*thin+burnin
                         kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
                         kwargs['y'] = lnp
                         kwargs['ylabel'] = 'lnprobability'
@@ -4311,7 +4311,7 @@ class ParameterSet(object):
 
                             samples_y = samples[:, walker_ind, parameter_ind]
 
-                            kwargs['x'] = np.arange(len(samples_y))*thin+burnin
+                            kwargs['x'] = np.arange(len(samples_y), dtype=float)*thin+burnin
                             kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
 
                             kwargs['y'] = samples_y
