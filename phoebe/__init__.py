@@ -797,7 +797,7 @@ def _get_phoebe_funcs(module, devel=False):
 
     if not devel:
         ignore += ['pulsation']
-        ignore += ['ellc', 'jktebop', 'photodynam']
+        ignore += ['jktebop', 'photodynam']
 
     if module.__name__.split('.')[-1] == 'solver':
         ret = []

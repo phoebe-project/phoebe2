@@ -448,7 +448,7 @@ def emcee(b, **kwargs):
 
     params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]
 
-    params += [ChoiceParameter(qualifier='style', value=kwargs.get('style', 'corner'), choices=['corner', 'lnprobability', 'walks'], description='style of plot')]
+    params += [ChoiceParameter(qualifier='style', value=kwargs.get('style', 'corner'), choices=['corner', 'failed', 'lnprobability', 'walks'], description='style of plot')]
 
     params += [ChoiceParameter(visible_if='style:walks', qualifier='y', value=kwargs.get('y', ''), choices=[''], description='Parameter samples to plot along y-axis')]
 

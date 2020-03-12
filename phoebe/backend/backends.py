@@ -11,7 +11,7 @@ from copy import deepcopy
 import itertools
 
 from phoebe.parameters import dataset as _dataset
-from phoebe.parameters import StringParameter, ParameterSet
+from phoebe.parameters import StringParameter, DictParameter, ArrayParameter, ParameterSet
 from phoebe import dynamics
 from phoebe.backend import universe, etvs, horizon_analytic
 from phoebe.atmospheres import passbands
@@ -58,6 +58,18 @@ logger.addHandler(logging.NullHandler())
 _backends_that_require_meshing = ['phoebe', 'legacy']
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
+
+def _simplify_error_message(msg):
+    # simplify error messages so values, etc, don't create separate
+    # entries in the returned dictionary.
+    msg = str(msg) # in case an exception object
+    if 'not within limits' in msg:
+        msg = 'outside parameter limits'
+    elif 'overflow' in msg:
+        msg = 'roche overflow'
+    elif 'lookup ld_coeffs' in msg:
+        msg = 'ld_coeffs lookup out-of-bounds'
+    return msg
 
 def _needs_mesh(b, dataset, kind, component, compute):
     """
@@ -127,7 +139,7 @@ def _expand_mesh_times(b, dataset_ps, component):
 
     return this_times
 
-def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
+def _extract_from_bundle(b, compute, dataset=None, times=None, allow_oversample=False,
                          by_time=True, include_mesh=True, **kwargs):
     """
     Extract a list of sorted times and the datasets that need to be
@@ -169,9 +181,14 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
     # but packetlist may be longer than infolist (since mesh passband-columns allow
     # now have their own entries.)
 
-    for dataset in b.filter(qualifier='enabled', compute=compute, value=True).datasets:
-        dataset_ps = b.filter(context='dataset', dataset=dataset)
-        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute)
+    if dataset is None:
+        datasets = b.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).datasets
+    else:
+        datasets = b.filter(dataset=dataset, context='dataset', **_skip_filter_checks).datasets
+
+    for dataset in datasets:
+        dataset_ps = b.filter(context='dataset', dataset=dataset, **_skip_filter_checks)
+        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, **_skip_filter_checks)
         dataset_kind = dataset_ps.kind
         time_qualifier = _timequalifier_by_kind(dataset_kind)
         if dataset_kind in ['lc']:
@@ -190,7 +207,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
             elif dataset_kind == 'mesh' and include_mesh:
                 this_times = _expand_mesh_times(b, dataset_ps, component)
             elif dataset_kind in ['lp']:
-                this_times = np.unique(dataset_ps.get_value(qualifier='compute_times', unit=u.d))
+                this_times = np.unique(dataset_ps.get_value(qualifier='compute_times', unit=u.d, **_skip_filter_checks))
                 if not len(this_times):
                     # then we have Parameters tagged by times, this will probably
                     # also apply to spectra.
@@ -200,9 +217,9 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
                 # print "*****", dataset_kind, dataset_ps.kinds, timequalifier, timecomponent
                 # NOTE: compute_times is not component-dependent, but times can be (i.e. for RV datasets)
-                this_times = dataset_ps.get_value(qualifier='compute_times', unit=u.d)
+                this_times = dataset_ps.get_value(qualifier='compute_times', unit=u.d, **_skip_filter_checks)
                 if not len(this_times):
-                    this_times = dataset_ps.get_value(qualifier=timequalifier, component=timecomponent, unit=u.d)
+                    this_times = dataset_ps.get_value(qualifier=timequalifier, component=timecomponent, unit=u.d, **_skip_filter_checks)
 
                 # we may also need to compute at other times if requested by a
                 # mesh with this dataset in datasets@mesh
@@ -224,7 +241,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                 # NOTE: here we assume that the dataset times are at mid-exposure,
                 # if we want to allow more flexibility, we'll need a parameter
                 # that gives this option and different logic for each case.
-                exptime = dataset_ps.get_value(qualifier='exptime', unit=u.d)
+                exptime = dataset_ps.get_value(qualifier='exptime', unit=u.d, **_skip_filter_checks)
                 fti_oversample = dataset_compute_ps.get_value(qualifier='fti_oversample', check_visible=False, **kwargs)
                 # NOTE: if changing this, also change in bundle.run_compute
                 this_times = np.array([np.linspace(t-exptime/2., t+exptime/2., fti_oversample) for t in this_times]).flatten()
@@ -232,7 +249,7 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
             if dataset_kind in ['lp']:
                 # for line profiles and spectra, we only need to compute synthetic
                 # model if there are defined wavelengths
-                this_wavelengths = dataset_ps.get_value(qualifier='wavelengths', component=component)
+                this_wavelengths = dataset_ps.get_value(qualifier='wavelengths', component=component, **_skip_filter_checks)
             else:
                 this_wavelengths = None
 
@@ -250,10 +267,10 @@ def _extract_from_bundle(b, compute, times=None, allow_oversample=False,
                     # of columns@mesh.  Let's store the needed information here,
                     # where mesh_datasets and mesh_kinds correspond to each
                     # other (but mesh_columns does not).
-                    info['mesh_coordinates'] = dataset_ps.get_value(qualifier='coordinates', expand=True)
-                    info['mesh_columns'] = dataset_ps.get_value(qualifier='columns', expand=True)
+                    info['mesh_coordinates'] = dataset_ps.get_value(qualifier='coordinates', expand=True, **_skip_filter_checks)
+                    info['mesh_columns'] = dataset_ps.get_value(qualifier='columns', expand=True, **_skip_filter_checks)
                     info['mesh_datasets'] = list(set([c.split('@')[1] for c in info['mesh_columns'] if len(c.split('@'))>1]))
-                    info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').kind for ds in info['mesh_datasets']]
+                    info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset', **_skip_filter_checks).kind for ds in info['mesh_datasets']]
 
                 if by_time:
                     for time_ in this_times:
@@ -373,7 +390,7 @@ class BaseBackend(object):
         """
         raise NotImplementedError("run_checks is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def _get_packet_and_syns(self, b, compute, times=[], **kwargs):
+    def _get_packet_and_syns(self, b, compute, dataset=None, times=[], **kwargs):
         """
         see get_packet_and_syns.  _get_packet_and_syns provides the custom parts
         of the packet that are Backend-dependent.
@@ -385,7 +402,7 @@ class BaseBackend(object):
         """
         raise NotImplementedError("_get_packet_and_syns is not implemented by the {} backend".format(self.__class__.__name__))
 
-    def get_packet_and_syns(self, b, compute, times=[], **kwargs):
+    def get_packet_and_syns(self, b, compute, dataset=None, times=[], **kwargs):
         """
         get_packet is called by the master and must get all information necessary
         to send to all workers.  The returned packet will be passed on as
@@ -396,7 +413,7 @@ class BaseBackend(object):
         * backend: the class name will be passed on in the packet so the worker can call the correct backend
         * all kwargs will be passed on verbatim
         """
-        packet, new_syns = self._get_packet_and_syns(b, compute, times, **kwargs)
+        packet, new_syns = self._get_packet_and_syns(b, compute, dataset, times, **kwargs)
         for k,v in kwargs.items():
             packet[k] = v
 
@@ -432,7 +449,7 @@ class BaseBackend(object):
                 for packet in packetlist:
                     # single parameter
                     try:
-                        new_syns.set_value(check_visible=False, check_default=False, **packet)
+                        new_syns.set_value(check_visible=False, check_default=False, ignore_readonly=True, **packet)
                     except Exception as err:
                         raise ValueError("failed to set value from packet: {}.  Original error: {}".format(packet, str(err)))
 
@@ -447,14 +464,14 @@ class BaseBackend(object):
         # send the results back to the master (root=0)
         mpi.comm.gather(rpacketlists, root=0)
 
-    def run(self, b, compute, times=[], **kwargs):
+    def run(self, b, compute, dataset=None, times=[], **kwargs):
         """
         if within mpirun, workers should call _run_worker instead of run
         """
         self.run_checks(b, compute, times, **kwargs)
 
         logger.debug("rank:{}/{} calling get_packet_and_syns".format(mpi.myrank, mpi.nprocs))
-        packet, new_syns = self.get_packet_and_syns(b, compute, times, **kwargs)
+        packet, new_syns = self.get_packet_and_syns(b, compute, dataset, times, **kwargs)
 
         if mpi.enabled:
             # broadcast the packet to ALL workers
@@ -490,12 +507,13 @@ class BaseBackendByTime(BaseBackend):
         """
         raise NotImplementedError("_run_single_time not implemented by the {} backend".format(self.__class__.__name__))
 
-    def _get_packet_and_syns(self, b, compute, times=[], **kwargs):
+    def _get_packet_and_syns(self, b, compute, dataset=None, times=[], **kwargs):
         # extract times/infolists/new_syns from the bundle
         # if the input for times is an empty list, we'll obey dataset times
         # otherwise all datasets will be overridden with the times provided
         # see documentation in _extract_from_bundle for details on the output variables.
         times, infolists, new_syns = _extract_from_bundle(b, compute=compute,
+                                                          dataset=dataset,
                                                           times=times,
                                                           allow_oversample=True,
                                                           by_time=True,
@@ -543,12 +561,13 @@ class BaseBackendByDataset(BaseBackend):
         """
         raise NotImplementedError("_run_single_dataset not implemented by the {} backend".format(self.__class__.__name__))
 
-    def _get_packet_and_syns(self, b, compute, times=[], **kwargs):
+    def _get_packet_and_syns(self, b, compute, dataset=None, times=[], **kwargs):
         # self.run_checks(b, compute, times, **kwargs)
 
         # see documentation in _extract_from_bundle for details on the output variables.
         infolist, new_syns = _extract_from_bundle(b, compute=compute,
-                                               times=times, by_time=False)
+                                                  dataset=dataset,
+                                                  times=times, by_time=False)
 
         packet = {'infolist': infolist}
 
@@ -571,10 +590,12 @@ class BaseBackendByDataset(BaseBackend):
 
 def _call_run_single_model(args):
     # NOTE: b should be a deepcopy here to prevent conflicts
-    b, samples, sample_from, sample_from_combine, compute, times, compute_kwargs, i = args
+    b, samples, sample_from, sample_from_combine, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i = args
     # override sample_from
     compute_kwargs['sample_from'] = []
 
+    success_samples = []
+    failed_samples = {}
 
     while True:
         # print("trying with samples={}".format(samples))
@@ -586,18 +607,31 @@ def _call_run_single_model(args):
             if isinstance(value, np.ndarray):
                 value = value[0]
             # print("setting uniqueid={}, value={}".format(uniqueid, value))
-            b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+            try:
+                b.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+            except Exception as err:
+                if expose_samples:
+                    msg = _simplify_error_message(err)
+                    failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
+
+                samples = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=None, keys='uniqueid')
+                break
 
         try:
-            model_ps = b.run_compute(compute=compute, times=times, do_create_fig_params=False, model='sample_{}'.format(i), **compute_kwargs)
-        except:
+            model_ps = b.run_compute(compute=compute, dataset=dataset, times=times, do_create_fig_params=False, model='sample_{}'.format(i), **compute_kwargs)
+        except Exception as err:
             # new random draw for the next attempt
             logger.warning("model failed: drawing new sample")
+            if expose_failed:
+                msg = _simplify_error_message(err)
+                failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
+
             samples = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=None, keys='uniqueid')
             # print("redrawing samples after failed: {}".format(samples))
         else:
-            # print("model success")
-            return model_ps.to_json()
+            if expose_samples:
+                success_samples += list(samples.values())
+            return model_ps.to_json(), success_samples, failed_samples
 
 
 class SampleOverModel(object):
@@ -617,7 +651,7 @@ class SampleOverModel(object):
         # mpi.comm.gather(rpacketlists, root=0)
         return self.run(**packet)
 
-    def run(self, b, compute, times=[], **kwargs):
+    def run(self, b, compute, dataset=None, times=[], **kwargs):
         """
         if within mpirun, workers should call _run_worker instead of run
         """
@@ -653,6 +687,8 @@ class SampleOverModel(object):
             sample_from_combine = compute_ps.get_value(qualifier='sample_from_combine', sample_from_combine=kwargs.get('sample_from_combine', None), **_skip_filter_checks)
             sample_num = compute_ps.get_value(qualifier='sample_num', sample_num=kwargs.get('sample_num', None), **_skip_filter_checks)
             sample_mode = compute_ps.get_value(qualifier='sample_mode', sample_mode=kwargs.get('sample_mode', None), **_skip_filter_checks)
+            expose_samples = compute_ps.get_value(qualifier='expose_samples', expose_samples=kwargs.get('expose_samples', None), **_skip_filter_checks)
+            expose_failed = compute_ps.get_value(qualifier='expose_failed', expose_failed=kwargs.get('expose_failed', None), **_skip_filter_checks)
 
             # samples = range(sample_num)
             sample_dict = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=sample_num, keys='uniqueid')
@@ -664,9 +700,9 @@ class SampleOverModel(object):
             bexcl = b.copy()
             bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
             bexcl.remove_parameters_all(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks)
-            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_from, sample_from_combine, compute, times, compute_kwargs, i) for i in range(sample_num)]
+            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_from, sample_from_combine, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i) for i in range(sample_num)]
             # models = [_call_run_single_model(args) for args in args_per_sample]
-            models = list(pool.map(_call_run_single_model, args_per_sample))
+            models_success_failed = list(pool.map(_call_run_single_model, args_per_sample))
         else:
             pool.wait()
 
@@ -681,9 +717,20 @@ class SampleOverModel(object):
             # TODO: merge the models as requested by sample_mode
 
             # the first entry only has the figure parameter, so we'll make a copy of that to re-popluate with new values
-            # TODO: make sample_mode a read-only parameter
+            models = [msf[0] for msf in models_success_failed]
             ret_ps = ParameterSet(models[0])
             all_models_ps = ParameterSet(list(itertools.chain.from_iterable(models)))
+
+            # merge failed dicts
+            if expose_samples:
+                success_samples = [msf[1] for msf in models_success_failed]
+
+            if expose_failed:
+                samples_dicts = [msf[2] for msf in models_success_failed]
+                failed_samples = {}
+                for samples_dict in samples_dicts:
+                    for msg, samples in samples_dict.items():
+                        failed_samples[msg] = failed_samples.get(msg, []) + samples
 
             for param in ret_ps.to_list():
                 param._bundle = None
@@ -702,7 +749,16 @@ class SampleOverModel(object):
                 param._bundle = b
                 param._model = kwargs.get('model')
 
-            return ret_ps + ParameterSet([StringParameter(qualifier='sample_mode', value=sample_mode, description='mode used for sampling - CHANGE WITH CAUTION')])
+            addl_params = []
+            addl_params += [StringParameter(qualifier='sample_mode', value=sample_mode, description='mode used for sampling - CHANGE WITH CAUTION')]
+            addl_params += [ArrayParameter(qualifier='sampled_uniqueids', value=list(sample_dict.keys()), description='uniqueids of sampled parameters')]
+            addl_params += [ArrayParameter(qualifier='sampled_twigs', value=[b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in sample_dict.keys()], description='twigs of sampled parameters')]
+            if expose_samples:
+                addl_params += [ArrayParameter(qualifier='samples', value=success_samples, description='samples that were drawn and successfully computed.')]
+            if expose_failed:
+                addl_params += [DictParameter(qualifier='failed_samples', value=failed_samples, description='samples that were drawn but failed to compute.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
+
+            return ret_ps + ParameterSet(addl_params)
         return
 
 

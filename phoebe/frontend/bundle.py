@@ -15,6 +15,7 @@ from datetime import datetime
 from distutils.version import StrictVersion
 from copy import deepcopy as _deepcopy
 import pickle as _pickle
+from inspect import getsource as _getsource
 
 from scipy.optimize import curve_fit as cfit
 
@@ -66,13 +67,27 @@ _skip_filter_checks = {'check_default': False, 'check_visible': False}
 # Attempt imports for client requirements
 try:
     import requests
-    import urllib2
+    if sys.version_info[0] < 3:
+      from urllib2 import urlopen as _urlopen
+      from urllib2 import URLError
+    else:
+      from urllib.request import urlopen as _urlopen
+      from urllib.error import URLError
+
     from socketIO_client import SocketIO, BaseNamespace
     #  pip install -U socketIO-client
 except ImportError:
     _can_client = False
 else:
     _can_client = True
+
+try:
+    import celerite as _celerite
+except ImportError:
+    logger.warning("celerite not installed: only required for gaussian processes")
+    _use_celerite = False
+else:
+    _use_celerite = True
 
 
 def _get_add_func(mod, func, return_none_if_not_found=False):
@@ -551,7 +566,7 @@ class Bundle(ParameterSet):
         logger.debug("importing from PHOEBE v {} into v {}".format(phoebe_version_import, phoebe_version_this))
 
         # update the entry in the PS, so if this is saved again it will have the new version
-        b.set_value(qualifier='phoebe_version', value=__version__, check_default=False, check_visible=False)
+        b.set_value(qualifier='phoebe_version', value=__version__, check_default=False, check_visible=False, ignore_readonly=True)
 
         if phoebe_version_import == phoebe_version_this:
             return b
@@ -1114,7 +1129,7 @@ class Bundle(ParameterSet):
 
         return b
 
-    def save(self, filename, clear_history=True, compact=False):
+    def save(self, filename, clear_history=True, compact=False, incl_uniqueid=True):
         """
         Save the bundle to a JSON-formatted ASCII file.
 
@@ -1139,9 +1154,11 @@ class Bundle(ParameterSet):
             # but rather skip the context when saving
             self.remove_history()
 
+        if not incl_uniqueid:
+            logger.warning("saving without uniqueids could cause issues with solutions, use with caution")
         # TODO: add option for clear_models, clear_solution
         # NOTE: PS.save will handle os.path.expanduser
-        return super(Bundle, self).save(filename, incl_uniqueid=True,
+        return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
                                         compact=compact)
 
     def export_legacy(self, filename, compute=None, skip_checks=False):
@@ -1181,8 +1198,8 @@ class Bundle(ParameterSet):
         [NOT IMPLEMENTED]
         """
         try:
-            resp = urllib2.urlopen("{}/info".format(server))
-        except urllib2.URLError:
+            resp = _urlopen("{}/info".format(server))
+        except URLError:
             test_passed = False
         else:
             resp = json.loads(resp.read())
@@ -2110,6 +2127,29 @@ class Bundle(ParameterSet):
                     param._value = choices[0]
                 else:
                     param._value = self.hierarchy.get_top()
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_component_choiceparams(self, return_changes=False):
+        affected_params = []
+
+        # currently assuming we want a component with period (which is the case for bls_period component parameter)
+        choices = self.filter(context='component', qualifier='period', **_skip_filter_checks).components
+
+        for param in self.filter(qualifier='component', context='solver', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                param._value = self.hierarchy.get_top()
             else:
                 changed = False
 
@@ -3346,6 +3386,12 @@ class Bundle(ParameterSet):
                             self.filter(uniqueid=self._failed_constraints).to_list(),
                             True)
 
+        # dependency checks
+        if not _use_celerite and len(self.filter(context='feature', kind='gaussian_process').features):
+            report.add_item(self,
+                            "Gaussian process features attached, but celerite dependency not installed",
+                            [],
+                            True)
 
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol and irrad_frac_refl_bol
@@ -3524,7 +3570,8 @@ class Bundle(ParameterSet):
                          'Foreman-Mackey et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F',
                          'Speagle (2019)': 'https://ui.adsabs.harvard.edu/abs/2019arXiv190402180S',
                          'Skilling (2004)': 'https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S',
-                         'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944'
+                         'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
+                         'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F'
                         }
 
         # ref: [reasons] pairs
@@ -3600,6 +3647,10 @@ class Bundle(ParameterSet):
             elif atmname == 'phoenix':
                 recs = _add_reason(recs, 'Husser et al. (2013)', 'phoenix atmosphere tables for limb-darkening interpolation')
 
+        # provide any references from features
+        if len(self.filter(context='feature', kind='gaussian_process').features):
+            recs = _add_reason(recs, 'Foreman-Mackey et al. (2017)', 'celerite for gaussian processes')
+
         # provide references from dependencies
         recs = _add_reason(recs, 'numpy/scipy', 'numpy/scipy dependency within PHOEBE')
         recs = _add_reason(recs, 'astropy', 'astropy dependency within PHOEBE')
@@ -3607,9 +3658,10 @@ class Bundle(ParameterSet):
         return {r: {'url': citation_urls.get(r, None), 'uses': v} for r,v in recs.items()}
 
 
-    def add_feature(self, kind, component=None, **kwargs):
+    def add_feature(self, kind, component=None, dataset=None, **kwargs):
         """
-        Add a new feature (spot, etc) to a component in the system.  If not
+        Add a new feature (spot, gaussian process, etc) to a component or
+        dataset in the system.  If not
         provided, `feature` (the name of the new feature) will be created
         for you and can be accessed by the `feature` attribute of the returned
         <phoebe.parameters.ParameterSet>.
@@ -3627,6 +3679,12 @@ class Bundle(ParameterSet):
         Available kinds can be found in <phoebe.parameters.feature> or by calling
         <phoebe.list_available_features> and include:
         * <phoebe.parameters.feature.spot>
+        * <phoebe.parameters.feature.gaussian_process>
+
+        See the entries above to see the valid kinds for `component` and `dataset`
+        based on the type of feature.  An error will be raised if the passed value
+        for `component` and/or `dataset` are not allowed by the type of feature
+        with kind `kind`.
 
         Arguments
         -----------
@@ -3637,7 +3695,9 @@ class Bundle(ParameterSet):
              of a function (as a string) that can be found in the
              <phoebe.parameters.compute> module.
         * `component` (string, optional): name of the component to attach the
-            feature.  Note: only optional if only a single possibility otherwise.
+            feature.  Required for features that must be attached to a component.
+        * `dataset` (string, optional): name of the dataset to attach the feature.
+            Required for features that must be attached to a dataset.
         * `feature` (string, optional): name of the newly-created feature.
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing feature with the same `feature` tag.  If False,
@@ -3656,7 +3716,10 @@ class Bundle(ParameterSet):
         Raises
         ----------
         * NotImplementedError: if a required constraint is not implemented.
-        * ValueError: if `component` is required but is not provided.
+        * ValueError: if `component` is required but is not provided or is of
+            the wrong kind.
+        * ValueError: if `dataset` is required but it not provided or is of the
+            wrong kind.
         """
         func = _get_add_func(_feature, kind)
 
@@ -3671,24 +3734,33 @@ class Bundle(ParameterSet):
 
         self._check_label(kwargs['feature'], allow_overwrite=kwargs.get('overwrite', False))
 
-        if component is None:
-            stars = self.hierarchy.get_meshables()
-            if len(stars) == 1:
-                component = stars[0]
-            else:
-                raise ValueError("must provide component")
+        if component is not None:
+            if component not in self.components:
+                raise ValueError("component '{}' not one of {}".format(component, self.components))
 
-        if component not in self.components:
-            raise ValueError('component not recognized')
+            component_kind = self.filter(component=component, context='component').kind
+        else:
+            component_kind = None
 
-        component_kind = self.filter(component=component, context='component').kind
         if not _feature._component_allowed_for_feature(func.__name__, component_kind):
             raise ValueError("{} does not support component with kind {}".format(func.__name__, component_kind))
+
+        if dataset is not None:
+            if dataset not in self.datasets:
+                raise ValueError("dataset '{}' not one of {}".format(dataset, self.datasets))
+
+            dataset_kind = self.filter(dataset=dataset, context='dataset').kind
+        else:
+            dataset_kind = None
+
+        if not _feature._dataset_allowed_for_feature(func.__name__, dataset_kind):
+            raise ValueError("{} does not support dataset with kind {}".format(func.__name__, dataset_kind))
 
         params, constraints = func(**kwargs)
 
         metawargs = {'context': 'feature',
                      'component': component,
+                     'dataset': dataset,
                      'feature': kwargs['feature'],
                      'kind': func.__name__}
 
@@ -3935,7 +4007,42 @@ class Bundle(ParameterSet):
 
     def rename_spot(self, old_feature, new_feature, overwrite=False):
         """
-        Shortcut to <phoebe.frontend.bundle.Bundle.remove_feature> but with kind='spot'.
+        Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='spot'.
+        """
+        return self.rename_feature(old_feature, new_feature, overwrite=overwrite)
+
+    def add_gaussian_process(self, dataset=None, feature=None, **kwargs):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='gaussian_process'.
+        """
+        if dataset is None:
+            if len(self.datasets)==1:
+                dataset = self.datasets[0]
+            else:
+                raise ValueError("must provide dataset for gaussian_process")
+
+        kwargs.setdefault('dataset', dataset)
+        kwargs.setdefault('feature', feature)
+        return self.add_feature('gaussian_process', **kwargs)
+
+    def get_gaussian_process(self, feature=None, **kwargs):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.get_feature> but with kind='gaussian_process'.
+
+        Arguments
+        ----------
+        * `feature`: (string, optional, default=None): the name of the feature
+        * `**kwargs`: any other tags to do the filtering (excluding feature, kind, and context)
+
+        Returns:
+        * a <phoebe.parameters.ParameterSet> object.
+        """
+        kwargs.setdefault('kind', 'gaussian_process')
+        return self.get_feature(feature, **kwargs)
+
+    def rename_gaussian_process(self, old_feature, new_feature, overwrite=False):
+        """
+        Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='gaussian_process'.
         """
         return self.rename_feature(old_feature, new_feature, overwrite=overwrite)
 
@@ -4055,6 +4162,7 @@ class Bundle(ParameterSet):
         ret_ps += ParameterSet(self._handle_pblum_defaults(return_changes=True))
         ret_ps += ParameterSet(self._handle_fitparameters_selecttwigparams(return_changes=True))
         ret_ps += ParameterSet(self._handle_orbit_choiceparams(return_changes=True))
+        ret_ps += ParameterSet(self._handle_component_choiceparams(return_changes=True))
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -7559,7 +7667,7 @@ class Bundle(ParameterSet):
 
         return self.filter(compute=new_compute)
 
-    def _prepare_compute(self, compute, model, **kwargs):
+    def _prepare_compute(self, compute, model, dataset, **kwargs):
         """
         """
         # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
@@ -7654,21 +7762,26 @@ class Bundle(ParameterSet):
         # compute_ so we don't write over compute which we need if detach=True
         for compute_ in computes:
             # TODO: filter by value instead of if statement once implemented
-            for enabled_param in self.filter(qualifier='enabled',
-                                             compute=compute_,
-                                             context='compute',
-                                             check_visible=False).to_list():
-                if enabled_param.feature is None and enabled_param.get_value():
-                    item = (enabled_param.dataset, enabled_param.component)
-                    if item in datasets:
-                        raise ValueError("dataset {}@{} is enabled in multiple compute options".format(item[0], item[1]))
-                    datasets.append(item)
+            if dataset is None:
+                for enabled_param in self.filter(qualifier='enabled',
+                                                 compute=compute_,
+                                                 context='compute',
+                                                 check_visible=False).to_list():
+                    if enabled_param.feature is None and enabled_param.get_value():
+                        item = (enabled_param.dataset, enabled_param.component)
+                        if item in datasets:
+                            raise ValueError("dataset {}@{} is enabled in multiple compute options".format(item[0], item[1]))
+                        datasets.append(item)
+            elif isinstance(dataset, list) or isinstance(dataset, tuple) or isinstance(dataset, str):
+                datasets += self.filter(dataset=dataset, context='dataset', **_skip_filter_checks).datasets
+            elif isinstance(dataset, dict):
+                datasets += self.filter(dataset=dataset.get(compute_, []), context='dataset', **_skip_filter_checks).datasets
 
 
         return model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps
 
 
-    def _write_export_compute_script(self, script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs):
+    def _write_export_compute_script(self, script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, kwargs):
         """
         """
         f = open(script_fname, 'w')
@@ -7679,7 +7792,7 @@ class Bundle(ParameterSet):
         f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['distribution', 'model', 'figure', 'solution', 'constraint'], **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
-        compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('do_create_fig_params', do_create_fig_params)]
+        compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
         compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
         f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
         # as the return from run_compute just does a filter on model=model,
@@ -7696,7 +7809,8 @@ class Bundle(ParameterSet):
         return script_fname, out_fname
 
     def export_compute(self, script_fname, out_fname=None,
-                       compute=None, model=None, pause=False,
+                       compute=None, model=None, dataset=None,
+                       pause=False,
                        import_from_older=False, **kwargs):
         """
         Export a script to call run_compute externally (in a different thread
@@ -7730,6 +7844,10 @@ class Bundle(ParameterSet):
             of `overwrite` (see below).   See also
             <phoebe.frontend.bundle.Bundle.rename_model> to rename a model after
             creation.
+        * `dataset` (list, dict, or string, optional, default=None): filter for which datasets
+            should be computed.  If provided as a dictionary, keys should be compute
+            labels provided in `compute`.  If None, will use the `enabled` parameters in the
+            `compute` options.  If not None, will override all `enabled` parameters.
         * `pause` (bool, optional, default=False): whether to raise an input
             with instructions for running the exported script and calling
             <phoebe.frontend.bundle.Bundle.import_model>.  Particularly
@@ -7754,8 +7872,8 @@ class Bundle(ParameterSet):
           in the model being written to `out_fname`.
 
         """
-        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
-        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, import_from_older, kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, dataset, **kwargs)
+        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -7771,7 +7889,7 @@ class Bundle(ParameterSet):
     @send_if_client
     def run_compute(self, compute=None, model=None,
                     detach=False,
-                    times=None, **kwargs):
+                    dataset=None, times=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset(s) using
         a specified set of compute options.
@@ -7812,6 +7930,10 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.get_model> and
             <phoebe.parameters.JobParameter>
             for details on how to check the job status and retrieve the results.
+        * `dataset` (list, dict, or string, optional, default=None): filter for which datasets
+            should be computed.  If provided as a dictionary, keys should be compute
+            labels provided in `compute`.  If None, will use the `enabled` parameters in the
+            `compute` options.  If not None, will override all `enabled` parameters.
         * `times` (list, optional, EXPERIMENTAL): override the times at which to compute the model.
             NOTE: this only (temporarily) replaces the time array for datasets
             with times provided (ie empty time arrays are still ignored).  So if
@@ -7863,7 +7985,7 @@ class Bundle(ParameterSet):
             times = [times]
 
 
-        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, **kwargs)
+        model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, dataset, **kwargs)
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
@@ -7903,7 +8025,7 @@ class Bundle(ParameterSet):
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
-            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, do_create_fig_params, False, kwargs)
+            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, False, kwargs)
 
             script_fname = os.path.abspath(script_fname)
             cmd = mpi.detach_cmd.format(script_fname)
@@ -7987,6 +8109,14 @@ class Bundle(ParameterSet):
 
         try:
             kwargs_sample_from = kwargs.pop('sample_from', None)
+
+            if 'solution' in kwargs.keys():
+                if kwargs_sample_from is not None or np.any([len(p.get_value()) for p in self.filter(qualifier='sample_from', compute=computes, **_skip_filter_checks).to_list()]) :
+                    raise ValueError("cannot apply both solution and sample_from")
+                else:
+                    logger.warning("applying passed solution ({}) to sample_from".format(kwargs.get('solution')))
+                    kwargs_sample_from = kwargs.pop('solution')
+
             for compute in computes:
 
                 computeparams = self.get_compute(compute=compute)
@@ -8015,9 +8145,14 @@ class Bundle(ParameterSet):
                                 remove_dists.append(distribution)
                                 sample_from[sample_from.index(sample_from_item)] = distribution
                             else:
-                                raise ValueError("could not find '{}' in distributions or solutions".format(sample_from_item))
+                                raise ValueError("could not find '{}' in distributions ({}) or solutions ({})".format(sample_from_item, self.distributions, self.solutions))
 
-                    params = backends.SampleOverModel().run(self, compute, times=times, sample_from=sample_from, **kwargs)
+                    params = backends.SampleOverModel().run(self, compute,
+                                                            dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
+                                                            times=times,
+                                                            sample_from=sample_from,
+                                                            **kwargs)
+
                     self._attach_params(params, check_copy_for=False, **metawargs)
 
                     self.remove_distribution(distribution=remove_dists)
@@ -8029,9 +8164,10 @@ class Bundle(ParameterSet):
                 compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
                 # compute_func = getattr(backends, computeparams.kind)
 
-
-                params = compute_class().run(self, compute, times=times, **kwargs)
-
+                params = compute_class().run(self, compute,
+                                             dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
+                                             times=times,
+                                             **kwargs)
 
                 # average over any exposure times before attaching parameters
                 if computeparams.kind == 'phoebe':
@@ -8042,19 +8178,19 @@ class Bundle(ParameterSet):
                     # backends._extract_info_from_bundle_by_dataset.  We'd also
                     # need to make sure that exptime is not being passed to any
                     # alternate backend - and ALWAYS handle it here
-                    for dataset in params.datasets:
+                    for ds in params.datasets:
                         # not all dataset-types currently support exposure times.
                         # Once they do, this ugly if statement can be removed
-                        if len(self.filter(dataset=dataset, qualifier='exptime')):
-                            exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
+                        if len(self.filter(dataset=ds, qualifier='exptime')):
+                            exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
                             if exptime > 0:
-                                logger.info("handling fti for dataset='{}'".format(dataset))
-                                if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
-                                    times_ds = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset')
+                                logger.info("handling fti for dataset='{}'".format(ds))
+                                if self.get_value(qualifier='fti_method', dataset=ds, compute=compute, context='compute', **kwargs)=='oversample':
+                                    times_ds = self.get_value(qualifier='compute_times', dataset=ds, context='dataset')
                                     if not len(times_ds):
-                                        times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
-                                    # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
-                                    fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
+                                        times_ds = self.get_value(qualifier='times', dataset=ds, context='dataset')
+                                    # exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
+                                    fti_oversample = self.get_value(qualifier='fti_oversample', dataset=ds, compute=compute, context='compute', check_visible=False, **kwargs)
                                     # NOTE: this is hardcoded for LCs which is the
                                     # only dataset that currently supports oversampling,
                                     # but this will need to be generalized if/when
@@ -8066,8 +8202,8 @@ class Bundle(ParameterSet):
                                     # exposures to "overlap" each other, so we'll
                                     # later need to determine which times (and
                                     # therefore fluxes) belong to which datapoint
-                                    times_oversampled_sorted = params.get_value(qualifier='times', dataset=dataset)
-                                    fluxes_oversampled = params.get_value(qualifier='fluxes', dataset=dataset)
+                                    times_oversampled_sorted = params.get_value(qualifier='times', dataset=ds)
+                                    fluxes_oversampled = params.get_value(qualifier='fluxes', dataset=ds)
 
                                     for i,t in enumerate(times_ds):
                                         # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
@@ -8077,17 +8213,78 @@ class Bundle(ParameterSet):
 
                                         fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
 
-                                    params.set_value(qualifier='times', dataset=dataset, value=times_ds)
-                                    params.set_value(qualifier='fluxes', dataset=dataset, value=fluxes)
+                                    params.set_value(qualifier='times', dataset=ds, value=times_ds, ignore_readonly=True)
+                                    params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True)
 
 
                 self._attach_params(params, check_copy_for=False, **metawargs)
+
+                model_ps = self.get_model(model=model, **_skip_filter_checks)
+
+                # add any GPs (gaussian processes) to the returned model
+                enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
+
+
+                for ds in model_ps.datasets:
+                    gp_features = self.filter(feature=enabled_features, dataset=ds, kind='gaussian_process', **_skip_filter_checks).features
+                    if len(gp_features):
+                        if not _use_celerite:
+                            raise ImportError("gaussian processes require celerite to be installed")
+
+                        gp_kernel_classes = {'matern32': _celerite.terms.Matern32Term,
+                                              'sho': _celerite.terms.SHOTerm,
+                                              'jitter': _celerite.terms.JitterTerm}
+
+                        # build the celerite GP object from the enabled GP features attached to this dataset
+                        gp_kernels = []
+                        for gp in gp_features:
+                            gp_ps = self.filter(feature=gp, context='feature', **_skip_filter_checks)
+                            kind = gp_ps.get_value(qualifier='kernel', **_skip_filter_checks)
+
+                            kwargs = {p.qualifier: p.value for p in gp_ps.exclude(qualifier=['kernel', 'enabled']).to_list() if p.is_visible}
+                            gp_kernels.append(gp_kernel_classes.get(kind)(**kwargs))
+
+                        if len(gp_kernels) == 1:
+                            gp_kernel = _celerite.GP(gp_kernels[0])
+                        else:
+                            gp_kernel = _celerite.GP(_celerite.terms.TermSum(*gp_kernels))
+
+
+                        ds_ps = self.get_dataset(dataset=ds, **_skip_filter_checks)
+                        xqualifier = {'lp': 'wavelength'}.get(ds_ps.kind, 'times')
+                        yqualifier = {'lp': 'flux_densities', 'rv': 'rvs', 'lc': 'fluxes'}.get(ds_ps.kind)
+                        # we'll loop over components (for RVs or LPs, for example)
+                        if ds_ps.kind in ['lc']:
+                            ds_comps = [None]
+                        else:
+                            ds_comps = ds_ps.filter(qualifier=xqualifier, check_visible=True).components
+                        for ds_comp in ds_comps:
+                            ds_x = ds_ps.get_value(qualifier=xqualifier, component=ds_comp, **_skip_filter_checks)
+                            model_x = model_ps.get_value(qualifier=xqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
+                            ds_sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, **_skip_filter_checks)
+                            # TODO: do we need to inflate sigmas by lnf?
+                            if len(ds_sigmas) != len(ds_x):
+                                raise ValueError("gaussian_process requires sigma of same length as {}".format(xqualifier))
+                            gp_kernel.compute(ds_x, ds_sigmas, check_sorted=True)
+
+                            residuals = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=False)
+                            gp_y = gp_kernel.predict(residuals, model_x, return_cov=False)
+                            model_y = model_ps.get_quantity(qualifier=yqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
+
+                            # store just the GP component in the model PS as well
+                            gp_param = FloatArrayParameter(qualifier='gps', value=gp_y, default_unit=model_y.unit, readonly=True, description='GP contribution to the model {}'.format(yqualifier))
+                            y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
+                            self._attach_params([gp_param, y_nogp_param], check_copy_for=False, **metawargs)
+
+                            # update the model to include the GP contribution
+                            model_ps.set_value(qualifier=yqualifier, value=model_y.value+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
+
 
                 def _scale_fluxes(model_fluxes, scale_factor):
                     return model_fluxes * scale_factor
 
                 # scale fluxes whenever pblum_mode = 'dataset-scaled'
-                for param in self.filter(qualifier='pblum_mode', value='dataset-scaled').to_list():
+                for param in self.filter(qualifier='pblum_mode', dataset=model_ps.datasets, value='dataset-scaled').to_list():
                     if not self.get_value(qualifier='enabled', compute=compute, dataset=param.dataset):
                         continue
 
@@ -8097,7 +8294,7 @@ class Bundle(ParameterSet):
                     ds_fluxes = ds_obs.get_value(qualifier='fluxes')
                     ds_sigmas = ds_obs.get_value(qualifier='sigmas')
 
-                    ds_model = self.get_model(model=model, dataset=param.dataset, check_visible=False)
+                    ds_model = model_ps.filter(dataset=param.dataset, check_visible=False)
                     model_fluxes = ds_model.get_value(qualifier='fluxes')
                     model_fluxes_interp = ds_model.get_parameter(qualifier='fluxes').interp_value(times=ds_times)
                     scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
@@ -8108,12 +8305,12 @@ class Bundle(ParameterSet):
                     scale_factor = popt[0]
 
                     logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, param.dataset))
-                    ds_model.set_value(qualifier='fluxes', value=model_fluxes*scale_factor)
+                    ds_model.set_value(qualifier='fluxes', value=model_fluxes*scale_factor, ignore_readonly=True)
 
                     for param in ds_model.filter(kind='mesh').to_list():
                         if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
                             logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
-                            param.set_value(param.get_value() * scale_factor)
+                            param.set_value(param.get_value() * scale_factor, ignore_readonly=True)
 
             # Figure options for this model
             if do_create_fig_params:
@@ -8312,7 +8509,8 @@ class Bundle(ParameterSet):
         Attach the results from an existing <phoebe.parameters.JobParameter>.
 
         Jobs are created when passing `detach=True` to
-        <phoebe.frontend.bundle.Bundle.run_compute>.
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
         * <phoebe.parameters.JobParameter.attach>
@@ -8423,11 +8621,13 @@ class Bundle(ParameterSet):
 
 
         # TODO: OPTIMIZE only trigger those necessary based on the solver-backend
+        # TODO: return these for the UI
         self._handle_distribution_selectparams(return_changes=False)
         self._handle_compute_choiceparams(return_changes=False)
         self._handle_fitparameters_selecttwigparams(return_changes=False)
         self._handle_lc_choiceparams(return_changes=False)
         self._handle_orbit_choiceparams(return_changes=False)
+        self._handle_component_choiceparams(return_changes=False)
 
         ret_ps = self.get_solver(check_visible=False, check_default=False, **metawargs)
 
@@ -8574,6 +8774,12 @@ class Bundle(ParameterSet):
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in solver_kwargs])
 
+        custom_lnprobability_callable = kwargs.get('custom_lnprobability_callable', None)
+        if custom_lnprobability_callable is not None:
+            code = _getsource(custom_lnprobability_callable)
+            f.write(code)
+            kwargs['custom_lnprobability_callable'] = custom_lnprobability_callable.__name__
+
         if out_fname is not None:
             f.write("solution_ps = b.run_solver(out_fname='{}', {})\n".format(out_fname, solver_kwargs_string))
             f.write("solution_ps.save('{}', incl_uniqueid=True)\n".format(out_fname))
@@ -8622,6 +8828,14 @@ class Bundle(ParameterSet):
             the bundle will attempt to migrate to the newer version.  If False,
             an error will be raised when attempting to run the script.  See
             also: <phoebe.frontend.bundle.Bundle.open>.
+        * `custom_lnprobability_callable` (callable, optional, default=None):
+            custom callable function which takes the following arguments:
+            `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
+            to override the built-in lnlikelihood of <phoebe.parameters.ParameterSet.calculate_lnpriors>
+            + <phoebe.parameters.ParameterSet.calculate_lnlikelihood>.  For
+            optimizers that minimize, the negative returned values will be minimized.
+            NOTE: if defined in an interactive session and inspect.getsource fails,
+            this will raise an error.
         * `**kwargs`:: any values in the solver or compute options to temporarily
             override for this single solver run (parameter values will revert
             after run_solver is finished).
@@ -8710,6 +8924,14 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
             pass checks.
+        * `custom_lnprobability_callable` (callable, optional, default=None):
+            custom callable function which takes the following arguments:
+            `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
+            to override the built-in lnlikelihood of <phoebe.parameters.ParameterSet.calculate_lnpriors>
+            + <phoebe.parameters.ParameterSet.calculate_lnlikelihood>.  For
+            optimizers that minimize, the negative returned values will be minimized.
+            NOTE: if defined in an interactive session, passing `custom_lnlikelihood_callable`
+            may throw an error if `detach=True`.
         * `**kwargs`: any values in the solver or compute options to temporarily
             override for this single solver run (parameter values will revert
             after run_solver is finished)
@@ -8789,6 +9011,9 @@ class Bundle(ParameterSet):
             # something other than solution (technically could belong to model if 'latest')
             if solution!='latest':
                 self._check_label(solution, allow_overwrite=False)
+        else:
+            overwrite_ps = None
+
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
@@ -8886,8 +9111,10 @@ class Bundle(ParameterSet):
         #
         #     ret_ps += fig_params
 
-        ret_ps += ParameterSet(self._handle_solution_choiceparams(return_changes=True))
-        ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
+        # ret_ps += ParameterSet(self._handle_solution_choiceparams(return_changes=True))
+        # ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
+        self._handle_solution_choiceparams(return_changes=False)
+        self._handle_computesamplefrom_selectparams(return_changes=False)
 
         return ret_ps
 
@@ -8926,6 +9153,7 @@ class Bundle(ParameterSet):
         if solver_kind is None:
             raise ValueError("could not find solution='{}'".format(solution))
 
+        b_uniqueids = self.uniqueids
 
         if solver_kind in ['emcee', 'dynesty']:
             if distribution is None:
@@ -8967,7 +9195,11 @@ class Bundle(ParameterSet):
                                                 wrap_ats=None)
 
             for i, uniqueid in enumerate(fitted_uniqueids):
-                self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution)
+                if uniqueid in b_uniqueids:
+                    self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution)
+                else:
+                    logger.warning("uniqueid not found, falling back on twig={}".format(fitted_twigs[i]))
+                    self.add_distribution(twig=twig, value=dist.slice(i), distribution=distribution)
 
             # TODO: do we want to only return newly added distributions?
             return self.get_distribution(distribution=distribution)
@@ -8978,13 +9210,21 @@ class Bundle(ParameterSet):
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
             fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
 
+            if solver_kind == 'bls_period':
+                fitted_values = fitted_values * solution_ps.get_value(qualifier='adopt_factor', adopt_factor=kwargs.get('adopt_factor', None), **_skip_filter_checks)
+
             if as_distributions:
                 if distribution is None:
                     raise ValueError("must provide distribution if as_distributions=True")
 
-                for uniqueid, value, unit in zip(fitted_uniqueids, fitted_values, fitted_units):
+                for uniqueid, twig, value, unit in zip(fitted_uniqueids, fitted_twigs, fitted_values, fitted_units):
                     dist = _distl.delta(value, unit=unit)
-                    self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution)
+                    if uniqueid in b_uniqueids:
+                        self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution)
+                    else:
+                        logger.warning("uniqueid not found, falling back on twig={}".format(twig))
+                        self.add_distribution(twig=twig, value=dist, distribution=distribution)
+
 
                 return self.get_distribution(distribution=distribution)
             else:
@@ -8992,8 +9232,12 @@ class Bundle(ParameterSet):
                 conf.interactive_constraints_off(suppress_warning=True)
 
                 changed_params = []
-                for uniqueid, value, unit in zip(fitted_uniqueids, fitted_values, fitted_units):
-                    param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                for uniqueid, twig, value, unit in zip(fitted_uniqueids, fitted_twigs, fitted_values, fitted_units):
+                    if uniqueid in b_uniqueids:
+                        param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                    else:
+                        logger.warning("uniqueid not found, falling back on twig={}".format(twig))
+                        param = self.get_parameter(twig=twig, **_skip_filter_checks)
 
                     param.set_value(value, unit=unit)
                     changed_params.append(param)

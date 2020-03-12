@@ -45,7 +45,7 @@ app.config['JSON_SORT_KEYS'] = False
 
 # Configure socket.io
 app.config['SECRET_KEY'] = 'phoebesecret'
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 def _uniqueid(N=16):
     """
@@ -83,8 +83,13 @@ import os
 import sys
 import tempfile
 import traceback
-import urllib2
-import StringIO
+# if _sys.version_info[0] < 3:
+#     import urllib2 as urllib
+# else:
+#     import urllib
+# import StringIO
+if sys.version_info[0] == 3:
+  unicode = str
 import inspect
 from time import sleep
 from collections import OrderedDict
@@ -242,13 +247,15 @@ def _value_string(param):
         return str(param.get_value())
     elif param_type in ['FloatParameter']:
         return str(param.get_value())
-    elif param_type in ['FloatArrayParameter']:
+    elif param_type in ['FloatArrayParameter', 'ArrayParameter']:
         if isinstance(param._value, phoebe.dependencies.nparray.nparray.ArrayWrapper):
             return param._value.__str__()
         else:
             arr = param.get_value()
             # unit = str(param.get_default_unit())
-            if len(arr):
+            if len(arr)==1:
+                return "[{} (1)]".format(arr[0])
+            elif len(arr):
                 return "[{} ... {} ({})]".format(arr[0], arr[-1], len(arr))
             else:
                 return "[ ] (empty)"
@@ -269,9 +276,9 @@ def _param_json_overview(param):
     p = {'uniqueid': param.uniqueid,
          'class': param.__class__.__name__,
          'valuestr': _value_string(param),
-         'len': len(param.get_value()) if param.__class__.__name__ in ['SelectParameter', 'FloatArrayParameter'] else None,
+         'len': len(param.get_value()) if param.__class__.__name__ in ['SelectParameter', 'FloatArrayParameter', 'ArrayParameter'] else None,
          'unitstr': param.default_unit.to_string() if hasattr(param, 'default_unit') else '',
-         'readonly': param.context in ['model'] or param.qualifier in ['phoebe_version'] or (hasattr(param, 'is_constraint') and param.is_constraint is not None),
+         'readonly': param.readonly or (hasattr(param, 'is_constraint') and param.is_constraint is not None),
          }
 
     advanced_filter = []
@@ -321,7 +328,7 @@ def _param_json_detailed(param):
 
     if param.__class__.__name__ in ['SelectParameter']:
         p['value'] = param.get_value()
-    elif param.__class__.__name__ in ['FloatArrayParameter']:
+    elif param.__class__.__name__ in ['FloatArrayParameter', 'ArrayParameter']:
         value = param.to_json()['value']
         if isinstance(value, list):
             value = ",".join(str(vi) for vi in value)
@@ -694,9 +701,9 @@ def error_handler(err):
 
     if app._verbose:
         ex_type, ex, tb = sys.exc_info()
-        print traceback.print_tb(tb)
+        print(traceback.print_tb(tb))
 
-    emit('msg', {'success': False, 'id': None, 'level': 'error', 'msg': 'websocket: '+err.message}, broadcast=False)
+    emit('msg', {'success': False, 'id': None, 'level': 'error', 'msg': 'websocket: '+str(err)}, broadcast=False)
 
 
 
@@ -770,7 +777,7 @@ def _run_checks(b, bundleid, do_emit=True):
     try:
         b.run_failed_constraints()
     except Exception as err:
-        emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': err.message}, broadcast=False)
+        emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': str(err)}, broadcast=False)
     # if len(b._failed_constraints):
         # msg = 'Constraints for the following parameters failed to run: {}.  Affected values will not be updated until the constraints can succeed.'.format(', '.join([b.get_parameter(uniqueid=c, check_visible=False).constrained_parameter.uniquetwig for c in b._failed_constraints]))
         # emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
@@ -841,6 +848,7 @@ def _update_figures(b, bundleid, affected_ps=None):
         except Exception as err:
             if app._verbose:
                 print("_update_figures error: {}".format(str(err)))
+                raise
             # notify the client that the figure is now failing (and probably shouldn't be shown)
             figure_update_times[figure] = 'failed'
             # remove any existing cached file so that loading won't work
@@ -890,16 +898,16 @@ def set_value(msg):
         ps_constraints = b.run_delayed_constraints()
     except Exception as err:
         if app._verbose:
-            print("set_value {} error: {}".format(msg, err.message))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            print("set_value {} error: {}".format(msg, str(err)))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
         return
 
     try:
         ps_list = ps_constraints + b.filter(**{k:v for k,v in msg.items() if k not in ['value']}).to_list()
     except Exception as err:
         if app._verbose:
-            print("set_value {} error on filter: {}".format(msg, err.message))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            print("set_value {} error on filter: {}".format(msg, str(err)))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
         return
     else:
         if 'web' in client_types or 'desktop' in client_types:
@@ -965,16 +973,16 @@ def set_default_unit(msg):
         b.set_default_unit_all(**msg)
     except Exception as err:
         if app._verbose:
-            print("set_default_unit {} error: {}".format(msg, err.message))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            print("set_default_unit {} error: {}".format(msg, str(err)))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
         return
 
     try:
         ps_list = b.filter(**{k:v for k,v in msg.items() if k not in ['unit']}).to_list()
     except Exception as err:
         if app._verbose:
-            print("set_default_unit {} error on filter: {}".format(msg, err.message))
-        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            print("set_default_unit {} error on filter: {}".format(msg, str(err)))
+        emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
         return
     else:
         if 'web' in client_types or 'desktop' in client_types:
@@ -1030,7 +1038,7 @@ def bundle_method(msg):
 
     method = msg.pop('method')
 
-    if method in ['run_compute']:
+    if method in ['run_compute', 'run_solver']:
         # TODO: have this be a environment variable or flag at the top-level?
         # forbid expensive computations on this server
         msg['max_computations'] = _max_computations
@@ -1050,17 +1058,17 @@ def bundle_method(msg):
         ps_list = ps.to_list() if hasattr(ps, 'to_list') else [ps] if isinstance(ps, phoebe.parameters.Parameter) else []
     except Exception as err:
         if app._verbose:
-            print("bundle_method ERROR ({}): {}".format(msg, err.message))
+            print("bundle_method ERROR ({}): {}".format(msg, str(err)))
         if app._debug:
             raise
 
-        if method=='attach_job' and 'Expecting object' in err.message:
+        if method=='attach_job' and 'Expecting object' in str(err):
             # then its likely the object just hasn't been completely written to
             # disk yet, this error is expected.
             # TODO: catch this within PHOEBE instead and return a reasonable status
             pass
         else:
-            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err.message}, broadcast=False)
+            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
 
 
             if method=='attach_job' and ('web' in client_types or 'desktop' in client_types):
@@ -1085,11 +1093,19 @@ def bundle_method(msg):
     # TODO: these should now already be handled in ps_list for rename_*
     # we could also include these in the output to all methods from PHOEBE
     # and then could remove all the logic here?
-    if method not in ['run_compute', 'attach_job']:
+    if method in ['add_solver', 'add_dataset', 'remove_solver', 'remove_dataset', 'rename_dataset']:
+        ps_list += b._handle_lc_choiceparams(return_changes=True)
+
+    if method in ['add_distribution', 'remove_distribution', 'rename_distribution', 'run_solver', 'import_solution', 'rename_solution', 'remove_solution']:
+        ps_list += b._handle_computesamplefrom_selectparams(return_changes=True)
+
+    if method not in ['run_compute', 'run_solver', 'attach_job']:
         ps_list += b._handle_pblum_defaults(return_changes=True)
         ps_list += b._handle_dataset_selectparams(return_changes=True)
         ps_list += b._handle_compute_selectparams(return_changes=True)
         ps_list += b._handle_component_selectparams(return_changes=True)
+        ps_list += b._handle_solution_choiceparams(return_changes=True)
+        ps_list += b._handle_computesamplefrom_selectparams(return_changes=True)
 
     if method in ['attach_job'] and b.get_value(uniqueid=msg['uniqueid'], check_visible=False) == 'loaded':
         # we want to wait to do this until attach_job, if we do it after run_compute
@@ -1122,11 +1138,14 @@ def bundle_method(msg):
             context = method.split('_')[1]
             packet['add_filter'] = {context: getattr(ps, context)}
         elif method.split('_')[0] == 'run':
-            new_context = {'compute': 'model'}[method.split('_')[1]]
+            new_context = {'compute': 'model', 'solver': 'solution'}[method.split('_')[1]]
             packet['add_filter'] = {new_context: getattr(ps, new_context)}
         elif method == 'import_model':
             new_context = 'model'
             packet['add_filter'] = {'model': ps.model}
+        elif method == 'import_solution':
+            new_context = 'solution'
+            packet['add_filter'] = {'solution': ps.solution}
 
         emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
         # flush so the changes goes through before running checks and updating figures

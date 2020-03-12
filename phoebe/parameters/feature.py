@@ -11,8 +11,17 @@ def _component_allowed_for_feature(feature_kind, component_kind):
     _allowed = {}
     _allowed['spot'] = ['star', 'envelope']
     _allowed['pulsation'] = ['star', 'envelope']
+    _allowed['gaussian_process'] = [None]
 
     return component_kind in _allowed[feature_kind]
+
+def _dataset_allowed_for_feature(feature_kind, dataset_kind):
+    _allowed = {}
+    _allowed['spot'] = [None]
+    _allowed['pulsation'] = [None]
+    _allowed['gaussian_process'] = ['lc', 'rv', 'lp']
+
+    return dataset_kind in _allowed[feature_kind]
 
 def spot(feature, **kwargs):
     """
@@ -24,6 +33,10 @@ def spot(feature, **kwargs):
     passed on to set the values as described in the arguments below.  Alternatively,
     see <phoebe.parameters.ParameterSet.set_value> to set/change the values
     after creating the Parameters.
+
+    Allowed to attach to:
+    * components with kind: star
+    * datasets: not allowed
 
     Arguments
     ----------
@@ -55,6 +68,59 @@ def spot(feature, **kwargs):
     constraints = []
 
     return ParameterSet(params), constraints
+
+def gaussian_process(feature, **kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for a gaussian_process feature.
+
+    Requires celerite to be installed.  See https://celerite.readthedocs.io/en/stable/.
+    If using gaussian processes, consider citing:
+    * https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_feature>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_feature>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    Allowed to attach to:
+    * components: not allowed
+    * datasets with kind: lc
+
+
+    Arguments
+    ----------
+
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>, list): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects and a list of all necessary
+        constraints.
+    """
+
+    params = []
+
+    params += [ChoiceParameter(qualifier='kernel', value=kwargs.get('kernel', 'matern32'), choices=['matern32', 'sho'], description='Kernel for the gaussian process (see https://celerite.readthedocs.io/en/stable/python/kernel/)')]
+
+    params += [FloatParameter(visible_if='kernel:sho', qualifier='log_S0', value=kwargs.get('log_S0', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter S0')]
+    params += [FloatParameter(visible_if='kernel:sho', qualifier='log_Q', value=kwargs.get('log_Q', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter Q')]
+    params += [FloatParameter(visible_if='kernel:sho', qualifier='log_omega0', value=kwargs.get('log_omega0', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter omega0')]
+
+    params += [FloatParameter(visible_if='kernel:matern32', qualifier='log_sigma', value=kwargs.get('log_sigma', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter sigma')]
+    params += [FloatParameter(visible_if='kernel:matern32', qualifier='log_rho', value=kwargs.get('log_rho', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter rho')]
+    params += [FloatParameter(visible_if='kernel:matern32', qualifier='eps', value=kwargs.get('eps', 0.01), limits=(0,None), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter rho')]
+
+    # params += [FloatParameter(visible_if='kernel:jitter', qualifier='log_sigma', value=kwargs.get('log_sigma', np.log(0.01)), default_unit=u.dimensionless_unscaled, description='Log of the amplitude of the white noise')]
+
+    constraints = []
+
+    return ParameterSet(params), constraints
+
 
 
 # del deepcopy

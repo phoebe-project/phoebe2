@@ -53,10 +53,11 @@ def emcee(**kwargs):
     params += [IntParameter(visible_if='continue_from:None', qualifier='nwalkers', value=kwargs.get('nwalkers', 16), limits=(1,1e5), description='number of walkers')]
     params += [IntParameter(qualifier='niters', value=kwargs.get('niters', 100), limits=(1,1e12), description='number of iterations')]
 
-    params += [FloatParameter(qualifier='burnin_factor', value=kwargs.get('burnin_factor', 2), default_unit=u.dimensionless_unscaled, limits=(1, 1000), description='factor of max(autocorr_time) to apply for burnin (burnin not applied until process solution)')]
-    params += [FloatParameter(qualifier='thin_factor', value=kwargs.get('thin_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.001, 1000), description='factor of min(autocorr_time) to apply for thinning (thinning not applied until process solution)')]
+    params += [FloatParameter(qualifier='burnin_factor', value=kwargs.get('burnin_factor', 2), default_unit=u.dimensionless_unscaled, limits=(1, 1000), description='factor of max(autocorr_time) to apply for burnin (burnin not applied until adopting the solution)')]
+    params += [FloatParameter(qualifier='thin_factor', value=kwargs.get('thin_factor', 0.5), default_unit=u.dimensionless_unscaled, limits=(0.001, 1000), description='factor of min(autocorr_time) to apply for thinning (thinning not applied until adopting the solution)')]
 
     params += [IntParameter(qualifier='save_every_niters', value=kwargs.get('save_every_niters', 0), limits=(0,1e6), description='save the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps within run_solver, or the output filename provided to export_solver.  If 0 will not save and will only return after completion.')]
+    params += [BoolParameter(visible_if='continue_from:None', qualifier='expose_failed', value=kwargs.get('expose_failed', True), description='whether to expose dictionary of failed samples and their error messages.')]
 
     return ParameterSet(params)
 

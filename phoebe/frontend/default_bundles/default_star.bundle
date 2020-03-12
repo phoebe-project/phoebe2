@@ -10,7 +10,6 @@ null
 "context": "system", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "qualifier": "t0"
 }, 
 {
@@ -52,7 +51,6 @@ null
 "context": "system", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "qualifier": "distance"
 }, 
 {
@@ -66,7 +64,6 @@ null
 "context": "system", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "qualifier": "vgamma"
 }, 
 {
@@ -91,7 +88,6 @@ null
 "context": "component", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "qualifier": "requiv"
 }, 
 {
@@ -107,7 +103,6 @@ null
 "context": "component", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "qualifier": "requiv_max"
 }, 
 {
@@ -124,7 +119,6 @@ null
 "visible_if": "hierarchy.is_contact_binary:True", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "description": "Critical (minimum) value of the equivalent radius for the given morphology"
 }, 
 {
@@ -140,7 +134,6 @@ null
 "context": "component", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "qualifier": "teff"
 }, 
 {
@@ -157,7 +150,6 @@ null
 "visible_if": "hierarchy.is_contact_binary:False", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "description": "Abundance/Metallicity"
 }, 
 {
@@ -173,7 +165,6 @@ null
 "context": "component", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "qualifier": "logg"
 }, 
 {
@@ -190,7 +181,6 @@ null
 "visible_if": "hierarchy.is_binary:True", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "description": "Synchronicity parameter"
 }, 
 {
@@ -306,7 +296,6 @@ null
 "context": "component", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "qualifier": "gravb_bol"
 }, 
 {
@@ -322,7 +311,6 @@ null
 "context": "component", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "qualifier": "irrad_frac_refl_bol"
 }, 
 {
@@ -353,7 +341,6 @@ null
 "context": "component", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "ld_mode_bol"
 }, 
 {
@@ -371,7 +358,6 @@ null
 "context": "component", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "ld_func_bol"
 }, 
 {
@@ -419,7 +405,6 @@ null
 "context": "component", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "qualifier": "mass"
 }, 
 {
@@ -436,7 +421,6 @@ null
 "in_solar_units": true, 
 "default_unit": "rad / d", 
 "Class": "ConstraintParameter", 
-"advanced": false, 
 "description": "expression that determines the constraint"
 }, 
 {
@@ -453,7 +437,6 @@ null
 "in_solar_units": false, 
 "default_unit": "", 
 "Class": "ConstraintParameter", 
-"advanced": false, 
 "description": "expression that determines the constraint"
 }, 
 {
@@ -470,13 +453,12 @@ null
 "in_solar_units": true, 
 "default_unit": "", 
 "Class": "ConstraintParameter", 
-"advanced": false, 
 "description": "expression that determines the constraint"
 }, 
 {
 "kind": "phoebe", 
 "compute": "phoebe01", 
-"description": "distributions to use for sampling", 
+"description": "distributions or solutions to use for sampling.  If pointing to a solution, adopt_solution(as_distributions=True, **kwargs) will be called to create a temporary distribution which will be removed automatically.  If all distributions are delta functions (face-values), sample_mode and sample_num will be ignored with a warning.", 
 "value": [], 
 "choices": [], 
 "context": "compute", 
@@ -496,7 +478,6 @@ null
 "visible_if": "sample_from:<notempty>", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "description": "Method to use to combine multiple distributions from sample_from for the same parameter.  first: ignore duplicate entries and take the first in the sample_from parameter"
 }, 
 {
@@ -512,7 +493,6 @@ null
 "visible_if": "sample_from:<notempty>", 
 "copy_for": false, 
 "Class": "IntParameter", 
-"advanced": false, 
 "description": "Number of forward models to run sampling from the distributions defined in sample_from and sample_from_combine."
 }, 
 {
@@ -523,15 +503,37 @@ null
 "value": "1-sigma", 
 "choices": [
 "all", 
+"median", 
 "1-sigma", 
 "3-sigma", 
 "5-sigma"
 ], 
-"visible_if": "sample_from:<notempty", 
+"visible_if": "sample_from:<notempty>", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
-"description": "Mode to use when exposing model after sampling.  all: expose all sampled forward-models.  1/3/5-sigma: expose the synthetic variable at the median and +/- n-sigma."
+"description": "Mode to use when exposing model after sampling.  all: expose all sampled forward-models.  median: only return the median of all sampled models.  1/3/5-sigma: expose the synthetic variable at the median and +/- n-sigma."
+}, 
+{
+"context": "compute", 
+"kind": "phoebe", 
+"compute": "phoebe01", 
+"qualifier": "expose_samples", 
+"value": true, 
+"visible_if": "sample_from:<notempty>", 
+"copy_for": false, 
+"Class": "BoolParameter", 
+"description": "Whether to expose failed samples along with the simplified error messages."
+}, 
+{
+"context": "compute", 
+"kind": "phoebe", 
+"compute": "phoebe01", 
+"qualifier": "expose_failed", 
+"value": true, 
+"visible_if": "sample_from:<notempty>", 
+"copy_for": false, 
+"Class": "BoolParameter", 
+"description": "Whether to expose failed samples along with the simplified error messages."
 }, 
 {
 "kind": "phoebe", 
@@ -545,7 +547,6 @@ null
 "dataset": "*"
 }, 
 "Class": "BoolParameter", 
-"advanced": false, 
 "qualifier": "enabled"
 }, 
 {
@@ -560,7 +561,6 @@ null
 "context": "feature"
 }, 
 "Class": "BoolParameter", 
-"advanced": false, 
 "qualifier": "enabled"
 }, 
 {
@@ -574,7 +574,6 @@ null
 "context": "compute", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "dynamics_method"
 }, 
 {
@@ -585,7 +584,6 @@ null
 "context": "compute", 
 "copy_for": false, 
 "Class": "BoolParameter", 
-"advanced": false, 
 "qualifier": "ltte"
 }, 
 {
@@ -601,7 +599,6 @@ null
 "context": "compute", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "irrad_method"
 }, 
 {
@@ -637,7 +634,6 @@ null
 "component": "*"
 }, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "description": "Which method to use for discretizing the surface"
 }, 
 {
@@ -660,7 +656,6 @@ null
 "component": "*"
 }, 
 "Class": "IntParameter", 
-"advanced": false, 
 "description": "Requested number of triangles (won't be exact)."
 }, 
 {
@@ -684,7 +679,6 @@ null
 "component": "*"
 }, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "description": "Method to use for distorting stars"
 }, 
 {
@@ -738,7 +732,6 @@ null
 "component": "*"
 }, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "atm"
 }, 
 {
@@ -779,7 +772,6 @@ null
 "oversample"
 ], 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "fti_method"
 }, 
 {
@@ -801,7 +793,6 @@ null
 "dataset": "*"
 }, 
 "Class": "IntParameter", 
-"advanced": false, 
 "description": "Number of times to sample per-datapoint for finite-time integration"
 }, 
 {
@@ -825,7 +816,6 @@ null
 "dynamical"
 ], 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "rv_method"
 }, 
 {
@@ -846,7 +836,6 @@ null
 }
 }, 
 "Class": "BoolParameter", 
-"advanced": false, 
 "description": "Whether gravitational redshift effects are enabled for RVs"
 }, 
 {
@@ -862,7 +851,6 @@ null
 "visible_if": "hierarchy.is_meshable:true", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "description": "Which method to use for discretizing the surface"
 }, 
 {
@@ -879,7 +867,6 @@ null
 "visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
 "copy_for": false, 
 "Class": "IntParameter", 
-"advanced": false, 
 "description": "Requested number of triangles (won't be exact)."
 }, 
 {
@@ -898,7 +885,6 @@ null
 "visible_if": "mesh_method:marching,hierarchy.is_meshable:true", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "description": "Method to use for distorting stars"
 }, 
 {
@@ -917,7 +903,6 @@ null
 "context": "compute", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "atm"
 }, 
 {
@@ -930,7 +915,6 @@ null
 "context": "figure", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "default_time_source"
 }, 
 {
@@ -945,7 +929,6 @@ null
 "visible_if": "default_time_source:manual", 
 "copy_for": false, 
 "Class": "FloatParameter", 
-"advanced": false, 
 "description": "Times to use for highlighting/uncovering if default_time_source=manual."
 }, 
 {
@@ -1254,7 +1237,6 @@ null
 "context": "figure", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "color"
 }, 
 {
@@ -1281,7 +1263,6 @@ null
 "context": "figure", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "marker"
 }, 
 {
@@ -1298,12 +1279,12 @@ null
 "context": "figure", 
 "copy_for": false, 
 "Class": "ChoiceParameter", 
-"advanced": false, 
 "qualifier": "linestyle"
 }, 
 {
-"description": "Version of PHOEBE - change with caution", 
+"description": "Version of PHOEBE", 
 "value": "devel", 
+"readonly": true, 
 "context": "setting", 
 "copy_for": false, 
 "Class": "StringParameter", 
@@ -1356,7 +1337,6 @@ null
 "context": "setting", 
 "copy_for": false, 
 "Class": "BoolParameter", 
-"advanced": true, 
 "qualifier": "auto_add_figure"
 }
 ]

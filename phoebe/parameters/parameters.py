@@ -91,6 +91,12 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
     else:
         _use_corner = True
     try:
+        import chainconsumer
+    except (ImportError, TypeError):
+        _use_chainconsumer = False
+    else:
+        _use_chainconsumer = True
+    try:
         from dynesty import plotting as dyplot
     except (ImportError, TypeError):
         _use_dyplot = False
@@ -100,6 +106,7 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
 else:
     _use_autofig = False
     _use_corner = False
+    _use_chainconsumer = False
     _use_dyplot = False
 
 
@@ -141,7 +148,7 @@ _forbidden_labels += ['True', 'False', 'true', 'false', 'None', 'none', 'null']
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'default_unit',
                       'quantity',
-                      'unit', 'timederiv', 'visible_if', 'description', 'result']
+                      'unit', 'timederiv', 'visible_if', 'description', 'result', 'advanced', 'readonly']
 
 # forbid some random things
 _forbidden_labels += ['protomesh', 'pbmesh']
@@ -178,6 +185,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
 # from dataset:
 _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'compute_times', 'compute_phases', 'compute_phases_t0',
+                     'solver_times', 'expose_samples', 'expose_failed',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
                      'Rv', 'Av', 'ebv',
@@ -220,7 +228,10 @@ _forbidden_labels += ['nwalkers', 'niters']
 
 # from feature:
 _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
-                      'radamp', 'freq', 'l', 'm', 'teffext'
+                      'radamp', 'freq', 'l', 'm', 'teffext',
+                      'spot', 'gaussian_process', 'pulsation',
+                      'kernel', 'log_S0', 'log_Q', 'log_rho',
+                      'log_omega0', 'log_sigma', 'eps'
                       ]
 
 # from figure:
@@ -3409,7 +3420,7 @@ class ParameterSet(object):
                 residuals, model_interp = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True, return_interp_model=True)
                 ds_ps = self._bundle.get_dataset(dataset=ds, **_skip_filter_checks)
                 sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, unit=residuals.unit, **_skip_filter_checks)
-                sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=1.0, **_skip_filter_checks)
+                sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=-np.inf, **_skip_filter_checks)
 
                 if len(sigmas):
                     sigmas2 = sigmas**2
@@ -3879,6 +3890,13 @@ class ParameterSet(object):
                     kwargs.setdefault('linebreak', '{}-'.format(direction))
 
                     return kwargs
+                elif current_value.split('_')[-1] in ['gps', 'nogps']:
+                    if ps.model is None:
+                        logger.info("skipping {} for dataset".format(current_value))
+                        return {}
+                    kwargs['{}qualifier'.format(direction)] = current_value
+                    return kwargs
+
                 elif current_value in ['residuals_spread']:
                     if ps.model is None:
                         logger.info("skipping residuals_spread for dataset")
@@ -4137,7 +4155,7 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
-        elif ps.kind in ['emcee', 'dynesty']:
+        elif ps.kind in ['emcee', 'dynesty', 'bls_period']:
             pass
             # handled below
         elif ps.context == 'solution':
@@ -4150,7 +4168,50 @@ class ParameterSet(object):
         #### DETERMINE AUTOFIG PLOT TYPE
         # NOTE: this must be done before calling _kwargs_fill_dimension below
         cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
-        if ps.kind == 'dynesty':
+        if ps.context == 'model' and kwargs.get('style', None) in ['corner', 'failed']:
+            kwargs['data'] = ps.get_value(qualifier='samples', default=[], **_skip_filter_checks)
+
+            try:
+                param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='sampled_uniqueids', **_skip_filter_checks)]
+            except:
+                logger.warning("could not match to sampled_uniqueids, falling back on sampled_twigs")
+                param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='sampled_twigs', **_skip_filter_checks)]
+
+            # TODO: use units from fitted_units instead of parameter?
+            kwargs['labels'] = [_corner_label(param) for param in param_list]
+
+            if kwargs.get('style') == 'failed':
+                if not _use_chainconsumer:
+                    raise ImportError("chainconsumer required to plot failed samples")
+
+                kwargs['plot_package'] = 'chainconsumer'
+
+
+                kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', default={}, **_skip_filter_checks)
+            else:
+                kwargs['plot_package'] = 'corner'
+
+            return (kwargs,)
+
+        elif ps.kind == 'bls_period':
+            kwargs['plot_package'] = 'autofig'
+            kwargs['x'] = ps.get_quantity(qualifier='period', **_skip_filter_checks)
+            kwargs['xlabel'] = 'period'
+            kwargs['y'] = ps.get_value(qualifier='power', **_skip_filter_checks)
+            kwargs['ylabel'] = 'power'
+
+            kwargs.setdefault('marker', 'None')
+            # kwargs.setdefault('linestyle', 'solid')
+
+            axvline_kwargs = {'plot_package': 'autofig', 'autofig_method': 'plot'}
+            axvline_kwargs['x'] = ps.get_value(qualifier='fitted_values', **_skip_filter_checks)[0] * ps.get_value(qualifier='adopt_factor', adopt_factor=kwargs.get('adopt_factor', None), **_skip_filter_checks) * u.d
+            axvline_kwargs['linestyle'] = 'dashed'
+            axvline_kwargs['axvline'] = True # to avoid the empty y ignore in plot
+
+
+            return (kwargs, axvline_kwargs)
+
+        elif ps.kind == 'dynesty':
             kwargs['plot_package'] = 'dynesty'
             kwargs.setdefault('style', 'corner')
             kwargs['results'] = {p.qualifier: p.value for p in self._bundle.filter(solution=ps.solution, context='solution', **_skip_filter_checks).to_list()}
@@ -4176,17 +4237,34 @@ class ParameterSet(object):
             for style in styles:
                 kwargs = _deepcopy(kwargs)
 
-                if style == 'corner':
-                    kwargs['plot_package'] = 'corner'
+                if style in ['corner', 'failed']:
                     lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
 
                     samples = ps.get_value(qualifier='samples', **_skip_filter_checks)
                     samples = samples[burnin:, :, :][::thin, : :]
 
                     kwargs['data'] = samples[np.isfinite(lnprobabilities)]
-                    param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)]
+                    try:
+                        param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)]
+                    except:
+                        logger.warning("could not match to fitted_uniqueids, falling back on fitted_twigs")
+                        param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)]
+
                     # TODO: use units from fitted_units instead of parameter?
                     kwargs['labels'] = [_corner_label(param) for param in param_list]
+
+
+                    if style=='failed':
+                        if _use_chainconsumer:
+                            kwargs['plot_package'] = 'chainconsumer'
+                            kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
+
+                        else:
+                            logger.warning("failed_samples can only be plotted if chainconsumer is installed... falling back on style='corner'")
+                            kwargs['plot_package'] = 'corner'
+                    else:
+                        kwargs['plot_package'] = 'corner'
+
                     return_ += [kwargs]
 
                 elif style in ['lnprobability']:
@@ -4201,7 +4279,7 @@ class ParameterSet(object):
                         if not np.any(np.isfinite(lnp)):
                             continue
                         kwargs = _deepcopy(kwargs)
-                        kwargs['x'] = np.arange(len(lnp))*thin+burnin
+                        kwargs['x'] = np.arange(len(lnp), dtype=float)*thin+burnin
                         kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
                         kwargs['y'] = lnp
                         kwargs['ylabel'] = 'lnprobability'
@@ -4214,6 +4292,7 @@ class ParameterSet(object):
                     kwargs.setdefault('linestyle', 'solid')
 
                     fitted_uniqueids = list(self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks))
+                    fitted_twigs = list(self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks))
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_ps = self._bundle.filter(uniqueid=fitted_uniqueids, **_skip_filter_checks)
 
@@ -4225,15 +4304,21 @@ class ParameterSet(object):
                         ys = [ys]
 
                     for y in ys:
-                        param = fitted_ps.get_parameter(y, **_skip_filter_checks)
-                        parameter_ind = fitted_uniqueids.index(param.uniqueid)
+                        try:
+                            param = fitted_ps.get_parameter(twig=y, **_skip_filter_checks)
+                            parameter_ind = fitted_uniqueids.index(param.uniqueid)
+
+                        except:
+                            param = self._bundle.get_parameter(twig=y, **_skip_filter_checks)
+                            # NOTE: the following may fail if not a full twig
+                            parameter_ind = figged_twigs.index(y)
 
                         for walker_ind in range(samples.shape[1]):
                             kwargs = _deepcopy(kwargs)
 
                             samples_y = samples[:, walker_ind, parameter_ind]
 
-                            kwargs['x'] = np.arange(len(samples_y))*thin+burnin
+                            kwargs['x'] = np.arange(len(samples_y), dtype=float)*thin+burnin
                             kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
 
                             kwargs['y'] = samples_y
@@ -4779,6 +4864,21 @@ class ParameterSet(object):
 
                     return None, corner.corner(plot_kwargs['data'], labels=plot_kwargs.get('labels', None))
 
+                elif plot_package == 'chainconsumer':
+                    c = chainconsumer.ChainConsumer()
+
+                    samples = plot_kwargs.get('data', None)
+                    if samples is not None:
+                        c.add_chain(samples, parameters=plot_kwargs.get('labels', None), name='samples', smooth=False, bar_shade=False)
+
+                    for msg, samples in plot_kwargs.get('failed_samples', {}).items():
+                        samples = np.asarray(samples)
+                        # print(msg, samples.shape)
+                        c.add_chain(samples, parameters=plot_kwargs.get('labels', None), name=msg, smooth=False, bar_shade=False)
+
+
+                    return None, c.plotter.plot(figsize=1.5)
+
                 elif plot_package == 'dynesty':
                     if not _use_dyplot:
                         raise ImportError("dynesty not imported, cannot plot")
@@ -4792,7 +4892,8 @@ class ParameterSet(object):
 
                 elif plot_package == 'autofig':
                     y = plot_kwargs.get('y', [])
-                    if (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
+                    axvline = plot_kwargs.pop('axvline', False)
+                    if axvline or (isinstance(y, u.Quantity) and isinstance(y.value, float)) or (hasattr(y, 'value') and isinstance(y.value, float)):
                         pass
                     elif not len(y):
                         # a dataset without observational data, for example
@@ -5093,6 +5194,7 @@ class Parameter(object):
         self._is_constraint = None  # label of the constraint that defines the value of this parameter
 
         self._description = description
+        self._readonly = kwargs.get('readonly', False)
         self._advanced = kwargs.get('advanced', False)
         self._bundle = bundle
         self._value = None
@@ -5123,7 +5225,7 @@ class Parameter(object):
 
         self._visible_if = kwargs.get('visible_if', None)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
         # loading from json can result in unicodes instead of strings - this then
@@ -5292,9 +5394,13 @@ class Parameter(object):
         * (str): the string representation
         """
         if hasattr(self, 'constrained_by') and len(self.constrained_by) > 0:
-            return "* {:>30}: {}".format(self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+            prefix = 'C '
+        elif self.readonly:
+            prefix = 'R '
         else:
-            return "{:>32}: {}".format(self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+            prefix = '  '
+
+        return "{} {:>30}: {}".format(prefix, self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
 
     # @property
     # def __dict__(self):
@@ -5312,7 +5418,7 @@ class Parameter(object):
         """
         # including uniquetwig for everything can be VERY SLOW, so let's not
         # include that in the dictionary
-        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig']}
+        d =  {k: getattr(self,k) for k in self._dict_fields if k not in ['uniquetwig'] and (k not in ['readonly', 'advanced'] or getattr(self,k))}
         d['Class'] = self.__class__.__name__
         return d
 
@@ -5529,6 +5635,14 @@ class Parameter(object):
         * (dict) a dictionary of all singular tag attributes.
         """
         return self.get_meta(ignore=['uniqueid', 'history', 'twig', 'uniquetwig'])
+
+    @property
+    def readonly(self):
+        """
+        Whether the parameter is readonly.  To force setting the value, pass
+        `ignore_readonly=True` to <<class>.set_value>.
+        """
+        return self._readonly
 
     @property
     def advanced(self):
@@ -6538,6 +6652,12 @@ class Parameter(object):
         """
         raise NotImplementedError # <--- leave this in place, should be subclassed
 
+    def _readonly_check(self, **kwargs):
+        if 'ignore_readonly' in kwargs.keys():
+            return
+        if self.readonly:
+            raise ValueError("Parameter is read-only.  Pass ignore_readonly=True to force setting value (use with caution).")
+
 
 class StringParameter(Parameter):
     """
@@ -6549,9 +6669,9 @@ class StringParameter(Parameter):
         """
         super(StringParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', ''))
+        self.set_value(kwargs.get('value', ''), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -6596,6 +6716,8 @@ class StringParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(value)
 
         try:
@@ -6624,9 +6746,9 @@ class TwigParameter(Parameter):
         # bundle is necessary in order to intialize and set the value
         self._bundle = bundle
 
-        self.set_value(kwargs.get('value', ''))
+        self.set_value(kwargs.get('value', ''), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_parameter(self):
@@ -6688,6 +6810,8 @@ class TwigParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         # first make sure only returns one results
@@ -6715,9 +6839,9 @@ class ChoiceParameter(Parameter):
 
         self._choices = kwargs.get('choices', [''])
 
-        self.set_value(kwargs.get('value', ''))
+        self.set_value(kwargs.get('value', ''), ignore_readonly=True, allow_not_in_choices=True)
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -6798,6 +6922,8 @@ class ChoiceParameter(Parameter):
         * ValueError: if `value` is not one of
             <phoebe.parameters.ChoiceParameter.choices>
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         try:
@@ -6809,7 +6935,7 @@ class ChoiceParameter(Parameter):
             if value not in self.choices:
                 self._choices = list_passbands(refresh=True)
 
-        if value not in self.choices:
+        if value not in self.choices and not kwargs.get('allow_not_in_choices', False):
             raise ValueError("value for {} must be one of {}, not '{}'".format(self.uniquetwig, self.choices, value))
 
         # NOTE: downloading passbands from online is now handled by run_checks
@@ -6867,7 +6993,7 @@ class ChoiceParameter(Parameter):
             return False
 
         if value in self.choices:
-            self.set_value(value)
+            self.set_value(value, ignore_readonly=True)
             return True
         else:
             raise ValueError("could not set value to a valid entry in choices: {}".format(self.choices))
@@ -6884,9 +7010,9 @@ class SelectParameter(Parameter):
 
         self._choices = kwargs.get('choices', [])
 
-        self.set_value(kwargs.get('value', []))
+        self.set_value(kwargs.get('value', []), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'readonly', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -7056,6 +7182,8 @@ class SelectParameter(Parameter):
             <phoebe.parameters.SelectParameter.choices>.
             See also <phoebe.parameters.SelectParameter.valid_selection>
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         if isinstance(value, str):
@@ -7107,14 +7235,14 @@ class SelectParameter(Parameter):
         changed = len(rename.keys())
 
         if remove_not_valid:
-            self.set_value(value, run_checks=False)
+            self.set_value(value, run_checks=False, ignore_readonly=True)
             return changed or self.remove_not_valid_selections()
 
         else:
             if np.any([not self.is_valid_selection(v) for v in value]):
                 raise ValueError("not all are valid after renaming")
 
-            self.set_value(value, run_checks=False)
+            self.set_value(value, run_checks=False, ignore_readonly=True)
             return changed
 
 
@@ -7132,7 +7260,7 @@ class SelectParameter(Parameter):
         """
         value = [v for v in self.get_value() if self.valid_selection(v)]
         changed = len(value) != len(self.get_value())
-        self.set_value(value, run_checks=False)
+        self.set_value(value, run_checks=False, ignore_readonly=True)
         return changed
 
     def __add__(self, other):
@@ -7252,9 +7380,9 @@ class BoolParameter(Parameter):
         """
         super(BoolParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', True))
+        self.set_value(kwargs.get('value', True), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -7302,6 +7430,8 @@ class BoolParameter(Parameter):
         ---------
         * ValueError: if `value` could not be converted to a boolean
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         if value in ['false', 'False', '0']:
@@ -7320,7 +7450,7 @@ class BoolParameter(Parameter):
 class UnitParameter(ChoiceParameter):
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(UnitParameter, self).__init__(*args, **kwargs)
 
@@ -7328,7 +7458,7 @@ class UnitParameter(ChoiceParameter):
         value = self._check_type(value)
         self._value = value
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def _check_type(self, value):
@@ -7385,11 +7515,13 @@ class UnitParameter(ChoiceParameter):
         * ValueError: if `value` cannot be mapped to one of
             <phoebe.parameters.UnitParameter.choices>
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         value = self._check_type(value)
 
-        if value not in self.choices:
+        if value not in self.choices and not kwargs.get('allow_not_in_choices', False):
             # TODO: see if same physical type and allow if so?
 
             raise ValueError("value for {} must be one of {}, not '{}'".format(self.uniquetwig, self.choices, value))
@@ -7407,9 +7539,9 @@ class DictParameter(Parameter):
         """
         super(DictParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', {}))
+        self.set_value(kwargs.get('value', {}), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -7454,6 +7586,8 @@ class DictParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         try:
@@ -7476,9 +7610,9 @@ class IntParameter(Parameter):
         limits = kwargs.get('limits', (None, None))
         self.set_limits(limits)
 
-        self.set_value(kwargs.get('value', 1))
+        self.set_value(kwargs.get('value', 1), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -7622,6 +7756,8 @@ class IntParameter(Parameter):
             <phoebe.parameters.IntParameter.get_limits> and
             <phoebe.parameters.IntParameter.within_limits>
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         value = self._check_value(value)
@@ -7648,9 +7784,9 @@ class DistributionParameter(Parameter):
             if hasattr(self, '_{}'.format(k)):
                 setattr(self, '_{}'.format(k), v)
 
-        self.set_value(value)
+        self.set_value(value, ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_referenced_parameter(self):
@@ -7747,6 +7883,8 @@ class DistributionParameter(Parameter):
             will be used.
         * `**kwargs`: IGNORED
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
         value = self._check_value(value)
 
@@ -7822,9 +7960,9 @@ class FloatParameter(Parameter):
         timederiv = kwargs.get('timederiv', None)
         self.set_timederiv(timederiv)
 
-        self.set_value(kwargs.get('value', ''), unit)
+        self.set_value(kwargs.get('value', ''), unit, ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'advanced'] # TODO: add adjust?  or is that a different subclass?
+        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'readonly', 'advanced'] # TODO: add adjust?  or is that a different subclass?
         if conf.devel:
             # NOTE: this check will take place when CREATING the parameter,
             # so toggling devel after won't affect whether timederiv is included
@@ -8171,7 +8309,7 @@ class FloatParameter(Parameter):
         dist = self.get_distribution(distribution, follow_constraints=follow_constraints)
         value = dist.sample(seed=seed)
         if set_value:
-            self.set_value(value)
+            self.set_value(value, ignore_readonly=True)
         return value
 
     #@update_if_client is on the called get_quantity
@@ -8391,6 +8529,8 @@ class FloatParameter(Parameter):
             <phoebe.parameters.FloatParameter.get_limits> and
             <phoebe.parameters.FloatParameter.within_limits>
         """
+        self._readonly_check(**kwargs)
+
         _orig_quantity = _deepcopy(self.get_quantity())
 
         if len(self.constrained_by) and not force:
@@ -8486,7 +8626,7 @@ class FloatArrayParameter(FloatParameter):
 
         # NOTE: default_unit and value handled in FloatParameter.__init__()
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -8751,7 +8891,7 @@ class FloatArrayParameter(FloatParameter):
 
         return self.interp_value(unit=unit, return_quantity=True, **kwargs)
 
-    def append(self, value):
+    def append(self, value, ignore_readonly=False):
         """
         Append a value to the end of the array.
 
@@ -8767,7 +8907,7 @@ class FloatArrayParameter(FloatParameter):
             value = value.to_array()
 
         new_value = np.append(self.get_value(), value) * self.default_unit
-        self.set_value(new_value)
+        self.set_value(new_value, ignore_readonly=ignore_readonly)
 
     def set_index_value(self, index, value, **kwargs):
         """
@@ -8787,7 +8927,7 @@ class FloatArrayParameter(FloatParameter):
             #value = value*self.default_unit
         lst =self.get_value()#.value
         lst[index] = value
-        self.set_value(lst)
+        self.set_value(lst, ignore_readonly=kwargs.get('ignore_readonly', False))
 
     def __add__(self, other):
         if not (isinstance(other, list) or isinstance(other, np.ndarray)):
@@ -8875,9 +9015,9 @@ class ArrayParameter(Parameter):
         """
         super(ArrayParameter, self).__init__(*args, **kwargs)
 
-        self.set_value(kwargs.get('value', []))
+        self.set_value(kwargs.get('value', []), ignore_readonly=True)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def append(self, value):
@@ -8946,6 +9086,8 @@ class ArrayParameter(Parameter):
         * ValueError: if `value` could not be converted to the correct type
             or is not a valid value for the Parameter.
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self._value)
         self._value = np.array(value)
 
@@ -8999,6 +9141,7 @@ class HierarchyParameter(StringParameter):
         ---------
         * ValueError: if `value` could not be converted to a string.
         """
+        self._readonly_check(**kwargs)
 
         # TODO: check to make sure valid
 
@@ -9769,6 +9912,7 @@ class HierarchyParameter(StringParameter):
         * `dperdt` is non-zero
         * a feature (eg. spot) is attached to an asynchronous star (with
             non-unity value for `syncpar`).
+        * a gaussian_process feature is attached to any dataset
 
         Returns
         ---------
@@ -9786,6 +9930,10 @@ class HierarchyParameter(StringParameter):
             if self._bundle.get_value('syncpar', component=component, context='component') != 1 and len(self._bundle.filter(context='feature', component=component)):
                 # spots on asynchronous stars
                 return True
+
+        # TODO: allow passing compute to do only enabled features attached to enabled datasets?
+        if len(self._bundle.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features):
+            return True
 
         return False
 
@@ -9829,9 +9977,9 @@ class ConstraintParameter(Parameter):
         self._constraint_func = kwargs.get('constraint_func', None)
         self._constraint_kwargs = kwargs.get('constraint_kwargs', {})
         self._in_solar_units = kwargs.get('in_solar_units', False)
-        self.set_value(value)
+        self.set_value(value, ignore_readonly=True)
         self.set_default_unit(default_unit)
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'constraint_addl_vars', 'in_solar_units', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'constraint_addl_vars', 'in_solar_units', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -10127,6 +10275,8 @@ class ConstraintParameter(Parameter):
         * ValueError: if `value` could not be converted to a string.
         * Error: if `value` could not be parsed into a valid constraint expression.
         """
+        self._readonly_check(**kwargs)
+
         _orig_value = _deepcopy(self.get_value())
 
         if self._bundle is None:
@@ -10674,7 +10824,7 @@ class HistoryParameter(Parameter):
 
         # TODO: how can we hold other parameters affect (ie. if the user calls set_value('incl', 80) and there is a constraint on asini that changes a... how do we log that here)
 
-        self._dict_fields_other = ['redo_func', 'redo_kwargs', 'undo_func', 'undo_kwargs', 'advanced']
+        self._dict_fields_other = ['redo_func', 'redo_kwargs', 'undo_func', 'undo_kwargs', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -10806,6 +10956,7 @@ class JobParameter(Parameter):
         see <phoebe.parameters.Parameter.__init__>
         """
         _qualifier = kwargs.pop('qualifier', None)
+        kwargs.setdefault('readonly', True)
         super(JobParameter, self).__init__(qualifier='detached_job', **kwargs)
 
         self._bundle = b
@@ -10823,7 +10974,7 @@ class JobParameter(Parameter):
 
         # TODO: add a description?
 
-        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __str__(self):

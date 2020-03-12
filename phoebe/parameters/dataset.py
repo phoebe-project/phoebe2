@@ -165,8 +165,8 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
 
     if is_lc:
-        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
-        params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), default_unit=u.W/u.m**2, description='Model (synthetic) flux' if syn else 'Observed flux')]
+        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+        params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), readonly=syn, default_unit=u.W/u.m**2, description='Model (synthetic) flux' if syn else 'Observed flux')]
 
     if not syn:
         # TODO: should we move all limb-darkening to compute options since
@@ -202,6 +202,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
         params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+        params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
 
         params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
         params += [FloatParameter(qualifier='sigmas_lnf', visible_if='sigmas:<notempty>', value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
@@ -299,8 +300,8 @@ def rv(syn=False, as_ps=True, **kwargs):
 
     params, constraints = [], []
 
-    params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
-    params += [FloatArrayParameter(qualifier='rvs', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'rvs'), default_unit=u.km/u.s, description='Model (synthetic) radial velocities' if syn else 'Observed radial velocity')]
+    params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+    params += [FloatArrayParameter(qualifier='rvs', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'rvs'), readonly=syn, default_unit=u.km/u.s, description='Model (synthetic) radial velocities' if syn else 'Observed radial velocity')]
 
     if not syn:
         params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
@@ -312,6 +313,8 @@ def rv(syn=False, as_ps=True, **kwargs):
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
         params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+        params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
+
 
     lc_params, lc_constraints = lc(syn=syn, as_ps=False, is_lc=False, **kwargs)
     params += lc_params
@@ -421,12 +424,12 @@ def lp(syn=False, as_ps=True, **kwargs):
 
 
     # wavelengths is time-independent
-    params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), default_unit=u.nm, description='Wavelengths of the model (synthetic)' if syn else 'Wavelengths of the observations')]
+    params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), readonly=syn, default_unit=u.nm, description='Wavelengths of the model (synthetic)' if syn else 'Wavelengths of the observations')]
 
     for time in times:
         # but do allow per-component flux_densities and sigmas
         params += [FloatArrayParameter(qualifier='flux_densities', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'},
-                                       component='_default', time=time, value=_empty_array(kwargs, 'flux_densities'), default_unit=u.W/(u.m**2*u.nm),
+                                       component='_default', time=time, value=_empty_array(kwargs, 'flux_densities'), readonly=syn, default_unit=u.W/(u.m**2*u.nm),
                                        description='Flux density per wavelength (must be same length as wavelengths or empty)')]
 
         if not syn:
@@ -438,6 +441,7 @@ def lp(syn=False, as_ps=True, **kwargs):
         params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
         params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+        params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
 
         params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
         params += [FloatParameter(qualifier='profile_rest', value=kwargs.get('profile_rest', 550), default_unit=u.nm, limits=(0, None), description='Rest central wavelength of the profile')]
@@ -489,15 +493,15 @@ def orb(syn=False, as_ps=True, **kwargs):
     params, constraints = [], []
 
     if syn:
-        params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+        params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
 
     if syn:
-        params += [FloatArrayParameter(qualifier='us', value=_empty_array(kwargs, 'us'), default_unit=u.solRad, description='U position')]
-        params += [FloatArrayParameter(qualifier='vs', value=_empty_array(kwargs, 'vs'), default_unit=u.solRad, description='V position')]
-        params += [FloatArrayParameter(qualifier='ws', value=_empty_array(kwargs, 'ws'), default_unit=u.solRad, description='W position')]
-        params += [FloatArrayParameter(qualifier='vus', value=_empty_array(kwargs, 'vus'), default_unit=u.km/u.s, description='U velocity')]
-        params += [FloatArrayParameter(qualifier='vvs', value=_empty_array(kwargs, 'vvs'), default_unit=u.km/u.s, description='V velocity')]
-        params += [FloatArrayParameter(qualifier='vws', value=_empty_array(kwargs, 'vws'), default_unit=u.km/u.s, description='W velocity')]
+        params += [FloatArrayParameter(qualifier='us', value=_empty_array(kwargs, 'us'), readonly=syn, default_unit=u.solRad, description='U position')]
+        params += [FloatArrayParameter(qualifier='vs', value=_empty_array(kwargs, 'vs'), readonly=syn, default_unit=u.solRad, description='V position')]
+        params += [FloatArrayParameter(qualifier='ws', value=_empty_array(kwargs, 'ws'), readonly=syn, default_unit=u.solRad, description='W position')]
+        params += [FloatArrayParameter(qualifier='vus', value=_empty_array(kwargs, 'vus'), readonly=syn, default_unit=u.km/u.s, description='U velocity')]
+        params += [FloatArrayParameter(qualifier='vvs', value=_empty_array(kwargs, 'vvs'), readonly=syn, default_unit=u.km/u.s, description='V velocity')]
+        params += [FloatArrayParameter(qualifier='vws', value=_empty_array(kwargs, 'vws'), readonly=syn, default_unit=u.km/u.s, description='W velocity')]
 
     if not syn:
         params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
@@ -564,7 +568,7 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
     if syn:
         # TODO: it would be nice if this wasn't copied per-component in the model... but it is also somewhat useful
-        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
 
     if not syn:
         if 'times' in kwargs.keys():
@@ -599,12 +603,12 @@ def mesh(syn=False, as_ps=True, **kwargs):
 
             # basic geometric columns
             if 'uvw' in coordinates:
-                params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), default_unit=u.solRad, advanced=True, description='Vertices of triangles in the plane-of-sky')]
-                params += [FloatArrayParameter(qualifier='uvw_normals', time=t, value=kwargs.get('uvw_normals', []), default_unit=u.solRad, advanced=True, description='Normals of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='uvw_elements', time=t, value=kwargs.get('uvw_elements', []), readonly=True, default_unit=u.solRad, advanced=True, description='Vertices of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='uvw_normals', time=t, value=kwargs.get('uvw_normals', []), readonly=True, default_unit=u.solRad, advanced=True, description='Normals of triangles in the plane-of-sky')]
 
             if 'xyz' in coordinates:
-                params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), default_unit=u.dimensionless_unscaled, advanced=True, description='Vertices of triangles in Roche coordinates')]
-                params += [FloatArrayParameter(qualifier='xyz_normals', time=t, value=kwargs.get('xyz_normals ', []), default_unit=u.dimensionless_unscaled, advanced=True, description='Normals of triangles in Roche coordinates')]
+                params += [FloatArrayParameter(qualifier='xyz_elements', time=t, value=kwargs.get('xyz_elements ', []), readonly=True, default_unit=u.dimensionless_unscaled, advanced=True, description='Vertices of triangles in Roche coordinates')]
+                params += [FloatArrayParameter(qualifier='xyz_normals', time=t, value=kwargs.get('xyz_normals ', []), readonly=True, default_unit=u.dimensionless_unscaled, advanced=True, description='Normals of triangles in Roche coordinates')]
 
             # NOTE: if changing the parameters which are optional, changes must
             # be made here, in the choices for the columns Parameter, and in
@@ -616,109 +620,109 @@ def mesh(syn=False, as_ps=True, **kwargs):
             # if 'rpole' in columns:
             #     params += [FloatParameter(qualifier='rpole', time=t, value=kwargs.get('rpole', 0.0), default_unit=u.solRad, description='Polar radius of the stellar surface')]
             if 'volume' in columns:
-                params += [FloatParameter(qualifier='volume', time=t, value=kwargs.get('volume', 0.0), default_unit=u.solRad**3, description='Volume of the stellar surface')]
+                params += [FloatParameter(qualifier='volume', time=t, value=kwargs.get('volume', 0.0), readonly=True, default_unit=u.solRad**3, description='Volume of the stellar surface')]
 
 
             if 'xs' in columns:
-                params += [FloatArrayParameter(qualifier='xs', time=t, value=kwargs.get('xs', []), default_unit=u.solRad, description='X coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='xs', time=t, value=kwargs.get('xs', []), readonly=True, default_unit=u.solRad, description='X coordinate of center of triangles in the plane-of-sky')]
             if 'ys' in columns:
-                params += [FloatArrayParameter(qualifier='ys', time=t, value=kwargs.get('ys', []), default_unit=u.solRad, description='Y coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='ys', time=t, value=kwargs.get('ys', []), readonly=True, default_unit=u.solRad, description='Y coordinate of center of triangles in the plane-of-sky')]
             if 'zs' in columns:
-                params += [FloatArrayParameter(qualifier='zs', time=t, value=kwargs.get('zs', []), default_unit=u.solRad, description='Z coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='zs', time=t, value=kwargs.get('zs', []), readonly=True, default_unit=u.solRad, description='Z coordinate of center of triangles in the plane-of-sky')]
 
             if 'vxs' in columns:
-                params += [FloatArrayParameter(qualifier='vxs', time=t, value=kwargs.get('vxs', []), default_unit=u.km/u.s, description='X velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vxs', time=t, value=kwargs.get('vxs', []), readonly=True, default_unit=u.km/u.s, description='X velocity of center of triangles')]
             if 'vys' in columns:
-                params += [FloatArrayParameter(qualifier='vys', time=t, value=kwargs.get('vys', []), default_unit=u.km/u.s, description='Y velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vys', time=t, value=kwargs.get('vys', []), readonly=True, default_unit=u.km/u.s, description='Y velocity of center of triangles')]
             if 'vzs' in columns:
-                params += [FloatArrayParameter(qualifier='vzs', time=t, value=kwargs.get('vzs', []), default_unit=u.km/u.s, description='Z velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vzs', time=t, value=kwargs.get('vzs', []), readonly=True, default_unit=u.km/u.s, description='Z velocity of center of triangles')]
 
             if 'nxs' in columns:
-                params += [FloatArrayParameter(qualifier='nxs', time=t, value=kwargs.get('nxs', []), default_unit=u.dimensionless_unscaled, description='X component of normals')]
+                params += [FloatArrayParameter(qualifier='nxs', time=t, value=kwargs.get('nxs', []), readonly=True, default_unit=u.dimensionless_unscaled, description='X component of normals')]
             if 'nys' in columns:
-                params += [FloatArrayParameter(qualifier='nys', time=t, value=kwargs.get('nys', []), default_unit=u.dimensionless_unscaled, description='Y component of normals')]
+                params += [FloatArrayParameter(qualifier='nys', time=t, value=kwargs.get('nys', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Y component of normals')]
             if 'nzs' in columns:
-                params += [FloatArrayParameter(qualifier='nzs', time=t, value=kwargs.get('nzs', []), default_unit=u.dimensionless_unscaled, description='Z component of normals')]
+                params += [FloatArrayParameter(qualifier='nzs', time=t, value=kwargs.get('nzs', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Z component of normals')]
 
             if 'us' in columns:
-                params += [FloatArrayParameter(qualifier='us', time=t, value=kwargs.get('us', []), default_unit=u.solRad, description='U coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='us', time=t, value=kwargs.get('us', []), readonly=True, default_unit=u.solRad, description='U coordinate of center of triangles in the plane-of-sky')]
             if 'vs' in columns:
-                params += [FloatArrayParameter(qualifier='vs', time=t, value=kwargs.get('vs', []), default_unit=u.solRad, description='V coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='vs', time=t, value=kwargs.get('vs', []), readonly=True, default_unit=u.solRad, description='V coordinate of center of triangles in the plane-of-sky')]
             if 'ws' in columns:
-                params += [FloatArrayParameter(qualifier='ws', time=t, value=kwargs.get('ws', []), default_unit=u.solRad, description='W coordinate of center of triangles in the plane-of-sky')]
+                params += [FloatArrayParameter(qualifier='ws', time=t, value=kwargs.get('ws', []), readonly=True, default_unit=u.solRad, description='W coordinate of center of triangles in the plane-of-sky')]
 
             if 'vus' in columns:
-                params += [FloatArrayParameter(qualifier='vus', time=t, value=kwargs.get('vus', []), default_unit=u.km/u.s, description='U velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vus', time=t, value=kwargs.get('vus', []), readonly=True, default_unit=u.km/u.s, description='U velocity of center of triangles')]
             if 'vvs' in columns:
-                params += [FloatArrayParameter(qualifier='vvs', time=t, value=kwargs.get('vvs', []), default_unit=u.km/u.s, description='V velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vvs', time=t, value=kwargs.get('vvs', []), readonly=True, default_unit=u.km/u.s, description='V velocity of center of triangles')]
             if 'vws' in columns:
-                params += [FloatArrayParameter(qualifier='vws', time=t, value=kwargs.get('vws', []), default_unit=u.km/u.s, description='W velocity of center of triangles')]
+                params += [FloatArrayParameter(qualifier='vws', time=t, value=kwargs.get('vws', []), readonly=True, default_unit=u.km/u.s, description='W velocity of center of triangles')]
 
             if 'nus' in columns:
-                params += [FloatArrayParameter(qualifier='nus', time=t, value=kwargs.get('nus', []), default_unit=u.dimensionless_unscaled, description='U component of normals')]
+                params += [FloatArrayParameter(qualifier='nus', time=t, value=kwargs.get('nus', []), readonly=True, default_unit=u.dimensionless_unscaled, description='U component of normals')]
             if 'nvs' in columns:
-                params += [FloatArrayParameter(qualifier='nvs', time=t, value=kwargs.get('nvs', []), default_unit=u.dimensionless_unscaled, description='V component of normals')]
+                params += [FloatArrayParameter(qualifier='nvs', time=t, value=kwargs.get('nvs', []), readonly=True, default_unit=u.dimensionless_unscaled, description='V component of normals')]
             if 'nws' in columns:
-                params += [FloatArrayParameter(qualifier='nws', time=t, value=kwargs.get('nws', []), default_unit=u.dimensionless_unscaled, description='W component of normals')]
+                params += [FloatArrayParameter(qualifier='nws', time=t, value=kwargs.get('nws', []), readonly=True, default_unit=u.dimensionless_unscaled, description='W component of normals')]
 
 
             if 'areas' in columns:
-                params += [FloatArrayParameter(qualifier='areas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of triangles')]
+                params += [FloatArrayParameter(qualifier='areas', time=t, value=kwargs.get('areas', []), readonly=True, default_unit=u.solRad**2, description='Area of triangles')]
             # if 'tareas' in columns:
-                # params += [FloatArrayParameter(qualifier='tareas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of WD triangles')]
+                # params += [FloatArrayParameter(qualifier='tareas', time=t, value=kwargs.get('areas', []), readonly=True, default_unit=u.solRad**2, description='Area of WD triangles')]
 
 
             if 'rs' in columns:
-                params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), default_unit=u.solRad, description='Distance of each triangle from center of mass (of the half-envelope for contacts)')]
+                params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), readonly=True, default_unit=u.solRad, description='Distance of each triangle from center of mass (of the half-envelope for contacts)')]
             # if 'cosbetas' in columns:
-            #     params += [FloatArrayParameter(qualifier='cosbetas', time=t, value=kwargs.get('cosbetas', []), default_unit=u.solRad, description='')]
+            #     params += [FloatArrayParameter(qualifier='cosbetas', time=t, value=kwargs.get('cosbetas', []), readonly=True, default_unit=u.solRad, description='')]
 
 
             if 'loggs' in columns:
-                params += [FloatArrayParameter(qualifier='loggs', time=t, value=kwargs.get('loggs', []), default_unit=u.dimensionless_unscaled, description='Local surface gravity')]
+                params += [FloatArrayParameter(qualifier='loggs', time=t, value=kwargs.get('loggs', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Local surface gravity')]
             if 'teffs' in columns:
-                params += [FloatArrayParameter(qualifier='teffs', time=t, value=kwargs.get('teffs', []), default_unit=u.K, description='Local effective temperature')]
+                params += [FloatArrayParameter(qualifier='teffs', time=t, value=kwargs.get('teffs', []), readonly=True, default_unit=u.K, description='Local effective temperature')]
 
             if 'rprojs' in columns:
-                params += [FloatArrayParameter(qualifier='rprojs', time=t, value=kwargs.get('rprojs', []), default_unit=u.solRad, description='Projected distance (on plane of sky) of each triangle from center of mass (of the half-envelope for contacts)')]
+                params += [FloatArrayParameter(qualifier='rprojs', time=t, value=kwargs.get('rprojs', []), readonly=True, default_unit=u.solRad, description='Projected distance (on plane of sky) of each triangle from center of mass (of the half-envelope for contacts)')]
             if 'mus' in columns:
-                params += [FloatArrayParameter(qualifier='mus', time=t, value=kwargs.get('mus', []), default_unit=u.dimensionless_unscaled, description='Mu')]
+                params += [FloatArrayParameter(qualifier='mus', time=t, value=kwargs.get('mus', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Mu')]
             if 'visible_centroids' in columns:
-                params += [FloatArrayParameter(qualifier='visible_centroids', time=t, value=kwargs.get('visible_centroids', []), default_unit=u.solRad  if t is not None else u.dimensionless_unscaled, description='Center of the visible portion of each triangle')]
+                params += [FloatArrayParameter(qualifier='visible_centroids', time=t, value=kwargs.get('visible_centroids', []), readonly=True, default_unit=u.solRad  if t is not None else u.dimensionless_unscaled, description='Center of the visible portion of each triangle')]
             if 'visibilities' in columns:
-                params += [FloatArrayParameter(qualifier='visibilities', time=t, value=kwargs.get('visibilities', []), default_unit=u.dimensionless_unscaled, description='Visiblity of triangles (1=visible, 0.5=partial, 0=hidden)')]
+                params += [FloatArrayParameter(qualifier='visibilities', time=t, value=kwargs.get('visibilities', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Visiblity of triangles (1=visible, 0.5=partial, 0=hidden)')]
 
-            # params += [FloatArrayParameter(qualifier='horizon_xs', time=t, value=kwargs.get('horizon_xs', []), default_unit=u.solRad, description='Horizon of the mesh (x component)')]
-            # params += [FloatArrayParameter(qualifier='horizon_ys', time=t, value=kwargs.get('horizon_ys', []), default_unit=u.solRad, description='Horizon of the mesh (y component)')]
-            # params += [FloatArrayParameter(qualifier='horizon_zs', time=t, value=kwargs.get('horizon_zs', []), default_unit=u.solRad, description='Horizon of the mesh (z component)')]
-            # params += [FloatArrayParameter(qualifier='horizon_analytic_xs', time=t, value=kwargs.get('horizon_analytic_xs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, x component)')]
-            # params += [FloatArrayParameter(qualifier='horizon_analytic_ys', time=t, value=kwargs.get('horizon_analytic_ys', []), default_unit=u.solRad, description='Analytic horizon (interpolated, y component)')]
-            # params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_xs', time=t, value=kwargs.get('horizon_xs', []), readonly=True, default_unit=u.solRad, description='Horizon of the mesh (x component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_ys', time=t, value=kwargs.get('horizon_ys', []), readonly=True, default_unit=u.solRad, description='Horizon of the mesh (y component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_zs', time=t, value=kwargs.get('horizon_zs', []), readonly=True, default_unit=u.solRad, description='Horizon of the mesh (z component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_analytic_xs', time=t, value=kwargs.get('horizon_analytic_xs', []), readonly=True, default_unit=u.solRad, description='Analytic horizon (interpolated, x component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_analytic_ys', time=t, value=kwargs.get('horizon_analytic_ys', []), readonly=True, default_unit=u.solRad, description='Analytic horizon (interpolated, y component)')]
+            # params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), readonly=True, default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
 
             for dataset in mesh_datasets:
                 # if 'dls@{}'.format(dataset) in columns:
                     # params += [FloatArrayParameter(qualifier='dls', dataset=dataset, time=t, value=[], default_unit=u.nm, description='Per-element delta-lambda caused by doppler shift'.format(dataset))]
                 if 'rvs@{}'.format(dataset) in columns:
-                    params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.km/u.s, description='Per-element value of rvs for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], readonly=True, default_unit=u.km/u.s, description='Per-element value of rvs for {} dataset'.format(dataset))]
                 if 'intensities@{}'.format(dataset) in columns:
-                    params += [FloatArrayParameter(qualifier='intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of intensities for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='intensities', dataset=dataset, time=t, value=[], readonly=True, default_unit=u.W/u.m**3, description='Per-element value of intensities for {} dataset'.format(dataset))]
                 if 'normal_intensities@{}'.format(dataset) in columns:
-                    params += [FloatArrayParameter(qualifier='normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of normal_intensities for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='normal_intensities', dataset=dataset, time=t, value=[], readonly=True, default_unit=u.W/u.m**3, description='Per-element value of normal_intensities for {} dataset'.format(dataset))]
                 if 'abs_intensities@{}'.format(dataset) in columns:
-                    params += [FloatArrayParameter(qualifier='abs_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_intensities for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='abs_intensities', dataset=dataset, time=t, value=[], readonly=True, default_unit=u.W/u.m**3, description='Per-element value of abs_intensities for {} dataset'.format(dataset))]
                 if 'abs_normal_intensities@{}'.format(dataset) in columns:
-                    params += [FloatArrayParameter(qualifier='abs_normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_normal_intensities for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='abs_normal_intensities', dataset=dataset, time=t, value=[], readonly=True, default_unit=u.W/u.m**3, description='Per-element value of abs_normal_intensities for {} dataset'.format(dataset))]
                 if 'boost_factors@{}'.format(dataset) in columns:
-                    params += [FloatArrayParameter(qualifier='boost_factors', dataset=dataset, time=t, value=[], default_unit=u.dimensionless_unscaled, description='Per-element value of boost_factors for {} dataset'.format(dataset))]
+                    params += [FloatArrayParameter(qualifier='boost_factors', dataset=dataset, time=t, value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='Per-element value of boost_factors for {} dataset'.format(dataset))]
                 if 'ldint@{}'.format(dataset) in columns:
-                    params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
+                    params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), readonly=True, default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
 
                 if 'ptfarea@{}'.format(dataset) in columns:
-                    params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), default_unit=u.m, description='Area of the passband transmission function')]
+                    params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), readonly=True, default_unit=u.m, description='Area of the passband transmission function')]
                 if 'pblum_ext@{}'.format(dataset) in columns:
-                    params += [FloatParameter(qualifier='pblum_ext', dataset=dataset, time=t, value=kwargs.get('pblum_ext', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (after pblum scaling)')]
+                    params += [FloatParameter(qualifier='pblum_ext', dataset=dataset, time=t, value=kwargs.get('pblum_ext', 0.0), readonly=True, default_unit=u.W, description='Passband Luminosity of entire star (after pblum scaling)')]
                 if 'abs_pblum_ext@{}'.format(dataset) in columns:
-                    params += [FloatParameter(qualifier='abs_pblum_ext', dataset=dataset, time=t, value=kwargs.get('abs_pblum_ext', 0.0), default_unit=u.W, description='Passband Luminosity of entire star (before pblum scaling)')]
+                    params += [FloatParameter(qualifier='abs_pblum_ext', dataset=dataset, time=t, value=kwargs.get('abs_pblum_ext', 0.0), readonly=True, default_unit=u.W, description='Passband Luminosity of entire star (before pblum scaling)')]
 
 
     return ParameterSet(params) if as_ps else params, constraints
