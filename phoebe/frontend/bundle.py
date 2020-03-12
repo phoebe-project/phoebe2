@@ -1123,7 +1123,7 @@ class Bundle(ParameterSet):
 
         return b
 
-    def save(self, filename, clear_history=True, compact=False):
+    def save(self, filename, clear_history=True, compact=False, incl_uniqueid=True):
         """
         Save the bundle to a JSON-formatted ASCII file.
 
@@ -1148,9 +1148,11 @@ class Bundle(ParameterSet):
             # but rather skip the context when saving
             self.remove_history()
 
+        if not incl_uniqueid:
+            logger.warning("saving without uniqueids could cause issues with solutions, use with caution")
         # TODO: add option for clear_models, clear_solution
         # NOTE: PS.save will handle os.path.expanduser
-        return super(Bundle, self).save(filename, incl_uniqueid=True,
+        return super(Bundle, self).save(filename, incl_uniqueid=incl_uniqueid,
                                         compact=compact)
 
     def export_legacy(self, filename, compute=None, skip_checks=False):
