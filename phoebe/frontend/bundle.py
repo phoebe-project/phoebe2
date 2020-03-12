@@ -9211,7 +9211,7 @@ class Bundle(ParameterSet):
             fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
 
             if solver_kind == 'bls_period':
-                fitted_values *= solution_ps.get_value(qualifier='adopt_factor', adopt_factor=kwargs.get('adopt_factor', None), **_skip_filter_checks)
+                fitted_values = fitted_values * solution_ps.get_value(qualifier='adopt_factor', adopt_factor=kwargs.get('adopt_factor', None), **_skip_filter_checks)
 
             if as_distributions:
                 if distribution is None:
