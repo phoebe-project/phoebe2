@@ -4292,6 +4292,7 @@ class ParameterSet(object):
                     kwargs.setdefault('linestyle', 'solid')
 
                     fitted_uniqueids = list(self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks))
+                    fitted_twigs = list(self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks))
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_ps = self._bundle.filter(uniqueid=fitted_uniqueids, **_skip_filter_checks)
 
@@ -4303,8 +4304,14 @@ class ParameterSet(object):
                         ys = [ys]
 
                     for y in ys:
-                        param = fitted_ps.get_parameter(y, **_skip_filter_checks)
-                        parameter_ind = fitted_uniqueids.index(param.uniqueid)
+                        try:
+                            param = fitted_ps.get_parameter(twig=y, **_skip_filter_checks)
+                            parameter_ind = fitted_uniqueids.index(param.uniqueid)
+
+                        except:
+                            param = self._bundle.get_parameter(twig=y, **_skip_filter_checks)
+                            # NOTE: the following may fail if not a full twig
+                            parameter_ind = figged_twigs.index(y)
 
                         for walker_ind in range(samples.shape[1]):
                             kwargs = _deepcopy(kwargs)
