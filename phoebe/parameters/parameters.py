@@ -6839,7 +6839,7 @@ class ChoiceParameter(Parameter):
 
         self._choices = kwargs.get('choices', [''])
 
-        self.set_value(kwargs.get('value', ''), ignore_readonly=True)
+        self.set_value(kwargs.get('value', ''), ignore_readonly=True, allow_not_in_choices=True)
 
         self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
@@ -6935,7 +6935,7 @@ class ChoiceParameter(Parameter):
             if value not in self.choices:
                 self._choices = list_passbands(refresh=True)
 
-        if value not in self.choices:
+        if value not in self.choices and not kwargs.get('allow_not_in_choices', False):
             raise ValueError("value for {} must be one of {}, not '{}'".format(self.uniquetwig, self.choices, value))
 
         # NOTE: downloading passbands from online is now handled by run_checks
@@ -7450,7 +7450,7 @@ class BoolParameter(Parameter):
 class UnitParameter(ChoiceParameter):
     def __init__(self, *args, **kwargs):
         """
-        see :meth:`Parameter.__init__`
+        see <phoebe.parameters.Parameter.__init__>
         """
         super(UnitParameter, self).__init__(*args, **kwargs)
 
@@ -7521,7 +7521,7 @@ class UnitParameter(ChoiceParameter):
 
         value = self._check_type(value)
 
-        if value not in self.choices:
+        if value not in self.choices and not kwargs.get('allow_not_in_choices', False):
             # TODO: see if same physical type and allow if so?
 
             raise ValueError("value for {} must be one of {}, not '{}'".format(self.uniquetwig, self.choices, value))
@@ -10956,7 +10956,8 @@ class JobParameter(Parameter):
         see <phoebe.parameters.Parameter.__init__>
         """
         _qualifier = kwargs.pop('qualifier', None)
-        super(JobParameter, self).__init__(qualifier='detached_job', readonly=True, **kwargs)
+        kwargs.setdefault('readonly', True)
+        super(JobParameter, self).__init__(qualifier='detached_job', **kwargs)
 
         self._bundle = b
         self._server_status = server_status
