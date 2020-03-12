@@ -253,7 +253,9 @@ def _value_string(param):
         else:
             arr = param.get_value()
             # unit = str(param.get_default_unit())
-            if len(arr):
+            if len(arr)==1:
+                return "[{} (1)]".format(arr[0])
+            elif len(arr):
                 return "[{} ... {} ({})]".format(arr[0], arr[-1], len(arr))
             else:
                 return "[ ] (empty)"
