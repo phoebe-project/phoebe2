@@ -67,7 +67,13 @@ _skip_filter_checks = {'check_default': False, 'check_visible': False}
 # Attempt imports for client requirements
 try:
     import requests
-    import urllib2
+    if sys.version_info[0] < 3:
+      from urllib2 import urlopen as _urlopen
+      from urllib2 import URLError
+    else:
+      from urllib.request import urlopen as _urlopen
+      from urllib.error import URLError
+
     from socketIO_client import SocketIO, BaseNamespace
     #  pip install -U socketIO-client
 except ImportError:
@@ -1192,8 +1198,8 @@ class Bundle(ParameterSet):
         [NOT IMPLEMENTED]
         """
         try:
-            resp = urllib2.urlopen("{}/info".format(server))
-        except urllib2.URLError:
+            resp = _urlopen("{}/info".format(server))
+        except URLError:
             test_passed = False
         else:
             resp = json.loads(resp.read())
