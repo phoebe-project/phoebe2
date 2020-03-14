@@ -198,6 +198,17 @@ def _figure_style_sources(b, default_color='component', default_linestyle='datas
 
     return params
 
+def _figure_style_nosources(b, **kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.cycle, description='Default color when plotted via run_figure')]
+
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)) if kwargs.get('marker', None) is not "None" else "None", choices=["None"] + b._mplmarkercycler.cycle, description='Default marker when plotted via run_figure')]
+
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)) if kwargs.get('linestyle', None) is not "None" else "None", choices=["None"] + b._mpllinestylecycler.cycle, description='Default linestyle when plotted via run_figure')]
+
+    return params
+
 def _figure_uncover_highlight_animate(b, uncover=True, highlight=True, **kwargs):
     params = []
 
@@ -443,6 +454,35 @@ def mesh(b, **kwargs):
 
     return ParameterSet(params)
 
+def bls_period(b, **kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]
+
+    kwargs.setdefault('color', 'black' if _use_autofig else None)
+    kwargs.setdefault('marker', 'None' if _use_autofig else None)
+    kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
+    params += _figure_style_nosources(b, **kwargs)
+
+    # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
+
+    return ParameterSet(params)
+
+def lc_eclipse_geometry(b, **kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]
+
+    kwargs.setdefault('color', 'black' if _use_autofig else None)
+    kwargs.setdefault('marker', 'None' if _use_autofig else None)
+    kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
+    params += _figure_style_nosources(b, **kwargs)
+
+    # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
+
+    return ParameterSet(params)
+
+
 def emcee(b, **kwargs):
     params = []
 
@@ -450,18 +490,17 @@ def emcee(b, **kwargs):
 
     params += [ChoiceParameter(qualifier='style', value=kwargs.get('style', 'corner'), choices=['corner', 'failed', 'lnprobability', 'walks'], description='style of plot')]
 
-    params += [ChoiceParameter(visible_if='style:walks', qualifier='y', value=kwargs.get('y', ''), choices=[''], description='Parameter samples to plot along y-axis')]
+    # TODO: implement y for walks (need to set choices based on the solution fitted_twigs)
+    # params += [ChoiceParameter(visible_if='style:walks', qualifier='y', value=kwargs.get('y', ''), choices=[''], description='Parameter samples to plot along y-axis')]
 
     # params += _label_units_lims('y', visible_if='style:lnprobability', default_unit=u.dimensionless_unscaled, is_default=True, **kwargs)
 
-    kwargs.setdefault('color', 'black') if _use_autofig else None
+    kwargs.setdefault('color', 'black' if _use_autofig else None)
     kwargs.setdefault('marker', 'None' if _use_autofig else None)
     kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
-    params += _figure_style_sources(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
+    params += _figure_style_nosources(b, **kwargs)
 
     # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
-
-    # params += _figure_uncover_highlight_animate(b, **kwargs)
 
     return ParameterSet(params)
 
@@ -474,14 +513,12 @@ def dynesty(b, **kwargs):
 
     # params += _label_units_lims('y', visible_if='style:lnprobability', default_unit=u.dimensionless_unscaled, is_default=True, **kwargs)
 
-    kwargs.setdefault('color', 'black') if _use_autofig else None
+    kwargs.setdefault('color', 'black' if _use_autofig else None)
     kwargs.setdefault('marker', 'None' if _use_autofig else None)
     kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
-    params += _figure_style_sources(b, default_color='component', default_marker='manual', default_linestyle='manual', **kwargs)
+    params += _figure_style_nosources(b, **kwargs)
 
     # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
-
-    # params += _figure_uncover_highlight_animate(b, **kwargs)
 
     return ParameterSet(params)
 

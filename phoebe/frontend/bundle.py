@@ -2182,6 +2182,26 @@ class Bundle(ParameterSet):
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
+        for param in self.filter(qualifier='solution', context='figure', **_skip_filter_checks).to_list():
+            choices = self.filter(context='solution', kind=param.kind, **_skip_filter_checks).solutions
+
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                if param._value == '' and len(choices):
+                    param._value = choices[0]
+                else:
+                    param._value = ''
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
         return affected_params
 
     def set_hierarchy(self, *args, **kwargs):
@@ -3463,15 +3483,16 @@ class Bundle(ParameterSet):
 
 
         for figure in self.figures:
-            x = self.get_value(qualifier='x', figure=figure, context='figure', **_skip_filter_checks)
-            y = self.get_value(qualifier='y', figure=figure, context='figure', **_skip_filter_checks)
-            if (x in ['xs', 'ys', 'zs'] and y in ['us', 'vs', 'ws']) or (x in ['us', 'vs', 'ws'] and y in ['xs', 'ys', 'zs']):
-                report.add_item(self,
-                                "cannot mix xyz and uvw coordinates in {} figure".format(figure),
-                                [self.get_parameter(qualifier='x', figure=figure, context='figure', **_skip_filter_checks),
-                                 self.get_parameter(qualifier='y', figure=figure, context='figure', **_skip_filter_checks)
-                                ],
-                                False)
+            if 'x' in self.filter(figure=figure, context='figure', **_skip_filter_checks).qualifiers:
+                x = self.get_value(qualifier='x', figure=figure, context='figure', **_skip_filter_checks)
+                y = self.get_value(qualifier='y', figure=figure, context='figure', **_skip_filter_checks)
+                if (x in ['xs', 'ys', 'zs'] and y in ['us', 'vs', 'ws']) or (x in ['us', 'vs', 'ws'] and y in ['xs', 'ys', 'zs']):
+                    report.add_item(self,
+                                    "cannot mix xyz and uvw coordinates in {} figure".format(figure),
+                                    [self.get_parameter(qualifier='x', figure=figure, context='figure', **_skip_filter_checks),
+                                     self.get_parameter(qualifier='y', figure=figure, context='figure', **_skip_filter_checks)
+                                    ],
+                                    False)
 
         if raise_logger_warning:
             for item in report.items:
@@ -6674,135 +6695,158 @@ class Bundle(ParameterSet):
         kwargs['check_default'] = False
         kwargs['check_visible'] = False
 
-        ds_kind = fig_ps.kind
-        ds_same_kind = self.filter(context='dataset', kind=ds_kind).datasets
-        ml_same_kind = self.filter(context='model', kind=ds_kind).models
-        comp_same_kind = self.filter(context=['dataset', 'model'], kind=ds_kind).components
+        if fig_ps.kind in self.filter(context='dataset', **_skip_filter_checks).kinds:
+            ds_kind = fig_ps.kind
+            kwargs['kind'] = ds_kind
+            ds_same_kind = self.filter(context='dataset', kind=ds_kind, **_skip_filter_checks).datasets
+            ml_same_kind = self.filter(context='model', kind=ds_kind, **_skip_filter_checks).models
+            comp_same_kind = self.filter(context=['dataset', 'model'], kind=ds_kind, **_skip_filter_checks).components
 
-        kwargs.setdefault('kind', ds_kind)
-        if 'contexts' in fig_ps.qualifiers:
-            kwargs.setdefault('context', fig_ps.get_value(qualifier='contexts', expand=True, **_skip_filter_checks))
-        else:
-            kwargs['context'] = 'model'
-        kwargs.setdefault('dataset', fig_ps.get_value(qualifier='datasets', expand=True, **_skip_filter_checks))
-        kwargs.setdefault('model', [None] + fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
-        if 'components' in fig_ps.qualifiers:
-            kwargs.setdefault('component', fig_ps.get_value(qualifier='components', expand=True, **_skip_filter_checks))
-        kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
-
-        for q in ['draw_sidebars', 'uncover', 'highlight']:
-            if q in fig_ps.qualifiers:
-                kwargs.setdefault(q, fig_ps.get_value(qualifier=q, **_skip_filter_checks))
-
-        time_source = fig_ps.get_value(qualifier='time_source', **_skip_filter_checks)
-        if time_source == 'default':
-            time_source = self.get_value(qualifier='default_time_source', context='figure', **_skip_filter_checks)
-            if time_source == 'manual':
-                kwargs.setdefault('time', self.get_value(qualifier='default_time', context='figure', **_skip_filter_checks))
-            elif time_source == 'None':
-                # then we don't do anything
-                pass
-            elif ' (' in time_source:
-                kwargs.setdefault('time', float(time_source.split(' ')[0]))
+            kwargs.setdefault('kind', ds_kind)
+            if 'contexts' in fig_ps.qualifiers:
+                kwargs.setdefault('context', fig_ps.get_value(qualifier='contexts', expand=True, **_skip_filter_checks))
             else:
-                # probably a t0 of some sort, which we can pass directly as the string
-                kwargs.setdefault('time', time_source)
+                kwargs['context'] = 'model'
 
-        elif time_source == 'manual':
-            kwargs.setdefault('time', fig_ps.get_value(qualifier='time', **_skip_filter_checks))
-        elif time_source == 'None':
-            # then we don't do anything
-            pass
-        elif ' (' in time_source:
-            kwargs.setdefault('time', float(time_source.split(' ')[0]))
-        else:
-            # probably a t0 of some sort, which we can pass directly as the string
-            kwargs.setdefault('time', time_source)
 
-        for d in ['x', 'y', 'fc', 'ec'] if ds_kind == 'mesh' else ['x', 'y']:
-            if d not in ['fc', 'ec']:
-                # fc and ec are handled later because they have different options
-                kwargs.setdefault(d, fig_ps.get_value(qualifier=d, **_skip_filter_checks))
+            if 'datasets' in fig_ps.qualifiers:
+                kwargs.setdefault('dataset', fig_ps.get_value(qualifier='datasets', expand=True, **_skip_filter_checks))
+            if 'models' in fig_ps.qualifiers:
+                kwargs.setdefault('model', [None] + fig_ps.get_value(qualifier='models', expand=True, **_skip_filter_checks))
+            if 'components' in fig_ps.qualifiers:
+                kwargs.setdefault('component', fig_ps.get_value(qualifier='components', expand=True, **_skip_filter_checks))
 
-            if kwargs.get('{}label_source'.format(d), fig_ps.get_value(qualifier='{}label_source'.format(d), **_skip_filter_checks))=='manual':
-                kwargs.setdefault('{}label'.format(d), fig_ps.get_value(qualifier='{}label'.format(d), **_skip_filter_checks))
+            kwargs.setdefault('legend', fig_ps.get_value(qualifier='legend', **_skip_filter_checks))
 
-            if kwargs.get('{}unit_source'.format(d), fig_ps.get_value(qualifier='{}unit_source'.format(d), **_skip_filter_checks))=='manual':
-                kwargs.setdefault('{}unit'.format(d), fig_ps.get_value(qualifier='{}unit'.format(d), **_skip_filter_checks))
+            for q in ['draw_sidebars', 'uncover', 'highlight']:
+                if q in fig_ps.qualifiers:
+                    kwargs.setdefault(q, fig_ps.get_value(qualifier=q, **_skip_filter_checks))
 
-            if kwargs.get('{}lim_source'.format(d), fig_ps.get_value(qualifier='{}lim_source'.format(d), **_skip_filter_checks))=='manual':
-                lim = fig_ps.get_value(qualifier='{}lim'.format(d), **_skip_filter_checks)
-                if len(lim)==2:
-                    kwargs.setdefault('{}lim'.format(d), lim)
+            if 'time_source' in fig_ps.qualifiers:
+                time_source = fig_ps.get_value(qualifier='time_source', **_skip_filter_checks)
+                if time_source == 'default':
+                    time_source = self.get_value(qualifier='default_time_source', context='figure', **_skip_filter_checks)
+                    if time_source == 'manual':
+                        kwargs.setdefault('time', self.get_value(qualifier='default_time', context='figure', **_skip_filter_checks))
+                    elif time_source == 'None':
+                        # then we don't do anything
+                        pass
+                    elif ' (' in time_source:
+                        kwargs.setdefault('time', float(time_source.split(' ')[0]))
+                    else:
+                        # probably a t0 of some sort, which we can pass directly as the string
+                        kwargs.setdefault('time', time_source)
+
+                elif time_source == 'manual':
+                    kwargs.setdefault('time', fig_ps.get_value(qualifier='time', **_skip_filter_checks))
+                elif time_source == 'None':
+                    # then we don't do anything
+                    pass
+                elif ' (' in time_source:
+                    kwargs.setdefault('time', float(time_source.split(' ')[0]))
                 else:
-                    logger.warning("ignoring {}lim, must have length 2".format(lim))
+                    # probably a t0 of some sort, which we can pass directly as the string
+                    kwargs.setdefault('time', time_source)
+
+            for d in ['x', 'y', 'fc', 'ec'] if ds_kind == 'mesh' else ['x', 'y']:
+                if d not in ['fc', 'ec']:
+                    # fc and ec are handled later because they have different options
+                    kwargs.setdefault(d, fig_ps.get_value(qualifier=d, **_skip_filter_checks))
+
+                if kwargs.get('{}label_source'.format(d), fig_ps.get_value(qualifier='{}label_source'.format(d), **_skip_filter_checks))=='manual':
+                    kwargs.setdefault('{}label'.format(d), fig_ps.get_value(qualifier='{}label'.format(d), **_skip_filter_checks))
+
+                if kwargs.get('{}unit_source'.format(d), fig_ps.get_value(qualifier='{}unit_source'.format(d), **_skip_filter_checks))=='manual':
+                    kwargs.setdefault('{}unit'.format(d), fig_ps.get_value(qualifier='{}unit'.format(d), **_skip_filter_checks))
+
+                if kwargs.get('{}lim_source'.format(d), fig_ps.get_value(qualifier='{}lim_source'.format(d), **_skip_filter_checks))=='manual':
+                    lim = fig_ps.get_value(qualifier='{}lim'.format(d), **_skip_filter_checks)
+                    if len(lim)==2:
+                        kwargs.setdefault('{}lim'.format(d), lim)
+                    else:
+                        logger.warning("ignoring {}lim, must have length 2".format(lim))
 
 
-        # if ds_kind in ['mesh', 'lp']:
-            # kwargs.setdefault('time', fig_ps.get_value(qualifier='times', expand=True, **_skip_filter_checks))
+            # if ds_kind in ['mesh', 'lp']:
+                # kwargs.setdefault('time', fig_ps.get_value(qualifier='times', expand=True, **_skip_filter_checks))
 
-            # if 'times' in kwargs.keys():
-                # logger.warning("")
-                # kwargs['time'] = kwargs.pop('times')
+                # if 'times' in kwargs.keys():
+                    # logger.warning("")
+                    # kwargs['time'] = kwargs.pop('times')
 
 
-        if ds_kind in ['mesh']:
-            for q in ['fc', 'ec']:
-                source = fig_ps.get_value(qualifier=q+'_source', **_skip_filter_checks)
-                if source == 'column':
-                    kwargs[q] = fig_ps.get_value(qualifier=q+'_column', **_skip_filter_checks)
+            if ds_kind in ['mesh']:
+                for q in ['fc', 'ec']:
+                    source = fig_ps.get_value(qualifier=q+'_source', **_skip_filter_checks)
+                    if source == 'column':
+                        kwargs[q] = fig_ps.get_value(qualifier=q+'_column', **_skip_filter_checks)
 
-                    cmap_source = fig_ps.get_value(qualifier=q+'map_source', **_skip_filter_checks)
-                    if cmap_source == 'manual':
-                        kwargs[q+'map'] = fig_ps.get_value(qualifier=q+'map', **_skip_filter_checks)
+                        cmap_source = fig_ps.get_value(qualifier=q+'map_source', **_skip_filter_checks)
+                        if cmap_source == 'manual':
+                            kwargs[q+'map'] = fig_ps.get_value(qualifier=q+'map', **_skip_filter_checks)
 
-                elif source == 'manual':
-                    kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
-                elif source == 'face':
-                    kwargs[q] = 'face'
-                elif source == 'component':
-                    kwargs[q] = {c: self.get_value(qualifier='color', component=c, context='figure', **_skip_filter_checks) for c in comp_same_kind if c in self.hierarchy.get_meshables()}
-                elif source == 'model':
-                    kwargs[q] = {ml: self.get_value(qualifier='color', model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
+                    elif source == 'manual':
+                        kwargs[q] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                    elif source == 'face':
+                        kwargs[q] = 'face'
+                    elif source == 'component':
+                        kwargs[q] = {c: self.get_value(qualifier='color', component=c, context='figure', **_skip_filter_checks) for c in comp_same_kind if c in self.hierarchy.get_meshables()}
+                    elif source == 'model':
+                        kwargs[q] = {ml: self.get_value(qualifier='color', model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
 
-                if kwargs[q] == 'None':
-                    kwargs[q] = None
+                    if kwargs[q] == 'None':
+                        kwargs[q] = None
+
+            else:
+                for q in ['linestyle', 'marker', 'color']:
+                    if q not in kwargs.keys():
+                        if q == 'marker':
+                            # don't apply markers to models
+                            suff = '@dataset'
+                        elif q == 'linestyle':
+                            suff = '@model'
+                        else:
+                            suff = ''
+
+                        source = kwargs.get('{}_source'.format(q), fig_ps.get_value(qualifier='{}_source'.format(q), **_skip_filter_checks))
+                        if source == 'manual':
+                            if q == 'marker':
+                                kwargs[q] = {'dataset': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
+                            elif q == 'linestyle':
+                                kwargs[q] = {'model': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
+                            else:
+                                kwargs[qmap.get(q,q)] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
+                        elif source == 'dataset':
+                            kwargs[qmap.get(q,q)] = {ds+suff: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
+                        elif source == 'model':
+                            kwargs[qmap.get(q,q)] = {ml+suff: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
+                        elif source == 'component':
+                            kwargs[qmap.get(q,q)] = {}
+                            for c in comp_same_kind:
+                                try:
+                                    kwargs[qmap.get(q,q)][c+suff] = self.get_value(qualifier=q, component=c, context='figure', **_skip_filter_checks)
+                                except ValueError:
+                                    # RVs will include orbits in comp_same kind, but we can safely skip those
+                                    pass
+                        else:
+                            raise NotImplementedError("{}_source of {} not supported".format(q, source))
+
+
+        elif fig_ps.kind in self.filter(context='solver', **_skip_filter_checks).kinds:
+            kwargs['context'] = 'solution'
+
+            kwargs.setdefault('solution', fig_ps.get_value(qualifier='solution', **_skip_filter_checks))
+            if not len(kwargs.get('solution')):
+                logger.warning("solution not set, cannot plot")
+                return None, None
+
+            for k in fig_ps.qualifiers:
+                if k in ['solution']:
+                    continue
+                kwargs.setdefault(k, fig_ps.get_value(qualifier=k, **_skip_filter_checks))
 
         else:
-            for q in ['linestyle', 'marker', 'color']:
-                if q not in kwargs.keys():
-                    if q == 'marker':
-                        # don't apply markers to models
-                        suff = '@dataset'
-                    elif q == 'linestyle':
-                        suff = '@model'
-                    else:
-                        suff = ''
-
-                    source = kwargs.get('{}_source'.format(q), fig_ps.get_value(qualifier='{}_source'.format(q), **_skip_filter_checks))
-                    if source == 'manual':
-                        if q == 'marker':
-                            kwargs[q] = {'dataset': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
-                        elif q == 'linestyle':
-                            kwargs[q] = {'model': fig_ps.get_value(qualifier=q, **_skip_filter_checks)}
-                        else:
-                            kwargs[qmap.get(q,q)] = fig_ps.get_value(qualifier=q, **_skip_filter_checks)
-                    elif source == 'dataset':
-                        kwargs[qmap.get(q,q)] = {ds+suff: self.get_value(qualifier=q, dataset=ds, context='figure', **_skip_filter_checks) for ds in ds_same_kind}
-                    elif source == 'model':
-                        kwargs[qmap.get(q,q)] = {ml+suff: self.get_value(qualifier=q, model=ml, context='figure', **_skip_filter_checks) for ml in ml_same_kind}
-                    elif source == 'component':
-                        kwargs[qmap.get(q,q)] = {}
-                        for c in comp_same_kind:
-                            try:
-                                kwargs[qmap.get(q,q)][c+suff] = self.get_value(qualifier=q, component=c, context='figure', **_skip_filter_checks)
-                            except ValueError:
-                                # RVs will include orbits in comp_same kind, but we can safely skip those
-                                pass
-                    else:
-                        raise NotImplementedError("{}_source of {} not supported".format(q, source))
-
-
+            raise ValueError("nothing found to plot")
 
         kwargs.setdefault('tight_layout', True)
         logger.info("calling plot(**{})".format(kwargs))

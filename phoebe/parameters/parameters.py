@@ -4866,7 +4866,11 @@ class ParameterSet(object):
                     if len(plot_kwargss) > 1:
                         raise ValueError("corner plots not supported with other axes")
 
-                    return None, corner.corner(plot_kwargs['data'], labels=plot_kwargs.get('labels', None))
+                    mplfig = corner.corner(plot_kwargs['data'], labels=plot_kwargs.get('labels', None))
+                    if save:
+                        mplfig.savefig(save)
+
+                    return None, mplfig
 
                 elif plot_package == 'chainconsumer':
                     c = chainconsumer.ChainConsumer()
@@ -4880,8 +4884,11 @@ class ParameterSet(object):
                         # print(msg, samples.shape)
                         c.add_chain(samples, parameters=plot_kwargs.get('labels', None), name=msg, smooth=False, bar_shade=False)
 
+                    mplfig = c.plotter.plot(figsize=1.5)
+                    if save:
+                        mplfig.savefig(save)
 
-                    return None, c.plotter.plot(figsize=1.5)
+                    return None, mplfig
 
                 elif plot_package == 'dynesty':
                     if not _use_dyplot:
@@ -4892,7 +4899,11 @@ class ParameterSet(object):
                     style = plot_kwargs.pop('style')
                     dynesty_method = plot_kwargs.pop('dynesty_method')
                     func = getattr(dyplot, dynesty_method)
-                    return func(**plot_kwargs)
+                    mplfig = func(**plot_kwargs)
+                    if save:
+                        mplfig.savefig(save)
+
+                    return None, mplfig
 
                 elif plot_package == 'autofig':
                     y = plot_kwargs.get('y', [])
@@ -4919,6 +4930,7 @@ class ParameterSet(object):
                         func(**plot_kwargs)
                 else:
                     raise ValueError("plot_package={} not recognized".format(plot_package))
+
         except Exception as err:
             restore_conf()
             raise
