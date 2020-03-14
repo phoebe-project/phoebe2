@@ -5028,8 +5028,10 @@ class Bundle(ParameterSet):
             ret_ps += overwrite_ps
 
         ret_changes = []
-        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+        ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
         ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -5122,12 +5124,11 @@ class Bundle(ParameterSet):
         ret_ps += self.remove_parameters_all(**kwargs)
 
         ret_changes = []
-
-
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
-        # the dataset could have been removed from an existing model which changes options
-        # for time_source params if it was a mesh or lp
         ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
+        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+
 
         if self.get_value(qualifier='auto_remove_figure', context='setting'):
             # then we don't have a figure for this kind yet
@@ -5197,8 +5198,9 @@ class Bundle(ParameterSet):
 
         ret_changes = []
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
-        # Only needed if it was a mesh or lp
         ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
+        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -8772,7 +8774,6 @@ class Bundle(ParameterSet):
 
 
         # TODO: OPTIMIZE only trigger those necessary based on the solver-backend
-        # TODO: return these for the UI
         ret_changes = []
         ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
         ret_changes += self._handle_compute_choiceparams(return_changes=return_changes)
@@ -8798,7 +8799,7 @@ class Bundle(ParameterSet):
             # TODO: else raise warning?
 
         if return_changes:
-            return ret_changes + ret_ps
+            return ret_ps + ret_changes
         return ret_ps
 
     def get_solver(self, solver=None, **kwargs):
