@@ -9119,7 +9119,7 @@ class Bundle(ParameterSet):
         return ret_ps
 
 
-    def adopt_solution(self, solution=None, as_distributions=False, **kwargs):
+    def adopt_solution(self, solution=None, as_distributions=False, remove_solution=False, **kwargs):
         """
 
         Arguments
@@ -9131,6 +9131,8 @@ class Bundle(ParameterSet):
             that returns face-values to adopt as delta distributions instead
             of setting the face-values.  Only applicable for solver backends
             that do NOT return distributions.
+        * `remove_solution` (bool, optional, default=False): whether to remove
+            the `solution` once successfully adopted.  See <phoebe.frontend.bundle.Bundle.remove_solution>.
         * `distribution` (string, optional, default=None): applicable only
             for solver backends that return distributions or if `as_distributions=True`.
             Distribution to use when adding distributions to the bundle.  See
@@ -9202,7 +9204,7 @@ class Bundle(ParameterSet):
                     self.add_distribution(twig=twig, value=dist.slice(i), distribution=distribution)
 
             # TODO: do we want to only return newly added distributions?
-            return self.get_distribution(distribution=distribution)
+            return_ = self.get_distribution(distribution=distribution)
 
         else:
             fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
@@ -9246,7 +9248,13 @@ class Bundle(ParameterSet):
                 if user_interactive_constraints:
                     conf.interactive_constraints_on()
 
-            return ParameterSet(changed_params)
+            return_ = ParameterSet(changed_params)
+
+        if remove_solution:
+            # TODO: add to the return if return_changes
+            self.remove_solution(solution=solution)
+
+        return return_
 
     def get_solution(self, solution=None, **kwargs):
         """
