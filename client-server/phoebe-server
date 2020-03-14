@@ -546,7 +546,30 @@ def export_compute(bundleid, compute, model=None):
     script_fname=ef.name
     b.export_compute(script_fname, out_fname=None, compute=compute, model=model)
 
-    return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_compute_{}.py'.format(bundleid,compute))
+    return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_compute_{}.py'.format(bundleid, compute))
+
+@app.route('/export_solver/<string:bundleid>/<string:solver>', defaults={'solution': None}, methods=['GET'])
+@app.route('/export_solver/<string:bundleid>/<string:solver>/<string:solution>', methods=['GET'])
+@crossdomain(origin='*')
+def export_solver(bundleid, solver, solution=None):
+    """
+    """
+    if app._verbose:
+        print("export_solver(bundleid={}, solver={})".format(bundleid, solver))
+
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    ef = tempfile.NamedTemporaryFile(prefix="export_solver", suffix=".py")
+
+    script_fname=ef.name
+    b.export_solver(script_fname, out_fname=None, solver=solver, solution=solution)
+
+    return send_file(ef.name, as_attachment=True, attachment_filename='{}_run_solver_{}.py'.format(bundleid, solver))
 
 @app.route('/export_arrays/<string:bundleid>/<string:params>', methods=['GET'])
 @crossdomain(origin='*')
