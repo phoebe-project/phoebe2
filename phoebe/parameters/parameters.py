@@ -168,7 +168,7 @@ _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarc
 
 # from setting:
 _forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter',
-                      'dict_set_all', 'run_checks_compute', 'auto_add_figure']
+                      'dict_set_all', 'run_checks_compute', 'auto_add_figure', 'auto_remove_figure']
 
 # from component
 _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
@@ -1572,6 +1572,8 @@ class ParameterSet(object):
         """Adding 2 PSs returns a new PS with items that are in either."""
         if isinstance(other, Parameter):
             other = ParameterSet([other])
+        elif isinstance(other, list):
+            other = ParameterSet(other)
 
         if isinstance(other, ParameterSet):
             # NOTE: used to have the following but doesn't work in python3
@@ -1593,6 +1595,8 @@ class ParameterSet(object):
 
         if isinstance(other, Parameter):
             other = ParameterSet([other])
+        elif isinstance(other, list):
+            other = ParameterSet(other)
 
         if isinstance(other, ParameterSet):
             ps = ParameterSet([p for p in self._params if p not in other._params])
@@ -11146,10 +11150,10 @@ class JobParameter(Parameter):
         [NOT IMPLEMENTED]
         """
         # now the file with the model should be retrievable from self._result_fname
-        result_ps = ParameterSet.open(self._results_fname)
-        return result_ps
+        ret_ps = ParameterSet.open(self._results_fname)
+        return ret_ps
 
-    def attach(self, wait=True, sleep=5, cleanup=True):
+    def attach(self, wait=True, sleep=5, cleanup=True, return_changes=False):
         """
         Attach the results from a <phoebe.parameters.JobParameter> to the
         <phoebe.frontend.bundle.Bundle>.  If the status is not yet reported as
@@ -11164,6 +11168,8 @@ class JobParameter(Parameter):
             Only applicable if `wait` is True.
         * `cleanup` (bool, optional, default=True): whether to delete this
             parameter and any temporary files once the results are loaded.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
         Returns
         ---------
@@ -11221,7 +11227,7 @@ class JobParameter(Parameter):
 
         elif self.status == 'error':
             ferr = open(self._err_fname, 'r')
-            msg = ferr.readlines()[-1]
+            lines = ferr.readlines()
             ferr.close()
 
             if cleanup:
@@ -11230,21 +11236,23 @@ class JobParameter(Parameter):
 
             self._value = 'error'
 
-            raise RuntimeError("job failed with error: {}".format(msg))
+            print("ERROR: full error message: {}".format(lines))
+            logger.error("full error message: {}".format(lines))
+            raise RuntimeError("job failed with error: {}".format(lines[-1]))
         else:
             logger.info("current status: {}, pulling job results".format(self.status))
-            result_ps = self._retrieve_results()
+            ret_ps = self._retrieve_results()
 
-            # now we need to attach result_ps to self._bundle
+            # now we need to attach ret_ps to self._bundle
             # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
             if self.context == 'model':
-                metawargs = {'compute': str(result_ps.compute), 'model': str(result_ps.model), 'context': 'model'}
+                metawargs = {'compute': str(ret_ps.compute), 'model': str(ret_ps.model), 'context': 'model'}
             elif self.context == 'solution':
-                metawargs = {'solver': str(result_ps.solver), 'solution': str(result_ps.solution), 'context': 'solution'}
+                metawargs = {'solver': str(ret_ps.solver), 'solution': str(ret_ps.solution), 'context': 'solution'}
             else:
                 raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
 
-            self._bundle._attach_params(result_ps, **metawargs)
+            self._bundle._attach_params(ret_ps, **metawargs)
 
             if cleanup:
                 os.remove(self._script_fname)
@@ -11255,12 +11263,15 @@ class JobParameter(Parameter):
 
             # TODO: add history?
             if self.context == 'model':
-                self._bundle._handle_model_selectparams()
-
-                return self._bundle.filter(model=self.model)
+                # TODO: check logic for do_create_fig_params
+                ret_changes = self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
 
             elif self.context == 'solution':
-                return self._bundle.filter(solution=self.solution)
+                ret_changes = self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
 
             else:
                 raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
+
+            if return_changes:
+                return ret_ps + ret_changes
+            return ret_ps

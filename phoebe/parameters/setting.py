@@ -23,7 +23,8 @@ def settings(**kwargs):
 
     params += [SelectParameter(qualifier='run_checks_compute', value=kwargs.get('run_checks_compute', '*'), choices=[], advanced=False, description='Compute options to use when calling run_checks or within interactive checks.')]
 
-    params += [BoolParameter(qualifier='auto_add_figure', value=kwargs.get('auto_add_figure', False), description='Whether to automatically add figure parameters when a dataset is added with a new dataset type.')]
+    params += [BoolParameter(qualifier='auto_add_figure', value=kwargs.get('auto_add_figure', False), description='Whether to automatically add figure parameters when a dataset is added with a new dataset type, or a solver or solution are added.')]
+    params += [BoolParameter(qualifier='auto_remove_figure', value=kwargs.get('auto_remove_figure', False), description='Whether to automatically remove figure parameters when the referenced dataset/solver/solution are removed.')]
 
     # params += [ChoiceParameter(qualifier='plotting_backend', value=kwargs.get('plotting_backend', 'mpl'), choices=['mpl', 'mpld3', 'mpl2bokeh', 'bokeh'] if conf.devel else ['mpl'], description='Default backend to use for plotting')]
 

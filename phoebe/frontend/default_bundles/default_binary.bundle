@@ -2744,11 +2744,19 @@ null
 "qualifier": "run_checks_compute"
 }, 
 {
-"description": "Whether to automatically add figure parameters when a dataset is added with a new dataset type.", 
+"description": "Whether to automatically add figure parameters when a dataset is added with a new dataset type, or a solver or solution are added.", 
 "value": false, 
 "context": "setting", 
 "copy_for": false, 
 "Class": "BoolParameter", 
 "qualifier": "auto_add_figure"
+}, 
+{
+"description": "Whether to automatically remove figure parameters when the referenced dataset/solver/solution are removed.", 
+"value": false, 
+"context": "setting", 
+"copy_for": false, 
+"Class": "BoolParameter", 
+"qualifier": "auto_remove_figure"
 }
 ]

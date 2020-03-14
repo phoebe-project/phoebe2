@@ -3658,7 +3658,8 @@ class Bundle(ParameterSet):
         return {r: {'url': citation_urls.get(r, None), 'uses': v} for r,v in recs.items()}
 
 
-    def add_feature(self, kind, component=None, dataset=None, **kwargs):
+    def add_feature(self, kind, component=None, dataset=None,
+                    return_changes= False, **kwargs):
         """
         Add a new feature (spot, gaussian process, etc) to a component or
         dataset in the system.  If not
@@ -3702,9 +3703,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing feature with the same `feature` tag.  If False,
             an error will be raised.
-        * `return_overwrite` (boolean, optional, default=False): whether to include
-            removed parameters due to `overwrite` in the returned ParameterSet.
-            Only applicable if `overwrite` is True.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -3784,13 +3785,10 @@ class Bundle(ParameterSet):
         for constraint in constraints:
             self.add_constraint(*constraint)
 
-        #return params
-        # NOTE: we need to call get_ in order to make sure all metawargs are applied
         ret_ps = self.filter(feature=kwargs['feature'], **_skip_filter_checks)
 
-        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
-            ret_ps += overwrite_ps
-
+        if kwargs.get('overwrite', False) and return_changes:
+            return ret_ps + overwrite_ps
         return ret_ps
 
     def get_feature(self, feature=None, **kwargs):
@@ -4047,7 +4045,7 @@ class Bundle(ParameterSet):
         return self.rename_feature(old_feature, new_feature, overwrite=overwrite)
 
     @send_if_client
-    def add_component(self, kind, **kwargs):
+    def add_component(self, kind, return_changes=False, **kwargs):
         """
         Add a new component (star or orbit) to the system.  If not provided,
         `component` (the name of the new star or orbit) will be created for
@@ -4082,9 +4080,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing component with the same `component` tag.  If False,
             an error will be raised.
-        * `return_overwrite` (boolean, optional, default=False): whether to include
-            removed parameters due to `overwrite` in the returned ParameterSet.
-            Only applicable if `overwrite` is True.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -4158,21 +4156,24 @@ class Bundle(ParameterSet):
         # TODO: include figure params in returned PS?
         ret_ps = self.get_component(check_visible=False, check_default=False, **metawargs)
 
-        ret_ps += ParameterSet(self._handle_component_selectparams(return_changes=True))
-        ret_ps += ParameterSet(self._handle_pblum_defaults(return_changes=True))
-        ret_ps += ParameterSet(self._handle_fitparameters_selecttwigparams(return_changes=True))
-        ret_ps += ParameterSet(self._handle_orbit_choiceparams(return_changes=True))
-        ret_ps += ParameterSet(self._handle_component_choiceparams(return_changes=True))
+        ret_changes = []
+        ret_changes += self._handle_component_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_pblum_defaults(return_changes=return_changes)
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+        ret_changes += self._handle_orbit_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_component_choiceparams(return_changes=return_changes)
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
         self._kwargs_checks(kwargs,
-                            additional_allowed_keys=['overwrite', 'return_overwrite'],
+                            additional_allowed_keys=['overwrite'],
                             warning_only=True, ps=ret_ps)
 
-        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
-            ret_ps += overwrite_ps
+        if kwargs.get('overwrite', False) and return_changes:
+            ret_changes += overwrite_ps
 
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
     def get_component(self, component=None, **kwargs):
@@ -4195,7 +4196,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'component'
         return self.filter(**kwargs)
 
-    def remove_component(self, component, **kwargs):
+    def remove_component(self, component, return_changes=False, **kwargs):
         """
         Remove a 'component' from the bundle.
 
@@ -4205,6 +4206,8 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `component` (string): the label of the component to be removed.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: component, context
@@ -4218,7 +4221,12 @@ class Bundle(ParameterSet):
         # NOTE: we do not remove from 'model' by default
         kwargs['context'] = ['component', 'constraint', 'dataset', 'compute', 'figure']
         ret_ps =  self.remove_parameters_all(**kwargs)
-        ret_ps += ParameterSet(self._handle_component_selectparams(return_changes=True))
+
+        ret_changes = []
+        ret_changes += self._handle_component_selectparams(return_changes=return_changes)
+
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
     def rename_component(self, old_component, new_component):
@@ -4564,7 +4572,7 @@ class Bundle(ParameterSet):
         return self.to_time(*args, **kwargs)
 
     @send_if_client
-    def add_dataset(self, kind, component=None, **kwargs):
+    def add_dataset(self, kind, component=None, return_changes=False, **kwargs):
         """
         Add a new dataset to the bundle.  If not provided,
         `dataset` (the name of the new dataset) will be created for
@@ -4643,9 +4651,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing dataset with the same `dataset` tag.  If False,
             an error will be raised if a dataset already exists with the same name.
-        * `return_overwrite` (boolean, optional, default=False): whether to include
-            removed parameters due to `overwrite` in the returned ParameterSet.
-            Only applicable if `overwrite` is True.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).  See examples
             above for acceptable formats.
@@ -4990,17 +4998,20 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
+        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
 
         if new_fig_params is not None:
             ret_ps += new_fig_params
 
-        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+        if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
 
-        ret_ps += ParameterSet(self._handle_fitparameters_selecttwigparams(return_changes=True))
-        ret_ps += ParameterSet(self._handle_lc_choiceparams(return_changes=True))
+        ret_changes = []
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
 
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
     def get_dataset(self, dataset=None, **kwargs):
@@ -5029,7 +5040,7 @@ class Bundle(ParameterSet):
             kwargs['kind'] = kwargs['kind'].lower()
         return self.filter(**kwargs)
 
-    def remove_dataset(self, dataset=None, **kwargs):
+    def remove_dataset(self, dataset=None, return_changes=False, **kwargs):
         """
         Remove a 'dataset' from the Bundle.
 
@@ -5045,6 +5056,8 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `dataset` (string, optional): the label of the dataset to be removed.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: dataset, qualifier.
@@ -5087,10 +5100,20 @@ class Bundle(ParameterSet):
         # the trick
         ret_ps += self.remove_parameters_all(**kwargs)
 
-        ret_ps += ParameterSet(self._handle_dataset_selectparams(return_changes=True))
+        ret_changes = []
+
+
+        ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         # the dataset could have been removed from an existing model which changes options
         # for time_source params if it was a mesh or lp
-        ret_ps += ParameterSet(self._handle_figure_time_source_params(return_changes=True))
+        ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
+
+        if self.get_value(qualifier='auto_remove_figure', context='setting'):
+            # then we don't have a figure for this kind yet
+            for param in self.filter(qualifier='datasets', context='figure', kind=ret_ps.kind, **_skip_filter_checks).to_list():
+                if not len(param.choices):
+                    logger.info("calling remove_figure(figure='{}') since auto_remove_figure@setting=True".format(param.figure))
+                    ret_changes += self.remove_figure(figure=param.figure, return_changes=return_changes).to_list()
 
         # TODO: check to make sure that trying to undo this
         # will raise an error saying this is not undo-able
@@ -5099,12 +5122,19 @@ class Bundle(ParameterSet):
                           undo_func=None,
                           undo_kwargs={})
 
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
-    def remove_datasets_all(self):
+    def remove_datasets_all(self, return_changes=False):
         """
         Remove all datasets from the bundle.  To remove a single dataset see
         <phoebe.frontend.bundle.Bundle.remove_dataset>.
+
+        Arguments
+        ----------
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
         Returns
         -----------
@@ -5112,11 +5142,11 @@ class Bundle(ParameterSet):
         """
         removed_ps = ParameterSet()
         for dataset in self.datasets:
-            removed_ps += self.remove_dataset(dataset=dataset)
+            removed_ps += self.remove_dataset(dataset=dataset, return_changes=return_changes)
 
         return removed_ps
 
-    def rename_dataset(self, old_dataset, new_dataset, overwrite=False):
+    def rename_dataset(self, old_dataset, new_dataset, overwrite=False, return_changes=False):
         """
         Change the label of a dataset attached to the Bundle.
 
@@ -5127,6 +5157,9 @@ class Bundle(ParameterSet):
             (must not yet exist, unless `overwrite=True`)
         * `overwrite` (bool, optional, default=False): overwrite the existing
             entry if it exists.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
 
         Returns
         --------
@@ -5141,10 +5174,13 @@ class Bundle(ParameterSet):
 
         ret_ps = self.filter(dataset=new_dataset)
 
-        ret_ps += ParameterSet(self._handle_dataset_selectparams(return_changes=True))
+        ret_changes = []
+        ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         # Only needed if it was a mesh or lp
-        ret_ps += ParameterSet(self._handle_figure_time_source_params(return_changes=True))
+        ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
 
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
 
@@ -5817,7 +5853,7 @@ class Bundle(ParameterSet):
         return changes
 
     @send_if_client
-    def add_distribution(self, twig=None, value=None, **kwargs):
+    def add_distribution(self, twig=None, value=None, return_changes=False, **kwargs):
         """
         Add a new distribution to the bundle, tagged to reference an existing
         parameter.  Unlike other `add_` methods in the bundle, this does not
@@ -5841,6 +5877,8 @@ class Bundle(ParameterSet):
             If not provided, will be a delta function around the current value
             of the referenced parameter.
         * `distribution` (string, optional): name of the newly-created distribution.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: tags to filter for a matching parameter (and to tag the
             new <phoebe.parameters.DistributionParameter>).  This (along with `twig`)
             must point to a single parameter.
@@ -5915,16 +5953,18 @@ class Bundle(ParameterSet):
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
         self._kwargs_checks(kwargs,
-                            additional_allowed_keys=['overwrite', 'return_overwrite'],
+                            additional_allowed_keys=['overwrite'],
                             warning_only=True, ps=ret_ps)
 
-        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+        if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
 
-        # TODO: only include these if requested?
-        ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
-        ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
+        ret_changes = []
+        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
 
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
     def get_distribution(self, distribution=None, **kwargs):
@@ -5967,7 +6007,7 @@ class Bundle(ParameterSet):
 
         return ret_ps
 
-    def remove_distribution(self, distribution, **kwargs):
+    def remove_distribution(self, distribution, return_changes=False, **kwargs):
         """
         Remove a distribution-set from the bundle.
 
@@ -5980,6 +6020,8 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `distribution` (string): the label of the distribution to be removed.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: distribution, context
@@ -5991,11 +6033,17 @@ class Bundle(ParameterSet):
         kwargs['distribution'] = distribution
         kwargs['context'] = 'distribution'
         ret_ps = self.remove_parameters_all(**kwargs)
-        ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
-        ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
+
+        ret_changes = []
+        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
+
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
-    def rename_distribution(self, old_distribution, new_distribution, overwrite=False):
+    def rename_distribution(self, old_distribution, new_distribution,
+                            overwrite=False):
         """
         Change the label of a distribution-set attached to the Bundle.
 
@@ -6325,7 +6373,7 @@ class Bundle(ParameterSet):
             return ret
 
     @send_if_client
-    def add_figure(self, kind, **kwargs):
+    def add_figure(self, kind, return_changes=False, **kwargs):
         """
         Add a new figure to the bundle.  If not provided,
         figure` (the name of the new figure) will be created for
@@ -6367,9 +6415,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing figure with the same `figure` tag.  If False,
             an error will be raised.
-        * `return_overwrite` (boolean, optional, default=False): whether to include
-            removed parameters due to `overwrite` in the returned ParameterSet.
-            Only applicable if `overwrite` is True.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -6428,21 +6476,25 @@ class Bundle(ParameterSet):
 
         ret_ps = self.filter(figure=kwargs['figure'], check_visible=False, check_default=False)
 
-        self._handle_dataset_selectparams()
-        self._handle_model_selectparams()
-        self._handle_component_selectparams()
-        self._handle_meshcolor_choiceparams()
-        self._handle_figure_time_source_params()
+        ret_changes = []
+        ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_model_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_component_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_meshcolor_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
         self._kwargs_checks(kwargs,
-                            additional_allowed_keys=['overwrite', 'return_overwrite'],
+                            additional_allowed_keys=['overwrite'],
                             warning_only=True, ps=ret_ps)
 
-        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+        if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
 
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
     def get_figure(self, figure=None, **kwargs):
@@ -7479,7 +7531,7 @@ class Bundle(ParameterSet):
 
 
     @send_if_client
-    def add_compute(self, kind='phoebe', **kwargs):
+    def add_compute(self, kind='phoebe', return_changes=False, **kwargs):
         """
         Add a set of computeoptions for a given backend to the bundle.
         The label (`compute`) can then be sent to <phoebe.frontend.bundle.Bundle.run_compute>.
@@ -7505,9 +7557,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing set of compute options with the same `compute` tag.  If False,
             an error will be raised.
-        * `return_overwrite` (boolean, optional, default=False): whether to include
-            removed parameters due to `overwrite` in the returned ParameterSet.
-            Only applicable if `overwrite` is True.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -7569,19 +7621,21 @@ class Bundle(ParameterSet):
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
+        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
 
-
-        self._handle_distribution_selectparams(return_changes=False)
+        ret_changes = []
+        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
         if sample_from is not None:
             ret_ps.set_value_all(qualifier='sample_from', value=sample_from, **_skip_filter_checks)
 
-        ret_ps += ParameterSet(self._handle_compute_selectparams(return_changes=True))
-        ret_ps += ParameterSet(self._handle_compute_choiceparams(return_changes=True))
+        ret_changes += self._handle_compute_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_compute_choiceparams(return_changes=return_changes)
 
-        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+        if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
 
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
     def get_compute(self, compute=None, **kwargs):
@@ -7604,7 +7658,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'compute'
         return self.filter(**kwargs)
 
-    def remove_compute(self, compute, **kwargs):
+    def remove_compute(self, compute, return_changes=False, **kwargs):
         """
         Remove a 'compute' from the bundle.
 
@@ -7614,6 +7668,8 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `compute` (string): the label of the compute options to be removed.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: context, compute.
@@ -7625,13 +7681,23 @@ class Bundle(ParameterSet):
         kwargs['compute'] = compute
         kwargs['context'] = 'compute'
         ret_ps = self.remove_parameters_all(**kwargs)
-        ret_ps += ParameterSet(self._handle_compute_selectparams(return_changes=True))
+
+        ret_changes = []
+        ret_changes += self._handle_compute_selectparams(return_changes=return_changes)
+
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
-    def remove_computes_all(self):
+    def remove_computes_all(self, remove_changes=False):
         """
         Remove all compute options from the bundle.  To remove a single set
         of compute options see <phoebe.frontend.bundle.Bundle.remove_compute>.
+
+        Arguments
+        -----------
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
         Returns
         -----------
@@ -7639,7 +7705,7 @@ class Bundle(ParameterSet):
         """
         removed_ps = ParameterSet()
         for compute in self.computes:
-            removed_ps += self.remove_compute(compute)
+            removed_ps += self.remove_compute(compute, return_changes=return_changes)
         return removed_ps
 
     def rename_compute(self, old_compute, new_compute, overwrite=False):
@@ -7693,7 +7759,7 @@ class Bundle(ParameterSet):
             else:
                 logger.info("overwriting model: {}".format(model))
 
-            do_create_fig_params = kwargs.get('do_create_fig_params', False)
+            do_create_fig_params = kwargs.pop('do_create_fig_params', False)
 
             overwrite_ps = self.remove_model(model=model, remove_figure_params=do_create_fig_params)
 
@@ -7703,7 +7769,7 @@ class Bundle(ParameterSet):
                 self.exclude(context='figure')._check_label(model, allow_overwrite=False)
 
         else:
-            do_create_fig_params = kwargs.get('do_create_fig_params', True)
+            do_create_fig_params = kwargs.pop('do_create_fig_params', True)
 
 
         # handle case where compute is not provided
@@ -7747,7 +7813,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'return_overwrite', 'max_computations']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
@@ -7885,11 +7951,29 @@ class Bundle(ParameterSet):
 
         return script_fname, out_fname
 
+    def _run_compute_changes(self, ret_ps, return_changes=False, do_create_fig_params=False, removed=False, **kwargs):
+        ret_changes = []
+
+        # Figure options for this model
+        # Since auto_add_figure is applied to the DATASET, we will always add model-dependent options
+        if do_create_fig_params and not removed and ret_ps.model not in self.filter(context='figure', **_skip_filter_checks).models:
+            fig_params = _figure._run_compute(self, **kwargs)
+
+            fig_metawargs = {'context': 'figure',
+                             'model': ret_ps.model}
+            self._attach_params(fig_params, check_copy_for=False, **fig_metawargs)
+            ret_changes += fig_params.to_list()
+
+        ret_changes += self._handle_model_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_meshcolor_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
+        return ret_changes
 
     @send_if_client
     def run_compute(self, compute=None, model=None,
                     detach=False,
-                    dataset=None, times=None, **kwargs):
+                    dataset=None, times=None,
+                    return_changes=False, **kwargs):
         """
         Run a forward model of the system on the enabled dataset(s) using
         a specified set of compute options.
@@ -7944,10 +8028,9 @@ class Bundle(ParameterSet):
             an existing model with the same `model` tag.  If False,
             an error will be raised.  This defaults to True if `model` is not provided
             or is 'latest', otherwise it will default to False.
-        * `return_overwrite` (boolean, optional, default=False): whether to include
-            removed parameters due to `overwrite` in the returned ParameterSet.
-            Only applicable if `overwrite` is True (or defaults to True if
-            `model` is 'latest').
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -7986,6 +8069,7 @@ class Bundle(ParameterSet):
 
 
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps = self._prepare_compute(compute, model, dataset, **kwargs)
+        _ = kwargs.pop('do_create_fig_params', None)
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
@@ -8058,12 +8142,15 @@ class Bundle(ParameterSet):
             # TODO: make sure the figureparams are returned when attaching
 
             # return self.get_model(model)
-            self._handle_model_selectparams()
+            ret_changes = []
+            ret_changes += self._handle_model_selectparams(return_changes=return_changes)
             # return self.filter(model=model, check_visible=False, check_default=False)
 
-            if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
-                return ParameterSet([job_param]) + overwrite_ps
+            if kwargs.get('overwrite', model=='latest') and return_changes and overwrite_ps is not None:
+                return ParameterSet([job_param]) + overwrite_ps + ret_changes
 
+            if return_changes:
+                return ParameterSet([job_param]) + ret_changes
             return job_param
 
         # temporarily disable interactive_checks, check_default, and check_visible
@@ -8106,6 +8193,7 @@ class Bundle(ParameterSet):
                 logger.debug("restoring check_default")
                 conf.check_default_on()
 
+        ret_changes = []
 
         try:
             kwargs_sample_from = kwargs.pop('sample_from', None)
@@ -8155,7 +8243,8 @@ class Bundle(ParameterSet):
 
                     self._attach_params(params, check_copy_for=False, **metawargs)
 
-                    self.remove_distribution(distribution=remove_dists)
+                    # TODO: include when return_changes?
+                    ret_changes += self.remove_distribution(distribution=remove_dists).to_list()
                     # continue to the next iteration of the for-loop.  Any dataset-scaling,
                     # etc, will be handled within each individual model run within the sampler.
                     continue
@@ -8312,13 +8401,7 @@ class Bundle(ParameterSet):
                             logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
                             param.set_value(param.get_value() * scale_factor, ignore_readonly=True)
 
-            # Figure options for this model
-            if do_create_fig_params:
-                fig_params = _figure._run_compute(self, **kwargs)
 
-                fig_metawargs = {'context': 'figure',
-                                 'model': model}
-                self._attach_params(fig_params, check_copy_for=False, **fig_metawargs)
 
             redo_kwargs = _deepcopy(kwargs)
             redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
@@ -8335,16 +8418,14 @@ class Bundle(ParameterSet):
 
         restore_conf()
 
-        ret_ps = self.filter(model=model, **_skip_filter_checks)
+        ret_ps = self.filter(model=model, context=None if return_changes else 'model', **_skip_filter_checks)
+        ret_changes += self._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=do_create_fig_params, **kwargs)
 
-        # TODO: should we add these to the output?
-        self._handle_model_selectparams()
-        self._handle_meshcolor_choiceparams()
-        self._handle_figure_time_source_params()
-
-        if kwargs.get('overwrite', model=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
+        if kwargs.get('overwrite', model=='latest') and return_changes and overwrite_ps is not None:
             ret_ps += overwrite_ps
 
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
     def get_model(self, model=None, **kwargs):
@@ -8394,7 +8475,7 @@ class Bundle(ParameterSet):
 
         return self.run_compute(model=model, **kwargs)
 
-    def import_model(self, fname, model=None):
+    def import_model(self, fname, model=None, return_changes=False):
         """
         Import and attach a model from a file.
 
@@ -8415,6 +8496,9 @@ class Bundle(ParameterSet):
         * `model` (string, optional): the name of the model to be attached
             to the Bundle.  If not provided, the model will be adopted from
             the tags in the file.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
 
         Returns
         -----------
@@ -8426,11 +8510,14 @@ class Bundle(ParameterSet):
             metawargs['model'] = model
         self._attach_params(result_ps, override_tags=True, **metawargs)
 
-        changed_params = self._handle_model_selectparams(return_changes=True)
+        ret_ps = self.get_model(model=model if model is not None else result_ps.models)
+        ret_changes = self._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=False)
 
-        return ParameterSet(changed_params) + self.get_model(model=model if model is not None else result_ps.models)
+        if return_changes:
+            return ret_ps + ret_changes
+        return ret_ps
 
-    def remove_model(self, model, **kwargs):
+    def remove_model(self, model, return_changes=False, **kwargs):
         """
         Remove a 'model' from the bundle.
 
@@ -8443,6 +8530,8 @@ class Bundle(ParameterSet):
         * `remove_figure_params` (bool, optional): whether to also remove
             figure options tagged with `model`.  If not provided, will default
             to false if `model` is 'latest', otherwise will default to True.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: model, context.
@@ -8456,15 +8545,24 @@ class Bundle(ParameterSet):
         kwargs['model'] = model
         kwargs['context'] = ['model', 'figure'] if remove_figure_params else 'model'
         ret_ps = self.remove_parameters_all(**kwargs)
-        ret_ps += ParameterSet(self._handle_model_selectparams(return_changes=True))
-        if remove_figure_params:
-            ret_ps += ParameterSet(self._handle_meshcolor_choiceparams(return_changes=True))
+
+        ret_changes = self._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=False, removed=True, **kwargs)
+        # if remove_figure_params:
+        #     ret_changes += self._handle_meshcolor_choiceparams(return_changes=return_changes)
+
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
-    def remove_models_all(self):
+    def remove_models_all(self, return_changes=False):
         """
         Remove all models from the bundle.  To remove a single model see
         <phoebe.frontend.bundle.Bundle.remove_model>.
+
+        Arguments
+        -------------
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
         Returns
         -----------
@@ -8472,10 +8570,11 @@ class Bundle(ParameterSet):
         """
         removed_ps = ParameterSet()
         for model in self.models:
-            removed_ps += self.remove_model(model=model)
+            removed_ps += self.remove_model(model=model, return_changes=return_changes)
         return removed_ps
 
-    def rename_model(self, old_model, new_model, overwrite=False):
+    def rename_model(self, old_model, new_model,
+                     overwrite=False, return_changes=False):
         """
         Change the label of a model attached to the Bundle.
 
@@ -8486,6 +8585,9 @@ class Bundle(ParameterSet):
             (must not yet exist, unless `overwrite=True`)
         * `overwrite` (bool, optional, default=False): overwrite the existing
             entry if it exists.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
 
         Returns
         --------
@@ -8500,11 +8602,15 @@ class Bundle(ParameterSet):
 
         ret_ps = self.filter(model=new_model)
 
-        ret_ps += ParameterSet(self._handle_model_selectparams())
+        ret_changes = []
+        ret_changes += self._handle_model_selectparams(return_changes=return_changes)
 
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
-    def attach_job(self, twig=None, wait=True, sleep=5, cleanup=True, **kwargs):
+    def attach_job(self, twig=None, wait=True, sleep=5, cleanup=True,
+                   return_changes=False, **kwargs):
         """
         Attach the results from an existing <phoebe.parameters.JobParameter>.
 
@@ -8524,6 +8630,8 @@ class Bundle(ParameterSet):
             Only applicable if `wait` is True.
         * `cleanup` (bool, optional, default=True): whether to delete any
             temporary files created by the Job.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: any additional keyword arguments are sent to filter for the
             Job parameters.  Between `twig` and `**kwargs`, a single parameter
             with qualifier of 'detached_job' must be found.
@@ -8534,11 +8642,10 @@ class Bundle(ParameterSet):
             Parameters.
         """
         kwargs['qualifier'] = 'detached_job'
-        return self.get_parameter(twig=twig, **kwargs).attach(wait=wait, sleep=sleep, cleanup=cleanup)
-
+        return self.get_parameter(twig=twig, **kwargs).attach(wait=wait, sleep=sleep, cleanup=cleanup, return_changes=return_changes)
 
     @send_if_client
-    def add_solver(self, kind, **kwargs):
+    def add_solver(self, kind, return_changes=False, **kwargs):
         """
         Add a set of solver options for a given backend to the bundle.
         The label (`solver`) can then be sent to <phoebe.frontend.bundle.Bundle.run_solver>.
@@ -8564,9 +8671,9 @@ class Bundle(ParameterSet):
         * `overwrite` (boolean, optional, default=False): whether to overwrite
             an existing set of solver options with the same `solver` tag.  If False,
             an error will be raised.
-        * `return_overwrite` (boolean, optional, default=False): whether to include
-            removed parameters due to `overwrite` in the returned ParameterSet.
-            Only applicable if `overwrite` is True.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
         * `**kwargs`: default values for any of the newly-created parameters
             (passed directly to the matched callabled function).
 
@@ -8622,20 +8729,21 @@ class Bundle(ParameterSet):
 
         # TODO: OPTIMIZE only trigger those necessary based on the solver-backend
         # TODO: return these for the UI
-        self._handle_distribution_selectparams(return_changes=False)
-        self._handle_compute_choiceparams(return_changes=False)
-        self._handle_fitparameters_selecttwigparams(return_changes=False)
-        self._handle_lc_choiceparams(return_changes=False)
-        self._handle_orbit_choiceparams(return_changes=False)
-        self._handle_component_choiceparams(return_changes=False)
+        ret_changes = []
+        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_compute_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_orbit_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_component_choiceparams(return_changes=return_changes)
 
         ret_ps = self.get_solver(check_visible=False, check_default=False, **metawargs)
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
-        self._kwargs_checks(kwargs, ['overwrite', 'return_overwrite'], warning_only=True, ps=ret_ps)
+        self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
 
-        if kwargs.get('overwrite', False) and kwargs.get('return_overwrite', False):
+        if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
 
         # now set parameters that needed updated choices
@@ -8645,6 +8753,8 @@ class Bundle(ParameterSet):
                 ret_ps.set_value_all(qualifier=k, value=v, **_skip_filter_checks)
             # TODO: else raise warning?
 
+        if return_changes:
+            return ret_changes + ret_ps
         return ret_ps
 
     def get_solver(self, solver=None, **kwargs):
@@ -8667,7 +8777,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'solver'
         return self.filter(**kwargs)
 
-    def remove_solver(self, solver, **kwargs):
+    def remove_solver(self, solver, return_changes=False, **kwargs):
         """
         Remove a 'solver' from the bundle.
 
@@ -8677,6 +8787,8 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `solver` (string): the label of the solver options to be removed.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: context, solver.
@@ -8688,13 +8800,23 @@ class Bundle(ParameterSet):
         kwargs['solver'] = solver
         kwargs['context'] = 'solver'
         ret_ps = self.remove_parameters_all(**kwargs)
-        ret_ps += ParameterSet(self._handle_distribution_selectparams(return_changes=True))
+
+        ret_changes = []
+        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
-    def remove_solvers_all(self):
+    def remove_solvers_all(self, return_changes=False):
         """
         Remove all solver options from the bundle.  To remove a single set
         of solver options see <phoebe.frontend.bundle.Bundle.remove_solver>.
+
+        Arguments
+        ------------
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
         Returns
         -----------
@@ -8702,7 +8824,7 @@ class Bundle(ParameterSet):
         """
         removed_ps = ParameterSet()
         for solver in self.solvers:
-            removed_ps += self.remove_solver(solver)
+            removed_ps += self.remove_solver(solver, return_changes=return_changes)
         return removed_ps
 
     def rename_solver(self, old_solver, new_solver, overwrite=False):
@@ -8860,9 +8982,36 @@ class Bundle(ParameterSet):
         return script_fname, out_fname
 
 
+    def _run_solver_changes(self, ret_ps, return_changes=False, removed=False):
+        """
+        """
+        ret_changes = []
+
+        auto_add_figure = self.get_value(qualifier='auto_add_figure', context='setting', default=False, **_skip_filter_checks)
+        auto_remove_figure = self.get_value(qualifier='auto_remove_figure', context='setting', default=False, **_skip_filter_checks)
+
+        if auto_add_figure and not removed and ret_ps.solution not in [p.get_value() for p in self.filter(qualifier='solution', context='figure', kind=ret_ps.kinds, **_skip_filter_checks).to_list()]:
+            # then we don't have a figure for this kind yet
+            logger.info("calling add_figure(kind='{}') since auto_add_figure@setting=True".format(ret_ps.kind))
+            new_fig_params = self.add_figure(kind=ret_ps.kind, return_changes=return_changes)
+            ret_changes += new_fig_params.to_list()
+            ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
+            new_fig_params.set_value(qualifier='solution', value=ret_ps.solution)
+        elif auto_remove_figure and removed:
+            for param in self.filter(qualifier='solution', context='figure', kind=ret_ps.kind, **_skip_filter_checks).to_list():
+                if param.get_value() == ret_ps.solution:
+                    ret_changes += self.remove_figure(param.figure)
+
+
+        # ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
+        # ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
+
+        return ret_changes
 
     @send_if_client
-    def run_solver(self, solver=None, solution=None, detach=False, **kwargs):
+    def run_solver(self, solver=None, solution=None, detach=False, return_changes=False, **kwargs):
         """
         Run a forward model of the system on the enabled dataset(s) using
         a specified set of solver options.
@@ -8916,10 +9065,9 @@ class Bundle(ParameterSet):
             an existing model with the same `model` tag.  If False,
             an error will be raised.  This defaults to True if `model` is not provided
             or is 'latest', otherwise it will default to False.
-        * `return_overwrite` (boolean, optional, default=False): whether to include
-            removed parameters due to `overwrite` in the returned ParameterSet.
-            Only applicable if `overwrite` is True (or defaults to True if
-            `solution` is 'latest').
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
         * `skip_checks` (bool, optional, default=False): whether to skip calling
             <phoebe.frontend.bundle.Bundle.run_checks> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
@@ -9077,7 +9225,7 @@ class Bundle(ParameterSet):
                 logger.info("detaching from run_solver.  Call get_parameter(solution='{}').attach() to re-attach".format(solution))
 
 
-            if kwargs.get('overwrite', solution=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
+            if kwargs.get('overwrite', solution=='latest') and return_changes and overwrite_ps is not None:
                 return ParameterSet([job_param]) + overwrite_ps
 
             return job_param
@@ -9097,29 +9245,19 @@ class Bundle(ParameterSet):
         restore_conf()
 
         ret_ps = self.get_solution(solution=solution)
-        if kwargs.get('overwrite', solution=='latest') and kwargs.get('return_overwrite', False) and overwrite_ps is not None:
+        ret_changes = self._run_solver_changes(ret_ps, return_changes=return_changes)
+
+        if kwargs.get('overwrite', solution=='latest') and return_changes and overwrite_ps is not None:
             ret_ps += overwrite_ps
 
 
-        # Figure options for this solutiion
-        # if do_create_fig_params:
-        #     fig_params = _figure._run_solver(self, **kwargs)
-        #
-        #     fig_metawargs = {'context': 'figure',
-        #                      'solution': solution}
-        #     self._attach_params(fig_params, check_copy_for=False, **fig_metawargs)
-        #
-        #     ret_ps += fig_params
-
-        # ret_ps += ParameterSet(self._handle_solution_choiceparams(return_changes=True))
-        # ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
-        self._handle_solution_choiceparams(return_changes=False)
-        self._handle_computesamplefrom_selectparams(return_changes=False)
-
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
 
-    def adopt_solution(self, solution=None, as_distributions=False, remove_solution=False, **kwargs):
+    def adopt_solution(self, solution=None, as_distributions=False,
+                       remove_solution=False, return_changes=False,  **kwargs):
         """
 
         Arguments
@@ -9131,13 +9269,14 @@ class Bundle(ParameterSet):
             that returns face-values to adopt as delta distributions instead
             of setting the face-values.  Only applicable for solver backends
             that do NOT return distributions.
-        * `remove_solution` (bool, optional, default=False): whether to remove
-            the `solution` once successfully adopted.  See <phoebe.frontend.bundle.Bundle.remove_solution>.
         * `distribution` (string, optional, default=None): applicable only
             for solver backends that return distributions or if `as_distributions=True`.
             Distribution to use when adding distributions to the bundle.  See
             <phoebe.frontend.bundle.Bundle.add_distribution>.
-
+        * `remove_solution` (bool, optional, default=False): whether to remove
+            the `solution` once successfully adopted.  See <phoebe.frontend.bundle.Bundle.remove_solution>.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
         Returns
         ----------
@@ -9204,7 +9343,7 @@ class Bundle(ParameterSet):
                     self.add_distribution(twig=twig, value=dist.slice(i), distribution=distribution)
 
             # TODO: do we want to only return newly added distributions?
-            return_ = self.get_distribution(distribution=distribution)
+            ret_ps = self.get_distribution(distribution=distribution)
 
         else:
             fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
@@ -9228,7 +9367,7 @@ class Bundle(ParameterSet):
                         self.add_distribution(twig=twig, value=dist, distribution=distribution)
 
 
-                return self.get_distribution(distribution=distribution)
+                ret_ps = self.get_distribution(distribution=distribution)
             else:
                 user_interactive_constraints = conf.interactive_constraints
                 conf.interactive_constraints_off(suppress_warning=True)
@@ -9248,13 +9387,17 @@ class Bundle(ParameterSet):
                 if user_interactive_constraints:
                     conf.interactive_constraints_on()
 
-            return_ = ParameterSet(changed_params)
+                ret_ps = ParameterSet(changed_params)
 
         if remove_solution:
             # TODO: add to the return if return_changes
-            self.remove_solution(solution=solution)
+            ret_changes = self.remove_solution(solution=solution)
+        else:
+            ret_changes = []
 
-        return return_
+        if return_changes:
+            return ret_ps + ret_changes
+        return ret_ps
 
     def get_solution(self, solution=None, **kwargs):
         """
@@ -9306,7 +9449,7 @@ class Bundle(ParameterSet):
 
         return self.run_solver(solution=solution, **kwargs)
 
-    def import_solution(self, fname, solution=None):
+    def import_solution(self, fname, solution=None, return_changes=False):
         """
         Import and attach a solution from a file.
 
@@ -9327,6 +9470,8 @@ class Bundle(ParameterSet):
         * `solution` (string, optional): the name of the solution to be attached
             to the Bundle.  If not provided, the solution will be adopted from
             the tags in the file.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
         Returns
         -----------
@@ -9339,14 +9484,14 @@ class Bundle(ParameterSet):
         self._attach_params(result_ps, override_tags=True, **metawargs)
 
         ret_ps = self.get_solution(solution=solution if solution is not None else result_ps.solutions)
+        ret_changes = self._run_solver_changes(ret_ps, return_changes=return_changes)
 
-        ret_ps += ParameterSet(self._handle_solution_choiceparams(return_changes=True))
-        ret_ps += ParameterSet(self._handle_computesamplefrom_selectparams(return_changes=True))
-
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
 
-    def remove_solution(self, solution, **kwargs):
+    def remove_solution(self, solution, return_changes=False, **kwargs):
         """
         Remove a 'solution' from the bundle.
 
@@ -9359,6 +9504,8 @@ class Bundle(ParameterSet):
         * `remove_figure_params` (bool, optional): whether to also remove
             figure options tagged with `solution`.  If not provided, will default
             to false if `solution` is 'latest', otherwise will default to True.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: other filter arguments to be sent to
             <phoebe.parameters.ParameterSet.remove_parameters_all>.  The following
             will be ignored: solution, context.
@@ -9372,14 +9519,24 @@ class Bundle(ParameterSet):
         kwargs['solution'] = solution
         kwargs['context'] = ['solution', 'figure'] if remove_figure_params else 'solution'
         ret_ps = self.remove_parameters_all(**kwargs)
-        if remove_figure_params:
-            ret_ps += ParameterSet(self._handle_meshcolor_choiceparams(return_changes=True))
+        ret_changes = self._run_solver_changes(ret_ps, return_changes=return_changes, removed=True)
+
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
-    def remove_solutions_all(self):
+    def remove_solutions_all(self, return_changes=False, **kwargs):
         """
         Remove all solutions from the bundle.  To remove a single solution see
         <phoebe.frontend.bundle.Bundle.remove_solution>.
+
+        Arguments
+        -----------
+        * `remove_figure_params` (bool, optional): whether to also remove
+            figure options tagged with `solution`.  If not provided, will default
+            to false if `solution` is 'latest', otherwise will default to True.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
 
         Returns
         -----------
@@ -9387,7 +9544,7 @@ class Bundle(ParameterSet):
         """
         removed_ps = ParameterSet()
         for solution in self.solutions:
-            removed_ps += self.remove_solution(solution=solution)
+            removed_ps += self.remove_solution(solution=solution, return_changes=return_changes, **kwargs)
         return removed_ps
 
     def rename_solution(self, old_solution, new_solution, overwrite=False):
