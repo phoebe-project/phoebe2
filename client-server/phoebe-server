@@ -315,10 +315,17 @@ def _param_json_detailed(param):
         p['related_to'] = {p.uniqueid: p.twig for p in param.vars.to_list()}
         p['constraint'] = {}
         p['constrains'] = {p.uniqueid: p.twig for p in [param.constrained_parameter]}
+    elif param.__class__.__name__ == 'DistributionParameter':
+        p['referenced_parameter'] = {p.uniqueid: p.twig for p in [param.get_referenced_parameter()]}
     else:
         p['related_to'] = {p.uniqueid: p.twig for p in param.related_to} if hasattr(param, 'related_to') else {}
         p['constraint'] = {p.uniqueid: p.twig for p in [param.is_constraint]} if hasattr(param, 'is_constraint') and param.is_constraint is not None else {}
         p['constrains'] = {p.uniqueid: p.twig for p in param.constrains} if hasattr(param, 'constrains') else {}
+
+
+    if param.__class__.__name__ == 'FloatParameter':
+        p['distributions'] = {p.uniqueid: p.twig for p in param.get_distribution_parameters().to_list()}
+        p['is_adjustable'] = param.context in ['component', 'dataset', 'system', 'feature'] and not len(param.constrained_by)
 
     if hasattr(param, 'limits'):
         if hasattr(param, 'default_unit'):
@@ -625,6 +632,7 @@ def bundle(bundleid):
     info['success'] = True
     info['parameters'] = param_dict
     info['tags'] = tags
+    info['adjustable_parameters'] = {p.uniqueid: p.twig for p in b.get_adjustable_parameters().to_list()}
 
     return _get_response(info, api=True)
 
@@ -1105,7 +1113,8 @@ def bundle_method(msg):
     # make sure to return parameters removed during overwrite so that we can
     # catch that and emit the necessary changes to the client(s)
     if method.split('_')[0] in ['add', 'run']:
-        msg.setdefault('overwrite', True)
+        if method not in ['add_distribution']:
+            msg.setdefault('overwrite', True)
     if method.split('_')[0] in ['add', 'run', 'remove', 'rename', 'attach']:
         msg['return_changes'] = True
 
