@@ -249,7 +249,7 @@ def _value_string(param):
         return str(param.get_value())
     elif param_type in ['FloatArrayParameter', 'ArrayParameter']:
         if isinstance(param._value, phoebe.dependencies.nparray.nparray.ArrayWrapper):
-            return param._value.__str__()
+            return param._value.__str__().replace('nparray.', '')
         else:
             arr = param.get_value()
             # unit = str(param.get_default_unit())
@@ -259,6 +259,8 @@ def _value_string(param):
                 return "[{} ... {} ({})]".format(arr[0], arr[-1], len(arr))
             else:
                 return "[ ] (empty)"
+    elif param_type in ['DistributionParameter']:
+        return param._value.__str__().replace('distl.', '')
     else:
         return '({})'.format(param_type)
 
@@ -332,6 +334,9 @@ def _param_json_detailed(param):
         value = param.to_json()['value']
         if isinstance(value, list):
             value = ",".join(str(vi) for vi in value)
+        p['value'] = value
+    elif param.__class__.__name__ in ['DistributionParameter']:
+        value = param.to_json()['value']
         p['value'] = value
     elif param.__class__.__name__ in ['ConstraintParameter']:
         p['value'] = param.expr
@@ -698,6 +703,27 @@ def nparray(input):
                 'arraystr': ",".join([str(v) for v in npa.to_array().tolist()]),
                 'linspace': npa.to_dict() if npa.__class__.__name__ == 'Linspace' else npa.to_linspace().to_dict() if hasattr(npa, 'to_linspace') else empty_linspace,
                 'arange': npa.to_dict() if npa.__class__.__name__ == 'Arange' else npa.to_arange().to_dict() if hasattr(npa, 'to_arange') else empty_arange}
+
+    return _get_response({'success': True, 'response': data}, api=True)
+
+
+@app.route('/distl/<string:input>', methods=['GET'])
+@crossdomain(origin='*')
+def distl(input):
+    if app._verbose:
+        print("distl(input={}))".format(input))
+    # input is a json-string representation of a distl distribution object
+
+    # first let's load the string
+    try:
+        dist = phoebe.dependencies.distl.from_json(input)
+    except:
+        return _get_response({'success': False, 'error': 'could not convert to valid distl object with err: {}'.format(str(err))}, api=True)
+
+    # TODO: handle _around distributions
+    data = {'Delta': dist.to_delta().to_dict() if dist.__class__.__name__ != 'Delta' else dist.to_dict(),
+            'Uniform': dist.to_uniform().to_dict() if dist.__class__.__name__ != 'Uniform' else dist.to_dict(),
+            'Gaussian': dist.to_gaussian().to_dict() if dist.__class__.__name__ != 'Gaussian' else dist.to_dict()}
 
     return _get_response({'success': True, 'response': data}, api=True)
 
