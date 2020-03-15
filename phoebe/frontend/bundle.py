@@ -3892,7 +3892,8 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_feature(feature=feature)
         return removed_ps
 
-    def rename_feature(self, old_feature, new_feature, overwrite=False):
+    def rename_feature(self, old_feature, new_feature,
+                       overwrite=False, return_changes=False):
         """
         Change the label of a feature attached to the Bundle.
 
@@ -4024,11 +4025,12 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'spot')
         return self.get_feature(feature, **kwargs)
 
-    def rename_spot(self, old_feature, new_feature, overwrite=False):
+    def rename_spot(self, old_feature, new_feature,
+                    overwrite=False, return_changes=False):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='spot'.
         """
-        return self.rename_feature(old_feature, new_feature, overwrite=overwrite)
+        return self.rename_feature(old_feature, new_feature, overwrite=overwrite, return_changes=return_changes)
 
     def add_gaussian_process(self, dataset=None, feature=None, **kwargs):
         """
@@ -4059,11 +4061,11 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'gaussian_process')
         return self.get_feature(feature, **kwargs)
 
-    def rename_gaussian_process(self, old_feature, new_feature, overwrite=False):
+    def rename_gaussian_process(self, old_feature, new_feature, overwrite=False, return_changes=False):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.rename_feature> but with kind='gaussian_process'.
         """
-        return self.rename_feature(old_feature, new_feature, overwrite=overwrite)
+        return self.rename_feature(old_feature, new_feature, overwrite=overwrite, return_changes=return_changes)
 
     @send_if_client
     def add_component(self, kind, return_changes=False, **kwargs):
@@ -4250,7 +4252,7 @@ class Bundle(ParameterSet):
             return ret_ps + ret_changes
         return ret_ps
 
-    def rename_component(self, old_component, new_component):
+    def rename_component(self, old_component, new_component, return_changes=False):
         """
         Change the label of a component attached to the Bundle.
 
@@ -4316,11 +4318,12 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'orbit')
         return self.get_component(component, **kwargs)
 
-    def rename_orbit(self, old_orbit, new_orbit, overwrite=False):
+    def rename_orbit(self, old_orbit, new_orbit,
+                     overwrite=False, return_changes=False):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.rename_component> but with kind='star'.
         """
-        return self.rename_component(old_orbit, new_orbit, overwrite=overwrite)
+        return self.rename_component(old_orbit, new_orbit, overwrite=overwrite, return_changes=return_changes)
 
     def add_star(self, component=None, **kwargs):
         """
@@ -4347,11 +4350,11 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'star')
         return self.get_component(component, **kwargs)
 
-    def rename_star(self, old_star, new_star, overwrite=False):
+    def rename_star(self, old_star, new_star, overwrite=False, return_changes=False):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.rename_component> but with kind='star'.
         """
-        return self.rename_component(old_star, new_star, overwrite=overwrite)
+        return self.rename_component(old_star, new_star, overwrite=overwrite, return_changes=return_changes)
 
     def remove_star(self, component=None, **kwargs):
         """
@@ -4386,11 +4389,11 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'envelope')
         return self.get_component(component, **kwargs)
 
-    def rename_envelope(self, old_envelope, new_envelope, overwrite=False):
+    def rename_envelope(self, old_envelope, new_envelope, overwrite=False, return_changes=False):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.rename_component> but with kind='envelope'
         """
-        return self.rename_component(old_envelope, new_envelope, overwrite=overwrite)
+        return self.rename_component(old_envelope, new_envelope, overwrite=overwrite, return_changes=return_changes)
 
     def remove_envelope(self, component=None, **kwargs):
         """
@@ -5168,7 +5171,8 @@ class Bundle(ParameterSet):
 
         return removed_ps
 
-    def rename_dataset(self, old_dataset, new_dataset, overwrite=False, return_changes=False):
+    def rename_dataset(self, old_dataset, new_dataset,
+                       overwrite=False, return_changes=False):
         """
         Change the label of a dataset attached to the Bundle.
 
@@ -6066,7 +6070,7 @@ class Bundle(ParameterSet):
         return ret_ps
 
     def rename_distribution(self, old_distribution, new_distribution,
-                            overwrite=False):
+                            overwrite=False, return_changes=False):
         """
         Change the label of a distribution-set attached to the Bundle.
 
@@ -6094,7 +6098,15 @@ class Bundle(ParameterSet):
         # TODO: raise error if old_distribution not found?
         self._rename_label('distribution', old_distribution, new_distribution, overwrite)
 
-        return self.filter(distribution=new_distribution)
+        ret_ps = self.filter(distribution=new_distribution)
+
+        ret_changes = []
+        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
+
+        if return_changes:
+            return ret_ps + ret_changes
+        return ret_ps
 
     def _distribution_collection_defaults(self, twig=None, **kwargs):
         if isinstance(twig, list):
@@ -6577,7 +6589,8 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'figure'
         return self.remove_parameters_all(**kwargs)
 
-    def rename_figure(self, old_figure, new_figure, overwrite=False):
+    def rename_figure(self, old_figure, new_figure,
+                      overwrite=False, return_changes=False):
         """
         Change the label of a figure attached to the Bundle.
 
@@ -7754,7 +7767,8 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_compute(compute, return_changes=return_changes)
         return removed_ps
 
-    def rename_compute(self, old_compute, new_compute, overwrite=False):
+    def rename_compute(self, old_compute, new_compute,
+                       overwrite=False, return_changes=False):
         """
         Change the label of compute options attached to the Bundle.
 
@@ -8872,7 +8886,8 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_solver(solver, return_changes=return_changes)
         return removed_ps
 
-    def rename_solver(self, old_solver, new_solver, overwrite=False):
+    def rename_solver(self, old_solver, new_solver,
+                      overwrite=False, return_changes=False):
         """
         Change the label of solver options attached to the Bundle.
 
@@ -9592,7 +9607,8 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_solution(solution=solution, return_changes=return_changes, **kwargs)
         return removed_ps
 
-    def rename_solution(self, old_solution, new_solution, overwrite=False):
+    def rename_solution(self, old_solution, new_solution,
+                        overwrite=False, return_changes=False):
         """
         Change the label of a solution attached to the Bundle.
 
