@@ -8202,6 +8202,35 @@ class FloatParameter(Parameter):
 
         self._bundle.add_distribution(twig=self, value=value)
 
+    def get_distribution_parameters(self, distribution=None):
+        """
+        Get the distribution parameter(s) corresponding to `distribution`.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.parameters.FloatParameter.get_distribution>
+        * <phoebe.parameters.FloatParameter.sample_distribution>
+        * <phoebe.parameters.FloatParameter.add_distribution>
+
+        Arguments
+        -------------
+        * `distribution` (string list or None, optional, default=None): distribution
+            to use when filtering.  If None, will default to <phoebe.parmaeters.FloatParameter.in_distributions>
+
+        Returns
+        ----------
+        * <phoebe.parameters.ParameterSet> of distribution parameters.
+        """
+        if distribution is None:
+            distribution = self.in_distributions
+
+        return self._bundle.filter(qualifier=self.qualifier,
+                                   distribution=distribution,
+                                   context='distribution',
+                                   check_visible=False,
+                                   **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
+
+
     def get_distribution(self, distribution=None, follow_constraints=True):
         """
         Access the distribution object corresponding to this parameter
@@ -8220,6 +8249,7 @@ class FloatParameter(Parameter):
 
         See also:
         * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.parameters.FloatParameter.get_distribution_parameter>
         * <phoebe.parameters.FloatParameter.sample_distribution>
         * <phoebe.parameters.FloatParameter.add_distribution>
 
