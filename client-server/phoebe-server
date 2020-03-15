@@ -75,6 +75,7 @@ import matplotlib.pyplot as plt
 plt.switch_backend('Agg')
 
 import phoebe
+from phoebe.dependencies import distl
 import numpy as np
 import json
 import random
@@ -715,23 +716,36 @@ def nparray(input):
     return _get_response({'success': True, 'response': data}, api=True)
 
 
-@app.route('/distl/<string:input>', methods=['GET'])
+@app.route('/distl/<string:input>/<float:current_face_value>', methods=['GET'])
 @crossdomain(origin='*')
-def distl(input):
+def distl_convert(input, current_face_value):
     if app._verbose:
         print("distl(input={}))".format(input))
     # input is a json-string representation of a distl distribution object
 
     # first let's load the string
     try:
-        dist = phoebe.dependencies.distl.from_json(input)
+        dist = distl.from_json(input)
     except:
         return _get_response({'success': False, 'error': 'could not convert to valid distl object with err: {}'.format(str(err))}, api=True)
 
+    if isinstance(dist, distl._distl.BaseAroundGenerator):
+        dist = dist(current_face_value)
+
+    d = dist.to_delta() if dist.__class__.__name__ != 'Delta' else dist
+    da = distl.delta_around()
+    u = dist.to_uniform() if dist.__class__.__name__ != 'Uniform' else dist
+    ua = distl.uniform_around(u.width) if dist.__class__.__name__ != 'Uniform_Around' else dist
+    g = dist.to_gaussian() if dist.__class__.__name__ != 'Gaussian' else dist
+    ga = distl.gaussian_around(g.scale) if dist.__class__.__name__ != 'Gaussian_Around' else dist
+
     # TODO: handle _around distributions
-    data = {'Delta': dist.to_delta().to_dict() if dist.__class__.__name__ != 'Delta' else dist.to_dict(),
-            'Uniform': dist.to_uniform().to_dict() if dist.__class__.__name__ != 'Uniform' else dist.to_dict(),
-            'Gaussian': dist.to_gaussian().to_dict() if dist.__class__.__name__ != 'Gaussian' else dist.to_dict()}
+    data = {'Delta': d.to_dict(),
+            'Delta_Around': da.to_dict(),
+            'Uniform': u.to_dict(),
+            'Uniform_Around': ua.to_dict(),
+            'Gaussian': g.to_dict(),
+            'Gaussian_Around': ga.to_dict()}
 
     return _get_response({'success': True, 'response': data}, api=True)
 
