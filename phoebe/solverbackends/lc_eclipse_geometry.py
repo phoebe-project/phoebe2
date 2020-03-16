@@ -59,7 +59,7 @@ def extend_phasefolded_lc(phases, fluxes, sigmas):
     #make new arrays that would span phase range -1 to 1:
     fluxes_extend = np.hstack((fluxes[(phases > 0)], fluxes, fluxes[phases < 0.]))
     sigmas_extend = np.hstack((sigmas[phases > 0], sigmas, sigmas[phases < 0.]))
-    phases_extend = np.linspace(-1,1,len(fluxes_extend))
+    phases_extend = np.hstack((phases[phases>0]-1, phases, phases[phases<0]+1))
     
     return phases_extend, fluxes_extend, sigmas_extend
 
