@@ -882,16 +882,20 @@ def _update_figures(b, bundleid, affected_ps=None):
             figures = b.figures
         else:
             figures = affected_ps.figures
+            distributions = affected_ps.distributions
             datasets = affected_ps.datasets
             models = affected_ps.models
             solutions = affected_ps.solutions
+            solvers = affected_ps.solvers
             for figure in b.figures:
                 if figure in figures:
                     continue
+                figure_distributions = b.get_value(qualifier='distributions', figure=figure, check_visible=False, check_default=False, expand=True, default=[])
                 figure_datasets = b.get_value(qualifier='datasets', figure=figure, check_visible=False, check_default=False, expand=True, default=[])
                 figure_models = b.get_value(qualifier='models', figure=figure, check_visible=False, check_default=False, expand=True, default=[])
+                figure_solver = b.get_value(qualifier='solvers', figure=figure, check_visible=False, check_default=False, expand=True, default='')
                 figure_solution = b.get_value(qualifier='solution', figure=figure, check_visible=False, check_default=False, default='')
-                if np.any([ds in figure_datasets for ds in datasets]) or np.any([ml in figure_models for ml in models] or np.any([s==figure_solution for s in solutions])):
+                if np.any([dist in figure_distributions for dist in distributions]) or np.any([ds in figure_datasets for ds in datasets]) or np.any([ml in figure_models for ml in models]) or np.any([s==figure_solver for s in solvers]) or np.any([s==figure_solution for s in solutions]):
                     figures.append(figure)
 
         if len(affected_ps.filter(qualifier=['default_time_source', 'default_time'], check_visible=False)):
