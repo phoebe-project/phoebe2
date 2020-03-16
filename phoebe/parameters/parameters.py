@@ -3579,7 +3579,7 @@ class ParameterSet(object):
         # contexts/datasets/kinds/components/etc.
         # the dataset tag can appear in the compute context as well, so if the
         # context tag isn't in kwargs, let's default it to dataset or model
-        kwargs.setdefault('context', ['dataset', 'model', 'solution'])
+        kwargs.setdefault('context', ['dataset', 'model', 'distribution', 'solver', 'solution'])
 
         filter_kwargs = {}
         for k in list(self.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).keys())+['twig']:
@@ -3606,6 +3606,18 @@ class ParameterSet(object):
         if len(ps.contexts) > 1:
             for context in ps.contexts:
                 this_return = ps.filter(check_visible=False, context=context)._unpack_plotting_kwargs(animate=animate, **kwargs)
+                return_ += this_return
+            return _handle_additional_calls(ps, return_)
+
+        # if len(ps.distributions)>1:
+        #     for distribution in ps.distributions:
+        #         this_return = ps.filter(check_visible=False, distribution=distribution)._unpack_plotting_kwargs(animate=animate, **kwargs)
+        #         return_ += this_return
+        #     return _handle_additional_calls(ps, return_)
+
+        if len(ps.solvers)>1:
+            for solver in ps.solvers:
+                this_return = ps.filter(check_visible=False, solver=solver)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
@@ -3648,7 +3660,7 @@ class ParameterSet(object):
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        if len(ps.components) > 1 and ps.kind not in ['lc']:
+        if len(ps.components) > 1 and ps.context in ['model', 'dataset'] and ps.kind not in ['lc']:
             # lc has per-component passband-dependent parameters in the dataset which are not plottable
             return_ = []
             for component in ps.components:
@@ -4162,8 +4174,11 @@ class ParameterSet(object):
         elif ps.kind in ['emcee', 'dynesty', 'bls_period']:
             pass
             # handled below
-        elif ps.context == 'solution':
-            # ignore non-implemented solution parameters
+        elif ps.context in ['distribution']:
+            pass
+            # handled below
+        elif ps.context in ['solver', 'solution']:
+            # ignore non-implemented solver/solution parameters
             return []
         else:
             logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
@@ -4196,7 +4211,15 @@ class ParameterSet(object):
                 kwargs['plot_package'] = 'corner'
 
             return (kwargs,)
-
+        elif ps.context == 'distribution':
+            kwargs['plot_package'] = 'distl'
+            kwargs.setdefault('distribution', ps.distribution)
+            kwargs['dc'], _ = self._bundle.get_distribution_collection(context='distribution', **{k:v for k,v in kwargs.items() if k in ['distribution', 'combine', 'include_constrained', 'to_univariates', 'to_uniforms']})
+            return (kwargs,)
+        elif ps.context == 'solver':
+            kwargs['plot_package'] = 'distl'
+            kwargs['dc'], _ = self._bundle.get_distribution_collection(twig=kwargs.get('distribution_twig', 'priors@{}'.format(ps.solver)))
+            return (kwargs,)
         elif ps.kind == 'bls_period':
             kwargs['plot_package'] = 'autofig'
             kwargs['x'] = ps.get_quantity(qualifier='period', **_skip_filter_checks)
@@ -4867,6 +4890,18 @@ class ParameterSet(object):
                         raise ValueError("corner plots not supported with other axes")
 
                     mplfig = corner.corner(plot_kwargs['data'], labels=plot_kwargs.get('labels', None))
+                    if save:
+                        mplfig.savefig(save)
+
+                    return None, mplfig
+
+                elif plot_package == 'distl':
+                    if not _use_corner:
+                        raise ImportError("corner not imported, cannot plot")
+                    if len(plot_kwargss) > 1:
+                        raise ValueError("corner plots not supported with other axes")
+
+                    mplfig = plot_kwargs['dc'].plot(show=show)
                     if save:
                         mplfig.savefig(save)
 

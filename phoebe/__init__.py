@@ -799,7 +799,8 @@ def _get_phoebe_funcs(module, devel=False):
         ignore += ['pulsation']
         ignore += ['jktebop', 'photodynam']
 
-    if module.__name__.split('.')[-1] == 'solver':
+    mod_split = module.__name__.split('.')
+    if mod_split[-1] in ['figure'] or (mod_split[-1] in ['solver'] and 'figure' not in mod_split):
         ret = []
         for sub_module in _inspect.getmembers(module):
             if _inspect.ismodule(sub_module[1]):

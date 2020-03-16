@@ -2032,7 +2032,10 @@ class Bundle(ParameterSet):
 
         choices = self.distributions
 
-        for param in self.filter(context='solver', qualifier=['init_from', 'priors', 'bounds', 'sample_from'], **_skip_filter_checks).to_list():
+        params = self.filter(context='solver', qualifier=['init_from', 'priors', 'bounds', 'sample_from'], **_skip_filter_checks).to_list()
+        params += self.filter(context='figure', kind='distribution_collection', qualifier='distributions', **_skip_filter_checks).to_list()
+
+        for param in params:
             choices_changed = False
             if return_changes and choices != param._choices:
                 choices_changed = True
@@ -2184,6 +2187,31 @@ class Bundle(ParameterSet):
 
         for param in self.filter(qualifier='solution', context='figure', **_skip_filter_checks).to_list():
             choices = self.filter(context='solution', kind=param.kind, **_skip_filter_checks).solutions
+
+            choices_changed = False
+            if return_changes and choices != param._choices:
+                choices_changed = True
+            param._choices = choices
+
+            if param._value not in choices:
+                changed = True
+                if param._value == '' and len(choices):
+                    param._value = choices[0]
+                else:
+                    param._value = ''
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        return affected_params
+
+    def _handle_solver_choiceparams(self, return_changes=False):
+        affected_params = []
+
+        for param in self.filter(qualifier='solver', context='figure', **_skip_filter_checks).to_list():
+            choices = self.filter(context='solver', kind=param.kind, **_skip_filter_checks).solvers
 
             choices_changed = False
             if return_changes and choices != param._choices:
@@ -4834,8 +4862,8 @@ class Bundle(ParameterSet):
 
         if self.get_value(qualifier='auto_add_figure', context='setting') and kind not in self.filter(context='figure', check_visible=False, check_default=False).exclude(figure=[None], check_visible=False, check_default=False).kinds:
             # then we don't have a figure for this kind yet
-            logger.info("calling add_figure(kind='{}') since auto_add_figure@setting=True".format(kind))
-            new_fig_params = self.add_figure(kind=kind)
+            logger.info("calling add_figure(kind='dataset.{}') since auto_add_figure@setting=True".format(kind))
+            new_fig_params = self.add_figure(kind='dataset.{}'.format(kind))
         else:
             new_fig_params = None
 
@@ -5983,6 +6011,14 @@ class Bundle(ParameterSet):
                             additional_allowed_keys=['overwrite'],
                             warning_only=True, ps=ret_ps)
 
+        if self.get_value(qualifier='auto_add_figure', context='setting') and 'distribution_collection' not in self.filter(context='figure', **_skip_filter_checks).kinds:
+            # then we don't have a figure for this kind yet
+            logger.info("calling add_figure(kind='distribution.distribution_collection') since auto_add_figure@setting=True")
+            new_fig_params = self.add_figure(kind='distribution.distribution_collection', distributions=[kwargs['distribution']])
+            ret_ps += new_fig_params
+        else:
+            new_fig_params = None
+
         if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
 
@@ -6473,15 +6509,19 @@ class Bundle(ParameterSet):
             # then we want to apply the default below, so let's pop for now
             _ = kwargs.pop('figure')
 
+
+        default_label_base = {'distribution_collection': 'dc'}.get(fname, fname)
         kwargs.setdefault('figure',
-                          self._default_label(fname+'fig',
+                          self._default_label(default_label_base+'fig',
                                               **{'context': 'figure',
                                                  'kind': fname}))
 
         if kwargs.pop('check_label', True):
             self._check_label(kwargs['figure'], allow_overwrite=kwargs.get('overwrite', False))
 
-        params = func(self, **kwargs)
+        # NOTE: we won't pass kwargs since some choices need to be updated.
+        # Instead we'll apply kwargs after calling all self._handle_*
+        params = func(self)
 
 
         metawargs = {'context': 'figure',
@@ -6515,9 +6555,18 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_model_selectparams(return_changes=return_changes)
         ret_changes += self._handle_component_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
         ret_changes += self._handle_meshcolor_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_solver_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
+
+        # now set parameters that needed updated choices
+        qualifiers = ret_ps.qualifiers
+        for k,v in kwargs.items():
+            if k in qualifiers:
+                ret_ps.set_value_all(qualifier=k, value=v, **_skip_filter_checks)
+            # TODO: else raise warning?
 
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
@@ -6701,11 +6750,12 @@ class Bundle(ParameterSet):
             return self._show_or_save(save, show, animate, **kwargs)
 
 
-        fig_ps = self.get_figure(figure=figure, **kwargs)
-        if len(fig_ps.figures) == 0:
-            raise ValueError("no figure found")
-        elif len(fig_ps.figures) > 1:
-            raise ValueError("more than one figure found")
+        fig_ps = self.get_figure(figure=figure, **{k:v for k,v in kwargs.items() if k not in ['show', 'save', 'animate']})
+        # errors are currently included in get_figure, so don't need to repeat here
+        # if len(fig_ps.figures) == 0:
+        #     raise ValueError("no figure found")
+        # elif len(fig_ps.figures) > 1:
+        #     raise ValueError("more than one figure found")
 
         kwargs['check_default'] = False
         kwargs['check_visible'] = False
@@ -6847,7 +6897,30 @@ class Bundle(ParameterSet):
                             raise NotImplementedError("{}_source of {} not supported".format(q, source))
 
 
-        elif fig_ps.kind in self.filter(context='solver', **_skip_filter_checks).kinds:
+        elif 'distributions' in fig_ps.qualifiers:
+            kwargs['context'] = 'distribution'
+
+            kwargs.setdefault('distribution', fig_ps.get_value(qualifier='distributions', distributions=kwargs.get('distributions', None), **_skip_filter_checks))
+            if not len(kwargs.get('distribution')):
+                logger.warning("distributions not set, cannot plot")
+                return None, None
+
+            kwargs['to_uniforms'] = fig_ps.get_value(qualifier='to_uniforms_sigma', to_uniforms_sigma=kwargs.get('to_uniforms_sigma', None), **_skip_filter_checks) if fig_ps.get_value(qualifier='to_uniforms', to_uniforms=kwargs.get('to_uniforms', None), **_skip_filter_checks) else False
+            kwargs['to_univariates'] = True if kwargs['to_uniforms'] else fig_ps.get_value(qualifier='to_univariates', to_univariates=kwargs.get('to_univariates', None), **_skip_filter_checks)
+
+            for k in fig_ps.qualifiers:
+                if k in ['distributions', 'to_uniforms', 'to_univariates']:
+                    continue
+                kwargs.setdefault(k, fig_ps.get_value(qualifier=k, **_skip_filter_checks))
+
+        elif 'solver' in fig_ps.qualifiers:
+            kwargs['context'] = 'solver'
+            solver = fig_ps.get_value(qualifier='solver', solver=kwargs.get('solver', None), **_skip_filter_checks)
+            kwargs['solver'] = solver
+            distribution = fig_ps.get_value(qualifier='distribution', distribution=kwargs.get('distribution', None), **_skip_filter_checks)
+            kwargs['distribution_twig'] = '{}@{}'.format(distribution, solver)
+
+        elif 'solution' in fig_ps.qualifiers:
             kwargs['context'] = 'solution'
 
             kwargs.setdefault('solution', fig_ps.get_value(qualifier='solution', **_skip_filter_checks))
@@ -8791,6 +8864,7 @@ class Bundle(ParameterSet):
         ret_changes = []
         ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
         ret_changes += self._handle_compute_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_solver_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
         ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_orbit_choiceparams(return_changes=return_changes)
@@ -8802,6 +8876,16 @@ class Bundle(ParameterSet):
         # we'll only raise a warning
         self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
 
+        if self.get_value(qualifier='auto_add_figure', context='setting') and ret_ps.kind not in self.filter(qualifier='solver', context='figure', **_skip_filter_checks).kinds:
+            # then we don't have a figure for this kind yet
+            if ret_ps.kind in dir(_figure.solver):
+                logger.info("calling add_figure(kind='solver.{}') since auto_add_figure@setting=True".format(ret_ps.kind))
+                new_fig_params = self.add_figure(kind='solver.{}'.format(ret_ps.kind), solver=kwargs['solver'])
+            else:
+                new_fig_params = []
+        else:
+            new_fig_params = []
+
         if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
 
@@ -8811,6 +8895,8 @@ class Bundle(ParameterSet):
             if k in qualifiers:
                 ret_ps.set_value_all(qualifier=k, value=v, **_skip_filter_checks)
             # TODO: else raise warning?
+
+        ret_ps += new_fig_params
 
         if return_changes:
             return ret_ps + ret_changes
@@ -8862,6 +8948,7 @@ class Bundle(ParameterSet):
 
         ret_changes = []
         ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_solver_choiceparams(return_changes=return_changes)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -8910,7 +8997,14 @@ class Bundle(ParameterSet):
         # TODO: raise error if old_solver not found?
         self._rename_label('solver', old_solver, new_solver, overwrite)
 
-        return self.filter(solver=new_solver)
+        ret_ps = self.filter(solver=new_solver)
+
+        ret_changes = []
+        ret_changes += self._handle_solver_choiceparams(return_changes=return_changes)
+
+        if return_changes:
+            return ret_ps + ret_changes
+        return ret_ps
 
 
     def _prepare_solver(self, solver, solution, **kwargs):
@@ -9052,8 +9146,8 @@ class Bundle(ParameterSet):
 
         if auto_add_figure and not removed and ret_ps.solution not in [p.get_value() for p in self.filter(qualifier='solution', context='figure', kind=ret_ps.kinds, **_skip_filter_checks).to_list()]:
             # then we don't have a figure for this kind yet
-            logger.info("calling add_figure(kind='{}') since auto_add_figure@setting=True".format(ret_ps.kind))
-            new_fig_params = self.add_figure(kind=ret_ps.kind, return_changes=return_changes)
+            logger.info("calling add_figure(kind='solution.{}') since auto_add_figure@setting=True".format(ret_ps.kind))
+            new_fig_params = self.add_figure(kind='solution.{}'.format(ret_ps.kind), return_changes=return_changes)
             ret_changes += new_fig_params.to_list()
             ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
             new_fig_params.set_value(qualifier='solution', value=ret_ps.solution)
