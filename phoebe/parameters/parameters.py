@@ -4171,7 +4171,7 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
-        elif ps.kind in ['emcee', 'dynesty', 'bls_period']:
+        elif ps.kind in ['emcee', 'dynesty', 'bls_period', 'lc_eclipse_geometry']:
             pass
             # handled below
         elif ps.context in ['distribution']:
@@ -4237,6 +4237,23 @@ class ParameterSet(object):
 
 
             return (kwargs, axvline_kwargs)
+
+        elif ps.kind == 'lc_eclipse_geometry':
+            lc = ps.get_value(qualifier='lc', **_skip_filter_checks)
+            phases = self._bundle.to_phase(self._bundle.get_value(qualifier='times', dataset=lc, context='dataset', **_skip_filter_checks))
+            fluxes = self._bundle.get_value(qualifier='fluxes', dataset=lc, context='dataset', **_skip_filter_checks)
+            kwargs['plot_package'] = 'autofig'
+            kwargs['autofig_method'] = 'plot'
+            kwargs['x'] = phases
+            kwargs['xlabel'] = 'phase'
+            kwargs['y'] = fluxes
+            kwargs['ylabel'] = 'flux'
+            kwargs['marker'] = '.'
+            kwargs['linestyle'] = 'None'
+            kwargs['color'] = 'gray'
+
+            axvline_kwargss = [{'plot_package': 'autofig', 'autofig_method': 'plot', 'x': phase, 'xlabel': 'phase', 'color': 'blue', 'linestyle': 'dashed'} for phase in ps.get_value(qualifier='eclipse_edges', **_skip_filter_checks)]
+            return [kwargs] + axvline_kwargss
 
         elif ps.kind == 'dynesty':
             kwargs['plot_package'] = 'dynesty'
