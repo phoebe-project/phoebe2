@@ -207,10 +207,10 @@ def refine_eclipse_widths(phases, fluxes, sigmas, pos1, pos2, width1, width2, wf
                 chis2[j] = np.sum((ymodel-fluxes[mask])**2)
             eclipse_breaks[i] = phases[mask][np.argmin(chis2)]
 
-        return eclipse_breaks[1]-eclipse_breaks[0], eclipse_breaks[3]-eclipse_breaks[2]
+        return eclipse_breaks
     except:
-        logger.warning('Eclipse width refinement failed, returning two-Gaussian model widths.')
-        return width1, width2
+        logger.warning('Eclipse width refinement failed.')
+        return None
 
 # GEOMETRY SOLVER
 
@@ -243,8 +243,8 @@ def compute_eclipse_params(phases, fluxes, sigmas, smooth=False, diagnose=False)
         width2 = np.nan
         depth2 = np.nan
     
+    phases_w, fluxes_w, sigmas_w = extend_phasefolded_lc(phases, fluxes, sigmas)
     if not np.isnan(width1) and not np.isnan(width2) and not np.isnan(pos1) and not np.isnan(pos2):
-        phases_w, fluxes_w, sigmas_w = extend_phasefolded_lc(phases, fluxes, sigmas)
         if np.abs(pos1-pos2) < width1 or np.abs(pos1-pos2) < width2:
             # in case of higly ellipsoidal systems, the eclipse positions aren't detected well
             # and need to be refined
@@ -254,20 +254,29 @@ def compute_eclipse_params(phases, fluxes, sigmas, smooth=False, diagnose=False)
             width1 = 0.5
             width2 = 0.5
                                     
-        width1, width2 = refine_eclipse_widths(phases_w, fluxes_w, sigmas_w, pos1, pos2, width1, width2)
-
+        eclipse_breaks = refine_eclipse_widths(phases_w, fluxes_w, sigmas_w, pos1, pos2, width1, width2)
+        if eclipse_breaks is not None:
+            width1, width2 = eclipse_breaks[1]-eclipse_breaks[0], eclipse_breaks[3]-eclipse_breaks[2]
+        
 
     if diagnose:
+        twogfuncs = {'C': const, 'CE': ce, 'CG': cg, 'CGE': cge, 'CG12': cg12, 'CG12E1': cg12e1, 'CG12E2': cg12e2}
         import matplotlib.pyplot as plt
         plt.figure(figsize=(10,6))
-        plt.plot(phases, fluxes, 'k.')
-        plt.plot(phases, fit_result['models'][best_fit], '-', label=fit_result['best_fit'])
+        plt.plot(phases_w, fluxes_w, 'k.')
+        plt.plot(phases_w, twogfuncs[best_fit](phases_w, *fit_result['fits'][best_fit][0]), '-', label=fit_result['best_fit'])
         plt.axvline(x=pos1, c='blue', ls='--', label='primary pos')
         plt.axvline(x=pos2, c='orange', ls='--', label='secondary pos')
-        plt.axvline(x=pos1-0.5*width1, c='blue', ls=':')
-        plt.axvline(x=pos1+0.5*width1, c='blue', ls=':')
-        plt.axvline(x=pos2-0.5*width2, c='orange', ls=':')
-        plt.axvline(x=pos2+0.5*width2, c='orange', ls=':')
+        if eclipse_breaks is not None:
+            plt.axvline(x=eclipse_breaks[0], c='blue', ls=':')
+            plt.axvline(x=eclipse_breaks[1], c='blue', ls=':')
+            plt.axvline(x=eclipse_breaks[2], c='orange', ls=':')
+            plt.axvline(x=eclipse_breaks[3], c='orange', ls=':')
+        else:
+            plt.axvline(x=pos1-0.5*width1, c='blue', ls=':')
+            plt.axvline(x=pos1+0.5*width1, c='blue', ls=':')
+            plt.axvline(x=pos2-0.5*width2, c='orange', ls=':')
+            plt.axvline(x=pos2+0.5*width2, c='orange', ls=':')
         plt.legend()
         plt.show()
 
