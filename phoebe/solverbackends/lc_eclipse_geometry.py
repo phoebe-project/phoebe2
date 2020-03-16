@@ -32,13 +32,13 @@ def gsum(phi, mu, d, sigma):
 
 def const(phi, C):
     return C*np.ones(len(phi))
-    
+
 def ce(phi, C, Aell, phi0):
     return const(phi, C) - ellipsoidal(phi, Aell, phi0)
 
 def cg(phi, C, mu, d,  sigma):
     return const(phi, C) - gsum(phi, mu, d, sigma)
-    
+
 def cge(phi, C, mu, d, sigma, Aell):
     return const(phi, C) - ellipsoidal(phi, Aell, mu) - gsum(phi, mu, d, sigma)
 
@@ -55,12 +55,12 @@ def cg12e2(phi, C, mu1, d1, sigma1, mu2, d2, sigma2, Aell):
 # PREPROCESSING
 
 def extend_phasefolded_lc(phases, fluxes, sigmas):
-    
+
     #make new arrays that would span phase range -1 to 1:
     fluxes_extend = np.hstack((fluxes[(phases > 0)], fluxes, fluxes[phases < 0.]))
     sigmas_extend = np.hstack((sigmas[phases > 0], sigmas, sigmas[phases < 0.]))
     phases_extend = np.hstack((phases[phases>0]-1, phases, phases[phases<0]+1))
-    
+
     return phases_extend, fluxes_extend, sigmas_extend
 
 def estimate_eclipse_phases(phases, fluxes, smooth = False):
@@ -73,9 +73,9 @@ def estimate_eclipse_phases(phases, fluxes, smooth = False):
         lc_ph = savgol_filter(fluxes, window_length=wl, polyorder=po)
     else:
         lc_ph = fluxes
-    
+
     ph = phases
-    
+
     lc_peaks = lc_ph[np.argwhere(lc_ph < lc_ph.mean())].flatten()
     ph_peaks = ph[np.argwhere(lc_ph < lc_ph.mean())].flatten()
     peaks = find_peaks(-lc_peaks)
@@ -109,7 +109,7 @@ def fit_twoGaussian_models(phases, fluxes, sigmas, smooth=False):
     # extend light curve on phase range [-1,1]
     phases, fluxes, sigmas = extend_phasefolded_lc(phases, fluxes, sigmas)
     # setup the initial parameters
-    
+
     # fit all of the models to the data
     twogfuncs = {'C': const, 'CE': ce, 'CG': cg, 'CGE': cge, 'CG12': cg12, 'CG12E1': cg12e1, 'CG12E2': cg12e2}
 
@@ -119,14 +119,14 @@ def fit_twoGaussian_models(phases, fluxes, sigmas, smooth=False):
     d20 = fluxes.max()-fluxes[np.argmin(np.abs(phases-mu20))]
     sigma10, sigma20 = 0.05, 0.05
     Aell0 = 0.001
-    init_params = {'C': [C0,], 
-        'CE': [C0, Aell0, mu10], 
-        'CG': [C0, mu10, d10, sigma10], 
-        'CGE': [C0, mu10, d10, sigma10, Aell0], 
-        'CG12': [C0, mu10, d10, sigma10, mu20, d20, sigma20], 
-        'CG12E1': [C0, mu10, d10, sigma10, mu20, d20, sigma20, Aell0], 
+    init_params = {'C': [C0,],
+        'CE': [C0, Aell0, mu10],
+        'CG': [C0, mu10, d10, sigma10],
+        'CGE': [C0, mu10, d10, sigma10, Aell0],
+        'CG12': [C0, mu10, d10, sigma10, mu20, d20, sigma20],
+        'CG12E1': [C0, mu10, d10, sigma10, mu20, d20, sigma20, Aell0],
         'CG12E2': [C0, mu10, d10, sigma10, mu20, d20, sigma20, Aell0]}
-    
+
     fits = {}
     for key in twogfuncs.keys():
         try:
@@ -139,22 +139,22 @@ def fit_twoGaussian_models(phases, fluxes, sigmas, smooth=False):
 
 def compute_twoGaussian_models(fits, phases):
     twogfuncs = {'C': const, 'CE': ce, 'CG': cg, 'CGE': cge, 'CG12': cg12, 'CG12E1': cg12e1, 'CG12E2': cg12e2}
-        
+
     models = {}
 
     for fkey in fits.keys():
         models[fkey] = twogfuncs[fkey](phases, *fits[fkey][0])
-        
+
     return models
 
 
 def compute_twoGaussian_models_BIC(models, phases, fluxes, sigmas):
     bics = {}
     nparams = {'C':1, 'CE':3, 'CG':4, 'CGE':5, 'CG12':7, 'CG12E1':8, 'CG12E2':8}
-    
+
     for mkey in models.keys():
         bics[mkey] = bic(fluxes, sigmas, models[mkey], nparams[mkey])
-        
+
     return bics
 
 
@@ -163,14 +163,14 @@ def fit_lc(phases, fluxes, sigmas, smooth=False):
     fits = fit_twoGaussian_models(phases, fluxes, sigmas, smooth=smooth)
     models = compute_twoGaussian_models(fits, phases)
     bics = compute_twoGaussian_models_BIC(models, phases, fluxes, sigmas)
-    params = {'C': ['C'], 
-            'CE': ['C', 'Aell', 'mu1'], 
-            'CG': ['C', 'mu1', 'd1', 'sigma1'], 
-            'CGE': ['C', 'mu1', 'd1', 'sigma1', 'Aell'], 
-            'CG12': ['C', 'mu1', 'd1', 'sigma1', 'mu2', 'd2', 'sigma2'], 
-            'CG12E1': ['C', 'mu1', 'd1', 'sigma1', 'mu2', 'd2', 'sigma2', 'Aell'], 
+    params = {'C': ['C'],
+            'CE': ['C', 'Aell', 'mu1'],
+            'CG': ['C', 'mu1', 'd1', 'sigma1'],
+            'CGE': ['C', 'mu1', 'd1', 'sigma1', 'Aell'],
+            'CG12': ['C', 'mu1', 'd1', 'sigma1', 'mu2', 'd2', 'sigma2'],
+            'CG12E1': ['C', 'mu1', 'd1', 'sigma1', 'mu2', 'd2', 'sigma2', 'Aell'],
             'CG12E2': ['C', 'mu1', 'd1', 'sigma1', 'mu2', 'd2', 'sigma2', 'Aell']}
-    
+
     best_fit = list(models.keys())[np.argmax(list(bics.values()))]
     return {'fits':fits, 'models':models, 'bics':bics, 'best_fit':best_fit, 'model_parameters': params}
 
@@ -187,10 +187,10 @@ def two_line_model(values,breakpoint,x,y,sigma):
 def refine_eclipse_widths(phases, fluxes, sigmas, pos1, pos2, width1, width2, wf1=0.75, wf2=0.25):
 
     # mask out regions around the eclipses
-    mask11 = (pos1 - wf1*width1 < phases) & (phases < pos1-wf2*width1) 
-    mask12 = (phases < pos1 + wf1*width1) & (phases > pos1+wf2*width1) 
-    mask21 = (pos2 - wf1*width2 < phases) & (phases < pos2-wf2*width2) 
-    mask22 = (phases < pos2 + wf1*width2) & (phases > pos2+wf2*width1) 
+    mask11 = (pos1 - wf1*width1 < phases) & (phases < pos1-wf2*width1)
+    mask12 = (phases < pos1 + wf1*width1) & (phases > pos1+wf2*width1)
+    mask21 = (pos2 - wf1*width2 < phases) & (phases < pos2-wf2*width2)
+    mask22 = (phases < pos2 + wf1*width2) & (phases > pos2+wf2*width1)
 
     eclipse_breaks = np.zeros(4)
 
@@ -219,7 +219,7 @@ def compute_eclipse_params(phases, fluxes, sigmas, smooth=False, diagnose=False)
     fit_result = fit_lc(phases, fluxes, sigmas, smooth=smooth)
     best_fit = fit_result['best_fit']
     model_params = fit_result['model_parameters'][best_fit]
-    
+
     sigma1 = fit_result['fits'][best_fit][0][model_params.index('sigma1')] if 'sigma1' in model_params else np.nan
     sigma2 = fit_result['fits'][best_fit][0][model_params.index('sigma2')] if 'sigma2' in model_params else np.nan
     mu1 = fit_result['fits'][best_fit][0][model_params.index('mu1')] if 'mu1' in model_params else np.nan
@@ -232,7 +232,7 @@ def compute_eclipse_params(phases, fluxes, sigmas, smooth=False, diagnose=False)
         depth1 = C - fluxes[np.argmin(phases-pos1)]
     else:
         pos1 = np.nan
-        width1 = np.nan 
+        width1 = np.nan
         depth1 = np.nan
     if not np.isnan(mu2) and not np.isnan(sigma2) and np.abs(sigma2) < 0.5:
         pos2 = mu2
@@ -242,7 +242,7 @@ def compute_eclipse_params(phases, fluxes, sigmas, smooth=False, diagnose=False)
         pos2 = np.nan
         width2 = np.nan
         depth2 = np.nan
-    
+
     phases_w, fluxes_w, sigmas_w = extend_phasefolded_lc(phases, fluxes, sigmas)
     if not np.isnan(width1) and not np.isnan(width2) and not np.isnan(pos1) and not np.isnan(pos2):
         if np.abs(pos1-pos2) < width1 or np.abs(pos1-pos2) < width2:
@@ -253,10 +253,12 @@ def compute_eclipse_params(phases, fluxes, sigmas, smooth=False, diagnose=False)
             pos2 = phases_w[(phases_w > 0.25) & (phases_w < 0.75)][np.argmin(fluxes_w[(phases_w > 0.25) & (phases_w < 0.75)])]
             width1 = 0.5
             width2 = 0.5
-                                    
+
         eclipse_edges = refine_eclipse_widths(phases_w, fluxes_w, sigmas_w, pos1, pos2, width1, width2)
         width1, width2 = eclipse_edges[1]-eclipse_edges[0], eclipse_edges[3]-eclipse_edges[2]
-        
+    else:
+        eclipse_edges = [np.nan, np.nan, np.nan, np.nan]
+
 
     if diagnose:
         twogfuncs = {'C': const, 'CE': ce, 'CG': cg, 'CGE': cge, 'CG12': cg12, 'CG12E1': cg12e1, 'CG12E2': cg12e2}

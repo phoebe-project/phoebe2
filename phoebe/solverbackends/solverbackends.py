@@ -324,6 +324,8 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         solution_params += [_parameters.FloatParameter(qualifier='primary_depth', value=0, readonly=True, unit=u.dimensionless_unscaled, description='depth of primary eclipse')]
         solution_params += [_parameters.FloatParameter(qualifier='secondary_depth', value=0, readonly=True, unit=u.dimensionless_unscaled, description='depth of secondary eclipse')]
 
+        solution_params += [_parameters.FloatArrayParameter(qualifier='eclipse_edges', value=[], readonly=True, unit=u.dimensionless_unscaled, description='detected phases of eclipse edges')]
+
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
@@ -376,6 +378,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
                  {'qualifier': 'secondary_phase', 'value': eclipse_dict.get('secondary_position')},
                  {'qualifier': 'primary_depth', 'value': eclipse_dict.get('primary_depth')},
                  {'qualifier': 'secondary_depth', 'value': eclipse_dict.get('secondary_depth')},
+                 {'qualifier': 'eclipse_edges', 'value': eclipse_dict.get('eclipse_edges')},
                  {'qualifier': 'fitted_uniqueids', 'value': [ecc_param.uniqueid, per0_param.uniqueid]},
                  {'qualifier': 'fitted_twigs', 'value': [ecc_param.twig, per0_param.twig]},
                  {'qualifier': 'fitted_values', 'value': [ecc, per0]},
