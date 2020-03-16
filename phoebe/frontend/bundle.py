@@ -2101,7 +2101,7 @@ class Bundle(ParameterSet):
 
             if param._value not in choices:
                 changed = True
-                if param._value == 'None' and len(choices):
+                if param._value in ['', 'None'] and len(choices):
                     param._value = choices[0]
                 else:
                     param._value = 'None'
@@ -5233,6 +5233,11 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
         ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
+
+        for param in self.filter(context='solution', qualifier='lc', **_skip_filter_checks):
+            if param.get_value() == old_value:
+                param.set_value(new_value)
+                ret_changes += [param]
 
         if return_changes:
             return ret_ps + ret_changes
