@@ -210,7 +210,7 @@ def refine_eclipse_widths(phases, fluxes, sigmas, pos1, pos2, width1, width2, wf
         return eclipse_breaks
     except:
         logger.warning('Eclipse width refinement failed.')
-        return None
+        return [pos1-0.5*width1, pos1+0.5*width1, pos2-0.5*width2, pos2+0.5*width2]
 
 # GEOMETRY SOLVER
 
@@ -254,9 +254,8 @@ def compute_eclipse_params(phases, fluxes, sigmas, smooth=False, diagnose=False)
             width1 = 0.5
             width2 = 0.5
                                     
-        eclipse_breaks = refine_eclipse_widths(phases_w, fluxes_w, sigmas_w, pos1, pos2, width1, width2)
-        if eclipse_breaks is not None:
-            width1, width2 = eclipse_breaks[1]-eclipse_breaks[0], eclipse_breaks[3]-eclipse_breaks[2]
+        eclipse_edges = refine_eclipse_widths(phases_w, fluxes_w, sigmas_w, pos1, pos2, width1, width2)
+        width1, width2 = eclipse_edges[1]-eclipse_edges[0], eclipse_edges[3]-eclipse_edges[2]
         
 
     if diagnose:
@@ -267,16 +266,11 @@ def compute_eclipse_params(phases, fluxes, sigmas, smooth=False, diagnose=False)
         plt.plot(phases_w, twogfuncs[best_fit](phases_w, *fit_result['fits'][best_fit][0]), '-', label=fit_result['best_fit'])
         plt.axvline(x=pos1, c='blue', ls='--', label='primary pos')
         plt.axvline(x=pos2, c='orange', ls='--', label='secondary pos')
-        if eclipse_breaks is not None:
-            plt.axvline(x=eclipse_breaks[0], c='blue', ls=':')
-            plt.axvline(x=eclipse_breaks[1], c='blue', ls=':')
-            plt.axvline(x=eclipse_breaks[2], c='orange', ls=':')
-            plt.axvline(x=eclipse_breaks[3], c='orange', ls=':')
-        else:
-            plt.axvline(x=pos1-0.5*width1, c='blue', ls=':')
-            plt.axvline(x=pos1+0.5*width1, c='blue', ls=':')
-            plt.axvline(x=pos2-0.5*width2, c='orange', ls=':')
-            plt.axvline(x=pos2+0.5*width2, c='orange', ls=':')
+        plt.axvline(x=eclipse_edges[0], c='blue', ls=':')
+        plt.axvline(x=eclipse_edges[1], c='blue', ls=':')
+        plt.axvline(x=eclipse_edges[2], c='orange', ls=':')
+        plt.axvline(x=eclipse_edges[3], c='orange', ls=':')
+
         plt.legend()
         plt.show()
 
@@ -286,7 +280,8 @@ def compute_eclipse_params(phases, fluxes, sigmas, smooth=False, diagnose=False)
         'primary_position': pos1,
         'secondary_position': pos2,
         'primary_depth': depth1,
-        'secondary_depth': depth2
+        'secondary_depth': depth2,
+        'eclipse_edges': eclipse_edges
     }
 
 # ECCENTRICITY AND ARG OF PERIASTRON ESTIMATOR
