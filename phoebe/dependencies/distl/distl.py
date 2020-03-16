@@ -1001,9 +1001,10 @@ class BaseDistribution(BaseDistlObject):
         else:
             ret_cdf = None
 
+        _plt.xlabel(self._xlabel(unit, label=label))
+        _plt.ylabel('density')
+
         if show:
-            _plt.xlabel(self._xlabel(unit, label=label))
-            _plt.ylabel('density')
             _plt.show()
 
         return (ret_sample, ret_pdf, ret_cdf, ret_gauss)
@@ -1089,9 +1090,10 @@ class BaseDistribution(BaseDistlObject):
             # TODO: this still doesn't handle the same
             ret = _plt.hist(samples, normed=True, **kwargs)
 
+        _plt.xlabel(xlabel if xlabel is not None else self._xlabel(unit, label=label))
+        _plt.ylabel('density')
+
         if show:
-            _plt.xlabel(xlabel if xlabel is not None else self._xlabel(unit, label=label))
-            _plt.ylabel('density')
             _plt.show()
 
         return ret
@@ -1175,10 +1177,10 @@ class BaseDistribution(BaseDistlObject):
         else:
             return None
 
+        _plt.xlabel(xlabel if xlabel is not None else self._xlabel(unit, label=label))
+        _plt.ylabel('density')
 
         if show:
-            _plt.xlabel(xlabel if xlabel is not None else self._xlabel(unit, label=label))
-            _plt.ylabel('density')
             _plt.show()
 
         return ret
@@ -1262,10 +1264,10 @@ class BaseDistribution(BaseDistlObject):
         else:
             return None
 
+        _plt.xlabel(xlabel if xlabel is not None else self._xlabel(unit, label=label))
+        _plt.ylabel('cummulative density')
 
         if show:
-            _plt.xlabel(xlabel if xlabel is not None else self._xlabel(unit, label=label))
-            _plt.ylabel('cummulative density')
             _plt.show()
 
         return ret
@@ -1342,10 +1344,12 @@ class BaseDistribution(BaseDistlObject):
         # TODO: this time wrap_at is assumed to be in the plotted units, not the original... do we need to convert?
         ret = g.plot_pdf(x, wrap_at=wrap_at, **{k:v for k,v in kwargs.items() if k not in to_gauss_keys})
 
+        _plt.xlabel(xlabel if xlabel is not None else self._xlabel(unit, label=label))
+        _plt.ylabel('density')
+
         if show:
-            _plt.xlabel(xlabel if xlabel is not None else self._xlabel(unit, label=label))
-            _plt.ylabel('density')
             _plt.show()
+
         return ret
 
 
