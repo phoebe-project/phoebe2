@@ -261,7 +261,7 @@ def _value_string(param):
             else:
                 return "[ ] (empty)"
     elif param_type in ['DistributionParameter']:
-        return param._value.__str__().replace('distl.', '')
+        return param._value.__repr__().replace('distl.', '')
     else:
         return '({})'.format(param_type)
 
@@ -325,7 +325,7 @@ def _param_json_detailed(param):
 
 
     if param.__class__.__name__ == 'FloatParameter':
-        p['distributions'] = {p.uniqueid: p.twig for p in param.get_distribution_parameters().to_list()}
+        p['distributions'] = {p.uniqueid: p.twig for p in param.get_distribution_parameters(follow_constraints=True).to_list()}
         p['is_adjustable'] = param.context in ['component', 'dataset', 'system', 'feature'] and not len(param.constrained_by)
 
     if hasattr(param, 'limits'):
@@ -761,6 +761,33 @@ def serve_figure_afig(bundleid, figure):
     fname = '{}_{}.afig'.format(bundleid, figure)
     if app._verbose:
         print("serve_figure_afig", fname)
+    return send_from_directory(_dir_tmpimages, fname)
+
+@app.route('/<string:bundleid>/distribution_plot/<string:parameter_uniqueid>/<string:distribution>', methods=['GET'])
+def serve_distribution_plot(bundleid, parameter_uniqueid, distribution):
+    if app._verbose:
+        print("serve_distribution_plot", bundleid, distribution, parameter_uniqueid)
+
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("set_value {} error: {}".format(msg, err))
+        # emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        return
+
+    b = app._bundles[bundleid]
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    param = b.get_parameter(uniqueid=parameter_uniqueid, check_visible=False, check_default=False)
+    dist = param.get_distribution(distribution)
+    fname = '{}_dist_{}_{}.png'.format(bundleid, parameter_uniqueid, distribution)
+    plt.clf()
+    figure = plt.figure(figsize=(4,4))
+    out = dist.plot()
+    plt.tight_figure()
+    plt.savefig(os.path.join(_dir_tmpimages, fname))
+    plt.close(figure)
+
     return send_from_directory(_dir_tmpimages, fname)
 
 
