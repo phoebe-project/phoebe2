@@ -8254,7 +8254,7 @@ class FloatParameter(Parameter):
 
         self._bundle.add_distribution(twig=self, value=value)
 
-    def get_distribution_parameters(self, distribution=None):
+    def get_distribution_parameters(self, distribution=None, follow_constraints=True):
         """
         Get the distribution parameter(s) corresponding to `distribution`.
 
@@ -8268,19 +8268,40 @@ class FloatParameter(Parameter):
         -------------
         * `distribution` (string list or None, optional, default=None): distribution
             to use when filtering.  If None, will default to <phoebe.parmaeters.FloatParameter.in_distributions>
+        * `follow_constraints` (bool, optional, default=True): whether to include
+            the distributions of parameters in the constrained parameter.  Only
+            applicable if this parameter is currently constrained.  See also
+            <phoebe.parameters.FloatParameter.is_constrained> and
+            <phoebe.parameters.FloatParameter.constrained_by>.
 
         Returns
         ----------
         * <phoebe.parameters.ParameterSet> of distribution parameters.
         """
         if distribution is None:
-            distribution = self.in_distributions
+            direct_distribution = self.in_distributions
+        else:
+            direct_distribution = distribution
 
-        return self._bundle.filter(qualifier=self.qualifier,
-                                   distribution=distribution,
-                                   context='distribution',
-                                   check_visible=False,
-                                   **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
+        direct_ps =  self._bundle.filter(qualifier=self.qualifier,
+                                         distribution=direct_distribution,
+                                         context='distribution',
+                                         check_visible=False,
+                                         **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
+
+        indirect_params = []
+        if follow_constraints and len(self.constrained_by):
+            # then this is a constrained parameter, so we want to propagate
+            # any distributions through the constraint and return a CompositeDistribution
+            # instead.
+            for constraining_param in self.constrained_by:
+                indirect_params += self._bundle.filter(qualifier=constraining_param.qualifier,
+                                                       distribution=distribution if distribution is not None else constraining_param.in_distributions,
+                                                       context='distribution',
+                                                       check_visible=False,
+                                                       **{k:v for k,v in constraining_param.meta.items() if k in _contexts and k not in ['context', 'distribution']}).to_list()
+
+        return direct_ps + indirect_params
 
 
     def get_distribution(self, distribution=None, follow_constraints=True):
