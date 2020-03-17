@@ -10,6 +10,9 @@ PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server [port]
 
 to set a maximum number of allowed max_computations
 PHOEBE_SERVER_MAX_COMPUTATIONS=100 phoebe-server [port]
+
+to disable any compute-required solvers (optimizers/samplers)
+PHOEBE_SERVER_DISABLE_SOLVERS=True phoebe-server [port]
 """
 
 try:
@@ -105,6 +108,12 @@ phoebe.parameters._is_server = True
 _max_computations = os.getenv('PHOEBE_SERVER_MAX_COMPUTATIONS', None)
 if _max_computations is not None:
     _max_computations = int(_max_computations)
+
+_disable_solvers = os.getenv('PHOEBE_SERVER_DISABLE_SOLVERS', 'False').lower()=='true'
+if _disable_solvers:
+    _allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers() if s.split('.')[0] not in ['optimizer', 'sampler']]
+else:
+    _allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers()]
 
 _dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
 
@@ -403,7 +412,8 @@ def info():
                           'nclients': len(app._clients), 'clients': app._clients,
                           'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle,
                           'available_kinds': _available_kinds,
-                          'max_computations': _max_computations
+                          'max_computations': _max_computations,
+                          'allowed_solver_kinds': _allowed_solver_kinds
                           },
                           api=True)
 
@@ -1146,6 +1156,12 @@ def bundle_method(msg):
     client_types = _client_types_for_bundle(bundleid)
 
     method = msg.pop('method')
+
+    if _disable_solvers and method == 'run_solver':
+        solver_kind = b.get_solver(solver=msg.get('solver')).kind
+        if solver_kind not in _allowed_solver_kinds:
+            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
+            return
 
     if method in ['run_compute', 'run_solver']:
         # TODO: have this be a environment variable or flag at the top-level?
