@@ -8355,6 +8355,7 @@ class FloatParameter(Parameter):
             else:
                 raise TypeError("distribution must be of type string or None")
 
+        dist = None
         if follow_constraints and len(self.constrained_by):
             # then this is a constrained parameter, so we want to propagate
             # any distributions through the constraint and return a CompositeDistribution
@@ -8380,7 +8381,7 @@ class FloatParameter(Parameter):
             # raise NotImplementedError("constraint propagation for distributions not yet implemented")
             dist = self.is_constraint.get_result(use_distribution=distribution)
 
-        else:
+        if dist is None:
             dist = self._bundle.get_parameter(qualifier=self.qualifier,
                                               distribution=distribution,
                                               context='distribution',
