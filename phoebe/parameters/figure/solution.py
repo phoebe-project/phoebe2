@@ -23,10 +23,10 @@ def lc_eclipse_geometry(b, **kwargs):
 
     params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]
 
-    kwargs.setdefault('color', 'black' if _use_autofig else None)
-    kwargs.setdefault('marker', 'None' if _use_autofig else None)
-    kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
-    params += _figure_style_nosources(b, **kwargs)
+    # kwargs.setdefault('color', 'black' if _use_autofig else None)
+    # kwargs.setdefault('marker', 'None' if _use_autofig else None)
+    # kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
+    # params += _figure_style_nosources(b, **kwargs)
 
     # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
 

@@ -2101,7 +2101,7 @@ class Bundle(ParameterSet):
 
             if param._value not in choices:
                 changed = True
-                if param._value == 'None' and len(choices):
+                if param._value in ['', 'None'] and len(choices):
                     param._value = choices[0]
                 else:
                     param._value = 'None'
@@ -3860,7 +3860,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
 
-    def remove_feature(self, feature=None, **kwargs):
+    def remove_feature(self, feature=None, return_changes=False, **kwargs):
         """
         Remove a 'feature' from the bundle.
 
@@ -3906,7 +3906,7 @@ class Bundle(ParameterSet):
 
         return removed_ps
 
-    def remove_features_all(self):
+    def remove_features_all(self, return_changes=False):
         """
         Remove all features from the bundle.  To remove a single feature, see
         <phoebe.frontend.bundle.Bundle.remove_feature>.
@@ -3917,7 +3917,7 @@ class Bundle(ParameterSet):
         """
         removed_ps = ParameterSet()
         for feature in self.features:
-            removed_ps += self.remove_feature(feature=feature)
+            removed_ps += self.remove_feature(feature=feature, return_changes=return_changes)
         return removed_ps
 
     def rename_feature(self, old_feature, new_feature,
@@ -5234,6 +5234,11 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
+        for param in self.filter(context='solution', qualifier='lc', **_skip_filter_checks):
+            if param.get_value() == old_value:
+                param.set_value(new_value)
+                ret_changes += [param]
+
         if return_changes:
             return ret_ps + ret_changes
         return ret_ps
@@ -5538,7 +5543,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'constraint'
         return self.get(**kwargs)
 
-    def remove_constraint(self, twig=None, **kwargs):
+    def remove_constraint(self, twig=None, return_changes=False, **kwargs):
         """
         Remove a 'constraint' from the bundle.
 
@@ -6612,7 +6617,7 @@ class Bundle(ParameterSet):
 
         return ret_ps
 
-    def remove_figure(self, figure, **kwargs):
+    def remove_figure(self, figure, return_changes=False, **kwargs):
         """
         Remove a 'figure' from the bundle.
 
@@ -7821,7 +7826,7 @@ class Bundle(ParameterSet):
             return ret_ps + ret_changes
         return ret_ps
 
-    def remove_computes_all(self, remove_changes=False):
+    def remove_computes_all(self, return_changes=False):
         """
         Remove all compute options from the bundle.  To remove a single set
         of compute options see <phoebe.frontend.bundle.Bundle.remove_compute>.
@@ -7946,7 +7951,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
@@ -7988,12 +7993,16 @@ class Bundle(ParameterSet):
         f.write("import phoebe; import json\n")
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_solver)
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['distribution', 'model', 'figure', 'solution', 'constraint'], **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
+        exclude_contexts = ['model', 'figure', 'constraint']
+        sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[])
+        exclude_distributions = [dist for dist in self.distributions if dist not in sample_from]
+        exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
         compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
-        f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
+        f.write("model_ps = b.run_compute({}, in_export_script=True)\n".format(compute_kwargs_string))
         # as the return from run_compute just does a filter on model=model,
         # model_ps here should include any created figure parameters
         if out_fname is not None:
@@ -8377,7 +8386,8 @@ class Bundle(ParameterSet):
                     self._attach_params(params, check_copy_for=False, **metawargs)
 
                     # TODO: include when return_changes?
-                    ret_changes += self.remove_distribution(distribution=remove_dists).to_list()
+                    if len(remove_dists) and not kwargs.get('in_export_script', False):
+                        ret_changes += self.remove_distribution(distribution=remove_dists).to_list()
                     # continue to the next iteration of the for-loop.  Any dataset-scaling,
                     # etc, will be handled within each individual model run within the sampler.
                     continue
@@ -9147,10 +9157,16 @@ class Bundle(ParameterSet):
         if auto_add_figure and not removed and ret_ps.solution not in [p.get_value() for p in self.filter(qualifier='solution', context='figure', kind=ret_ps.kinds, **_skip_filter_checks).to_list()]:
             # then we don't have a figure for this kind yet
             logger.info("calling add_figure(kind='solution.{}') since auto_add_figure@setting=True".format(ret_ps.kind))
-            new_fig_params = self.add_figure(kind='solution.{}'.format(ret_ps.kind), return_changes=return_changes)
-            ret_changes += new_fig_params.to_list()
-            ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
-            new_fig_params.set_value(qualifier='solution', value=ret_ps.solution)
+            try:
+                new_fig_params = self.add_figure(kind='solution.{}'.format(ret_ps.kind), return_changes=return_changes)
+            except ValueError:
+                # not all solution types have corresponding figures
+                logger.info("add_figure failed")
+                pass
+            else:
+                ret_changes += new_fig_params.to_list()
+                ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
+                new_fig_params.set_value(qualifier='solution', value=ret_ps.solution)
         elif auto_remove_figure and removed:
             for param in self.filter(qualifier='solution', context='figure', kind=ret_ps.kind, **_skip_filter_checks).to_list():
                 if param.get_value() == ret_ps.solution:

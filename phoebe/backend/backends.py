@@ -737,26 +737,26 @@ class SampleOverModel(object):
                 if param.qualifier in ['fluxes', 'rvs']:
                     all_values = np.array([p.get_value() for p in all_models_ps.filter(qualifier=param.qualifier, dataset=param.dataset, component=param.component, **_skip_filter_checks).to_list()])
                     if sample_mode == 'all':
-                        param.set_value(all_values)
+                        param.set_value(all_values, ignore_readonly=True)
                     elif sample_mode == 'median':
-                        param.set_value(np.median(all_values, axis=0))
+                        param.set_value(np.median(all_values, axis=0), ignore_readonly=True)
                     elif sample_mode in ['1-sigma', '3-sigma', '5-sigma']:
                         sigma = int(sample_mode[0])
                         bounds = np.percentile(all_values, 100 * _norm.cdf([-sigma, 0, sigma]), axis=0)
-                        param.set_value(bounds)
+                        param.set_value(bounds, ignore_readonly=True)
                     else:
                         raise NotImplementedError("sample_mode='{}' not implemented".format(sample_mode))
                 param._bundle = b
                 param._model = kwargs.get('model')
 
             addl_params = []
-            addl_params += [StringParameter(qualifier='sample_mode', value=sample_mode, description='mode used for sampling - CHANGE WITH CAUTION')]
-            addl_params += [ArrayParameter(qualifier='sampled_uniqueids', value=list(sample_dict.keys()), description='uniqueids of sampled parameters')]
-            addl_params += [ArrayParameter(qualifier='sampled_twigs', value=[b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in sample_dict.keys()], description='twigs of sampled parameters')]
+            addl_params += [StringParameter(qualifier='sample_mode', value=sample_mode, readonly=True, description='mode used for sampling')]
+            addl_params += [ArrayParameter(qualifier='sampled_uniqueids', value=list(sample_dict.keys()), advanced=True, readonly=True, description='uniqueids of sampled parameters')]
+            addl_params += [ArrayParameter(qualifier='sampled_twigs', value=[b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in sample_dict.keys()], readonly=True, description='twigs of sampled parameters')]
             if expose_samples:
-                addl_params += [ArrayParameter(qualifier='samples', value=success_samples, description='samples that were drawn and successfully computed.')]
+                addl_params += [ArrayParameter(qualifier='samples', value=success_samples, readonly=True, description='samples that were drawn and successfully computed.')]
             if expose_failed:
-                addl_params += [DictParameter(qualifier='failed_samples', value=failed_samples, description='samples that were drawn but failed to compute.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
+                addl_params += [DictParameter(qualifier='failed_samples', value=failed_samples, readonly=True, description='samples that were drawn but failed to compute.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
 
             return ret_ps + ParameterSet(addl_params)
         return

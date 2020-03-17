@@ -113,7 +113,7 @@ def gaussian_process(feature, **kwargs):
 
     params += [FloatParameter(visible_if='kernel:matern32', qualifier='log_sigma', value=kwargs.get('log_sigma', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter sigma')]
     params += [FloatParameter(visible_if='kernel:matern32', qualifier='log_rho', value=kwargs.get('log_rho', 0), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter rho')]
-    params += [FloatParameter(visible_if='kernel:matern32', qualifier='eps', value=kwargs.get('eps', 0.01), limits=(0,None), default_unit=u.dimensionless_unscaled, description='Log of the GP parameter rho')]
+    params += [FloatParameter(visible_if='kernel:matern32', qualifier='eps', value=kwargs.get('eps', 0.01), limits=(0,None), default_unit=u.dimensionless_unscaled, description='GP parameter epsilon')]
 
     # params += [FloatParameter(visible_if='kernel:jitter', qualifier='log_sigma', value=kwargs.get('log_sigma', np.log(0.01)), default_unit=u.dimensionless_unscaled, description='Log of the amplitude of the white noise')]
 

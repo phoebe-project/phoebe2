@@ -10,6 +10,9 @@ PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server [port]
 
 to set a maximum number of allowed max_computations
 PHOEBE_SERVER_MAX_COMPUTATIONS=100 phoebe-server [port]
+
+to disable any compute-required solvers (optimizers/samplers)
+PHOEBE_SERVER_DISABLE_SOLVERS=True phoebe-server [port]
 """
 
 try:
@@ -105,6 +108,12 @@ phoebe.parameters._is_server = True
 _max_computations = os.getenv('PHOEBE_SERVER_MAX_COMPUTATIONS', None)
 if _max_computations is not None:
     _max_computations = int(_max_computations)
+
+_disable_solvers = os.getenv('PHOEBE_SERVER_DISABLE_SOLVERS', 'False').lower()=='true'
+if _disable_solvers:
+    _allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers() if s.split('.')[0] not in ['optimizer', 'sampler']]
+else:
+    _allowed_solver_kinds = [s.split('.')[-1] for s in phoebe.list_available_solvers()]
 
 _dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
 
@@ -261,7 +270,7 @@ def _value_string(param):
             else:
                 return "[ ] (empty)"
     elif param_type in ['DistributionParameter']:
-        return param._value.__str__().replace('distl.', '')
+        return param._value.__repr__().replace('distl.', '')
     else:
         return '({})'.format(param_type)
 
@@ -324,9 +333,10 @@ def _param_json_detailed(param):
         p['constrains'] = {p.uniqueid: p.twig for p in param.constrains} if hasattr(param, 'constrains') else {}
 
 
-    if param.__class__.__name__ == 'FloatParameter':
-        p['distributions'] = {p.uniqueid: p.twig for p in param.get_distribution_parameters().to_list()}
+    if param.__class__.__name__ in ['FloatParameter']:
+        p['distributions'] = {p.uniqueid: p.twig for p in param.get_distribution_parameters(follow_constraints=True).to_list()}
         p['is_adjustable'] = param.context in ['component', 'dataset', 'system', 'feature'] and not len(param.constrained_by)
+        p['allows_distribution'] = param.context in ['component', 'dataset', 'system', 'feature']
 
     if hasattr(param, 'limits'):
         if hasattr(param, 'default_unit'):
@@ -402,7 +412,8 @@ def info():
                           'nclients': len(app._clients), 'clients': app._clients,
                           'nbundles': len(app._bundles.keys()), 'clients_per_bundle': app._clients_per_bundle, 'last_access_per_bundle': app._last_access_per_bundle,
                           'available_kinds': _available_kinds,
-                          'max_computations': _max_computations
+                          'max_computations': _max_computations,
+                          'allowed_solver_kinds': _allowed_solver_kinds
                           },
                           api=True)
 
@@ -633,7 +644,8 @@ def bundle(bundleid):
     info['success'] = True
     info['parameters'] = param_dict
     info['tags'] = tags
-    info['adjustable_parameters'] = {p.uniqueid: p.twig for p in b.get_adjustable_parameters().to_list()}
+    # info['adjustable_parameters'] = {p.uniqueid: p.twig for p in b.get_adjustable_parameters().to_list()}
+    info['params_allow_dist'] = {p.uniqueid: p.twig for p in b.filter(context=['component', 'system', 'dataset', 'feature']).to_list() if p.__class__.__name__ in ['FloatParameter', 'FloatArrayParameter']}
 
     return _get_response(info, api=True)
 
@@ -763,6 +775,33 @@ def serve_figure_afig(bundleid, figure):
         print("serve_figure_afig", fname)
     return send_from_directory(_dir_tmpimages, fname)
 
+@app.route('/<string:bundleid>/distribution_plot/<string:parameter_uniqueid>/<string:distribution>', methods=['GET'])
+def serve_distribution_plot(bundleid, parameter_uniqueid, distribution):
+    if app._verbose:
+        print("serve_distribution_plot", bundleid, distribution, parameter_uniqueid)
+
+    if bundleid not in app._bundles.keys():
+        err = 'bundle not found with bundleid={}'.format(bundleid)
+        if app._verbose:
+            print("set_value {} error: {}".format(msg, err))
+        # emit('{}:errors:react'.format(bundleid), {'success': False, 'error': err}, broadcast=False)
+        return
+
+    b = app._bundles[bundleid]
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    param = b.get_parameter(uniqueid=parameter_uniqueid, check_visible=False, check_default=False)
+    dist = param.get_distribution(distribution)
+    fname = '{}_dist_{}_{}.png'.format(bundleid, parameter_uniqueid, distribution)
+    plt.clf()
+    figure = plt.figure(figsize=(4,4))
+    out = dist.plot()
+    plt.tight_layout()
+    plt.savefig(os.path.join(_dir_tmpimages, fname))
+    plt.close(figure)
+
+    return send_from_directory(_dir_tmpimages, fname)
+
 
 ############################# WEBSOCKET ROUTES ################################
 
@@ -886,14 +925,17 @@ def _update_figures(b, bundleid, affected_ps=None):
             datasets = affected_ps.datasets
             models = affected_ps.models
             solutions = affected_ps.solutions
-            solvers = affected_ps.solvers
+            # we don't need to update the plot for most parameter changes.  Since solver figures
+            # currently only exist to show distributions, we'll only pay attention to those
+            # parameters.
+            solvers = affected_ps.filter(qualifier=['init_from', 'priors'], check_visible=False).solvers
             for figure in b.figures:
                 if figure in figures:
                     continue
                 figure_distributions = b.get_value(qualifier='distributions', figure=figure, check_visible=False, check_default=False, expand=True, default=[])
                 figure_datasets = b.get_value(qualifier='datasets', figure=figure, check_visible=False, check_default=False, expand=True, default=[])
                 figure_models = b.get_value(qualifier='models', figure=figure, check_visible=False, check_default=False, expand=True, default=[])
-                figure_solver = b.get_value(qualifier='solvers', figure=figure, check_visible=False, check_default=False, expand=True, default='')
+                figure_solver = b.get_value(qualifier='solver', figure=figure, check_visible=False, check_default=False, expand=True, default='')
                 figure_solution = b.get_value(qualifier='solution', figure=figure, check_visible=False, check_default=False, default='')
                 if np.any([dist in figure_distributions for dist in distributions]) or np.any([ds in figure_datasets for ds in datasets]) or np.any([ml in figure_models for ml in models]) or np.any([s==figure_solver for s in solvers]) or np.any([s==figure_solution for s in solutions]):
                     figures.append(figure)
@@ -994,11 +1036,7 @@ def set_value(msg):
         if 'web' in client_types or 'desktop' in client_types:
 
             # we need to also include parameters in which the visibility has changed
-            is_visible_changed = {p.uniqueid: p.is_visible for p in b.to_list(check_visible=False, check_default=False, check_advanced=False) if p.is_visible!=is_visible_before.get(p.uniqueid, None)}
-            # TODO: need to figure out what should be shown in the client if a new items has become visible but not within the filter
-            # TODO: tag visibility in the client needs to change based on the change in parameter visibilities
-
-            ps_list += b.filter(uniqueid=is_visible_changed.keys(), check_visible=False, check_advanced=False, check_default=False).to_list()
+            ps_list += [p for p in b.to_list(check_visible=False, check_default=False, check_advanced=False) if p.is_visible!=is_visible_before.get(p.uniqueid, None)]
 
             param_list = sorted([_param_json_overview(param) for param in ps_list], key=lambda p: p['qualifier'])
             param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
@@ -1119,6 +1157,12 @@ def bundle_method(msg):
 
     method = msg.pop('method')
 
+    if _disable_solvers and method == 'run_solver':
+        solver_kind = b.get_solver(solver=msg.get('solver')).kind
+        if solver_kind not in _allowed_solver_kinds:
+            emit('{}:errors:react'.format(bundleid), {'success': False, 'error': 'solver with kind {} is disabled on this server.  Export and run manually instead'.format(solver_kind)}, broadcast=False)
+            return
+
     if method in ['run_compute', 'run_solver']:
         # TODO: have this be a environment variable or flag at the top-level?
         # forbid expensive computations on this server
@@ -1193,7 +1237,7 @@ def bundle_method(msg):
 
         if method.split('_')[0] == 'add':
             context = method.split('_')[1]
-            packet['add_filter'] = {context: getattr(ps, context)}
+            packet['add_filter'] = {context: getattr(ps.filter(context=context, check_visible=False), context)}
         elif method.split('_')[0] == 'run':
             new_context = {'compute': 'model', 'solver': 'solution'}[method.split('_')[1]]
             packet['add_filter'] = {new_context: getattr(ps, new_context)}
