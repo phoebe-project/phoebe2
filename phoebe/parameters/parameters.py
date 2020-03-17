@@ -8378,16 +8378,20 @@ class FloatParameter(Parameter):
                     raise ValueError("no distributions found attached to bundle")
 
             # raise NotImplementedError("constraint propagation for distributions not yet implemented")
-            return self.is_constraint.get_result(use_distribution=distribution)
+            dist = self.is_constraint.get_result(use_distribution=distribution)
 
-        dist = self._bundle.get_parameter(qualifier=self.qualifier,
-                                          distribution=distribution,
-                                          context='distribution',
-                                          check_visible=False,
-                                          **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
+        else:
+            dist = self._bundle.get_parameter(qualifier=self.qualifier,
+                                              distribution=distribution,
+                                              context='distribution',
+                                              check_visible=False,
+                                              **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
 
         if isinstance(dist, distl.BaseAroundGenerator):
             dist.value = self.get_value()
+
+        if dist.label is None:
+            dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
 
         return dist
 
