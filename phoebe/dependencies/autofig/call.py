@@ -1484,8 +1484,8 @@ class FillBetween(Call):
                                           **kwargs
                                           )
 
-        if self.y.value.shape not in [(len(self.x.value), 2), (len(self.x.value), 3)]:
-            raise ValueError("y must be of shape ({}, 2) or ({}, 3), not {}".format(len(self.x.value), len(self.x.value), self.y.value.shape))
+        if np.asarray(self.y.value).shape not in [(len(self.x.value), 2), (len(self.x.value), 3)]:
+            raise ValueError("y must be of shape ({}, 2) or ({}, 3), not {}".format(len(self.x.value), len(self.x.value), np.asarray(self.y.value).shape))
 
         # self.connect_callback(callbacks.update_sizes)
 
