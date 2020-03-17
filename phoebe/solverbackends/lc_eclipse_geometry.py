@@ -63,38 +63,50 @@ def extend_phasefolded_lc(phases, fluxes, sigmas):
 
     return phases_extend, fluxes_extend, sigmas_extend
 
-def estimate_eclipse_phases(phases, fluxes, smooth = False):
 
-    if smooth:
-        wl = int(len(fluxes)/50)
-        if wl%2 == 0:
-            wl = wl+1
-        po = 3 if wl > 3 else 1
-        lc_ph = savgol_filter(fluxes, window_length=wl, polyorder=po)
-    else:
-        lc_ph = fluxes
+def find_eclipse(phases, fluxes):
+    phase_min = phases[np.nanargmin(fluxes)]
+    ph_cross = phases[fluxes - np.nanmedian(fluxes) > 0]
+    # this part looks really complicated but it really only accounts for eclipses split
+    # between the edges of the phase range - if a left/right edge is not found, we look for 
+    # it in the phases on the other end of the range
+    # we then mirror the value back on the side of the eclipse position for easier width computation
+    try:
+        arg_edge_left = np.argmin(np.abs(phase_min - ph_cross[ph_cross<phase_min]))
+        edge_left = ph_cross[ph_cross<phase_min][arg_edge_left]
+    except:
+        arg_edge_left = np.argmin(np.abs((phase_min+1)-ph_cross[ph_cross<(phase_min+1)]))
+        edge_left = ph_cross[ph_cross<(phase_min+1)][arg_edge_left]-1
+    try:
+        arg_edge_right = np.argmin(np.abs(phase_min-ph_cross[ph_cross>phase_min]))
+        edge_right = ph_cross[ph_cross>phase_min][arg_edge_right]
+    except:
+        arg_edge_right = np.argmin(np.abs((phase_min-1)-ph_cross[ph_cross>(phase_min-1)]))
+        edge_right = ph_cross[ph_cross>(phase_min-1)][arg_edge_right]+1
+                            
+    return phase_min, edge_left, edge_right
 
-    ph = phases
 
-    lc_peaks = lc_ph[np.argwhere(lc_ph < lc_ph.mean())].flatten()
-    ph_peaks = ph[np.argwhere(lc_ph < lc_ph.mean())].flatten()
-    peaks = find_peaks(-lc_peaks)
+def estimate_eclipse_positions_widths(phases, fluxes, diagnose_init=False):
+    pos1, edge1l, edge1r = find_eclipse(phases, fluxes)
+    fluxes_sec = fluxes.copy()
+    fluxes_sec[((phases > edge1l) & (phases < edge1r)) | ((phases > edge1l+1) | (phases < edge1r-1))] = np.nan
+    pos2, edge2l, edge2r = find_eclipse(phases, fluxes_sec)
+    
+    if diagnose_init:
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(10,8))
+        plt.plot(phases, fluxes, '.')
+        plt.axhline(y=np.median(fluxes), c='orange')
+        for i,x in enumerate([pos1, edge1l, edge1r]):
+            ls = '-' if i==0 else '--'
+            plt.axvline(x=x, c='r', ls=ls)
+        for i,x in enumerate([pos2, edge2l, edge2r]):
+            ls = '-' if i==0 else '--'
+            plt.axvline(x=x, c='g', ls=ls)
 
-    filter_positive_phases = peaks[0][(ph_peaks[peaks[0]]>=-0.05) & (ph_peaks[peaks[0]]<0.95)]
-    phases_ecl = ph_peaks[filter_positive_phases][np.argsort(lc_peaks[filter_positive_phases])][:2]
-    phases_ecl = phases_ecl[np.argsort(phases_ecl)]
-
-    if len(phases_ecl) == 2:
-        mu1 = phases_ecl[0]
-        mu2 = phases_ecl[1]
-    elif len(phases_ecl) == 1:
-        mu1 = phases_ecl[0]
-        mu2 = 0.5
-    else:
-        mu1 = 0.
-        mu2 = 0.5
-    return mu1, mu2
-
+    return {'ecl_positions': [pos1, pos2], 'ecl_widths': [edge1r-edge1l, edge2r-edge2l]}
+                
 # FITTING
 
 def lnlike(y, yerr, ymodel):
@@ -105,7 +117,7 @@ def bic(y, yerr, ymodel, nparams):
     return 2*lnlike(y,yerr,ymodel) - nparams*np.log(len(y))
 
 
-def fit_twoGaussian_models(phases, fluxes, sigmas, smooth=False):
+def fit_twoGaussian_models(phases, fluxes, sigmas):
     # extend light curve on phase range [-1,1]
     phases, fluxes, sigmas = extend_phasefolded_lc(phases, fluxes, sigmas)
     # setup the initial parameters
@@ -114,11 +126,13 @@ def fit_twoGaussian_models(phases, fluxes, sigmas, smooth=False):
     twogfuncs = {'C': const, 'CE': ce, 'CG': cg, 'CGE': cge, 'CG12': cg12, 'CG12E1': cg12e1, 'CG12E2': cg12e2}
 
     C0 = fluxes.max()
-    mu10, mu20 = estimate_eclipse_phases(phases, fluxes, smooth=smooth)
+    init_pos_w = estimate_eclipse_positions_widths(phases, fluxes)
+    mu10, mu20 = init_pos_w['ecl_positions']
+    sigma10, sigma20 = 0.05, 0.05#init_pos_w['ecl_widths']
     d10 = fluxes.max()-fluxes[np.argmin(np.abs(phases-mu10))]
     d20 = fluxes.max()-fluxes[np.argmin(np.abs(phases-mu20))]
-    sigma10, sigma20 = 0.05, 0.05
     Aell0 = 0.001
+
     init_params = {'C': [C0,],
         'CE': [C0, Aell0, mu10],
         'CG': [C0, mu10, d10, sigma10],
@@ -158,9 +172,9 @@ def compute_twoGaussian_models_BIC(models, phases, fluxes, sigmas):
     return bics
 
 
-def fit_lc(phases, fluxes, sigmas, smooth=False):
+def fit_lc(phases, fluxes, sigmas):
 
-    fits = fit_twoGaussian_models(phases, fluxes, sigmas, smooth=smooth)
+    fits = fit_twoGaussian_models(phases, fluxes, sigmas)
     models = compute_twoGaussian_models(fits, phases)
     bics = compute_twoGaussian_models_BIC(models, phases, fluxes, sigmas)
     params = {'C': ['C'],
@@ -214,9 +228,9 @@ def refine_eclipse_widths(phases, fluxes, sigmas, pos1, pos2, width1, width2, wf
 
 # GEOMETRY SOLVER
 
-def compute_eclipse_params(phases, fluxes, sigmas, smooth=False, diagnose=False):
+def compute_eclipse_params(phases, fluxes, sigmas, diagnose=False):
 
-    fit_result = fit_lc(phases, fluxes, sigmas, smooth=smooth)
+    fit_result = fit_lc(phases, fluxes, sigmas)
     best_fit = fit_result['best_fit']
     model_params = fit_result['model_parameters'][best_fit]
 
@@ -299,8 +313,11 @@ def ecc_w_from_geometry(sep,pwidth,swidth):
     if np.isnan(sep) or np.isnan(pwidth) or np.isnan(swidth):
         logger.warning('Cannot esimate eccentricty and argument of periastron: incomplete geometry information')
         return 0., pi/2
-
-    psi = newton(func=f, x0=(12*pi*sep)**(1./3), fprime=df, args=(sep,), maxiter=500)
+        
+    # computation fails if sep<0, so we need to adjust for it here.
+    if sep < 0:
+        sep = 1+sep
+    psi = newton(func=f, x0=(12*pi*sep)**(1./3), fprime=df, args=(sep,), maxiter=5000)
     ecc = sqrt( (0.25*tan(psi-pi)**2+(swidth-pwidth)**2/(swidth+pwidth)**2)/(1+0.25*tan(psi-pi)**2) )
     try:
         w1 = arcsin((pwidth-swidth)/(swidth+pwidth)/ecc)

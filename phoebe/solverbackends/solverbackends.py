@@ -349,7 +349,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         if len(sigmas) == 0:
             sigmas = 0.001*fluxes.mean()*np.ones(len(fluxes))
 
-        # the light curve has to be smooth, uniformly sampled and phased on range (-0.5,0.5), with 0 corresponding to supconj
+        # the light curve has to be phased on range (-0.5,0.5)
 
         s = phases.argsort()
         phases = phases[s]
@@ -364,8 +364,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         per0_param = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
 
         diagnose = kwargs.get('diagnose', False)
-        smooth = kwargs.get('smooth', False)
-        eclipse_dict = lc_eclipse_geometry.compute_eclipse_params(phases, fluxes, sigmas, smooth=smooth, diagnose=diagnose)
+        eclipse_dict = lc_eclipse_geometry.compute_eclipse_params(phases, fluxes, sigmas, diagnose=diagnose)
 
         # TODO: update to use widths as well (or alternate based on ecc?)
         ecc, per0 = lc_eclipse_geometry.ecc_w_from_geometry(eclipse_dict.get('secondary_position') - eclipse_dict.get('primary_position'), eclipse_dict.get('primary_width'), eclipse_dict.get('secondary_width'))
