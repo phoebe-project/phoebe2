@@ -3860,7 +3860,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
 
-    def remove_feature(self, feature=None, **kwargs):
+    def remove_feature(self, feature=None, return_changes=False, **kwargs):
         """
         Remove a 'feature' from the bundle.
 
@@ -3906,7 +3906,7 @@ class Bundle(ParameterSet):
 
         return removed_ps
 
-    def remove_features_all(self):
+    def remove_features_all(self, return_changes=False):
         """
         Remove all features from the bundle.  To remove a single feature, see
         <phoebe.frontend.bundle.Bundle.remove_feature>.
@@ -3917,7 +3917,7 @@ class Bundle(ParameterSet):
         """
         removed_ps = ParameterSet()
         for feature in self.features:
-            removed_ps += self.remove_feature(feature=feature)
+            removed_ps += self.remove_feature(feature=feature, return_changes=return_changes)
         return removed_ps
 
     def rename_feature(self, old_feature, new_feature,
@@ -5543,7 +5543,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'constraint'
         return self.get(**kwargs)
 
-    def remove_constraint(self, twig=None, **kwargs):
+    def remove_constraint(self, twig=None, return_changes=False, **kwargs):
         """
         Remove a 'constraint' from the bundle.
 
@@ -6617,7 +6617,7 @@ class Bundle(ParameterSet):
 
         return ret_ps
 
-    def remove_figure(self, figure, **kwargs):
+    def remove_figure(self, figure, return_changes=False, **kwargs):
         """
         Remove a 'figure' from the bundle.
 
@@ -7826,7 +7826,7 @@ class Bundle(ParameterSet):
             return ret_ps + ret_changes
         return ret_ps
 
-    def remove_computes_all(self, remove_changes=False):
+    def remove_computes_all(self, return_changes=False):
         """
         Remove all compute options from the bundle.  To remove a single set
         of compute options see <phoebe.frontend.bundle.Bundle.remove_compute>.
