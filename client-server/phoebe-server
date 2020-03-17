@@ -1221,7 +1221,7 @@ def bundle_method(msg):
 
         if method.split('_')[0] == 'add':
             context = method.split('_')[1]
-            packet['add_filter'] = {context: getattr(ps, context)}
+            packet['add_filter'] = {context: getattr(ps.filter(context=context, check_visible=False), context)}
         elif method.split('_')[0] == 'run':
             new_context = {'compute': 'model', 'solver': 'solution'}[method.split('_')[1]]
             packet['add_filter'] = {new_context: getattr(ps, new_context)}
