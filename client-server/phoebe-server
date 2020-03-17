@@ -915,7 +915,10 @@ def _update_figures(b, bundleid, affected_ps=None):
             datasets = affected_ps.datasets
             models = affected_ps.models
             solutions = affected_ps.solutions
-            solvers = affected_ps.solvers
+            # we don't need to update the plot for most parameter changes.  Since solver figures
+            # currently only exist to show distributions, we'll only pay attention to those
+            # parameters.
+            solvers = affected_ps.filter(qualifier=['init_from', 'priors'], check_visible=False).solvers
             for figure in b.figures:
                 if figure in figures:
                     continue
