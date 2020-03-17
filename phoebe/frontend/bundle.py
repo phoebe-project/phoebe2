@@ -7951,7 +7951,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
@@ -7993,12 +7993,16 @@ class Bundle(ParameterSet):
         f.write("import phoebe; import json\n")
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_solver)
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['distribution', 'model', 'figure', 'solution', 'constraint'], **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
+        exclude_contexts = ['model', 'figure', 'constraint']
+        sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[])
+        exclude_distributions = [dist for dist in self.distributions if dist not in sample_from]
+        exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
         compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
-        f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
+        f.write("model_ps = b.run_compute({}, in_export_script=True)\n".format(compute_kwargs_string))
         # as the return from run_compute just does a filter on model=model,
         # model_ps here should include any created figure parameters
         if out_fname is not None:
@@ -8382,7 +8386,8 @@ class Bundle(ParameterSet):
                     self._attach_params(params, check_copy_for=False, **metawargs)
 
                     # TODO: include when return_changes?
-                    ret_changes += self.remove_distribution(distribution=remove_dists).to_list()
+                    if len(remove_dists) and not kwargs.get('in_export_script', False):
+                        ret_changes += self.remove_distribution(distribution=remove_dists).to_list()
                     # continue to the next iteration of the for-loop.  Any dataset-scaling,
                     # etc, will be handled within each individual model run within the sampler.
                     continue
