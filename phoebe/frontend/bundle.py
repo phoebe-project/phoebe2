@@ -9152,10 +9152,16 @@ class Bundle(ParameterSet):
         if auto_add_figure and not removed and ret_ps.solution not in [p.get_value() for p in self.filter(qualifier='solution', context='figure', kind=ret_ps.kinds, **_skip_filter_checks).to_list()]:
             # then we don't have a figure for this kind yet
             logger.info("calling add_figure(kind='solution.{}') since auto_add_figure@setting=True".format(ret_ps.kind))
-            new_fig_params = self.add_figure(kind='solution.{}'.format(ret_ps.kind), return_changes=return_changes)
-            ret_changes += new_fig_params.to_list()
-            ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
-            new_fig_params.set_value(qualifier='solution', value=ret_ps.solution)
+            try:
+                new_fig_params = self.add_figure(kind='solution.{}'.format(ret_ps.kind), return_changes=return_changes)
+            except ValueError:
+                # not all solution types have corresponding figures
+                logger.info("add_figure failed")
+                pass
+            else:
+                ret_changes += new_fig_params.to_list()
+                ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
+                new_fig_params.set_value(qualifier='solution', value=ret_ps.solution)
         elif auto_remove_figure and removed:
             for param in self.filter(qualifier='solution', context='figure', kind=ret_ps.kind, **_skip_filter_checks).to_list():
                 if param.get_value() == ret_ps.solution:
