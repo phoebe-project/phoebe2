@@ -324,9 +324,10 @@ def _param_json_detailed(param):
         p['constrains'] = {p.uniqueid: p.twig for p in param.constrains} if hasattr(param, 'constrains') else {}
 
 
-    if param.__class__.__name__ == 'FloatParameter':
+    if param.__class__.__name__ in ['FloatParameter']:
         p['distributions'] = {p.uniqueid: p.twig for p in param.get_distribution_parameters(follow_constraints=True).to_list()}
         p['is_adjustable'] = param.context in ['component', 'dataset', 'system', 'feature'] and not len(param.constrained_by)
+        p['allows_distribution'] = param.context in ['component', 'dataset', 'system', 'feature']
 
     if hasattr(param, 'limits'):
         if hasattr(param, 'default_unit'):
@@ -633,7 +634,8 @@ def bundle(bundleid):
     info['success'] = True
     info['parameters'] = param_dict
     info['tags'] = tags
-    info['adjustable_parameters'] = {p.uniqueid: p.twig for p in b.get_adjustable_parameters().to_list()}
+    # info['adjustable_parameters'] = {p.uniqueid: p.twig for p in b.get_adjustable_parameters().to_list()}
+    info['params_allow_dist'] = {p.uniqueid: p.twig for p in b.filter(context=['component', 'system', 'dataset', 'feature']).to_list() if p.__class__.__name__ in ['FloatParameter', 'FloatArrayParameter']}
 
     return _get_response(info, api=True)
 
@@ -784,7 +786,7 @@ def serve_distribution_plot(bundleid, parameter_uniqueid, distribution):
     plt.clf()
     figure = plt.figure(figsize=(4,4))
     out = dist.plot()
-    plt.tight_figure()
+    plt.tight_layout()
     plt.savefig(os.path.join(_dir_tmpimages, fname))
     plt.close(figure)
 
