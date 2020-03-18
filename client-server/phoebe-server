@@ -94,6 +94,7 @@ import traceback
 # import StringIO
 if sys.version_info[0] == 3:
   unicode = str
+  basestring = str
 import inspect
 from time import sleep
 from collections import OrderedDict
