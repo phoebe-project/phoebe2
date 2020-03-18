@@ -4252,7 +4252,15 @@ class ParameterSet(object):
             kwargs['linestyle'] = 'None'
             kwargs['color'] = 'gray'
 
-            axvline_kwargss = [{'plot_package': 'autofig', 'autofig_method': 'plot', 'x': phase, 'xlabel': 'phase', 'color': 'blue', 'linestyle': 'dashed'} for phase in ps.get_value(qualifier='eclipse_edges', **_skip_filter_checks)]
+            def _phase_wrap(phase):
+                if phase < -0.5:
+                    phase += 1
+                return phase
+
+            axvline_kwargss = [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(phase)], 'xlabel': 'phase', 'color': 'black', 'linestyle': 'dashed'} for phase in ps.get_value(qualifier='eclipse_edges', **_skip_filter_checks)]
+            axvline_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='primary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'color': 'blue', 'linestyle': 'solid'}]
+            axvline_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='secondary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'color': 'red', 'linestyle': 'solid'}]
+
             return [kwargs] + axvline_kwargss
 
         elif ps.kind == 'dynesty':
