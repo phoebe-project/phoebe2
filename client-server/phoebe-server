@@ -1178,7 +1178,7 @@ def bundle_method(msg):
     if method.split('_')[0] in ['add', 'run']:
         if method not in ['add_distribution']:
             msg.setdefault('overwrite', True)
-    if method.split('_')[0] in ['add', 'run', 'remove', 'rename', 'attach']:
+    if method.split('_')[0] in ['add', 'run', 'remove', 'rename', 'attach', 'import', 'adopt']:
         msg['return_changes'] = True
 
     try:
