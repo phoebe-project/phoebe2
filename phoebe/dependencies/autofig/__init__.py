@@ -12,7 +12,13 @@ if 'DISPLAY' not in _os.environ.keys() and _sys.platform not in ['win32','cygwin
 elif hasattr(_sys, 'real_prefix'):
     # then we're likely in a virtualenv.  Our best bet is to use the 'TkAgg'
     # backend, but this will require python-tk to be installed on the system
-    _matplotlib.use('TkAgg')
+    try:
+        _matplotlib.use('TkAgg')
+    except:
+        try:
+            _matplotlib.use('Agg')
+        except:
+            pass
 
 from .call import Plot, Mesh
 from .axes import Axes
