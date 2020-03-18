@@ -13,12 +13,9 @@ elif hasattr(_sys, 'real_prefix'):
     # then we're likely in a virtualenv.  Our best bet is to use the 'TkAgg'
     # backend, but this will require python-tk to be installed on the system
     try:
-        _matplotlib.use('TkAgg')
+        _matplotlib.use('Agg')
     except:
-        try:
-            _matplotlib.use('Agg')
-        except:
-            pass
+        _matplotlib.use('TkAgg')
 
 from .call import Plot, Mesh
 from .axes import Axes
