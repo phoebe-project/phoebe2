@@ -1388,7 +1388,7 @@ class ParameterSet(object):
                          for k in _meta_fields_twig
                          if metawargs.get(k, None) is not None])
 
-    def _attach_params(self, params, check_copy_for=True, override_tags=False, **kwargs):
+    def _attach_params(self, params, check_copy_for=True, override_tags=False, overwrite=False, return_changes=False, **kwargs):
         """Attach a list of parameters (or ParameterSet) to this ParameterSet.
 
         :parameter list params: list of parameters, or ParameterSet
@@ -1396,6 +1396,7 @@ class ParameterSet(object):
         """
         lst = params.to_list() if isinstance(params, ParameterSet) else params
         ps = params if isinstance(params, ParameterSet) else ParameterSet(params)
+        ret_changes = []
         for param in lst:
             param._bundle = self
 
@@ -1404,12 +1405,17 @@ class ParameterSet(object):
                 if k in ['check_default', 'check_visible']: continue
                 if getattr(param, '_{}'.format(k)) is None or override_tags:
                     setattr(param, '_{}'.format(k), v)
+
+            if overwrite:
+                ret_changes += self.remove_parameters_all(**{k:v for k,v in param.meta.items() if k not in ['uniqueid', 'twig', 'uniquetwig']}).to_list()
             self._params.append(param)
 
         if check_copy_for:
             self._check_copy_for()
 
-        return
+        if ret_changes:
+            return ParameterSet(ret_changes)
+        return []
 
     def _check_copy_for(self):
         """Check the value of copy_for and make appropriate copies."""
@@ -11230,21 +11236,22 @@ class JobParameter(Parameter):
             if not _can_requests:
                 raise ImportError("requests module required for external jobs")
 
-            if self._value in ['complete']:
-                # then we have no need to bother checking again
-                status = self._value
-            else:
-                url = self._server_status
-                logger.info("checking job status on server from {}".format(url))
-                # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-                r = requests.get(url, timeout=5)
-                try:
-                    rjson = r.json()
-                except ValueError:
-                    # TODO: better exception here - perhaps look for the status code from the response?
-                    status = self._value
-                else:
-                    status = rjson['data']['attributes']['value']
+            raise NotImplementedError()
+            # if self._value in ['complete']:
+            #     # then we have no need to bother checking again
+            #     status = self._value
+            # else:
+            #     url = self._server_status
+            #     logger.info("checking job status on server from {}".format(url))
+            #     # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
+            #     r = requests.get(url, timeout=5)
+            #     try:
+            #         rjson = r.json()
+            #     except ValueError:
+            #         # TODO: better exception here - perhaps look for the status code from the response?
+            #         status = self._value
+            #     else:
+            #         status = rjson['data']['attributes']['value']
 
         else:
 
@@ -11254,6 +11261,8 @@ class JobParameter(Parameter):
                     status = 'error'
                 elif os.path.isfile(self._results_fname):
                     status = 'complete'
+                elif os.path.isfile(self._results_fname+'.progress'):
+                    status = 'progress'
                 elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
                     # some warnings from other packages can be set to stderr
                     # so we need to make sure the last line is actually from
@@ -11281,7 +11290,12 @@ class JobParameter(Parameter):
         [NOT IMPLEMENTED]
         """
         # now the file with the model should be retrievable from self._result_fname
-        ret_ps = ParameterSet.open(self._results_fname)
+        if self._value == 'progress':
+            fname = self._results_fname + '.progress'
+        else:
+            fname = self._results_fname
+
+        ret_ps = ParameterSet.open(fname)
         return ret_ps
 
     def attach(self, wait=True, sleep=5, cleanup=True, return_changes=False):
@@ -11318,7 +11332,7 @@ class JobParameter(Parameter):
         #if self._value == 'loaded':
         #    raise ValueError("results have already been loaded")
         status = self.get_status()
-        if not wait and status not in ['complete', 'error']:
+        if not wait and status not in ['complete', 'progress', 'error']:
             if status in ['loaded']:
                 logger.info("job already loaded")
                 if self.context == 'model':
@@ -11332,7 +11346,7 @@ class JobParameter(Parameter):
                 return self
 
 
-        while self.get_status() not in ['complete', 'loaded', 'error']:
+        while self.get_status() not in ['complete', 'progress', 'loaded', 'error']:
             # TODO: any way we can not make 2 calls to self.status here?
             logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
             time.sleep(sleep)
@@ -11340,21 +11354,23 @@ class JobParameter(Parameter):
         if self._server_status is not None and not _is_server:
             if not _can_requests:
                 raise ImportError("requests module required for external jobs")
-            # then we are no longer attached as a client to this bundle on
-            # the server, so we need to just pull the results manually
-            url = self._server_status
-            logger.info("pulling job results from server from {}".format(url))
-            # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-            r = requests.get(url, timeout=5)
-            rjson = r.json()
 
-            # status should already be complete because of while loop above,
-            # but could always check the following:
-            # rjson['value']['attributes']['value'] == 'complete'
-
-            # TODO: server needs to sideload results once complete
-            newparams = rjson['included']
-            self._bundle._attach_param_from_server(newparams)
+            raise NotImplementedError()
+            # # then we are no longer attached as a client to this bundle on
+            # # the server, so we need to just pull the results manually
+            # url = self._server_status
+            # logger.info("pulling job results from server from {}".format(url))
+            # # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
+            # r = requests.get(url, timeout=5)
+            # rjson = r.json()
+            #
+            # # status should already be complete because of while loop above,
+            # # but could always check the following:
+            # # rjson['value']['attributes']['value'] == 'complete'
+            #
+            # # TODO: server needs to sideload results once complete
+            # newparams = rjson['included']
+            # self._bundle._attach_param_from_server(newparams)
 
         elif self.status == 'error':
             ferr = open(self._err_fname, 'r')
@@ -11383,22 +11399,28 @@ class JobParameter(Parameter):
             else:
                 raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
 
-            self._bundle._attach_params(ret_ps, **metawargs)
+            if self._value == 'progress' and ret_ps.get_value(qualifier='progress', default=0) == self._bundle.get_value(qualifier='progress', default=100, **metawargs):
+                # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
+                return ParameterSet([])
 
-            if cleanup:
+            ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
+
+            if cleanup and self._value in ['complete', 'loaded', 'error']:
                 os.remove(self._script_fname)
                 os.remove(self._results_fname)
                 os.remove(self._err_fname)
+                os.remove(self._results_fname+".progress")
 
-            self._value = 'loaded'
+            if self._value != 'progress':
+                self._value = 'loaded'
 
             # TODO: add history?
             if self.context == 'model':
                 # TODO: check logic for do_create_fig_params
-                ret_changes = self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
+                ret_changes += self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
 
             elif self.context == 'solution':
-                ret_changes = self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
+                ret_changes += self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
 
             else:
                 raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))

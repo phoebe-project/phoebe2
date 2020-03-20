@@ -1200,11 +1200,7 @@ def bundle_method(msg):
 
             if method=='attach_job' and ('web' in client_types or 'desktop' in client_types):
                 # then we still need to emit the change the the status of the job parameter so the client stops polling
-                # param_list = [_param_json_overview(b.get_parameter(uniqueid=msg.get('uniqueid'), check_visible=False, check_default=False))]
-                # param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
-                # jp =
                 pjo = _param_json_overview(b.get_parameter(uniqueid=msg.get('uniqueid'), check_visible=False, check_default=False))
-                # pjo['valuestr'] = 'failed'
                 param_dict = {pjo.pop('uniqueid'): pjo}
                 packet = {'success': True, 'parameters': param_dict}
 

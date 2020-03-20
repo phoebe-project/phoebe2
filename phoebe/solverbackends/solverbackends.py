@@ -523,6 +523,8 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.IntParameter(qualifier='burnin', value=0, limits=(0,1e6), description='burnin to use when processing the solution')]
         solution_params += [_parameters.IntParameter(qualifier='thin', value=1, limits=(1,1e6), description='thin to use when processing the solution')]
 
+        solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, readonly=True, descrition='percentage of requested iterations completed')]
+
         return kwargs, _parameters.ParameterSet(solution_params)
 
     def _run_worker(self, packet):
@@ -542,7 +544,8 @@ class EmceeBackend(BaseSolverBackend):
                      {'qualifier': 'lnprobabilities', 'value': lnprobabilities},
                      {'qualifier': 'acceptance_fractions', 'value': acceptance_fractions},
                      {'qualifier': 'burnin', 'value': burnin},
-                     {'qualifier': 'thin', 'value': thin}]
+                     {'qualifier': 'thin', 'value': thin},
+                     {'qualifier': 'progress', 'value': progress}]
 
             if kwargs.get('expose_failed'):
                 return_ += [{'qualifier': 'failed_samples', 'value': failed_samples}]
@@ -688,6 +691,8 @@ class EmceeBackend(BaseSolverBackend):
             for sample in sampler.sample(p0.T, **sargs):
                 # TODO: parameters and options for checking convergence
                 if (save_every_niters > 0 and (sampler.iteration - start_iteration) % save_every_niters == 0) or sampler.iteration - start_iteration == niters:
+                    progress = (sampler.iteration - start_iteration) / niters * 100
+
                     samples = sampler.backend.get_chain()
                     lnprobabilities = sampler.backend.get_log_prob()
                     # accepteds = sampler.backend.accepted
@@ -702,10 +707,6 @@ class EmceeBackend(BaseSolverBackend):
                         burnin =0
                         thin = 1
 
-                    # print("**********************")
-                    # print(sampler.get_blobs())
-                    # print(sampler.get_blobs(flat=True))
-
                     failed_samples = deepcopy(continued_failed_samples)
                     if kwargs.get('expose_failed'):
                         for blob in sampler.get_blobs(flat=True):
@@ -717,7 +718,18 @@ class EmceeBackend(BaseSolverBackend):
                         logger.info("emcee: saving output from iteration {}".format(sampler.iteration))
 
                         solution_ps = self._fill_solution(solution_ps, [_get_packetlist()], metawargs)
-                        fname = kwargs.get('out_fname', '{}.ps'.format(solution))
+
+                        if 'out_fname' in kwargs.keys():
+                            if sampler.iteration - start_iteration == niters:
+                                fname = kwargs.get('out_fname')
+                            else:
+                                fname = kwargs.get('out_fname') + '.progress'
+                        else:
+                            if sampler.iteration - start_iteration == niters:
+                                fname = '{}.ps'.format(solution)
+                            else:
+                                fname = '{}.progress.ps'.format(solution)
+
                         solution_ps.save(fname, compact=True, sort_by_context=False)
 
 
