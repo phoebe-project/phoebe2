@@ -337,7 +337,7 @@ def _param_json_detailed(param):
     if param.__class__.__name__ in ['FloatParameter']:
         p['distributions'] = {p.uniqueid: p.twig for p in param.get_distribution_parameters(follow_constraints=True).to_list()}
         p['is_adjustable'] = param.context in ['component', 'dataset', 'system', 'feature'] and not len(param.constrained_by)
-        p['allows_distribution'] = param.context in ['component', 'dataset', 'system', 'feature']
+        p['allows_distribution'] = param.context in ['component', 'dataset', 'system', 'feature'] #and param.is_visible
 
     if hasattr(param, 'limits'):
         if hasattr(param, 'default_unit'):
@@ -645,8 +645,7 @@ def bundle(bundleid):
     info['success'] = True
     info['parameters'] = param_dict
     info['tags'] = tags
-    # info['adjustable_parameters'] = {p.uniqueid: p.twig for p in b.get_adjustable_parameters().to_list()}
-    info['params_allow_dist'] = {p.uniqueid: p.twig for p in b.filter(context=['component', 'system', 'dataset', 'feature']).to_list() if p.__class__.__name__ in ['FloatParameter', 'FloatArrayParameter']}
+    info['params_allow_dist'] = {p.uniqueid: p.twig for p in b.filter(context=['component', 'system', 'dataset', 'feature'], check_visible=True).to_list() if p.__class__.__name__ in ['FloatParameter', 'FloatArrayParameter']}
 
     return _get_response(info, api=True)
 
@@ -1235,6 +1234,10 @@ def bundle_method(msg):
         if method.split('_')[0] not in []:
             # if we added new parameters, then the tags likely have changed
             packet['tags'] = {k: _sort_tags(k, v) for k,v in b.tags.items()}
+
+            # and so have the available entries for as_distributions
+            packet['params_allow_dist'] = {p.uniqueid: p.twig for p in b.filter(context=['component', 'system', 'dataset', 'feature'], check_visible=True).to_list() if p.__class__.__name__ in ['FloatParameter', 'FloatArrayParameter']}
+
 
         if method.split('_')[0] == 'add':
             context = method.split('_')[1]
