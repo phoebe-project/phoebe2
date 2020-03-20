@@ -2358,6 +2358,9 @@ class ParameterSet(object):
             # return a result
             check_default = False
 
+        if kwargs.get('uniqueid', None) is not None:
+            check_visible = False
+
         time = kwargs.get('time', None)
         if hasattr(time, '__iter__') and not isinstance(time, str):
             # then we should loop here rather than forcing complicated logic

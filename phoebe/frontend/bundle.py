@@ -5973,21 +5973,29 @@ class Bundle(ParameterSet):
             # self._check_label(kwargs['distribution'], allow_overwrite=kwargs.get('overwrite', False))
 
         if isinstance(twig, Parameter):
-            ref_param = twig
+            ref_params = [twig]
         else:
-            ref_param = self.exclude(context=['distribution', 'constraint']).get_parameter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']})
-        if value is None:
-            value = _distl.delta(ref_param.get_value())
+            ref_params = self.exclude(context=['distribution', 'constraint']).filter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']}).to_list()
 
+        dist_params = []
+        for ref_param in ref_params:
+            if value is None:
+                value_ = _distl.delta(ref_param.get_value())
+            else:
+                value_ = deepcopy(value)
 
-        metawargs = {'context': 'distribution',
-                     'distribution': kwargs['distribution']}
-        for k,v in ref_param.meta.items():
-            if k in parameters._contexts:
-                metawargs.setdefault(k,v)
+            metawargs = {'context': 'distribution',
+                         'distribution': kwargs['distribution']}
+            for k,v in ref_param.meta.items():
+                if k in parameters._contexts:
+                    metawargs.setdefault(k,v)
 
-        dist_param = DistributionParameter(bundle=self, qualifier=ref_param.qualifier, value=value, description='distribution for the referenced parameter', **metawargs)
+            dist_param = DistributionParameter(bundle=self, qualifier=ref_param.qualifier, value=value_, description='distribution for the referenced parameter', **metawargs)
 
+            if len(self.filter(qualifier=dist_param.qualifier, check_visible=False, check_default=False, **metawargs)):
+                raise ValueError("distribution parameter for {} already exists with distribution='{}'".format(ref_param.twig, kwargs['distribution']))
+
+            dist_params += [dist_param]
 
         if kwargs.get('overwrite', False):
             overwrite_ps = self.remove_distribution(distribution=kwargs['distribution'])
@@ -5997,9 +6005,10 @@ class Bundle(ParameterSet):
         else:
             removed_ps = None
 
-        if len(self.filter(qualifier=dist_param.qualifier, check_visible=False, check_default=False, **metawargs)):
-            raise ValueError("distribution parameter for {} already exists with distribution='{}'".format(ref_param.twig, kwargs['distribution']))
-        self._attach_params([dist_param], **metawargs)
+        if not len(dist_params):
+            return ParameterSet([])
+
+        self._attach_params(dist_params, **metawargs)
 
         redo_kwargs = _deepcopy(kwargs)
         self._add_history(redo_func='add_distribution',
