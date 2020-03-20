@@ -8854,7 +8854,7 @@ class Bundle(ParameterSet):
                      'solver': kwargs['solver']}
 
         if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_solver(solver=kwargs['solver'])
+            overwrite_ps = self.remove_solver(solver=kwargs['solver'], auto_remove_figure=False)
             # check the label again, just in case kwargs['solver'] belongs to
             # something other than solver
             self.exclude(kind='solution', **_skip_filter_checks)._check_label(kwargs['solver'], allow_overwrite=False)
@@ -8957,6 +8957,13 @@ class Bundle(ParameterSet):
         ret_ps = self.remove_parameters_all(**kwargs)
 
         ret_changes = []
+
+        auto_remove_figure = self.get_value(qualifier='auto_remove_figure', context='setting', auto_remove_figure=kwargs.get('auto_remove_figure', None), default=False, **_skip_filter_checks)
+        if auto_remove_figure:
+            for param in self.filter(qualifier='solver', context='figure', kind=ret_ps.kind, **_skip_filter_checks).to_list():
+                if param.get_value() == solver:
+                    ret_changes += self.remove_figure(param.figure, return_changes=return_changes).to_list()
+
         ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
         ret_changes += self._handle_solver_choiceparams(return_changes=return_changes)
 
@@ -9146,15 +9153,22 @@ class Bundle(ParameterSet):
         return script_fname, out_fname
 
 
-    def _run_solver_changes(self, ret_ps, return_changes=False, removed=False):
+    def _run_solver_changes(self, ret_ps, return_changes=False, removed=False, auto_add_figure=None, auto_remove_figure=None):
         """
         """
         ret_changes = []
 
-        auto_add_figure = self.get_value(qualifier='auto_add_figure', context='setting', default=False, **_skip_filter_checks)
-        auto_remove_figure = self.get_value(qualifier='auto_remove_figure', context='setting', default=False, **_skip_filter_checks)
+        auto_add_figure = self.get_value(qualifier='auto_add_figure', context='setting', auto_add_figure=auto_add_figure, default=False, **_skip_filter_checks)
+        auto_remove_figure = self.get_value(qualifier='auto_remove_figure', context='setting', auto_remove_figure=auto_remove_figure, default=False, **_skip_filter_checks)
 
-        if auto_add_figure and not removed and ret_ps.solution not in [p.get_value() for p in self.filter(qualifier='solution', context='figure', kind=ret_ps.kinds, **_skip_filter_checks).to_list()]:
+        def _figure_match(solution, kinds):
+            for p in self.filter(qualifier='solution', context='figure', kind=kinds, **_skip_filter_checks).to_list():
+                # check to see if there is a solver match or all options removed (in which case probably from an overwrite=True)
+                if p.get_value() == solution or not len(p.choices):
+                    return True
+            return False
+
+        if auto_add_figure and not removed and not _figure_match(ret_ps.solution, ret_ps.kinds):
             # then we don't have a figure for this kind yet
             logger.info("calling add_figure(kind='solution.{}') since auto_add_figure@setting=True".format(ret_ps.kind))
             try:
@@ -9170,7 +9184,7 @@ class Bundle(ParameterSet):
         elif auto_remove_figure and removed:
             for param in self.filter(qualifier='solution', context='figure', kind=ret_ps.kind, **_skip_filter_checks).to_list():
                 if param.get_value() == ret_ps.solution:
-                    ret_changes += self.remove_figure(param.figure)
+                    ret_changes += self.remove_figure(param.figure, return_changes=return_changes).to_list()
 
 
         # ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
@@ -9318,7 +9332,7 @@ class Bundle(ParameterSet):
             else:
                 logger.info("overwriting solution: {}".format(solution))
 
-            overwrite_ps = self.remove_solution(solution=solution)
+            overwrite_ps = self.remove_solution(solution=solution, auto_remove_figure=False)
 
             # for solver backends that allow continuing, we need to keep and pass
             # the deleted PS if it matches continue_from
@@ -9671,9 +9685,6 @@ class Bundle(ParameterSet):
         Arguments
         ----------
         * `solution` (string): the label of the solution to be removed.
-        * `remove_figure_params` (bool, optional): whether to also remove
-            figure options tagged with `solution`.  If not provided, will default
-            to false if `solution` is 'latest', otherwise will default to True.
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet.
         * `**kwargs`: other filter arguments to be sent to
@@ -9684,12 +9695,10 @@ class Bundle(ParameterSet):
         -----------
         * ParameterSet of removed or changed parameters
         """
-        remove_figure_params = kwargs.pop('remove_figure_params', solution!='latest')
-
         kwargs['solution'] = solution
-        kwargs['context'] = ['solution', 'figure'] if remove_figure_params else 'solution'
+        kwargs['context'] = 'solution'
         ret_ps = self.remove_parameters_all(**kwargs)
-        ret_changes = self._run_solver_changes(ret_ps, return_changes=return_changes, removed=True)
+        ret_changes = self._run_solver_changes(ret_ps, return_changes=return_changes, removed=True, auto_remove_figure=kwargs.get('auto_remove_figure', None))
 
         if return_changes:
             return ret_ps + ret_changes

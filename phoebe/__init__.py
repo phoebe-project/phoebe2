@@ -80,7 +80,10 @@ if _env_variable_bool('PHOEBE_ENABLE_PLOTTING', True):
         elif hasattr(_sys, 'real_prefix'):
             # then we're likely in a virtualenv.  Our best bet is to use the 'TkAgg'
             # backend, but this will require python-tk to be installed on the system
-            matplotlib.use('TkAgg')
+            try:
+                matplotlib.use('Agg')
+            except:
+                matplotlib.use('TkAgg')
 
 
 
