@@ -11278,7 +11278,7 @@ class JobParameter(Parameter):
                     else:
                         status = 'unknown'
                 else:
-                    status = 'unknown'
+                    status = 'running'
             else:
                 raise NotImplementedError
 
