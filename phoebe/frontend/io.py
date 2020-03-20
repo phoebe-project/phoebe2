@@ -3,7 +3,12 @@ import phoebe as phb
 import os.path
 import sys
 import logging
-import phoebeBackend as phb1
+
+try:
+    import phoebe_legacy as phb1
+except ImportError:
+    try:
+        import phoebeBackend as phb1
 
 if sys.version_info[0] >= 3:
     from io import IOBase as _IOBase
