@@ -11112,6 +11112,7 @@ class JobParameter(Parameter):
         self._script_fname = os.path.join(location, '_{}.py'.format(self.uniqueid))
         self._results_fname = os.path.join(location, '_{}.out'.format(self.uniqueid))
         self._err_fname = os.path.join(location, '_{}.err'.format(self.uniqueid))
+        self._kill_fname = self._results_fname + '.kill'
 
         # TODO: add a description?
 
@@ -11256,11 +11257,13 @@ class JobParameter(Parameter):
         else:
 
             if self.status_method == 'exists':
-                if self._value == 'error':
+                if self._value in ['error', 'killed']:
                     # then error was already detected and we've already done cleanup
-                    status = 'error'
+                    status = self._value
                 elif os.path.isfile(self._results_fname):
                     status = 'complete'
+                elif os.path.isfile(self._kill_fname):
+                    status = 'killed'
                 elif os.path.isfile(self._results_fname+'.progress'):
                     status = 'progress'
                 elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
@@ -11290,7 +11293,7 @@ class JobParameter(Parameter):
         [NOT IMPLEMENTED]
         """
         # now the file with the model should be retrievable from self._result_fname
-        if self._value == 'progress':
+        if 'progress' in self._value:
             fname = self._results_fname + '.progress'
         else:
             fname = self._results_fname
@@ -11311,8 +11314,8 @@ class JobParameter(Parameter):
         * `sleep` (int, optional, default=5): number of seconds to sleep between
             status checks.  See <phoebe.parameters.JobParameter.get_status>.
             Only applicable if `wait` is True.
-        * `cleanup` (bool, optional, default=True): whether to delete this
-            parameter and any temporary files once the results are loaded.
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files once the results are loaded.
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet.
 
@@ -11332,7 +11335,7 @@ class JobParameter(Parameter):
         #if self._value == 'loaded':
         #    raise ValueError("results have already been loaded")
         status = self.get_status()
-        if not wait and status not in ['complete', 'progress', 'error']:
+        if not wait and status not in ['complete', 'error', 'progress']:
             if status in ['loaded']:
                 logger.info("job already loaded")
                 if self.context == 'model':
@@ -11399,19 +11402,34 @@ class JobParameter(Parameter):
             else:
                 raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
 
-            if self._value == 'progress' and ret_ps.get_value(qualifier='progress', default=0) == self._bundle.get_value(qualifier='progress', default=100, **metawargs):
-                # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
-                return ParameterSet([])
+            if 'progress' in self._value:
+                if ret_ps.get_value(qualifier='progress', default=0, **_skip_filter_checks) == self._bundle.get_value(qualifier='progress', default=100, check_visible=False, check_advanced=False, **metawargs):
+                    # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
+                    return ParameterSet([])
+                elif 'progress' in ret_ps.qualifiers:
+                    self._value = 'progress:{}%'.format(np.round(ret_ps.get_value(qualifier='progress'), 2))
+
 
             ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
+            if return_changes:
+                ret_changes += [self]
 
-            if cleanup and self._value in ['complete', 'loaded', 'error']:
+            if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
                 os.remove(self._script_fname)
-                os.remove(self._results_fname)
-                os.remove(self._err_fname)
-                os.remove(self._results_fname+".progress")
+                try:
+                    os.remove(self._results_fname)
+                except: pass
+                try:
+                    os.remove(self._err_fname)
+                except: pass
+                try:
+                    os.remove(self._results_fname+".progress")
+                except: pass
+                try:
+                    os.remove(self._kill_fname)
+                except: pass
 
-            if self._value != 'progress':
+            if 'progress' not in self._value:
                 self._value = 'loaded'
 
             # TODO: add history?
@@ -11427,4 +11445,29 @@ class JobParameter(Parameter):
 
             if return_changes:
                 return ret_ps + ret_changes
+
             return ret_ps
+
+    def kill(self, cleanup=True, return_changes=False):
+        """
+        Send a termination signal to the external thread running a
+        <phoebe.parameters.JobParameter>
+
+        Arguments
+        ---------
+        * `cleanup` (bool, optional, default=True): whether to wait for the
+            thread to terminate and then call <phoebe.parameters.JobParameter.attach>
+            with `cleanup=True` and `wait=True`.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
+
+        Returns
+        ---------
+
+
+        """
+        f = open(self._kill_fname, 'w')
+        f.write('kill')
+        f.close()
+        if cleanup:
+            return self.attach(wait=True, cleanup=True)

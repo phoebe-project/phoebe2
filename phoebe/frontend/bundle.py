@@ -7899,7 +7899,7 @@ class Bundle(ParameterSet):
 
         if model in self.models and kwargs.get('overwrite', model=='latest'):
             # NOTE: default (instead of detached_job=) is correct here
-            if self.get_value(qualifier='detached_job', model=model, context='model', default='loaded') != 'loaded':
+            if self.get_value(qualifier='detached_job', model=model, context='model', default='loaded') not in ['loaded', 'error', 'killed']:
                 raise ValueError("model '{}' cannot be overwritten until it is complete and loaded.".format(model))
             if model=='latest':
                 logger.warning("overwriting model: {}".format(model))
@@ -7960,7 +7960,7 @@ class Bundle(ParameterSet):
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
-        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script']
+        allowed_kwargs = ['skip_checks', 'jobid', 'overwrite', 'max_computations', 'in_export_script', 'out_fname']
         if conf.devel:
             allowed_kwargs += ['mesh_init_phi']
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
@@ -8014,10 +8014,13 @@ class Bundle(ParameterSet):
         f.write("model_ps = b.run_compute({}, in_export_script=True)\n".format(compute_kwargs_string))
         # as the return from run_compute just does a filter on model=model,
         # model_ps here should include any created figure parameters
+
         if out_fname is not None:
+            f.write("model_ps = b.run_compute(out_fname='{}', in_export_script=True, {})\n".format(out_fname, compute_kwargs_string))
             f.write("model_ps.save('{}', incl_uniqueid=True)\n".format(out_fname))
         else:
             f.write("import sys\n")
+            f.write("model_ps = b.run_compute(out_fname=sys.argv[0]+'.out', in_export_script=True, {})\n".format(compute_kwargs_string))
             f.write("model_ps.filter(context='model').save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
             out_fname = script_fname+'.out'
 
@@ -8771,6 +8774,7 @@ class Bundle(ParameterSet):
         <phoebe.frontend.bundle.Bundle.run_solver>.
 
         See also:
+        * <phoebe.frontend.bundle.Bundle.kill_job>
         * <phoebe.parameters.JobParameter.attach>
 
         Arguments
@@ -8795,6 +8799,39 @@ class Bundle(ParameterSet):
         """
         kwargs['qualifier'] = 'detached_job'
         return self.get_parameter(twig=twig, **kwargs).attach(wait=wait, sleep=sleep, cleanup=cleanup, return_changes=return_changes)
+
+    def kill_job(self, twig=None, cleanup=True,
+                   return_changes=False, **kwargs):
+        """
+        Send a termination signal to the external job referenced by an existing
+        <phoebe.parameters.JobParameter>.
+
+        Jobs are created when passing `detach=True` to
+        <phoebe.frontend.bundle.Bundle.run_compute> or
+        <phoebe.frontend.bundle.Bundle.run_solver>.
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.attach_job>
+        * <phoebe.parameters.JobParameter.kill>
+
+        Arguments
+        ------------
+        * `twig` (string, optional): twig to use for filtering for the JobParameter.
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files created by the Job.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
+        * `**kwargs`: any additional keyword arguments are sent to filter for the
+            Job parameters.  Between `twig` and `**kwargs`, a single parameter
+            with qualifier of 'detached_job' must be found.
+
+        Returns
+        -----------
+        * (<phoebe.parameters.ParameterSet>): ParameterSet of the newly attached
+            Parameters.
+        """
+        kwargs['qualifier'] = 'detached_job'
+        return self.get_parameter(twig=twig, **kwargs).kill(cleanup=cleanup, return_changes=return_changes)
 
     @send_if_client
     def add_solver(self, kind, return_changes=False, **kwargs):
@@ -9071,7 +9108,10 @@ class Bundle(ParameterSet):
         f.write("import phoebe; import json\n")
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_solver)
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=['model', 'figure', 'solution'], **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced']))))
+        exclude_contexts = ['model', 'figure']
+        continue_from = self.get_value(qualifier='sample_from', solver=solver, sample_from=kwargs.get('sample_from', None), default='')
+        exclude_solutions = [sol for sol in self.solutions if sol!=continue_from]
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in solver_kwargs])
@@ -9334,7 +9374,7 @@ class Bundle(ParameterSet):
 
         if kwargs.get('overwrite', solution=='latest') and solution in self.solutions:
             # NOTE: default (instead of detached_job=) is correct here
-            if self.get_value(qualifier='detached_job', solution=solution, context='solution', default='loaded') != 'loaded':
+            if self.get_value(qualifier='detached_job', solution=solution, context='solution', default='loaded') not in ['loaded', 'error', 'killed']:
                 raise ValueError("solution '{}' cannot be overwritten until it is complete and loaded.".format(solution))
             if solution=='latest':
                 logger.warning("overwriting solution: {}".format(solution))
@@ -9385,6 +9425,7 @@ class Bundle(ParameterSet):
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
+            kill_fname = "_{}.kill".format(jobid)
             script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, kwargs)
 
             script_fname = os.path.abspath(script_fname)

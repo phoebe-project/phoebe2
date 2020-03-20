@@ -523,7 +523,7 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.IntParameter(qualifier='burnin', value=0, limits=(0,1e6), description='burnin to use when processing the solution')]
         solution_params += [_parameters.IntParameter(qualifier='thin', value=1, limits=(1,1e6), description='thin to use when processing the solution')]
 
-        solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, readonly=True, descrition='percentage of requested iterations completed')]
+        solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, advanced=True, readonly=True, descrition='percentage of requested iterations completed')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -579,7 +579,7 @@ class EmceeBackend(BaseSolverBackend):
             priors = kwargs.get('priors')
             priors_combine = kwargs.get('priors_combine')
 
-            save_every_niters = kwargs.get('save_every_niters')
+            progress_every_niters = kwargs.get('progress_every_niters')
 
             burnin_factor = kwargs.get('burnin_factor')
             thin_factor = kwargs.get('thin_factor')
@@ -690,7 +690,14 @@ class EmceeBackend(BaseSolverBackend):
             logger.debug("sampler.sample(p0, {})".format(sargs))
             for sample in sampler.sample(p0.T, **sargs):
                 # TODO: parameters and options for checking convergence
-                if (save_every_niters > 0 and (sampler.iteration - start_iteration) % save_every_niters == 0) or sampler.iteration - start_iteration == niters:
+
+                # check for kill signal
+                if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
+                    logger.warning("received kill signal, exiting sampler loop")
+                    break
+
+                # export progress/final results
+                if (progress_every_niters > 0 and (sampler.iteration ==0 or (sampler.iteration - start_iteration) % progress_every_niters == 0)) or sampler.iteration - start_iteration == niters:
                     progress = (sampler.iteration - start_iteration) / niters * 100
 
                     samples = sampler.backend.get_chain()
@@ -714,7 +721,7 @@ class EmceeBackend(BaseSolverBackend):
                                 continue
                             failed_samples[blob[0]] = failed_samples.get(blob[0], []) + [blob[1].tolist()]
 
-                    if save_every_niters > 0:
+                    if progress_every_niters > 0:
                         logger.info("emcee: saving output from iteration {}".format(sampler.iteration))
 
                         solution_ps = self._fill_solution(solution_ps, [_get_packetlist()], metawargs)
@@ -858,7 +865,7 @@ class DynestyBackend(BaseSolverBackend):
             priors_combine = kwargs.get('priors_combine')
 
             maxiter = kwargs.get('maxiter')
-            save_every_niters = kwargs.get('save_every_niters')
+            progress_every_niters = kwargs.get('progress_every_niters')
 
             solution_ps = kwargs.get('solution_ps')
             solution = kwargs.get('solution')
@@ -914,14 +921,28 @@ class DynestyBackend(BaseSolverBackend):
 
             sampler.run_nested(**sargs)
             for iter,result in enumerate(sampler.sample(**sargs)):
-                if (save_every_niters > 0 and iter % save_every_niters == 0) or iter == maxiter:
+                # check for kill signal
+                if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
+                    logger.warning("received kill signal, exiting sampler loop")
+                    break
 
-                    if save_every_niters > 0:
-                        logger.info("dynesty: saving output from iteration {}".format(iter))
+                if (progress_every_niters > 0 and (iter == 0 or iter % progress_every_niters == 0)) or iter == maxiter:
+                    logger.info("dynesty: saving output from iteration {}".format(iter))
 
-                        solution_ps = self._fill_solution(solution_ps, [_get_packetlist(sampler.results)], metawargs)
-                        fname = kwargs.get('out_fname', '{}.ps'.format(solution))
-                        solution_ps.save(fname, compact=True, sort_by_context=False)
+                    solution_ps = self._fill_solution(solution_ps, [_get_packetlist(sampler.results)], metawargs)
+
+                    if 'out_fname' in kwargs.keys():
+                        if iter == maxiter:
+                            fname = kwargs.get('out_fname')
+                        else:
+                            fname = kwargs.get('out_fname') + '.progress'
+                    else:
+                        if iter == maxiter:
+                            fname = '{}.ps'.format(solution)
+                        else:
+                            fname = '{}.progress.ps'.format(solution)
+
+                    solution_ps.save(fname, compact=True, sort_by_context=False)
 
 
         else:
