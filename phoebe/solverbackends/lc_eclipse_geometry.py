@@ -93,6 +93,10 @@ def estimate_eclipse_positions_widths(phases, fluxes, diagnose_init=False):
     fluxes_sec[((phases > edge1l) & (phases < edge1r)) | ((phases > edge1l+1) | (phases < edge1r-1))] = np.nan
     pos2, edge2l, edge2r = find_eclipse(phases, fluxes_sec)
     
+    pos1 = pos1-1 if pos1>0.5 else pos1
+    pos1 = pos1+1 if pos1<-0.5 else pos1
+    pos2 = pos2+1 if pos2<pos1 else pos2
+
     if diagnose_init:
         import matplotlib.pyplot as plt
         plt.figure(figsize=(10,8))
@@ -118,8 +122,6 @@ def bic(y, yerr, ymodel, nparams):
 
 
 def fit_twoGaussian_models(phases, fluxes, sigmas):
-    # extend light curve on phase range [-1,1]
-    phases, fluxes, sigmas = extend_phasefolded_lc(phases, fluxes, sigmas)
     # setup the initial parameters
 
     # fit all of the models to the data
@@ -142,6 +144,10 @@ def fit_twoGaussian_models(phases, fluxes, sigmas):
         'CG12E2': [C0, mu10, d10, sigma10, mu20, d20, sigma20, Aell0]}
 
     fits = {}
+
+    # extend light curve on phase range [-1,1]
+    phases, fluxes, sigmas = extend_phasefolded_lc(phases, fluxes, sigmas)
+
     for key in twogfuncs.keys():
         try:
             fits[key] = curve_fit(twogfuncs[key], phases, fluxes, p0=init_params[key], sigma=sigmas)
@@ -190,35 +196,68 @@ def fit_lc(phases, fluxes, sigmas):
 
 # REFINING THE FIT
 
-def two_line_model(values,breakpoint,x,y,sigma):
-    k1, n1, k2, n2 = values
+def two_line_model(values,breakp,x,y,sigma,edge='none'):
+    k, n, a, b, c = values
     ymodel = np.zeros(len(x))
-    ymodel[x<=breakpoint] = k1*x[x<=breakpoint] + n1
-    ymodel[x>breakpoint] = k2*x[x>breakpoint]+n2
+    if edge == 'left':
+        ymodel[x<breakp] = k*x[x<breakp] + n
+        ymodel[x>=breakp] = a*x[x>=breakp]**2+b*x[x>=breakp]+c
+    elif edge == 'right':
+        ymodel[x>breakp] = k*x[x>breakp] + n
+        ymodel[x<=breakp] = a*x[x<=breakp]**2+b*x[x<=breakp]+c
+    else:
+        raise ValueError('Must provide value for edge orientation [\'left\', \'right\']')
     return np.sum((ymodel-y)**2/sigma**2)
 
 
 def refine_eclipse_widths(phases, fluxes, sigmas, pos1, pos2, width1, width2, wf1=0.75, wf2=0.25):
 
+    # to refine the region around the eclipses, we're taking half of the number of eclipse points
+    # left and right from the current edge position
+
+    current_edge_left_1 = np.argmin(np.abs(phases-(pos1-0.5*width1)))
+    current_edge_right_1 = np.argmin(np.abs(phases-(pos1+0.5*width1)))
+    current_edge_left_2 = np.argmin(np.abs(phases-(pos2-0.5*width2)))
+    current_edge_right_2 = np.argmin(np.abs(phases-(pos2+0.5*width2)))
+
+    # isolate eclipses
+    eclipse1 = phases[(phases >= pos1-0.5*width1) & (phases <= pos1+0.5*width1)]
+    eclipse2 = phases[(phases >= pos2-0.5*width2) & (phases <= pos2+0.5*width2)]
+
+    # compute number of points to take left and right
+    npoints1 = int(len(eclipse1)/2)
+    npoints2 = int(len(eclipse2)/2)
+
     # mask out regions around the eclipses
-    mask11 = (pos1 - wf1*width1 < phases) & (phases < pos1-wf2*width1)
-    mask12 = (phases < pos1 + wf1*width1) & (phases > pos1+wf2*width1)
-    mask21 = (pos2 - wf1*width2 < phases) & (phases < pos2-wf2*width2)
-    mask22 = (phases < pos2 + wf1*width2) & (phases > pos2+wf2*width1)
+    mask1_left = np.arange(current_edge_left_1-npoints1, current_edge_left_1+npoints1, 1).astype(int)
+    mask1_right = np.arange(current_edge_right_1-npoints1, current_edge_right_1+npoints1, 1).astype(int)
+    mask2_left = np.arange(current_edge_left_2-npoints2, current_edge_left_2+npoints1, 2).astype(int)
+    mask2_right = np.arange(current_edge_right_2-npoints2, current_edge_right_2+npoints2, 1).astype(int)
 
     eclipse_breaks = np.zeros(4)
 
     try:
-        for i,mask in enumerate([mask11, mask12, mask21, mask22]):
+        for i,mask in enumerate([mask1_left, mask1_right, mask2_left, mask2_right]):
+            if i%2==0:
+                edge='left'
+            else:
+                edge='right'
             breakpoints = np.linspace(phases[mask].min(), phases[mask].max(), len(phases[mask]))
             chis2 = np.zeros(len(breakpoints))
             for j,breakp in enumerate(breakpoints):
-                sol = minimize(two_line_model, [0., 2., 0., 2.], args=(breakp, phases[mask], fluxes[mask], sigmas[mask]))
-                k1, n1, k2, n2 = sol['x']
-                ymodel = np.zeros(len(phases[mask]))
-                ymodel[phases[mask]<=breakp] = k1*phases[mask][phases[mask]<=breakp] + n1
-                ymodel[phases[mask]>breakp] = k2*phases[mask][phases[mask]>breakp]+n2
-                chis2[j] = np.sum((ymodel-fluxes[mask])**2)
+                sol = minimize(two_line_model, [0., 2., 1., 1., 2.], args=(breakp, phases[mask], fluxes[mask], sigmas[mask], edge))
+                k, n, a, b, c = sol['x']
+                x=phases[mask]
+                ymodel = np.zeros(len(x))
+                if edge == 'left':
+                    ymodel[x<breakp] = k*x[x<breakp] + n
+                    ymodel[x>=breakp] = a*x[x>=breakp]**2+b*x[x>=breakp]+c
+                elif edge == 'right':
+                    ymodel[x>breakp] = k*x[x>breakp] + n
+                    ymodel[x<=breakp] = a*x[x<=breakp]**2+b*x[x<=breakp]+c
+                else:
+                    raise ValueError('Must provide value for edge orientation [\'left\', \'right\']')
+                chis2[j] = np.sum((ymodel-fluxes[mask])**2/sigmas[mask]**2)
             eclipse_breaks[i] = phases[mask][np.argmin(chis2)]
 
         return eclipse_breaks
