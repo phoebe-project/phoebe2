@@ -9229,7 +9229,7 @@ class Bundle(ParameterSet):
             else:
                 ret_changes += new_fig_params.to_list()
                 ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
-                new_fig_params.set_value(qualifier='solution', value=ret_ps.solution)
+                new_fig_params.set_value_all(qualifier='solution', context='figure', value=ret_ps.solution)
         elif auto_remove_figure and removed:
             for param in self.filter(qualifier='solution', context='figure', kind=ret_ps.kind, **_skip_filter_checks).to_list():
                 if param.get_value() == ret_ps.solution:

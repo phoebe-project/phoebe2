@@ -4968,7 +4968,7 @@ class ParameterSet(object):
                     style = plot_kwargs.pop('style')
                     dynesty_method = plot_kwargs.pop('dynesty_method')
                     func = getattr(dyplot, dynesty_method)
-                    mplfig = func(**plot_kwargs)
+                    mplfig, mplaxes = func(**{k:v for k,v in plot_kwargs.items() if k in ['results']})
                     if save:
                         mplfig.savefig(save)
 

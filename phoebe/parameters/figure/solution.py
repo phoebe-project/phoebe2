@@ -63,10 +63,10 @@ def dynesty(b, **kwargs):
 
     # params += _label_units_lims('y', visible_if='style:lnprobability', default_unit=u.dimensionless_unscaled, is_default=True, **kwargs)
 
-    kwargs.setdefault('color', 'black' if _use_autofig else None)
-    kwargs.setdefault('marker', 'None' if _use_autofig else None)
-    kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
-    params += _figure_style_nosources(b, **kwargs)
+    # kwargs.setdefault('color', 'black' if _use_autofig else None)
+    # kwargs.setdefault('marker', 'None' if _use_autofig else None)
+    # kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
+    # params += _figure_style_nosources(b, **kwargs)
 
     # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
 
