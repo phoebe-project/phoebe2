@@ -696,10 +696,16 @@ class EmceeBackend(BaseSolverBackend):
                     logger.warning("received kill signal, exiting sampler loop")
                     break
 
+                progress = float(sampler.iteration - start_iteration) / niters * 100
+
+                if progress_every_niters == 0 and 'out_fname' in kwargs.keys():
+                    fname = kwargs.get('out_fname') + '.progress'
+                    f = open(fname, 'w')
+                    f.write(str(progress))
+                    f.close()
+
                 # export progress/final results
                 if (progress_every_niters > 0 and (sampler.iteration ==0 or (sampler.iteration - start_iteration) % progress_every_niters == 0)) or sampler.iteration - start_iteration == niters:
-                    progress = (sampler.iteration - start_iteration) / niters * 100
-
                     samples = sampler.backend.get_chain()
                     lnprobabilities = sampler.backend.get_log_prob()
                     # accepteds = sampler.backend.accepted
@@ -811,6 +817,8 @@ class DynestyBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='samples_bound', value=0, readonly=True, description='')]
         solution_params += [_parameters.ArrayParameter(qualifier='scale', value=0, readonly=True, description='')]
 
+        solution_params += [_parameters.FloatParameter(qualifier='progress', value=0, limits=(0,100), default_unit=u.dimensionless_unscaled, advanced=True, readonly=True, descrition='percentage of requested iterations completed')]
+
         return kwargs, _parameters.ParameterSet(solution_params)
 
     def _run_worker(self, packet):
@@ -843,6 +851,7 @@ class DynestyBackend(BaseSolverBackend):
                      {'qualifier': 'bound_iter', 'value': results.bound_iter},
                      {'qualifier': 'samples_bound', 'value': results.samples_bound},
                      {'qualifier': 'scale', 'value': results.scale},
+                     {'qualifier': 'progress', 'value': progress}
                     ]]
 
         if mpi.within_mpirun:
@@ -925,6 +934,15 @@ class DynestyBackend(BaseSolverBackend):
                 if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
                     logger.warning("received kill signal, exiting sampler loop")
                     break
+
+                progress = float(iter) / maxiter * 100
+
+                if progress_every_niters == 0 and 'out_fname' in kwargs.keys():
+                    fname = kwargs.get('out_fname') + '.progress'
+                    f = open(fname, 'w')
+                    f.write(str(progress))
+                    f.close()
+
 
                 if (progress_every_niters > 0 and (iter == 0 or iter % progress_every_niters == 0)) or iter == maxiter:
                     logger.info("dynesty: saving output from iteration {}".format(iter))

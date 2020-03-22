@@ -11298,8 +11298,12 @@ class JobParameter(Parameter):
         else:
             fname = self._results_fname
 
-        ret_ps = ParameterSet.open(fname)
-        return ret_ps
+        try:
+            ret_ps = ParameterSet.open(fname)
+        except:
+            return None
+        else:
+            return ret_ps
 
     def attach(self, wait=True, sleep=5, cleanup=True, return_changes=False):
         """
@@ -11392,6 +11396,22 @@ class JobParameter(Parameter):
         else:
             logger.info("current status: {}, pulling job results".format(self.status))
             ret_ps = self._retrieve_results()
+
+            if ret_ps is None and 'progress' in self._value:
+                # then we just want to update the progress value from the progress-file
+                # but don't have anything to actually load
+                f = open(self._results_fname + '.progress', 'r')
+                progress_str = f.readlines()[0]
+                f.close()
+
+                try:
+                    progress = np.round(float(progress_str.strip()), 2)
+                except:
+                    return ParameterSet([])
+                else:
+                    self._value = 'progress:{}%'.format(progress)
+                    return ParameterSet([self])
+
 
             # now we need to attach ret_ps to self._bundle
             # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
