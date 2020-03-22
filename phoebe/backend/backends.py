@@ -542,6 +542,10 @@ class BaseBackendByTime(BaseBackend):
 
         packetlists = [] # entry per-time
         for i, time, infolist in zip(inds, times, infolists):
+            if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
+                logger.warning("received kill signal, exiting sampler loop")
+                break
+
             packetlist = self._run_single_time(b, i, time, infolist, **worker_setup_kwargs)
             packetlists.append(packetlist)
 
@@ -583,6 +587,9 @@ class BaseBackendByDataset(BaseBackend):
 
         packetlists = [] # entry per-dataset
         for info in infolist:
+            if kwargs.get('out_fname', False) and os.path.isfile(kwargs.get('out_fname')+'.kill'):
+                logger.warning("received kill signal, exiting sampler loop")
+                break
             packetlist = self._run_single_dataset(b, info, **worker_setup_kwargs)
             packetlists.append(packetlist)
 

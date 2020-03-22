@@ -38,7 +38,7 @@ def emcee(b, **kwargs):
 
     params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]
 
-    params += [ChoiceParameter(qualifier='style', value=kwargs.get('style', 'corner'), choices=['corner', 'failed', 'lnprobability', 'walks'], description='style of plot')]
+    params += [ChoiceParameter(qualifier='style', value=kwargs.get('style', 'lnprobability'), choices=['corner', 'failed', 'lnprobability', 'walks'], description='style of plot')]
 
     # TODO: implement y for walks (need to set choices based on the solution fitted_twigs)
     # params += [ChoiceParameter(visible_if='style:walks', qualifier='y', value=kwargs.get('y', ''), choices=[''], description='Parameter samples to plot along y-axis')]
@@ -59,14 +59,14 @@ def dynesty(b, **kwargs):
 
     params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]
 
-    params += [ChoiceParameter(qualifier='style', value=kwargs.get('style', 'corner'), choices=['corner', 'run', 'trace'], description='style of plot')]
+    params += [ChoiceParameter(qualifier='style', value=kwargs.get('style', 'run'), choices=['corner', 'run', 'trace'], description='style of plot')]
 
     # params += _label_units_lims('y', visible_if='style:lnprobability', default_unit=u.dimensionless_unscaled, is_default=True, **kwargs)
 
-    kwargs.setdefault('color', 'black' if _use_autofig else None)
-    kwargs.setdefault('marker', 'None' if _use_autofig else None)
-    kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
-    params += _figure_style_nosources(b, **kwargs)
+    # kwargs.setdefault('color', 'black' if _use_autofig else None)
+    # kwargs.setdefault('marker', 'None' if _use_autofig else None)
+    # kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
+    # params += _figure_style_nosources(b, **kwargs)
 
     # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
 

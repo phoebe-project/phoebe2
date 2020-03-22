@@ -34,7 +34,7 @@ app._clients = []
 app._clients_per_bundle = {}
 app._last_access_per_bundle = {}
 app._verbose = True
-app._debug = False
+app._debug = True
 app._killable = False
 
 # we'll disable sorting the responses by keys so that we can control the sorting
@@ -262,8 +262,10 @@ def _value_string(param):
         if isinstance(param._value, phoebe.dependencies.nparray.nparray.ArrayWrapper):
             return param._value.__str__().replace('nparray.', '')
         else:
-            arr = param.get_value()
+            arr = np.asarray(param.get_value())
             # unit = str(param.get_default_unit())
+            if len(arr.shape) > 1:
+                return "array shape {}".format(arr.shape)
             if len(arr)==1:
                 return "[{} (1)]".format(arr[0])
             elif len(arr):
@@ -435,6 +437,7 @@ def new_bundle(type):
             b = getattr(phoebe, constructor)(**kwargs)
         except Exception as err:
             return _get_response({'success': False, 'error': str(err)}, api=True)
+            if app._debug: raise
         else:
             b.set_value(qualifier='auto_add_figure', context='setting', value=True)
             b.set_value(qualifier='auto_remove_figure', context='setting', value=True)
@@ -484,6 +487,7 @@ def open_bundle(type):
                 bundle_data = json.load(file)
             except:
                 return _get_response({'success': False, 'error': "could not read bundle json data from file.  If the file is a PHOEBE 1/legacy file, try importing instead."}, api=True)
+                if app._debug: raise
 
         else:
             if app._verbose: print("opening bundle from json data")
@@ -491,17 +495,20 @@ def open_bundle(type):
                 bundle_data = data['json']
             except:
                 return _get_response({'success': False, 'error': "could not read json data"}, api=True)
+                if app._debug: raise
 
         try:
             b = phoebe.Bundle(bundle_data)
         except Exception as err:
             return _get_response({'success': False, 'error': "failed to load bundle with error: "+str(err)}, api=True)
+            if app._debug: raise
 
     elif type == 'load:legacy':
         try:
             b = phoebe.from_legacy(request.files['file'])
         except Exception as err:
             return _get_response({'success': False, 'error': "file not recognized as bundle or legacy phoebe file.  Error: {}".format(str(err))}, api=True)
+            if app._debug: raise
 
     else:
         return _get_response({'success': False, 'error': "import with type={} not supported".format(type)}, api=True)
@@ -667,6 +674,7 @@ def parameter(bundleid, uniqueid):
         param = b.get_parameter(uniqueid=str(uniqueid), check_visible=False, check_advanced=False, check_default=False)
     except:
         return _get_response({'success': False, 'error': 'could not find parameter with uniqueid={}'.format(uniqueid)}, api=True)
+        if app._debug: raise
 
     data = _param_json_detailed(param)
 
@@ -708,6 +716,7 @@ def nparray(input):
             is_array = False
     except Exception as err:
         return _get_response({'success': False, 'error': 'could not convert to valid nparray object with err: {}'.format(str(err))}, api=True)
+        if app._debug: raise
 
     empty_arange = {'nparray': 'arange', 'start': '', 'stop': '', 'step': ''}
     empty_linspace = {'nparray': 'linspace', 'start': '', 'stop': '', 'num': '', 'endpoint': True}
@@ -740,6 +749,7 @@ def distl_convert(input, current_face_value):
         dist = distl.from_json(input)
     except:
         return _get_response({'success': False, 'error': 'could not convert to valid distl object with err: {}'.format(str(err))}, api=True)
+        if app._debug: raise
 
     if isinstance(dist, distl._distl.BaseAroundGenerator):
         dist = dist(current_face_value)
@@ -889,6 +899,7 @@ def _run_checks(b, bundleid, do_emit=True):
         b.run_failed_constraints()
     except Exception as err:
         emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': str(err)}, broadcast=False)
+        if app._debug: raise
     # if len(b._failed_constraints):
         # msg = 'Constraints for the following parameters failed to run: {}.  Affected values will not be updated until the constraints can succeed.'.format(', '.join([b.get_parameter(uniqueid=c, check_visible=False).constrained_parameter.uniquetwig for c in b._failed_constraints]))
         # emit('{}:errors:react'.format(bundleid), {'success': True, 'level': 'warning', 'error': msg}, broadcast=False)
@@ -971,7 +982,7 @@ def _update_figures(b, bundleid, affected_ps=None):
         except Exception as err:
             if app._verbose:
                 print("_update_figures error: {}".format(str(err)))
-                raise
+            if app._debug: raise
             # notify the client that the figure is now failing (and probably shouldn't be shown)
             figure_update_times[figure] = 'failed'
             # remove any existing cached file so that loading won't work
@@ -1023,6 +1034,7 @@ def set_value(msg):
         if app._verbose:
             print("set_value {} error: {}".format(msg, str(err)))
         emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        if app._debug: raise
         return
 
     try:
@@ -1031,6 +1043,7 @@ def set_value(msg):
         if app._verbose:
             print("set_value {} error on filter: {}".format(msg, str(err)))
         emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        if app._debug: raise
         return
     else:
         if 'web' in client_types or 'desktop' in client_types:
@@ -1094,6 +1107,7 @@ def set_default_unit(msg):
         if app._verbose:
             print("set_default_unit {} error: {}".format(msg, str(err)))
         emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        if app._debug: raise
         return
 
     try:
@@ -1102,6 +1116,7 @@ def set_default_unit(msg):
         if app._verbose:
             print("set_default_unit {} error on filter: {}".format(msg, str(err)))
         emit('{}:errors:react'.format(bundleid), {'success': False, 'error': str(err)}, broadcast=False)
+        if app._debug: raise
         return
     else:
         if 'web' in client_types or 'desktop' in client_types:
@@ -1171,6 +1186,8 @@ def bundle_method(msg):
     elif method in ['attach_job']:
         msg['wait'] = False
         # msg['cleanup'] = False
+    elif method in ['kill_job']:
+        msg['cleanup'] = False
 
     # make sure to return parameters removed during overwrite so that we can
     # catch that and emit the necessary changes to the client(s)
@@ -1186,8 +1203,7 @@ def bundle_method(msg):
     except Exception as err:
         if app._verbose:
             print("bundle_method ERROR ({}): {}".format(msg, str(err)))
-        if app._debug:
-            raise
+        if app._debug: raise
 
         if method=='attach_job' and 'Expecting object' in str(err):
             # then its likely the object just hasn't been completely written to
@@ -1200,11 +1216,7 @@ def bundle_method(msg):
 
             if method=='attach_job' and ('web' in client_types or 'desktop' in client_types):
                 # then we still need to emit the change the the status of the job parameter so the client stops polling
-                # param_list = [_param_json_overview(b.get_parameter(uniqueid=msg.get('uniqueid'), check_visible=False, check_default=False))]
-                # param_dict = OrderedDict((p.pop('uniqueid'), p) for p in param_list)
-                # jp =
                 pjo = _param_json_overview(b.get_parameter(uniqueid=msg.get('uniqueid'), check_visible=False, check_default=False))
-                # pjo['valuestr'] = 'failed'
                 param_dict = {pjo.pop('uniqueid'): pjo}
                 packet = {'success': True, 'parameters': param_dict}
 

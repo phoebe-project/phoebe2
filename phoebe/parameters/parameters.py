@@ -1388,7 +1388,7 @@ class ParameterSet(object):
                          for k in _meta_fields_twig
                          if metawargs.get(k, None) is not None])
 
-    def _attach_params(self, params, check_copy_for=True, override_tags=False, **kwargs):
+    def _attach_params(self, params, check_copy_for=True, override_tags=False, overwrite=False, return_changes=False, **kwargs):
         """Attach a list of parameters (or ParameterSet) to this ParameterSet.
 
         :parameter list params: list of parameters, or ParameterSet
@@ -1396,6 +1396,7 @@ class ParameterSet(object):
         """
         lst = params.to_list() if isinstance(params, ParameterSet) else params
         ps = params if isinstance(params, ParameterSet) else ParameterSet(params)
+        ret_changes = []
         for param in lst:
             param._bundle = self
 
@@ -1404,12 +1405,17 @@ class ParameterSet(object):
                 if k in ['check_default', 'check_visible']: continue
                 if getattr(param, '_{}'.format(k)) is None or override_tags:
                     setattr(param, '_{}'.format(k), v)
+
+            if overwrite:
+                ret_changes += self.remove_parameters_all(**{k:v for k,v in param.meta.items() if k not in ['uniqueid', 'twig', 'uniquetwig']}).to_list()
             self._params.append(param)
 
         if check_copy_for:
             self._check_copy_for()
 
-        return
+        if ret_changes:
+            return ParameterSet(ret_changes)
+        return []
 
     def _check_copy_for(self):
         """Check the value of copy_for and make appropriate copies."""
@@ -4962,7 +4968,7 @@ class ParameterSet(object):
                     style = plot_kwargs.pop('style')
                     dynesty_method = plot_kwargs.pop('dynesty_method')
                     func = getattr(dyplot, dynesty_method)
-                    mplfig = func(**plot_kwargs)
+                    mplfig, mplaxes = func(**{k:v for k,v in plot_kwargs.items() if k in ['results']})
                     if save:
                         mplfig.savefig(save)
 
@@ -11106,6 +11112,7 @@ class JobParameter(Parameter):
         self._script_fname = os.path.join(location, '_{}.py'.format(self.uniqueid))
         self._results_fname = os.path.join(location, '_{}.out'.format(self.uniqueid))
         self._err_fname = os.path.join(location, '_{}.err'.format(self.uniqueid))
+        self._kill_fname = self._results_fname + '.kill'
 
         # TODO: add a description?
 
@@ -11230,30 +11237,35 @@ class JobParameter(Parameter):
             if not _can_requests:
                 raise ImportError("requests module required for external jobs")
 
-            if self._value in ['complete']:
-                # then we have no need to bother checking again
-                status = self._value
-            else:
-                url = self._server_status
-                logger.info("checking job status on server from {}".format(url))
-                # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-                r = requests.get(url, timeout=5)
-                try:
-                    rjson = r.json()
-                except ValueError:
-                    # TODO: better exception here - perhaps look for the status code from the response?
-                    status = self._value
-                else:
-                    status = rjson['data']['attributes']['value']
+            raise NotImplementedError()
+            # if self._value in ['complete']:
+            #     # then we have no need to bother checking again
+            #     status = self._value
+            # else:
+            #     url = self._server_status
+            #     logger.info("checking job status on server from {}".format(url))
+            #     # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
+            #     r = requests.get(url, timeout=5)
+            #     try:
+            #         rjson = r.json()
+            #     except ValueError:
+            #         # TODO: better exception here - perhaps look for the status code from the response?
+            #         status = self._value
+            #     else:
+            #         status = rjson['data']['attributes']['value']
 
         else:
 
             if self.status_method == 'exists':
-                if self._value == 'error':
+                if self._value in ['error', 'killed']:
                     # then error was already detected and we've already done cleanup
-                    status = 'error'
+                    status = self._value
                 elif os.path.isfile(self._results_fname):
                     status = 'complete'
+                elif os.path.isfile(self._kill_fname):
+                    status = 'killed'
+                elif os.path.isfile(self._results_fname+'.progress'):
+                    status = 'progress'
                 elif os.path.isfile(self._err_fname) and os.stat(self._err_fname).st_size > 0:
                     # some warnings from other packages can be set to stderr
                     # so we need to make sure the last line is actually from
@@ -11266,7 +11278,7 @@ class JobParameter(Parameter):
                     else:
                         status = 'unknown'
                 else:
-                    status = 'unknown'
+                    status = 'running'
             else:
                 raise NotImplementedError
 
@@ -11281,8 +11293,17 @@ class JobParameter(Parameter):
         [NOT IMPLEMENTED]
         """
         # now the file with the model should be retrievable from self._result_fname
-        ret_ps = ParameterSet.open(self._results_fname)
-        return ret_ps
+        if 'progress' in self._value:
+            fname = self._results_fname + '.progress'
+        else:
+            fname = self._results_fname
+
+        try:
+            ret_ps = ParameterSet.open(fname)
+        except:
+            return None
+        else:
+            return ret_ps
 
     def attach(self, wait=True, sleep=5, cleanup=True, return_changes=False):
         """
@@ -11297,8 +11318,8 @@ class JobParameter(Parameter):
         * `sleep` (int, optional, default=5): number of seconds to sleep between
             status checks.  See <phoebe.parameters.JobParameter.get_status>.
             Only applicable if `wait` is True.
-        * `cleanup` (bool, optional, default=True): whether to delete this
-            parameter and any temporary files once the results are loaded.
+        * `cleanup` (bool, optional, default=True): whether to delete any
+            temporary files once the results are loaded.
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet.
 
@@ -11318,7 +11339,7 @@ class JobParameter(Parameter):
         #if self._value == 'loaded':
         #    raise ValueError("results have already been loaded")
         status = self.get_status()
-        if not wait and status not in ['complete', 'error']:
+        if not wait and status not in ['complete', 'error', 'progress']:
             if status in ['loaded']:
                 logger.info("job already loaded")
                 if self.context == 'model':
@@ -11332,7 +11353,7 @@ class JobParameter(Parameter):
                 return self
 
 
-        while self.get_status() not in ['complete', 'loaded', 'error']:
+        while self.get_status() not in ['complete', 'progress', 'loaded', 'error']:
             # TODO: any way we can not make 2 calls to self.status here?
             logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
             time.sleep(sleep)
@@ -11340,21 +11361,23 @@ class JobParameter(Parameter):
         if self._server_status is not None and not _is_server:
             if not _can_requests:
                 raise ImportError("requests module required for external jobs")
-            # then we are no longer attached as a client to this bundle on
-            # the server, so we need to just pull the results manually
-            url = self._server_status
-            logger.info("pulling job results from server from {}".format(url))
-            # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
-            r = requests.get(url, timeout=5)
-            rjson = r.json()
 
-            # status should already be complete because of while loop above,
-            # but could always check the following:
-            # rjson['value']['attributes']['value'] == 'complete'
-
-            # TODO: server needs to sideload results once complete
-            newparams = rjson['included']
-            self._bundle._attach_param_from_server(newparams)
+            raise NotImplementedError()
+            # # then we are no longer attached as a client to this bundle on
+            # # the server, so we need to just pull the results manually
+            # url = self._server_status
+            # logger.info("pulling job results from server from {}".format(url))
+            # # "{}/{}/parameters/{}".format(server, bundleid, self.uniqueid)
+            # r = requests.get(url, timeout=5)
+            # rjson = r.json()
+            #
+            # # status should already be complete because of while loop above,
+            # # but could always check the following:
+            # # rjson['value']['attributes']['value'] == 'complete'
+            #
+            # # TODO: server needs to sideload results once complete
+            # newparams = rjson['included']
+            # self._bundle._attach_param_from_server(newparams)
 
         elif self.status == 'error':
             ferr = open(self._err_fname, 'r')
@@ -11374,6 +11397,22 @@ class JobParameter(Parameter):
             logger.info("current status: {}, pulling job results".format(self.status))
             ret_ps = self._retrieve_results()
 
+            if ret_ps is None and 'progress' in self._value:
+                # then we just want to update the progress value from the progress-file
+                # but don't have anything to actually load
+                f = open(self._results_fname + '.progress', 'r')
+                progress_str = f.readlines()[0]
+                f.close()
+
+                try:
+                    progress = np.round(float(progress_str.strip()), 2)
+                except:
+                    return ParameterSet([])
+                else:
+                    self._value = 'progress:{}%'.format(progress)
+                    return ParameterSet([self])
+
+
             # now we need to attach ret_ps to self._bundle
             # TODO: is creating metawargs here necessary?  Shouldn't the params already be tagged?
             if self.context == 'model':
@@ -11383,26 +11422,72 @@ class JobParameter(Parameter):
             else:
                 raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
 
-            self._bundle._attach_params(ret_ps, **metawargs)
+            if 'progress' in self._value:
+                if ret_ps.get_value(qualifier='progress', default=0, **_skip_filter_checks) == self._bundle.get_value(qualifier='progress', default=100, check_visible=False, check_advanced=False, **metawargs):
+                    # then we have nothing new to load, so let's not bother attaching and overwriting with the exact same thing
+                    return ParameterSet([])
+                elif 'progress' in ret_ps.qualifiers:
+                    self._value = 'progress:{}%'.format(np.round(ret_ps.get_value(qualifier='progress'), 2))
 
-            if cleanup:
+
+            ret_changes = self._bundle._attach_params(ret_ps, overwrite=True, return_changes=return_changes, **metawargs)
+            if return_changes:
+                ret_changes += [self]
+
+            if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
                 os.remove(self._script_fname)
-                os.remove(self._results_fname)
-                os.remove(self._err_fname)
+                try:
+                    os.remove(self._results_fname)
+                except: pass
+                try:
+                    os.remove(self._err_fname)
+                except: pass
+                try:
+                    os.remove(self._results_fname+".progress")
+                except: pass
+                try:
+                    os.remove(self._kill_fname)
+                except: pass
 
-            self._value = 'loaded'
+            if 'progress' not in self._value:
+                self._value = 'loaded'
 
             # TODO: add history?
             if self.context == 'model':
                 # TODO: check logic for do_create_fig_params
-                ret_changes = self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
+                ret_changes += self._bundle._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=True)
 
             elif self.context == 'solution':
-                ret_changes = self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
+                ret_changes += self._bundle._run_solver_changes(ret_ps, return_changes=return_changes)
 
             else:
                 raise NotImplementedError("attaching for context='{}' not implemented".format(self.context))
 
             if return_changes:
                 return ret_ps + ret_changes
+
             return ret_ps
+
+    def kill(self, cleanup=True, return_changes=False):
+        """
+        Send a termination signal to the external thread running a
+        <phoebe.parameters.JobParameter>
+
+        Arguments
+        ---------
+        * `cleanup` (bool, optional, default=True): whether to wait for the
+            thread to terminate and then call <phoebe.parameters.JobParameter.attach>
+            with `cleanup=True` and `wait=True`.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet.
+
+        Returns
+        ---------
+
+
+        """
+        f = open(self._kill_fname, 'w')
+        f.write('kill')
+        f.close()
+        if cleanup:
+            return self.attach(wait=True, cleanup=True)
