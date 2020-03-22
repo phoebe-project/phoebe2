@@ -5982,7 +5982,7 @@ class Bundle(ParameterSet):
             if value is None:
                 value_ = _distl.delta(ref_param.get_value())
             else:
-                value_ = deepcopy(value)
+                value_ = _deepcopy(value)
 
             metawargs = {'context': 'distribution',
                          'distribution': kwargs['distribution']}
