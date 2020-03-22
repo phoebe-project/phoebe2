@@ -93,9 +93,6 @@ def estimate_eclipse_positions_widths(phases, fluxes, diagnose_init=False):
     fluxes_sec[((phases > edge1l) & (phases < edge1r)) | ((phases > edge1l+1) | (phases < edge1r-1))] = np.nan
     pos2, edge2l, edge2r = find_eclipse(phases, fluxes_sec)
     
-    pos1 = pos1-1 if pos1>0.5 else pos1
-    pos1 = pos1+1 if pos1<-0.5 else pos1
-    pos2 = pos2+1 if pos2<pos1 else pos2
 
     if diagnose_init:
         import matplotlib.pyplot as plt
@@ -210,29 +207,14 @@ def two_line_model(values,breakp,x,y,sigma,edge='none'):
     return np.sum((ymodel-y)**2/sigma**2)
 
 
-def refine_eclipse_widths(phases, fluxes, sigmas, pos1, pos2, width1, width2, wf1=0.75, wf2=0.25):
+def refine_eclipse_widths(phases, fluxes, sigmas, pos1, pos2, width1, width2):
 
     # to refine the region around the eclipses, we're taking half of the number of eclipse points
     # left and right from the current edge position
-
-    current_edge_left_1 = np.argmin(np.abs(phases-(pos1-0.5*width1)))
-    current_edge_right_1 = np.argmin(np.abs(phases-(pos1+0.5*width1)))
-    current_edge_left_2 = np.argmin(np.abs(phases-(pos2-0.5*width2)))
-    current_edge_right_2 = np.argmin(np.abs(phases-(pos2+0.5*width2)))
-
-    # isolate eclipses
-    eclipse1 = phases[(phases >= pos1-0.5*width1) & (phases <= pos1+0.5*width1)]
-    eclipse2 = phases[(phases >= pos2-0.5*width2) & (phases <= pos2+0.5*width2)]
-
-    # compute number of points to take left and right
-    npoints1 = int(len(eclipse1)/2)
-    npoints2 = int(len(eclipse2)/2)
-
-    # mask out regions around the eclipses
-    mask1_left = np.arange(current_edge_left_1-npoints1, current_edge_left_1+npoints1, 1).astype(int)
-    mask1_right = np.arange(current_edge_right_1-npoints1, current_edge_right_1+npoints1, 1).astype(int)
-    mask2_left = np.arange(current_edge_left_2-npoints2, current_edge_left_2+npoints1, 2).astype(int)
-    mask2_right = np.arange(current_edge_right_2-npoints2, current_edge_right_2+npoints2, 1).astype(int)
+    mask1_left = (phases > pos1-width1) & (phases < pos1-0.1*width1)
+    mask1_right = (phases > pos1+0.1*width1) & (phases < pos1+width1)
+    mask2_left = (phases > pos2-width2) & (phases < pos2-0.1*width1)
+    mask2_right = (phases > pos2+0.1*width1) & (phases < pos2+width2)
 
     eclipse_breaks = np.zeros(4)
 
@@ -258,7 +240,7 @@ def refine_eclipse_widths(phases, fluxes, sigmas, pos1, pos2, width1, width2, wf
                 else:
                     raise ValueError('Must provide value for edge orientation [\'left\', \'right\']')
                 chis2[j] = np.sum((ymodel-fluxes[mask])**2/sigmas[mask]**2)
-            eclipse_breaks[i] = phases[mask][np.argmin(chis2)]
+            eclipse_breaks[i] = breakpoints[np.argmin(chis2)]
 
         return eclipse_breaks
     except:
@@ -282,7 +264,7 @@ def compute_eclipse_params(phases, fluxes, sigmas, diagnose=False):
     if not np.isnan(mu1) and not np.isnan(sigma1) and np.abs(sigma1) < 0.5:
         pos1 = mu1
         width1 = min(5.6*np.abs(sigma1), 0.5)
-        depth1 = C - fluxes[np.argmin(phases-pos1)]
+        depth1 = C - fluxes[np.argmin(np.abs(phases-pos1))]
     else:
         pos1 = np.nan
         width1 = np.nan
@@ -290,7 +272,7 @@ def compute_eclipse_params(phases, fluxes, sigmas, diagnose=False):
     if not np.isnan(mu2) and not np.isnan(sigma2) and np.abs(sigma2) < 0.5:
         pos2 = mu2
         width2 = min(5.6*np.abs(sigma2), 0.5)
-        depth2 = C - fluxes[np.argmin(phases-pos2)]
+        depth2 = C - fluxes[np.argmin(np.abs(phases-pos2))]
     else:
         pos2 = np.nan
         width2 = np.nan
@@ -356,6 +338,8 @@ def ecc_w_from_geometry(sep,pwidth,swidth):
     # computation fails if sep<0, so we need to adjust for it here.
     if sep < 0:
         sep = 1+sep
+
+    print('separateation', sep)
     psi = newton(func=f, x0=(12*pi*sep)**(1./3), fprime=df, args=(sep,), maxiter=5000)
     ecc = sqrt( (0.25*tan(psi-pi)**2+(swidth-pwidth)**2/(swidth+pwidth)**2)/(1+0.25*tan(psi-pi)**2) )
     try:

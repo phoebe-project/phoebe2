@@ -369,7 +369,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         eclipse_dict = lc_eclipse_geometry.compute_eclipse_params(phases, fluxes, sigmas, diagnose=diagnose)
 
         # TODO: update to use widths as well (or alternate based on ecc?)
-        ecc, per0 = lc_eclipse_geometry.ecc_w_from_geometry(eclipse_dict.get('primary_position') - eclipse_dict.get('secondary_position'), eclipse_dict.get('primary_width'), eclipse_dict.get('secondary_width'))
+        ecc, per0 = lc_eclipse_geometry.ecc_w_from_geometry(eclipse_dict.get('secondary_position') - eclipse_dict.get('primary_position'), eclipse_dict.get('primary_width'), eclipse_dict.get('secondary_width'))
 
         # TODO: correct t0_supconj?
 
