@@ -3815,7 +3815,7 @@ class Bundle(ParameterSet):
                      'kind': func.__name__}
 
         if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_feature(feature=kwargs['feature'])
+            overwrite_ps = self.remove_feature(feature=kwargs['feature'], during_overwrite=True)
             # check the label again, just in case kwargs['feature'] belongs to
             # something other than feature
             self._check_label(kwargs['feature'], allow_overwrite=False)
@@ -4175,7 +4175,7 @@ class Bundle(ParameterSet):
                      'kind': fname}
 
         if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_component(component=kwargs['component'])
+            overwrite_ps = self.remove_component(component=kwargs['component'], during_overwrite=True)
             # check the label again, just in case kwargs['component'] belongs to
             # something other than component
             self.exclude(component=kwargs['component'])._check_label(kwargs['component'], allow_overwrite=False)
@@ -4274,7 +4274,8 @@ class Bundle(ParameterSet):
         ret_ps =  self.remove_parameters_all(**kwargs)
 
         ret_changes = []
-        ret_changes += self._handle_component_selectparams(return_changes=return_changes)
+        if not kwargs.get('during_overwrite', False):
+            ret_changes += self._handle_component_selectparams(return_changes=return_changes)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -4835,7 +4836,7 @@ class Bundle(ParameterSet):
         params, constraints = func(dataset=kwargs['dataset'], component_top=self.hierarchy.get_top(), **ds_kwargs)
 
         if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_dataset(dataset=kwargs['dataset'])
+            overwrite_ps = self.remove_dataset(dataset=kwargs['dataset'], during_overwrite=True)
             # check the label again, just in case kwargs['dataset'] belongs to
             # something other than dataset
             self._check_label(kwargs['dataset'], allow_overwrite=False)
@@ -5155,9 +5156,10 @@ class Bundle(ParameterSet):
         ret_ps += self.remove_parameters_all(**kwargs)
 
         ret_changes = []
-        ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
-        ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
-        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
+        if not kwargs.get('during_overwrite', False):
+            ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
+            ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
+            ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
 
@@ -5998,7 +6000,7 @@ class Bundle(ParameterSet):
             dist_params += [dist_param]
 
         if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_distribution(distribution=kwargs['distribution'])
+            overwrite_ps = self.remove_distribution(distribution=kwargs['distribution'], during_overwrite=True)
             # check the label again, just in case kwargs['distribution'] belongs to
             # something other than component
             self.exclude(distribution=kwargs['distribution'])._check_label(kwargs['distribution'], allow_overwrite=False)
@@ -6112,8 +6114,9 @@ class Bundle(ParameterSet):
         ret_ps = self.remove_parameters_all(**kwargs)
 
         ret_changes = []
-        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
-        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
+        if not kwargs.get('during_overwrite', False):
+            ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+            ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -6543,7 +6546,7 @@ class Bundle(ParameterSet):
                      'kind': fname}
 
         if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_figure(figure=kwargs['figure'])
+            overwrite_ps = self.remove_figure(figure=kwargs['figure'], during_overwrite=True)
             # check the label again, just in case kwargs['figure'] belongs to
             # something other than component
             self.exclude(figure=kwargs['figure'])._check_label(kwargs['figure'], allow_overwrite=False)
@@ -7742,7 +7745,7 @@ class Bundle(ParameterSet):
                      'compute': kwargs['compute']}
 
         if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_compute(compute=kwargs['compute'])
+            overwrite_ps = self.remove_compute(compute=kwargs['compute'], during_overwrite=True)
             # check the label again, just in case kwargs['compute'] belongs to
             # something other than compute
             self.exclude(kind='model', **_skip_filter_checks)._check_label(kwargs['compute'], allow_overwrite=False)
@@ -7829,7 +7832,8 @@ class Bundle(ParameterSet):
         ret_ps = self.remove_parameters_all(**kwargs)
 
         ret_changes = []
-        ret_changes += self._handle_compute_selectparams(return_changes=return_changes)
+        if not kwargs.get('during_overwrite', False):
+            ret_changes += self._handle_compute_selectparams(return_changes=return_changes)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -7908,7 +7912,7 @@ class Bundle(ParameterSet):
 
             do_create_fig_params = kwargs.pop('do_create_fig_params', False)
 
-            overwrite_ps = self.remove_model(model=model, remove_figure_params=do_create_fig_params)
+            overwrite_ps = self.remove_model(model=model, remove_figure_params=do_create_fig_params, during_overwrite=True)
 
             if model!='latest':
                 # check the label again, just in case model belongs to something
@@ -8105,7 +8109,7 @@ class Bundle(ParameterSet):
 
         return script_fname, out_fname
 
-    def _run_compute_changes(self, ret_ps, return_changes=False, do_create_fig_params=False, removed=False, **kwargs):
+    def _run_compute_changes(self, ret_ps, return_changes=False, do_create_fig_params=False, removed=False, during_overwrite=False, **kwargs):
         ret_changes = []
 
         # Figure options for this model
@@ -8574,7 +8578,10 @@ class Bundle(ParameterSet):
         restore_conf()
 
         ret_ps = self.filter(model=model, context=None if return_changes else 'model', **_skip_filter_checks)
-        ret_changes += self._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=do_create_fig_params, **kwargs)
+        ret_changes += self._run_compute_changes(ret_ps,
+                                                 return_changes=return_changes,
+                                                 do_create_fig_params=do_create_fig_params,
+                                                 **kwargs)
 
         if kwargs.get('overwrite', model=='latest') and return_changes and overwrite_ps is not None:
             ret_ps += overwrite_ps
@@ -8666,7 +8673,9 @@ class Bundle(ParameterSet):
         self._attach_params(result_ps, override_tags=True, **metawargs)
 
         ret_ps = self.get_model(model=model if model is not None else result_ps.models)
-        ret_changes = self._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=False)
+        ret_changes = self._run_compute_changes(ret_ps,
+                                                return_changes=return_changes,
+                                                do_create_fig_params=False)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -8701,9 +8710,11 @@ class Bundle(ParameterSet):
         kwargs['context'] = ['model', 'figure'] if remove_figure_params else 'model'
         ret_ps = self.remove_parameters_all(**kwargs)
 
-        ret_changes = self._run_compute_changes(ret_ps, return_changes=return_changes, do_create_fig_params=False, removed=True, **kwargs)
-        # if remove_figure_params:
-        #     ret_changes += self._handle_meshcolor_choiceparams(return_changes=return_changes)
+        ret_changes = self._run_compute_changes(ret_ps,
+                                                return_changes=return_changes,
+                                                do_create_fig_params=False,
+                                                removed=True,
+                                                **kwargs)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -8900,7 +8911,7 @@ class Bundle(ParameterSet):
                      'solver': kwargs['solver']}
 
         if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_solver(solver=kwargs['solver'], auto_remove_figure=False)
+            overwrite_ps = self.remove_solver(solver=kwargs['solver'], auto_remove_figure=False, during_overwrite=True)
             # check the label again, just in case kwargs['solver'] belongs to
             # something other than solver
             self.exclude(kind='solution', **_skip_filter_checks)._check_label(kwargs['solver'], allow_overwrite=False)
@@ -9011,7 +9022,8 @@ class Bundle(ParameterSet):
                     ret_changes += self.remove_figure(param.figure, return_changes=return_changes).to_list()
 
         ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
-        ret_changes += self._handle_solver_choiceparams(return_changes=return_changes)
+        if not kwargs.get('during_overwrite', False):
+            ret_changes += self._handle_solver_choiceparams(return_changes=return_changes)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -9111,7 +9123,13 @@ class Bundle(ParameterSet):
         exclude_contexts = ['model', 'figure']
         continue_from = self.get_value(qualifier='sample_from', solver=solver, sample_from=kwargs.get('sample_from', None), default='')
         exclude_solutions = [sol for sol in self.solutions if sol!=continue_from]
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced']))))
+        if 'continue_from_ps' in kwargs.keys():
+            b = self.copy()
+            b._attach_params(kwargs.pop('continue_from_ps').exclude(qualifier='detached_job', **_skip_filter_checks).copy())
+        else:
+            b = self
+
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(b.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=True, exclude=['description', 'advanced']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         solver_kwargs = list(kwargs.items())+[('solver', solver), ('solution', str(solution))]
         solver_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in solver_kwargs])
@@ -9202,7 +9220,7 @@ class Bundle(ParameterSet):
         return script_fname, out_fname
 
 
-    def _run_solver_changes(self, ret_ps, return_changes=False, removed=False, auto_add_figure=None, auto_remove_figure=None):
+    def _run_solver_changes(self, ret_ps, return_changes=False, removed=False, auto_add_figure=None, auto_remove_figure=None, during_overwrite=False):
         """
         """
         ret_changes = []
@@ -9228,17 +9246,17 @@ class Bundle(ParameterSet):
                 pass
             else:
                 ret_changes += new_fig_params.to_list()
-                ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
+                if not during_overwrite:
+                    ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
                 new_fig_params.set_value_all(qualifier='solution', context='figure', value=ret_ps.solution)
         elif auto_remove_figure and removed:
             for param in self.filter(qualifier='solution', context='figure', kind=ret_ps.kind, **_skip_filter_checks).to_list():
                 if param.get_value() == ret_ps.solution:
-                    ret_changes += self.remove_figure(param.figure, return_changes=return_changes).to_list()
+                    ret_changes += self.remove_figure(param.figure, return_changes=return_changes, during_overwrite=during_overwrite).to_list()
 
 
-        # ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
-        # ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
-        ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
+        if not during_overwrite:
+            ret_changes += self._handle_solution_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
 
         return ret_changes
@@ -9381,7 +9399,7 @@ class Bundle(ParameterSet):
             else:
                 logger.info("overwriting solution: {}".format(solution))
 
-            overwrite_ps = self.remove_solution(solution=solution, auto_remove_figure=False)
+            overwrite_ps = self.remove_solution(solution=solution, auto_remove_figure=False, during_overwrite=True)
 
             # for solver backends that allow continuing, we need to keep and pass
             # the deleted PS if it matches continue_from
@@ -9748,7 +9766,11 @@ class Bundle(ParameterSet):
         kwargs['solution'] = solution
         kwargs['context'] = 'solution'
         ret_ps = self.remove_parameters_all(**kwargs)
-        ret_changes = self._run_solver_changes(ret_ps, return_changes=return_changes, removed=True, auto_remove_figure=kwargs.get('auto_remove_figure', None))
+        ret_changes = self._run_solver_changes(ret_ps,
+                                               return_changes=return_changes,
+                                               removed=True,
+                                               auto_remove_figure=kwargs.get('auto_remove_figure', None),
+                                               during_overwrite=kwargs.get('during_overwrite', False))
 
         if return_changes:
             return ret_ps + ret_changes
