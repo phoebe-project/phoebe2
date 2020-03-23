@@ -9730,6 +9730,21 @@ class Bundle(ParameterSet):
         * ParameterSet of added and changed parameters
         """
         result_ps = ParameterSet.open(fname)
+        if 'progress' in result_ps.qualifiers:
+            progress = result_ps.get_value(qualifier='progress', **_skip_filter_checks)
+            value = 'progress:{}%'.format(np.round(progress, 2)) if progress < 100 else 'completed'
+            job_param = StringParameter(qualifier='imported_job',
+                                        value=value,
+                                        readonly=True,
+                                        description='imported solution')
+
+            job_param._context = 'solution'
+            job_param._solution = result_ps.solution
+            job_param._compute = result_ps.compute
+
+            result_ps += [job_param]
+
+
         metawargs = {}
         if solution is not None:
             metawargs['solution'] = solution
