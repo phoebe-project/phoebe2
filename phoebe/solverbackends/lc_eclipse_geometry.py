@@ -321,6 +321,31 @@ def compute_eclipse_params(phases, fluxes, sigmas, diagnose=False):
         'eclipse_edges': eclipse_edges
     }
 
+# t0 ESTIMATOR
+
+def t0_from_geometry(phases, times, fluxes, sigmas, period=1, t0_supconj = 0, t0_near_times = True):
+    # find overall minimum and median of phased array
+    flux_min = fluxes.min()
+    flux_med = np.median(fluxes)
+
+    # fit a quadratic to the bottom half of the primary eclipse
+    fit_mask = (fluxes >= flux_min) & (fluxes <= 0.5*(flux_min+flux_med))
+
+    quad_fit = np.poly1d(np.polyfit(phases[fit_mask], fluxes[fit_mask], 2, w=1/sigmas[fit_mask]))
+    phase_min = np.real(quad_fit.r[0])
+    delta_t0 = phase_min*period
+    t0 = t0_supconj + delta_t0
+
+    if t0_near_times:
+        if t0 >= times.min() and t0 <= times.max():
+            return t0
+        else:
+            return t0 + int((times.min()/period)+1)*(period)
+    else:
+        return t0
+
+
+
 # ECCENTRICITY AND ARG OF PERIASTRON ESTIMATOR
 
 def f (psi, sep): # used in pf_ecc_psi_w
@@ -329,7 +354,7 @@ def f (psi, sep): # used in pf_ecc_psi_w
 def df (psi, sep): # used in pf_ecc_psi_w
     return 1 - cos(psi) +1e-6
 
-def ecc_w_from_geometry(sep,pwidth,swidth):
+def ecc_w_from_geometry(sep, pwidth, swidth):
 
     if np.isnan(sep) or np.isnan(pwidth) or np.isnan(swidth):
         logger.warning('Cannot esimate eccentricty and argument of periastron: incomplete geometry information')
@@ -339,7 +364,6 @@ def ecc_w_from_geometry(sep,pwidth,swidth):
     if sep < 0:
         sep = 1+sep
 
-    print('separateation', sep)
     psi = newton(func=f, x0=(12*pi*sep)**(1./3), fprime=df, args=(sep,), maxiter=5000)
     ecc = sqrt( (0.25*tan(psi-pi)**2+(swidth-pwidth)**2/(swidth+pwidth)**2)/(1+0.25*tan(psi-pi)**2) )
     try:

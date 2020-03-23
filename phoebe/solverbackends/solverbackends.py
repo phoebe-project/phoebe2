@@ -342,6 +342,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
 
         lc = kwargs.get('lc')
         orbit = kwargs.get('orbit')
+        
 
         lc_ps = b.get_dataset(dataset=lc, **_skip_filter_checks)
         times = lc_ps.get_value(qualifier='times', unit='d')
@@ -351,19 +352,38 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         if len(sigmas) == 0:
             sigmas = 0.001*fluxes.mean()*np.ones(len(fluxes))
 
-        # the light curve has to be phased on range (-0.5,0.5)
+        if not len(times) or len(times) != len(fluxes):
+            raise ValueError("times and fluxes must exist and be filled in the '{}' dataset".format(lc))
 
         s = phases.argsort()
         phases = phases[s]
         fluxes = fluxes[s]
         sigmas = sigmas[s]
 
-        if not len(times) or len(times) != len(fluxes):
-            raise ValueError("times and fluxes must exist and be filled in the '{}' dataset".format(lc))
-
         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
         ecc_param = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
         per0_param = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
+        t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
+
+        period = b.get_value(qualifier='period', component='binary')
+        t0_supconj_old = b.get_value(qualifier='t0_supconj', component='binary')
+        # if t0_in_times_array == True the computed t0 is adjusted to fall in time times array range
+        t0_near_times = kwargs.get('t0_near_times', True)
+        # if adjust_t0 == True the phases are recomputed with the new t0_supconj before the two-Gaussian fit
+        adjust_t0 = kwargs.get('adjust_t0', False)
+
+        t0_supconj_new = lc_eclipse_geometry.t0_from_geometry(phases, times, fluxes, sigmas, 
+                                period=period, t0_supconj=t0_supconj_old, t0_near_times=t0_near_times)
+        
+        if adjust_t0:
+            phases = b.to_phase(times, component=orbit, t0=t0_supconj_new)
+            # because they're already sorted by the previous phases, need to 're-get' here
+            fluxes = lc_ps.get_value(qualifier='fluxes')
+            sigmas = lc_ps.get_value(qualifier='sigmas')
+            s = phases.argsort()
+            phases = phases[s]
+            fluxes = fluxes[s]
+            sigmas = sigmas[s]
 
         diagnose = kwargs.get('diagnose', False)
         eclipse_dict = lc_eclipse_geometry.compute_eclipse_params(phases, fluxes, sigmas, diagnose=diagnose)
@@ -381,10 +401,10 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
                  {'qualifier': 'secondary_depth', 'value': eclipse_dict.get('secondary_depth')},
                  {'qualifier': 'eclipse_edges', 'value': eclipse_dict.get('eclipse_edges')},
                  {'qualifier': 'lc', 'value': lc},
-                 {'qualifier': 'fitted_uniqueids', 'value': [ecc_param.uniqueid, per0_param.uniqueid]},
-                 {'qualifier': 'fitted_twigs', 'value': [ecc_param.twig, per0_param.twig]},
-                 {'qualifier': 'fitted_values', 'value': [ecc, per0]},
-                 {'qualifier': 'fitted_units', 'value': [u.dimensionless_unscaled.to_string(), u.rad.to_string()]}]]
+                 {'qualifier': 'fitted_uniqueids', 'value': [t0_supconj_param.uniqueid, ecc_param.uniqueid, per0_param.uniqueid]},
+                 {'qualifier': 'fitted_twigs', 'value': [t0_supconj_param.twig, ecc_param.twig, per0_param.twig]},
+                 {'qualifier': 'fitted_values', 'value': [t0_supconj_new, ecc, per0]},
+                 {'qualifier': 'fitted_units', 'value': [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]}]]
 
 
 
