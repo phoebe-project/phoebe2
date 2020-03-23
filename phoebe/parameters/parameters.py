@@ -11257,7 +11257,7 @@ class JobParameter(Parameter):
         else:
 
             if self.status_method == 'exists':
-                if self._value in ['error', 'killed']:
+                if self._value in ['error', 'killed', 'loaded']:
                     # then error was already detected and we've already done cleanup
                     status = self._value
                 elif os.path.isfile(self._results_fname):
@@ -11276,7 +11276,7 @@ class JobParameter(Parameter):
                     if 'Error' in msg.split()[0]:
                         status = 'error'
                     else:
-                        status = 'unknown'
+                        status = 'running'
                 else:
                     status = 'running'
             else:
@@ -11304,6 +11304,23 @@ class JobParameter(Parameter):
             return None
         else:
             return ret_ps
+
+    def _cleanup(self):
+        try:
+            os.remove(self._script_fname)
+        except: pass
+        try:
+            os.remove(self._results_fname)
+        except: pass
+        try:
+            os.remove(self._err_fname)
+        except: pass
+        try:
+            os.remove(self._results_fname+".progress")
+        except: pass
+        try:
+            os.remove(self._kill_fname)
+        except: pass
 
     def attach(self, wait=True, sleep=5, cleanup=True, return_changes=False):
         """
@@ -11352,11 +11369,11 @@ class JobParameter(Parameter):
                 logger.info("current status: {}, check again or use wait=True".format(status))
                 return self
 
-
-        while self.get_status() not in ['complete', 'progress', 'loaded', 'error']:
-            # TODO: any way we can not make 2 calls to self.status here?
-            logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
-            time.sleep(sleep)
+        if wait:
+            while self.get_status() not in ['complete', 'loaded', 'error']:
+                # TODO: any way we can not make 2 calls to self.status here?
+                logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
+                time.sleep(sleep)
 
         if self._server_status is not None and not _is_server:
             if not _can_requests:
@@ -11385,8 +11402,7 @@ class JobParameter(Parameter):
             ferr.close()
 
             if cleanup:
-                os.remove(self._script_fname)
-                os.remove(self._err_fname)
+                self._cleanup()
 
             self._value = 'error'
 
@@ -11435,19 +11451,7 @@ class JobParameter(Parameter):
                 ret_changes += [self]
 
             if cleanup and self._value in ['complete', 'loaded', 'error', 'killed']:
-                os.remove(self._script_fname)
-                try:
-                    os.remove(self._results_fname)
-                except: pass
-                try:
-                    os.remove(self._err_fname)
-                except: pass
-                try:
-                    os.remove(self._results_fname+".progress")
-                except: pass
-                try:
-                    os.remove(self._kill_fname)
-                except: pass
+                self._cleanup()
 
             if 'progress' not in self._value:
                 self._value = 'loaded'
