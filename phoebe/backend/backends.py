@@ -2312,6 +2312,7 @@ class EllcBackend(BaseBackendByDataset):
         f_c = np.sqrt(ecc) * np.cos(w)
         f_s = np.sqrt(ecc) * np.sin(w)
 
+        vgamma = b.get_value(qualifier='vgamma', context='system', unit=u.km/u.s, **_skip_filter_checks)
 
         return dict(compute=compute,
                     starrefs=starrefs,
@@ -2329,7 +2330,8 @@ class EllcBackend(BaseBackendByDataset):
                     f_c=f_c, f_s=f_s,
                     didt=didt, domdt=domdt,
                     gdc_1=gdc_1, gdc_2=gdc_2,
-                    rotfac_1=rotfac_1, rotfac_2=rotfac_2)
+                    rotfac_1=rotfac_1, rotfac_2=rotfac_2,
+                    vgamma=vgamma)
 
     def _run_single_dataset(self, b, info, **kwargs):
         """
@@ -2441,6 +2443,7 @@ class EllcBackend(BaseBackendByDataset):
 
         elif info['kind'] == 'rv':
             rv_method = b.get_value(qualifier='rv_method', compute=compute, dataset=info['dataset'], component=info['component'], context='compute', **_skip_filter_checks)
+
             flux_weighted = rv_method == 'flux-weighted'
             if flux_weighted:
                 raise NotImplementedError("flux-weighted does not seem to work in ellc")
@@ -2490,6 +2493,9 @@ class EllcBackend(BaseBackendByDataset):
                                context='dataset',
                                unit=u.km/u.s,
                                **_skip_filter_checks)
+
+            rvs += kwargs.get('vgamma', 0.0)
+
             packetlist.append(_make_packet('rvs',
                                            rvs*u.km/u.s,
                                            None,
