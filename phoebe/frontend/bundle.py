@@ -3882,7 +3882,7 @@ class Bundle(ParameterSet):
         --------
         * ValueError: if `feature` is not provided AND no `kwargs` are provided.
         """
-        self._kwargs_checks(kwargs)
+        self._kwargs_checks(kwargs, ['during_overwrite'])
 
         # Let's avoid deleting ALL features from the matching contexts
         if feature is None and not len(kwargs.items()):
@@ -5126,7 +5126,7 @@ class Bundle(ParameterSet):
         * ValueError: if `dataset` is not provided AND no `kwargs` are provided.
         """
 
-        self._kwargs_checks(kwargs)
+        self._kwargs_checks(kwargs, ['during_overwrite'])
 
         # Let's avoid deleting ALL parameters from the matching contexts
         if dataset is None and not len(kwargs.items()):
@@ -8637,7 +8637,7 @@ class Bundle(ParameterSet):
 
         return self.run_compute(model=model, **kwargs)
 
-    def import_model(self, fname, model=None, return_changes=False):
+    def import_model(self, fname, model=None, overwrite=False, return_changes=False):
         """
         Import and attach a model from a file.
 
@@ -8658,6 +8658,8 @@ class Bundle(ParameterSet):
         * `model` (string, optional): the name of the model to be attached
             to the Bundle.  If not provided, the model will be adopted from
             the tags in the file.
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet, including
             the removed parameters due to `overwrite`.
@@ -8668,12 +8670,23 @@ class Bundle(ParameterSet):
         """
         result_ps = ParameterSet.open(fname)
         metawargs = {}
-        if model is not None:
-            metawargs['model'] = model
-        self._attach_params(result_ps, override_tags=True, **metawargs)
+        if model is None:
+            model = result_ps.model
+        metawargs['model'] = model
+
+        ret_changes = []
+        new_uniqueids = False
+        if model in self.models:
+            if overwrite:
+                ret_changes += self.remove_model(model, during_overwrite=True, return_changes=return_changes).to_list()
+                new_uniqueids = True
+            else:
+                raise ValueError("model '{}' already exists.  Use different name or pass overwrite=True".format(model))
+
+        self._attach_params(result_ps, override_tags=True, new_uniqueids=new_uniqueids, **metawargs)
 
         ret_ps = self.get_model(model=model if model is not None else result_ps.models)
-        ret_changes = self._run_compute_changes(ret_ps,
+        ret_changes += self._run_compute_changes(ret_ps,
                                                 return_changes=return_changes,
                                                 do_create_fig_params=False)
 
@@ -9701,7 +9714,7 @@ class Bundle(ParameterSet):
 
         return self.run_solver(solution=solution, **kwargs)
 
-    def import_solution(self, fname, solution=None, return_changes=False):
+    def import_solution(self, fname, solution=None, overwrite=False, return_changes=False):
         """
         Import and attach a solution from a file.
 
@@ -9722,6 +9735,8 @@ class Bundle(ParameterSet):
         * `solution` (string, optional): the name of the solution to be attached
             to the Bundle.  If not provided, the solution will be adopted from
             the tags in the file.
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet.
 
@@ -9745,13 +9760,25 @@ class Bundle(ParameterSet):
             result_ps += [job_param]
 
 
+
         metawargs = {}
         if solution is not None:
+            solution = result_ps.solution
             metawargs['solution'] = solution
-        self._attach_params(result_ps, override_tags=True, **metawargs)
+
+        ret_changes = []
+        new_uniqueids = False
+        if solution in self.solutions:
+            if overwrite:
+                ret_changes += self.remove_solution(solution, during_overwrite=True, return_changes=return_changes).to_list()
+                new_uniqueids = True
+            else:
+                raise ValueError("solution '{}' already exists.  Use different name or pass overwrite=True".format(solution))
+
+        self._attach_params(result_ps, override_tags=True, new_uniqueids=new_uniqueids, **metawargs)
 
         ret_ps = self.get_solution(solution=solution if solution is not None else result_ps.solutions)
-        ret_changes = self._run_solver_changes(ret_ps, return_changes=return_changes)
+        ret_changes += self._run_solver_changes(ret_ps, return_changes=return_changes)
 
         if return_changes:
             return ret_ps + ret_changes

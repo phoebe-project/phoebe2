@@ -1388,7 +1388,7 @@ class ParameterSet(object):
                          for k in _meta_fields_twig
                          if metawargs.get(k, None) is not None])
 
-    def _attach_params(self, params, check_copy_for=True, override_tags=False, overwrite=False, return_changes=False, **kwargs):
+    def _attach_params(self, params, check_copy_for=True, override_tags=False, new_uniqueids=False, overwrite=False, return_changes=False, **kwargs):
         """Attach a list of parameters (or ParameterSet) to this ParameterSet.
 
         :parameter list params: list of parameters, or ParameterSet
@@ -1399,6 +1399,9 @@ class ParameterSet(object):
         ret_changes = []
         for param in lst:
             param._bundle = self
+
+            if new_uniqueids:
+                param._uniqueid = _uniqueid()
 
             for k, v in kwargs.items():
                 # Here we'll set the attributes (_context, _qualifier, etc)
