@@ -370,8 +370,10 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         per0_param = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
         t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
 
-        period = b.get_value(qualifier='period', component='binary')
-        t0_supconj_old = b.get_value(qualifier='t0_supconj', component='binary')
+        period = orbit_ps.get_value(qualifier='period', **_skip_filter_checks)
+        t0_supconj_old = orbit_ps.get_value(qualifier='t0_supconj', **_skip_filter_checks)
+
+        # TODO: create parameters in the solver options if we want to expose these options to the user
         # if t0_in_times_array == True the computed t0 is adjusted to fall in time times array range
         t0_near_times = kwargs.get('t0_near_times', True)
         # if adjust_t0 == True the phases are recomputed with the new t0_supconj before the two-Gaussian fit
