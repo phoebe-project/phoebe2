@@ -246,6 +246,10 @@ class BaseSolverBackend(object):
                 # single time/dataset
                 for packet in packetlist:
                     # single parameter
+                    if 'choices' in packet.keys():
+                        choices = packet.pop('choices')
+                        param = solution_ps.get_parameter(**{k:v for k,v in packet.items() if k not in ['choices', 'value']})
+                        param._choices = choices
                     try:
                         solution_ps.set_value(check_visible=False, check_default=False, ignore_readonly=True, **packet)
                     except Exception as err:
@@ -332,6 +336,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
+        solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -342,7 +347,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
 
         lc = kwargs.get('lc')
         orbit = kwargs.get('orbit')
-        
+
 
         lc_ps = b.get_dataset(dataset=lc, **_skip_filter_checks)
         times = lc_ps.get_value(qualifier='times', unit='d')
@@ -372,9 +377,9 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         # if adjust_t0 == True the phases are recomputed with the new t0_supconj before the two-Gaussian fit
         adjust_t0 = kwargs.get('adjust_t0', False)
 
-        t0_supconj_new = lc_eclipse_geometry.t0_from_geometry(phases, times, fluxes, sigmas, 
+        t0_supconj_new = lc_eclipse_geometry.t0_from_geometry(phases, times, fluxes, sigmas,
                                 period=period, t0_supconj=t0_supconj_old, t0_near_times=t0_near_times)
-        
+
         if adjust_t0:
             phases = b.to_phase(times, component=orbit, t0=t0_supconj_new)
             # because they're already sorted by the previous phases, need to 're-get' here
@@ -393,6 +398,8 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
 
         # TODO: correct t0_supconj?
 
+        params_twigs = [t0_supconj_param.twig, ecc_param.twig, per0_param.twig]
+
         return [[{'qualifier': 'primary_width', 'value': eclipse_dict.get('primary_width')},
                  {'qualifier': 'secondary_width', 'value': eclipse_dict.get('secondary_width')},
                  {'qualifier': 'primary_phase', 'value': eclipse_dict.get('primary_position')},
@@ -402,9 +409,11 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
                  {'qualifier': 'eclipse_edges', 'value': eclipse_dict.get('eclipse_edges')},
                  {'qualifier': 'lc', 'value': lc},
                  {'qualifier': 'fitted_uniqueids', 'value': [t0_supconj_param.uniqueid, ecc_param.uniqueid, per0_param.uniqueid]},
-                 {'qualifier': 'fitted_twigs', 'value': [t0_supconj_param.twig, ecc_param.twig, per0_param.twig]},
+                 {'qualifier': 'fitted_twigs', 'value': params_twigs},
                  {'qualifier': 'fitted_values', 'value': [t0_supconj_new, ecc, per0]},
-                 {'qualifier': 'fitted_units', 'value': [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]}]]
+                 {'qualifier': 'fitted_units', 'value': [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]},
+                 {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
+                ]]
 
 
 
@@ -440,6 +449,7 @@ class Bls_PeriodBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
+        solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -480,12 +490,16 @@ class Bls_PeriodBackend(BaseSolverBackend):
 
         period_param = b.get_parameter(qualifier='period', component=component, context='component', **_skip_filter_checks)
 
+        params_twigs = [period_param.twig]
+
         return [[{'qualifier': 'period', 'value': periodogram.period},
                  {'qualifier': 'power', 'value': periodogram.power},
                  {'qualifier': 'fitted_uniqueids', 'value': [period_param.uniqueid]},
-                 {'qualifier': 'fitted_twigs', 'value': [period_param.twig]},
+                 {'qualifier': 'fitted_twigs', 'value': params_twigs},
                  {'qualifier': 'fitted_values', 'value': [period]},
-                 {'qualifier': 'fitted_units', 'value': ['d']}]]
+                 {'qualifier': 'fitted_units', 'value': ['d']},
+                 {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs}
+                  ]]
 
 
 
@@ -530,6 +544,7 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
+        solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting (and plotting) the solution')]
 
         solution_params += [_parameters.ArrayParameter(qualifier='samples', value=[], readonly=True, description='MCMC samples with shape (niters, nwalkers, len(fitted_twigs))')]
         if kwargs.get('expose_failed', True):
@@ -560,6 +575,7 @@ class EmceeBackend(BaseSolverBackend):
             return_ = [{'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
                      {'qualifier': 'fitted_units', 'value': params_units},
+                     {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
                      {'qualifier': 'samples', 'value': samples},
                      {'qualifier': 'lnprobabilities', 'value': lnprobabilities},
                      {'qualifier': 'acceptance_fractions', 'value': acceptance_fractions},
@@ -816,7 +832,7 @@ class DynestyBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
-
+        solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting (and plotting) the solution')]
 
         solution_params += [_parameters.IntParameter(qualifier='nlive', value=0, readonly=True, description='')]
         solution_params += [_parameters.IntParameter(qualifier='niter', value=0, readonly=True, description='')]
@@ -853,6 +869,7 @@ class DynestyBackend(BaseSolverBackend):
             return [[{'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
                      {'qualifier': 'fitted_units', 'value': params_units},
+                     {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
                      {'qualifier': 'nlive', 'value': results.nlive},
                      {'qualifier': 'niter', 'value': results.niter},
                      {'qualifier': 'ncall', 'value': results.ncall},
@@ -1023,6 +1040,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
+        solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
 
 
         solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
@@ -1093,7 +1111,8 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
                 {'qualifier': 'fitted_twigs', 'value': params_twigs},
                 {'qualifier': 'initial_values', 'value': p0},
                 {'qualifier': 'fitted_values', 'value': res.x},
-                {'qualifier': 'fitted_units', 'value': [u.to_string() for u in fitted_units]}]
+                {'qualifier': 'fitted_units', 'value': [u.to_string() for u in fitted_units]},
+                {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs}]
 
 
 
@@ -1157,6 +1176,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
 
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
+        solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
 
         solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
         solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, readonly=True, limits=(0,None), description='number of completed function evaluations (forward models)')]
@@ -1268,6 +1288,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                        {'qualifier': 'fitted_twigs', 'value': params_twigs},
                        {'qualifier': 'fitted_values', 'value': res.x},
                        {'qualifier': 'fitted_units', 'value': [u.to_string() for u in fitted_units]},
+                       {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
                        {'qualifier': 'bounds', 'value': bounds}]
 
             if kwargs.get('expose_lnlikelihoods', False):

@@ -4278,7 +4278,16 @@ class ParameterSet(object):
         elif ps.kind == 'dynesty':
             kwargs['plot_package'] = 'dynesty'
             kwargs.setdefault('style', 'corner')
-            kwargs['results'] = {p.qualifier: p.value for p in self._bundle.filter(solution=ps.solution, context='solution', **_skip_filter_checks).to_list()}
+            adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, **_skip_filter_checks)
+            fitted_twigs = ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+            adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
+
+            def _filter_by_adopt_inds(p, adopt_inds):
+                if p.qualifier in ['samples', 'samples_u']:
+                    return p.value[:, adopt_inds]
+                return p.value
+
+            kwargs['results'] = {p.qualifier: _filter_by_adopt_inds(p, adopt_inds) for p in self._bundle.filter(solution=ps.solution, context='solution', **_skip_filter_checks).to_list()}
             if kwargs.get('style') == 'corner':
                 kwargs['dynesty_method'] = 'cornerplot'
             elif kwargs.get('style') == 'trace':
@@ -4290,6 +4299,10 @@ class ParameterSet(object):
             return (kwargs,)
         elif ps.kind == 'emcee':
             kwargs.setdefault('style', ['trace', 'lnprobability'])
+            adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, **_skip_filter_checks)
+            fitted_twigs = ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+            adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
+
             burnin = ps.get_value(qualifier='burnin', burnin=kwargs.get('burnin', None), **_skip_filter_checks)
             thin = ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
             lnprobabilities = ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
@@ -4305,14 +4318,14 @@ class ParameterSet(object):
                     lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
 
                     samples = ps.get_value(qualifier='samples', **_skip_filter_checks)
-                    samples = samples[burnin:, :, :][::thin, : :]
+                    samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
 
                     kwargs['data'] = samples[np.isfinite(lnprobabilities)]
                     try:
-                        param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)]
+                        param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)[adopt_inds]]
                     except:
                         logger.warning("could not match to fitted_uniqueids, falling back on fitted_twigs")
-                        param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)]
+                        param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for twig in adopt_parameters]
 
                     # TODO: use units from fitted_units instead of parameter?
                     kwargs['labels'] = [_corner_label(param) for param in param_list]
@@ -4355,27 +4368,27 @@ class ParameterSet(object):
                     kwargs.setdefault('marker', 'None')
                     kwargs.setdefault('linestyle', 'solid')
 
-                    fitted_uniqueids = list(self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks))
-                    fitted_twigs = list(self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks))
+                    fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
+                    fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_ps = self._bundle.filter(uniqueid=fitted_uniqueids, **_skip_filter_checks)
 
                     samples = self._bundle.get_value(qualifier='samples', context='solution', solution=ps.solution, **_skip_filter_checks)
-                    samples = samples[burnin:, :, :][::thin, : :]
+                    samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
                     # samples [niters, nwalkers, parameter]
-                    ys = kwargs.get('y', fitted_ps.twigs)
+                    ys = kwargs.get('y', adopt_parameters)
                     if isinstance(ys, str):
                         ys = [ys]
 
                     for y in ys:
                         try:
                             param = fitted_ps.get_parameter(twig=y, **_skip_filter_checks)
-                            parameter_ind = fitted_uniqueids.index(param.uniqueid)
+                            parameter_ind = list(fitted_uniqueids[adopt_inds]).index(param.uniqueid)
 
                         except:
                             param = self._bundle.get_parameter(twig=y, **_skip_filter_checks)
                             # NOTE: the following may fail if not a full twig
-                            parameter_ind = figged_twigs.index(y)
+                            parameter_ind = list(fitted_twigs[adopt_inds]).index(y)
 
                         for walker_ind in range(samples.shape[1]):
                             kwargs = _deepcopy(kwargs)

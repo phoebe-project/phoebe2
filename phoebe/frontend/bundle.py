@@ -9559,14 +9559,20 @@ class Bundle(ParameterSet):
         if solver_kind is None:
             raise ValueError("could not find solution='{}'".format(solution))
 
+        adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', None), expand=True, **_skip_filter_checks)
+
         b_uniqueids = self.uniqueids
+
+        fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
+        fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+        fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
+
+        adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
 
         if solver_kind in ['emcee', 'dynesty']:
             if distribution is None:
                 raise ValueError("must provide distribution for solution='{}'".format(solution))
-            fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
-            fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
-            fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
+
 
             if solver_kind == 'emcee':
                 lnprobabilities = solution_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
@@ -9576,7 +9582,7 @@ class Bundle(ParameterSet):
                 thin = solution_ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
 
                 lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
-                samples = samples[burnin:, :, :][::thin, : :]
+                samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
 
 
                 samples = samples[np.isfinite(lnprobabilities)]
@@ -9587,20 +9593,23 @@ class Bundle(ParameterSet):
                 logwt = solution_ps.get_value(qualifier='logwt', **_skip_filter_checks)
                 logz = solution_ps.get_value(qualifier='logz', **_skip_filter_checks)
 
+                samples = samples[:, adopt_inds]
+
                 weights = np.exp(logwt - logz[-1])
 
             else:
                 raise NotImplementedError()
 
+            # TODO: check on shape of weights when filtering with adopt_inds
             dist = _distl.mvhistogram_from_data(samples,
                                                 bins=kwargs.get('bins', 10),
                                                 range=None,
                                                 weights=weights,
-                                                units=[u.Unit(unit) for unit in fitted_units],
-                                                labels=list(fitted_twigs),
+                                                units=[u.Unit(unit) for unit in fitted_units[adopt_inds]],
+                                                labels=list(fitted_twigs[adopt_inds]),
                                                 wrap_ats=None)
 
-            for i, uniqueid in enumerate(fitted_uniqueids):
+            for i, uniqueid in enumerate(fitted_uniqueids[adopt_inds]):
                 if uniqueid in b_uniqueids:
                     self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution)
                 else:
@@ -9611,10 +9620,7 @@ class Bundle(ParameterSet):
             ret_ps = self.get_distribution(distribution=distribution)
 
         else:
-            fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
-            fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
-            fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
 
             if solver_kind == 'bls_period':
                 fitted_values = fitted_values * solution_ps.get_value(qualifier='adopt_factor', adopt_factor=kwargs.get('adopt_factor', None), **_skip_filter_checks)
@@ -9623,7 +9629,7 @@ class Bundle(ParameterSet):
                 if distribution is None:
                     raise ValueError("must provide distribution if as_distributions=True")
 
-                for uniqueid, twig, value, unit in zip(fitted_uniqueids, fitted_twigs, fitted_values, fitted_units):
+                for uniqueid, twig, value, unit in zip(fitted_uniqueids[adopt_inds], fitted_twigs[adopt_inds], fitted_values[adopt_inds], fitted_units[adopt_inds]):
                     dist = _distl.delta(value, unit=unit)
                     if uniqueid in b_uniqueids:
                         self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution)
@@ -9638,7 +9644,7 @@ class Bundle(ParameterSet):
                 conf.interactive_constraints_off(suppress_warning=True)
 
                 changed_params = []
-                for uniqueid, twig, value, unit in zip(fitted_uniqueids, fitted_twigs, fitted_values, fitted_units):
+                for uniqueid, twig, value, unit in zip(fitted_uniqueids[adopt_inds], fitted_twigs[adopt_inds], fitted_values[adopt_inds], fitted_units[adopt_inds]):
                     if uniqueid in b_uniqueids:
                         param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
                     else:
