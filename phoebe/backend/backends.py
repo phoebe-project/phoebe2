@@ -631,13 +631,17 @@ def _call_run_single_model(args):
             logger.warning("model failed: drawing new sample")
             if expose_failed:
                 msg = _simplify_error_message(err)
-                failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
+                # TODO: remove the list comprehension here once the bug is fixed in distributions that is sometimes returning an array with one entry
+                failed_samples[msg] = failed_samples.get(msg, []) + [list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])]
+                # failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
 
             samples = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=None, keys='uniqueid')
-            # print("redrawing samples after failed: {}".format(samples))
+            # continue the next iteration in the while loop
         else:
             if expose_samples:
-                success_samples += list(samples.values())
+                # TODO: remove the list comprehension here once the bug is fixed in distributions that is sometimes returning an array with one entry
+                success_samples += list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])
+                # success_samples += list(samples.values())
             return model_ps.to_json(), success_samples, failed_samples
 
 

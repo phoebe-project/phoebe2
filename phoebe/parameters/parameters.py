@@ -5628,9 +5628,13 @@ class Parameter(object):
                         v = self._value.to_dict()
                 elif isinstance(self._value, distl.BaseDistlObject):
                     v = self._value.to_dict()
+                elif isinstance(v, dict):
+                    v = {dk: _parse(k, dv) for dk,dv in v.items()}
+
                 if isinstance(v, u.Quantity):
                     v = self.get_value() # force to be in default units
                 if isinstance(v, np.ndarray):
+                    # can handle N-dim arrays
                     v = v.tolist()
                 if _is_unit(v):
                     v = str(v.to_string())
@@ -11316,8 +11320,11 @@ class JobParameter(Parameter):
 
         try:
             ret_ps = ParameterSet.open(fname)
-        except:
-            return None
+        except Exception as err:
+            if 'progress' in self._value:
+                return None
+            else:
+                raise
         else:
             return ret_ps
 

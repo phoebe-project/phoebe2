@@ -6027,7 +6027,7 @@ class Bundle(ParameterSet):
                             additional_allowed_keys=['overwrite'],
                             warning_only=True, ps=ret_ps)
 
-        if self.get_value(qualifier='auto_add_figure', context='setting') and 'distribution_collection' not in self.filter(context='figure', **_skip_filter_checks).kinds:
+        if self.get_value(qualifier='auto_add_figure', context='setting', auto_add_figure=kwargs.get('auto_add_figure', None), **_skip_filter_checks) and 'distribution_collection' not in self.filter(context='figure', **_skip_filter_checks).kinds:
             # then we don't have a figure for this kind yet
             logger.info("calling add_figure(kind='distribution.distribution_collection') since auto_add_figure@setting=True")
             new_fig_params = self.add_figure(kind='distribution.distribution_collection', distributions=[kwargs['distribution']])
@@ -8006,11 +8006,13 @@ class Bundle(ParameterSet):
         f.write("import phoebe; import json\n")
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_solver)
-        exclude_contexts = ['model', 'figure', 'constraint']
+        exclude_contexts = ['model', 'figure', 'constraint', 'solver']
         sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[])
         exclude_distributions = [dist for dist in self.distributions if dist not in sample_from]
         exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
-        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(exclude=['description', 'advanced']))))
+        # we need to include uniqueids if needing to apply the solution during sample_from
+        incl_uniqueid = len(exclude_solutions) != len(self.solutions)
+        f.write("bdict = json.loads(\"\"\"{}\"\"\", object_pairs_hook=phoebe.utils.parse_json)\n".format(json.dumps(self.exclude(context=exclude_contexts, **_skip_filter_checks).exclude(distribution=exclude_distributions, **_skip_filter_checks).exclude(solution=exclude_solutions, **_skip_filter_checks).to_json(incl_uniqueid=incl_uniqueid, exclude=['description', 'advanced']))))
         f.write("b = phoebe.open(bdict, import_from_older={})\n".format(import_from_older))
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
@@ -8387,7 +8389,7 @@ class Bundle(ParameterSet):
                                 # the random distribution label so we can remove
                                 # it after
                                 distribution = _uniqueid()
-                                self.adopt_solution(solution=sample_from_item, as_distributions=True, distribution=distribution, **kwargs)
+                                self.adopt_solution(solution=sample_from_item, as_distributions=True, distribution=distribution, auto_add_figure=False, **kwargs)
                                 remove_dists.append(distribution)
                                 sample_from[sample_from.index(sample_from_item)] = distribution
                             else:
@@ -9611,10 +9613,10 @@ class Bundle(ParameterSet):
 
             for i, uniqueid in enumerate(fitted_uniqueids[adopt_inds]):
                 if uniqueid in b_uniqueids:
-                    self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution)
+                    self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
                 else:
                     logger.warning("uniqueid not found, falling back on twig={}".format(fitted_twigs[i]))
-                    self.add_distribution(twig=twig, value=dist.slice(i), distribution=distribution)
+                    self.add_distribution(twig=fitted_twigs[i], value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
 
             # TODO: do we want to only return newly added distributions?
             ret_ps = self.get_distribution(distribution=distribution)
@@ -9632,10 +9634,10 @@ class Bundle(ParameterSet):
                 for uniqueid, twig, value, unit in zip(fitted_uniqueids[adopt_inds], fitted_twigs[adopt_inds], fitted_values[adopt_inds], fitted_units[adopt_inds]):
                     dist = _distl.delta(value, unit=unit)
                     if uniqueid in b_uniqueids:
-                        self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution)
+                        self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
                     else:
                         logger.warning("uniqueid not found, falling back on twig={}".format(twig))
-                        self.add_distribution(twig=twig, value=dist, distribution=distribution)
+                        self.add_distribution(twig=twig, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
 
 
                 ret_ps = self.get_distribution(distribution=distribution)
