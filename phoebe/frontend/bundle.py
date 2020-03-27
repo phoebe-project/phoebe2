@@ -9582,12 +9582,14 @@ class Bundle(ParameterSet):
 
                 burnin = solution_ps.get_value(qualifier='burnin', burnin=kwargs.get('burnin', None), **_skip_filter_checks)
                 thin = solution_ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
+                lnprob_cutoff = solution_ps.get_value(qualifier='lnprob_cutoff', lnprob_cutoff=kwargs.get('lnprob_cutoff', None), **_skip_filter_checks)
 
+                # lnprobabilities[iteration, walker]
                 lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
+                # samples[iteration, walker, parameter]
                 samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
 
-
-                samples = samples[np.isfinite(lnprobabilities)]
+                samples = samples[np.where(lnprobabilities >= lnprob_cutoff)]
                 weights = None
 
             elif solver_kind == 'dynesty':

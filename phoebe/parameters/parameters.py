@@ -4281,7 +4281,7 @@ class ParameterSet(object):
         elif ps.kind == 'dynesty':
             kwargs['plot_package'] = 'dynesty'
             kwargs.setdefault('style', 'corner')
-            adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, **_skip_filter_checks)
+            adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, adopt_parameters=kwargs.get('adopt_parameters', None), **_skip_filter_checks)
             fitted_twigs = ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
             adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
 
@@ -4302,12 +4302,14 @@ class ParameterSet(object):
             return (kwargs,)
         elif ps.kind == 'emcee':
             kwargs.setdefault('style', ['trace', 'lnprobability'])
-            adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, **_skip_filter_checks)
+            adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, adopt_parameters=kwargs.get('adopt_parameters', None), **_skip_filter_checks)
             fitted_twigs = ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
             adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
 
             burnin = ps.get_value(qualifier='burnin', burnin=kwargs.get('burnin', None), **_skip_filter_checks)
             thin = ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
+            lnprob_cutoff = ps.get_value(qualifier='lnprob_cutoff', lnprob_cutoff=kwargs.get('lnprob_cutoff', None), **_skip_filter_checks)
+
             lnprobabilities = ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
 
             return_ = []
@@ -4323,7 +4325,7 @@ class ParameterSet(object):
                     samples = ps.get_value(qualifier='samples', **_skip_filter_checks)
                     samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
 
-                    kwargs['data'] = samples[np.isfinite(lnprobabilities)]
+                    kwargs['data'] = samples[np.where(lnprobabilities >= lnprob_cutoff)]
                     try:
                         param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)[adopt_inds]]
                     except:
@@ -4353,11 +4355,18 @@ class ParameterSet(object):
                     kwargs.setdefault('marker', 'None')
                     kwargs.setdefault('linestyle', 'solid')
 
-                    lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
+                    # we'll be editing items in the array, so we need to make a deepcopy first
+                    lnprobabilities = _deepcopy(lnprobabilities[burnin:, :][::thin, :])
 
                     for lnp in lnprobabilities.T:
                         if not np.any(np.isfinite(lnp)):
                             continue
+
+                        lnprobabilities[lnprobabilities < lnprob_cutoff] = np.nan
+
+                        if np.all(np.isnan(lnp)):
+                            continue
+
                         kwargs = _deepcopy(kwargs)
                         kwargs['x'] = np.arange(len(lnp), dtype=float)*thin+burnin
                         kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
