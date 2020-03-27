@@ -4,11 +4,7 @@ import os.path
 import sys
 import logging
 
-try:
-    import phoebe_legacy as phb1
-except ImportError:
-    try:
-        import phoebeBackend as phb1
+
 
 if sys.version_info[0] >= 3:
     from io import IOBase as _IOBase
@@ -1999,8 +1995,23 @@ params - dictionary of parameters
 
 
 def import_to_legacy(params):
+
+    try:
+        import phoebe_legacy as phb1
+    except ImportError:
+        try:
+            import phoebeBackend as phb1
+        except ImportError:
+            _use_phb1 = False
+        else:
+            _use_phb1 = True
+    else:
+        _use_phb1 = True
+ 
     #initiate phoebe legacy python wrapper
-    
+    if not _use_phb1:
+        raise ImportError("phoebeBackend for phoebe legacy not found")
+
     keys = params.keys()
     
     for key in keys:
