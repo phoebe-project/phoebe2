@@ -3753,7 +3753,10 @@ class ParameterSet(object):
                     kwargs['{}error'.format(d)] = kwargs.pop('{}errors'.format(d))
 
         def _corner_twig(param):
-            return '{}@{}'.format(param.qualifier, getattr(param, param.context))
+            if param.context == 'system':
+                return param.qualifier
+            else:
+                return '{}@{}'.format(param.qualifier, getattr(param, param.context))
 
         def _corner_label(param):
             if param.default_unit.to_string():
