@@ -9770,7 +9770,7 @@ class Bundle(ParameterSet):
 
 
         metawargs = {}
-        if solution is not None:
+        if solution is None:
             solution = result_ps.solution
             metawargs['solution'] = solution
 
