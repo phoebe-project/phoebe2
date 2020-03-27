@@ -9772,7 +9772,8 @@ class Bundle(ParameterSet):
         metawargs = {}
         if solution is None:
             solution = result_ps.solution
-            metawargs['solution'] = solution
+
+        metawargs['solution'] = solution
 
         ret_changes = []
         new_uniqueids = False
