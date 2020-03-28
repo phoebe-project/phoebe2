@@ -2370,7 +2370,7 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
     else:
 
-        compute_phases_t0 = ds.get_parameter(qualifier='compute_phases_t0', component=component, **_skip_filter_checks)
+        phases_t0 = ds.get_parameter(qualifier='phases_t0', component=component, **_skip_filter_checks)
         t0_supconj = b.get_parameter(qualifier='t0_supconj', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
         t0_perpass = b.get_parameter(qualifier='t0_perpass', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
         t0_ref = b.get_parameter(qualifier='t0_ref', component=component if component!='_default' else b.hierarchy.get_top(), context='component', **_skip_filter_checks)
@@ -2378,14 +2378,15 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
         if solve_for in [None, compute_phases]:
             lhs = compute_phases
-            rhs = _times_to_phases(compute_times, period, dpdt, compute_phases_t0, t0_supconj, t0_perpass, t0_ref)
+            rhs = _times_to_phases(compute_times, period, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
         elif solve_for in [compute_times]:
             lhs = compute_times
-            rhs = _phases_to_times(compute_phases, period, dpdt, compute_phases_t0, t0_supconj, t0_perpass, t0_ref)
+            rhs = _phases_to_times(compute_phases, period, dpdt, phases_t0, t0_supconj, t0_perpass, t0_ref)
         else:
             raise NotImplementedError
 
     return lhs, rhs, [], {'component': component, 'dataset': dataset}
+
 
 def extinction(b, dataset, solve_for=None, **kwargs):
     """

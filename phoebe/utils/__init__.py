@@ -4,6 +4,8 @@ import sys
 if sys.version_info[0] == 3:
   unicode = str
 
+import numpy as np
+
 def _bytes(s):
     if sys.version_info[0] == 3:
         return bytes(s, 'utf-8')
@@ -172,3 +174,33 @@ def parse_json(pairs):
 
         new_pairs.append((key, value))
     return dict(new_pairs)
+
+def phase_mask_inds(phases, mask_phases):
+    def _individual_mask(phases, mask):
+        # move mask onto range (-0.5, 0.5)
+        def _map(m):
+            if m < -0.5:
+                return _map(m+1)
+            if m > 0.5:
+                return _map(m-1)
+            return m
+
+        mask = [_map(m) for m in mask]
+
+        does_wrap = mask[0] > mask[1]
+
+        if does_wrap:
+            return np.logical_or(phases > mask[0], phases < mask[1])
+        else:
+            return np.logical_and(phases >= mask[0], phases <= mask[1])
+
+    if mask_phases is None:
+        return np.isfinite(phases)
+
+    masks = [_individual_mask(phases, m) for m in mask_phases]
+    if len(masks) == 1:
+        inds = masks[0]
+    else:
+        inds = np.logical_or(*masks)
+
+    return inds

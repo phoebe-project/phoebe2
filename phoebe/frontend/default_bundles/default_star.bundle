@@ -382,6 +382,9 @@ null
 "kind": "star", 
 "qualifier": "ld_coeffs_bol", 
 "default_unit": "", 
+"required_shape": [
+null
+], 
 "component": "starA", 
 "value": [
 0.5, 
