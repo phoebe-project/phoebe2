@@ -19,6 +19,12 @@ def _map_none(value):
         # NOTE: including None - we want this to fallback on the cycler
         return value
 
+def _to_linebreak_list(thing, N=1):
+    if isinstance(thing, list):
+        return thing
+    else:
+        return [thing]*N
+
 class CallGroup(common.Group):
     def __init__(self, items):
         super(CallGroup, self).__init__(Call, [], items)
@@ -1069,12 +1075,6 @@ class Plot(Call):
             zerr = None
 
         # then we need to loop over the linebreaks
-        def _to_linebreak_list(thing, N=1):
-            if isinstance(thing, list):
-                return thing
-            else:
-                return [thing]*N
-
         if isinstance(x, list) or isinstance(y, list):
             linebreak_n = len(x) if isinstance(x, list) else len(y)
         else:
@@ -1473,6 +1473,16 @@ class FillBetween(Call):
 
         self.linebreak = linebreak
 
+        if x is None:
+            raise TypeError("x cannot be None for FillBetween")
+        x = np.asarray(x)
+
+        if y is None:
+            raise TypeError("y cannot be None for FillBetween")
+        y = np.asarray(y)
+
+        if y.shape not in [(len(x), 2), (len(x), 3)]:
+            raise ValueError("y must be of shape ({}, 2) or ({}, 3), not {}".format(len(x), len(x), y.shape))
 
         super(FillBetween, self).__init__(i=i, iunit=iunit, itol=itol,
                                           x=x, xunit=xunit, xlabel=xlabel,
@@ -1484,8 +1494,6 @@ class FillBetween(Call):
                                           **kwargs
                                           )
 
-        if np.asarray(self.y.value).shape not in [(len(self.x.value), 2), (len(self.x.value), 3)]:
-            raise ValueError("y must be of shape ({}, 2) or ({}, 3), not {}".format(len(self.x.value), len(self.x.value), np.asarray(self.y.value).shape))
 
         # self.connect_callback(callbacks.update_sizes)
 
@@ -1641,16 +1649,15 @@ class FillBetween(Call):
         return_artists = []
         # TODO: handle getting in correct units (possibly passed from axes?)
         x = self.x.get_value(i=i, unit=self.axes.x.unit)
-        y = self.y.get_value(i=i, unit=self.axes.y.unit).T
+        y = self.y.get_value(i=i, unit=self.axes.y.unit)
+        if isinstance(y, list):
+            y = [yi.T for yi in y]
+        else:
+            y = y.T
+
         c = self.c.get_value(i=i, unit=self.axes_c.unit if self.axes_c is not None else None)
 
         # then we need to loop over the linebreaks
-        def _to_linebreak_list(thing, N=1):
-            if isinstance(thing, list):
-                return thing
-            else:
-                return [thing]*N
-
         if isinstance(x, list) or isinstance(y, list):
             linebreak_n = len(x) if isinstance(x, list) else len(y)
         else:
