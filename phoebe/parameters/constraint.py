@@ -2325,7 +2325,7 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
     This is usually passed as an argument to
      <phoebe.frontend.bundle.Bundle.add_constraint> as
-     `b.add_constraint('compute_phase', component=b.hierarchy.get_top(), dataset='dataset')`.
+     `b.add_constraint('compute_phases', component=b.hierarchy.get_top(), dataset='dataset')`.
 
     Arguments
     -----------
@@ -2405,7 +2405,7 @@ def extinction(b, dataset, solve_for=None, **kwargs):
         `ebv`, `Av`, and `Rv` parameters.
     * `solve_for` (<phoebe.parameters.Parameter, optional, default=None): if
         'ebv' should not be the derived/constrained parameter, provide which
-        other parameter should be derived (ie 'compute_times').
+        other parameter should be derived (ie 'Av', 'Rv').
 
     Returns
     ----------
