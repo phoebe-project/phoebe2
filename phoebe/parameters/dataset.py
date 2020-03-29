@@ -95,10 +95,16 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         the model.  Only applicable if `syn` is False and `is_lc` is True.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False and `is_lc` is True.
-    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
-        when converting between `compute_phases` and `compute_times`.  Only
+    * `phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times` as well as
+        when applying `mask_phases`.  Only
         applicable if `syn` is False and `is_lc` is True.  Not applicable for
         single stars (in which case t0@system is always used).
+    * `mask_enabled` (bool, optional, default=True): whether to apply the mask
+        in mask_phases during plotting, calculate_residuals, calculate_chi2,
+        calculate_lnlikelihood, and run_solver
+    * `mask_phases` (list of tuples, optional, default=[]): List of phase-tuples.
+        Any observations inside the range set by any of the tuples will be included.
     * `ld_mode` (string, optional, default='interp'): mode to use for handling
         limb-darkening.  Note that 'interp' is not available for all values
         of `atm` (availability can be checked by calling
@@ -165,8 +171,8 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
 
 
     if is_lc:
-        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
-        params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), readonly=syn, default_unit=u.W/u.m**2, description='Model (synthetic) flux' if syn else 'Observed flux')]
+        params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), required_shape=[None], readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+        params += [FloatArrayParameter(qualifier='fluxes', value=_empty_array(kwargs, 'fluxes'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.W/u.m**2, description='Model (synthetic) flux' if syn else 'Observed flux')]
 
     if not syn:
         # TODO: should we move all limb-darkening to compute options since
@@ -186,6 +192,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         params += [FloatArrayParameter(visible_if='ld_mode:manual', qualifier='ld_coeffs',
                                        copy_for={'kind': ['star'], 'component': '*'}, component='_default',
                                        value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled,
+                                       required_shape=[None],
                                        description='Limb darkening coefficients')]
 
         passbands._init_passbands()  # NOTE: this only actually does something on the first call
@@ -198,13 +205,17 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         constraints +=[(constraint.extinction, kwargs.get('dataset', None))]
 
     if is_lc and not syn:
-        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
-        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), required_shape=[None], value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
-        params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
 
-        params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
+        params += [BoolParameter(qualifier='mask_enabled', value=kwargs.get('mask_enabled', True), description='Whether to apply the mask in mask_phases during plotting, calculate_residuals, calculate_chi2, calculate_lnlikelihood, and run_solver')]
+        params += [FloatArrayParameter(visible_if='mask_enabled:True', qualifier='mask_phases', component=kwargs.get('component_top', None), value=kwargs.get('mask_phases', []), default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be included.')]
+
+        params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  All options will properly account for masking from mask_times.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
+
+        params += [FloatArrayParameter(qualifier='sigmas', value=_empty_array(kwargs, 'sigmas'), required_shape=[None], default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
         params += [FloatParameter(qualifier='sigmas_lnf', visible_if='sigmas:<notempty>', value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
 
         params += [ChoiceParameter(qualifier='pblum_mode', value=kwargs.get('pblum_mode', 'component-coupled'),
@@ -256,10 +267,15 @@ def rv(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
-    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
-        when converting between `compute_phases` and `compute_times`.  Only
-        applicable if `syn` is False.  Not applicable for
+    * `phases_t0` (string, optional, default='t0_supconj'): t0 to use
+        when converting between `compute_phases` and `compute_times` as well as
+        when applying `mask_phases`.  Only applicable if `syn` is False.  Not applicable for
         single stars (in which case t0@system is always used).
+    * `mask_enabled` (bool, optional, default=True): whether to apply the mask
+        in mask_phases during plotting, calculate_residuals, calculate_chi2,
+        calculate_lnlikelihood, and run_solver
+    * `mask_phases` (list of tuples, optional, default=[]): List of phase-tuples.
+        Any observations inside the range set by any of the tuples will be included.
     * `ld_mode` (string, optional, default='interp'): mode to use for handling
         limb-darkening.  Note that 'interp' is not available for all values
         of `atm` (availability can be checked by calling
@@ -300,19 +316,23 @@ def rv(syn=False, as_ps=True, **kwargs):
 
     params, constraints = [], []
 
-    params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
-    params += [FloatArrayParameter(qualifier='rvs', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'rvs'), readonly=syn, default_unit=u.km/u.s, description='Model (synthetic) radial velocities' if syn else 'Observed radial velocity')]
+    params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), required_shape=[None], readonly=syn, default_unit=u.d, description='Model (synthetic) times' if syn else 'Observed times')]
+    params += [FloatArrayParameter(qualifier='rvs', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'rvs'), required_shape=[None] if not syn else None, readonly=syn, default_unit=u.km/u.s, description='Model (synthetic) radial velocities' if syn else 'Observed radial velocity')]
 
     if not syn:
-        params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
+        params += [FloatArrayParameter(qualifier='sigmas', visible_if='times:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'sigmas'), required_shape=None, default_unit=u.km/u.s, description='Observed uncertainty on rv')]
         params += [FloatParameter(qualifier='sigmas_lnf', visible_if='sigmas:<notempty>', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None,None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
 
         params += [FloatParameter(qualifier='rv_offset', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('rv_offset', 0.0), default_unit=u.km/u.s, description='Per-component offset to add to synthetic RVs (i.e. for hot stars)')]
 
-        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
-        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+
+        params += [BoolParameter(qualifier='mask_enabled', value=kwargs.get('mask_enabled', True), description='Whether to apply the mask in mask_phases during plotting, calculate_residuals, calculate_chi2, calculate_lnlikelihood, and run_solver')]
+        params += [FloatArrayParameter(visible_if='mask_enabled:True', qualifier='mask_phases', component=kwargs.get('component_top', None), value=kwargs.get('mask_phases', []), default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be included.')]
+
         params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
 
 
@@ -363,7 +383,7 @@ def lp(syn=False, as_ps=True, **kwargs):
         supported).  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
-    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+    * `phases_t0` (string, optional, default='t0_supconj'): t0 to use
         when converting between `compute_phases` and `compute_times`.  Only
         applicable if `syn` is False.  Not applicable for
         single stars (in which case t0@system is always used).
@@ -424,23 +444,28 @@ def lp(syn=False, as_ps=True, **kwargs):
 
 
     # wavelengths is time-independent
-    params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), readonly=syn, default_unit=u.nm, description='Wavelengths of the model (synthetic)' if syn else 'Wavelengths of the observations')]
+    params += [FloatArrayParameter(qualifier='wavelengths', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', value=_empty_array(kwargs, 'wavelengths'), required_shape=[None], readonly=syn, default_unit=u.nm, description='Wavelengths of the model (synthetic)' if syn else 'Wavelengths of the observations')]
 
     for time in times:
         # but do allow per-component flux_densities and sigmas
         params += [FloatArrayParameter(qualifier='flux_densities', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'},
-                                       component='_default', time=time, value=_empty_array(kwargs, 'flux_densities'), readonly=syn, default_unit=u.W/(u.m**2*u.nm),
+                                       component='_default', time=time, value=_empty_array(kwargs, 'flux_densities'),
+                                       required_shape=[None], readonly=syn, default_unit=u.W/(u.m**2*u.nm),
                                        description='Flux density per wavelength (must be same length as wavelengths or empty)')]
 
         if not syn:
-            params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
+            params += [FloatArrayParameter(qualifier='sigmas', visible_if='[time]wavelengths:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=_empty_array(kwargs, 'sigmas'), required_shape=[None], default_unit=u.W/(u.m**2*u.nm), description='Observed uncertainty on flux_densities')]
             params += [FloatParameter(qualifier='sigmas_lnf', visible_if='[time]sigmas:<notempty>', copy_for={'kind': ['star', 'orbit'], 'component': '*'}, component='_default', time=time, value=kwargs.get('sigmas_lnf', -np.inf), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Natural log of the fractional amount to sigmas are underestimate (when calculating chi2/lnlikelihood)')]
 
     if not syn:
-        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times of individual entries.  Note that interpolation is not currently supported for lp datasets.')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
-        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times of individual entries.  Note that interpolation is not currently supported for lp datasets.')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
+
+        # params += [BoolParameter(qualifier='mask_enabled', value=kwargs.get('mask_enabled', True), description='Whether to apply the mask in mask_phases during plotting, calculate_residuals, calculate_chi2, calculate_lnlikelihood, and run_solver')]
+        # params += [FloatArrayParameter(visible_if='mask_enabled:True', qualifier='mask_phases', component=kwargs.get('component_top', None), value=kwargs.get('mask_phases', []), default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be included.')]
+
         params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
 
         params += [ChoiceParameter(qualifier='profile_func', value=kwargs.get('profile_func', 'gaussian'), choices=['gaussian', 'lorentzian'], description='Function to use for the rest line profile')]
@@ -477,7 +502,7 @@ def orb(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
-    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+    * `phases_t0` (string, optional, default='t0_supconj'): t0 to use
         when converting between `compute_phases` and `compute_times`.  Only
         applicable if `syn` is False.  Not applicable for
         single stars (in which case t0@system is always used).
@@ -504,9 +529,9 @@ def orb(syn=False, as_ps=True, **kwargs):
         params += [FloatArrayParameter(qualifier='vws', value=_empty_array(kwargs, 'vws'), readonly=syn, default_unit=u.km/u.s, description='W velocity')]
 
     if not syn:
-        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
-        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
+        params += [FloatArrayParameter(qualifier='compute_times', value=kwargs.get('compute_times', []), required_shape=[None], default_unit=u.d, description='Times to use during run_compute.  If empty, will use times parameter')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
     return ParameterSet(params) if as_ps else params, constraints
@@ -537,7 +562,7 @@ def mesh(syn=False, as_ps=True, **kwargs):
         the model.  Only applicable if `syn` is False.
     * `compute_phases` (array/quantity, optional): phases at which to compute
         the model.  Only applicable if `syn` is False.
-    * `compute_phases_t0` (string, optional, default='t0_supconj'): t0 to use
+    * `phases_t0` (string, optional, default='t0_supconj'): t0 to use
         when converting between `compute_phases` and `compute_times`.  Only
         applicable if `syn` is False.  Not applicable for
         single stars (in which case t0@system is always used).
@@ -581,12 +606,12 @@ def mesh(syn=False, as_ps=True, **kwargs):
             compute_times = kwargs.get('compute_times', [])
 
 
-        params += [FloatArrayParameter(qualifier='compute_times', value=compute_times, default_unit=u.d, description='Times to use during run_compute.')]
-        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
-        params += [ChoiceParameter(qualifier='compute_phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases.')]
+        params += [FloatArrayParameter(qualifier='compute_times', value=compute_times, required_shape=[None], default_unit=u.d, description='Times to use during run_compute.')]
+        params += [FloatArrayParameter(qualifier='compute_phases', component=kwargs.get('component_top', None), value=kwargs.get('compute_phases', []), required_shape=[None], default_unit=u.dimensionless_unscaled, description='Phases associated with compute_times.')]
+        params += [ChoiceParameter(qualifier='phases_t0', visible_if='hierarchy.is_meshable:False', component=kwargs.get('component_top', None), value=kwargs.get('phases_t0', 't0_supconj'), choices=['t0_supconj', 't0_perpass', 't0_ref'], advanced=True, description='t0 to use when converting between compute_times and compute_phases as well as when applying mask_phases')]
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
-        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), advanced=False, description='append to compute_times from the following datasets/time standards', choices=['t0@system'])]
+        params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), required_shape=[None], advanced=False, description='append to compute_times from the following datasets/time standards', choices=['t0@system'])]
         params += [SelectParameter(qualifier='coordinates', value=kwargs.get('coordinates', ['xyz', 'uvw']), choices=['xyz', 'uvw'], advanced=True, description='coordinates to expose the mesh.  uvw (plane of sky) and/or xyz (roche)')]
         params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', []), description='columns to expose within the mesh', choices=_mesh_columns)]
 

@@ -10,7 +10,7 @@ from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete
 from phoebe.dependencies import nparray, distl
-from phoebe.utils import parse_json
+from phoebe.utils import parse_json, phase_mask_inds
 
 import sys
 import random
@@ -203,6 +203,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
 # from dataset:
 _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
                      'compute_times', 'compute_phases', 'compute_phases_t0',
+                     'phases_t0', 'mask_enabled', 'mask_phases',
                      'solver_times', 'expose_samples', 'expose_failed',
                      'ld_mode', 'ld_func', 'ld_coeffs', 'ld_coeffs_source',
                      'passband', 'intens_weighting',
@@ -2367,12 +2368,45 @@ class ParameterSet(object):
             of the results is exactly 1 and `force_ps=False`, otherwise the
             resulting <phoebe.parameters.ParameterSet>.
         """
+        def _return(params, force_ps, method=None):
+            if len(params) == 1 and not force_ps:
+                # then just return the parameter itself
+                if method is None:
+                    return params[0]
+                else:
+                    return getattr(params[0], method)()
+
+            elif method is not None:
+                raise ValueError("{} results found, could not call {}".format(len(params), method))
+
+            # TODO: handle returning 0 results better
+
+            ps = ParameterSet(params)
+            ps._bundle = self._bundle
+            ps._filter = self._filter.copy()
+            for k, v in kwargs.items():
+                if k in _meta_fields_filter:
+                    ps._filter[k] = v
+            if twig is not None and not isinstance(twig, list):
+                # try to guess necessary additions to filter
+                twigsplit = twig.split('@')
+                for attr in _meta_fields_twig:
+                    tag = getattr(ps, attr)
+                    if tag in twigsplit:
+                        ps._filter[attr] = tag
+            return ps
 
         if self._bundle is None:
             # then override check_default to False - its annoying when building
             # a ParameterSet say by calling datasets.lc() and having half
             # of the Parameters hidden by this switch
             check_default = False
+
+        if isinstance(twig, list):
+            params = []
+            for t in twig:
+                params += self.filter(twig=t, check_visible=check_visible, check_default=check_default, check_advanced=check_advanced, check_single=check_single, **kwargs).to_list()
+            return _return(params, force_ps)
 
         if not (twig is None or isinstance(twig, str) or isinstance(twig, unicode)):
             raise TypeError("first argument (twig) must be of type str or None, got {}".format(type(twig)))
@@ -2536,32 +2570,7 @@ class ParameterSet(object):
                                 options.append(completed_twig)
                 return options
 
-        if len(params) == 1 and not force_ps:
-            # then just return the parameter itself
-            if method is None:
-                return params[0]
-            else:
-                return getattr(params[0], method)()
-
-        elif method is not None:
-            raise ValueError("{} results found, could not call {}".format(len(params), method))
-
-        # TODO: handle returning 0 results better
-
-        ps = ParameterSet(params)
-        ps._bundle = self._bundle
-        ps._filter = self._filter.copy()
-        for k, v in kwargs.items():
-            if k in _meta_fields_filter:
-                ps._filter[k] = v
-        if twig is not None:
-            # try to guess necessary additions to filter
-            # twigsplit = twig.split('@')
-            for attr in _meta_fields_twig:
-                tag = getattr(ps, attr)
-                if tag in twigsplit:
-                    ps._filter[attr] = tag
-        return ps
+        return _return(params, force_ps, method)
 
     def exclude(self, twig=None, check_visible=True, check_default=True, **kwargs):
         """
@@ -3283,7 +3292,8 @@ class ParameterSet(object):
         return self.get_parameter(twig=twig, **kwargs).get_description()
 
     def calculate_residuals(self, model=None, dataset=None, component=None,
-                            as_quantity=True, return_interp_model=False):
+                            as_quantity=True, return_interp_model=False,
+                            mask_enabled=None, mask_phases=None):
         """
         Compute residuals between the observed values in a dataset and the
         corresponding model.
@@ -3314,6 +3324,12 @@ class ParameterSet(object):
         * `as_quantity` (bool, default=True): whether to return a quantity object.
         * `return_interp_model` (bool, default=False): whether to also return
             the interpolated model used to compute the residuals.
+        * `mask_enabled` (bool, optional, default=None): whether to enable
+            masking on the dataset(s).  If None or not provided, will default to
+            the values set in the dataset(s).
+        * `mask_phases` (list of tuples, optional, default=None): phase masks
+            to apply if `mask_enabled = True`.  If None or not provided, will
+            default to the values set in the dataset(s).
 
 
         Returns
@@ -3358,7 +3374,19 @@ class ParameterSet(object):
         times = dataset_ps.get_value(qualifier='times', component=component, **_skip_filter_checks)
         if not len(times):
             raise ValueError("no times in the dataset: {}@{}".format(dataset, component))
-        if not len(dataset_param.get_value()) == len(times):
+
+        mask_enabled = dataset_ps.get_value(qualifier='mask_enabled', default=False, mask_enabled=mask_enabled, **_skip_filter_checks)
+        if mask_enabled:
+            mask_phases = dataset_ps.get_value(qualifier='mask_phases', mask_phases=mask_phases, **_skip_filter_checks)
+            mask_t0 = dataset_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+            if len(mask_phases):
+                phases = self._bundle.to_phase(times, t0=mask_t0)
+
+                inds = phase_mask_inds(phases, mask_phases)
+
+                times = times[inds]
+
+        elif not len(dataset_param.get_value()) == len(times):
             if len(dataset_param.get_value())==0:
                 # then the dataset was empty, so let's just return an empty array
                 if as_quantity:
@@ -3781,6 +3809,23 @@ class ParameterSet(object):
                 return '{} [{}]'.format(_corner_twig(param), param.default_unit)
             return _corner_twig(param)
 
+        def _handle_mask(ps, array, **kwargs):
+            mask_enabled = ps.get_value(qualifier='mask_enabled', mask_enabled=kwargs.get('mask_enabled', None), default=False, **_skip_filter_checks)
+            if not mask_enabled:
+                return array
+
+            mask_phases = ps.get_value(qualifier='mask_phases', mask_phases=kwargs.get('mask_phases', None), **_skip_filter_checks)
+            if not len(mask_phases):
+                return array
+
+            mask_t0 = ps.get_value(qualifier='phases_t0', phases_t0=kwargs.get('phases_t0', None), **_skip_filter_checks)
+
+            times = ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
+            phases = ps._bundle.to_phase(times, t0=mask_t0)
+
+            return array[phase_mask_inds(phases, mask_phases)]
+
+
         def _kwargs_fill_dimension(kwargs, direction, ps):
             # kwargs[direction] is currently one of the following:
             # * twig/qualifier
@@ -3848,7 +3893,9 @@ class ParameterSet(object):
 
                     elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
-                        array_value = ps._bundle.get_quantity(qualifier='times', dataset=ps.dataset, component=ps.component, context='dataset')
+                        ds_ps = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
+                        array_value = _handle_mask(ds_ps, ps_ds.get_quantity(qualifier='times', component=ps.component, **_skip_filter_checks), **kwargs)
+
                     else:
                         if '@' in current_value:
                             # then we need to remove the dataset from the filter
@@ -3866,8 +3913,7 @@ class ParameterSet(object):
                         else:
                             raise ValueError("could not find Parameter for {} in {}".format(current_value, psf.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])))
 
-                        # if len(array_value.shape) > 1:
-                        #     print("*** DETECTED SAMPLE FROM", kwargs)
+                        array_value = _handle_mask(psf, array_value, **kwargs)
 
                     kwargs[direction] = array_value
 
@@ -3878,10 +3924,10 @@ class ParameterSet(object):
                         if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
                             kwargs[errorkey] = errors
                         elif isinstance(errors, str):
-                            errors = ps.get_quantity(kwargs.get(errorkey), check_visible=False)
+                            errors = _handle_mask(ps, ps.get_quantity(kwargs.get(errorkey), check_visible=False), **kwargs)
                             kwargs[errorkey] = errors
                         else:
-                            sigmas = ps.get_quantity(qualifier='sigmas')
+                            sigmas = _handle_mask(ps, ps.get_quantity(qualifier='sigmas', **_skip_filter_checks), **kwargs)
                             if len(sigmas):
                                 kwargs.setdefault(errorkey, sigmas)
 
@@ -3923,11 +3969,15 @@ class ParameterSet(object):
 
                     if 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
-                        times = ps._bundle.get_value(qualifier='times', dataset=ps.dataset, component=ps.component, context='dataset')
+                        ds_ps = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
+                        times = ds_ps.get_value(qualifier='times', component=ps.component, **_skip_filter_checks)
+                        times = _handle_mask(ds_ps, times, **kwargs)
                     elif ps.kind == 'etvs':
                         times = ps.get_value(qualifier='time_ecls', unit=u.d)
+                        times = _handle_mask(ps, times, **kwargs)
                     else:
                         times = ps.get_value(qualifier='times', unit=u.d)
+                        times = _handle_mask(ps, times, **kwargs)
 
                     kwargs[direction] = self._bundle.to_phase(times, component=component_phase, t0=kwargs.get('t0', 't0_supconj')) * u.dimensionless_unscaled
 
@@ -3969,7 +4019,14 @@ class ParameterSet(object):
                         kwargs['additional_calls'] = {'y': 'residuals_spread', 'ps': ps}
 
                     # we're currently within the MODEL context
-                    kwargs[direction] = ps.calculate_residuals(model=ps.model, dataset=ps.dataset, component=ps.component, as_quantity=True)
+                    # NOTE: calculate_residuals will already handle masking
+                    kwargs[direction] = ps.calculate_residuals(model=ps.model,
+                                                               dataset=ps.dataset,
+                                                               component=ps.component,
+                                                               as_quantity=True,
+                                                               mask_enabled=kwargs.get('mask_enabled', None),
+                                                               mask_phases=kwargs.get('mask_phases', None))
+
                     kwargs.setdefault('{}label'.format(direction), '{} residuals'.format({'lc': 'flux', 'rv': 'rv'}.get(ps.kind, '')))
                     kwargs['{}qualifier'.format(direction)] = current_value
                     kwargs.setdefault('linestyle', 'none')
@@ -3981,10 +4038,13 @@ class ParameterSet(object):
                     if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
                         kwargs[errorkey] = errors
                     elif isinstance(errors, str):
-                        errors = self._bundle.get_quantity(qualifier=kwargs.get(errorkey), dataset=ps.dataset, context='dataset', check_visible=False)
-                        kwargs[errorkey] = errors
+                        ds_ps = self._bundle.get_dataset(ps.dataset, **_skip_filter_checks)
+                        errors = ds_ps.get_quantity(qualifier=kwargs.get(errorkey), context='dataset', check_visible=False)
+                        kwargs[errorkey] = _handle_mask(ds_ps, errors, **kwargs)
                     else:
-                        sigmas = self._bundle.get_quantity(qualifier='sigmas', dataset=ps.dataset, component=ps.component, context='dataset', check_visible=False)
+                        ds_ps = self._bundle.get_dataset(ps.dataset, **_skip_filter_checks)
+                        sigmas = ds_ps.get_quantity(qualifier='sigmas', component=ps.component, context='dataset', check_visible=False)
+                        sigmas = _handle_mask(ds_ps, sigmas, **kwargs)
                         if len(sigmas):
                             kwargs.setdefault(errorkey, sigmas)
 
@@ -4401,7 +4461,9 @@ class ParameterSet(object):
                     fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
-                    fitted_ps = self._bundle.filter(uniqueid=fitted_uniqueids, **_skip_filter_checks)
+                    fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
+                    if len(fitted_ps.twigs) != len(fitted_twigs):
+                        fitted_ps = self._bundle.filter(twig=list(fitted_twigs), **_skip_filter_checks).exclude(context=['solution', 'distribution', 'model', 'compute', 'solver'], **_skip_filter_checks)
 
                     samples = self._bundle.get_value(qualifier='samples', context='solution', solution=ps.solution, **_skip_filter_checks)
                     samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
@@ -4409,16 +4471,14 @@ class ParameterSet(object):
                     ys = kwargs.get('y', adopt_parameters)
                     if isinstance(ys, str):
                         ys = [ys]
+                    yparams = fitted_ps.filter(twig=ys, **_skip_filter_checks)
 
-                    for y in ys:
+                    for yparam in yparams.to_list():
                         try:
-                            param = fitted_ps.get_parameter(twig=y, **_skip_filter_checks)
-                            parameter_ind = list(fitted_uniqueids[adopt_inds]).index(param.uniqueid)
+                            parameter_ind = list(fitted_uniqueids[adopt_inds]).index(yparam.uniqueid)
 
                         except:
-                            param = self._bundle.get_parameter(twig=y, **_skip_filter_checks)
-                            # NOTE: the following may fail if not a full twig
-                            parameter_ind = list(fitted_twigs[adopt_inds]).index(y)
+                            parameter_ind = list(fitted_twigs[adopt_inds]).index(yparam.twig)
 
                         for walker_ind in range(samples.shape[1]):
                             kwargs = _deepcopy(kwargs)
@@ -4429,7 +4489,7 @@ class ParameterSet(object):
                             kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
 
                             kwargs['y'] = samples_y
-                            kwargs['ylabel'] = _corner_twig(param)
+                            kwargs['ylabel'] = _corner_twig(yparam)
                             # TODO: use fitted_units instead?
                             kwargs['yunit'] = fitted_units[parameter_ind]
                             return_ += [kwargs]
@@ -4518,12 +4578,13 @@ class ParameterSet(object):
                     raise NotImplementedError
             else:
                 if iqualifier=='times':
-                    kwargs['i'] = ps.get_quantity(qualifier='times')
+                    kwargs['i'] = _handle_mask(ps, ps.get_quantity(qualifier='times'), **kwargs)
                     kwargs['iqualifier'] = 'times'
                 elif iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
-                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='times'), component=icomponent)
+                    times = _handle_mask(ps, ps.get_quantity(qualifier='times'), **kwargs)
+                    kwargs['i'] = self._bundle.to_phase(times, component=icomponent)
                     kwargs['iqualifier'] = iqualifier
                 else:
                     raise NotImplementedError
@@ -5671,6 +5732,8 @@ class Parameter(object):
                 return v
             elif k=='limits':
                 return [vi.value if hasattr(vi, 'value') else vi for vi in v]
+            elif k=='required_shape':
+                return v.tolist() if v is not None else None
             elif v is None:
                 return v
             elif isinstance(v, str):
@@ -8516,7 +8579,7 @@ class FloatParameter(Parameter):
         for full details.
         """
         default = super(FloatParameter, self).get_value(**kwargs)
-        if default is not None: return default
+        if default is not None: return self._check_type(default)
         quantity = self.get_quantity(unit=unit, t=t,
                                      **kwargs)
         if hasattr(quantity, 'value'):
@@ -8557,9 +8620,10 @@ class FloatParameter(Parameter):
         """
         default = super(FloatParameter, self).get_value(**kwargs) # <- note this is calling get_value on the Parameter object
         if default is not None:
-            value = default
+            value = self._check_type(default)
             if isinstance(default, u.Quantity):
                 return value
+            return value * self.default_unit
         else:
             value = self._value
 
@@ -8813,11 +8877,16 @@ class FloatArrayParameter(FloatParameter):
         Additional arguments
         ---------------------
         """
+        required_shape = kwargs.pop('required_shape', None)
+        if isinstance(required_shape, int):
+            required_shape = [required_shape]
+        self._required_shape = np.asarray(required_shape) if required_shape is not None else None
+
         super(FloatArrayParameter, self).__init__(*args, **kwargs)
 
         # NOTE: default_unit and value handled in FloatParameter.__init__()
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'readonly', 'advanced']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'required_shape', 'copy_for', 'readonly', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -8843,6 +8912,10 @@ class FloatArrayParameter(FloatParameter):
         str_ = super(FloatArrayParameter, self).__str__()
         np.set_printoptions(**opt)
         return str_
+
+    @property
+    def required_shape(self):
+        return self._required_shape
 
     def to_string_short(self):
         """
@@ -9173,6 +9246,16 @@ class FloatArrayParameter(FloatParameter):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise TypeError("value '{}' ({}) could not be cast to array".format(value, type(value)))
 
+        if len(value) and self.required_shape is not None:
+            if len(value.shape) != len(self.required_shape):
+                raise TypeError("value must have {} dimensions (value.shape={}, required_shape={})".format(len(self.required_shape), value.shape, self.required_shape))
+
+            for i, ilength in enumerate(self.required_shape):
+                if ilength == 0 or ilength is None:
+                    continue
+                if value.shape[i] != ilength:
+                    raise TypeError("dimension {} must have length {} (value.shape={}, required_shape={})".format(i, ilength, value.shape, self.required_shape))
+
         return value
 
     def set_property(self, **kwargs):
@@ -9198,6 +9281,7 @@ class FloatArrayParameter(FloatParameter):
 
         for property, value in kwargs.items():
             setattr(self._value, property, value)
+
 
 class ArrayParameter(Parameter):
     def __init__(self, *args, **kwargs):
@@ -9284,6 +9368,7 @@ class ArrayParameter(Parameter):
 
         if self.context not in ['setting', 'history']:
             self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+
 
 class HierarchyParameter(StringParameter):
     def __init__(self, value, **kwargs):

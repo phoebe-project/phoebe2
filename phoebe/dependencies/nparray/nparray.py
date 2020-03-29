@@ -391,6 +391,10 @@ class ArrayWrapper(object):
     def __len__(self):
         return len(self.array)
 
+    @property
+    def shape(self):
+        return self.array.shape
+
     def __comparison__(self, operator, other):
         """
         determine comparisons based on the underyling arrays

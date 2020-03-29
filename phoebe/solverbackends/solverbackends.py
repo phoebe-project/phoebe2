@@ -13,6 +13,7 @@ import phoebe.frontend.bundle
 from phoebe import u, c
 from phoebe import conf, mpi
 from phoebe.backend.backends import _simplify_error_message
+from phoebe.utils import phase_mask_inds
 
 from distutils.version import LooseVersion, StrictVersion
 from copy import deepcopy
@@ -65,22 +66,63 @@ def _bsolver(b, solver, compute, distributions):
     # handle solver_times
     for param in bexcl.filter(qualifier='solver_times', **_skip_filter_checks).to_list():
         solver_times = param.get_value()
-        if solver_times == 'times':
-            logger.debug("solver_times=times: resetting compute_times in copied bundle")
-            bexcl.set_value_all(qualifier='compute_times', dataset=param.dataset, context='dataset', value=[], **_skip_filter_checks)
-        elif solver_times == 'auto':
+        ds_ps = bexcl.get_dataset(dataset=param.dataset, **_skip_filter_checks)
+        mask_enabled = ds_ps.get_value(qualifier='mask_enabled', default=False)
+        if mask_enabled:
+            mask_phases = ds_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
+            mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+        else:
+            mask_phases = None
+            mask_t0 = None
+
+        new_compute_times = None
+
+        if solver_times == 'auto':
             compute_times = bexcl.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
+            compute_phases = bexcl.to_phases(compute_times, t0=mask_t0)
+            masked_compute_times = compute_times[phase_mask_inds(compute_phases, mask_phases)]
+
             times = np.unique(np.concatenate([time_param.get_value() for time_param in bexcl.filter(qualifier='times', dataset=param.dataset, **_skip_filter_checks).to_list()]))
-            if len(times) < len(compute_times):
+            phases = bexcl.to_phases(times, t0=mask_t0)
+            masked_times = times[phase_mask_inds(phases, mask_phases)]
+
+            if len(masked_times) < len(masked_compute_times):
                 logger.debug("solver_times=auto: using times instead of compute_times")
-                bexcl.set_value_all(qualifier='compute_times', dataset=param.dataset, context='dataset', value=[], **_skip_filter_checks)
+                if mask_enabled and len(mask_phases):
+                    new_compute_times = masked_times
+                else:
+                    new_compute_times = []
             else:
                 logger.debug("solver_times=auto: using compute_times")
+                if mask_enabled and len(mask_phases):
+                    new_compute_times = masked_compute_times
+                else:
+                    new_compute_times = None  # leave at user-set compute_times
+
+
+        elif solver_times == 'times':
+            logger.debug("solver_times=times: resetting compute_times in copied bundle")
+            if mask_enabled and len(mask_phases):
+                times = np.unique(np.concatenate([time_param.get_value() for time_param in bexcl.filter(qualifier='times', dataset=param.dataset, **_skip_filter_checks).to_list()]))
+                phases = bexcl.to_phases(times, t0=mask_t0)
+                new_compute_times = times[phase_mask_inds(phases, mask_phases)]
+            else:
+                new_compute_times = []
+
         elif solver_times == 'compute_times':
             logger.debug("solver_times=compute_times")
-            pass
+            if mask_enabled and len(mask_phases):
+                compute_times = bexcl.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
+                compute_phases = bexcl.to_phases(compute_times, t0=mask_t0)
+                new_compute_times = compute_times[phase_mask_inds(compute_phases, mask_phases)]
+
+            else:
+                new_compute_times = None  # leave at user-set compute_times
         else:
             raise NotImplementedError("solver_times='{}' not implemented".format(solver_times))
+
+        if new_compute_times is not None:
+            ds_ps.set_value_all(qualifier='compute_times', value=new_compute_times, **_skip_filter_checks)
 
     return bexcl
 
@@ -350,15 +392,29 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
 
 
         lc_ps = b.get_dataset(dataset=lc, **_skip_filter_checks)
-        times = lc_ps.get_value(qualifier='times', unit='d')
+        times = lc_ps.get_value(qualifier='times', unit='d', **_skip_filter_checks)
         phases = b.to_phase(times, component=orbit, t0='t0_supconj')
-        fluxes = lc_ps.get_value(qualifier='fluxes')
-        sigmas = lc_ps.get_value(qualifier='sigmas')
+        fluxes = lc_ps.get_value(qualifier='fluxes', **_skip_filter_checks)
+        sigmas = lc_ps.get_value(qualifier='sigmas', **_skip_filter_checks)
         if len(sigmas) == 0:
             sigmas = 0.001*fluxes.mean()*np.ones(len(fluxes))
 
         if not len(times) or len(times) != len(fluxes):
             raise ValueError("times and fluxes must exist and be filled in the '{}' dataset".format(lc))
+
+        mask_enabled = lc_ps.get_value(qualifier='mask_enabled', default=False, **_skip_filter_checks)
+        if mask_enabled:
+            mask_phases = lc_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
+            if len(mask_phases):
+                logger.warning("applying mask_phases (may not be desired for finding eclipse edges - set mask_enabled=False to disable)")
+                mask_t0 = lc_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+                phases_for_mask = b.to_phase(times, component=orbit, t0=mask_t0)
+
+                inds = phase_mask_inds(phases_for_mask, mask_phases)
+
+                phases = phases[inds]
+                fluxes = fluxes[inds]
+                sigmas = sigmas[inds]
 
         s = phases.argsort()
         phases = phases[s]
@@ -369,6 +425,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         ecc_param = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
         per0_param = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
         t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
+        mask_phases_param = lc_ps.get_parameter(qualifier='mask_phases', **_skip_filter_checks)
 
         period = orbit_ps.get_value(qualifier='period', **_skip_filter_checks)
         t0_supconj_old = orbit_ps.get_value(qualifier='t0_supconj', **_skip_filter_checks)
@@ -395,12 +452,15 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         diagnose = kwargs.get('diagnose', False)
         eclipse_dict = lc_eclipse_geometry.compute_eclipse_params(phases, fluxes, sigmas, diagnose=diagnose)
 
+        edges = eclipse_dict.get('eclipse_edges')
+        mask_phases = [(edges[0], edges[1]), (edges[2], edges[3])]
+
         # TODO: update to use widths as well (or alternate based on ecc?)
         ecc, per0 = lc_eclipse_geometry.ecc_w_from_geometry(eclipse_dict.get('secondary_position') - eclipse_dict.get('primary_position'), eclipse_dict.get('primary_width'), eclipse_dict.get('secondary_width'))
 
         # TODO: correct t0_supconj?
 
-        params_twigs = [t0_supconj_param.twig, ecc_param.twig, per0_param.twig]
+        params_twigs = [t0_supconj_param.twig, ecc_param.twig, per0_param.twig, mask_phases_param.twig]
 
         return [[{'qualifier': 'primary_width', 'value': eclipse_dict.get('primary_width')},
                  {'qualifier': 'secondary_width', 'value': eclipse_dict.get('secondary_width')},
@@ -410,11 +470,11 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
                  {'qualifier': 'secondary_depth', 'value': eclipse_dict.get('secondary_depth')},
                  {'qualifier': 'eclipse_edges', 'value': eclipse_dict.get('eclipse_edges')},
                  {'qualifier': 'lc', 'value': lc},
-                 {'qualifier': 'fitted_uniqueids', 'value': [t0_supconj_param.uniqueid, ecc_param.uniqueid, per0_param.uniqueid]},
+                 {'qualifier': 'fitted_uniqueids', 'value': [t0_supconj_param.uniqueid, ecc_param.uniqueid, per0_param.uniqueid, mask_phases_param.uniqueid]},
                  {'qualifier': 'fitted_twigs', 'value': params_twigs},
-                 {'qualifier': 'fitted_values', 'value': [t0_supconj_new, ecc, per0]},
-                 {'qualifier': 'fitted_units', 'value': [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]},
-                 {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
+                 {'qualifier': 'fitted_values', 'value': [t0_supconj_new, ecc, per0, mask_phases]},
+                 {'qualifier': 'fitted_units', 'value': [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string(), u.dimensionless_unscaled.to_string()]},
+                 {'qualifier': 'adopt_parameters', 'value': params_twigs[:-1], 'choices': params_twigs},
                 ]]
 
 

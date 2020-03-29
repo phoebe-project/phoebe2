@@ -219,6 +219,7 @@ def star(component, **kwargs):
     params += [FloatArrayParameter(visible_if='ld_mode_bol:manual', qualifier='ld_coeffs_bol',
                                    value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]),
                                    default_unit=u.dimensionless_unscaled,
+                                   required_shape=[None],
                                    description='Bolometric limb darkening coefficients (used only for irradiation).')]
 
     params += [FloatParameter(qualifier='mass', value=kwargs.get('mass', 1.0), default_unit=u.solMass, description='Mass')]
