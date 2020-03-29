@@ -4948,6 +4948,7 @@ class ParameterSet(object):
                 raise ImportError("autofig not imported, cannot plot")
 
         # since we used the args trick above, all other options have to be in kwargs
+        fig = kwargs.pop('fig', None)
         save = kwargs.pop('save', False)
         show = kwargs.pop('show', False)
         tight_layout = kwargs.pop('tight_layout', False)
@@ -5117,6 +5118,7 @@ class ParameterSet(object):
             # NOTE: time, times, will all be included in kwargs
             try:
                 return self._show_or_save(save, show, animate,
+                                          fig=fig,
                                           draw_sidebars=draw_sidebars,
                                           draw_title=draw_title,
                                           tight_layout=tight_layout,
@@ -5140,6 +5142,7 @@ class ParameterSet(object):
             return afig, fig
 
     def _show_or_save(self, save, show, animate,
+                      fig=None,
                       draw_sidebars=True,
                       draw_title=True,
                       tight_layout=False,
@@ -5190,6 +5193,7 @@ class ParameterSet(object):
                                          subplot_grid=subplot_grid,
                                          animate_callback=animate_callback,
                                          interval=interval,
+                                         fig=fig,
                                          save=save,
                                          show=show,
                                          save_kwargs=save_kwargs)
@@ -5236,6 +5240,7 @@ class ParameterSet(object):
                             draw_title=draw_title,
                             tight_layout=tight_layout,
                             subplot_grid=subplot_grid,
+                            fig=fig,
                             save=save, show=show)
 
             # clear the figure so next call will start over and future shows will work
