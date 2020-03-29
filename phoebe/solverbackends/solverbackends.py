@@ -73,7 +73,7 @@ def _bsolver(b, solver, compute, distributions):
             mask_t0 = ds_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
         else:
             mask_phases = None
-            mask_t0 = None
+            mask_t0 = 't0_supconj'
 
         new_compute_times = None
 
