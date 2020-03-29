@@ -198,7 +198,9 @@ def phase_mask_inds(phases, mask_phases):
         return np.isfinite(phases)
 
     masks = [_individual_mask(phases, m) for m in mask_phases]
-    if len(masks) == 1:
+    if len(masks) == 0:
+        inds = np.isfinite(phases)
+    elif len(masks) == 1:
         inds = masks[0]
     else:
         inds = np.logical_or(*masks)
