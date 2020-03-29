@@ -2350,12 +2350,45 @@ class ParameterSet(object):
             of the results is exactly 1 and `force_ps=False`, otherwise the
             resulting <phoebe.parameters.ParameterSet>.
         """
+        def _return(params, force_ps, method=None):
+            if len(params) == 1 and not force_ps:
+                # then just return the parameter itself
+                if method is None:
+                    return params[0]
+                else:
+                    return getattr(params[0], method)()
+
+            elif method is not None:
+                raise ValueError("{} results found, could not call {}".format(len(params), method))
+
+            # TODO: handle returning 0 results better
+
+            ps = ParameterSet(params)
+            ps._bundle = self._bundle
+            ps._filter = self._filter.copy()
+            for k, v in kwargs.items():
+                if k in _meta_fields_filter:
+                    ps._filter[k] = v
+            if twig is not None and not isinstance(twig, list):
+                # try to guess necessary additions to filter
+                twigsplit = twig.split('@')
+                for attr in _meta_fields_twig:
+                    tag = getattr(ps, attr)
+                    if tag in twigsplit:
+                        ps._filter[attr] = tag
+            return ps
 
         if self._bundle is None:
             # then override check_default to False - its annoying when building
             # a ParameterSet say by calling datasets.lc() and having half
             # of the Parameters hidden by this switch
             check_default = False
+
+        if isinstance(twig, list):
+            params = []
+            for t in twig:
+                params += self.filter(twig=t, check_visible=check_visible, check_default=check_default, check_advanced=check_advanced, check_single=check_single, **kwargs).to_list()
+            return _return(params, force_ps)
 
         if not (twig is None or isinstance(twig, str) or isinstance(twig, unicode)):
             raise TypeError("first argument (twig) must be of type str or None, got {}".format(type(twig)))
@@ -2519,32 +2552,7 @@ class ParameterSet(object):
                                 options.append(completed_twig)
                 return options
 
-        if len(params) == 1 and not force_ps:
-            # then just return the parameter itself
-            if method is None:
-                return params[0]
-            else:
-                return getattr(params[0], method)()
-
-        elif method is not None:
-            raise ValueError("{} results found, could not call {}".format(len(params), method))
-
-        # TODO: handle returning 0 results better
-
-        ps = ParameterSet(params)
-        ps._bundle = self._bundle
-        ps._filter = self._filter.copy()
-        for k, v in kwargs.items():
-            if k in _meta_fields_filter:
-                ps._filter[k] = v
-        if twig is not None:
-            # try to guess necessary additions to filter
-            # twigsplit = twig.split('@')
-            for attr in _meta_fields_twig:
-                tag = getattr(ps, attr)
-                if tag in twigsplit:
-                    ps._filter[attr] = tag
-        return ps
+        return _return(params, force_ps, method)
 
     def exclude(self, twig=None, check_visible=True, check_default=True, **kwargs):
         """
@@ -4435,7 +4443,9 @@ class ParameterSet(object):
                     fitted_uniqueids = self._bundle.get_value(qualifier='fitted_uniqueids', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_twigs = self._bundle.get_value(qualifier='fitted_twigs', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
-                    fitted_ps = self._bundle.filter(uniqueid=fitted_uniqueids, **_skip_filter_checks)
+                    fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
+                    if len(fitted_ps.twigs) != len(fitted_twigs):
+                        fitted_ps = self._bundle.filter(twig=list(fitted_twigs), **_skip_filter_checks).exclude(context=['solution', 'distribution', 'model', 'compute', 'solver'], **_skip_filter_checks)
 
                     samples = self._bundle.get_value(qualifier='samples', context='solution', solution=ps.solution, **_skip_filter_checks)
                     samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
@@ -4443,16 +4453,14 @@ class ParameterSet(object):
                     ys = kwargs.get('y', adopt_parameters)
                     if isinstance(ys, str):
                         ys = [ys]
+                    yparams = fitted_ps.filter(twig=ys, **_skip_filter_checks)
 
-                    for y in ys:
+                    for yparam in yparams.to_list():
                         try:
-                            param = fitted_ps.get_parameter(twig=y, **_skip_filter_checks)
-                            parameter_ind = list(fitted_uniqueids[adopt_inds]).index(param.uniqueid)
+                            parameter_ind = list(fitted_uniqueids[adopt_inds]).index(yparam.uniqueid)
 
                         except:
-                            param = self._bundle.get_parameter(twig=y, **_skip_filter_checks)
-                            # NOTE: the following may fail if not a full twig
-                            parameter_ind = list(fitted_twigs[adopt_inds]).index(y)
+                            parameter_ind = list(fitted_twigs[adopt_inds]).index(yparam.twig)
 
                         for walker_ind in range(samples.shape[1]):
                             kwargs = _deepcopy(kwargs)
@@ -4463,7 +4471,7 @@ class ParameterSet(object):
                             kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
 
                             kwargs['y'] = samples_y
-                            kwargs['ylabel'] = _corner_twig(param)
+                            kwargs['ylabel'] = _corner_twig(yparam)
                             # TODO: use fitted_units instead?
                             kwargs['yunit'] = fitted_units[parameter_ind]
                             return_ += [kwargs]
