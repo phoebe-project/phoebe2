@@ -3014,7 +3014,7 @@ class Bundle(ParameterSet):
             missing_pb_content = []
 
             # NOTE: atms are not attached to datasets, but per-compute and per-component
-            for atmparam in self.filter(qualifier='atm', kind='phoebe', **_skip_filter_checks).to_list():
+            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list():
 
                 # check to make sure passband supports the selected atm
                 atm = atmparam.get_value(**_skip_filter_checks)
