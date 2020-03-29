@@ -3814,11 +3814,15 @@ class ParameterSet(object):
             if not mask_enabled:
                 return array
 
-            mask_phases = ps.get_value(qualifier='mask_phases', mask_phases=kwargs.get('mask_phases', None), **_skip_filter_checks)
+            # mask_phases and phases_t0 was excluded from the filter to avoid
+            # looping over the components they're attached to, so we'll need
+            # to re-filter for the entire dataset first
+            ps_ds = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
+            mask_phases = ps_ds.get_value(qualifier='mask_phases', mask_phases=kwargs.get('mask_phases', None), **_skip_filter_checks)
             if not len(mask_phases):
                 return array
 
-            mask_t0 = ps.get_value(qualifier='phases_t0', phases_t0=kwargs.get('phases_t0', None), **_skip_filter_checks)
+            mask_t0 = ps_ds.get_value(qualifier='phases_t0', phases_t0=kwargs.get('phases_t0', None), **_skip_filter_checks)
 
             times = ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
             phases = ps._bundle.to_phase(times, t0=mask_t0)
