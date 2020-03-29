@@ -346,6 +346,8 @@ class Figure(object):
         show = kwargs.pop('show', False)
         save = kwargs.pop('save', False)
 
+        self._adjust_size = False if 'fig' in kwargs.keys() else True
+
         call = _call.Plot(*args, **kwargs)
         self.add_call(call)
 
@@ -604,6 +606,11 @@ class Figure(object):
                        show=False, save=False, in_animation=in_animation)
 
             self._backend_artists += axesi._get_backend_artists()
+
+        if self._adjust_size:
+            rows, cols = _axes.Axes.determine_grid(len(fig.axes))
+            fig.set_figwidth(8*cols)
+            fig.set_figheight(6*rows)
 
         # must call tight_layout BEFORE adding any sidebars
         if tight_layout:

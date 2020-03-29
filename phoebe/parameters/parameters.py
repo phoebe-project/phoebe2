@@ -83,6 +83,24 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
         _use_autofig = False
     else:
         _use_autofig = True
+        # add the PHOEBE palette to autofig.cyclers
+        black = (19./255, 19./255, 19./255) #131313
+        blue = (43./255, 114./255, 177./255) #2B72B1
+        orange = (255./255, 112./255, 47./255) #FF702F
+        yellow = (255./255, 205./255, 47./255) #FFCD2F
+        green = (34./255,183./255,127./255) #22B77F
+        fuchsia = (237./255,49./255,112./255) #ED3170
+        _phoebecolors = [black, blue, orange, green, yellow, fuchsia]
+        ofr=6
+        for i in [5,3,1,2,4]:
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([0,i/ofr,i/ofr]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([i/ofr,0,i/ofr]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([i/ofr,i/ofr,0]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([0,i/ofr,0]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([0,0,i/ofr]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([i/ofr,0,0]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+            _phoebecolors += [tuple((np.array(basecolor)+np.array([i/ofr,i/ofr,i/ofr]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
+        autofig.cyclers._mplcolors = _phoebecolors + autofig.cyclers._mplcolors
 
     try:
         import corner

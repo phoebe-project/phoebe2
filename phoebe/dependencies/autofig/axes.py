@@ -943,6 +943,14 @@ class Axes(object):
                     # remove from the call.kwargs so it isn't passed on to MPL
                     del call.kwargs[original_k]
 
+
+    @staticmethod
+    def determine_grid(N):
+        cols = np.floor(np.sqrt(N))
+        rows = np.ceil(float(N)/cols) if cols > 0 else 1
+        return int(rows), int(cols)
+
+
     def append_subplot(self, fig=None, subplot_grid=None):
         """
         Append this <autofig.axes.Axes> as a subplot to a matplotlib figure.
@@ -967,10 +975,6 @@ class Axes(object):
         * ValueError: if `subplot_grid` is a tuple, but not of 2 integers
 
         """
-        def determine_grid(N):
-            cols = np.floor(np.sqrt(N))
-            rows = np.ceil(float(N)/cols) if cols > 0 else 1
-            return int(rows), int(cols)
 
         if fig is None:
             fig = plt.gcf()
@@ -994,7 +998,7 @@ class Axes(object):
             # we'll deal with this situation in the else below
             pass
         elif subplot_grid is None:
-            rows, cols = determine_grid(N)
+            rows, cols = self.determine_grid(N)
         elif (isinstance(subplot_grid, list) or isinstance(subplot_grid, tuple)) and len(subplot_grid)==2:
             rows, cols = subplot_grid
         else:
