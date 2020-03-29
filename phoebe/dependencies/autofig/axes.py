@@ -21,6 +21,11 @@ def _consistent_allow_none(thing1, thing2):
 def _finite(array):
     return array[np.isfinite(array)]
 
+def _determine_grid(N):
+    cols = np.floor(np.sqrt(N))
+    rows = np.ceil(float(N)/cols) if cols > 0 else 1
+    return int(rows), int(cols)
+
 class AxesGroup(common.Group):
     def __init__(self, items):
         super(AxesGroup, self).__init__(Axes, [], items)
@@ -943,14 +948,6 @@ class Axes(object):
                     # remove from the call.kwargs so it isn't passed on to MPL
                     del call.kwargs[original_k]
 
-
-    @staticmethod
-    def determine_grid(N):
-        cols = np.floor(np.sqrt(N))
-        rows = np.ceil(float(N)/cols) if cols > 0 else 1
-        return int(rows), int(cols)
-
-
     def append_subplot(self, fig=None, subplot_grid=None):
         """
         Append this <autofig.axes.Axes> as a subplot to a matplotlib figure.
@@ -998,7 +995,7 @@ class Axes(object):
             # we'll deal with this situation in the else below
             pass
         elif subplot_grid is None:
-            rows, cols = self.determine_grid(N)
+            rows, cols = _determine_grid(N)
         elif (isinstance(subplot_grid, list) or isinstance(subplot_grid, tuple)) and len(subplot_grid)==2:
             rows, cols = subplot_grid
         else:
