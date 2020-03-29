@@ -3646,10 +3646,10 @@ class ParameterSet(object):
                 continue
             filter_kwargs[k] = kwargs.pop(k, None)
 
-        ps = self.filter(**filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0'])
+        ps = self.filter(check_visible=False, **filter_kwargs).exclude(qualifier=['compute_times', 'compute_phases', 'compute_phases_t0', 'phases_t0', 'mask_phases'], check_visible=False)
 
         if 'time' in kwargs.keys() and ps.kind in ['mesh', 'lp']:
-            ps = ps.filter(time=kwargs.get('time'))
+            ps = ps.filter(time=kwargs.get('time'), check_visible=False)
 
         # If ps returns more than one dataset/model/component, then we need to
         # loop and plot all.  This will automatically rotate through colors
@@ -3700,7 +3700,7 @@ class ParameterSet(object):
 
         if len(ps.kinds) > 1:
             for kind in pskinds:
-                this_return = ps.filter(kind=kind)._unpack_plotting_kwargs(animate=animate, **kwargs)
+                this_return = ps.filter(kind=kind, check_visible=False)._unpack_plotting_kwargs(animate=animate, **kwargs)
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
