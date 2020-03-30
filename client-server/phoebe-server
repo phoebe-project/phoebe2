@@ -2,6 +2,7 @@
 
 """
 pip install flask
+pip install flask-cors
 pip install flask-socketio
 pip install gevent-websocket
 
@@ -34,7 +35,7 @@ app._clients = []
 app._clients_per_bundle = {}
 app._last_access_per_bundle = {}
 app._verbose = True
-app._debug = True
+app._debug = False  # NOTE: setting this to True will fail to raise error messages in the UI
 app._killable = False
 
 # we'll disable sorting the responses by keys so that we can control the sorting
