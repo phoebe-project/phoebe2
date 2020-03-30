@@ -796,7 +796,8 @@ def _get_phoebe_funcs(module, devel=False):
     ignore = ['_empty_array', 'deepcopy', 'fnmatch',
               'download_passband', 'list_installed_passbands', 'list_online_passbands', 'list_passbands', 'parameter_from_json', 'parse_json',
               'send_if_client', 'update_if_client',
-              '_add_component', '_add_dataset', '_label_units_lims', '_run_compute']
+              '_add_component', '_add_dataset', '_label_units_lims', '_run_compute',
+              'phase_mask_inds']
 
     if not devel:
         ignore += ['pulsation']
