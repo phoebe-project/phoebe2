@@ -4351,6 +4351,8 @@ class ParameterSet(object):
 
         elif ps.kind == 'lc_eclipse_geometry':
             lc = ps.get_value(qualifier='lc', **_skip_filter_checks)
+            orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
+            primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
             phases = self._bundle.to_phase(self._bundle.get_value(qualifier='times', dataset=lc, context='dataset', **_skip_filter_checks))
             fluxes = self._bundle.get_value(qualifier='fluxes', dataset=lc, context='dataset', **_skip_filter_checks)
             kwargs['plot_package'] = 'autofig'
@@ -4369,8 +4371,8 @@ class ParameterSet(object):
                 return phase
 
             axvline_kwargss = [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(phase)], 'xlabel': 'phase', 'color': 'black', 'linestyle': 'dashed'} for phase in ps.get_value(qualifier='eclipse_edges', **_skip_filter_checks)]
-            axvline_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='primary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'color': 'blue', 'linestyle': 'solid'}]
-            axvline_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='secondary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'color': 'red', 'linestyle': 'solid'}]
+            axvline_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='primary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'color': self._bundle.get_value(qualifier='color', component=primary, default='blue'), 'label': 'primary ({}) eclipse'.format(primary) if primary!='primary' else 'primary eclipse', 'linestyle': 'solid'}]
+            axvline_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='secondary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'color': self._bundle.get_value(qualifier='color', component=secondary, default='orange'), 'label': 'secondary ({}) eclipse'.format(secondary) if secondary!='secondary' else 'secondary eclipse', 'linestyle': 'solid'}]
 
             return [kwargs] + axvline_kwargss
 

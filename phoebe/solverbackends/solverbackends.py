@@ -364,6 +364,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         solution_params = []
 
         solution_params += [_parameters.StringParameter(qualifier='lc', value='', readonly=True, description='dataset used to detect eclipses')]
+        solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for phasing the light curve')]
 
         solution_params += [_parameters.FloatParameter(qualifier='primary_width', value=0, readonly=True, unit=u.dimensionless_unscaled, description='phase-width of primary eclipse')]
         solution_params += [_parameters.FloatParameter(qualifier='secondary_width', value=0, readonly=True, unit=u.dimensionless_unscaled, description='phase-width of secondary eclipse')]
@@ -457,6 +458,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
                  {'qualifier': 'secondary_depth', 'value': eclipse_dict.get('secondary_depth')},
                  {'qualifier': 'eclipse_edges', 'value': eclipse_dict.get('eclipse_edges')},
                  {'qualifier': 'lc', 'value': lc},
+                 {'qualifier': 'orbit', 'value': orbit},
                  {'qualifier': 'fitted_uniqueids', 'value': [t0_supconj_param.uniqueid, ecc_param.uniqueid, per0_param.uniqueid, mask_phases_param.uniqueid]},
                  {'qualifier': 'fitted_twigs', 'value': params_twigs},
                  {'qualifier': 'fitted_values', 'value': [t0_supconj_new, ecc, per0, mask_phases]},
