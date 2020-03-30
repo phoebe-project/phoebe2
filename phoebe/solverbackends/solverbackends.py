@@ -430,25 +430,6 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         period = orbit_ps.get_value(qualifier='period', **_skip_filter_checks)
         t0_supconj_old = orbit_ps.get_value(qualifier='t0_supconj', **_skip_filter_checks)
 
-        # TODO: create parameters in the solver options if we want to expose these options to the user
-        # if t0_in_times_array == True the computed t0 is adjusted to fall in time times array range
-        t0_near_times = kwargs.get('t0_near_times', True)
-        # if adjust_t0 == True the phases are recomputed with the new t0_supconj before the two-Gaussian fit
-        adjust_t0 = kwargs.get('adjust_t0', False)
-
-        t0_supconj_new = lc_eclipse_geometry.t0_from_geometry(phases, times, fluxes, sigmas,
-                                period=period, t0_supconj=t0_supconj_old, t0_near_times=t0_near_times)
-
-        if adjust_t0:
-            phases = b.to_phase(times, component=orbit, t0=t0_supconj_new)
-            # because they're already sorted by the previous phases, need to 're-get' here
-            fluxes = lc_ps.get_value(qualifier='fluxes')
-            sigmas = lc_ps.get_value(qualifier='sigmas')
-            s = phases.argsort()
-            phases = phases[s]
-            fluxes = fluxes[s]
-            sigmas = sigmas[s]
-
         diagnose = kwargs.get('diagnose', False)
         eclipse_dict = lc_eclipse_geometry.compute_eclipse_params(phases, fluxes, sigmas, diagnose=diagnose)
 
@@ -457,7 +438,13 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
 
         # TODO: update to use widths as well (or alternate based on ecc?)
         ecc, per0 = lc_eclipse_geometry.ecc_w_from_geometry(eclipse_dict.get('secondary_position') - eclipse_dict.get('primary_position'), eclipse_dict.get('primary_width'), eclipse_dict.get('secondary_width'))
+        
+        # TODO: create parameters in the solver options if we want to expose these options to the user
+        # if t0_in_times_array == True the computed t0 is adjusted to fall in time times array range
+        t0_near_times = kwargs.get('t0_near_times', True)
 
+        t0_supconj_new = lc_eclipse_geometry.t0_from_geometry(eclipse_dict.get('primary_position'), times,
+                                period=period, t0_supconj=t0_supconj_old, t0_near_times=t0_near_times)
         # TODO: correct t0_supconj?
 
         params_twigs = [t0_supconj_param.twig, ecc_param.twig, per0_param.twig, mask_phases_param.twig]

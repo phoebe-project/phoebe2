@@ -323,16 +323,8 @@ def compute_eclipse_params(phases, fluxes, sigmas, diagnose=False):
 
 # t0 ESTIMATOR
 
-def t0_from_geometry(phases, times, fluxes, sigmas, period=1, t0_supconj = 0, t0_near_times = True):
-    # find overall minimum and median of phased array
-    flux_min = fluxes.min()
-    flux_med = np.median(fluxes)
+def t0_from_geometry(phase_min, times, period=1, t0_supconj = 0, t0_near_times = True):
 
-    # fit a quadratic to the bottom half of the primary eclipse
-    fit_mask = (fluxes >= flux_min) & (fluxes <= 0.5*(flux_min+flux_med))
-
-    quad_fit = np.poly1d(np.polyfit(phases[fit_mask], fluxes[fit_mask], 2, w=1/sigmas[fit_mask]))
-    phase_min = np.real(quad_fit.r[0])
     delta_t0 = phase_min*period
     t0 = t0_supconj + delta_t0
 
