@@ -211,7 +211,7 @@ def lc(syn=False, as_ps=True, is_lc=True, **kwargs):
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [BoolParameter(qualifier='mask_enabled', value=kwargs.get('mask_enabled', True), description='Whether to apply the mask in mask_phases during plotting, calculate_residuals, calculate_chi2, calculate_lnlikelihood, and run_solver')]
-        params += [FloatArrayParameter(visible_if='mask_enabled:True', qualifier='mask_phases', component=kwargs.get('component_top', None), value=kwargs.get('mask_phases', []), default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be included.')]
+        params += [FloatArrayParameter(visible_if='[component]mask_enabled:True', qualifier='mask_phases', component=kwargs.get('component_top', None), value=kwargs.get('mask_phases', []), default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be included.')]
 
         params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  All options will properly account for masking from mask_times.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
 
@@ -331,7 +331,7 @@ def rv(syn=False, as_ps=True, **kwargs):
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         params += [BoolParameter(qualifier='mask_enabled', value=kwargs.get('mask_enabled', True), description='Whether to apply the mask in mask_phases during plotting, calculate_residuals, calculate_chi2, calculate_lnlikelihood, and run_solver')]
-        params += [FloatArrayParameter(visible_if='mask_enabled:True', qualifier='mask_phases', component=kwargs.get('component_top', None), value=kwargs.get('mask_phases', []), default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be included.')]
+        params += [FloatArrayParameter(visible_if='[component]mask_enabled:True', qualifier='mask_phases', component=kwargs.get('component_top', None), value=kwargs.get('mask_phases', []), default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be included.')]
 
         params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
 
@@ -464,7 +464,7 @@ def lp(syn=False, as_ps=True, **kwargs):
         constraints += [(constraint.compute_phases, kwargs.get('component_top', None), kwargs.get('dataset', None))]
 
         # params += [BoolParameter(qualifier='mask_enabled', value=kwargs.get('mask_enabled', True), description='Whether to apply the mask in mask_phases during plotting, calculate_residuals, calculate_chi2, calculate_lnlikelihood, and run_solver')]
-        # params += [FloatArrayParameter(visible_if='mask_enabled:True', qualifier='mask_phases', component=kwargs.get('component_top', None), value=kwargs.get('mask_phases', []), default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be included.')]
+        # params += [FloatArrayParameter(visible_if='[component]mask_enabled:True', qualifier='mask_phases', component=kwargs.get('component_top', None), value=kwargs.get('mask_phases', []), default_unit=u.dimensionless_unscaled, required_shape=[None, 2], description='List of phase-tuples.  Any observations inside the range set by any of the tuples will be included.')]
 
         params += [ChoiceParameter(qualifier='solver_times', value=kwargs.get('solver_times', 'auto'), choices=['auto', 'compute_times', 'times'], description='times to use within run_solver.  auto: use compute_times if provided and shorter than times, otherwise use times.  compute_times: use compute_times if provided.  times: use times array.')]
 
