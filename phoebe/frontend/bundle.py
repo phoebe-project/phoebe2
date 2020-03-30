@@ -480,9 +480,9 @@ class Bundle(ParameterSet):
         for constraint in self.filter(context='constraint', check_visible=False, check_default=False).to_list():
             constraint._update_bookkeeping()
 
-        self._mplcolorcycler = _figure.MPLPropCycler('color', _figure._mplcolors)
-        self._mplmarkercycler = _figure.MPLPropCycler('marker', _figure._mplmarkers)
-        self._mpllinestylecycler = _figure.MPLPropCycler('linestyle', _figure._mpllinestyles)
+        self._mplcolorcyclers = {k: _figure.MPLPropCycler('color', _figure._mplcolors[1:] if k in ['component', 'model'] else _figure._mplcolors) for k in ['default', 'component', 'dataset', 'model']}
+        self._mplmarkercyclers = {k: _figure.MPLPropCycler('marker', _figure._mplmarkers) for k in ['default', 'component', 'dataset', 'model']}
+        self._mpllinestylecyclers = {k: _figure.MPLPropCycler('linestyle', _figure._mpllinestyles) for k in ['default', 'component', 'dataset', 'model']}
 
     @classmethod
     def open(cls, filename, import_from_older=True, import_from_newer=False):
@@ -1021,7 +1021,7 @@ class Bundle(ParameterSet):
             orbit_defaults = {'sma': 5.3, 'period': 1.0}
             star_defaults = {'requiv': 1.0}
         b.add_star(component=starA, color='blue', **star_defaults)
-        b.add_star(component=starB, color='red', **star_defaults)
+        b.add_star(component=starB, color='orange', **star_defaults)
         b.add_orbit(component=orbit, **orbit_defaults)
         if contact_binary:
             b.add_component('envelope', component='contact_envelope')
@@ -1099,7 +1099,7 @@ class Bundle(ParameterSet):
 
         b = cls()
         b.add_star(component=starA, color='blue')
-        b.add_star(component=starB, color='red')
+        b.add_star(component=starB, color='orange')
         b.add_star(component=starC, color='green')
         b.add_orbit(component=inner, period=1)
         b.add_orbit(component=outer, period=10)

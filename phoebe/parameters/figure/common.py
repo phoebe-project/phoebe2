@@ -46,10 +46,10 @@ if not _use_autofig:
 
 
     _mplmarkers = ['.', 'o', '+', 's', '*', 'v', '^', '<', '>', 'p', 'h', 'o', 'D']
-    _mpllinestyles = ['solid', 'dashed', 'dotted', 'dashdot', 'None']
+    _mpllinestyles = ['solid', 'dashed', 'dotted', 'dashdot']
 
 # we don't want to use all the custom hex-codes within phoebe, let's just use a simple set of colors
-_mplcolors = ['black', 'blue', 'red', 'green', 'purple', 'orange', 'pink', 'yellow']
+_mplcolors = ['black', 'blue', 'orange', 'green', 'red', 'purple', 'ping', 'pink', 'yellow']
 
 class MPLPropCycler(object):
     def __init__(self, prop, options=[]):
@@ -186,28 +186,28 @@ def _label_units_lims(axis, default_unit, visible_if=None, is_default=True, **kw
 
     return params
 
-def _figure_style_sources(b, default_color='component', default_linestyle='dataset', default_marker='dataset', **kwargs):
+def _figure_style_sources(b, default_color='component', default_linestyle='dataset', default_marker='dataset', cycler='default', **kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='color_source', value=kwargs.get('color_source', default_color), choices=['dataset', 'model', 'component', 'manual'], description='Source to use for color.  For manual, see the c parameter in the figure context.  Otherwise, see the c parameters tagged with the corresponding dataset/model/component.')]
-    params += [ChoiceParameter(qualifier='color', visible_if='color_source:manual', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.cycle, description='Default color when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='color', visible_if='color_source:manual', value=b._mplcolorcyclers.get(cycler).get(kwargs.get('color', None)), choices=_mplcolors, description='Default color when plotted via run_figure')]
 
     params += [ChoiceParameter(qualifier='marker_source', value=kwargs.get('marker_source', default_marker), choices=['dataset', 'component', 'manual'], description='Source to use for marker (datasets only, not models).  For manual, see the marker parameter in the figure context.  Otherwise, see the marker parameters tagged with the corresponding dataset/model/component.')]
-    params += [ChoiceParameter(qualifier='marker', visible_if='marker_source:manual', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.cycle, description='Default marker (datasets only, not models) when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='marker', visible_if='marker_source:manual', value=b._mplmarkercyclers.get(cycler).get(kwargs.get('marker', None)), choices=['None']+_mplmarkers, description='Default marker (datasets only, not models) when plotted via run_figure')]
 
     params += [ChoiceParameter(qualifier='linestyle_source', value=kwargs.get('linestyle_source', default_linestyle), choices=['dataset', 'model', 'component', 'manual'], description='Source to use for linestyle.  For manual, see the linestyle parameter in the figure context.  Otherwise, see the linestyle parameters tagged with the corresponding dataset/model/component.')]
-    params += [ChoiceParameter(qualifier='linestyle', visible_if='linestyle_source:manual', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.cycle, description='Default linestyle when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='linestyle', visible_if='linestyle_source:manual', value=b._mpllinestylecyclers.get(cycler).get(kwargs.get('linestyle', None)), choices=['None']+_mpllinestyles, description='Default linestyle when plotted via run_figure')]
 
     return params
 
-def _figure_style_nosources(b, **kwargs):
+def _figure_style_nosources(b, cycler='default', **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.cycle, description='Default color when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcyclers.get(cycler).get(kwargs.get('color', None)), choices=_mplcolors, description='Default color when plotted via run_figure')]
 
-    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)) if kwargs.get('marker', None) is not "None" else "None", choices=["None"] + b._mplmarkercycler.cycle, description='Default marker when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercyclers.get(cycler).get(kwargs.get('marker', None)) if kwargs.get('marker', None) is not "None" else "None", choices=["None"] + _mplmarkers, description='Default marker when plotted via run_figure')]
 
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)) if kwargs.get('linestyle', None) is not "None" else "None", choices=["None"] + b._mpllinestylecycler.cycle, description='Default linestyle when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecyclers.get(cycler).get(kwargs.get('linestyle', None)) if kwargs.get('linestyle', None) is not "None" else "None", choices=["None"] + _mpllinestyles, description='Default linestyle when plotted via run_figure')]
 
     return params
 
@@ -234,26 +234,26 @@ def _new_bundle(**kwargs):
 def _add_component(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.cycle, description='Color to use for figures in which color_source is set to component')]
-    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.cycle, description='Marker (datasets only, not models) to use for figures in which marker_source is set to component')]
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.cycle, description='Linestyle to use for figures in which linestyle_source is set to component')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcyclers.get('component').get(kwargs.get('color', None)), choices=_mplcolors, description='Color to use for figures in which color_source is set to component')]
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercyclers.get('component').get(kwargs.get('marker', None)), choices=['None']+_mplmarkers, description='Marker (datasets only, not models) to use for figures in which marker_source is set to component')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecyclers.get('component').get(kwargs.get('linestyle', None)), choices=['None']+_mpllinestyles, description='Linestyle to use for figures in which linestyle_source is set to component')]
 
     return ParameterSet(params)
 
 def _add_dataset(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.cycle, description='Color to use for figures in which color_source is set to dataset')]
-    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.cycle, description='Marker (datasets only, not models) to use for figures in which marker_source is set to dataset')]
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', 'solid' if _use_autofig else None)), choices=b._mpllinestylecycler.cycle, description='Linestyle to use for figures in which linestyle_source is set to dataset')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcyclers.get('dataset').get(kwargs.get('color', None)), choices=_mplcolors, description='Color to use for figures in which color_source is set to dataset')]
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercyclers.get('dataset').get(kwargs.get('marker', None)), choices=['None']+_mplmarkers, description='Marker (datasets only, not models) to use for figures in which marker_source is set to dataset')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecyclers.get('dataset').get(kwargs.get('linestyle', 'solid' if _use_autofig else None)), choices=['None']+_mpllinestyles, description='Linestyle to use for figures in which linestyle_source is set to dataset')]
 
     return ParameterSet(params)
 
 def _run_compute(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.cycle, description='Color to use for figures in which color_source is set to model')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcyclers.get('model').get(kwargs.get('color', None)), choices=_mplcolors, description='Color to use for figures in which color_source is set to model')]
     # params += [ChoiceParameter(qualifier='marker', value=kwargs.get('marker', None), choices=b._mpl, description='Default marker when plotted, overrides dataset value unless set to <dataset>')]
-    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.cycle, description='Linestyle to use for figures in which linestyle_source is set to model')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecyclers.get('model').get(kwargs.get('linestyle', None)), choices=['None']+_mpllinestyles, description='Linestyle to use for figures in which linestyle_source is set to model')]
 
     return ParameterSet(params)

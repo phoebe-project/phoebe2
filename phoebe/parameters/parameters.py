@@ -81,16 +81,26 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
         from phoebe.dependencies import autofig
     except (ImportError, TypeError):
         _use_autofig = False
+        _phoebecolorsdict = {}
     else:
         _use_autofig = True
         # add the PHOEBE palette to autofig.cyclers
         black = (19./255, 19./255, 19./255) #131313
-        blue = (43./255, 114./255, 177./255) #2B72B1
+        blue = (43./255, 113./255, 177./255) #2B71B1
         orange = (255./255, 112./255, 47./255) #FF702F
         yellow = (255./255, 205./255, 47./255) #FFCD2F
         green = (34./255,183./255,127./255) #22B77F
         fuchsia = (237./255,49./255,112./255) #ED3170
         _phoebecolors = [black, blue, orange, green, yellow, fuchsia]
+        _phoebecolorsdict = {'black': "#131313",
+                             'blue': "#2B71B1",
+                             'orange': "#FF702F",
+                             'green': "#22B77F",
+                             'red': '#F92E3D',
+                             'purple': '#6D2EB8',
+                             'pink': "#ED3170",
+                             'yellow': "#FFCD2F"}
+
         ofr=6
         for i in [5,3,1,2,4]:
             _phoebecolors += [tuple((np.array(basecolor)+np.array([0,i/ofr,i/ofr]))%1) for basecolor in [blue, orange, green, yellow, fuchsia]]
@@ -3791,6 +3801,10 @@ class ParameterSet(object):
         elif 'edgecolors' in kwargs.keys() and 'ec' not in kwargs.keys():
             logger.warning("assuming you meant 'ec' instead of 'edgecolors'")
             kwargs['ec'] = kwargs.pop('edgecolors')
+
+        for k in ['c', 'fc', 'ec']:
+            if k in kwargs.keys():
+                kwargs[k] = _phoebecolorsdict.get(kwargs[k], kwargs[k])
 
         for d in ['x', 'y', 'z']:
             if '{}error'.format(d) not in kwargs.keys():
