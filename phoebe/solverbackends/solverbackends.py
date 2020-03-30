@@ -438,9 +438,9 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
 
         # TODO: update to use widths as well (or alternate based on ecc?)
         ecc, per0 = lc_eclipse_geometry.ecc_w_from_geometry(eclipse_dict.get('secondary_position') - eclipse_dict.get('primary_position'), eclipse_dict.get('primary_width'), eclipse_dict.get('secondary_width'))
-        
+
         # TODO: create parameters in the solver options if we want to expose these options to the user
-        # if t0_in_times_array == True the computed t0 is adjusted to fall in time times array range
+        # if t0_near_times == True the computed t0 is adjusted to fall in time times array range
         t0_near_times = kwargs.get('t0_near_times', True)
 
         t0_supconj_new = lc_eclipse_geometry.t0_from_geometry(eclipse_dict.get('primary_position'), times,

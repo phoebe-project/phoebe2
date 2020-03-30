@@ -36,6 +36,8 @@ def lc_eclipse_geometry(**kwargs):
     params += [ChoiceParameter(qualifier='lc', value=kwargs.get('lc', ''), choices=[''], description='Light curve dataset to use to extract eclipse geometry')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the dataset parameter')]
 
+    params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
+
     return ParameterSet(params)
 
 def bls_period(**kwargs):
