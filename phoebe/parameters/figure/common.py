@@ -11,7 +11,6 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
         _use_autofig = True
 
         _mplcmaps = autofig.cyclers._mplcmaps
-        _mplcolors = autofig.cyclers._mplcolors
         _mplmarkers = autofig.cyclers._mplmarkers
         _mpllinestyles = autofig.cyclers._mpllinestyles
 
@@ -45,9 +44,12 @@ if not _use_autofig:
                         'gnuplot', 'gnuplot2', 'CMRmap', 'cubehelix', 'brg', 'hsv',
                         'gist_rainbow', 'rainbow', 'jet', 'nipy_spectral', 'gist_ncar']
 
-    _mplcolors = ['black', 'blue', 'red', 'green', 'purple']
+
     _mplmarkers = ['.', 'o', '+', 's', '*', 'v', '^', '<', '>', 'p', 'h', 'o', 'D']
     _mpllinestyles = ['solid', 'dashed', 'dotted', 'dashdot', 'None']
+
+# we don't want to use all the custom hex-codes within phoebe, let's just use a simple set of colors
+_mplcolors = ['black', 'blue', 'red', 'green', 'purple', 'orange', 'pink', 'yellow']
 
 class MPLPropCycler(object):
     def __init__(self, prop, options=[]):
