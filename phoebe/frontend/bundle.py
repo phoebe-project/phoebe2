@@ -1485,12 +1485,22 @@ class Bundle(ParameterSet):
                 param._value = new_param_value
                 affected_params.append(param)
 
+            for param in self.filter(qualifier='lc', context='solution', check_visible=False, check_default=False).to_list():
+                if param._value == old_value:
+                    param._value = new_value
+                    affected_params.append(param)
+
             affected_params += self._handle_dataset_selectparams(rename={old_value: new_value}, return_changes=True)
             affected_params += self._handle_figure_time_source_params(rename={old_value: new_value}, return_changes=True)
 
         elif tag=='component':
             affected_params += self._handle_component_selectparams(rename={old_value: new_value}, return_changes=True)
             affected_params += self._handle_pblum_defaults(rename={old_value: new_value}, return_changes=True)
+
+            for param in self.filter(qualifier='orbit', context='solution', check_visible=False, check_default=False).to_list():
+                if param._value == old_value:
+                    param._value = new_value
+                    affected_params.append(param)
 
         elif tag=='compute':
             affected_params += self._handle_compute_selectparams(rename={old_value: new_value}, return_changes=True)
