@@ -380,6 +380,8 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=False, description='whether to create a distribution (of delta functions of all parameters in adopt_parameters) when calling adopt_solution.')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of all parameters in adopt_parameters) when calling adopt_solution.')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -494,13 +496,15 @@ class Bls_PeriodBackend(BaseSolverBackend):
         solution_params += [_parameters.FloatArrayParameter(qualifier='period', value=[], readonly=True, default_unit=u.d, description='periodogram test periods')]
         solution_params += [_parameters.FloatArrayParameter(qualifier='power', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='periodogram power')]
 
-        solution_params += [_parameters.FloatParameter(qualifier='adopt_factor', value=1.0, default_unit=u.dimensionless_unscaled, description='factor to apply to the max peak period when adopting the solution')]
+        solution_params += [_parameters.FloatParameter(qualifier='period_factor', value=1.0, default_unit=u.dimensionless_unscaled, description='factor to apply to the max peak period when adopting or plotting the solution')]
 
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=False, description='whether to create a distribution (of delta functions of all parameters in adopt_parameters) when calling adopt_solution.')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of all parameters in adopt_parameters) when calling adopt_solution.')]
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
@@ -598,6 +602,10 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting (and plotting) the solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=True, description='whether to create a distribution (multivariate distribution of all parameters in adopt_parameters) when calling adopt_solution.')]
+        # solution_params += [_parameters.ChoiceParameter(visible_if='adopt_distributions:True', qualifier='distributions_convert', value='mvhistogram', choices=['mvhistogram', 'mvgaussian'], description='type of multivariate distribution to use when calling adopt_solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of the means of all parameters in adopt_parameters) when calling adopt_solution.')]
+
 
         solution_params += [_parameters.ArrayParameter(qualifier='samples', value=[], readonly=True, description='MCMC samples with shape (niters, nwalkers, len(fitted_twigs))')]
         if kwargs.get('expose_failed', True):
@@ -887,6 +895,9 @@ class DynestyBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting (and plotting) the solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=True, description='whether to create a distribution (multivariate distribution of all parameters in adopt_parameters) when calling adopt_solution.')]
+        # solution_params += [_parameters.ChoiceParameter(visible_if='adopt_distributions:True', qualifier='distributions_convert', value='mvhistogram', choices=['mvhistogram', 'mvgaussian'], description='type of multivariate distribution to use when calling adopt_solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of the means of all parameters in adopt_parameters) when calling adopt_solution.')]
 
         solution_params += [_parameters.IntParameter(qualifier='nlive', value=0, readonly=True, description='')]
         solution_params += [_parameters.IntParameter(qualifier='niter', value=0, readonly=True, description='')]
@@ -1095,6 +1106,8 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=False, description='whether to create a distribution (of delta functions of all parameters in adopt_parameters) when calling adopt_solution.')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of all parameters in adopt_parameters) when calling adopt_solution.')]
 
 
         solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
@@ -1231,6 +1244,8 @@ class Differential_EvolutionBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=False, description='whether to create a distribution (of delta functions of all parameters in adopt_parameters) when calling adopt_solution.')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of all parameters in adopt_parameters) when calling adopt_solution.')]
 
         solution_params += [_parameters.StringParameter(qualifier='message', value='', readonly=True, description='message from the minimizer')]
         solution_params += [_parameters.IntParameter(qualifier='nfev', value=0, readonly=True, limits=(0,None), description='number of completed function evaluations (forward models)')]

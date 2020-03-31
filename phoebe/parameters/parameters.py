@@ -4342,7 +4342,7 @@ class ParameterSet(object):
             # kwargs.setdefault('linestyle', 'solid')
 
             axvline_kwargs = {'plot_package': 'autofig', 'autofig_method': 'plot'}
-            axvline_kwargs['x'] = ps.get_value(qualifier='fitted_values', **_skip_filter_checks)[0] * ps.get_value(qualifier='adopt_factor', adopt_factor=kwargs.get('adopt_factor', None), **_skip_filter_checks) * u.d
+            axvline_kwargs['x'] = ps.get_value(qualifier='fitted_values', **_skip_filter_checks)[0] * ps.get_value(qualifier='period_factor', period_factor=kwargs.get('period_factor', None), **_skip_filter_checks) * u.d
             axvline_kwargs['linestyle'] = 'dashed'
             axvline_kwargs['axvline'] = True # to avoid the empty y ignore in plot
 
@@ -11516,8 +11516,6 @@ class JobParameter(Parameter):
         if not self._bundle:
             raise ValueError("can only attach a job if attached to a bundle")
 
-        #if self._value == 'loaded':
-        #    raise ValueError("results have already been loaded")
         status = self.get_status()
         if not wait and status not in ['complete', 'error', 'progress']:
             if status in ['loaded']:

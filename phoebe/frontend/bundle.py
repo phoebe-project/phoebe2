@@ -9533,7 +9533,8 @@ class Bundle(ParameterSet):
         return ret_ps
 
 
-    def adopt_solution(self, solution=None, as_distributions=False,
+    def adopt_solution(self, solution=None,
+                       adopt_parameters=None, adopt_distributions=None, adopt_values=None,
                        remove_solution=False, return_changes=False,  **kwargs):
         """
 
@@ -9542,14 +9543,22 @@ class Bundle(ParameterSet):
         * `solution` (string, optional, default=None): label of the solution
             to adopt.  Must be provided if more than one are attached to the
             bundle.
-        * `as_distributions` (bool, optional, default=False): force a solution
-            that returns face-values to adopt as delta distributions instead
-            of setting the face-values.  Only applicable for solver backends
-            that do NOT return distributions.
+        * `adopt_parameters` (list of strings, optional, default=None): which
+            of the parameters exposed by the solution should be adopted.  If
+            not provided or None, will default to the value of the `adopt_parameters`
+            parameter in the solution.  If provided, twig matching will be done
+            between the provided list and those in the `fitted_twigs` parameter
+            in the solution.
+        * `adopt_distributions` (bool, optional, default=None): Whether to
+            adopt the distribution(s) from the solution.  If not provided or
+            None, will default to the value of the `adopt_distributions`
+            parameter in the solution.
+        * `adopt_values` (bool, optional, default=None): whether to adopt the
+            face-values from the solution.  If not provided or None, will default
+            to the value of the `adopt_values` parameter in the solution.
         * `distribution` (string, optional, default=None): applicable only
-            for solver backends that return distributions or if `as_distributions=True`.
-            Distribution to use when adding distributions to the bundle.  See
-            <phoebe.frontend.bundle.Bundle.add_distribution>.
+            if `adopt_distributions=True` (or None and the `adopt_distributions`
+            parameter in the solution is True).
         * `remove_solution` (bool, optional, default=False): whether to remove
             the `solution` once successfully adopted.  See <phoebe.frontend.bundle.Bundle.remove_solution>.
         * `return_changes` (bool, optional, default=False): whether to include
@@ -9571,7 +9580,13 @@ class Bundle(ParameterSet):
         if solver_kind is None:
             raise ValueError("could not find solution='{}'".format(solution))
 
-        adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', None), expand=True, **_skip_filter_checks)
+        adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=adopt_parameters, expand=True, **_skip_filter_checks)
+        adopt_distributions = solution_ps.get_value(qualifier='adopt_distributions', adopt_distributions=adopt_distributions, **_skip_filter_checks)
+        adopt_values = solution_ps.get_value(qualifier='adopt_values', adopt_values=adopt_values, **_skip_filter_checks)
+
+
+        if not (adopt_distributions or adopt_values):
+            raise ValueError('either adopt_distributions or adopt_values must be True for adopt_solution to do anything.')
 
         b_uniqueids = self.uniqueids
 
@@ -9581,11 +9596,15 @@ class Bundle(ParameterSet):
 
         adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
 
+        if not len(adopt_inds):
+            raise ValueError('no parameters selected by adopt_parameters')
+
+        user_interactive_constraints = conf.interactive_constraints
+        conf.interactive_constraints_off(suppress_warning=True)
+
+        changed_params = []
+
         if solver_kind in ['emcee', 'dynesty']:
-            if distribution is None:
-                raise ValueError("must provide distribution for solution='{}'".format(solution))
-
-
             if solver_kind == 'emcee':
                 lnprobabilities = solution_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
                 samples = solution_ps.get_value(qualifier='samples', **_skip_filter_checks)
@@ -9625,54 +9644,71 @@ class Bundle(ParameterSet):
 
             for i, uniqueid in enumerate(fitted_uniqueids[adopt_inds]):
                 if uniqueid in b_uniqueids:
-                    self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
+                    if adopt_distributions:
+                        ps = self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
+                        if distribution is None:
+                            # use the generated distribution label for subsequent add_distribution calls
+                            distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
+                    if adopt_values:
+                        param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                        # TODO: what to do if constrained?
+                        param.set_value(value=dist.slice(i).mean(), unit=dist.slice(i).unit)
+                        changed_params.append(param)
                 else:
                     logger.warning("uniqueid not found, falling back on twig={}".format(fitted_twigs[i]))
-                    self.add_distribution(twig=fitted_twigs[i], value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
-
-            # TODO: do we want to only return newly added distributions?
-            ret_ps = self.get_distribution(distribution=distribution)
+                    if adopt_distributions:
+                        ps = self.add_distribution(twig=fitted_twigs[i], value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
+                        if distribution is None:
+                            # use the generated distribution label for subsequent add_distribution calls
+                            distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
+                    if adopt_values:
+                        param = self.get_parameter(twig=fitted_twigs[i], **_skip_filter_checks)
+                        # TODO: what to do if constrained?
+                        param.set_value(value=dist.slice(i).mean(), unit=dist.slice(i).unit)
+                        changed_params.append(param)
 
         else:
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
 
             if solver_kind == 'bls_period':
-                fitted_values = fitted_values * solution_ps.get_value(qualifier='adopt_factor', adopt_factor=kwargs.get('adopt_factor', None), **_skip_filter_checks)
+                fitted_values = fitted_values * solution_ps.get_value(qualifier='period_factor', period_factor=kwargs.get('period_factor', None), **_skip_filter_checks)
 
-            if as_distributions:
-                if distribution is None:
-                    raise ValueError("must provide distribution if as_distributions=True")
-
-                for uniqueid, twig, value, unit in zip(fitted_uniqueids[adopt_inds], fitted_twigs[adopt_inds], fitted_values[adopt_inds], fitted_units[adopt_inds]):
-                    dist = _distl.delta(value, unit=unit)
-                    if uniqueid in b_uniqueids:
-                        self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
-                    else:
-                        logger.warning("uniqueid not found, falling back on twig={}".format(twig))
-                        self.add_distribution(twig=twig, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
-
-
-                ret_ps = self.get_distribution(distribution=distribution)
-            else:
-                user_interactive_constraints = conf.interactive_constraints
-                conf.interactive_constraints_off(suppress_warning=True)
-
-                changed_params = []
-                for uniqueid, twig, value, unit in zip(fitted_uniqueids[adopt_inds], fitted_twigs[adopt_inds], fitted_values[adopt_inds], fitted_units[adopt_inds]):
-                    if uniqueid in b_uniqueids:
+            for uniqueid, twig, value, unit in zip(fitted_uniqueids[adopt_inds], fitted_twigs[adopt_inds], fitted_values[adopt_inds], fitted_units[adopt_inds]):
+                if uniqueid in b_uniqueids:
+                    if adopt_distributions:
+                        dist = _distl.delta(value, unit=unit)
+                        ps = self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
+                        if distribution is None:
+                            # use the generated distribution label for subsequent add_distribution calls
+                            distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
+                    if adopt_values:
                         param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
-                    else:
-                        logger.warning("uniqueid not found, falling back on twig={}".format(twig))
+                        changed_params.append(param)
+                        param.set_value(value, unit=unit)
+                else:
+                    logger.warning("uniqueid not found, falling back on twig={}".format(twig))
+                    if adopt_distributions:
+                        dist = _distl.delta(value, unit=unit)
+                        ps = self.add_distribution(twig=twig, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
+                        if distribution is None:
+                            # use the generated distribution label for subsequent add_distribution calls
+                            distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
+                    if adopt_values:
                         param = self.get_parameter(twig=twig, **_skip_filter_checks)
+                        changed_params.append(param)
+                        param.set_value(value, unit=unit)
 
-                    param.set_value(value, unit=unit)
-                    changed_params.append(param)
 
-                changed_params += self.run_delayed_constraints()
-                if user_interactive_constraints:
-                    conf.interactive_constraints_on()
+        changed_params += self.run_delayed_constraints()
+        if user_interactive_constraints:
+            conf.interactive_constraints_on()
 
-                ret_ps = ParameterSet(changed_params)
+        ret_ps = ParameterSet([])
+        if adopt_distributions:
+            # TODO: do we want to only return newly added distributions?
+            ret_ps += self.get_distribution(distribution=distribution)
+        if adopt_values:
+            ret_ps += changed_params
 
         if remove_solution:
             # TODO: add to the return if return_changes
