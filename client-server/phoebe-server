@@ -1259,11 +1259,13 @@ def bundle_method(msg):
             new_context = {'compute': 'model', 'solver': 'solution'}[method.split('_')[1]]
             packet['add_filter'] = {new_context: getattr(ps, new_context)}
         elif method == 'import_model':
-            new_context = 'model'
+            # new_context = 'model'
             packet['add_filter'] = {'model': ps.model}
         elif method == 'import_solution':
-            new_context = 'solution'
+            # new_context = 'solution'
             packet['add_filter'] = {'solution': ps.solution}
+        elif method == 'adopt_solution':
+            packet['add_filter'] = {'uniqueid': "|".join(ps.uniqueids)}
 
         emit('{}:changes:react'.format(bundleid), packet, broadcast=True)
         # flush so the changes goes through before running checks and updating figures
