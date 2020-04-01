@@ -1137,7 +1137,11 @@ class Bundle(ParameterSet):
                                      raise_logger_warning=True, raise_error=True)
 
         filename = os.path.expanduser(filename)
-        return io.pass_to_legacy(self, filename, compute=compute)
+        legacy_dict = io.pass_to_legacy(self, compute=compute)
+        
+        return io.write_legacy_file(legacy_dict, filename)
+
+        #return io.pass_to_legacy(self, filename, compute=compute)
 
 
     def _test_server(self, server='http://localhost:5555', start_if_fail=True):

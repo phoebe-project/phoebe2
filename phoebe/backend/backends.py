@@ -18,6 +18,7 @@ import phoebe.frontend.bundle
 from phoebe import u, c
 from phoebe import conf, mpi
 
+
 try:
     import phoebe_legacy as phb1
 except ImportError:
@@ -1240,8 +1241,9 @@ class LegacyBackend(BaseBackendByDataset):
         logger.debug("rank:{}/{} LegacyBackend._worker_setup: creating temporary phoebe file".format(mpi.myrank, mpi.nprocs))
 
         # make phoebe 1 file
-        tmp_filename = temp_name = next(tempfile._get_candidate_names())
-        io.pass_to_legacy(b, filename=tmp_filename, compute=compute, **kwargs)
+        # tmp_filename = temp_name = next(tempfile._get_candidate_names())
+        
+        
         phb1.init()
         try:
             if hasattr(phb1, 'auto_configure'):
@@ -1253,8 +1255,12 @@ class LegacyBackend(BaseBackendByDataset):
         except SystemError:
             raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
 
-        phb1.open(tmp_filename)
+        # phb1.open(tmp_filename)
+        # grab parameters and import into legacy
 
+        legacy_dict = io.pass_to_legacy(b, compute=compute, **kwargs)
+        io.import_to_legacy(legacy_dict)
+        
         # build lookup tables between the dataset labels and the indices needed
         # to pass to phoebe legacy
         lcinds = {}
@@ -1272,7 +1278,7 @@ class LegacyBackend(BaseBackendByDataset):
 
         computeparams = b.get_compute(compute, force_ps=True)
 
-        os.remove(tmp_filename)
+        #os.remove(tmp_filename)
 
         return dict(lcinds=lcinds,
                     rvinds=rvinds,
@@ -1315,6 +1321,8 @@ class LegacyBackend(BaseBackendByDataset):
         packetlist = []
 
         if info['kind'] == 'lc':
+            print(info['dataset'])
+            print('lcinds', lcinds)
             lcind = lcinds[info['dataset']]
             fluxes = np.array(phb1.lc(tuple(info['times'].tolist()), lcind))
             packetlist.append(_make_packet('fluxes',

@@ -100,9 +100,10 @@ def wd(b, time, scale, pos):
 
     # TODO: move this outside the loop into backends.py?
     # TODO: make this work without the need to add an LC dataset
-    io.pass_to_legacy(b, 'change_to_tmpfile')
-
-    phb.open('change_to_tmpfile')
+    # io.pass_to_legacy(b, 'change_to_tmpfile')
+    legacy_dict = io.pass_to_legacy(b, compute=compute, **kwargs)
+    io.import_to_legacy(legacy_dict)
+    #phb.open('change_to_tmpfile')
     phb.setpar('phoebe_indep', 'Time (HJD)')
     combo = phb.lc((time,), 0, 0, 1)
     # phb.quit()
