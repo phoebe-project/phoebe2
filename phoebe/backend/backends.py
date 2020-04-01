@@ -17,7 +17,7 @@ from phoebe.frontend import io
 import phoebe.frontend.bundle
 from phoebe import u, c
 from phoebe import conf, mpi
-from copy import deepcopy as _deepcopy
+
 
 try:
     import phoebe_legacy as phb1
@@ -1259,8 +1259,8 @@ class LegacyBackend(BaseBackendByDataset):
         # grab parameters and import into legacy
 
         legacy_dict = io.pass_to_legacy(b, compute=compute, **kwargs)
-        io.import_to_legacy(_deepcopy(legacy_dict))
-
+        io.import_to_legacy(legacy_dict)
+        
         # build lookup tables between the dataset labels and the indices needed
         # to pass to phoebe legacy
         lcinds = {}
@@ -1321,6 +1321,8 @@ class LegacyBackend(BaseBackendByDataset):
         packetlist = []
 
         if info['kind'] == 'lc':
+            print(info['dataset'])
+            print('lcinds', lcinds)
             lcind = lcinds[info['dataset']]
             fluxes = np.array(phb1.lc(tuple(info['times'].tolist()), lcind))
             packetlist.append(_make_packet('fluxes',

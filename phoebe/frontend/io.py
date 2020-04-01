@@ -2005,10 +2005,24 @@ params - dictionary of parameters
 
 
 
-def import_to_legacy(params):
+def import_to_legacy(params):    
     #initiate phoebe legacy python wrapper
     if not _use_phb1:
         raise ImportError("phoebeBackend for phoebe legacy not found")
+
+    #number of datasets must be loaded first
+    rvno = params['phoebe_rvno']
+    lcno = params['phoebe_lcno'] 
+    spno = params['phoebe_spots_no']
+
+    phb1.setpar('phoebe_rvno', rvno, 0)
+    phb1.setpar('phoebe_lcno', lcno, 0)
+    phb1.setpar('phoebe_spots_no', spno, 0)
+
+    params.pop('phoebe_rvno')
+    params.pop('phoebe_lcno')
+    params.pop('phoebe_spots_no')
+  
 
     keys = params.keys()
     
@@ -2033,6 +2047,7 @@ def import_to_legacy(params):
         if '[' in key: #dataset
             num = int(key[-2])-1
             param = key[:-3]
+            
             try:
                 phb1.setpar(param, value, num)
             except:
