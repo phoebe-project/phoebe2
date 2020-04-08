@@ -155,6 +155,13 @@ def histogram_from_data(data, bins=10, range=None, weights=None, unit=None, labe
                                         weights=weights, unit=unit, label=label,
                                         wrap_at=wrap_at)
 
+def samples(samples, weights=None, bw_method=None, unit=None, label=None, wrap_at=None):
+    """
+    Create a <Samples> distribution.
+    """
+    return _distl.Samples(samples, weights, bw_method,
+                         unit=unit, label=label, wrap_at=wrap_at)
+
 
 #### MULTIVARIATE DISTRIBUTJIONS ####
 
@@ -173,6 +180,14 @@ def mvhistogram_from_data(data, bins=10, range=None, weights=None,
     """
     return _distl.MVHistogram.from_data(data, bins=bins, range=range, weights=weights,
                                         units=units, labels=labels, wrap_ats=wrap_ats)
+
+
+def mvsamples(samples, weights=None, bw_method=None,
+              units=None, labels=None, wrap_ats=None):
+    """
+    Create a <MVSamples> distribution.
+    """
+    return _distl.MVSamples(samples, weights, bw_method, units=units, labels=labels, wrap_ats=wrap_ats)
 
 #### GENERATORS ####
 def gaussian_around(scale,

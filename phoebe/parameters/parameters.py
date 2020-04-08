@@ -118,12 +118,7 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
         _use_corner = False
     else:
         _use_corner = True
-    try:
-        import chainconsumer
-    except (ImportError, TypeError):
-        _use_chainconsumer = False
-    else:
-        _use_chainconsumer = True
+
     try:
         from dynesty import plotting as dyplot
     except (ImportError, TypeError):
@@ -134,7 +129,6 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
 else:
     _use_autofig = False
     _use_corner = False
-    _use_chainconsumer = False
     _use_dyplot = False
 
 
@@ -4299,6 +4293,7 @@ class ParameterSet(object):
         # NOTE: this must be done before calling _kwargs_fill_dimension below
         cartesian = ['xs', 'ys', 'zs', 'us', 'vs', 'ws']
         if ps.context == 'model' and kwargs.get('style', None) in ['corner', 'failed']:
+            kwargs['plot_package'] = 'corner'
             kwargs['data'] = ps.get_value(qualifier='samples', default=[], **_skip_filter_checks)
 
             try:
@@ -4311,15 +4306,7 @@ class ParameterSet(object):
             kwargs['labels'] = [_corner_label(param) for param in param_list]
 
             if kwargs.get('style') == 'failed':
-                if not _use_chainconsumer:
-                    raise ImportError("chainconsumer required to plot failed samples")
-
-                kwargs['plot_package'] = 'chainconsumer'
-
-
                 kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', default={}, **_skip_filter_checks)
-            else:
-                kwargs['plot_package'] = 'corner'
 
             return (kwargs,)
         elif ps.context == 'distribution':
@@ -4377,7 +4364,6 @@ class ParameterSet(object):
             return [kwargs] + axvline_kwargss
 
         elif ps.kind == 'dynesty':
-            kwargs['plot_package'] = 'dynesty'
             kwargs.setdefault('style', 'corner')
             adopt_parameters = ps.get_value(qualifier='adopt_parameters', expand=True, adopt_parameters=kwargs.get('adopt_parameters', None), **_skip_filter_checks)
             fitted_twigs = ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
@@ -4390,10 +4376,22 @@ class ParameterSet(object):
 
             kwargs['results'] = {p.qualifier: _filter_by_adopt_inds(p, adopt_inds) for p in self._bundle.filter(solution=ps.solution, context='solution', **_skip_filter_checks).to_list()}
             if kwargs.get('style') == 'corner':
-                kwargs['dynesty_method'] = 'cornerplot'
+                # kwargs['dynesty_method'] = 'cornerplot'
+
+                kwargs['plot_package'] = 'distl'
+                kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['distributions_convert', 'distributions_bins']})
+
+                # if style=='failed':
+                    # kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
+
+                return_ += [kwargs]
+
+
             elif kwargs.get('style') == 'trace':
+                kwargs['plot_package'] = 'dynesty'
                 kwargs['dynesty_method'] = 'traceplot'
             elif kwargs.get('style') == 'run':
+                kwargs['plot_package'] = 'dynesty'
                 kwargs['dynesty_method'] = 'runplot'
             else:
                 raise ValueError("dynesty plots with style='{}' not recognized".format(kwargs.get('style')))
@@ -4418,32 +4416,11 @@ class ParameterSet(object):
                 kwargs = _deepcopy(kwargs)
 
                 if style in ['corner', 'failed']:
-                    lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
-
-                    samples = ps.get_value(qualifier='samples', **_skip_filter_checks)
-                    samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
-
-                    kwargs['data'] = samples[np.where(lnprobabilities >= lnprob_cutoff)]
-                    try:
-                        param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)[adopt_inds]]
-                    except:
-                        logger.warning("could not match to fitted_uniqueids, falling back on fitted_twigs")
-                        param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for twig in adopt_parameters]
-
-                    # TODO: use units from fitted_units instead of parameter?
-                    kwargs['labels'] = [_corner_label(param) for param in param_list]
-
+                    kwargs['plot_package'] = 'distl'
+                    kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins']})
 
                     if style=='failed':
-                        if _use_chainconsumer:
-                            kwargs['plot_package'] = 'chainconsumer'
-                            kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
-
-                        else:
-                            logger.warning("failed_samples can only be plotted if chainconsumer is installed... falling back on style='corner'")
-                            kwargs['plot_package'] = 'corner'
-                    else:
-                        kwargs['plot_package'] = 'corner'
+                        kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
 
                     return_ += [kwargs]
 
@@ -5038,6 +5015,34 @@ class ParameterSet(object):
                 logger.debug("restoring check_default")
                 conf.check_default_on()
 
+
+        def _plot_failed_samples(mplfig, failed_samples):
+            mplaxes = mplfig.axes
+
+            for msgi, (msg, samples) in enumerate(failed_samples.items()):
+                samples = np.asarray(samples)
+                color = _phoebecolors[msgi+1]
+
+                # print(msg, samples.shape)
+                for axi, ax in enumerate(mplaxes):
+                    axix = int(axi % sqrt(len(mplaxes)))
+                    axiy = int(axi / sqrt(len(mplaxes)))
+                    if axix < axiy:
+                        # print("axix: {}, axiy: {}, samples[:,axix].shape: {}, samples[:,axiy].shape: {}".format(axix, axiy, samples[:,axix].shape, samples[:,axiy].shape))
+                        ax.plot(samples[:,axix], samples[:,axiy], marker='x', linestyle='none', color=color, label=msg)
+
+            # may need to reset the axes limits that were defined by corner
+            for axi, ax in enumerate(mplaxes):
+                axix = int(axi % sqrt(len(mplaxes)))
+                axiy = int(axi / sqrt(len(mplaxes)))
+                if axix < axiy:
+                    ax.autoscale(enable=True, tight=True)
+
+            # and now attempt to draw a legend in an intelligent location in the upper-right of the figure
+            mplaxes[int(sqrt(len(mplaxes)))].legend(loc='lower left', bbox_to_anchor=(2.1, 0.1))
+
+            return mplfig
+
         try:
             plot_kwargss = self._unpack_plotting_kwargs(animate=animate, **kwargs)
             # print("*** plot_kwargss", plot_kwargss)
@@ -5052,6 +5057,10 @@ class ParameterSet(object):
                         raise ValueError("corner plots not supported with other axes")
 
                     mplfig = corner.corner(plot_kwargs['data'], labels=plot_kwargs.get('labels', None))
+
+                    if 'failed_samples' in plot_kwargs.keys():
+                        mplfig = _plot_failed_samples(mplfig, plot_kwargs.get('failed_samples', {}))
+
                     if save:
                         mplfig.savefig(save)
 
@@ -5064,24 +5073,10 @@ class ParameterSet(object):
                         raise ValueError("corner plots not supported with other axes")
 
                     mplfig = plot_kwargs['dc'].plot(show=show)
-                    if save:
-                        mplfig.savefig(save)
 
-                    return None, mplfig
+                    if 'failed_samples' in plot_kwargs.keys():
+                        mplfig = _plot_failed_samples(mplfig, plot_kwargs.get('failed_samples', {}))
 
-                elif plot_package == 'chainconsumer':
-                    c = chainconsumer.ChainConsumer()
-
-                    samples = plot_kwargs.get('data', None)
-                    if samples is not None:
-                        c.add_chain(samples, parameters=plot_kwargs.get('labels', None), name='samples', smooth=False, bar_shade=False)
-
-                    for msg, samples in plot_kwargs.get('failed_samples', {}).items():
-                        samples = np.asarray(samples)
-                        # print(msg, samples.shape)
-                        c.add_chain(samples, parameters=plot_kwargs.get('labels', None), name=msg, smooth=False, bar_shade=False)
-
-                    mplfig = c.plotter.plot(figsize=1.5)
                     if save:
                         mplfig.savefig(save)
 

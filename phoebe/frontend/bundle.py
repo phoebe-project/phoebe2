@@ -1191,7 +1191,7 @@ class Bundle(ParameterSet):
 
         filename = os.path.expanduser(filename)
         legacy_dict = io.pass_to_legacy(self, compute=compute)
-        
+
         return io.write_legacy_file(legacy_dict, filename)
 
         #return io.pass_to_legacy(self, filename, compute=compute)
@@ -6226,6 +6226,9 @@ class Bundle(ParameterSet):
             distribution = ps.get_value(expand=True)
             kwargs.setdefault('combine', self.get_value(qualifier='{}_combine'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
 
+        elif ps.context=='solution':
+            distribution = [{'solution': ps.solution}]
+            kwargs.setdefault('include_constrained', True)
 
         else:
             raise ValueError("twig and kwargs must point to the solver or distribution context")
@@ -6256,8 +6259,9 @@ class Bundle(ParameterSet):
         -------------
         * `twig`: (string, optional, default=None): twig to use for filtering.
             `twig` and `**kwargs` must result in either a single supported
-            parameter in a solver ParameterSet, or a ParameterSet of distribution
-            parameters.
+            parameter in a solver ParameterSet (eg. init_from or priors),
+            a ParameterSet of distribution parameters, or a solution ParameterSet
+            that supports multivariate distributions (eg. sampler.emcee or sampler.dynesty).
         * `combine`: (str, optional) how to combine multiple distributions for the same parameter.
             first: ignore duplicate entries and take the first entry.
             and: combine duplicate entries via AND logic, dropping covariances.
@@ -6288,7 +6292,9 @@ class Bundle(ParameterSet):
         * `**kwargs`: additional keyword arguments are used for filtering.
             `twig` and `**kwargs` must result in either a single supported
             parameter in a solver ParameterSet, or a ParameterSet of distribution
-            parameters.
+            parameters.  If pointing to a solution ParameterSet, `**kwargs` can
+            also be used to override `distributions_convert` and `distributions_bins`,
+            as well as any other solution parameters (eg. `burnin`, `thin`, etc).
 
         Returns
         ------------
@@ -6327,44 +6333,119 @@ class Bundle(ParameterSet):
 
         for dist in distributions:
             # TODO: if * in list, need to expand (currently forbidden with error in get_distribution)
+            if isinstance(dist, dict) and 'solution' in dist.keys():
+                solution_ps = self.get_solution(solution=dist['solution'], **_skip_filter_checks)
+                solver_kind = self.get_solver(solver=solution_ps.solver, **_skip_filter_checks).kind
 
-            dist_ps = self.get_distribution(dist)
-            for dist_param in dist_ps.to_list():
-                ref_param = dist_param.get_referenced_parameter()
-                uid = ref_param.uniqueid
-                if not include_constrained and len(ref_param.constrained_by):
-                    continue
-                if uid not in uniqueids:
-                    k = getattr(ref_param, keys)
-                    if k in uid_dist_dict.keys():
-                        raise ValueError("keys='{}' does not result in unique entries for each item".format(keys))
+                adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', None), expand=True, **_skip_filter_checks)
+                # b_uniqueids = self.uniqueids
 
-                    uid_dist_dict[uid] = _to_dist(dist_param.get_value(), to_univariates, to_uniforms)
-                    uniqueids.append(ref_param.uniqueid)
-                    ret_keys.append(k)
-                elif combine.lower() == 'first':
-                    logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
-                elif combine.lower() == 'and':
-                    dist_obj = dist_param.get_value()
-                    old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [_to_dist(uid_dist_dict[uid], True, to_uniforms)]
-                    new_dist = _to_dist(dist_obj, True, to_uniforms)
-                    combined_dist = _distl._distl.Composite('__and__', old_dists + [new_dist])
-                    uid_dist_dict[uid] = combined_dist
-                elif combine.lower() == 'or':
-                    dist_obj = dist_param.get_value()
-                    old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [_to_dist(uid_dist_dict[uid], True, to_uniforms)]
-                    new_dist = _to_dist(dist_obj, True, to_uniforms)
-                    combined_dist = _distl._distl.Composite('__or__', old_dists + [new_dist])
-                    uid_dist_dict[uid] = combined_dist
+                # fitted_uniqueids = solution_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
+                fitted_twigs = solution_ps.get_value(qualifier='fitted_twigs', **_skip_filter_checks)
+                fitted_units = solution_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
+
+                adopt_inds = [list(fitted_twigs).index(twig) for twig in adopt_parameters]
+
+                if not len(adopt_inds):
+                    raise ValueError('no parameters selected by adopt_parameters')
+
+
+                if solver_kind == 'emcee':
+                    lnprobabilities = solution_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
+                    samples = solution_ps.get_value(qualifier='samples', **_skip_filter_checks)
+
+                    burnin = solution_ps.get_value(qualifier='burnin', burnin=kwargs.get('burnin', None), **_skip_filter_checks)
+                    thin = solution_ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
+                    lnprob_cutoff = solution_ps.get_value(qualifier='lnprob_cutoff', lnprob_cutoff=kwargs.get('lnprob_cutoff', None), **_skip_filter_checks)
+
+                    # lnprobabilities[iteration, walker]
+                    lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
+                    # samples[iteration, walker, parameter]
+                    samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
+
+                    samples = samples[np.where(lnprobabilities > lnprob_cutoff)]
+                    weights = None
+
+                elif solver_kind == 'dynesty':
+                    samples = solution_ps.get_value(qualifier='samples', **_skip_filter_checks)
+                    logwt = solution_ps.get_value(qualifier='logwt', **_skip_filter_checks)
+                    logz = solution_ps.get_value(qualifier='logz', **_skip_filter_checks)
+
+                    samples = samples[:, adopt_inds]
+
+                    weights = np.exp(logwt - logz[-1])
+
                 else:
-                    raise NotImplementedError("combine='{}' not supported".format(combine))
+                    raise NotImplementedError()
 
-                if set_labels:
-                    uid_dist_dict[uid].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
+                distributions_convert = solution_ps.get_value(qualifier='distributions_convert', distributions_convert=kwargs.get('distributions_convert', None), **_skip_filter_checks)
+                distributions_bins = solution_ps.get_value(qualifier='distributions_bins', distributions_bins=kwargs.get('distributions_bins', None), **_skip_filter_checks)
 
+                def _corner_twig(param):
+                    if param.context == 'system':
+                        return param.qualifier
+                    else:
+                        return '{}@{}'.format(param.qualifier, getattr(param, param.context))
 
+                # def _corner_label(param):
+                #     if param.default_unit.to_string():
+                #         return '{} [{}]'.format(_corner_twig(param), param.default_unit)
+                #     return _corner_twig(param)
 
-        return _distl.DistributionCollection(*[uid_dist_dict.get(uid) for uid in uniqueids]), ret_keys
+                # TODO: try to use uniqueid in the get_parameter if there are matches?
+                dist_samples = _distl.mvsamples(samples,
+                                                weights=weights,
+                                                units=[u.Unit(unit) for unit in fitted_units[adopt_inds]],
+                                                labels=[_corner_twig(self.get_parameter(twig=twig, **_skip_filter_checks)) for twig in fitted_twigs[adopt_inds]],
+                                                wrap_ats=None)
+
+                if distributions_convert == 'mvsamples':
+                    dist = dist_samples
+                elif distributions_convert == 'mvhistogram':
+                    dist = dist_samples.to_mvhistogram(bins=distributions_bins)
+                elif distributions_convert == 'mvgaussian':
+                    dist = dist_samples.to_mvgaussian(allow_singular=True)
+                else:
+                    raise NotImplementedError("distributions_convert='{}' not supported".format(distributions_convert))
+
+                return dist, [getattr(self.get_parameter(twig=twig, **_skip_filter_checks), keys) for twig in fitted_twigs[adopt_inds]]
+
+            else:
+                dist_ps = self.get_distribution(dist)
+                for dist_param in dist_ps.to_list():
+                    ref_param = dist_param.get_referenced_parameter()
+                    uid = ref_param.uniqueid
+                    if not include_constrained and len(ref_param.constrained_by):
+                        continue
+                    if uid not in uniqueids:
+                        k = getattr(ref_param, keys)
+                        if k in uid_dist_dict.keys():
+                            raise ValueError("keys='{}' does not result in unique entries for each item".format(keys))
+
+                        uid_dist_dict[uid] = _to_dist(dist_param.get_value(), to_univariates, to_uniforms)
+                        uniqueids.append(ref_param.uniqueid)
+                        ret_keys.append(k)
+                    elif combine.lower() == 'first':
+                        logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
+                    elif combine.lower() == 'and':
+                        dist_obj = dist_param.get_value()
+                        old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [_to_dist(uid_dist_dict[uid], True, to_uniforms)]
+                        new_dist = _to_dist(dist_obj, True, to_uniforms)
+                        combined_dist = _distl._distl.Composite('__and__', old_dists + [new_dist])
+                        uid_dist_dict[uid] = combined_dist
+                    elif combine.lower() == 'or':
+                        dist_obj = dist_param.get_value()
+                        old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [_to_dist(uid_dist_dict[uid], True, to_uniforms)]
+                        new_dist = _to_dist(dist_obj, True, to_uniforms)
+                        combined_dist = _distl._distl.Composite('__or__', old_dists + [new_dist])
+                        uid_dist_dict[uid] = combined_dist
+                    else:
+                        raise NotImplementedError("combine='{}' not supported".format(combine))
+
+                    if set_labels:
+                        uid_dist_dict[uid].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
+
+                return _distl.DistributionCollection(*[uid_dist_dict.get(uid) for uid in uniqueids]), ret_keys
 
     def sample_distribution(self, twig=None, N=None,
                             set_value=False, keys='twig',
@@ -9609,42 +9690,7 @@ class Bundle(ParameterSet):
         changed_params = []
 
         if solver_kind in ['emcee', 'dynesty']:
-            if solver_kind == 'emcee':
-                lnprobabilities = solution_ps.get_value(qualifier='lnprobabilities', **_skip_filter_checks)
-                samples = solution_ps.get_value(qualifier='samples', **_skip_filter_checks)
-
-                burnin = solution_ps.get_value(qualifier='burnin', burnin=kwargs.get('burnin', None), **_skip_filter_checks)
-                thin = solution_ps.get_value(qualifier='thin', thin=kwargs.get('thin', None), **_skip_filter_checks)
-                lnprob_cutoff = solution_ps.get_value(qualifier='lnprob_cutoff', lnprob_cutoff=kwargs.get('lnprob_cutoff', None), **_skip_filter_checks)
-
-                # lnprobabilities[iteration, walker]
-                lnprobabilities = lnprobabilities[burnin:, :][::thin, :]
-                # samples[iteration, walker, parameter]
-                samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
-
-                samples = samples[np.where(lnprobabilities >= lnprob_cutoff)]
-                weights = None
-
-            elif solver_kind == 'dynesty':
-                samples = solution_ps.get_value(qualifier='samples', **_skip_filter_checks)
-                logwt = solution_ps.get_value(qualifier='logwt', **_skip_filter_checks)
-                logz = solution_ps.get_value(qualifier='logz', **_skip_filter_checks)
-
-                samples = samples[:, adopt_inds]
-
-                weights = np.exp(logwt - logz[-1])
-
-            else:
-                raise NotImplementedError()
-
-            # TODO: check on shape of weights when filtering with adopt_inds
-            dist = _distl.mvhistogram_from_data(samples,
-                                                bins=kwargs.get('bins', 10),
-                                                range=None,
-                                                weights=weights,
-                                                units=[u.Unit(unit) for unit in fitted_units[adopt_inds]],
-                                                labels=list(fitted_twigs[adopt_inds]),
-                                                wrap_ats=None)
+            dist, _ = self.get_distribution_collection(solution=solution, **{k:v for k,v in kwargs.items() if k in solution_ps.qualifiers})
 
             for i, uniqueid in enumerate(fitted_uniqueids[adopt_inds]):
                 if uniqueid in b_uniqueids:

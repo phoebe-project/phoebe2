@@ -311,7 +311,7 @@ def is_nd_array(value):
     else:
         if len(value.shape) > 1:
             return value
-        raise TypeError("must be a 1d array")
+        raise TypeError("must be an nd array, shape={}".format(value.shape))
 
 def is_square_matrix(value):
     if isinstance(value, list):
@@ -338,6 +338,19 @@ def _hist_pdf_cdf_ppf_callables(bins, density):
     cdf_call = _stats_custom.interpolate_callable( _np.append(bincenters, _np.inf), _np.append(cdf, 1.0))
 
     return pdf_call, cdf_call, ppf_call
+
+def _kde_pdf_cdf_ppf_callables(samples, weights):
+    kde = _stats.gaussian_kde(samples, weights=weights)
+    pdf_callable = kde.pdf
+
+    # https://stackoverflow.com/a/47419857
+    # stdev = _np.sqrt(kde.covariance)[0, 0]
+    # cdf_callable = lambda x : _stats.special.ndtr(_np.subtract.outer(x, n)).mean(axis=1)
+
+    def cdf_callable(x):
+        return _np.asarray([kde.integrate_box_1d(-_np.inf, xi) for xi in x])
+
+    return pdf_callable, cdf_callable, None
 
 ######################## DISTRIBUTION ABSTRACT CLASS ###########################
 
@@ -701,6 +714,7 @@ class BaseDistribution(BaseDistlObject):
         ---------
         * (float or array) pdf values of the same type/shape as `x`
         """
+        is_single = isinstance(x, float) or isinstance(x, int)
         x = self.get_from_cache(x, unit=unit)
 
         # x is assumed to be in the new units
@@ -711,9 +725,14 @@ class BaseDistribution(BaseDistlObject):
             x = (x * unit).to(self.unit).value
 
         try:
-            return self.dist_constructor_object.pdf(x)
+            return_ = self.dist_constructor_object.pdf(x)
         except AttributeError:
             raise NotImplementedError("{} does not support pdf".format(self.__class__.__name__))
+
+        if is_single and isinstance(return_, _np.ndarray):
+            # gaussian_kde will return an array even if a float is passed
+            return return_[0]
+        return return_
 
     def logpdf(self, x=None, unit=None):
         """
@@ -743,6 +762,7 @@ class BaseDistribution(BaseDistlObject):
         ---------
         * (float or array) logpdf values of the same type/shape as `x`
         """
+        is_single = isinstance(x, float) or isinstance(x, int)
         x = self.get_from_cache(x, unit=unit)
 
         # x is assumed to be in the new units
@@ -753,9 +773,14 @@ class BaseDistribution(BaseDistlObject):
             x = (x * unit).to(self.unit).value
 
         try:
-            return self.dist_constructor_object.logpdf(x)
+            return_ = self.dist_constructor_object.logpdf(x)
         except AttributeError:
             raise NotImplementedError("{} does not support logpdf".format(self.__class__.__name__))
+
+        if is_single and isinstance(return_, _np.ndarray):
+            # gaussian_kde will return an array even if a float is passed
+            return return_[0]
+        return return_
 
     def cdf(self, x=None, unit=None):
         """
@@ -959,7 +984,11 @@ class BaseDistribution(BaseDistlObject):
             # sample = self.sample(size=size, unit=unit, wrap_at=False, cache_sample=False)
             # xmin = _np.min(sample)
             # xmax = _np.max(sample)
-            xmin, xmax = self.interval(0.999, wrap_at=False, unit=unit)
+            if self.__class__.__name__ in ['Samples', 'MVSamplesSlice']:
+                xmin = self.samples.min()
+                xmax = self.samples.max()
+            else:
+                xmin, xmax = self.interval(0.999, wrap_at=False, unit=unit)
             x = _np.linspace(xmin-(xmax-xmin)*0.1, xmax+(xmax-xmin)*0.1, 1000)
 
         if plot_gaussian:
@@ -2219,6 +2248,28 @@ class BaseUnivariateDistribution(BaseDistribution):
                                    bins=bins, range=range,
                                    unit=self.unit, label=self.label, wrap_at=wrap_at if wrap_at is not None else self.wrap_at)
 
+    def to_samples(self, N=100000, wrap_at=None):
+        """
+        Convert the <<class>> distribution to a <Samples> distribution.
+
+        Under-the-hood, this calls <<class>.sample> with `size=N` and `wrap_at=False`
+        and passes the resulting array to <Samples.__init__>.
+
+        Arguments
+        -----------
+        * `N` (int, optional, default=100000): number of samples to sample.
+
+        * `wrap_at` (float or None, optional, default=None): value to set for
+            `wrap_at` of the returned <Histogram>.  If None or not provided,
+            will default to <<class>.wrap_at>.
+
+        Returns
+        --------
+        * a <Histogram> object
+        """
+        return Samples(self.sample(size=N, wrap_at=False, cache_sample=False),
+                       unit=self.unit, label=self.label, wrap_at=wrap_at if wrap_at is not None else self.wrap_at)
+
 
 class BaseMultivariateDistribution(BaseDistribution):
     def __init__(self, units=None, labels=None, wrap_ats=None, *args, **kwargs):
@@ -2808,7 +2859,10 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
     def cached_sample(self):
         if self.multivariate.cached_sample is None:
             return None
-        return self.multivariate.cached_sample[self.dimension]
+        if len(self.multivariate.cached_sample) > self.dimension:
+            return self.multivariate.cached_sample[self.dimension]
+        return None
+
 
     def clear_cached_sample(self):
         self.multivariate.clear_cached_sample()
@@ -3418,6 +3472,10 @@ class Composite(BaseUnivariateDistribution):
         ---------
         * a <Composite> object.
         """
+        # we need to make sure to set math before dists, so we'll do that manually
+        # first (we'll also pass it again in the super init so that the descriptors
+        # can be set properly)
+        self.math = math
         super(Composite, self).__init__(unit, label, wrap_at,
                                         _stats_custom.generic_pdf_cdf_ppf, ('_pdf_cdf_ppf_callables'),
                                         math=math, dists=dists)
@@ -3899,6 +3957,418 @@ class Histogram(BaseUnivariateDistribution):
         * a <Uniform> object
         """
         return self.to_gaussian().to_uniform(sigma=sigma)
+
+class Samples(BaseUnivariateDistribution):
+    """
+    A Samples distribution stores individual samples and draws randomly from them.
+
+    Treatment under-the-hood:
+
+    * <Samples.sample>, <Samples.mean>, <Samples.median>, <Samples.std>, and
+    <Samples.var> act directly on the stored array in <Samples.samples>, unless
+    <Samples.weights> are provided, in which case will act on a drawn sample
+    from <Samples.sample> (with the exception of <Samples.mean> which calls
+    numpy.average under-the-hood and passes <Samples.samples> and <Samples.weights>).
+
+    * all other methods requiring a probability to be computed (<Samples.pdf> etc)
+    rely on a KDE with <Samples.samples>, <Samples.weights>, and <Samples.bw_method>.
+    See https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gaussian_kde.html
+    """
+    def __init__(self, samples, weights=None, bw_method=None, unit=None, label=None, wrap_at=None):
+        """
+        Create a <Samples> distribution from samples.
+
+        This can also be created from a function at the top-level as:
+
+        * <distl.samples>
+
+        Arguments
+        --------------
+        * `samples` (np.array object): an array of samples.
+        * `weights` (np.array object with length nsamples or None, optional, default=None):
+            weights for each entry in `samples`
+        * `bw_method` (string, float, or None, optional, default=None): passed
+            directly to scipy.stats.gaussian_kde.  Only used for methods that
+            rely on the KDE.
+        * `unit` (astropy.units object, optional): the units of the provided values.
+        * `label` (string, optional): a label for the distribution.  This is used
+            for the x-label while plotting the distribution, as well as a shorthand
+            notation when creating a <Composite> distribution.
+        * `wrap_at` (float, None, or False, optional, default=None): value to
+            use for wrapping.  If None and `unit` are angles, will default to
+            2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+            to 1.0.
+
+        Returns
+        --------
+        * a <Samples> object
+        """
+        super(Samples, self).__init__(unit, label, wrap_at,
+                                      _stats.gaussian_kde, ('samples', 'bw_method', 'weights'),
+                                      samples=samples, weights=weights, bw_method=bw_method)
+
+    @property
+    def nsamples(self):
+        """
+        """
+        return len(self.samples)
+
+    @property
+    def samples(self):
+        """
+        the value of the user-set samples
+        """
+        return self._samples
+
+    @samples.setter
+    def samples(self, value):
+        self._samples = is_1d_array(value)
+
+    @property
+    def bw_method(self):
+        """
+        """
+        return self._bw_method
+
+    @bw_method.setter
+    def bw_method(self, value):
+        if value in [None, 'scott', 'silverman']:
+            self._bw_method = value
+            return
+        self._bw_method = is_float(value)
+
+    @property
+    def weights(self):
+        """
+        weights for each entry in <Samples.samples>
+        """
+        return self._weights
+
+    @weights.setter
+    def weights(self, value):
+        if value is None:
+            self._weights = None
+        else:
+            self._weights = is_1d_array(value)
+
+    def to_histogram(self, bins=20, wrap_at=None):
+        """
+        Convert the <Samples> distribution to a <Histogram> distribution.
+
+        Returns
+        ---------
+        * a <Histogram> object
+        """
+        hist, bin_edges = _np.histogram(self.samples, weights=self.weights, bins=bins, density=True)
+
+        return Histogram(bin_edges, hist, label=self.label, unit=self.unit, wrap_at=wrap_at if wrap_at is not None else self.wrap_at)
+
+    def to_gaussian(self):
+        """
+        Convert the <Samples> distribution to a <Gaussian> distribution by
+        adopting the values of <Samples.median> and <Samples.std>.
+
+        Returns
+        --------
+        * a <Gaussian> object
+        """
+        return Gaussian(self.median(), self.std(), label=self.label, unit=self.unit, wrap_at=self.wrap_at)
+
+    def to_uniform(self, sigma=1.0):
+        """
+        Convert the <Samples> distribution to a <Uniform> distribution via
+        a <Gaussian> distribution.
+
+        Under-the-hood, this calls <Samples.to_gaussian> and then calls
+        <Gaussian.to_uniform> with the requested value of `sigma`.
+
+        Arguments
+        -----------
+        * `sigma` (float, optional, default=1.0): the number of standard deviations
+            to adopt as the lower and upper bounds of the uniform distribution.
+
+        Returns
+        --------
+        * a <Uniform> object
+        """
+        return self.to_gaussian().to_uniform(sigma=sigma)
+
+    def cdf(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def logcdf(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def ppf(self, q, unit=None, as_quantity=False, wrap_at=None):
+        """
+        Expose the percent point function (ppf; iverse of cdf - percentiles) at
+        values of `q`.
+
+        For <Samples>, this is done manually by sorting all <Samples.samples>
+        and mapping `q` onto the range of the sum of <Samples.weights> to select
+        the appropriate entry from <Samples.samples>.
+
+        See also:
+
+        * <<class>.pdf>
+        * <<class>.cdf>
+        * <<class>.sample>
+
+        Arguments
+        ----------
+        * `q` (float or array): percentiles at which to expose the ppf
+        * `unit` (astropy.unit, optional, default=None): unit of the exposed
+            values.  If None or not provided, will assume they're provided in
+            <<class>.unit>.
+        * `as_quantity` (bool, optional, default=False): whether to return an
+            astropy quantity object instead of just the value.  Astropy must
+            be installed.
+        * `wrap_at` (float, None, or False, optional, default=None): value to
+            use for wrapping.  See <<class>.wrap>.  If not provided or None,
+            will use the value from <<class>.wrap_at>.  Note: wrapping is
+            computed before changing units, so `wrap_at` must be provided
+            according to <<class>.unit> not `unit`.
+
+        Returns
+        ---------
+        * (float or array) ppf values of the same type/shape as `x`
+        """
+
+        sorted = self.samples.argsort()
+        samples_sorted = self.samples[sorted]
+        weights = self.weights if self.weights is not None else _np.ones(samples_sorted.shape)
+        q_lookup = _np.cumsum(weights[sorted]) / _np.sum(weights)
+        if isinstance(q, float):
+            inds = abs(q_lookup - q).argmin()
+        else:
+            inds = _np.asarray([abs(q_lookup - qi).argmin() for qi in q])
+
+        ppf = samples_sorted[inds]
+
+        return self._return_with_units(self.wrap(ppf, wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
+
+    def interval(self, alpha, unit=None, as_quantity=False, wrap_at=None):
+        """
+        Expose the range that contains alpha percent of the distribution.
+
+        For <Samples>, this directly calls <Samples.ppf> for 0.5 - alpha/2 and
+        0.5 + alpha/2.
+
+        Arguments
+        ----------
+        * `alpha` (float): passed directly to scipy (see link above)
+        * `unit` (astropy.unit, optional, default=None): unit of the values
+            in `x` to expose.  If None or not provided, will assume they're in
+            <<class>.unit>.
+        * `as_quantity` (bool, optional, default=False): whether to return an
+            astropy quantity object instead of just the value.  Astropy must
+            be installed.
+        * `wrap_at` (float, None, or False, optional, default=None): value to
+            use for wrapping.  See <<class>.wrap>.  If not provided or None,
+            will use the value from <<class>.wrap_at>.  Note: wrapping is
+            computed before changing units, so `wrap_at` must be provided
+            according to <<class>.unit> not `unit`.
+
+        Returns
+        ---------
+        * (array) endpoints in units `unit`.
+        """
+
+        interval = [self.ppf(0.5-alpha/2., unit=unit), self.ppf(0.5+alpha/2., unit=unit)]
+
+        return self._return_with_units(self.wrap(_np.asarray(interval), wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
+
+    def median(self, unit=None, as_quantity=False, wrap_at=None, N=int(1e6)):
+        """
+        Expose the median of the samples (<Samples.samples> if <Samples.weights>
+        is not provided, otherwise `N` draws from <Samples.sample>)
+
+        See also:
+
+        * <Samples.mean>
+        * <Samples.var>
+        * <Samples.std>
+
+        Arguments
+        ----------
+        * `unit` (astropy.unit, optional, default=None): unit of the values
+            in `x` to expose.  If None or not provided, will assume they're in
+            <<class>.unit>.
+        * `as_quantity` (bool, optional, default=False): whether to return an
+            astropy quantity object instead of just the value.  Astropy must
+            be installed.
+        * `wrap_at` (float, None, or False, optional, default=None): value to
+            use for wrapping.  See <<class>.wrap>.  If not provided or None,
+            will use the value from <<class>.wrap_at>.  Note: wrapping is
+            computed before changing units, so `wrap_at` must be provided
+            according to <<class>.unit> not `unit`.
+        * `N` (int, optional, default=1e6): number of samples to draw before
+            computing `median`.  Only applicable if <Samples.weights> is not None.
+
+        Returns
+        ---------
+        * (float) median of the distribution in units `unit`.
+        """
+        median = _np.median(self.sample(size=N, cache_sample=False) if self.weights is not None else self.samples)
+
+        return self._return_with_units(self.wrap(median, wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
+
+    def mean(self, unit=None, as_quantity=False, wrap_at=None):
+        """
+        Expose the mean of the <Samples.samples> given the <Samples.weights>
+
+        Under-the-hood this uses numpy.average (as numpy.mean does not support weights)
+
+        See also:
+
+        * <Samples.median>
+        * <Samples.var>
+        * <Samples.std>
+
+        Arguments
+        ----------
+        * `unit` (astropy.unit, optional, default=None): unit of the values
+            in `x` to expose.  If None or not provided, will assume they're in
+            <<class>.unit>.
+        * `as_quantity` (bool, optional, default=False): whether to return an
+            astropy quantity object instead of just the value.  Astropy must
+            be installed.
+        * `wrap_at` (float, None, or False, optional, default=None): value to
+            use for wrapping.  See <<class>.wrap>.  If not provided or None,
+            will use the value from <<class>.wrap_at>.  Note: wrapping is
+            computed before changing units, so `wrap_at` must be provided
+            according to <<class>.unit> not `unit`.
+
+        Returns
+        ---------
+        * (float) mean of the distribution in units `unit`.
+        """
+        mean = _np.average(self.samples, weights=self.weights)
+
+        return self._return_with_units(self.wrap(mean, wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
+
+    def var(self, unit=None, as_quantity=False, wrap_at=None, N=int(1e6)):
+        """
+        Expose the variance of the  samples (<Samples.samples> if <Samples.weights>
+        is not provided, otherwise `N` draws from <Samples.sample>)
+
+        See also:
+
+        * <Samples.median>
+        * <Samples.mean>
+        * <Samples.std>
+
+        Arguments
+        ----------
+        * `unit` (astropy.unit, optional, default=None): unit of the values
+            in `x` to expose.  If None or not provided, will assume they're in
+            <<class>.unit>.
+        * `as_quantity` (bool, optional, default=False): whether to return an
+            astropy quantity object instead of just the value.  Astropy must
+            be installed.
+        * `wrap_at` (float, None, or False, optional, default=None): value to
+            use for wrapping.  See <<class>.wrap>.  If not provided or None,
+            will use the value from <<class>.wrap_at>.  Note: wrapping is
+            computed before changing units, so `wrap_at` must be provided
+            according to <<class>.unit> not `unit`.
+        * `N` (int, optional, default=1e6): number of samples to draw before
+            computing `var`.  Only applicable if <Samples.weights> is not None.
+
+        Returns
+        ---------
+        * (float) variance of the distribution in units `unit`.
+        """
+        var = _np.var(self.sample(size=N, cache_sample=False) if self.weights is not None else self.samples)
+
+        return self._return_with_units(self.wrap(var, wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
+
+    def std(self, unit=None, as_quantity=False, wrap_at=None, N=int(1e6)):
+        """
+        Expose the standard deviation of the  samples (<Samples.samples> if <Samples.weights>
+        is not provided, otherwise `N` draws from <Samples.sample>)
+
+        See also:
+
+        * <Samples.median>
+        * <Samples.mean>
+        * <Samples.var>
+
+        Arguments
+        ----------
+        * `unit` (astropy.unit, optional, default=None): unit of the values
+            in `x` to expose.  If None or not provided, will assume they're in
+            <<class>.unit>.
+        * `as_quantity` (bool, optional, default=False): whether to return an
+            astropy quantity object instead of just the value.  Astropy must
+            be installed.
+        * `wrap_at` (float, None, or False, optional, default=None): value to
+            use for wrapping.  See <<class>.wrap>.  If not provided or None,
+            will use the value from <<class>.wrap_at>.  Note: wrapping is
+            computed before changing units, so `wrap_at` must be provided
+            according to <<class>.unit> not `unit`.
+        * `N` (int, optional, default=1e6): number of samples to draw before
+            computing `std`.  Only applicable if <Samples.weights> is not None.
+
+        Returns
+        ---------
+        * (float) standard deviation of the distribution in units `unit`.
+        """
+        std = _np.std(self.sample(size=N, cache_sample=False) if self.weights is not None else self.samples)
+
+        return self._return_with_units(self.wrap(std, wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
+
+    def sample(self, size=None, unit=None, as_quantity=False, wrap_at=None, seed=None, cache_sample=True):
+        """
+        Sample from the samples <Samples.samples> given <Samples.weights>.
+
+        Under-the-hood this calls numpy.random.choice with `replace=True`.
+
+        See also:
+
+        * <<class>.pdf>
+        * <<class>.cdf>
+        * <<class>.ppf>
+        * <<class>.plot_sample>
+        * <<class>.plot>
+
+        Arguments
+        -----------
+        * `size` (int or tuple or None, optional, default=None): size/shape of the
+            resulting array.
+        * `unit` (astropy.unit, optional, default=None): unit to convert the
+            resulting sample(s).  Astropy must be installed in order to convert
+            units.
+        * `as_quantity` (bool, optional, default=False): whether to return an
+            astropy quantity object instead of just the value.  Astropy must
+            be installed.
+        * `wrap_at` (float, None, or False, optional, default=None): value to
+            use for wrapping.  See <<class>.wrap>.  If not provided or None,
+            will use the value from <<class>.wrap_at>.  Note: wrapping is
+            computed before changing units, so `wrap_at` must be provided
+            according to <<class>.unit> not `unit`.
+        * `seed` (int, optional): seed to pass to np.random.seed
+            prior to sampling.
+        * `cache_sample` (bool, optional, default=True): whether to override the
+            existing <<class>.cached_sample>.
+
+        Returns
+        ---------
+        * float or array: float if `size=None`, otherwise a numpy array with
+            shape defined by `size`.
+        """
+        if isinstance(seed, dict):
+            seed = seed.get(self.hash, None)
+
+        if seed is not None:
+            _np.random.seed(seed)
+
+        sample = _np.random.choice(self.samples, size=size, replace=True, p=self.weights)
+
+        if cache_sample:
+            self._cached_sample = sample
+
+        return self._return_with_units(self.wrap(sample, wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
+
 
 class Delta(BaseUnivariateDistribution):
     """
@@ -4428,6 +4898,28 @@ class MVGaussian(BaseMultivariateDistribution):
                                      bins=bins, range=range,
                                      units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
 
+    def to_mvsamples(self, N=1e6):
+        """
+        Convert the <MVGaussian> distribution to an <MVSamples> distribution.
+
+        Under-the-hood, this calls <<class>.sample> with `size=N` and `wrap_at=False`
+        and passes the resulting array and `bins` to <MVSamples>.
+
+        Arguments
+        -----------
+        * `N` (int, optional, default=1e6): number of samples to use for
+            the histogram.
+        * `bins` (int, optional, default=15): number of bins to use for the
+            histogram.
+
+        Returns
+        --------
+        * an <MVSamples> object
+        """
+        # TODO: if sample is updated to take wrap_at/wrap_ats... pass wrap_at=False here
+        return MVSamples(self.sample(size=int(N), cache_sample=False),
+                         units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
+
     def to_univariate(self, dimension):
         """
         Shortcut to <MVGaussian.to_gaussian>
@@ -4480,6 +4972,29 @@ class MVGaussian(BaseMultivariateDistribution):
         """
         self.to_gaussian(dimension).to_histogram(N=N, bins=bins, range=range, wrap_at=wrap_at)
 
+    def to_samples(self, dimension, N=100000, wrap_at=None):
+        """
+        Convert the <MVGaussian> distribution to a <Samples> univariate distribution.
+
+        Under-the-hood, this calls <<class>.to_gaussian> and then
+        <Gaussian.to_samples>.
+
+        Arguments
+        -----------
+        * `dimension` (int or str): index or label of the dimension to use for
+            the univariate distribution.
+        * `N` (int, optional, default=100000): number of samples to use for
+            the histogram.
+        * `wrap_at` (float or None, optional, default=None): value to set for
+            `wrap_at` of the returned <Histogram>.  If None or not provided,
+            will default to <<class>.wrap_at>.
+
+        Returns
+        --------
+        * a <Samples> object
+        """
+        self.to_gaussian(dimension).to_samples(N=N, wrap_at=wrap_at)
+
 class MVGaussianSlice(BaseMultivariateSliceDistribution):
     @property
     def dist_constructor_func(self):
@@ -4496,7 +5011,6 @@ class MVGaussianSlice(BaseMultivariateSliceDistribution):
     @property
     def loc(self):
         return self.multivariate.mean[self.dimension]
-
 
     @property
     def scale(self):
@@ -4589,11 +5103,11 @@ class MVHistogram(BaseMultivariateDistribution):
 
         return cls(_np.asarray(bin_edges), hist, units=units, labels=labels, wrap_ats=wrap_ats)
 
-    def pdf(self, x, unit=None):
+    def pdf(self, x=None, unit=None):
         # TODO: N-dimension interpolation of (self.bins, self.density)
         raise NotImplementedError("pdf not supported for {} distribution".format(self.__class__.__name__))
 
-    def logpdf(self, x, unit=None):
+    def logpdf(self, x=None, unit=None):
         raise NotImplementedError("logpdf not supported for {} distribution".format(self.__class__.__name__))
 
     @property
@@ -4602,11 +5116,11 @@ class MVHistogram(BaseMultivariateDistribution):
         cdf /= float(cdf[-1])
         return cdf
 
-    def cdf(self, x, unit=None):
+    def cdf(self, x=None, unit=None):
         # TODO: N-dimensional interpolation of (self.bins, self._cdf_per_bin)
         raise NotImplementedError("cdf not supported for {} distribution".format(self.__class__.__name__))
 
-    def logcdf(self, x, unit=None):
+    def logcdf(self, x=None, unit=None):
         raise NotImplementedError("logcdf not supported for {} distribution".format(self.__class__.__name__))
 
     def _ppf(self, q, dimension=None):
@@ -4858,6 +5372,25 @@ class MVHistogram(BaseMultivariateDistribution):
         """
         return self.calculate_means_covariances(N=N)[1]
 
+    def to_mvsamples(self, N=1e6, range=None):
+        """
+        Convert the <MVHistogram> distribution to an <MVSamples> distribution.
+
+        Under-the-hood, this calls <<class>.sample> with `size=N` and `wrap_at=False`
+        and passes the resulting array and `bins` to <MVSamples>.
+
+        Arguments
+        -----------
+        * `N` (int, optional, default=1e6): number of samples to use for
+            the histogram.
+
+        Returns
+        --------
+        * an <MVSamples> object
+        """
+        # TODO: if sample is updated to take wrap_at/wrap_ats... pass wrap_at=False here
+        return MVSamples(self.sample(size=int(N), cache_sample=False),
+                         units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
 
     def to_mvgaussian(self, N=1e5, allow_singular=False):
         """
@@ -4913,6 +5446,29 @@ class MVHistogram(BaseMultivariateDistribution):
                          label=self.labels[dimension] if self.labels is not None else None,
                          wrap_at=self.wrap_ats[dimension] if self.wrap_ats is not None else None)
 
+    def to_samples(self, dimension, N=100000, wrap_at=None):
+        """
+        Convert the <MVHistogram> distribution to a <Samples> univariate distribution.
+
+        Under-the-hood, this calls <MVHistogram.to_histogram> followed by <Histogram.to_samples>.
+
+        Arguments
+        -----------
+        * `dimension` (int or str): index or label of the dimension to use for
+            the univariate distribution.
+        * `N` (int, optional, default=1e5): number of samples to draw and store
+            in the <Samples> distribution.  See <Histogram.to_samples>.
+        * `wrap_at` (float or None, optional, default=None): value to set for
+            `wrap_at` of the returned <Histogram>.  If None or not provided,
+            will default to <<class>.wrap_at>.
+
+        Returns
+        --------
+        * a <Histogram> object
+        """
+        dimension = self._get_dimension_index(dimension)
+        return self.to_histogram(dimension).to_samples(N=N)
+
     def to_gaussian(self, dimension):
         """
         Convert the <MVHistogram> distribution to a <Gaussian> univariate distribution.
@@ -4943,20 +5499,6 @@ class MVHistogramSlice(BaseMultivariateSliceDistribution):
     def dist_constructor_args(self):
         return _hist_pdf_cdf_ppf_callables(self.bins, self.density)
 
-    # def pdf(self, x, unit=None):
-    #     # TODO: N-dimension interpolation of (self.bins, self.density)
-    #     raise NotImplementedError("pdf not supported for {} distribution".format(self.__class__.__name__))
-    #
-    # def logpdf(self, x, unit=None):
-    #     raise NotImplementedError("logpdf not supported for {} distribution".format(self.__class__.__name__))
-    #
-    # def cdf(self, x, unit=None):
-    #     # TODO: N-dimensional interpolation of (self.bins, self._cdf_per_bin)
-    #     raise NotImplementedError("cdf not supported for {} distribution".format(self.__class__.__name__))
-    #
-    # def logcdf(self, x, unit=None):
-    #     raise NotImplementedError("logcdf not supported for {} distribution".format(self.__class__.__name__))
-
     @property
     def bins(self):
         return self.multivariate.bins[self.dimension]
@@ -4964,6 +5506,507 @@ class MVHistogramSlice(BaseMultivariateSliceDistribution):
     @property
     def density(self):
         return _np.sum(self.multivariate.density, axis=tuple([d for d in range(self.multivariate.ndimensions) if d!=self.dimension]))
+
+class MVSamples(BaseMultivariateDistribution):
+    """
+
+    Treatment under-the-hood:
+
+    * <MVSamples.sample>, <MVSamples.calculate_means>, <MVSamples.calculate_covariances>
+     act directly on the stored array in <MVSamples.samples>, unless
+    <MVSamples.weights> are provided, in which case will act on a drawn sample
+    from <MVSamples.sample> (with the exception of <MVSamples.mean> which calls
+    numpy.average under-the-hood and passes <MVSamples.samples> and <MVSamples.weights>).
+
+    * all other methods requiring a probability to be computed (<MVSamples.pdf> etc)
+    rely on a KDE with <MVSamples.samples>, <MVSamples.weights>, and <MVSamples.bw_method>.
+    See https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gaussian_kde.html
+
+    """
+    def __init__(self, samples, weights=None, bw_method=None, units=None, labels=None, wrap_ats=None):
+        """
+        Create an <MVSamples> distribution from samples (eg. chains from MCMC).
+
+        See also:
+
+        * <distl.mvsamples>
+
+        Arguments
+        --------------
+        * `samples` (np.array object with shape (nsamples, <MVSamples.ndimensions>)):
+            the samples.
+        * `weights` (np.array object with shape (nsamples) or None, optional, default=None):
+            weights for each entry in `samples`
+        * `bw_method` (string, float, or None, optional, default=None): passed
+            directly to scipy.stats.gaussian_kde.  Only used for methods that
+            rely on the KDE.
+        * `units` (list of astropy.units objects, optional): the units of the provided values.
+        * `labels` (list of strings, optional): labels for each dimension in the
+            distribution.  This is used
+            for the x-labels while plotting the distribution, as well as a shorthand
+            notation when creating a <Composite> distribution.
+        * `wrap_ats` (list of floats, None, or False, optional, default=None): values to
+            use for wrapping.  If None and `unit` are angles, will default to
+            2*pi (or 360 degrees).  If None and `unit` are cycles, will default
+            to 1.0.
+
+        Returns
+        --------
+        * an <MVSamples> object
+        """
+        super(MVSamples, self).__init__(units, labels, wrap_ats,
+                                        _stats.gaussian_kde, ('samples', 'bw_method', 'weights'),
+                                        samples=samples, weights=weights, bw_method=bw_method)
+
+    @property
+    def samples(self):
+        """
+        the samples (nsamples, <MVSamples.ndimensions>).
+        """
+        return self._samples
+
+    @samples.setter
+    def samples(self, value):
+        self._samples = is_nd_array(value)
+
+    @property
+    def weights(self):
+        """
+        weights for each entry in <Samples.samples>
+        """
+        return self._weights
+
+    @weights.setter
+    def weights(self, value):
+        if value is None:
+            self._weights = None
+        else:
+            self._weights = is_1d_array(value)
+
+    @property
+    def bw_method(self):
+        """
+        """
+        return self._bw_method
+
+    @bw_method.setter
+    def bw_method(self, value):
+        if value in [None, 'scott', 'silverman']:
+            self._bw_method = value
+            return
+        self._bw_method = is_float(value)
+
+    @property
+    def ndimensions(self):
+        """
+        Access the number of dimensions in the <MVSamples> distribution.
+
+        See also:
+
+        * <MVSamples.nsamples>
+        * <MVSamples.samples>
+
+        Returns
+        --------
+        * int
+        """
+        return self.samples.shape[1]
+
+    @property
+    def nsamples(self):
+        """
+        Access the number of samples in the <MVSamples> distribution.
+
+        See also:
+
+        * <MVSamples.ndimensions>
+        * <MVSamples.samples>
+
+        Returns
+        --------
+        * int
+        """
+        return self.samples.shape[0]
+
+    def slice(self, dimension):
+        """
+        Take a single dimension from the multivariate distribution while
+        retaining the covariances.  The returned <MVSamplesSlice> object
+        keeps the full multivariate distribution while acting somewhat
+        like a univariate distribution.
+
+        See also:
+
+        * <<class>.to_histogram>
+        * <<class>.to_gaussian>
+        * <MVSamplesSlice.dimension>
+
+        Arguments
+        ----------
+        * `dimension` (int or string): the label or index of the dimension to
+            take.
+
+        Returns
+        ------------
+        * <MVSamplesSlice> object
+        """
+        return MVSamplesSlice(self, dimension)
+
+    def take_dimensions(self, dimensions):
+        """
+        Take multiple dimensions from the multivariate distribution (and remove
+        all others), returning another <MVSamples> object.
+
+        See also:
+
+        * <MVSamples.slice>
+        * <MVSamples.to_univariate>
+
+        Arguments
+        ----------
+        * `dimension` (list of strings or ints): the labels or indices of the
+            dimensions to include in the new distribution.
+
+        Returns
+        ----------
+        * <MVSamples> object or <Samples> if only one dimension provided
+        """
+        if isinstance(dimensions, int) or isinstance(dimensions, str) or isinstance(dimensions, unicode):
+            dimensions = [dimensions]
+
+        dimensions = [self._get_dimension_index(d) for d in dimensions]
+
+        if len(dimensions) == 1:
+            return self.to_univariate(dimensions[0])
+
+        samples = _np.asarray(self.samples)[:,dimensions]
+
+        return MVSamples(samples=samples,
+                           weights=self.weights,
+                           bw_method=self.bw_method,
+                           units=[self.units[d] for d in dimensions] if self.units is not None else None,
+                           labels=[self.labels[d] for d in dimensions] if self.labels is not None else None,
+                           wrap_ats=[self.wrap_ats[d] for d in dimensions] if self.wrap_ats is not None else None)
+
+
+    def cdf(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def logcdf(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def ppf(self, *args, **kwargs):
+        # TODO: manual implementation: sum all weights, random value over that range, pick item from list
+        raise NotImplementedError()
+
+    def interval(self, *args, **kwargs):
+        # TODO: manual implementation
+        raise NotImplementedError()
+
+    def sample(self, size=None, dimension=None, seed=None, cache_sample=True):
+        """
+        Sample from the  samples (<MVSamples.samples> if <MVSamples.weights>
+        is not provided, otherwise <MVSamples.samples_weighted>)
+
+        Arguments
+        ----------
+        * `size`
+        * `dimension`
+        * `seed` (int, optional): seed to pass to np.random.seed
+            prior to sampling.
+        * `cache_sample` (bool, optional, default=True): whether to override the
+            existing <<class>.cached_sample>.
+
+        """
+
+        if isinstance(seed, dict):
+            seed = seed.get(self.hash, None)
+
+        if seed is not None:
+            _np.random.seed(seed)
+
+        sample_ind = _np.random.choice(self.nsamples, size=size if size is not None else 1, replace=True, p=self.weights)
+        sample = self.samples[sample_ind]
+
+        if cache_sample:
+            self._cached_sample = sample
+
+        if dimension is not None:
+            dimension = self._get_dimension_index(dimension)
+            sample = sample[:, dimension]
+
+
+        # TODO: units, as_quantity, wrapping
+        if size is None:
+            return sample[0]
+        else:
+            return sample
+
+
+    def plot(self, *args, **kwargs):
+        """
+        """
+        # TODO: add plot_mvgaussian or plot_gaussian options to overplot the MVGaussian pdfs/contours
+
+        dimension = kwargs.pop('dimension', None)
+        if dimension is not None:
+            dimension = self._get_dimension_index(dimension)
+
+        if dimension is not None:
+            kwargs.setdefault('bins', self.bins[dimension])
+
+        return super(MVSamples, self).plot(*args, **kwargs)
+
+    def calculate_means_covariances(self, N=int(1e6)):
+        """
+        Return the weighted mean values and covariances from the samples
+        (<MVSamples.samples> if <MVSamples.weights>
+        is not provided, otherwise <MVSamples.samples_weighted>).
+
+        See also:
+
+        * <MVSamples.calculate_means>
+        * <MVSamples.calculate_covariances>
+
+        Arguments
+        ----------
+        * `N` (int, optional, default=1e6): number of samples to draw before
+            computing means/covariances.  Only applicable if <MVSamples.weights> is not None.
+
+        Returns
+        -------
+        * means (array of floats), covariances (matrix)
+        """
+        # TODO: MVHistogram.calculate_means_covariances should convert to MVSamples and call this
+
+        # TODO: do we need to handle wrap_at?
+        samples = self.sample(size=int(N), cache_sample=False) if self.weights is not None else self.samples
+        means = _np.mean(samples, axis=0)
+        covariances = _np.cov(samples.T)
+        return means, covariances
+
+    def calculate_means(self, N=int(1e6)):
+        """
+        Return the weighted mean values from the samples (<MVSamples.samples> if <MVSamples.weights>
+        is not provided, otherwise <MVSamples.samples_weighted>)
+
+        See also:
+
+        * <MVSamples.calculate_covariances>
+        * <MVSamples.calculate_means_covariances>
+
+        Arguments
+        ----------
+        * `N` (int, optional, default=1e6): number of samples to draw before
+            computing means.  Only applicable if <MVSamples.weights> is not None.
+
+        Returns
+        -------
+        * list of floats: the mean value per dimension
+        """
+        return self.calculate_means_covariances(N=N)[0]
+
+    def calculate_covariances(self, N=int(1e6)):
+        """
+        Return the covariances about the mean from the samples (<MVSamples.samples> if <MVSamples.weights>
+        is not provided, otherwise <MVSamples.samples_weighted>)
+
+        Under-the-hood, this calls `np.cov` on <MVSamples.samples> or <MVSamples.samples_weighted>
+
+        See also:
+
+        * <MVSamples.calculate_means>
+        * <MVSamples.calculate_means_covariances>
+
+        Arguments
+        ----------
+        * `N` (int, optional, default=1e6): number of samples to draw before
+            computing covariances.  Only applicable if <MVSamples.weights> is not None.
+
+        Returns
+        ---------
+        * MxM square matrix of floats.
+        """
+        return self.calculate_means_covariances(N=N)[1]
+
+    def to_univariate(self, dimension):
+        """
+        Shortcut to <MVSamples.to_samples>
+        """
+        return self.to_samples(dimension=dimension)
+
+    def to_samples(self, dimension):
+        """
+        Convert the <MVSamples> distribution to a <Samples> univariate distribution.
+
+        Arguments
+        -----------
+        * `dimension` (int or str): index or label of the dimension to use for
+            the univariate distribution.
+        * `wrap_at` (float or None, optional, default=None): value to set for
+            `wrap_at` of the returned <Histogram>.  If None or not provided,
+            will default to <<class>.wrap_at>.
+
+        Returns
+        --------
+        * a <Samples> object
+        """
+        dimension = self._get_dimension_index(dimension)
+
+        return Samples(self.samples[:, dimension],
+                       weights=self.weights,
+                       bw_method=self.bw_method,
+                       unit=self.units[dimension] if self.units is not None else None,
+                       label=self.labels[dimension] if self.labels is not None else None,
+                       wrap_at=self._wrap_ats[dimension] if self.wrap_ats is not None else None)
+
+
+
+    def to_mvgaussian(self, allow_singular=False):
+        """
+        Convert the <MVSamples> distribution to an <MVGaussian> distribution.
+
+        See also:
+
+        * <MVSamples.calculate_means>
+        * <MVSamples.calculate_covariances>
+
+        Arguments
+        ---------
+        * `allow_singular` (bool, optional, default=False): value to pass to
+            <MVGaussian>.
+
+        Returns
+        --------
+        * an <MVGaussian> object
+        """
+        mean, cov = self.calculate_means_covariances()
+        return MVGaussian(mean, cov, allow_singular=allow_singular,
+                          units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
+
+    def to_mvhistogram(self, N=1e6, bins=15, range=None):
+        """
+        Convert the <MVSamples> distribution to an <MVHistogram> distribution.
+
+        Under-the-hood, this calls <<class>.sample> with `size=N` and `wrap_at=False`
+        and passes the resulting array as well as the requested `bins` and `range`
+        to <MVHistogram.from_data>.
+
+        Arguments
+        -----------
+        * `N` (int, optional, default=1e6): number of samples to use for
+            the histogram.
+        * `bins` (int, optional, default=15): number of bins to use for the
+            histogram.
+        * `range` (tuple or None): range to use for the histogram.
+
+        Returns
+        --------
+        * an <MVHistogram> object
+        """
+        # TODO: if sample is updated to take wrap_at/wrap_ats... pass wrap_at=False here
+        return MVHistogram.from_data(self.sample(size=int(N), cache_sample=False),
+                                     bins=bins, range=range,
+                                     units=self.units, labels=self.labels, wrap_ats=self.wrap_ats)
+
+    def to_histogram(self, dimension):
+        """
+        Convert the <MVSamples> distribution to a <Histogram> univariate distribution.
+
+        Under-the-hood, this calls <MVSamples.to_samples> followed by <Samples.to_histogram>.
+
+        Arguments
+        -----------
+        * `dimension` (int or str): index or label of the dimension to use for
+            the univariate distribution.
+
+        Returns
+        --------
+        * a <Histogram> object
+        """
+        return self.to_samples(dimension).to_histogram()
+
+    def to_gaussian(self, dimension):
+        """
+        Convert the <MVSamples> distribution to a <Gaussian> univariate distribution.
+
+        Under-the-hood, this calls <MVSamples.to_histogram> followed by <Histogram.to_gaussian>.
+
+        Arguments
+        -----------
+        * `dimension` (int or str): index or label of the dimension to use for
+            the univariate distribution.
+
+        Returns
+        ----------
+        * a <Gaussian> object
+        """
+        return self.to_histogram(dimension).to_gaussian()
+
+class MVSamplesSlice(BaseMultivariateSliceDistribution):
+    @property
+    def dist_constructor_func(self):
+        return _stats.gaussian_kde
+
+    @property
+    def dist_constructor_argnames(self):
+        return ('samples', 'bw_method', 'weights')
+
+    @property
+    def samples(self):
+        return self.multivariate.samples[:, self.dimension]
+
+    @property
+    def weights(self):
+        return self.multivariate.weights[:, self.dimension] if self.multivariate.weights is not None else None
+
+    @property
+    def bw_method(self):
+        return self.multivariate.bw_method
+
+    def cdf(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def logcdf(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def ppf(self, q, unit=None, as_quantity=False, wrap_at=None):
+        """
+        See <Samples.pff>
+        """
+        return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).ppf(q, unit=unit, as_quantity=as_quantity, wrap_at=wrap_at)
+
+
+    def interval(self, alpha, unit=None, as_quantity=False, wrap_at=None):
+        """
+        See <Samples.interval>
+        """
+        return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).interval(alpha, unit=unit, as_quantity=as_quantity, wrap_at=wrap_at)
+
+    def median(self, unit=None, as_quantity=False, wrap_at=None, N=int(1e6)):
+        """
+        See <Samples.median>
+        """
+        return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).median(unit=unit, as_quantity=as_quantity, wrap_at=wrap_at, N=N)
+
+    def mean(self, unit=None, as_quantity=False, wrap_at=None):
+        """
+        See <Samples.mean>
+        """
+        return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).mean(unit=unit, as_quantity=as_quantity, wrap_at=wrap_at)
+
+    def var(self, unit=None, as_quantity=False, wrap_at=None, N=int(1e6)):
+        """
+        See <Samples.var>
+        """
+        return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).var(unit=unit, as_quantity=as_quantity, wrap_at=wrap_at, N=N)
+
+    def std(self, unit=None, as_quantity=False, wrap_at=None, N=int(1e6)):
+        """
+        See <Samples.std>
+        """
+        return Samples(samples=self.samples, weights=self.weights, bw_method=self.bw_method, unit=self.unit).std(unit=unit, as_quantity=as_quantity, wrap_at=wrap_at, N=N)
+
 
 
 ############################# GENERATORS ######################################
@@ -5211,6 +6254,15 @@ class BaseAroundGenerator(BaseDistlObject):
 
     def plot(self, *args, **kwargs):
         return self.__call__(value=kwargs.pop('value', None)).plot(*args, **kwargs)
+
+    def plot_pdf(self, *args, **kwargs):
+        return self.__call__(value=kwargs.pop('value', None)).plot_pdf(*args, **kwargs)
+
+    def plot_cdf(self, *args, **kwargs):
+        return self.__call__(value=kwargs.pop('value', None)).plot_cdf(*args, **kwargs)
+
+    def plot_sample(self, *args, **kwargs):
+        return self.__call__(value=kwargs.pop('value', None)).plot_sample(*args, **kwargs)
 
     def pdf(self, *args, **kwargs):
         return self.__call__(value=kwargs.pop('value', None)).pdf(*args, **kwargs)
