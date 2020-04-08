@@ -297,19 +297,41 @@ def compute_eclipse_params(phases, fluxes, sigmas, diagnose=False):
 
     if diagnose:
         twogfuncs = {'C': const, 'CE': ce, 'CG': cg, 'CGE': cge, 'CG12': cg12, 'CG12E1': cg12e1, 'CG12E2': cg12e2}
-        import matplotlib.pyplot as plt
-        plt.figure(figsize=(10,6))
-        plt.plot(phases_w, fluxes_w, 'k.')
-        plt.plot(phases_w, twogfuncs[best_fit](phases_w, *fit_result['fits'][best_fit][0]), '-', label=fit_result['best_fit'])
-        plt.axvline(x=pos1, c='blue', ls='--', label='primary pos')
-        plt.axvline(x=pos2, c='orange', ls='--', label='secondary pos')
-        plt.axvline(x=eclipse_edges[0], c='blue', ls=':')
-        plt.axvline(x=eclipse_edges[1], c='blue', ls=':')
-        plt.axvline(x=eclipse_edges[2], c='orange', ls=':')
-        plt.axvline(x=eclipse_edges[3], c='orange', ls=':')
+        [ecl1_l, ecl1_r, ecl2_l, ecl2_r] = eclipse_edges
 
-        plt.legend()
-        plt.show()
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure(figsize=(10,8))
+        ax = fig.add_subplot(111)
+        ax.plot(phases_w, fluxes_w, 'k.')
+        plt.plot(phases_w, twogfuncs[best_fit](phases_w, *fit_result['fits'][best_fit][0]), '-', label=fit_result['best_fit'])
+        lines = []
+        lines.append(ax.axvline(x=pos1, c='#2B71B1', lw=2, label='primary'))
+        lines.append(ax.axvline(x=pos2, c='#FF702F', lw=2, label='secondary'))
+        lines.append(ax.axvline(x=ecl1_l, c='#2B71B1', lw=2, ls='--'))
+        lines.append(ax.axvline(x=ecl1_r, c='#2B71B1', lw=2, ls='--'))
+        lines.append(ax.axvline(x=ecl2_l, c='#FF702F', lw=2, ls='--'))
+        lines.append(ax.axvline(x=ecl2_r, c='#FF702F', lw=2, ls='--'))
+        drs = []
+        for l,label in zip(lines,['pos1', 'pos2', 'ecl1_l', 'ecl1_r', 'ecl2_l', 'ecl2_r']):   
+            dr = DraggableLine(l)
+            dr.label = label
+            dr.connect()   
+            drs.append(dr) 
+        ax.legend()
+        plt.show(block=True)
+
+        print('adjusting values')
+
+        pos1 = drs[0].point.get_xdata()[0]
+        pos2 = drs[1].point.get_xdata()[0]
+        ecl1_l = drs[2].point.get_xdata()[0]
+        ecl1_r = drs[3].point.get_xdata()[0]
+        ecl2_l = drs[4].point.get_xdata()[0]
+        ecl2_r = drs[5].point.get_xdata()[0]
+        
+        eclipse_edges = [ecl1_l, ecl1_r, ecl2_l, ecl2_r]
+
 
     return {
         'primary_width': width1,
@@ -365,3 +387,41 @@ def ecc_w_from_geometry(sep, pwidth, swidth):
     except:
         w = pi/2
     return ecc, w
+
+
+class DraggableLine:
+
+    def __init__(self, p):
+        self.point = p
+        self.press = None
+
+    def connect(self):
+        self.cidpress = self.point.figure.canvas.mpl_connect('button_press_event', self.button_press_event)
+        self.cidrelease = self.point.figure.canvas.mpl_connect('button_release_event', self.button_release_event)
+        self.cidmotion = self.point.figure.canvas.mpl_connect('motion_notify_event', self.motion_notify_event)
+
+    def disconnect(self):
+        #disconnect all the stored connection ids
+        self.point.figure.canvas.mpl_disconnect(self.cidpress)
+        self.point.figure.canvas.mpl_disconnect(self.cidrelease)
+        self.point.figure.canvas.mpl_disconnect(self.cidmotion)
+
+
+    def button_press_event(self,event):
+        if event.inaxes != self.point.axes:
+            return
+        contains = self.point.contains(event)[0]
+        if not contains: return
+        self.press = self.point.get_xdata(), event.xdata
+
+    def button_release_event(self,event):
+        self.press = None
+        self.point.figure.canvas.draw()
+
+    def motion_notify_event(self, event):
+        if self.press is None: return
+        if event.inaxes != self.point.axes: return
+        xdata, xpress = self.press
+        dx = event.xdata-xpress
+        self.point.set_xdata(xdata+dx)
+        self.point.figure.canvas.draw()
