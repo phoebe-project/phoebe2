@@ -6405,6 +6405,12 @@ class Bundle(ParameterSet):
                     dist = dist_samples.to_mvhistogram(bins=distributions_bins)
                 elif distributions_convert == 'mvgaussian':
                     dist = dist_samples.to_mvgaussian(allow_singular=True)
+                elif distributions_convert == 'samples':
+                    dist = _distl.DistributionCollection(*[dist_samples.to_univariate(dim) for dim in dist_samples.labels])
+                elif distributions_convert == 'histogram':
+                    dist = _distl.DistributionCollection(*[dist_samples.to_univariate(dim).to_histogram(bins=distributions_bins) for dim in dist_samples.labels])
+                elif distributions_convert == 'gaussian':
+                    dist = _distl.DistributionCollection(*[dist_samples.to_univariate(dim).to_gaussian() for dim in dist_samples.labels])
                 else:
                     raise NotImplementedError("distributions_convert='{}' not supported".format(distributions_convert))
 

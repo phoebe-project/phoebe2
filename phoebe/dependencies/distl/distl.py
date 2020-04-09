@@ -2179,7 +2179,7 @@ class BaseUnivariateDistribution(BaseDistribution):
             _np.random.seed(seed)
 
         qs = _np.random.random(size=size)
-        sample = self.dist_constructor_object.ppf(qs)
+        sample = self.ppf(qs)
         if cache_sample:
             self._cached_sample = sample
 
@@ -3820,7 +3820,10 @@ class Histogram(BaseUnivariateDistribution):
     of the bins is then performed to create the cdf (again, normalized to 1)
     and inverted to create the ppf.  Each of these are then interpolated
     whenever accessing <Histogram.pdf>, <Histogram.cdf>, <Histogram.ppf>, etc as
-    well as used when calling <Histogram.sample>.
+    well as used when calling <Histogram.sample>.  For <Histogram.interval>,
+    <Histogram.ppf> (and therefore <Histogram.sample>),
+    the bin-edge is adopted if the spline pdf goes outside the range of the
+    stored bins.
     """
     def __init__(self, bins, density, unit=None, label=None, wrap_at=None):
         """
@@ -3928,6 +3931,87 @@ class Histogram(BaseUnivariateDistribution):
     @property
     def dist_constructor_args(self):
         return self._pdf_cdf_ppf_callables
+
+    def ppf(self, q, unit=None, as_quantity=False, wrap_at=None):
+        """
+        Expose the percent point function (ppf; iverse of cdf - percentiles) at
+        values of `q`.
+
+        If the spline call returns an interval outside the range
+        of <Histogram.bins>, the bin edge will be adopted.
+
+        See also:
+
+        * <<class>.pdf>
+        * <<class>.cdf>
+        * <<class>.sample>
+
+        Arguments
+        ----------
+        * `q` (float or array): percentiles at which to expose the ppf
+        * `unit` (astropy.unit, optional, default=None): unit of the exposed
+            values.  If None or not provided, will assume they're provided in
+            <<class>.unit>.
+        * `as_quantity` (bool, optional, default=False): whether to return an
+            astropy quantity object instead of just the value.  Astropy must
+            be installed.
+        * `wrap_at` (float, None, or False, optional, default=None): value to
+            use for wrapping.  See <<class>.wrap>.  If not provided or None,
+            will use the value from <<class>.wrap_at>.  Note: wrapping is
+            computed before changing units, so `wrap_at` must be provided
+            according to <<class>.unit> not `unit`.
+
+        Returns
+        ---------
+        * (float or array) ppf values of the same type/shape as `x`
+        """
+
+        ppf = super(Histogram, self).ppf(q=q, unit=None, as_quantity=False, wrap_at=False)
+        if isinstance(ppf, float):
+            if ppf < self.bins[0]:
+                ppf = self.bins[0]
+            if ppf > self.bins[-1]:
+                ppf = self.bins[-1]
+        else:
+            ppf[ppf < self.bins[0]] = self.bins[0]
+            ppf[ppf > self.bins[-1]] = self.bins[-1]
+
+        return self._return_with_units(self.wrap(ppf, wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
+
+    def interval(self, alpha, unit=None, as_quantity=False, wrap_at=None):
+        """
+        Expose the range that contains alpha percent of the distribution.
+
+        If the spline call returns an interval outside the range
+        of <Histogram.bins>, the bin edge will be adopted.
+
+        Arguments
+        ----------
+        * `alpha` (float): passed directly to scipy (see link above)
+        * `unit` (astropy.unit, optional, default=None): unit of the values
+            in `x` to expose.  If None or not provided, will assume they're in
+            <<class>.unit>.
+        * `as_quantity` (bool, optional, default=False): whether to return an
+            astropy quantity object instead of just the value.  Astropy must
+            be installed.
+        * `wrap_at` (float, None, or False, optional, default=None): value to
+            use for wrapping.  See <<class>.wrap>.  If not provided or None,
+            will use the value from <<class>.wrap_at>.  Note: wrapping is
+            computed before changing units, so `wrap_at` must be provided
+            according to <<class>.unit> not `unit`.
+
+        Returns
+        ---------
+        * (array) endpoints in units `unit`.
+        """
+
+        interval = super(Histogram, self).interval(alpha=alpha, unit=None, as_quantity=False, wrap_at=False)
+        if interval[0] < self.bins[0]:
+            interval[0] = self.bins[0]
+        if interval[-1] > self.bins[-1]:
+            interval[-1] = self.bins[-1]
+
+        return self._return_with_units(self.wrap(_np.asarray(interval), wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
 
     def to_gaussian(self):
         """
@@ -4066,7 +4150,8 @@ class Samples(BaseUnivariateDistribution):
         ---------
         * a <Histogram> object
         """
-        hist, bin_edges = _np.histogram(self.samples, weights=self.weights, bins=bins, density=True)
+        range = (self.samples.min(), self.samples.max())
+        hist, bin_edges = _np.histogram(self.samples, weights=self.weights, bins=bins, range=range, density=True)
 
         return Histogram(bin_edges, hist, label=self.label, unit=self.unit, wrap_at=wrap_at if wrap_at is not None else self.wrap_at)
 
