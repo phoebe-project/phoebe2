@@ -1,10 +1,12 @@
 import numpy as _np
+from scipy import __version__ as _scipy_version
 from scipy import stats as _stats
 from scipy import interpolate as _interpolate
 from scipy import integrate as _integrate
 import json as _json
 import sys as _sys
 from collections import OrderedDict
+from distutils.version import StrictVersion
 
 from . import stats_custom as _stats_custom
 
@@ -3962,6 +3964,8 @@ class Samples(BaseUnivariateDistribution):
     """
     A Samples distribution stores individual samples and draws randomly from them.
 
+    NOTE: <Samples.weights> is only supported with scipy version 1.2+
+
     Treatment under-the-hood:
 
     * <Samples.sample>, <Samples.mean>, <Samples.median>, <Samples.std>, and
@@ -3986,7 +3990,8 @@ class Samples(BaseUnivariateDistribution):
         --------------
         * `samples` (np.array object): an array of samples.
         * `weights` (np.array object with length nsamples or None, optional, default=None):
-            weights for each entry in `samples`
+            weights for each entry in `samples`.  NOTE: only supported with
+            scipy 1.2+.
         * `bw_method` (string, float, or None, optional, default=None): passed
             directly to scipy.stats.gaussian_kde.  Only used for methods that
             rely on the KDE.
@@ -4004,7 +4009,7 @@ class Samples(BaseUnivariateDistribution):
         * a <Samples> object
         """
         super(Samples, self).__init__(unit, label, wrap_at,
-                                      _stats.gaussian_kde, ('samples', 'bw_method', 'weights'),
+                                      _stats.gaussian_kde, ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights'),
                                       samples=samples, weights=weights, bw_method=bw_method)
 
     @property
@@ -4049,6 +4054,8 @@ class Samples(BaseUnivariateDistribution):
         if value is None:
             self._weights = None
         else:
+            if StrictVersion(_scipy_version) < StrictVersion("1.2.0"):
+                raise ImportError("weights for Samples requires scipy 1.2+")
             self._weights = is_1d_array(value)
 
     def to_histogram(self, bins=20, wrap_at=None):
@@ -5510,6 +5517,8 @@ class MVHistogramSlice(BaseMultivariateSliceDistribution):
 class MVSamples(BaseMultivariateDistribution):
     """
 
+    NOTE: <MVSamples.weights> is only supported with scipy version 1.2+
+
     Treatment under-the-hood:
 
     * <MVSamples.sample>, <MVSamples.calculate_means>, <MVSamples.calculate_covariances>
@@ -5536,7 +5545,8 @@ class MVSamples(BaseMultivariateDistribution):
         * `samples` (np.array object with shape (nsamples, <MVSamples.ndimensions>)):
             the samples.
         * `weights` (np.array object with shape (nsamples) or None, optional, default=None):
-            weights for each entry in `samples`
+            weights for each entry in `samples`.  NOTE: only supported with scipy
+            version 1.2+.
         * `bw_method` (string, float, or None, optional, default=None): passed
             directly to scipy.stats.gaussian_kde.  Only used for methods that
             rely on the KDE.
@@ -5555,7 +5565,7 @@ class MVSamples(BaseMultivariateDistribution):
         * an <MVSamples> object
         """
         super(MVSamples, self).__init__(units, labels, wrap_ats,
-                                        _stats.gaussian_kde, ('samples', 'bw_method', 'weights'),
+                                        _stats.gaussian_kde, ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights'),
                                         samples=samples, weights=weights, bw_method=bw_method)
 
     @property
@@ -5581,6 +5591,8 @@ class MVSamples(BaseMultivariateDistribution):
         if value is None:
             self._weights = None
         else:
+            if StrictVersion(_scipy_version) < StrictVersion("1.2.0"):
+                raise ImportError("weights for Samples requires scipy 1.2+")
             self._weights = is_1d_array(value)
 
     @property
@@ -5950,7 +5962,7 @@ class MVSamplesSlice(BaseMultivariateSliceDistribution):
 
     @property
     def dist_constructor_argnames(self):
-        return ('samples', 'bw_method', 'weights')
+        return ('samples', 'bw_method') if StrictVersion(_scipy_version) < StrictVersion("1.2.0") else ('samples', 'bw_method', 'weights')
 
     @property
     def samples(self):
