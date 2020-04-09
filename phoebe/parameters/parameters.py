@@ -4424,7 +4424,7 @@ class ParameterSet(object):
 
                     return_ += [kwargs]
 
-                elif style in ['lnprobability']:
+                elif style in ['lnprobability', 'lnprob', 'lnprobabilities']:
                     kwargs['plot_package'] = 'autofig'
                     kwargs['autofig_method'] = 'plot'
                     kwargs.setdefault('marker', 'None')
