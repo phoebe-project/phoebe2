@@ -8118,17 +8118,16 @@ class Bundle(ParameterSet):
         # TODO: make sure this works with multiple computes
         compute_kwargs = list(kwargs.items())+[('compute', compute), ('model', str(model)), ('dataset', dataset), ('do_create_fig_params', do_create_fig_params)]
         compute_kwargs_string = ','.join(["{}={}".format(k,"\'{}\'".format(str(v)) if (isinstance(v, str) or isinstance(v, unicode)) else v) for k,v in compute_kwargs])
-        f.write("model_ps = b.run_compute({}, in_export_script=True)\n".format(compute_kwargs_string))
         # as the return from run_compute just does a filter on model=model,
         # model_ps here should include any created figure parameters
 
         if out_fname is not None:
             f.write("model_ps = b.run_compute(out_fname='{}', in_export_script=True, {})\n".format(out_fname, compute_kwargs_string))
-            f.write("model_ps.save('{}', incl_uniqueid=True)\n".format(out_fname))
+            f.write("b.filter(context='model', model=model_ps.model, check_visible=False).save('{}', incl_uniqueid=True)\n".format(out_fname))
         else:
             f.write("import sys\n")
             f.write("model_ps = b.run_compute(out_fname=sys.argv[0]+'.out', in_export_script=True, {})\n".format(compute_kwargs_string))
-            f.write("model_ps.filter(context='model').save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+            f.write("b.filter(context='model', model=model_ps.model, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
             out_fname = script_fname+'.out'
 
         f.close()
@@ -9258,11 +9257,11 @@ class Bundle(ParameterSet):
 
         if out_fname is not None:
             f.write("solution_ps = b.run_solver(out_fname='{}', {})\n".format(out_fname, solver_kwargs_string))
-            f.write("solution_ps.save('{}', incl_uniqueid=True)\n".format(out_fname))
+            f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save('{}', incl_uniqueid=True)\n".format(out_fname))
         else:
             f.write("import sys\n")
             f.write("solution_ps = b.run_solver(out_fname=sys.argv[0]+'.out', {})\n".format(solver_kwargs_string))
-            f.write("solution_ps.filter(context='solution').save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
+            f.write("b.filter(context='solution', solution=solution_ps.solution, check_visible=False).save(sys.argv[0]+'.out', incl_uniqueid=True)\n")
             out_fname = script_fname+'.out'
 
         f.close()
