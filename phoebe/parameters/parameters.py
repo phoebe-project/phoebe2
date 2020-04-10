@@ -3906,7 +3906,7 @@ class ParameterSet(object):
                     elif current_value in ['time', 'times'] and 'residuals' in kwargs.values():
                         # then we actually need to pull the times from the dataset instead of the model since the length may not match
                         ds_ps = ps._bundle.get_dataset(dataset=ps.dataset, **_skip_filter_checks)
-                        array_value = _handle_mask(ds_ps, ps_ds.get_quantity(qualifier='times', component=ps.component, **_skip_filter_checks), **kwargs)
+                        array_value = _handle_mask(ds_ps, ds_ps.get_quantity(qualifier='times', component=ps.component, **_skip_filter_checks), **kwargs)
 
                     else:
                         if '@' in current_value:
@@ -4521,6 +4521,8 @@ class ParameterSet(object):
                 if '-sigma' in self._bundle.get_value(qualifier='sample_mode', context='model', model=ps.model, default='none', **_skip_filter_checks):
                     kwargs['autofig_method'] = 'fill_between'
                     kwargs['y'] = np.asarray(kwargs['y'].value).T * kwargs['y'].unit
+                    kwargs['yunit'] = kwargs['y'].unit
+                    kwargs['xunit'] = kwargs['x'].unit
             if kwargs is None:
                 # cannot plot
                 logger.warning("cannot plot {}-dimension of {}@{}, skipping".format(af_direction, ps.component, ps.dataset))
