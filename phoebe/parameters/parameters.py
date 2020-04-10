@@ -4446,7 +4446,7 @@ class ParameterSet(object):
                         kwargs['x'] = np.arange(len(lnp), dtype=float)*thin+burnin
                         kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
                         kwargs['y'] = lnp
-                        kwargs['ylabel'] = 'lnprobability'
+                        kwargs['ylabel'] = 'lnprobability' if lnprob_cutoff==-np.inf else 'lnprobability (lnprob_cutoff={})'.format(lnprob_cutoff)
                         return_ += [kwargs]
 
                 elif style in ['trace', 'walks']:
@@ -4483,7 +4483,7 @@ class ParameterSet(object):
                             samples_y = samples[:, walker_ind, parameter_ind]
 
                             kwargs['x'] = np.arange(len(samples_y), dtype=float)*thin+burnin
-                            kwargs['xlabel'] = 'iteration (burnin={}, thin={})'.format(burnin, thin)
+                            kwargs['xlabel'] = 'iteration (burnin={}, thin={}, lnprob_cutoff={})'.format(burnin, thin, lnprob_cutoff)
 
                             kwargs['y'] = samples_y
                             kwargs['ylabel'] = _corner_twig(yparam)
