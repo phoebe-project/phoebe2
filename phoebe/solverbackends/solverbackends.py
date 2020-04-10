@@ -290,7 +290,7 @@ class BaseSolverBackend(object):
                     # single parameter
                     if 'choices' in packet.keys():
                         choices = packet.pop('choices')
-                        param = solution_ps.get_parameter(**{k:v for k,v in packet.items() if k not in ['choices', 'value']})
+                        param = solution_ps.get_parameter(check_visible=False, **{k:v for k,v in packet.items() if k not in ['choices', 'value']})
                         param._choices = choices
                     try:
                         solution_ps.set_value(check_visible=False, check_default=False, ignore_readonly=True, **packet)
@@ -602,9 +602,9 @@ class EmceeBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting (and plotting) the solution')]
-        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=True, description='whether to create a distribution (multivariate distribution of all parameters in adopt_parameters) when calling adopt_solution.')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=True, description='whether to create a distribution (of all parameters in adopt_parameters according to distributions_convert) when calling adopt_solution.')]
         solution_params += [_parameters.ChoiceParameter(qualifier='distributions_convert', value='mvsamples', choices=['mvsamples', 'mvhistogram', 'mvgaussian', 'samples', 'histogram', 'gaussian'], description='type of distribution to use when calling adopt_solution, get_distribution_collection, or plot. mvsamples: chains are stored directly and used for sampling with a KDE generated on-the-fly to compute probabilities.  mvhistogram: chains are binned according to distributions_bins and stored as an n-dimensional histogram.  mvgaussian: a multivariate gaussian is fitted to the samples, use only if distribution is sufficiently represented by gaussians.  samples: a univariate representation of mvsamples.  histogram: a univariate representation of mvhistogram.  gaussian: a univariate representation of mvgaussian.')]
-        solution_params += [_parameters.IntParameter(visible_if='distributions_convert:mvhistogram', qualifier='distributions_bins', value=20, limits=(5,1000), description='number of bins to use for the distribution when calling adopt_solution, get_distribution_collection, or plot.')]
+        solution_params += [_parameters.IntParameter(visible_if='distributions_convert:mvhistogram|histogram', qualifier='distributions_bins', value=20, limits=(5,1000), description='number of bins to use for the distribution when calling adopt_solution, get_distribution_collection, or plot.')]
         solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of the means of all parameters in adopt_parameters) when calling adopt_solution.')]
 
 
@@ -896,9 +896,9 @@ class DynestyBackend(BaseSolverBackend):
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
         solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting (and plotting) the solution')]
-        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=True, description='whether to create a distribution (multivariate distribution of all parameters in adopt_parameters) when calling adopt_solution.')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=True, description='whether to create a distribution (of all parameters in adopt_parameters according to distributions_convert)  when calling adopt_solution.')]
         solution_params += [_parameters.ChoiceParameter(qualifier='distributions_convert', value='mvsamples', choices=['mvsamples', 'mvhistogram', 'mvgaussian', 'samples', 'histogram', 'gaussian'], description='type of distribution to use when calling adopt_solution, get_distribution_collection, or plot. mvsamples: chains are stored directly and used for sampling with a KDE generated on-the-fly to compute probabilities.  mvhistogram: chains are binned according to distributions_bins and stored as an n-dimensional histogram.  mvgaussian: a multivariate gaussian is fitted to the samples, use only if distribution is sufficiently represented by gaussians.  samples: a univariate representation of mvsamples.  histogram: a univariate representation of mvhistogram.  gaussian: a univariate representation of mvgaussian.')]
-        solution_params += [_parameters.IntParameter(visible_if='distributions_convert:mvhistogram', qualifier='distributions_bins', value=20, limits=(5,1000), description='number of bins to use for the distribution when calling adopt_solution, get_distribution_collection, or plot.')]
+        solution_params += [_parameters.IntParameter(visible_if='distributions_convert:mvhistogram|histogram', qualifier='distributions_bins', value=20, limits=(5,1000), description='number of bins to use for the distribution when calling adopt_solution, get_distribution_collection, or plot.')]
         solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of the means of all parameters in adopt_parameters) when calling adopt_solution.')]
 
         solution_params += [_parameters.IntParameter(qualifier='nlive', value=0, readonly=True, description='')]
