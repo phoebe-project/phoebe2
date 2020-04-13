@@ -8082,6 +8082,9 @@ class DistributionParameter(Parameter):
         elif isinstance(value, dict) and 'distl' in value.keys():
             # then we're loading the JSON version of an nparray object
             return distl.from_dict(value)
+        elif (isinstance(value, tuple) or isinstance(value, list)) and len(value)==2:
+            # assume uniform
+            return distl.uniform(*value)
         else:
             raise TypeError("must be a distl Distribution object, got {} (type: {})".format(value, type(value)))
 
