@@ -1132,10 +1132,8 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
 
         fit_parameters = kwargs.get('fit_parameters') # list of twigs
         initial_values = kwargs.get('initial_values') # dictionary
-        # priors = kwargs.get('priors')
-        # priors_combine = kwargs.get('priors_combine')
-        priors = []
-        priors_combine = ''
+        priors = kwargs.get('priors')
+        priors_combine = kwargs.get('priors_combine')
 
         params_uniqueids = []
         params_twigs = []
