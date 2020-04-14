@@ -6176,62 +6176,84 @@ class Bundle(ParameterSet):
         return ret_ps
 
     def _distribution_collection_defaults(self, twig=None, **kwargs):
-        if isinstance(twig, list):
-            raise TypeError("twig must be a string, not list.  To filter for multiple distributions, pass distribution={}".format(twig))
+        filter_kwargs = {k:v for k,v in kwargs.items() if k in parameters._meta_fields_filter}
+        kwargs = {k:v for k,v in kwargs.items() if k not in parameters._meta_fields_filter}
+        # print("*** _distribution_collection_defaults twig={} kwargs={}, filter_kwargs={}".format(twig, kwargs, filter_kwargs))
 
-        filter_kwargs = {k:v for k,v in kwargs.items() if k not in ['combine', 'include_constrained']}
 
-        ps = self.filter(twig=twig, **filter_kwargs)
-        if len(ps.contexts) != 1:
-            raise ValueError("twig={} and kwargs={} must point to a single context (solver or distribution), found contexts={}".format(twig, filter_kwargs, ps.contexts))
-        elif ps.context == 'distribution':
-            distribution = ps.distributions
-            if kwargs.get('distribution', None) is not None and len(kwargs.get('distribution')) == len(distribution):
-                # then respect the passed order
-                distribution = kwargs.get('distribution')
-        elif ps.context == 'solver':
-            # then we must point to a SINGLE parameter
-            if len(ps.to_list()) > 1:
-                raise ValueError("twig and kwargs must point to a single parameter in the solver options (e.g. qualifier='priors')")
-            kind = ps.kind
+        if not isinstance(twig, list):
+            ps = self.filter(twig=twig, **filter_kwargs)
 
-            if kind in ['emcee']:
+            if ps.context == 'compute':
+                if ps.qualifier not in ['sample_from']:
+                    raise ValueError("twig and kwargs must point to a single parameter in the compute options (e.g. qualifier='sample_from')")
 
-                if ps.qualifier in ['priors']:
-                    kwargs.setdefault('include_constrained', True)
-                    kwargs.setdefault('to_univariates', False)
-                elif ps.qualifier in ['init_from']:
-                    kwargs.setdefault('include_constrained', False)
-                    kwargs.setdefault('to_univariates', False)
+                kwargs.setdefault('include_constrained', False)
+                kwargs.setdefault('to_univariates', False)
+                kwargs.setdefault('combine', self.get_value(qualifier='{}_combine'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
+                return self._distribution_collection_defaults(ps.get_value(expand=True, **{ps.qualifier: kwargs.get(ps.qualifier, None)}), **kwargs)
+
+            elif ps.context == 'solver':
+                # then we must point to a SINGLE parameter
+                if ps.qualifier not in ['init_from', 'priors']:
+                    raise ValueError("twig and kwargs must point to a single parameter in the solver options (e.g. qualifier='priors')")
+                kind = ps.kind
+
+                if kind in ['emcee']:
+
+                    if ps.qualifier in ['priors']:
+                        kwargs.setdefault('include_constrained', True)
+                        kwargs.setdefault('to_univariates', False)
+                    elif ps.qualifier in ['init_from']:
+                        kwargs.setdefault('include_constrained', False)
+                        kwargs.setdefault('to_univariates', False)
+                    else:
+                        raise NotImplementedError("get_distribution_collection for solver kind='{}' and qualifier='{}' not implemented".format(kind, ps.qualifier))
+
+                elif kind in ['dynesty']:
+                    if ps.qualifier in ['priors']:
+                        # TODO: need to support flattening to univariates
+                        kwargs.setdefault('include_constrained', False)
+                        kwargs.setdefault('to_univariates', True)
+                    else:
+                        raise NotImplementedError("get_distribution_collection for solver kind='{}' and qualifier='{}' not implemented".format(kind, ps.qualifier))
+
+                elif kind in ['differential_evolution']:
+                    if ps.qualifier in ['bounds']:
+                        kwargs.setdefault('include_constrained', True)
+                        kwargs.setdefault('to_univariates', True)
+                        kwargs.setdefault('to_uniforms', self.get_value('{}_sigma'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
+
                 else:
-                    raise NotImplementedError("get_distribution_collection for solver kind='{}' and qualifier='{}' not implemented".format(kind, ps.qualifier))
+                    raise NotImplementedError("get_distribution_collection for solver kind='{}' not implemented".format(kind))
 
-            elif kind in ['dynesty']:
-                if ps.qualifier in ['priors']:
-                    # TODO: need to support flattening to univariates
-                    kwargs.setdefault('include_constrained', False)
-                    kwargs.setdefault('to_univariates', True)
-                else:
-                    raise NotImplementedError("get_distribution_collection for solver kind='{}' and qualifier='{}' not implemented".format(kind, ps.qualifier))
+                kwargs.setdefault('combine', self.get_value(qualifier='{}_combine'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
+                return self._distribution_collection_defaults(ps.get_value(expand=True, **{ps.qualifier: kwargs.get(ps.qualifier, None)}), **kwargs)
 
-            elif kind in ['differential_evolution']:
-                if ps.qualifier in ['bounds']:
+            twig = [twig]
+
+        filters = []
+
+        for twigi in twig:
+            ps = self.filter(twig=twigi, **filter_kwargs)
+            for context in ps.contexts:
+                if context == 'distribution':
+                    if filter_kwargs.get('distribution', None) is not None and len(filter_kwargs.get('distribution')) == len(ps.distributions):
+                        # then respect the passed order
+                        filters += [{'distribution': d} for d in filter_kwargs.get('distribution')]
+                    else:
+                        filters += [{'distribution': d} for d in ps.distributions]
+
+                elif context=='solution':
+                    if filter_kwargs.get('solution', None) is not None and len(filter_kwargs.get('solution')) == len(ps.solutions):
+                        # then respect the passed order
+                        filters += [{'solution': s} for s in filter_kwargs.get('solution')]
+                    else:
+                        filters += [{'solution': s} for s in ps.solutions]
                     kwargs.setdefault('include_constrained', True)
-                    kwargs.setdefault('to_univariates', True)
-                    kwargs.setdefault('to_uniforms', self.get_value('{}_sigma'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
 
-            else:
-                raise NotImplementedError("get_distribution_collection for solver kind='{}' not implemented".format(kind))
-
-            distribution = ps.get_value(expand=True)
-            kwargs.setdefault('combine', self.get_value(qualifier='{}_combine'.format(ps.qualifier), check_visible=False, check_default=False, **{k:v for k,v in ps.meta.items() if k not in ['qualifier']}))
-
-        elif ps.context=='solution':
-            distribution = [{'solution': ps.solution}]
-            kwargs.setdefault('include_constrained', True)
-
-        else:
-            raise ValueError("twig and kwargs must point to the solver or distribution context")
+                else:
+                    raise ValueError("twig and kwargs must point to the solution or distribution context, got context='{}'".format(context))
 
         combine = kwargs.get('combine', 'first')
         include_constrained = kwargs.get('include_constrained', False)
@@ -6241,14 +6263,14 @@ class Bundle(ParameterSet):
         if to_uniforms and not to_univariates:
             raise ValueError("to_univariates must be True in order to use to_uniforms")
 
-        if isinstance(distribution, str) or distribution is None:
-            distribution = [distribution]
+        # if isinstance(distribution, str) or distribution is None:
+            # distribution = [distribution]
 
-        if not isinstance(distribution, list):
-            raise TypeError("distribution must be of type None, string, or list")
+        # if not isinstance(distribution, list):
+            # raise TypeError("distribution must be of type None, string, or list")
 
 
-        return distribution, combine, include_constrained, to_univariates, to_uniforms
+        return filters, combine, include_constrained, to_univariates, to_uniforms
 
     def get_distribution_collection(self, twig=None,
                                     keys='twig', set_labels=True,
@@ -6300,11 +6322,15 @@ class Bundle(ParameterSet):
         ------------
         * distl.DistributionCollection, list of `keys`
         """
-        distributions, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
-
-        uid_dist_dict = {}
-        uniqueids = []
-        ret_keys = []
+        if 'distribution_filters' not in kwargs.keys():
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
+        else:
+            # INTERNAL USE ONLY, probably
+            distribution_filters = kwargs.get('distribution_filters')
+            combine = kwargs.get('combine', 'first')
+            include_constrained = kwargs.get('include_constrained', True)
+            to_univariates = kwargs.get('to_univariates', False)
+            to_uniforms = kwargs.get('to_uniforms', False)
 
         # NOTE: in python3 we could do this with booleans and nonlocal variables,
         # but for python2 support we can only fake it by mutating a dictionary.
@@ -6330,12 +6356,15 @@ class Bundle(ParameterSet):
 
             return dist
 
-
-        for dist in distributions:
+        ret_dists = []
+        ret_keys = []
+        # print("*** get_distribution_collection distribution_filters={}".format(distribution_filters))
+        for dist_filter in distribution_filters:
             # TODO: if * in list, need to expand (currently forbidden with error in get_distribution)
-            if isinstance(dist, dict) and 'solution' in dist.keys():
-                solution_ps = self.get_solution(solution=dist['solution'], **_skip_filter_checks)
-                solver_kind = self.get_solver(solver=solution_ps.solver, **_skip_filter_checks).kind
+            if 'solution' in dist_filter.keys():
+                # print("*** get_distribution_collection solution dist_filter={}".format(dist_filter))
+                solution_ps = self.get_solution(solution=dist_filter['solution'], **_skip_filter_checks)
+                solver_kind = solution_ps.kind
 
                 adopt_parameters = solution_ps.get_value(qualifier='adopt_parameters', adopt_parameters=kwargs.get('adopt_parameters', None), expand=True, **_skip_filter_checks)
                 # b_uniqueids = self.uniqueids
@@ -6376,7 +6405,7 @@ class Bundle(ParameterSet):
                     weights = np.exp(logwt - logz[-1])
 
                 else:
-                    raise NotImplementedError()
+                    raise NotImplementedError("sample_from for solution with kind={} not supported".format(solver_kind))
 
                 distributions_convert = solution_ps.get_value(qualifier='distributions_convert', distributions_convert=kwargs.get('distributions_convert', None), **_skip_filter_checks)
                 distributions_bins = solution_ps.get_value(qualifier='distributions_bins', distributions_bins=kwargs.get('distributions_bins', None), **_skip_filter_checks)
@@ -6393,10 +6422,11 @@ class Bundle(ParameterSet):
                 #     return _corner_twig(param)
 
                 # TODO: try to use uniqueid in the get_parameter if there are matches?
+                labels = [_corner_twig(self.get_parameter(twig=twig, **_skip_filter_checks)) for twig in fitted_twigs[adopt_inds]]
                 dist_samples = _distl.mvsamples(samples,
                                                 weights=weights,
                                                 units=[u.Unit(unit) for unit in fitted_units[adopt_inds]],
-                                                labels=[_corner_twig(self.get_parameter(twig=twig, **_skip_filter_checks)) for twig in fitted_twigs[adopt_inds]],
+                                                labels=labels,
                                                 wrap_ats=None)
 
                 if distributions_convert == 'mvsamples':
@@ -6414,10 +6444,20 @@ class Bundle(ParameterSet):
                 else:
                     raise NotImplementedError("distributions_convert='{}' not supported".format(distributions_convert))
 
-                return dist, [getattr(self.get_parameter(twig=twig, **_skip_filter_checks), keys) for twig in fitted_twigs[adopt_inds]]
+                ret_keys += [getattr(self.get_parameter(twig=twig, **_skip_filter_checks), keys) for twig in fitted_twigs[adopt_inds]]
 
-            else:
-                dist_ps = self.get_distribution(dist)
+                if len(distribution_filters) == 1:
+                    # then try to avoid slicing since we don't have to combine with anything else
+                    return dist, ret_keys
+
+                ret_dists += [dist.slice(label) for label in labels]
+
+
+            elif 'distribution' in dist_filter.keys():
+                # print("*** get_distribution_collection distribution dist_filter={}".format(dist_filter))
+                dist_ps = self.get_distribution(distribution=dist_filter['distribution'], **_skip_filter_checks)
+                uid_dist_dict = {}
+                uniqueids = []
                 for dist_param in dist_ps.to_list():
                     ref_param = dist_param.get_referenced_parameter()
                     uid = ref_param.uniqueid
@@ -6451,7 +6491,12 @@ class Bundle(ParameterSet):
                     if set_labels:
                         uid_dist_dict[uid].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
 
-                return _distl.DistributionCollection(*[uid_dist_dict.get(uid) for uid in uniqueids]), ret_keys
+                ret_dists += [uid_dist_dict.get(uid) for uid in uniqueids]
+
+            else:
+                raise NotImplementedError("could not parse filter for distribution {}".format(dist_filter))
+
+        return _distl.DistributionCollection(*ret_dists), ret_keys
 
     def sample_distribution(self, twig=None, N=None,
                             set_value=False, keys='twig',
@@ -6518,7 +6563,15 @@ class Bundle(ParameterSet):
         if N is not None and set_value:
             raise ValueError("cannot use set_value and N together")
 
-        distributions, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
+        if 'distribution_filters' not in kwargs.keys():
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
+        else:
+            # INTERNAL USE ONLY, probably
+            distribution_filters = kwargs.get('distribution_filters')
+            combine = kwargs.get('combine', 'first')
+            include_constrained = kwargs.get('include_constrained', True)
+            to_univariates = kwargs.get('to_univariates', False)
+            to_uniforms = kwargs.get('to_uniforms', False)
 
         if include_constrained and set_value:
             raise ValueError("cannot use include_constrained=True and set_value together")
@@ -6527,14 +6580,14 @@ class Bundle(ParameterSet):
             user_interactive_constraints = conf.interactive_constraints
             conf.interactive_constraints_off(suppress_warning=True)
 
-        dc, uniqueids = self.get_distribution_collection(distribution=distributions,
+        dc, uniqueids = self.get_distribution_collection(distribution_filters=distribution_filters,
                                                          combine=combine,
                                                          include_constrained=include_constrained,
                                                          to_univariates=to_univariates,
                                                          to_uniforms=to_uniforms,
                                                          keys='uniqueid')
 
-        if np.all([isinstance(dist, _distl._distl.Delta) for dist in dc.dists]):
+        if isinstance(dc, _distl._distl.DistributionCollection) and np.all([isinstance(dist, _distl._distl.Delta) for dist in dc.dists]):
             if N is not None and N > 1:
                 logger.warning("all distributions are delta, using N=1 instead of N={}".format(N))
                 N = 1
@@ -8108,7 +8161,7 @@ class Bundle(ParameterSet):
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_contexts = ['model', 'figure', 'constraint', 'solver']
-        sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[])
+        sample_from = self.get_value(qualifier='sample_from', compute=compute, sample_from=kwargs.get('sample_from', None), default=[], expand=True)
         exclude_distributions = [dist for dist in self.distributions if dist not in sample_from]
         exclude_solutions = [sol for sol in self.solutions if sol not in sample_from]
         # we need to include uniqueids if needing to apply the solution during sample_from
@@ -8478,23 +8531,7 @@ class Bundle(ParameterSet):
                 # to the sampler.  The sampler will then make handle parallelization
                 # and per-sample calls to run_compute.
                 sample_from = computeparams.get_value(qualifier='sample_from', expand=True, sample_from=kwargs_sample_from, **_skip_filter_checks)
-                remove_dists = []
                 if len(sample_from):
-                    for sample_from_item in sample_from:
-                        if sample_from_item not in self.distributions:
-                            if sample_from_item in self.solutions:
-                                # then we'll temporarily adopt the solution as
-                                # a distribution set, point to the random distribution
-                                # label instead of the solution label, and track
-                                # the random distribution label so we can remove
-                                # it after
-                                distribution = _uniqueid()
-                                self.adopt_solution(solution=sample_from_item, as_distributions=True, distribution=distribution, auto_add_figure=False, **kwargs)
-                                remove_dists.append(distribution)
-                                sample_from[sample_from.index(sample_from_item)] = distribution
-                            else:
-                                raise ValueError("could not find '{}' in distributions ({}) or solutions ({})".format(sample_from_item, self.distributions, self.solutions))
-
                     params = backends.SampleOverModel().run(self, compute,
                                                             dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
                                                             times=times,
@@ -8503,9 +8540,6 @@ class Bundle(ParameterSet):
 
                     self._attach_params(params, check_copy_for=False, **metawargs)
 
-                    # TODO: include when return_changes?
-                    if len(remove_dists) and not kwargs.get('in_export_script', False):
-                        ret_changes += self.remove_distribution(distribution=remove_dists).to_list()
                     # continue to the next iteration of the for-loop.  Any dataset-scaling,
                     # etc, will be handled within each individual model run within the sampler.
                     continue
@@ -9236,7 +9270,7 @@ class Bundle(ParameterSet):
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_contexts = ['model', 'figure']
-        continue_from = self.get_value(qualifier='sample_from', solver=solver, sample_from=kwargs.get('sample_from', None), default='')
+        continue_from = self.get_value(qualifier='continue_from', solver=solver, continue_from=kwargs.get('continue_from', None), default='')
         exclude_solutions = [sol for sol in self.solutions if sol!=continue_from]
         if 'continue_from_ps' in kwargs.keys():
             b = self.copy()

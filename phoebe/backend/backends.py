@@ -598,7 +598,7 @@ class BaseBackendByDataset(BaseBackend):
 
 def _call_run_single_model(args):
     # NOTE: b should be a deepcopy here to prevent conflicts
-    b, samples, sample_from, sample_from_combine, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i = args
+    b, samples, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i = args
     # override sample_from
     compute_kwargs['sample_from'] = []
 
@@ -622,7 +622,7 @@ def _call_run_single_model(args):
                     msg = _simplify_error_message(err)
                     failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
 
-                samples = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=None, keys='uniqueid')
+                samples = b.sample_distribution(N=None, keys='uniqueid', **sample_kwargs)
                 break
 
         try:
@@ -636,7 +636,7 @@ def _call_run_single_model(args):
                 failed_samples[msg] = failed_samples.get(msg, []) + [list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])]
                 # failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
 
-            samples = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=None, keys='uniqueid')
+            samples = b.sample_distribution(N=None, keys='uniqueid', **sample_kwargs)
             # continue the next iteration in the while loop
         else:
             if expose_samples:
@@ -695,15 +695,27 @@ class SampleOverModel(object):
             compute_ps = b.get_compute(compute=compute, **_skip_filter_checks)
             compute_kwargs = {k:v for k,v in kwargs.items() if k in compute_ps.qualifiers and 'sample' not in k}
 
-            sample_from = compute_ps.get_value(qualifier='sample_from', sample_from=kwargs.get('sample_from', None), **_skip_filter_checks)
-            sample_from_combine = compute_ps.get_value(qualifier='sample_from_combine', sample_from_combine=kwargs.get('sample_from_combine', None), **_skip_filter_checks)
+            # sample_from = compute_ps.get_value(qualifier='sample_from', sample_from=kwargs.get('sample_from', None), expand=True, **_skip_filter_checks)
+            # sample_from_combine = compute_ps.get_value(qualifier='sample_from_combine', sample_from_combine=kwargs.get('sample_from_combine', None), **_skip_filter_checks)
             sample_num = compute_ps.get_value(qualifier='sample_num', sample_num=kwargs.get('sample_num', None), **_skip_filter_checks)
             sample_mode = compute_ps.get_value(qualifier='sample_mode', sample_mode=kwargs.get('sample_mode', None), **_skip_filter_checks)
             expose_samples = compute_ps.get_value(qualifier='expose_samples', expose_samples=kwargs.get('expose_samples', None), **_skip_filter_checks)
             expose_failed = compute_ps.get_value(qualifier='expose_failed', expose_failed=kwargs.get('expose_failed', None), **_skip_filter_checks)
 
             # samples = range(sample_num)
-            sample_dict = b.sample_distribution(distribution=sample_from, combine=sample_from_combine, N=sample_num, keys='uniqueid')
+            # note: sample_from can be any combination of solutions and distributions
+            distribution_filters, combine, include_constrained, to_univariates, to_uniforms = b._distribution_collection_defaults(qualifier='sample_from', context='compute', compute=compute_ps.compute, **kwargs)
+            sample_kwargs = {'distribution_filters': distribution_filters,
+                             'combine': combine,
+                             'include_constrained': include_constrained,
+                             'to_univariates': to_univariates,
+                             'to_uniforms': to_uniforms}
+
+            # print("*** N={}, sample_kwargs={}".format(sample_num, sample_kwargs))
+            sample_dict = b.sample_distribution(N=sample_num,
+                                                keys='uniqueid',
+                                                **sample_kwargs)
+
             if len(list(sample_dict.values())[0]) == 1 and sample_mode != 'all':
                 logger.warning("only one sample, falling back on sample_mode='all', sample_num=1 instead of sample_mode='{}', sample_num={}".format(sample_mode, sample_num))
                 sample_num = 1
@@ -712,7 +724,7 @@ class SampleOverModel(object):
             bexcl = b.copy()
             bexcl.remove_parameters_all(context=['model', 'solver', 'solutoin', 'figure'], **_skip_filter_checks)
             bexcl.remove_parameters_all(kind=['orb', 'mesh'], context='dataset', **_skip_filter_checks)
-            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_from, sample_from_combine, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i) for i in range(sample_num)]
+            args_per_sample = [(bexcl.copy(), {k:v[i] for k,v in sample_dict.items()}, sample_kwargs, compute, dataset, times, compute_kwargs, expose_samples, expose_failed, i) for i in range(sample_num)]
             # models = [_call_run_single_model(args) for args in args_per_sample]
             models_success_failed = list(pool.map(_call_run_single_model, args_per_sample))
         else:
@@ -1456,8 +1468,8 @@ class LegacyBackend(BaseBackendByDataset):
 
         # make phoebe 1 file
         # tmp_filename = temp_name = next(tempfile._get_candidate_names())
-        
-        
+
+
         phb1.init()
         try:
             if hasattr(phb1, 'auto_configure'):
@@ -1474,7 +1486,7 @@ class LegacyBackend(BaseBackendByDataset):
 
         legacy_dict = io.pass_to_legacy(b, compute=compute, **kwargs)
         io.import_to_legacy(legacy_dict)
-        
+
         # build lookup tables between the dataset labels and the indices needed
         # to pass to phoebe legacy
         lcinds = {}
