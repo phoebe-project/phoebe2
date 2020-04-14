@@ -2252,6 +2252,19 @@ class JktebopBackend(BaseBackendByDataset):
 
         return packetlist
 
+
+_ellc_ld_func = {'linear': 'lin', 'quadratic': 'quad', 'logarithmic': 'log', 'square_root': 'sqrt', 'power': 'power-2'}
+
+ # The "power-2" limb darkening law is taken from  Morello et al.,
+ # 2017AJ....154..111M:
+ #  I_lambda(mu)/I_lambda(1) = 1 - ldc_1[0] * (1 - mu**ldc_1[1])
+ # For the option "mugrid", ldc_1 must be an array of specific intensity
+ # values as a function of mu=cos(theta), where theta is the angle between the
+ # line of sight and the normal to a given point of the stellar surface. The
+ # value of mu corresponding to element i of ldc_1 is i/(len(ldc_1)-1),  where
+ # i=0,1, ... len(ldc_1)-1.
+ # Default is None
+
 class EllcBackend(BaseBackendByDataset):
     """
     See <phoebe.parameters.compute.ellc>.
@@ -2310,7 +2323,7 @@ class EllcBackend(BaseBackendByDataset):
         radius_1 = comp_ps.get_value(qualifier='requiv', component=starrefs[0], unit=u.solRad, **_skip_filter_checks) / a
         radius_2 = comp_ps.get_value(qualifier='requiv', component=starrefs[1], unit=u.solRad, **_skip_filter_checks) / a
 
-        sb_ratio = (comp_ps.get_value(qualifier='teff', component=starrefs[1], unit=u.K, **_skip_filter_checks)/comp_ps.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
+        sbratio = (comp_ps.get_value(qualifier='teff', component=starrefs[1], unit=u.K, **_skip_filter_checks)/comp_ps.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
 
         period = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
         q = comp_ps.get_value(qualifier='q', component=orbitref, **_skip_filter_checks)
@@ -2333,6 +2346,12 @@ class EllcBackend(BaseBackendByDataset):
         rotfac_1 = comp_ps.get_value(qualifier='syncpar', component=starrefs[0], **_skip_filter_checks)
         rotfac_2 = comp_ps.get_value(qualifier='syncpar', component=starrefs[1], **_skip_filter_checks)
 
+        # The simplified reflection model is approximately equivalent to Lambert
+        #     law scattering with the coefficients heat_1 and heat_2  being equal to
+        #     A_g/2, where A_g is the geometric albedo.
+        heat_1 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component') / 2.
+        heat_2 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component') / 2.
+
         f_c = np.sqrt(ecc) * np.cos(w)
         f_s = np.sqrt(ecc) * np.sin(w)
 
@@ -2345,7 +2364,7 @@ class EllcBackend(BaseBackendByDataset):
                     grid_1=grid_1, grid_2=grid_2,
                     exact_grav=exact_grav,
                     radius_1=radius_1, radius_2=radius_2,
-                    sb_ratio=sb_ratio,
+                    sbratio=sbratio,
                     incl=incl,
                     t_zero=t_zero,
                     period=period,
@@ -2355,6 +2374,7 @@ class EllcBackend(BaseBackendByDataset):
                     didt=didt, domdt=domdt,
                     gdc_1=gdc_1, gdc_2=gdc_2,
                     rotfac_1=rotfac_1, rotfac_2=rotfac_2,
+                    heat_1=heat_1, heat_2=heat_2,
                     vgamma=vgamma)
 
     def _run_single_dataset(self, b, info, **kwargs):
@@ -2378,7 +2398,7 @@ class EllcBackend(BaseBackendByDataset):
         radius_1 = kwargs.get('radius_2')
         radius_2 = kwargs.get('radius_1')
 
-        sb_ratio = kwargs.get('sb_ratio')
+        sbratio = kwargs.get('sbratio')
 
         incl = kwargs.get('incl')
 
@@ -2399,6 +2419,9 @@ class EllcBackend(BaseBackendByDataset):
         rotfac_1 = kwargs.get('rotfac_1')
         rotfac_2 = kwargs.get('rotfac_2')
 
+        heat_1 = kwargs.get('heat_1')
+        heat_2 = kwargs.get('heat_2')
+
         ds_ps = b.get_dataset(dataset=info['dataset'], **_skip_filter_checks)
         # get dataset-dependent things that we need
         ldfuncA = ds_ps.get_value(qualifier='ld_func', component=starrefs[0], **_skip_filter_checks)
@@ -2409,8 +2432,10 @@ class EllcBackend(BaseBackendByDataset):
         ldcoeffsA = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[0], **_skip_filter_checks)
         ldcoeffsB = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
-        # albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component')
-        # albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component')
+        ld_1 = _ellc_ld_func.get(ds_ps.get_value(qualifier='ld_func', component=starrefs[0], **_skip_filter_checks))
+        ldc_1 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[0], **_skip_filter_checks)
+        ld_2 = _ellc_ld_func.get(ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks))
+        ldc_2 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
 
         if info['kind'] == 'lc':
             light_3 = ds_ps.get_value(qualifier='l3_frac', **_skip_filter_checks)
@@ -2424,25 +2449,28 @@ class EllcBackend(BaseBackendByDataset):
                 n_int = 1
 
             logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
-            fluxes = ellc.lc(info['times'],
-                             radius_1, radius_2,
-                             sb_ratio,
-                             incl,
-                             light_3,
-                             t_zero, period, a, q,
-                             f_c, f_s,
-                             ldc_1=None, ldc_2=None,
+            fluxes = ellc.lc(t_obs=info['times'],
+                             radius_1=radius_1, radius_2=radius_2,
+                             sbratio=sbratio,
+                             incl=incl,
+                             light_3=light_3,
+                             t_zero=t_zero,
+                             period=period,
+                             a=a,
+                             q=q,
+                             f_c=f_c, f_s=f_s,
+                             ldc_1=ldc_1, ldc_2=ldc_2,
                              gdc_1=gdc_1, gdc_2=gdc_2,
                              didt=didt, domdt=domdt,
                              rotfac_1=rotfac_1, rotfac_2=rotfac_2,
                              hf_1=hf_1, hf_2=hf_2,
                              bfac_1=None, bfac_2=None,
-                             heat_1=None, heat_2=None,
+                             heat_1=heat_1, heat_2=heat_2,
                              lambda_1=None, lambda_2=None,
                              vsini_1=None, vsini_2=None,
                              t_exp=t_exp, n_int=n_int,
                              grid_1=grid_1, grid_2=grid_2,
-                             ld_1=None, ld_2=None,
+                             ld_1=ld_1, ld_2=ld_2,
                              shape_1=shape_1, shape_2=shape_2,
                              spots_1=None, spots_2=None,
                              exact_grav=exact_grav,
@@ -2470,6 +2498,7 @@ class EllcBackend(BaseBackendByDataset):
 
             flux_weighted = rv_method == 'flux-weighted'
             if flux_weighted:
+                # TODO: may just be that we need to estimate and pass vsini
                 raise NotImplementedError("flux-weighted does not seem to work in ellc")
 
             # enable once exptime for RVs is supported in PHOEBE
@@ -2478,28 +2507,31 @@ class EllcBackend(BaseBackendByDataset):
             n_int = 1
 
             logger.info("calling ellc.rv for dataset='{}'".format(info['dataset']))
-            rvs1, rvs2 = ellc.rv(info['times'],
-                                  radius_1, radius_2,
-                                  sb_ratio,
-                                  incl,
-                                  t_zero, period, a, q,
-                                  f_c, f_s,
-                                  ldc_1=None, ldc_2=None,
-                                  gdc_1=gdc_1, gdc_2=gdc_2,
-                                  didt=didt, domdt=domdt,
-                                  rotfac_1=rotfac_1, rotfac_2=rotfac_2,
-                                  hf_1=hf_1, hf_2=hf_2,
-                                  bfac_1=None, bfac_2=None,
-                                  heat_1=None, heat_2=None,
-                                  lambda_1=None, lambda_2=None,
-                                  vsini_1=None, vsini_2=None,
-                                  t_exp=t_exp, n_int=n_int,
-                                  grid_1=grid_1, grid_2=grid_2,
-                                  ld_1=None, ld_2=None,
-                                  shape_1=shape_1, shape_2=shape_2,
-                                  spots_1=None, spots_2=None,
-                                  flux_weighted=flux_weighted,
-                                  verbose=1)
+            rvs1, rvs2 = ellc.rv(t_obs=info['times'],
+                                 radius_1=radius_1, radius_2=radius_2,
+                                 sbratio=sbratio,
+                                 incl=incl,
+                                 t_zero=t_zero,
+                                 period=period,
+                                 a=a,
+                                 q=q,
+                                 f_c=f_c, f_s=f_s,
+                                 ldc_1=ldc_1, ldc_2=ldc_2,
+                                 gdc_1=gdc_1, gdc_2=gdc_2,
+                                 didt=didt, domdt=domdt,
+                                 rotfac_1=rotfac_1, rotfac_2=rotfac_2,
+                                 hf_1=hf_1, hf_2=hf_2,
+                                 bfac_1=None, bfac_2=None,
+                                 heat_1=heat_1, heat_2=heat_2,
+                                 lambda_1=None, lambda_2=None,
+                                 vsini_1=None, vsini_2=None,
+                                 t_exp=t_exp, n_int=n_int,
+                                 grid_1=grid_1, grid_2=grid_2,
+                                 ld_1=ld_1, ld_2=ld_2,
+                                 shape_1=shape_1, shape_2=shape_2,
+                                 spots_1=None, spots_2=None,
+                                 flux_weighted=flux_weighted,
+                                 verbose=1)
 
 
             # fill packets
