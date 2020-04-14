@@ -2395,8 +2395,8 @@ class EllcBackend(BaseBackendByDataset):
 
         exact_grav = kwargs.get('exact_grav')
 
-        radius_1 = kwargs.get('radius_2')
-        radius_2 = kwargs.get('radius_1')
+        radius_1 = kwargs.get('radius_1')
+        radius_2 = kwargs.get('radius_2')
 
         sbratio = kwargs.get('sbratio')
 
@@ -2449,6 +2449,8 @@ class EllcBackend(BaseBackendByDataset):
                 n_int = 1
 
             logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
+            # print(info['times'], radius_1, radius_2, sbratio, incl, light_3, t_zero, period, a, q, f_c, f_s, ldc_1, ldc_2, gdc_1, gdc_2, didt, domdt, rotfac_1, rotfac_2, hf_1, hf_2, None, None, heat_1, heat_2, None, None, None, None, t_exp, n_int, grid_1, grid_2, ld_1, ld_2, shape_1, shape_2, None, None, exact_grav, 1)
+
             fluxes = ellc.lc(t_obs=info['times'],
                              radius_1=radius_1, radius_2=radius_2,
                              sbratio=sbratio,
