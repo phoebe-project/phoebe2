@@ -3667,7 +3667,12 @@ class ParameterSet(object):
         # contexts/datasets/kinds/components/etc.
         # the dataset tag can appear in the compute context as well, so if the
         # context tag isn't in kwargs, let's default it to dataset or model
-        kwargs.setdefault('context', ['dataset', 'compute', 'model', 'distribution', 'solver', 'solution'])
+        if 'context' not in kwargs.keys():
+            default_contexts = ['dataset', 'model']
+            if 'style' in kwargs.keys():
+                default_contexts += ['solution']
+            default_contexts += [context for context in self.contexts if (context in kwargs.keys() or 'twig' in kwargs.keys()) and context in ['dataset', 'compute', 'model', 'distribution', 'solver', 'solution']]
+            kwargs.setdefault('context', default_contexts)
 
         filter_kwargs = {}
         for k in list(self.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).keys())+['twig']:
