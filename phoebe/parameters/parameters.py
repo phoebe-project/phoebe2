@@ -3667,7 +3667,7 @@ class ParameterSet(object):
         # contexts/datasets/kinds/components/etc.
         # the dataset tag can appear in the compute context as well, so if the
         # context tag isn't in kwargs, let's default it to dataset or model
-        kwargs.setdefault('context', ['dataset', 'model', 'distribution', 'solver', 'solution'])
+        kwargs.setdefault('context', ['dataset', 'compute', 'model', 'distribution', 'solver', 'solution'])
 
         filter_kwargs = {}
         for k in list(self.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig']).keys())+['twig']:
@@ -3702,6 +3702,12 @@ class ParameterSet(object):
         #         this_return = ps.filter(check_visible=False, distribution=distribution)._unpack_plotting_kwargs(animate=animate, **kwargs)
         #         return_ += this_return
         #     return _handle_additional_calls(ps, return_)
+
+        if len(ps.computes)>1:
+            for compute in ps.computes:
+                this_return = ps.filter(check_visible=False, compute=compute)._unpack_plotting_kwargs(animate=animate, **kwargs)
+                return_ += this_return
+            return _handle_additional_calls(ps, return_)
 
         if len(ps.solvers)>1:
             for solver in ps.solvers:
@@ -4311,6 +4317,11 @@ class ParameterSet(object):
         elif ps.context in ['solver', 'solution']:
             # ignore non-implemented solver/solution parameters
             return []
+        elif ps.context in ['compute']:
+            if 'sample_from' in ps.qualifiers:
+                pass
+            else:
+                return []
         else:
             logger.debug("could not find plotting defaults for ps.meta: {}, ps.twigs: {}".format(ps.meta, ps.twigs))
             raise NotImplementedError("defaults for kind {} (dataset: {}) not yet implemented".format(ps.kind, ps.dataset))
@@ -4343,6 +4354,12 @@ class ParameterSet(object):
         elif ps.context == 'solver':
             kwargs['plot_package'] = 'distl'
             kwargs['dc'], _ = self._bundle.get_distribution_collection(twig=kwargs.get('distribution_twig', 'priors@{}'.format(ps.solver)))
+            return (kwargs,)
+        elif ps.context == 'compute':
+            if not len(ps.get_value(qualifier='sample_from', expand=True, **_skip_filter_checks)):
+                return []
+            kwargs['plot_package'] = 'distl'
+            kwargs['dc'], _ = self._bundle.get_distribution_collection(twig=kwargs.get('distribution_twig', 'sample_from@{}'.format(ps.compute)))
             return (kwargs,)
         elif ps.kind == 'bls_period':
             kwargs['plot_package'] = 'autofig'
@@ -5098,7 +5115,8 @@ class ParameterSet(object):
                     if not _use_corner:
                         raise ImportError("corner not imported, cannot plot")
                     if len(plot_kwargss) > 1:
-                        raise ValueError("corner plots not supported with other axes")
+                        # TODO: could we just return multiple figure instances?
+                        raise ValueError("corner plots not supported with other axes.  Adjust the filter to include only a single distribution (including from compute or solver contexts), or to exclude all distributions.")
 
                     mplfig = plot_kwargs['dc'].plot(show=show)
 
@@ -5114,7 +5132,8 @@ class ParameterSet(object):
                     if not _use_dyplot:
                         raise ImportError("dynesty not imported, cannot plot")
                     if len(plot_kwargss) > 1:
-                        raise ValueError("dynesty plots not supported with other axes")
+                        # TODO: could we just return multiple figure instances?
+                        raise ValueError("dynesty plots not supported with other axes.  Adjust the filter to include only a single dynesty plot or to exclude all dynesty plots.")
 
                     style = plot_kwargs.pop('style')
                     dynesty_method = plot_kwargs.pop('dynesty_method')
