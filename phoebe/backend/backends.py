@@ -1547,8 +1547,8 @@ class LegacyBackend(BaseBackendByDataset):
         packetlist = []
 
         if info['kind'] == 'lc':
-            print(info['dataset'])
-            print('lcinds', lcinds)
+            # print(info['dataset'])
+            # print('lcinds', lcinds)
             lcind = lcinds[info['dataset']]
             fluxes = np.array(phb1.lc(tuple(info['times'].tolist()), lcind))
             packetlist.append(_make_packet('fluxes',
