@@ -610,7 +610,7 @@ def _call_run_single_model(args):
         for uniqueid, value in samples.items():
 
             # TODO: for some reason when redrawing we're getting arrays with length
-            # one as if we had passed N=1 to sample_distribution.  For now, we'll
+            # one as if we had passed N=1 to sample_distribution_collection.  For now, we'll
             # just work around the issue.
             if isinstance(value, np.ndarray):
                 value = value[0]
@@ -622,7 +622,7 @@ def _call_run_single_model(args):
                     msg = _simplify_error_message(err)
                     failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
 
-                samples = b.sample_distribution(N=None, keys='uniqueid', **sample_kwargs)
+                samples = b.sample_distribution_collection(N=None, keys='uniqueid', **sample_kwargs)
                 break
 
         try:
@@ -636,7 +636,7 @@ def _call_run_single_model(args):
                 failed_samples[msg] = failed_samples.get(msg, []) + [list([s[0] if isinstance(s, np.ndarray) else s for s in samples.values()])]
                 # failed_samples[msg] = failed_samples.get(msg, []) + [list(samples.values())]
 
-            samples = b.sample_distribution(N=None, keys='uniqueid', **sample_kwargs)
+            samples = b.sample_distribution_collection(N=None, keys='uniqueid', **sample_kwargs)
             # continue the next iteration in the while loop
         else:
             if expose_samples:
@@ -712,7 +712,7 @@ class SampleOverModel(object):
                              'to_uniforms': to_uniforms}
 
             # print("*** N={}, sample_kwargs={}".format(sample_num, sample_kwargs))
-            sample_dict = b.sample_distribution(N=sample_num,
+            sample_dict = b.sample_distribution_collection(N=sample_num,
                                                 keys='uniqueid',
                                                 **sample_kwargs)
 

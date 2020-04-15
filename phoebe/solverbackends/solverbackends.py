@@ -53,7 +53,7 @@ logger.addHandler(logging.NullHandler())
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
 
-def _bsolver(b, solver, compute, distributions):
+def _bsolver(b, solver, compute, distsets):
     # TODO: OPTIMIZE exclude disabled datasets?
     # TODO: re-enable removing unused compute options - currently causes some constraints to fail
     # TODO: is it quicker to initialize a new bundle around b.exclude?  Or just leave everything?
@@ -61,7 +61,7 @@ def _bsolver(b, solver, compute, distributions):
     bexcl.remove_parameters_all(context=['model', 'solution', 'figure'], **_skip_filter_checks)
     if len(b.solvers) > 1:
         bexcl.remove_parameters_all(solver=[f for f in b.solvers if f!=solver and solver is not None], **_skip_filter_checks)
-    bexcl.remove_parameters_all(distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks)
+    bexcl.remove_parameters_all(distset=[d for d in b.distsets if d not in distsets], **_skip_filter_checks)
 
     # handle solver_times
     for param in bexcl.filter(qualifier='solver_times', **_skip_filter_checks).to_list():
@@ -155,7 +155,7 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
                 logger.warning("received error while setting values: {}. lnprobability=-inf".format(err))
                 return _return(-np.inf, str(err))
 
-    lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine)
+    lnpriors = b.calculate_lnp(distset=priors, combine=priors_combine)
     if not np.isfinite(lnpriors):
         # no point in calculating the model then
         return _return(-np.inf, 'lnpriors = -inf')
@@ -581,7 +581,7 @@ class EmceeBackend(BaseSolverBackend):
 
         solver_ps = b.get_solver(solver)
         if not len(solver_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None))):
-            raise ValueError("cannot run emcee without any distributions in init_from")
+            raise ValueError("cannot run emcee without any distsets in init_from")
 
         # require sigmas for all enabled datasets
         computes = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), **_skip_filter_checks)
@@ -698,7 +698,7 @@ class EmceeBackend(BaseSolverBackend):
 
                 expose_failed = kwargs.get('expose_failed')
 
-                dc, params_uniqueids = b.get_distribution_collection(distribution=init_from,
+                dc, params_uniqueids = b.get_distribution_collection(distset=init_from,
                                                                      combine=init_from_combine,
                                                                      include_constrained=False,
                                                                      keys='uniqueid')
@@ -880,7 +880,7 @@ class DynestyBackend(BaseSolverBackend):
 
         solver_ps = b.get_solver(solver)
         if not len(solver_ps.get_value(qualifier='priors', init_from=kwargs.get('priors', None))):
-            raise ValueError("cannot run dynesty without any distributions in priors")
+            raise ValueError("cannot run dynesty without any distsets in priors")
 
         # filename = solver_ps.get_value(qualifier='filename', filename=kwargs.get('filename', None))
         # continue_previous_run = solver_ps.get_value(qualifier='continue_previous_run', continue_previous_run=kwargs.get('continue_previous_run', None))
@@ -990,7 +990,7 @@ class DynestyBackend(BaseSolverBackend):
 
             # NOTE: here it is important that _sample_ppf sees the parameters in the
             # same order as _lnprobability (that is in the order of params_uniqueids)
-            priors_dc, params_uniqueids = b.get_distribution_collection(distribution=priors,
+            priors_dc, params_uniqueids = b.get_distribution_collection(distset=priors,
                                                                         combine=priors_combine,
                                                                         include_constrained=False,
                                                                         keys='uniqueid',
@@ -1308,7 +1308,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             bounds_sigma = kwargs.get('bounds_sigma')
 
 
-            bounds_dc, uniqueids = b.get_distribution_collection(distribution=bounds,
+            bounds_dc, uniqueids = b.get_distribution_collection(distset=bounds,
                                                                  keys='uniqueid',
                                                                  combine=bounds_combine,
                                                                  include_constrained=False,
