@@ -5985,8 +5985,8 @@ class Bundle(ParameterSet):
         # if isinstance(twig, list) or np.any([isinstance(v, list) for k,v in kwargs.items()]):
 
 
-        # if kwargs.pop('check_label', True):
-            # self._check_label(kwargs['distribution'], allow_overwrite=kwargs.get('overwrite', False))
+        if kwargs.pop('check_label', True):
+            self._check_label(kwargs['distribution'], allow_overwrite=True)
 
         if isinstance(twig, Parameter):
             ref_params = [twig]

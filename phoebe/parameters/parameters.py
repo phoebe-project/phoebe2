@@ -247,7 +247,33 @@ _forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
                       ]
 
 # from solver:
-_forbidden_labels += ['nwalkers', 'niters']
+_forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
+                      't0_near_times', 'sample_periods', 'objective',
+                      'expose_lnlikelihoods', 'fit_parameters', 'initial_values',
+                      'priors_combine', 'maxiter', 'maxfev', 'adaptive',
+                      'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
+                      'strategy', 'popsize', 'continue_from', 'init_from_combine',
+                      'burnin_factor', 'thin_factor', 'progress_every_niters',
+                      'nlive', 'maxcall', 'lc_eclipse_geometry', 'bls_period',
+                      'nelder_mead', 'differential_evolution', 'emcee', 'dynesty']
+
+# from solution:
+_forbidden_labels += ['primary_width', 'secondary_width',
+                      'primary_phase', 'secondary_phase',
+                      'primary_depth', 'secondary_depth',
+                      'eclipse_edges',
+                      'fitted_uniqueids', 'fitted_twigs', 'fitted_values', 'fitted_units',
+                      'adopt_parameters', 'adopt_distributions', 'distributions_convert', 'distributions_bins',
+                      'failed_samples', 'lnprobabilities', 'acceptance_fractions',
+                      'autocorr_time', 'burnin', 'thin', 'lnprob_cutoff',
+                      'progress',
+                      'period_factor', 'power',
+                      'nlive', 'niter', 'ncall', 'eff', 'samples', 'samples_id', 'samples_it', 'samples_u',
+                      'logwt', 'logl', 'logvol', 'logz', 'logzerr', 'information', 'bound', 'bounds',
+                      'bound_iter', 'samples_bound', 'scale',
+                      'message', 'nfev', 'niter', 'success', 'initial_values',
+                      'initial_lnlikelihood', 'fitted_lnlikelihood']
+
 
 # from feature:
 _forbidden_labels += ['colat', 'long', 'radius', 'relteff',
