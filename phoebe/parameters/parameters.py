@@ -248,13 +248,15 @@ _forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
 
 # from solver:
 _forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
-                      't0_near_times', 'sample_periods', 'objective',
+                      'algorithm', 'duration', 'minimum_n_cycles', 'frequency_factor',
+                      'samples_per_peak', 'nyquist_factor',
+                      't0_near_times', 'sample_periods', 'sample_frequencies', 'objective',
                       'expose_lnlikelihoods', 'fit_parameters', 'initial_values',
                       'priors_combine', 'maxiter', 'maxfev', 'adaptive',
                       'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
                       'strategy', 'popsize', 'continue_from', 'init_from_combine',
                       'burnin_factor', 'thin_factor', 'progress_every_niters',
-                      'nlive', 'maxcall', 'lc_eclipse_geometry', 'bls_period',
+                      'nlive', 'maxcall', 'lc_eclipse_geometry', 'periodogram',
                       'nelder_mead', 'differential_evolution', 'emcee', 'dynesty']
 
 # from solution:
@@ -4313,7 +4315,7 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
-        elif ps.kind in ['emcee', 'dynesty', 'bls_period', 'lc_eclipse_geometry']:
+        elif ps.kind in ['emcee', 'dynesty', 'periodogram', 'lc_eclipse_geometry']:
             pass
             # handled below
         elif ps.context in ['distribution']:
@@ -4366,7 +4368,7 @@ class ParameterSet(object):
             kwargs['plot_package'] = 'distl'
             kwargs['dc'], _ = self._bundle.get_distribution_collection(twig=kwargs.get('distribution_twig', 'sample_from@{}'.format(ps.compute)))
             return (kwargs,)
-        elif ps.kind == 'bls_period':
+        elif ps.kind == 'periodogram':
             kwargs['plot_package'] = 'autofig'
             kwargs['x'] = ps.get_quantity(qualifier='period', **_skip_filter_checks)
             kwargs['xlabel'] = 'period'
