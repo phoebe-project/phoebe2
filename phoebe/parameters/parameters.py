@@ -144,7 +144,7 @@ _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
                                         'JobParameter']
 
 _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
-                     'dataset', 'constraint', 'distset', 'compute', 'model',
+                     'dataset', 'constraint', 'distribution', 'compute', 'model',
                      'solver', 'solution', 'figure', 'kind',
                      'context']
 
@@ -152,7 +152,7 @@ _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
 _meta_fields_filter = _meta_fields_all + ['constraint_func', 'value']
 
 _contexts = ['history', 'system', 'component', 'feature',
-             'dataset', 'constraint', 'distset', 'compute', 'model',
+             'dataset', 'constraint', 'distribution', 'compute', 'model',
              'solver', 'solution', 'figure', 'setting']
 
 # define a list of default_forbidden labels
@@ -523,7 +523,7 @@ class ParameterSet(object):
         self._dataset = None
         self._figure = None
         self._constraint = None
-        self._distset = None
+        self._distribution = None
         self._compute = None
         self._model = None
         self._solver = None
@@ -1074,38 +1074,38 @@ class ParameterSet(object):
         return self._options_for_tag('constraint')
 
     @property
-    def distset(self):
-        """Return the value for distset if shared by ALL Parameters.
+    def distribution(self):
+        """Return the value for distribution if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.distsets>.
+        all the qualifiers of all parameters, see <phoebe.parameters.ParameterSet.distributions>.
 
         To see the value of a single <phoebe.parameters.Parameter> object, see
-        <phoebe.parameters.Parameter.distset>.
+        <phoebe.parameters.Parameter.distribution>.
 
         Returns
         --------
         (string or None) the value if shared by ALL <phoebe.parameters.Parameter>
             objects in the <phoebe.parmaters.ParameterSet>, otherwise None
         """
-        return self._distset
+        return self._distribution
 
     @property
-    def distsets(self):
-        """Return a list of all the distsets of the Parameters.
+    def distributions(self):
+        """Return a list of all the distributions of the Parameters.
 
         See also:
         * <phoebe.parameters.ParameterSet.tags>
 
         For the singular version, see:
-        * <phoebe.parameters.ParameterSet.distset>
+        * <phoebe.parameters.ParameterSet.distribution>
 
         Returns
         --------
         * (list) a list of all constraints for each <phoebe.parameters.Parameter>
             in this <phoebe.parmaeters.ParameterSet>
         """
-        return self._options_for_tag('distset')
+        return self._options_for_tag('distribution')
 
     @property
     def compute(self):
@@ -2936,7 +2936,7 @@ class ParameterSet(object):
             value.  If not provided or None, will use the default unit.  See
             <phoebe.parameters.ParameterSet.get_default_unit>. `unit` will
             be ignored for Parameters that do not store quantities.
-        * `draw_from` (string, optional, default=None): distset-tag to
+        * `draw_from` (string, optional, default=None): distribution-tag to
             draw from (if applicable).  See <phoebe.parameters.FloatParameter.get_quantity>
             or <phoebe.parameters.FloatParameter.get_value> for more information.
         * `default` (quantity, optional, default=None): value to return if
@@ -3564,13 +3564,13 @@ class ParameterSet(object):
 
         return -0.5 * self.calculate_chi2(model, dataset, component)
 
-    def calculate_lnp(self, distset=None,
+    def calculate_lnp(self, distribution=None,
                       combine='and', include_constrained=True,
                       to_univariates=False,
                       **kwargs):
         """
-        Compute the log-probability between a distset and the face values of
-        the corresponding parameters (if `distset` are priors, then this
+        Compute the log-probability between a distribution and the face values of
+        the corresponding parameters (if `distribution` are priors, then this
         computes log-priors).
 
         Only parameters (or distribution parameters) included in the ParameterSet
@@ -3585,11 +3585,11 @@ class ParameterSet(object):
 
         Arguments
         -----------
-        * `distset` (string or list of strings, optional, default=None):
-            label of the distset.  Required if more than one
-            `distset` available in the ParameterSet.  If distset is
+        * `distribution` (string or list of strings, optional, default=None):
+            label of the distribution.  Required if more than one
+            `distribution` available in the ParameterSet.  If distribution is
             a list, duplicate entries will still be considered
-            (`calculate_lnp(distset=['dist1', 'dist2']) = calculate_lnp(distset='dist1')+calculate_lnp(distset='dist2')`)
+            (`calculate_lnp(distribution=['dist1', 'dist2']) = calculate_lnp(distribution='dist1')+calculate_lnp(distribution='dist2')`)
         * `combine` (string, opjtional, default='add')
         * `include_constrained` (bool, optional, default=True)
         * `to_univariates` (bool, optional, default=False)
@@ -3602,23 +3602,23 @@ class ParameterSet(object):
 
         Raises
         ----------
-        * ValueError: if `distset` is not provided but more than one exists.
-        * ValueError: if no distributions can be found labeled `distset`
+        * ValueError: if `distribution` is not provided but more than one exists.
+        * ValueError: if no distributions can be found labeled `distribution`
         """
 
         # TODO: take same arguments as get_distribution_collection et al.
-        if distset is None:
-            if len(self.distsets) == 1:
-                distset = self.distsets[0]
+        if distribution is None:
+            if len(self.distributions) == 1:
+                distribution = self.distributions[0]
             else:
-                raise ValueError("distset must be provided (one or list of {})".format(self.distsets))
+                raise ValueError("distribution must be provided (one or list of {})".format(self.distributions))
 
-        if not len(distset):
+        if not len(distribution):
             return 0.0 # (np.log(1))
 
         if len(kwargs.items()):
             kwargs.setdefault('check_visible', False)
-            return self.filter(**kwargs).calculate_lnp(distset=distset)
+            return self.filter(**kwargs).calculate_lnp(distribution=distribution)
 
         self._bundle.run_delayed_constraints()
 
@@ -3626,7 +3626,7 @@ class ParameterSet(object):
         # and if so, raise a warning if all other parameters in the constraint
         # also have attached distributions?
 
-        dc, uniqueids = self._bundle.get_distribution_collection(distset=distset,
+        dc, uniqueids = self._bundle.get_distribution_collection(distribution=distribution,
                                                                  combine=combine,
                                                                  include_constrained=include_constrained,
                                                                  to_univariates=to_univariates,
@@ -3671,7 +3671,7 @@ class ParameterSet(object):
             default_contexts = ['dataset', 'model']
             if 'style' in kwargs.keys():
                 default_contexts += ['solution']
-            default_contexts += [context for context in self.contexts if (context in kwargs.keys() or 'twig' in kwargs.keys()) and context in ['dataset', 'compute', 'model', 'distset', 'solver', 'solution']]
+            default_contexts += [context for context in self.contexts if (context in kwargs.keys() or 'twig' in kwargs.keys()) and context in ['dataset', 'compute', 'model', 'distribution', 'solver', 'solution']]
             kwargs.setdefault('context', default_contexts)
 
         filter_kwargs = {}
@@ -3702,9 +3702,9 @@ class ParameterSet(object):
                 return_ += this_return
             return _handle_additional_calls(ps, return_)
 
-        # if len(ps.distsets)>1:
-        #     for distset in ps.distsets:
-        #         this_return = ps.filter(check_visible=False, distset=distset)._unpack_plotting_kwargs(animate=animate, **kwargs)
+        # if len(ps.distributions)>1:
+        #     for distribution in ps.distributions:
+        #         this_return = ps.filter(check_visible=False, distribution=distribution)._unpack_plotting_kwargs(animate=animate, **kwargs)
         #         return_ += this_return
         #     return _handle_additional_calls(ps, return_)
 
@@ -4316,7 +4316,7 @@ class ParameterSet(object):
         elif ps.kind in ['emcee', 'dynesty', 'bls_period', 'lc_eclipse_geometry']:
             pass
             # handled below
-        elif ps.context in ['distset']:
+        elif ps.context in ['distribution']:
             pass
             # handled below
         elif ps.context in ['solver', 'solution']:
@@ -4351,10 +4351,10 @@ class ParameterSet(object):
                 kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', default={}, **_skip_filter_checks)
 
             return (kwargs,)
-        elif ps.context == 'distset':
+        elif ps.context == 'distribution':
             kwargs['plot_package'] = 'distl'
-            kwargs.setdefault('distset', ps.distset)
-            kwargs['dc'], _ = self._bundle.get_distribution_collection(context='distset', **{k:v for k,v in kwargs.items() if k in ['distset', 'combine', 'include_constrained', 'to_univariates', 'to_uniforms']})
+            kwargs.setdefault('distribution', ps.distribution)
+            kwargs['dc'], _ = self._bundle.get_distribution_collection(context='distribution', **{k:v for k,v in kwargs.items() if k in ['distribution', 'combine', 'include_constrained', 'to_univariates', 'to_uniforms']})
             return (kwargs,)
         elif ps.context == 'solver':
             kwargs['plot_package'] = 'distl'
@@ -4508,7 +4508,7 @@ class ParameterSet(object):
                     fitted_units = self._bundle.get_value(qualifier='fitted_units', context='solution', solution=ps.solution, **_skip_filter_checks)
                     fitted_ps = self._bundle.filter(uniqueid=list(fitted_uniqueids), **_skip_filter_checks)
                     if len(fitted_ps.twigs) != len(fitted_twigs):
-                        fitted_ps = self._bundle.filter(twig=list(fitted_twigs), **_skip_filter_checks).exclude(context=['solution', 'distset', 'model', 'compute', 'solver'], **_skip_filter_checks)
+                        fitted_ps = self._bundle.filter(twig=list(fitted_twigs), **_skip_filter_checks).exclude(context=['solution', 'distribution', 'model', 'compute', 'solver'], **_skip_filter_checks)
 
                     samples = self._bundle.get_value(qualifier='samples', context='solution', solution=ps.solution, **_skip_filter_checks)
                     samples = samples[burnin:, :, :][::thin, : :][:, :, adopt_inds]
@@ -5473,7 +5473,7 @@ class Parameter(object):
         self._dataset = kwargs.get('dataset', None)
         self._figure = kwargs.get('figure', None)
         self._constraint = kwargs.get('constraint', None)
-        self._distset = kwargs.get('distset', None)
+        self._distribution = kwargs.get('distribution', None)
         self._compute = kwargs.get('compute', None)
         self._model = kwargs.get('model', None)
         self._solver = kwargs.get('solver', None)
@@ -6029,19 +6029,19 @@ class Parameter(object):
         return self._constraint
 
     @property
-    def distset(self):
+    def distribution(self):
         """
-        Return the distset of this <phoebe.parameters.Parameter>.
+        Return the distribution of this <phoebe.parameters.Parameter>.
 
         See also:
-        * <phoebe.parameters.ParameterSet.distset>
-        * <phoebe.parameters.ParameterSet.distsets>
+        * <phoebe.parameters.ParameterSet.distribution>
+        * <phoebe.parameters.ParameterSet.distributions>
 
         Returns
         -------
-        * (str) the distset tag of this Parameter.
+        * (str) the distribution tag of this Parameter.
         """
-        return self._distset
+        return self._distribution
 
     @property
     def compute(self):
@@ -8067,10 +8067,10 @@ class DistributionParameter(Parameter):
         ----------
         * <phoebe.parameters.Parameter> object
         """
-        return self._bundle.exclude(context=['distset', 'constraint'],
+        return self._bundle.exclude(context=['distribution', 'constraint'],
                                     check_visible=False).get_parameter(qualifier=self.qualifier,
                                           check_visible=False,
-                                          **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distset']})
+                                          **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
 
     def lnp(self, value=None):
         """
@@ -8426,24 +8426,24 @@ class FloatParameter(Parameter):
         self._timederiv = timederiv
 
     @property
-    def in_distsets(self):
+    def in_distributions(self):
         """
-        List the distset tags of the distributions attached to this parameters
+        List the distribution tags of the distributions attached to this parameters
 
         Returns
         ----------
         * (list of strings)
         """
-        return self._bundle.filter(context='distset', qualifier=self.qualifier,
+        return self._bundle.filter(context='distribution', qualifier=self.qualifier,
                                    check_visible=False, check_default=False,
-                                   **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distset']}).distsets
+                                   **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).distributions
 
     def add_distribution(self, value):
         """
         Add a distribution to the bundle attached to this Parameter.
 
         See also:
-        * <phoebe.frontend.bundle.Bundle.add_distset>
+        * <phoebe.frontend.bundle.Bundle.add_distribution>
         * <phoebe.frontend.bundle.Bundle.add_dist>
         * <phoebe.parameters.FloatParameter.get_distribution>
         * <phoebe.parameters.FloatParameter.sample_distribution>
@@ -8460,12 +8460,12 @@ class FloatParameter(Parameter):
 
         self._bundle.add_distribution(twig=self, value=value)
 
-    def get_distribution_parameters(self, distset=None, follow_constraints=True):
+    def get_distribution_parameters(self, distribution=None, follow_constraints=True):
         """
-        Get the distribution parameter(s) corresponding to `distset`.
+        Get the distribution parameter(s) corresponding to `distribution`.
 
         See also:
-        * <phoebe.frontend.bundle.Bundle.get_distset>
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
         * <phoebe.frontend.bundle.Bundle.get_dist>
         * <phoebe.parameters.FloatParameter.get_distribution>
         * <phoebe.parameters.FloatParameter.sample_distribution>
@@ -8473,8 +8473,8 @@ class FloatParameter(Parameter):
 
         Arguments
         -------------
-        * `distset` (string list or None, optional, default=None): distset
-            to use when filtering.  If None, will default to <phoebe.parmaeters.FloatParameter.in_distsets>
+        * `distribution` (string list or None, optional, default=None): distribution
+            to use when filtering.  If None, will default to <phoebe.parmaeters.FloatParameter.in_distributions>
         * `follow_constraints` (bool, optional, default=True): whether to include
             the distributions of parameters in the constrained parameter.  Only
             applicable if this parameter is currently constrained.  See also
@@ -8485,16 +8485,16 @@ class FloatParameter(Parameter):
         ----------
         * <phoebe.parameters.ParameterSet> of distribution parameters.
         """
-        if distset is None:
-            direct_distset = self.in_distsets
+        if distribution is None:
+            direct_distribution = self.in_distributions
         else:
-            direct_distset = distset
+            direct_distribution = distribution
 
         direct_ps =  self._bundle.filter(qualifier=self.qualifier,
-                                         distset=direct_distset,
-                                         context='distset',
+                                         distribution=direct_distribution,
+                                         context='distribution',
                                          check_visible=False,
-                                         **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distset']})
+                                         **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})
 
         indirect_params = []
         if follow_constraints and len(self.constrained_by):
@@ -8503,24 +8503,24 @@ class FloatParameter(Parameter):
             # instead.
             for constraining_param in self.constrained_by:
                 indirect_params += self._bundle.filter(qualifier=constraining_param.qualifier,
-                                                       distset=distset if distset is not None else constraining_param.in_distsets,
-                                                       context='distset',
+                                                       distribution=distribution if distribution is not None else constraining_param.in_distributions,
+                                                       context='distribution',
                                                        check_visible=False,
-                                                       **{k:v for k,v in constraining_param.meta.items() if k in _contexts and k not in ['context', 'distset']}).to_list()
+                                                       **{k:v for k,v in constraining_param.meta.items() if k in _contexts and k not in ['context', 'distribution']}).to_list()
 
         return direct_ps + indirect_params
 
 
-    def get_distribution(self, distset=None, follow_constraints=True):
+    def get_distribution(self, distribution=None, follow_constraints=True):
         """
         Access the distribution object corresponding to this parameter
-        tagged with distset=`distset`.  To access the
+        tagged with distribution=`distribution`.  To access the
         <phoebe.parameters.DistributionParameter> itself, see
         <phoebe.frontend.bundle.Bundle.get_distribution>.
 
         If this parameter is a constrained parameter, and any of the parameters
         involved in the constraint have distributions attached with
-        distset=`distset`, a distribution object will be exposed
+        distribution=`distribution`, a distribution object will be exposed
         that is propagated through the constraint (whether or not a
         <phoebe.parameters.DistributionParameter> exists).  A warning will
         be raised in the <phoebe.logger> if a distribution does exist but
@@ -8528,7 +8528,7 @@ class FloatParameter(Parameter):
         behavior, set `follow_constraints` to False.
 
         See also:
-        * <phoebe.frontend.bundle.Bundle.get_distset>
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
         * <phoebe.frontend.bundle.Bundle.get_dist>
         * <phoebe.parameters.FloatParameter.get_distribution_parameter>
         * <phoebe.parameters.FloatParameter.sample_distribution>
@@ -8536,7 +8536,7 @@ class FloatParameter(Parameter):
 
         Arguments
         ----------
-        * `distset` (string, optional, default=None): distset tag
+        * `distribution` (string, optional, default=None): distribution tag
             of the <phoebe.parameters.DistributionParameter>.  Required if
             more than one are available.
         * `follow_constraints` (bool, optional, default=True): whether to propagate
@@ -8557,11 +8557,11 @@ class FloatParameter(Parameter):
         if self._bundle is None:
             raise ValueError("parameter must be attached to a Bundle to call get_distribution")
 
-        if not isinstance(distset, str) and distset is not None:
-            if isinstance(distset, list):
+        if not isinstance(distribution, str) and distribution is not None:
+            if isinstance(distribution, list):
                 raise NotImplementedError()
             else:
-                raise TypeError("distset must be of type string or None")
+                raise TypeError("distribution must be of type string or None")
 
         dist = None
         if follow_constraints and len(self.constrained_by):
@@ -8570,31 +8570,31 @@ class FloatParameter(Parameter):
             # instead.
 
             if len(self._bundle.filter(qualifier=self.qualifier,
-                                       distset=distset,
-                                       context='distset',
+                                       distribution=distribution,
+                                       context='distribution',
                                        check_visible=False,
-                                       **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distset']})):
+                                       **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})):
 
-                logger.warning("{} is constrained but also has a distribution attached with distset='{}'.  Returning the distribution propagated through the constraint instead (pass follow_constraints=False to disable this behavior).".format(self.twig, distset))
+                logger.warning("{} is constrained but also has a distribution attached with distribution='{}'.  Returning the distribution propagated through the constraint instead (pass follow_constraints=False to disable this behavior).".format(self.twig, distribution))
 
             # constraint_expr = self.is_constraint.get_value()
-            if distset is None:
-                if len(self._bundle.distsets) > 1:
-                    raise ValueError("must provide label of distset")
-                elif len(self._bundle.distsets) == 1:
-                    distset = self._bundle.distsets[0]
+            if distribution is None:
+                if len(self._bundle.distributions) > 1:
+                    raise ValueError("must provide label of distribution")
+                elif len(self._bundle.distributions) == 1:
+                    distribution = self._bundle.distributions[0]
                 else:
-                    raise ValueError("no distsets found attached to bundle")
+                    raise ValueError("no distributions found attached to bundle")
 
             # raise NotImplementedError("constraint propagation for distributions not yet implemented")
-            dist = self.is_constraint.get_result(use_distset=distset)
+            dist = self.is_constraint.get_result(use_distribution=distribution)
 
         if dist is None:
             dist = self._bundle.get_parameter(qualifier=self.qualifier,
-                                              distset=distset,
-                                              context='distset',
+                                              distribution=distribution,
+                                              context='distribution',
                                               check_visible=False,
-                                              **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distset']}).get_value()
+                                              **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
 
         if isinstance(dist, distl.BaseAroundGenerator):
             dist.value = self.get_value()
@@ -8604,7 +8604,7 @@ class FloatParameter(Parameter):
 
         return dist
 
-    def sample_distribution(self, distset=None, follow_constraints=True,
+    def sample_distribution(self, distribution=None, follow_constraints=True,
                             seed=None, set_value=False):
         """
         Sample from the distribution attached to this parameter (and optionally
@@ -8616,7 +8616,7 @@ class FloatParameter(Parameter):
 
         Arguments
         ------------
-        * `distset` (string, optional, default=None): distset tag
+        * `distribution` (string, optional, default=None): distribution tag
             of the <phoebe.parameters.DistributionParameter>.  Required if
             more than one are available.
         * `follow_constraints` (bool, optional, default=True): whether to propagate
@@ -8638,7 +8638,7 @@ class FloatParameter(Parameter):
         ----------
         * ValueError: if no valid distribution can be found.
         """
-        dist = self.get_distribution(distset, follow_constraints=follow_constraints)
+        dist = self.get_distribution(distribution, follow_constraints=follow_constraints)
         value = dist.sample(seed=seed)
         if set_value:
             self.set_value(value, ignore_readonly=True)
@@ -10819,7 +10819,7 @@ class ConstraintParameter(Parameter):
         """
         return self.get_result()
 
-    def get_result(self, t=None, use_distset=None, suppress_error=True):
+    def get_result(self, t=None, use_distribution=None, suppress_error=True):
         """
         Get the current value (as a quantity) of the result of the expression
         of this <phoebe.parameters.ConstraintParameter>.
@@ -10850,7 +10850,7 @@ class ConstraintParameter(Parameter):
                     return True
             return False
 
-        def get_values(vars, safe_label=True, string_safe_arrays=False, use_distset=None):
+        def get_values(vars, safe_label=True, string_safe_arrays=False, use_distribution=None):
             # use np.float64 so that dividing by zero will result in a
             # np.inf
             def _single_value(quantity, string_safe_arrays=False):
@@ -10874,11 +10874,11 @@ class ConstraintParameter(Parameter):
                 else:
                     return quantity
 
-            def _value(var, string_safe_arrays=False, use_distset=None):
-                if use_distset:
+            def _value(var, string_safe_arrays=False, use_distribution=None):
+                if use_distribution:
                     param = var.get_parameter()
-                    if use_distset in param.in_distsets:
-                        return "distl_from_json('{}')".format(_single_value(param.get_distribution(use_distset, follow_constraints=False)).to_json())
+                    if use_distribution in param.in_distributions:
+                        return "distl_from_json('{}')".format(_single_value(param.get_distribution(use_distribution, follow_constraints=False)).to_json())
 
 
                 if var.get_parameter() != self.constrained_parameter:
@@ -10886,11 +10886,11 @@ class ConstraintParameter(Parameter):
                 else:
                     return _single_value(var.get_quantity(), string_safe_arrays)
 
-            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays, use_distset) for var in vars}
+            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays, use_distribution) for var in vars}
 
         eq = self.get_value()
 
-        if _use_sympy and not eq_needs_builtin(eq) and not use_distset:
+        if _use_sympy and not eq_needs_builtin(eq) and not use_distribution:
             values = get_values(self._vars+self._addl_vars, safe_label=True)
             values['I'] = 1 # CHEATING MAGIC
             # just to be safe, let's reinitialize the sympy vars
@@ -10906,16 +10906,16 @@ class ConstraintParameter(Parameter):
             # order here matters - self.get_value() will update the user_labels
             # to be the current unique twigs
             #print "***", eq, values
-            # if use_distset:
-            #     values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distset=use_distset)
+            # if use_distribution:
+            #     values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution)
             #     print("***", values)
             #     return
 
-            if eq_needs_builtin(eq) or use_distset:
+            if eq_needs_builtin(eq) or use_distribution:
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
 
-                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distset=use_distset)
+                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution)
 
                 # cannot do from builtin import *
                 for func in _constraint_builtin_funcs:
@@ -10940,7 +10940,7 @@ class ConstraintParameter(Parameter):
                     else:
                         raise ValueError("constraint returned None")
                 else:
-                    if use_distset is None:
+                    if use_distribution is None:
                         try:
                             value = float(value)
                         except TypeError as err:
