@@ -352,7 +352,7 @@ conf = Settings()
 
 # make packages available at top-level
 from .dependencies.unitsiau2015 import u,c
-from .dependencies.nparray import array, linspace, arange, logspace, geomspace
+from .dependencies.nparray import array, linspace, arange, logspace, geomspace, invspace
 from .dependencies.distl import gaussian, gaussian_around, normal, boxcar, uniform, uniform_around, histogram_from_bins, histogram_from_data, mvgaussian, mvhistogram_from_data
 from .atmospheres.passbands import install_passband, uninstall_passband, uninstall_all_passbands, download_passband, list_passband_online_history, update_passband_available, update_passband, update_all_passbands, list_all_update_passbands_available, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
 from .parameters import hierarchy, component, compute, constraint, dataset, feature, figure, solver
@@ -771,6 +771,7 @@ add_nparray_docstring(linspace)
 add_nparray_docstring(arange)
 add_nparray_docstring(logspace)
 add_nparray_docstring(geomspace)
+add_nparray_docstring(invspace)
 
 
 def add_distl_docstring(obj):

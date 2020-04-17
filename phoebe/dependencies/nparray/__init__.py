@@ -91,6 +91,37 @@ def linspace(start, stop, num, endpoint=True, unit=None):
 
 linspace.__doc__ = __docprefix__ + "\n".join([l.lstrip() for l in linspace.__doc__.split("\n")]) + __docsep__ + np.linspace.__doc__.replace("&gt;", ">")
 
+def invspace(start, stop, num, endpoint=True, unit=None):
+    """
+    Evenly sampled numbers in inverted space.  This is equivalent to:
+
+    ```py
+    1./linspace(1./start, 1./stop, num, endpoint, unit)
+    ```
+
+    See also:
+
+    * <nparray.linspace>
+
+    Arguments
+    ------------
+    * `start` (int or float): the starting point of the sequence.
+    * `stop` (int or float): the ending point of the sequence, unless `endpoint`
+        is set to False.  In that case, the sequence consists of all but the
+        last of ``num + 1`` evenly spaced samples, so that `stop` is excluded.
+        Note that the step size changes when `endpoint` is False.
+    * `num` (int): number of samples to generate.
+    * `endpoint` (bool, optional, default=True): If True, `stop` is the last
+        sample. Otherwise, it is not included.
+    * `unit` (astropy unit or string, optional, default=None): unit
+        corresponding to the passed values.
+
+    Returns
+    -----------
+    * <Invspace>
+    """
+    return _wrappers.Invspace(start, stop, num, endpoint, unit)
+
 def logspace(start, stop, num, endpoint=True, base=10.0, unit=None):
     """
     See also:

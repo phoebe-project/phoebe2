@@ -632,6 +632,69 @@ class Linspace(ArrayWrapper):
         else:
             raise ValueError("{} not supported with type {}".format(operator, type(other)))
 
+class Invspace(ArrayWrapper):
+    """
+    This is available as a top-level convenience function as <nparray.invspace>.
+    """
+    def __init__(self, start, stop, num, endpoint=True, unit=None):
+        """
+        This is available as a top-level convenience function as <nparray.invspace>.
+
+        Arguments
+        ------------
+        * `start` (int or float): the starting point of the sequence.
+        * `stop` (int or float): the ending point of the sequence, unless `endpoint`
+            is set to False.  In that case, the sequence consists of all but the
+            last of ``num + 1`` evenly spaced samples, so that `stop` is excluded.
+            Note that the step size changes when `endpoint` is False.
+        * `num` (int): number of samples to generate.
+        * `endpoint` (bool, optional, default=True): If True, `stop` is the last
+            sample. Otherwise, it is not included.
+        * `unit` (astropy unit or string, optional, default=None): unit
+            corresponding to the passed values.
+
+        Returns
+        -----------
+        * <Invspace>
+        """
+        super(Invspace, self).__init__(('start', start, is_float),
+                                       ('stop', stop, is_float),
+                                       ('num', num, is_int_positive),
+                                       ('endpoint', endpoint, is_bool),
+                                       ('unit', unit, is_unit_or_unitstring_or_none))
+
+    @property
+    def array(self):
+        """
+        Compute the underyling numpy array by calling:
+
+        ```py
+        1./np.linspace(1./start, 1./stop, num, endpoint)
+        ```
+
+        Returns
+        ---------
+        * (numpy array): the underlying (computed) numpy array
+        """
+        return 1./np.linspace(1./self.start, 1./self.stop, self.num, self.endpoint)
+
+    def __math__(self, operator, other):
+        if isinstance(other, float) or isinstance(other, int):
+            # NOTE: we have to cast the start and stop to a float because
+            # int.__mul__(float) is not implemented in Python (instead it uses
+            # float.__rmul__(int)).
+            # Alternatively,we could check for this case and do
+            # other.__r{operator}(self.start) but that seems just as ugly.
+            return Invspace(getattr(float(self.start), operator)(other), getattr(float(self.stop), operator)(other), self.num, self.endpoint, self.unit)
+        elif isinstance(other, np.ndarray) or isinstance(other, list) or isinstance(other, tuple):
+            value = getattr(self.array, operator)(other)
+            return Array(value, self.unit)
+        elif isinstance(other, ArrayWrapper):
+            value = getattr(self.array, operator)(other.array)
+            return Array(value, self.unit)
+        else:
+            raise ValueError("{} not supported with type {}".format(operator, type(other)))
+
 class Logspace(ArrayWrapper):
     """
     This is available as a top-level convenience function as <nparray.logspace>.

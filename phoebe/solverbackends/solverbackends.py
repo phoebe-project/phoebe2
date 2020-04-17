@@ -16,7 +16,7 @@ from phoebe.backend.backends import _simplify_error_message
 from phoebe.utils import phase_mask_inds
 
 from distutils.version import LooseVersion, StrictVersion
-from copy import deepcopy
+from copy import deepcopy as _deepcopy
 
 from . import lc_eclipse_geometry
 
@@ -38,11 +38,12 @@ else:
     _use_dynesty = True
 
 try:
-    from astropy.timeseries import BoxLeastSquares
+    from astropy.timeseries import BoxLeastSquares as _BoxLeastSquares
+    from astropy.timeseries import LombScargle as _LombScargle
 except ImportError:
-    _use_bls = False
+    _use_astropy_timeseries = False
 else:
-    _use_bls = True
+    _use_astropy_timeseries = True
 
 from scipy import optimize
 
@@ -470,21 +471,21 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
 
 
 
-class Bls_PeriodBackend(BaseSolverBackend):
+class PeriodogramBackend(BaseSolverBackend):
     """
-    See <phoebe.parameters.solver.estimator.bls_period>.
+    See <phoebe.parameters.solver.estimator.periodogram>.
 
     The run method in this class will almost always be called through the bundle, using
     * <phoebe.frontend.bundle.Bundle.add_solver>
     * <phoebe.frontend.bundle.Bundle.run_solver>
     """
     def run_checks(self, b, solver, compute, **kwargs):
-        if not _use_bls:
-            raise ImportError("astropy.timeseries.BoxLeastSquares not installed")
+        if not _use_astropy_timeseries:
+            raise ImportError("astropy.timeseries not installed (requires astropy 3.2+)")
 
         solver_ps = b.get_solver(solver)
         if not len(solver_ps.get_value(qualifier='lc', lc=kwargs.get('lc', None))):
-            raise ValueError("cannot run bls_period without any dataset in lc")
+            raise ValueError("cannot run periodogram without any dataset in lc")
 
         # TODO: check to make sure fluxes exist, etc
 
@@ -510,9 +511,10 @@ class Bls_PeriodBackend(BaseSolverBackend):
 
     def run_worker(self, b, solver, compute=None, **kwargs):
         if mpi.within_mpirun:
-            raise NotImplementedError("mpi support for BLS_period not yet implemented")
+            raise NotImplementedError("mpi support for periodogram not yet implemented")
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
+        algorithm = kwargs.get('algorithm')
         lc = kwargs.get('lc')
         component = kwargs.get('component')
 
@@ -523,32 +525,70 @@ class Bls_PeriodBackend(BaseSolverBackend):
         if not len(sigmas):
             sigmas = None
 
-        objective = kwargs.get('objective')
         sample_mode = kwargs.get('sample_mode')
 
         # TODO: options for duration to autopower/power (not sure what it does from the astropy docs)
-        model = BoxLeastSquares(times, fluxes, dy=sigmas)
+        if algorithm == 'bls':
+            model = _BoxLeastSquares(times, fluxes, dy=sigmas)
+            # TODO: expose duration to solver options
+            # https://docs.astropy.org/en/stable/api/astropy.timeseries.BoxLeastSquares.html#astropy.timeseries.BoxLeastSquares.autoperiod
+            # https://docs.astropy.org/en/stable/api/astropy.timeseries.BoxLeastSquares.html#astropy.timeseries.BoxLeastSquares.period
+            power_kwargs = {'duration': kwargs.get('duration'), 'objective': kwargs.get('objective')}
+            autopower_kwargs = _deepcopy(power_kwargs)
+            autopower_kwargs['minimum_n_transit'] = kwargs.get('minimum_n_cycles')
+            sample = kwargs.get('sample_periods')
+        elif algorithm == 'ls':
+            model = _LombScargle(times, fluxes, dy=sigmas)
+            # https://docs.astropy.org/en/stable/api/astropy.timeseries.LombScargle.html#astropy.timeseries.LombScargle.autopower
+            # https://docs.astropy.org/en/stable/api/astropy.timeseries.LombScargle.html#astropy.timeseries.LombScargle.power
+            power_kwargs = {}
+            autopower_kwargs = _deepcopy(power_kwargs)
+            autopower_kwargs['samples_per_peak'] = kwargs.get('samples_per_peak')
+            sample = 1./kwargs.get('sample_periods')
+            sample_sort = sample.argsort()
+            sample = sample[sample_sort]
+        else:
+            raise NotImplementedError("algorithm='{}' not supported".format(algorithm))
+
         if sample_mode == 'auto':
-            periodogram = model.autopower(0.2, objective=objective)
+            logger.info("calling {}.autopower({})".format(algorithm, autopower_kwargs))
+            out = model.autopower(**autopower_kwargs)
+            if algorithm in ['bls']:
+                periods = out.period
+                powers = out.power
+            elif algorithm in ['ls']:
+                periods = out[0]
+                powers = out[1]
+            else:
+                raise NotImplementedError("algorithm='{}' not supported".format(algorithm))
         elif sample_mode == 'manual':
-            sample_periods = kwargs.get('sample_periods')
-            periodogram = model.power(sample_periods, 0.2, objective=objective)
+            logger.info("calling {}.power({}, {})".format(algorithm, sample, power_kwargs))
+            # periodogram = model.power(kwargs.get('sample_periods' if algorithm in ['bls'] else 'sample_frequencies'), **power_kwargs)
+            out = model.power(sample, **power_kwargs)
+            if algorithm in ['bls']:
+                periods = out.period
+                powers = out.power
+            elif algorithm in ['ls']:
+                periods = kwargs.get('sample_periods')[sample_sort]
+                powers = out
+            else:
+                raise NotImplementedError("algorithm='{}' not supported".format(algorithm))
         else:
             raise ValueError("sample_mode='{}' not supported".format(sample_mode))
 
-        max_power = np.argmax(periodogram.power)
-        stats = model.compute_stats(periodogram.period[max_power],
-                                    periodogram.duration[max_power],
-                                    periodogram.transit_time[max_power])
+        peak_ind = np.argmax(powers)
+        # stats = model.compute_stats(periodogram.period[max_power],
+        #                             periodogram.duration[max_power],
+        #                             periodogram.transit_time[max_power])
 
-        period = periodogram.period[max_power]
+        period = periods[peak_ind]
 
         period_param = b.get_parameter(qualifier='period', component=component, context='component', **_skip_filter_checks)
 
         params_twigs = [period_param.twig]
 
-        return [[{'qualifier': 'period', 'value': periodogram.period},
-                 {'qualifier': 'power', 'value': periodogram.power},
+        return [[{'qualifier': 'period', 'value': periods},
+                 {'qualifier': 'power', 'value': powers},
                  {'qualifier': 'fitted_uniqueids', 'value': [period_param.uniqueid]},
                  {'qualifier': 'fitted_twigs', 'value': params_twigs},
                  {'qualifier': 'fitted_values', 'value': [period]},
@@ -819,7 +859,7 @@ class EmceeBackend(BaseSolverBackend):
                         burnin =0
                         thin = 1
 
-                    failed_samples = deepcopy(continued_failed_samples)
+                    failed_samples = _deepcopy(continued_failed_samples)
                     if kwargs.get('expose_failed'):
                         for blob in sampler.get_blobs(flat=True):
                             if blob is None or blob[0] is None:
