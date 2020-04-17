@@ -268,7 +268,7 @@ class import_check(Command):
       optional.append('matplotlib')
     try:
       import corner
-      mpl_version = corner.__version__
+      corner_version = corner.__version__
       if LooseVersion(corner_version) < LooseVersion('2.0.0'):
         optional.append('corner 2.0+')
     except:
