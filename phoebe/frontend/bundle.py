@@ -6014,9 +6014,6 @@ class Bundle(ParameterSet):
         Add one or multiple <phoebe.parameters.DistributionParameter>
         to a new or existing `distribution`.
 
-        To add distributions one at a time, or to "append" an additional distribution
-        to an existing `distribution`, see <phoebe.frontend.bundle.Bundle.add_dist>.
-
         Note: the first positional argument, `arg1`, can either be a dictionary,
         a list of dictionaries, or a single twig (in which case `value` must
         also be provided).
