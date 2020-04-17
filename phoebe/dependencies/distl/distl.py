@@ -233,7 +233,7 @@ def is_distribution_or_none(value):
         raise TypeError('must be a distl Distribution object or None')
 
 def is_math(value):
-    valid_maths = ['__add__', '__radd__', '__sub__', '__rsub__', '__mul__', '__rmul__', '__div__', '__rdiv__']
+    valid_maths = ['__add__', '__radd__', '__sub__', '__rsub__', '__mul__', '__pow__', '__rmul__', '__div__', '__rdiv__']
     valid_maths += ['sin', 'cos', 'tan']
     valid_maths += ['__and__', '__or__']
     if value in valid_maths:
@@ -325,21 +325,6 @@ def is_square_matrix(value):
 
 
 ################################################################################
-
-def _hist_pdf_cdf_ppf_callables(bins, density):
-    bincenters = _np.mean(_np.vstack([bins[0:-1], bins[1:]]), axis=0)
-    pdf_call = _stats_custom.interpolate_callable(bincenters, density)
-
-    bincenters = _np.mean(_np.vstack([bins[0:-1], bins[1:]]), axis=0)
-    cdf = _np.cumsum(density)
-    cdf = cdf / float(cdf[-1])
-
-    ppf_call = _stats_custom.interpolate_callable(cdf, bincenters)
-
-    # make sure interpolation on the right always gives 1, not the fill_value of 0
-    cdf_call = _stats_custom.interpolate_callable( _np.append(bincenters, _np.inf), _np.append(cdf, 1.0))
-
-    return pdf_call, cdf_call, ppf_call
 
 def _kde_pdf_cdf_ppf_callables(samples, weights):
     kde = _stats.gaussian_kde(samples, weights=weights)
@@ -514,6 +499,14 @@ class BaseDistribution(BaseDistlObject):
 
     def __rmul__(self, other):
         return self.__mul__(other)
+
+    def __pow__(self, other):
+        if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            return Composite("__pow__", (self, other))
+        elif isinstance(other, float) or isinstance(other, int):
+            return self.__pow__(Delta(other))
+        else:
+            raise TypeError("cannot pow {} by type {}".format(self.__class__.__name__, type(other)))
 
     def __div__(self, other):
         if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
@@ -3444,7 +3437,8 @@ class Composite(BaseUnivariateDistribution):
     * all others: sampling is handled by sampling the underyling children and
         therefore can retain covariances.  The pdfs, cdfs, and ppfs are
         created by taking 1 million samples, converting to a <Histogram>,
-        and linearly interpolating between the bins, thereby losing all covariances.
+        and using the underlying [scipy.stats.rv_histogram](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.rv_histogram.html),
+        thereby losing all covariances.
 
     """
     def __init__(self, math, dists, unit=None, label=None, wrap_at=None):
@@ -3479,7 +3473,7 @@ class Composite(BaseUnivariateDistribution):
         # can be set properly)
         self.math = math
         super(Composite, self).__init__(unit, label, wrap_at,
-                                        _stats_custom.generic_pdf_cdf_ppf, ('_pdf_cdf_ppf_callables'),
+                                        None, None,
                                         math=math, dists=dists)
 
         if label is None:
@@ -3590,12 +3584,20 @@ class Composite(BaseUnivariateDistribution):
             d.clear_cached_sample()
 
     @property
-    def _pdf_cdf_ppf_callables(self):
-        # TODO: how do we need to handle units here... do we always need to
-        # convert to SI before doing anything?  Or keep quantities?  Or do math
-        # on units after?
-
+    def dist_constructor_func(self):
         if self.math in ['__and__', '__or__']:
+            return  _stats_custom.generic_pdf_cdf_ppf
+        else:
+            # dist_constructor_args will return the histogram args
+            return _stats.rv_histogram
+
+    @property
+    def dist_constructor_args(self):
+        if self.math in ['__and__', '__or__']:
+            # TODO: how do we need to handle units here... do we always need to
+            # convert to SI before doing anything?  Or keep quantities?  Or do math
+            # on units after?
+
             ranges = [d.interval(0.9999, wrap_at=False) for d in self.dists]
             # dist1range = self.dist1.interval(0.9999, wrap_at=False)
             # dist2range = self.dist2.interval(0.9999, wrap_at=False)
@@ -3643,14 +3645,7 @@ class Composite(BaseUnivariateDistribution):
             return pdf_call, cdf_call, ppf_call
 
         else:
-            # TODO: how do we send reasonable defaults here to know how to bin?
-            # Should we look at the ranges of the children like we do for
-            # and/or?
-            return self.to_histogram(N=int(1e6), bins=100, wrap_at=False)._pdf_cdf_ppf_callables
-
-    @property
-    def dist_constructor_args(self):
-        return self._pdf_cdf_ppf_callables
+            return self.to_histogram(N=int(1e6), bins=100, wrap_at=False).dist_constructor_args
 
     def _sample_from_children(self, math, dists, seed={}, size=None, cache_sample=True):
         if math == '__and__':
@@ -3808,22 +3803,13 @@ class Histogram(BaseUnivariateDistribution):
     A Histogram distribution stores a discrete PDF and allows sampling from
     that binned density distribution.
 
+    A Histogram distribution stores a discrete PDF and allows sampling from that
+    binned density distribution via [scipy.stats.rv_histogram](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.rv_histogram.html).
+
     To create a Histogram distribution from already binned data, see
     <distl.histogram_from_bins> or <Histogram.__init__>.  To create a
     Histogram distribtuion from the data array itself, see
     <distl.histogram_from_data> or <Histogram.from_data>.
-
-    Treatment under-the-hood:
-
-    The densities at each bin-midpoint are linearly interpolated to create
-    a pdf (which is normalized to an integral of 1).  A numerical integral
-    of the bins is then performed to create the cdf (again, normalized to 1)
-    and inverted to create the ppf.  Each of these are then interpolated
-    whenever accessing <Histogram.pdf>, <Histogram.cdf>, <Histogram.ppf>, etc as
-    well as used when calling <Histogram.sample>.  For <Histogram.interval>,
-    <Histogram.ppf> (and therefore <Histogram.sample>),
-    the bin-edge is adopted if the spline pdf goes outside the range of the
-    stored bins.
     """
     def __init__(self, bins, density, unit=None, label=None, wrap_at=None):
         """
@@ -3858,7 +3844,7 @@ class Histogram(BaseUnivariateDistribution):
         * a <Histogram> object
         """
         super(Histogram, self).__init__(unit, label, wrap_at,
-                                        _stats_custom.generic_pdf_cdf_ppf, ('_pdf_cdf_ppf_callables'),
+                                        _stats.rv_histogram, ('density', 'bins'),
                                         bins=bins, density=density)
 
     @property
@@ -3925,93 +3911,9 @@ class Histogram(BaseUnivariateDistribution):
         return cls(bin_edges, hist, label=label, unit=unit, wrap_at=wrap_at)
 
     @property
-    def _pdf_cdf_ppf_callables(self):
-        return _hist_pdf_cdf_ppf_callables(self.bins, self.density)
-
-    @property
     def dist_constructor_args(self):
-        return self._pdf_cdf_ppf_callables
-
-    def ppf(self, q, unit=None, as_quantity=False, wrap_at=None):
-        """
-        Expose the percent point function (ppf; iverse of cdf - percentiles) at
-        values of `q`.
-
-        If the spline call returns an interval outside the range
-        of <Histogram.bins>, the bin edge will be adopted.
-
-        See also:
-
-        * <<class>.pdf>
-        * <<class>.cdf>
-        * <<class>.sample>
-
-        Arguments
-        ----------
-        * `q` (float or array): percentiles at which to expose the ppf
-        * `unit` (astropy.unit, optional, default=None): unit of the exposed
-            values.  If None or not provided, will assume they're provided in
-            <<class>.unit>.
-        * `as_quantity` (bool, optional, default=False): whether to return an
-            astropy quantity object instead of just the value.  Astropy must
-            be installed.
-        * `wrap_at` (float, None, or False, optional, default=None): value to
-            use for wrapping.  See <<class>.wrap>.  If not provided or None,
-            will use the value from <<class>.wrap_at>.  Note: wrapping is
-            computed before changing units, so `wrap_at` must be provided
-            according to <<class>.unit> not `unit`.
-
-        Returns
-        ---------
-        * (float or array) ppf values of the same type/shape as `x`
-        """
-
-        ppf = super(Histogram, self).ppf(q=q, unit=None, as_quantity=False, wrap_at=False)
-        if isinstance(ppf, float):
-            if ppf < self.bins[0]:
-                ppf = self.bins[0]
-            if ppf > self.bins[-1]:
-                ppf = self.bins[-1]
-        else:
-            ppf[ppf < self.bins[0]] = self.bins[0]
-            ppf[ppf > self.bins[-1]] = self.bins[-1]
-
-        return self._return_with_units(self.wrap(ppf, wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
-
-    def interval(self, alpha, unit=None, as_quantity=False, wrap_at=None):
-        """
-        Expose the range that contains alpha percent of the distribution.
-
-        If the spline call returns an interval outside the range
-        of <Histogram.bins>, the bin edge will be adopted.
-
-        Arguments
-        ----------
-        * `alpha` (float): passed directly to scipy (see link above)
-        * `unit` (astropy.unit, optional, default=None): unit of the values
-            in `x` to expose.  If None or not provided, will assume they're in
-            <<class>.unit>.
-        * `as_quantity` (bool, optional, default=False): whether to return an
-            astropy quantity object instead of just the value.  Astropy must
-            be installed.
-        * `wrap_at` (float, None, or False, optional, default=None): value to
-            use for wrapping.  See <<class>.wrap>.  If not provided or None,
-            will use the value from <<class>.wrap_at>.  Note: wrapping is
-            computed before changing units, so `wrap_at` must be provided
-            according to <<class>.unit> not `unit`.
-
-        Returns
-        ---------
-        * (array) endpoints in units `unit`.
-        """
-
-        interval = super(Histogram, self).interval(alpha=alpha, unit=None, as_quantity=False, wrap_at=False)
-        if interval[0] < self.bins[0]:
-            interval[0] = self.bins[0]
-        if interval[-1] > self.bins[-1]:
-            interval[-1] = self.bins[-1]
-
-        return self._return_with_units(self.wrap(_np.asarray(interval), wrap_at=wrap_at), unit=unit, as_quantity=as_quantity)
+        # override as these need to be passed as a tuple
+        return ((self.density, self.bins),)
 
     def to_gaussian(self):
         """
@@ -4521,6 +4423,17 @@ class Delta(BaseUnivariateDistribution):
 
         return super(Delta, self).__mul__(other)
 
+    def __pow__(self, other):
+        if isinstance(other, Delta):
+            other = other.loc
+
+        if (isinstance(other, float) or isinstance(other, int)):
+            dist = self.copy()
+            dist.loc **= other
+            return dist
+
+        return super(Delta, self).__pow__(other)
+
     def __div__(self, other):
         return self.__mul__(1./other)
 
@@ -4644,6 +4557,18 @@ class Gaussian(BaseUnivariateDistribution):
             return dist
 
         return super(Gaussian, self).__mul__(other)
+
+    def __pow__(self, other):
+        if isinstance(other, Delta):
+            other = other.loc
+
+        if (isinstance(other, float) or isinstance(other, int)):
+            dist = self.copy()
+            dist.loc **= other
+            dist.scale **= other
+            return dist
+
+        return super(Gaussian, self).__pow__(other)
 
     def __div__(self, other):
         return self.__mul__(1./other)
@@ -4774,6 +4699,18 @@ class Uniform(BaseUnivariateDistribution):
             return dist
 
         return super(Uniform, self).__mul__(other)
+
+    def __pow__(self, other):
+        if isinstance(other, Delta):
+            other = other.loc
+
+        if (isinstance(other, float) or isinstance(other, int)):
+            dist = self.copy()
+            dist.low **= other
+            dist.high **= other
+            return dist
+
+        return super(Uniform, self).__pow__(other)
 
 
     def __div__(self, other):
@@ -5581,7 +5518,7 @@ class MVHistogram(BaseMultivariateDistribution):
 class MVHistogramSlice(BaseMultivariateSliceDistribution):
     @property
     def dist_constructor_func(self):
-        return _stats_custom.generic_pdf_cdf_ppf
+        return _stats.rv_histogram
 
     @property
     def dist_constructor_argnames(self):
@@ -5589,7 +5526,7 @@ class MVHistogramSlice(BaseMultivariateSliceDistribution):
 
     @property
     def dist_constructor_args(self):
-        return _hist_pdf_cdf_ppf_callables(self.bins, self.density)
+        return ((self.density, self.bins),)
 
     @property
     def bins(self):
@@ -6409,6 +6346,16 @@ class Uniform_Around(BaseAroundGenerator):
         else:
             raise NotImplementedError()
 
+    def __pow__(self, other):
+        if (isinstance(other, float) or isinstance(other, int)):
+            dist = self.copy()
+            if dist.value is not None:
+                dist.value **= other
+            dist.width **= other
+            return dist
+        else:
+            raise NotImplementedError()
+
     def to_uniform(self, value=None):
         """
         Expose the "frozen" <Uniform> distribution at a certain
@@ -6462,6 +6409,15 @@ class Delta_Around(BaseAroundGenerator):
             dist = self.copy()
             if dist.value is not None:
                 dist.value *= other
+            return dist
+        else:
+            raise NotImplementedError()
+
+    def __pow__(self, other):
+        if (isinstance(other, float) or isinstance(other, int)):
+            dist = self.copy()
+            if dist.value is not None:
+                dist.value **= other
             return dist
         else:
             raise NotImplementedError()
@@ -6527,6 +6483,16 @@ class Gaussian_Around(BaseAroundGenerator):
             if dist.value is not None:
                 dist.value *= other
             dist.scale *= other
+            return dist
+        else:
+            raise NotImplementedError()
+
+    def __pow__(self, other):
+        if (isinstance(other, float) or isinstance(other, int)):
+            dist = self.copy()
+            if dist.value is not None:
+                dist.value **= other
+            dist.scale **= other
             return dist
         else:
             raise NotImplementedError()
