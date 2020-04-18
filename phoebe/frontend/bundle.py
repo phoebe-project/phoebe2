@@ -3871,6 +3871,8 @@ class Bundle(ParameterSet):
         """
         if feature is not None:
             kwargs['feature'] = feature
+            if feature not in self.features:
+                raise ValueError("feature='{}' not found".format(feature))
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
 
@@ -4258,6 +4260,8 @@ class Bundle(ParameterSet):
         """
         if component is not None:
             kwargs['component'] = component
+            if component not in self.components:
+                raise ValueError("component='{}' not found".format(component))
         kwargs['context'] = 'component'
         return self.filter(**kwargs)
 
@@ -5101,6 +5105,8 @@ class Bundle(ParameterSet):
         """
         if dataset is not None:
             kwargs['dataset'] = dataset
+            if dataset not in self.datasets:
+                raise ValueError("dataset='{}' not found".format(dataset))
 
         kwargs['context'] = 'dataset'
         if 'kind' in kwargs.keys():
@@ -6089,7 +6095,11 @@ class Bundle(ParameterSet):
         if distribution is not None and '*' in distribution:
             raise ValueError("distribution does not accept wildcards")
 
-        kwargs['distribution'] = distribution
+        if distribution is not None:
+            kwargs['distribution'] = distribution
+            if distribution not in self.distributions:
+                raise ValueError("distribution='{}' not found".format(distribution))
+
         kwargs['context'] = 'distribution'
         ret_ps = self.filter(**kwargs)
 
@@ -6772,7 +6782,11 @@ class Bundle(ParameterSet):
         ----------
         * a <phoebe.parameters.ParameterSet> object.
         """
-        kwargs['figure'] = figure
+        if figure is not None:
+            kwargs['figure'] = figure
+            if figure not in self.figures:
+                raise ValueError("figure='{}' not found".format(figure))
+
         kwargs['context'] = 'figure'
         ret_ps = self.filter(**kwargs).exclude(figure=[None])
 
@@ -7958,6 +7972,9 @@ class Bundle(ParameterSet):
         """
         if compute is not None:
             kwargs['compute'] = compute
+            if compute not in self.computes:
+                raise ValueError("compute='{}' not found".format(compute))
+
         kwargs['context'] = 'compute'
         return self.filter(**kwargs)
 
@@ -8743,6 +8760,9 @@ class Bundle(ParameterSet):
         """
         if model is not None:
             kwargs['model'] = model
+            if model not in self.models:
+                raise ValueError("model='{}' not found".format(model))
+
         kwargs['context'] = 'model'
         return self.filter(**kwargs)
 
@@ -9135,6 +9155,8 @@ class Bundle(ParameterSet):
         """
         if solver is not None:
             kwargs['solver'] = solver
+            if solver not in self.solvers:
+                raise ValueError("solver='{}' not found".format(solver))
         kwargs['context'] = 'solver'
         return self.filter(**kwargs)
 
@@ -9826,6 +9848,8 @@ class Bundle(ParameterSet):
         """
         if solution is not None:
             kwargs['solution'] = solution
+            if solution not in self.solutions:
+                raise ValueError("solution='{}' not found".format(solution))
         kwargs['context'] = 'solution'
         return self.filter(**kwargs)
 
