@@ -393,6 +393,12 @@ class ArrayWrapper(object):
 
     @property
     def shape(self):
+        if 'shape' in self._descriptors.keys():
+            # Ones, Full, Zeros has a shape attribute directly
+            shape = self._descriptors.get('shape')
+            if isinstance(shape, int):
+                return (shape,)
+            return shape
         return self.array.shape
 
     def __comparison__(self, operator, other):
