@@ -3571,7 +3571,7 @@ class ParameterSet(object):
                       to_univariates=False,
                       **kwargs):
         """
-        Compute the log-probability between a distribution-set and the face values of
+        Compute the log-probability between a distribution and the face values of
         the corresponding parameters (if `distribution` are priors, then this
         computes log-priors).
 
@@ -3583,12 +3583,12 @@ class ParameterSet(object):
         * <phoebe.parameters.DistributionParameter.calculate_lnprobability>
         * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
         * <phoebe.frontend.bundle.Bundle.calculate_lnprobability>
-        * <phoebe.frontend.bundle.Bundle.get_distribution_objects>
+        * <phoebe.frontend.bundle.Bundle.get_distribution_collection>
 
         Arguments
         -----------
         * `distribution` (string or list of strings, optional, default=None):
-            label of the distribution set.  Required if more than one
+            label of the distribution.  Required if more than one
             `distribution` available in the ParameterSet.  If distribution is
             a list, duplicate entries will still be considered
             (`calculate_lnp(distribution=['dist1', 'dist2']) = calculate_lnp(distribution='dist1')+calculate_lnp(distribution='dist2')`)
@@ -8430,7 +8430,7 @@ class FloatParameter(Parameter):
     @property
     def in_distributions(self):
         """
-        List the tags of the distributions attached to this parameters
+        List the distribution tags of the distributions attached to this parameters
 
         Returns
         ----------
@@ -8446,6 +8446,7 @@ class FloatParameter(Parameter):
 
         See also:
         * <phoebe.frontend.bundle.Bundle.add_distribution>
+        * <phoebe.frontend.bundle.Bundle.add_dist>
         * <phoebe.parameters.FloatParameter.get_distribution>
         * <phoebe.parameters.FloatParameter.sample_distribution>
 
@@ -8457,7 +8458,7 @@ class FloatParameter(Parameter):
             of the referenced parameter.
         """
         if self._bundle is None:
-            raise ValueError("parameter must be attached to a Bundle to call attach_distribution")
+            raise ValueError("parameter must be attached to a Bundle to call add_distribution")
 
         self._bundle.add_distribution(twig=self, value=value)
 
@@ -8467,6 +8468,7 @@ class FloatParameter(Parameter):
 
         See also:
         * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_dist>
         * <phoebe.parameters.FloatParameter.get_distribution>
         * <phoebe.parameters.FloatParameter.sample_distribution>
         * <phoebe.parameters.FloatParameter.add_distribution>
@@ -8529,6 +8531,7 @@ class FloatParameter(Parameter):
 
         See also:
         * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_dist>
         * <phoebe.parameters.FloatParameter.get_distribution_parameter>
         * <phoebe.parameters.FloatParameter.sample_distribution>
         * <phoebe.parameters.FloatParameter.add_distribution>

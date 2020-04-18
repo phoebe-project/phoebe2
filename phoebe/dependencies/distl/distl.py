@@ -2949,6 +2949,7 @@ class DistributionCollection(object):
             raise TypeError('distributions must be a list of distribution objects')
 
         # TODO: clear caches?
+        #self._dist_constructor_object_clear_cache()
         self._dists = [is_distribution_univariate_or_slice(distribution) for distribution in distributions]
 
     @property
@@ -3524,6 +3525,10 @@ class Composite(BaseUnivariateDistribution):
     @math.setter
     def math(self, value):
         self._math = is_math(value)
+        if hasattr(self, '_parents_with_constructor_object_cache'):
+            # on first init this won't exist yet, but then we don't have to
+            # worry about clearing the cache anyways
+            self._dist_constructor_object_clear_cache()
 
     @property
     def dists(self):
@@ -3553,6 +3558,7 @@ class Composite(BaseUnivariateDistribution):
             raise ValueError("math with operator '{}' requires more than one distribution".format(self.math))
 
         self._dists = value
+        self._dist_constructor_object_clear_cache()
 
     def __repr__(self):
         return "<distl.{} {} unit={}>".format(self.__class__.__name__.lower(), self.__str__(), self.unit if self.unit is not None else "None")
@@ -3857,6 +3863,7 @@ class Histogram(BaseUnivariateDistribution):
     @bins.setter
     def bins(self, value):
         self._bins = is_1d_array(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def density(self):
@@ -3868,6 +3875,7 @@ class Histogram(BaseUnivariateDistribution):
     @density.setter
     def density(self, value):
         self._density = is_1d_array(value)
+        self._dist_constructor_object_clear_cache()
 
     @classmethod
     def from_data(cls, data, bins=10, range=None, weights=None,
@@ -4014,6 +4022,7 @@ class Samples(BaseUnivariateDistribution):
     @samples.setter
     def samples(self, value):
         self._samples = is_1d_array(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def bw_method(self):
@@ -4027,6 +4036,7 @@ class Samples(BaseUnivariateDistribution):
             self._bw_method = value
             return
         self._bw_method = is_float(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def weights(self):
@@ -4043,6 +4053,7 @@ class Samples(BaseUnivariateDistribution):
             if StrictVersion(_scipy_version) < StrictVersion("1.2.0"):
                 raise ImportError("weights for Samples requires scipy 1.2+")
             self._weights = is_1d_array(value)
+        self._dist_constructor_object_clear_cache()
 
     def to_histogram(self, bins=20, wrap_at=None):
         """
@@ -4411,6 +4422,7 @@ class Delta(BaseUnivariateDistribution):
     @loc.setter
     def loc(self, value):
         self._loc = is_float(value)
+        self._dist_constructor_object_clear_cache()
 
     def __mul__(self, other):
         if isinstance(other, Delta):
@@ -4534,6 +4546,7 @@ class Gaussian(BaseUnivariateDistribution):
     @loc.setter
     def loc(self, value):
         self._loc = is_float(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def scale(self):
@@ -4545,6 +4558,7 @@ class Gaussian(BaseUnivariateDistribution):
     @scale.setter
     def scale(self, value):
         self._scale = is_float(value)
+        self._dist_constructor_object_clear_cache()
 
     def __mul__(self, other):
         if isinstance(other, Delta):
@@ -4661,6 +4675,7 @@ class Uniform(BaseUnivariateDistribution):
     @low.setter
     def low(self, value):
         self._low = is_float(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def high(self):
@@ -4675,6 +4690,7 @@ class Uniform(BaseUnivariateDistribution):
     @high.setter
     def high(self, value):
         self._high = is_float(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def width(self):
@@ -4808,6 +4824,7 @@ class MVGaussian(BaseMultivariateDistribution):
     @mean.setter
     def mean(self, value):
         self._mean = is_iterable(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def cov(self):
@@ -4819,6 +4836,7 @@ class MVGaussian(BaseMultivariateDistribution):
     @cov.setter
     def cov(self, value):
         self._cov = is_square_matrix(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def allow_singular(self):
@@ -4830,6 +4848,7 @@ class MVGaussian(BaseMultivariateDistribution):
     @allow_singular.setter
     def allow_singular(self, value):
         self._allow_singular = is_bool(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def ndimensions(self):
@@ -5106,6 +5125,7 @@ class MVHistogram(BaseMultivariateDistribution):
     @bins.setter
     def bins(self, value):
         self._bins = is_nd_array(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def density(self):
@@ -5117,6 +5137,7 @@ class MVHistogram(BaseMultivariateDistribution):
     @density.setter
     def density(self, value):
         self._density = is_nd_array(value)
+        self._dist_constructor_object_clear_cache()
 
     @classmethod
     def from_data(cls, data, bins=10, range=None, weights=None,
@@ -5600,6 +5621,7 @@ class MVSamples(BaseMultivariateDistribution):
     @samples.setter
     def samples(self, value):
         self._samples = is_nd_array(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def weights(self):
@@ -5616,6 +5638,7 @@ class MVSamples(BaseMultivariateDistribution):
             if StrictVersion(_scipy_version) < StrictVersion("1.2.0"):
                 raise ImportError("weights for Samples requires scipy 1.2+")
             self._weights = is_1d_array(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def bw_method(self):
@@ -5629,6 +5652,7 @@ class MVSamples(BaseMultivariateDistribution):
             self._bw_method = value
             return
         self._bw_method = is_float(value)
+        self._dist_constructor_object_clear_cache()
 
     @property
     def ndimensions(self):
@@ -6476,6 +6500,7 @@ class Gaussian_Around(BaseAroundGenerator):
     @scale.setter
     def scale(self, value):
         self._scale = is_float(value)
+
 
     def __mul__(self, other):
         if (isinstance(other, float) or isinstance(other, int)):

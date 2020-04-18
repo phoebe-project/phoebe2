@@ -1514,6 +1514,10 @@ class Bundle(ParameterSet):
 
         elif tag=='distribution':
             affected_params += self._handle_distribution_selectparams(rename={old_value: new_value}, return_changes=True)
+            affected_params += self._handle_computesamplefrom_selectparams(rename={old_value: new_value}, return_changes=True)
+
+        elif tag=='solution':
+            affected_params += self._handle_computesamplefrom_selectparams(rename={old_value: new_value}, return_changes=True)
 
         return affected_params
 
@@ -2046,6 +2050,7 @@ class Bundle(ParameterSet):
 
         choices = self.distributions
 
+        # NOTE: sample_from@compute currently handled in _handle_computesamplefrom_selectparams
         params = self.filter(context='solver', qualifier=['init_from', 'priors', 'bounds', 'sample_from'], **_skip_filter_checks).to_list()
         distribution_set_choices = ['manual'] + ['{}@{}'.format(p.qualifier, getattr(p, p.context)) for p in params]
         params += self.filter(context='figure', kind='distribution_collection', qualifier='distributions', **_skip_filter_checks).to_list()
@@ -3953,6 +3958,7 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_feature(feature=feature, return_changes=return_changes)
         return removed_ps
 
+    @send_if_client
     def rename_feature(self, old_feature, new_feature,
                        overwrite=False, return_changes=False):
         """
@@ -4316,6 +4322,7 @@ class Bundle(ParameterSet):
             return ret_ps + ret_changes
         return ret_ps
 
+    @send_if_client
     def rename_component(self, old_component, new_component, return_changes=False):
         """
         Change the label of a component attached to the Bundle.
@@ -5238,6 +5245,7 @@ class Bundle(ParameterSet):
 
         return removed_ps
 
+    @send_if_client
     def rename_dataset(self, old_dataset, new_dataset,
                        overwrite=False, return_changes=False):
         """
@@ -5951,20 +5959,14 @@ class Bundle(ParameterSet):
                 changes.append(param)
         return changes
 
-    @send_if_client
-    def add_distribution(self, twig=None, value=None, return_changes=False, **kwargs):
+
+    def _add_single_distribution(self, twig=None, value=None, return_changes=False, **kwargs):
         """
-        Add a new distribution to the bundle, tagged to reference an existing
+        Add a distribution to an existing or new `distribution`, tagged to reference an existing
         parameter.  Unlike other `add_` methods in the bundle, this does not
         add a ParameterSet from a specific kind, but rather adds a **single**
         <phoebe.parameters.DistributionParameter> to the bundle in context='distribution',
         tagged according to `twig` and `**kwargs`.
-
-        See also:
-        * <phoebe.frontend.bundle.Bundle.get_distribution>
-        * <phoebe.frontend.bundle.Bundle.remove_distribution>
-        * <phoebe.frontend.bundle.Bundle.rename_distribution>
-        * <phoebe.parameters.DistributionParameter.add_distribution>
 
         Arguments
         ----------
@@ -5975,41 +5977,21 @@ class Bundle(ParameterSet):
             distribution to be applied to the created <phoebe.parameters.DistributionParameter>.
             If not provided, will be a delta function around the current value
             of the referenced parameter.
-        * `distribution` (string, optional): name of the newly-created distribution.
-        * `return_changes` (bool, optional, default=False): whether to include
-            changed/removed parameters in the returned ParameterSet.
+        * `distribution` (string, optional): name of the distribution set.  If already
+            existing in the bundle, then the referenced parameter must not already
+            have an attached distribution.
         * `**kwargs`: tags to filter for a matching parameter (and to tag the
             new <phoebe.parameters.DistributionParameter>).  This (along with `twig`)
             must point to a single parameter.
 
         Returns
         ---------
-        * <phoebe.parameters.ParameterSet> of all parameters in the distribution
-            set `distribution`, including those previously added.
+        * <phoebe.parameters.ParameterSet> of all newly created parameters.
 
         Raises
         --------
         * ValueError: if `twig` and `**kwargs` do not resolve to a single parameter
         """
-
-        if kwargs.get('distribution', False) is None:
-            # then we want to apply the default below, so let's pop for now
-            _ = kwargs.pop('distribution')
-
-        kwargs.setdefault('distribution',
-                          self._default_label('dist',
-                                              **{'context': 'distribution',
-                                                 'kind': 'dist'}))
-
-        # # allow twig and/or kwargs to include lists - if so, any lists must
-        # # be the same length and must be the length of the passed multivariate
-        # # distribution... in which case we can call slice internally and attach
-        # # to multiple parameters at once.
-        # if isinstance(twig, list) or np.any([isinstance(v, list) for k,v in kwargs.items()]):
-
-
-        if kwargs.pop('check_label', True):
-            self._check_label(kwargs['distribution'], allow_overwrite=True)
 
         if isinstance(twig, Parameter):
             ref_params = [twig]
@@ -6017,6 +5999,7 @@ class Bundle(ParameterSet):
             ref_params = self.exclude(context=['distribution', 'constraint']).filter(twig=twig, check_visible=False, **{k:v for k,v in kwargs.items() if k not in ['distribution']}).to_list()
 
         dist_params = []
+        overwrite_ps = ParameterSet([])
         for ref_param in ref_params:
             if value is None:
                 value_ = _distl.delta(ref_param.get_value())
@@ -6031,45 +6014,229 @@ class Bundle(ParameterSet):
 
             dist_param = DistributionParameter(bundle=self, qualifier=ref_param.qualifier, value=value_, description='distribution for the referenced parameter', **metawargs)
 
-            if len(self.filter(qualifier=dist_param.qualifier, check_visible=False, check_default=False, **metawargs)):
-                raise ValueError("distribution parameter for {} already exists with distribution='{}'".format(ref_param.twig, kwargs['distribution']))
+            dist_param_existing_ps = self.filter(qualifier=dist_param.qualifier, check_visible=False, check_default=False, **metawargs)
+            if len(dist_param_existing_ps):
+                if kwargs.get('overwrite_individual', False):
+                    overwrite_ps += self.remove_parameters_all(uniqueid=dist_param_existing_ps.uniqueids)
+                else:
+                    raise ValueError("parameter is already referenced by distribution = '{}'".format(kwargs['distribution']))
 
             dist_params += [dist_param]
-
-        if kwargs.get('overwrite', False):
-            overwrite_ps = self.remove_distribution(distribution=kwargs['distribution'], during_overwrite=True)
-            # check the label again, just in case kwargs['distribution'] belongs to
-            # something other than component
-            self.exclude(distribution=kwargs['distribution'])._check_label(kwargs['distribution'], allow_overwrite=False)
-        else:
-            removed_ps = None
 
         if not len(dist_params):
             return ParameterSet([])
 
         self._attach_params(dist_params, **metawargs)
 
+        ret_ps = ParameterSet(dist_params)
+
+        if kwargs.get('overwrite_individual', False) and return_changes:
+            ret_ps += overwrite_ps
+
+        return ret_ps
+
+
+    @send_if_client
+    def add_distribution(self, arg1=None, value=None, return_changes=False, **kwargs):
+        """
+        Add one or multiple <phoebe.parameters.DistributionParameter>
+        to a new or existing `distribution`.
+
+        Note: the first positional argument, `arg1`, can either be a dictionary,
+        a list of dictionaries, or a single twig (in which case `value` must
+        also be provided).
+        For example:
+
+        ```
+        b.add_distribution({'teff@primary': phoebe.uniform(5000,6000), 'incl@binary': phoebe.uniform(80,90)}, distribution='dist01')
+        ```
+
+        or
+
+        ```
+        b.add_distribution([{'qualifier': 'teff', 'component': 'primary', 'value': phoebe.uniform(5000,6000)},
+                       {'qualifier': 'incl', 'component': 'binary', 'value': phoebe.uniform(80,90)}],
+                       distribution='dist01')
+        ```
+
+        or
+
+        ```
+        b.add_distribution('teff@primary', phoebe.uniform(5000,6000), distribution='dist01')
+        b.add_distribution('incl', phoebe.uniform(80,90), component='binary', distribution='dist01')
+        ```
+
+        Note also that the values (whether provided in the dictionary/dictionaries
+        or to `value`) can either be [distl Distribution objects](https://distl.readthedocs.io/en/latest/api/) or a tuple with
+        length 2, in which case the tuple is adopted as a [uniform distribution](https://distl.readthedocs.io/en/latest/api/Uniform/),
+        or None in which case a [delta distribution](https://distl.readthedocs.io/en/latest/api/Delta/) is adopted around the current value.
+
+        Distribution objects can easily be created from top-level convenience functions:
+        * <phoebe.uniform>
+        * <phoebe.uniform_around>
+        * <phoebe.gaussian>
+        * <phoebe.gaussian_around>
+        * <phoebe.delta>
+        * <phoebe.delta_around>
+
+        Any "around" distribution will react so that the "central value" of the
+        distribution is updated as the face-value of the referenced parameter
+        updates.
+
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.rename_distribution>
+        * <phoebe.frontend.bundle.Bundle.remove_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_distribution_collection>
+        * <phoebe.frontend.bundle.Bundle.sample_distribution_collection>
+        * <phoebe.frontend.bundle.Bundle.plot_distribution_collection>
+
+        Arguments
+        -----------
+        * `arg1` (dictionary, list of dictionaries, or string, optional, default=None):
+            See above for valid formats/examples.
+        * `value` (distl object or tuple, optional, default=None): required
+            if `arg1` is a twig/string.  Otherwise will be used as a default
+            in the `arg1` dictionary/dictionaries when the `value` is not provided
+            or None.  If `arg1` is a dictionary/dictionaries and the distribution/value
+            is always provided, then `value` will silently be ignored.
+        * `distribution` (string, optional): name of the new distribution set.  If not,
+            provided or None, one will be created automatically.
+        * `allow_multiple_matches` (bool, optional, default=False): whether to
+            allow each entry to be attached to multiple parameters.  If True,
+            the `value` (distribution) will be copied and applied to each parameter
+            that matches the filter.  If False and a filter results in more than
+            one parameter, a ValueError will be raised.
+        * `overwrite_individual` (bool, optional, default=False): overwrite any
+            existing distributions tagged with `distribution`, but leave other
+            existing distributions in place.
+        * `overwrite_all` (bool, optional, default=False): if `distribution`
+            already exists, remove all existing distributions first.  See
+            <phoebe.frontend.bundle.Bundle.remove_distribution>.
+        * `return_changes` (bool, optional, default=False): whether to include
+            all changed parameters in the returned ParameterSet, including any
+            removed by `overwrite_individual` or `overwrite_all`.
+        * `**kwargs`: tags to filter for a matching parameter (and to tag the
+            new <phoebe.parameters.DistributionParameter>).  This (along with `twig`)
+            must point to a single parameter.  Any filtering parameters sent at
+            kwargs will be applied as defaults to any not applied in `arg1`.
+
+        Returns
+        ---------
+        * ParameterSet of newly-added parameters (and changed parameters if
+            `return_changes` is True).  To see all parameters tagged with `distribution`,
+            see <phoebe.frontend.bundle.Bundle.get_distribution>.
+
+        Raises
+        ---------
+        * ValueError: if any filter results in multiple valid parameters but
+            `allow_multiple_matches` is not True.
+        * ValueError: if any filter results in zero valid parameters.
+        * TypeError: if `arg1` is not of a supported format.  See examples above.
+        * ValueError: if `overwrite` is passed as a kwarg.  Use `overwrite_all`
+            or `overwrite_individual` instead.
+        * ValueError: if `overwrite_all` AND `overwrite_individual` are both True.
+        """
+        kwargs.setdefault('distribution',
+                          self._default_label('dists',
+                                              **{'context': 'distribution'}))
+
+        if kwargs.pop('check_label', True):
+            # for now we will do allow_overwrite... we'll check that logic later
+            self._check_label(kwargs['distribution'], allow_overwrite=True)
+
+        if isinstance(arg1, dict):
+            dist_dicts = [{'twig': k, 'value': v} for k,v in arg1.items()]
+        elif isinstance(arg1, list):
+            dist_dicts = arg1
+        elif isinstance(arg1, str):
+            if value is None:
+                raise ValueError("value must be provided if first argument is a twig")
+            dist_dicts = [{'twig': arg1, 'value': value}]
+        elif arg1 is None:
+            dist_dicts = [{'value': value}]  # all kwargs will still be applied
+        else:
+            raise TypeError("first argument must be a dictionary, list of dictionaries, or a twig")
+
+        if 'overwrite' in kwargs.keys():
+            raise ValueError("add_distribution accepts overwrite_individual or overwrite_all as arguments, not overwrite")
+
+        if kwargs.get('overwrite_all', False) and kwargs.get('overwrite_individual', False):
+            raise ValueError("cannot use both overwrite_all and overwrite_individual")
+
+        if kwargs.get('overwrite_all', False):
+            overwrite_ps = self.remove_distribution(distribution=kwargs['distribution'], during_overwrite=True)
+            # check the label again, just in case kwargs['distribution'] belongs to
+            # something other than component
+            self.exclude(distribution=kwargs['distribution'])._check_label(kwargs['distribution'], allow_overwrite=False)
+        else:
+            overwrite_ps = None
+
+
+            # then we need to check for any conflicts FIRST, before adding any distributions
+        already_exists = []
+        no_matches = []
+        multiple_matches = []
+        for dist_dict in dist_dicts:
+            for k,v in kwargs.items():
+                if k in ['uniqueid'] + list(self.meta.keys()):
+                    dist_dict.setdefault(k, v)
+
+            ref_params = self.exclude(context=['distribution', 'constraint']).filter(check_visible=False, **{k:v for k,v in dist_dict.items() if k not in ['distribution', 'value']}).to_list()
+            if len(ref_params) == 0:
+                no_matches += [dist_dict]
+            elif len(ref_params) > 1 and not kwargs.get('allow_multiple_matches', False):
+                multiple_matches += [dist_dict]
+
+            if kwargs['distribution'] in self.distributions and not kwargs.get('overwrite_individual', False):
+                f = self.get_distribution(**{k:v for k,v in dist_dict.items() if k not in ['value']})
+                if len(f.to_list()):
+                    already_exists += f.twigs
+
+        if len(no_matches):
+            raise ValueError("{} result in zero matches to existing parameters - cannot add distributions".format(no_matches))
+
+        if len(multiple_matches):
+            # TODO: disable this check with an option?  It technically will work within _add_single_distribution
+            raise ValueError("{} result in multiple matches.  To attach a copy of the distribution to each of the matching parameters, pass allow_multiple_matches=True".format(multiple_matches))
+
+        if len(already_exists):
+            raise ValueError("{} already exist{}.  Use a new distribution label, pass overwrite_individual=True to overwrite just these entries, or pass overwrite_all=True to first remove all parameters with distribution='{}'".format(already_exists, 's' if len(already_exists) == 1 else '', kwargs['distribution']))
+
+        ret_ps = ParameterSet([])
+        for dist_dict in dist_dicts:
+            if not isinstance(dist_dict, dict):
+                raise TypeError("each item in values must be a dictionary")
+            kwargs.setdefault('value', value)
+
+            for k,v in kwargs.items():
+                if k in ['uniqueid'] + list(self.meta.keys()):
+                    # NOTE: this will also pass distribution
+                    dist_dict.setdefault(k, v)
+
+            ret_ps += self._add_single_distribution(overwrite_individual=kwargs.get('overwrite_individual', False), return_changes=return_changes, **dist_dict)
+
+        if kwargs.get('overwrite_all', False) and return_changes:
+            ret_ps += overwrite_ps
+
+        # if self.get_value(qualifier='auto_add_figure', context='setting', auto_add_figure=kwargs.get('auto_add_figure', None), **_skip_filter_checks) and 'distribution_collection' not in self.filter(context='figure', **_skip_filter_checks).kinds:
+        #     # then we don't have a figure for this kind yet
+        #     logger.info("calling add_figure(kind='distribution.distribution_collection') since auto_add_figure@setting=True")
+        #     new_fig_params = self.add_figure(kind='distribution.distribution_collection', distributions=[kwargs['distribution']])
+        #     ret_ps += new_fig_params
+        # else:
+        #     new_fig_params = None
+
+        ret_changes = []
+        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
+
         redo_kwargs = _deepcopy(kwargs)
         self._add_history(redo_func='add_distribution',
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_distribution',
                           undo_kwargs={'distribution': kwargs['distribution']})
-
-
-        ret_ps = self.filter(distribution=kwargs['distribution'], check_visible=False, check_default=False)
-
-        # since we've already processed (so that we can get the new qualifiers),
-        # we'll only raise a warning
-        self._kwargs_checks(kwargs,
-                            additional_allowed_keys=['overwrite'],
-                            warning_only=True, ps=ret_ps)
-
-        if kwargs.get('overwrite', False) and return_changes:
-            ret_ps += overwrite_ps
-
-        ret_changes = []
-        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
-        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -6088,40 +6255,72 @@ class Bundle(ParameterSet):
         See also:
         * <phoebe.parameters.ParameterSet.filter>
         * <phoebe.frontend.bundle.Bundle.add_distribution>
-        * <phoebe.frontend.bundle.Bundle.remove_distribution>
         * <phoebe.frontend.bundle.Bundle.rename_distribution>
-        * <phoebe.parameters.DistributionParameter.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.remove_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_distribution_collection>
 
         Arguments
         ----------
-        * `distribution`: (string, optional, default=None): the name of the distribution
+        * `distribution` (string, optional, default=None): the name of the distribution
         * `**kwargs`: any other tags to do the filtering (excluding distribution and context)
 
-        Returns
-        ---------
+        Returns:
         * a <phoebe.parameters.ParameterSet> object.
         """
-        if distribution is not None and '*' in distribution:
-            raise ValueError("distribution does not accept wildcards")
-
         if distribution is not None:
             kwargs['distribution'] = distribution
             if distribution not in self.distributions:
                 raise ValueError("distribution='{}' not found".format(distribution))
 
         kwargs['context'] = 'distribution'
-        ret_ps = self.filter(**kwargs)
+        return self.filter(**kwargs)
 
-        if len(ret_ps.distributions) == 0:
-            raise ValueError("no distributions matched: {}".format(kwargs))
-        elif len(ret_ps.distributions) > 1:
-            raise ValueError("more than one distribution matched: {}".format(kwargs))
+    @send_if_client
+    def rename_distribution(self, old_distribution, new_distribution,
+                       overwrite=False, return_changes=False):
+        """
+        Change the label of a distribution attached to the Bundle.
 
+        See also:
+        * <phoebe.frontend.bundle.Bundle.add_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.remove_distribution>
+
+        Arguments
+        ----------
+        * `old_distribution` (string): current label of the distribution (must exist)
+        * `new_distribution` (string): the desired new label of the distribution
+            (must not yet exist, unless `overwrite=True`)
+        * `overwrite` (bool, optional, default=False): overwrite the existing
+            entry if it exists.
+        * `return_changes` (bool, optional, default=False): whether to include
+            changed/removed parameters in the returned ParameterSet, including
+            the removed parameters due to `overwrite`.
+
+        Returns
+        --------
+        * <phoebe.parameters.ParameterSet> the renamed distribution
+
+        Raises
+        --------
+        * ValueError: if the value of `new_distribution` is forbidden or already exists.
+        """
+        # TODO: raise error if old_distribution not found?
+        self._rename_label('distribution', old_distribution, new_distribution, overwrite)
+
+        ret_ps = self.filter(distribution=new_distribution)
+
+        ret_changes = []
+        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
+
+        if return_changes:
+            return ret_ps + ret_changes
         return ret_ps
 
     def remove_distribution(self, distribution, return_changes=False, **kwargs):
         """
-        Remove a distribution-set from the bundle.
+        Remove a distribution from the bundle.
 
         See also:
         * <phoebe.parameters.ParameterSet.remove_parameters_all>
@@ -6150,45 +6349,6 @@ class Bundle(ParameterSet):
         if not kwargs.get('during_overwrite', False):
             ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
             ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
-
-        if return_changes:
-            return ret_ps + ret_changes
-        return ret_ps
-
-    def rename_distribution(self, old_distribution, new_distribution,
-                            overwrite=False, return_changes=False):
-        """
-        Change the label of a distribution-set attached to the Bundle.
-
-        See also:
-        * <phoebe.frontend.bundle.Bundle.add_distribution>
-        * <phoebe.frontend.bundle.Bundle.get_distribution>
-        * <phoebe.frontend.bundle.Bundle.remove_distribution>
-
-        Arguments
-        ----------
-        * `old_distribution` (string): current label of the distribution (must exist)
-        * `new_distribution` (string): the desired new label of the distribution
-            (must not yet exist, unless `overwrite=True`)
-        * `overwrite` (bool, optional, default=False): overwrite the existing
-            entry if it exists.
-
-        Returns
-        --------
-        * <phoebe.parameters.ParameterSet> the renamed distribution
-
-        Raises
-        --------
-        * ValueError: if the value of `new_distribution` is forbidden or already exists.
-        """
-        # TODO: raise error if old_distribution not found?
-        self._rename_label('distribution', old_distribution, new_distribution, overwrite)
-
-        ret_ps = self.filter(distribution=new_distribution)
-
-        ret_changes = []
-        ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
-        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
 
         if return_changes:
             return ret_ps + ret_changes
@@ -6282,19 +6442,20 @@ class Bundle(ParameterSet):
         if to_uniforms and not to_univariates:
             raise ValueError("to_univariates must be True in order to use to_uniforms")
 
-        # if isinstance(distribution, str) or distribution is None:
-            # distribution = [distribution]
-
-        # if not isinstance(distribution, list):
-            # raise TypeError("distribution must be of type None, string, or list")
-
-
         return filters, combine, include_constrained, to_univariates, to_uniforms
 
     def get_distribution_collection(self, twig=None,
                                     keys='twig', set_labels=True,
                                     **kwargs):
         """
+        Combine multiple distribution objects into a single
+        [distl.DistributionCollection](https://distl.readthedocs.io/en/latest/api/DistributionCollection/)
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.sample_distribution_collection>
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_dist>
+        * <phoebe.parameters.FloatParameter.get_distribution>
 
         Arguments
         -------------
@@ -6377,7 +6538,9 @@ class Bundle(ParameterSet):
 
         ret_dists = []
         ret_keys = []
-        # print("*** get_distribution_collection distribution_filters={}".format(distribution_filters))
+        uid_dist_dict = {}
+        uniqueids = []
+        # print("*** get_distribution_collection distribution_filters={}, combine={}, include_constrained={}, to_univariates={}, to_uniforms={}".format(distribution_filters, combine, include_constrained, to_univariates, to_uniforms))
         for dist_filter in distribution_filters:
             # TODO: if * in list, need to expand (currently forbidden with error in get_distribution)
             if 'solution' in dist_filter.keys():
@@ -6475,8 +6638,6 @@ class Bundle(ParameterSet):
             elif 'distribution' in dist_filter.keys():
                 # print("*** get_distribution_collection distribution dist_filter={}".format(dist_filter))
                 dist_ps = self.get_distribution(distribution=dist_filter['distribution'], **_skip_filter_checks)
-                uid_dist_dict = {}
-                uniqueids = []
                 for dist_param in dist_ps.to_list():
                     ref_param = dist_param.get_referenced_parameter()
                     uid = ref_param.uniqueid
@@ -6491,7 +6652,8 @@ class Bundle(ParameterSet):
                         uniqueids.append(ref_param.uniqueid)
                         ret_keys.append(k)
                     elif combine.lower() == 'first':
-                        logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
+                        logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist_filter['distribution']))
+                        continue
                     elif combine.lower() == 'and':
                         dist_obj = dist_param.get_value()
                         old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [_to_dist(uid_dist_dict[uid], True, to_uniforms)]
@@ -6510,21 +6672,24 @@ class Bundle(ParameterSet):
                     if set_labels:
                         uid_dist_dict[uid].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
 
-                ret_dists += [uid_dist_dict.get(uid) for uid in uniqueids]
-
             else:
                 raise NotImplementedError("could not parse filter for distribution {}".format(dist_filter))
 
+        ret_dists += [uid_dist_dict.get(uid) for uid in uniqueids]
         return _distl.DistributionCollection(*ret_dists), ret_keys
 
-    def sample_distribution(self, twig=None, N=None,
-                            set_value=False, keys='twig',
-                            **kwargs):
+    def sample_distribution_collection(self, twig=None, N=None,
+                                       set_value=False, keys='twig',
+                                        **kwargs):
         """
-        Sample from all distributions in a distribution set (tagged with
-        distribution=`distribution`).  Note that distributions attached
-        to constrained parameters will be ignored (but constrained values will
-        be updated if `set_value` is True).
+        Sample from a [distl.DistributionCollection](https://distl.readthedocs.io/en/latest/api/DistributionCollection/).
+        Note that distributions attached to constrained parameters will be
+        ignored (but constrained values will be updated if `set_value` is True).
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_distribution_collection>
+        * <phoebe.frontend.bundle.Bundle.get_distribution>
+        * <phoebe.frontend.bundle.Bundle.get_dist>
 
         Arguments
         ----------
@@ -6632,6 +6797,61 @@ class Bundle(ParameterSet):
             return ParameterSet(changed_params)
         else:
             return ret
+
+    def plot_distribution_collection(self, twig=None,
+                                    set_labels=True,
+                                    show=False,
+                                    **kwargs):
+
+        """
+        Calls plot on the first returned argument from <phoebe.frontend.bundle.Bundle.get_distribution_collection>
+
+        See also:
+        * <phoebe.frontend.bundle.Bundle.get_distribution_collection>
+        * <phoebe.frontend.bundle.Bundle.sample_distribution_collection>
+        * <phoebe.parameters.ParameterSet.plot>
+
+        Arguments
+        -----------
+        * `twig`: (string, optional, default=None): twig to use for filtering.
+            `twig` and `**kwargs` must result in either a single supported
+            parameter in a solver ParameterSet (eg. init_from or priors),
+            a ParameterSet of distribution parameters, or a solution ParameterSet
+            that supports multivariate distributions (eg. sampler.emcee or sampler.dynesty).
+        * `combine`: (str, optional) how to combine multiple distributions for the same parameter.
+            first: ignore duplicate entries and take the first entry.
+            and: combine duplicate entries via AND logic, dropping covariances.
+            or: combine duplicate entries via OR logic, dropping covariances.'
+            Defaults to 'first' if `twig` and `**kwargs` point to distributions,
+            otherwise will default to the value of the relevant parameter in the
+            solver options.
+        * `include_constrained` (bool, optional): whether to
+            include constrained parameters.  Defaults to False if `twig` and
+            `**kwargs` point to distributions, otherwise will default to the
+            value necessary for the solver backend.
+        * `to_univariates` (bool, optional): whether to convert any multivariate
+            distributions to univariates before adding to the collection.  Defaults
+            to False if `twig` and `**kwargs` point to distributions, otherwise
+            will default to the value necessary for the solver backend.
+        * `to_uniforms` (bool or int, optional): whether to convert all distributions
+            to uniforms (and if an int, then what sigma to adopt for non-uniform
+            distributions).  Defaults to False if `twig` and `**kwargs` point to
+            distributions, otherwise will default to the value necessary for the
+            solver backend.
+        * `set_labels` (bool, optional, default=True): set the labels of the
+            distribution objects to be the twigs of the referenced parameters.
+        * `show` (boolean, optional, default=False): whether to call show on the
+            resulting figure object
+        * `**kwargs`: all additional keyword arguments are passed directly to
+            <phoebe.frontend.bundle.Bundle.get_distribution_collection>
+
+        Returns
+        ----------
+        * matplotlib figure object
+        """
+
+        dc, _ = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', **kwargs)
+        return dc.plot(show=show)
 
     @send_if_client
     def add_figure(self, kind, return_changes=False, **kwargs):
@@ -6836,6 +7056,7 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'figure'
         return self.remove_parameters_all(**kwargs)
 
+    @send_if_client
     def rename_figure(self, old_figure, new_figure,
                       overwrite=False, return_changes=False):
         """
@@ -7960,6 +8181,7 @@ class Bundle(ParameterSet):
 
         ret_changes = []
         ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
         if sample_from is not None:
             ret_ps.set_value_all(qualifier='sample_from', value=sample_from, **_skip_filter_checks)
 
@@ -8047,6 +8269,7 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_compute(compute, return_changes=return_changes)
         return removed_ps
 
+    @send_if_client
     def rename_compute(self, old_compute, new_compute,
                        overwrite=False, return_changes=False):
         """
@@ -8926,6 +9149,7 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_model(model=model, return_changes=return_changes)
         return removed_ps
 
+    @send_if_client
     def rename_model(self, old_model, new_model,
                      overwrite=False, return_changes=False):
         """
@@ -9225,6 +9449,7 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_solver(solver, return_changes=return_changes)
         return removed_ps
 
+    @send_if_client
     def rename_solver(self, old_solver, new_solver,
                       overwrite=False, return_changes=False):
         """
@@ -9464,9 +9689,7 @@ class Bundle(ParameterSet):
         * <phoebe.frontend.bundle.Bundle.add_solver>
         * <phoebe.frontend.bundle.Bundle.get_solver>
         * <phoebe.frontend.bundle.Bundle.get_solution>
-        * <phoebe.frontend.bundle.Bundle.process_solution>
-        * <phoebe.frontend.bundle.Bundle.get_values_from_solution>
-        * <phoebe.frontend.bundle.Bundle.get_distribution_from_solution>
+        * <phoebe.frontend.bundle.Bundle.adopt_solution>
         * <phoebe.mpi_on>
         * <phoebe.mpi_off>
 
@@ -9764,7 +9987,7 @@ class Bundle(ParameterSet):
                     if adopt_distributions:
                         ps = self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
                         if distribution is None:
-                            # use the generated distribution label for subsequent add_distribution calls
+                            # use the generated distribution label for subsequent add_dist calls
                             distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
                     if adopt_values:
                         param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
@@ -9776,7 +9999,7 @@ class Bundle(ParameterSet):
                     if adopt_distributions:
                         ps = self.add_distribution(twig=fitted_twigs[i], value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
                         if distribution is None:
-                            # use the generated distribution label for subsequent add_distribution calls
+                            # use the generated distribution label for subsequent add_dist calls
                             distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
                     if adopt_values:
                         param = self.get_parameter(twig=fitted_twigs[i], **_skip_filter_checks)
@@ -9808,7 +10031,7 @@ class Bundle(ParameterSet):
                         dist = _distl.delta(value, unit=unit)
                         ps = self.add_distribution(twig=twig, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
                         if distribution is None:
-                            # use the generated distribution label for subsequent add_distribution calls
+                            # use the generated distribution label for subsequent add_dist calls
                             distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
                     if adopt_values:
                         param = self.get_parameter(twig=twig, **_skip_filter_checks)
@@ -10016,6 +10239,7 @@ class Bundle(ParameterSet):
             removed_ps += self.remove_solution(solution=solution, return_changes=return_changes, **kwargs)
         return removed_ps
 
+    @send_if_client
     def rename_solution(self, old_solution, new_solution,
                         overwrite=False, return_changes=False):
         """
