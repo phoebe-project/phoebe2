@@ -6533,9 +6533,11 @@ class Bundle(ParameterSet):
 
         ret_dists = []
         ret_keys = []
-        # print("*** get_distribution_collection distribution_filters={}".format(distribution_filters))
+        uid_dist_dict = {}
+        uniqueids = []
+        # print("*** get_distribution_collection distribution_filters={}, combine={}, include_constrained={}, to_univariates={}, to_uniforms={}".format(distribution_filters, combine, include_constrained, to_univariates, to_uniforms))
         for dist_filter in distribution_filters:
-            # TODO: if * in list, need to expand (currently forbidden with error in get_dist)
+            # TODO: if * in list, need to expand (currently forbidden with error in get_distribution)
             if 'solution' in dist_filter.keys():
                 # print("*** get_distribution_collection solution dist_filter={}".format(dist_filter))
                 solution_ps = self.get_solution(solution=dist_filter['solution'], **_skip_filter_checks)
@@ -6631,8 +6633,6 @@ class Bundle(ParameterSet):
             elif 'distribution' in dist_filter.keys():
                 # print("*** get_distribution_collection distribution dist_filter={}".format(dist_filter))
                 dist_ps = self.get_distribution(distribution=dist_filter['distribution'], **_skip_filter_checks)
-                uid_dist_dict = {}
-                uniqueids = []
                 for dist_param in dist_ps.to_list():
                     ref_param = dist_param.get_referenced_parameter()
                     uid = ref_param.uniqueid
@@ -6647,7 +6647,8 @@ class Bundle(ParameterSet):
                         uniqueids.append(ref_param.uniqueid)
                         ret_keys.append(k)
                     elif combine.lower() == 'first':
-                        logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist))
+                        logger.warning("ignoring distribution on {} with distribution='{}' as distribution existed on an earlier distribution which takes precedence.".format(ref_param.twig, dist_filter['distribution']))
+                        continue
                     elif combine.lower() == 'and':
                         dist_obj = dist_param.get_value()
                         old_dists = uid_dist_dict[uid].dists if isinstance(uid_dist_dict[uid], _distl._distl.Composite) else [_to_dist(uid_dist_dict[uid], True, to_uniforms)]
@@ -6666,11 +6667,10 @@ class Bundle(ParameterSet):
                     if set_labels:
                         uid_dist_dict[uid].label =  "@".join([getattr(ref_param, k) for k in ['qualifier', 'component', 'dataset'] if getattr(ref_param, k) is not None])
 
-                ret_dists += [uid_dist_dict.get(uid) for uid in uniqueids]
-
             else:
                 raise NotImplementedError("could not parse filter for distribution {}".format(dist_filter))
 
+        ret_dists += [uid_dist_dict.get(uid) for uid in uniqueids]
         return _distl.DistributionCollection(*ret_dists), ret_keys
 
     def sample_distribution_collection(self, twig=None, N=None,
