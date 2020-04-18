@@ -6175,7 +6175,7 @@ class Bundle(ParameterSet):
         multiple_matches = []
         for dist_dict in dist_dicts:
             for k,v in kwargs.items():
-                if k in self.meta.keys():
+                if k in ['uniqueid'] + list(self.meta.keys()):
                     dist_dict.setdefault(k, v)
 
             ref_params = self.exclude(context=['distribution', 'constraint']).filter(check_visible=False, **{k:v for k,v in dist_dict.items() if k not in ['distribution', 'value']}).to_list()
@@ -6206,7 +6206,7 @@ class Bundle(ParameterSet):
             kwargs.setdefault('value', value)
 
             for k,v in kwargs.items():
-                if k in self.meta.keys():
+                if k in ['uniqueid'] + list(self.meta.keys()):
                     # NOTE: this will also pass distribution
                     dist_dict.setdefault(k, v)
 
