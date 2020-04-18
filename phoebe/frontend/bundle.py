@@ -1514,6 +1514,10 @@ class Bundle(ParameterSet):
 
         elif tag=='distribution':
             affected_params += self._handle_distribution_selectparams(rename={old_value: new_value}, return_changes=True)
+            affected_params += self._handle_computesamplefrom_selectparams(rename={old_value: new_value}, return_changes=True)
+
+        elif tag=='solution':
+            affected_params += self._handle_computesamplefrom_selectparams(rename={old_value: new_value}, return_changes=True)
 
         return affected_params
 
@@ -2046,6 +2050,7 @@ class Bundle(ParameterSet):
 
         choices = self.distributions
 
+        # NOTE: sample_from@compute currently handled in _handle_computesamplefrom_selectparams
         params = self.filter(context='solver', qualifier=['init_from', 'priors', 'bounds', 'sample_from'], **_skip_filter_checks).to_list()
         distribution_set_choices = ['manual'] + ['{}@{}'.format(p.qualifier, getattr(p, p.context)) for p in params]
         params += self.filter(context='figure', kind='distribution_collection', qualifier='distributions', **_skip_filter_checks).to_list()
@@ -8176,6 +8181,7 @@ class Bundle(ParameterSet):
 
         ret_changes = []
         ret_changes += self._handle_distribution_selectparams(return_changes=return_changes)
+        ret_changes += self._handle_computesamplefrom_selectparams(return_changes=return_changes)
         if sample_from is not None:
             ret_ps.set_value_all(qualifier='sample_from', value=sample_from, **_skip_filter_checks)
 
