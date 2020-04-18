@@ -2155,7 +2155,7 @@ class Bundle(ParameterSet):
     def _handle_component_choiceparams(self, return_changes=False):
         affected_params = []
 
-        # currently assuming we want a component with period (which is the case for bls_period component parameter)
+        # currently assuming we want a component with period (which is the case for periodogram component parameter)
         choices = self.filter(context='component', qualifier='period', **_skip_filter_checks).components
 
         for param in self.filter(qualifier='component', context='solver', **_skip_filter_checks).to_list():
@@ -9969,7 +9969,7 @@ class Bundle(ParameterSet):
         else:
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
 
-            if solver_kind == 'bls_period':
+            if solver_kind == 'periodogram':
                 fitted_values = fitted_values * solution_ps.get_value(qualifier='period_factor', period_factor=kwargs.get('period_factor', None), **_skip_filter_checks)
 
             for uniqueid, twig, value, unit in zip(fitted_uniqueids[adopt_inds], fitted_twigs[adopt_inds], fitted_values[adopt_inds], fitted_units[adopt_inds]):
