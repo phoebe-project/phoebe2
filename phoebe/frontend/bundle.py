@@ -2047,6 +2047,7 @@ class Bundle(ParameterSet):
         choices = self.distributions
 
         params = self.filter(context='solver', qualifier=['init_from', 'priors', 'bounds', 'sample_from'], **_skip_filter_checks).to_list()
+        distribution_set_choices = ['manual'] + ['{}@{}'.format(p.qualifier, getattr(p, p.context)) for p in params]
         params += self.filter(context='figure', kind='distribution_collection', qualifier='distributions', **_skip_filter_checks).to_list()
 
         for param in params:
@@ -2056,6 +2057,22 @@ class Bundle(ParameterSet):
             param._choices = choices
 
             changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        for param in self.filter(context='figure', kind='distribution_collection', qualifier='distribution_set', **_skip_filter_checks).to_list():
+            # NOTE: these are technically ChoiceParameters
+            choices_changed = False
+            if return_changes and distribution_set_choices != param._choices:
+                choices_changed = True
+            param._choices = distribution_set_choices
+
+            if param._value not in distribution_set_choices:
+                changed = True
+                param._value = 'manual'
+            else:
+                changed = False
+
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
@@ -6953,7 +6970,11 @@ class Bundle(ParameterSet):
         qualifiers = ret_ps.qualifiers
         for k,v in kwargs.items():
             if k in qualifiers:
-                ret_ps.set_value_all(qualifier=k, value=v, **_skip_filter_checks)
+                try:
+                    ret_ps.set_value_all(qualifier=k, value=v, **_skip_filter_checks)
+                except:
+                    self.remove_figure(figure=kwargs['figure'])
+                    raise
             # TODO: else raise warning?
 
         # since we've already processed (so that we can get the new qualifiers),
@@ -7290,21 +7311,26 @@ class Bundle(ParameterSet):
                             raise NotImplementedError("{}_source of {} not supported".format(q, source))
 
 
-        elif 'distributions' in fig_ps.qualifiers:
-            kwargs['context'] = 'distribution'
+        elif fig_ps.kind in ['distribution_collection']:
+            distribution_set = fig_ps.get_value(qualifier='distribution_set', distribution_sets=kwargs.get('distribution_sets', None), **_skip_filter_checks)
+            if distribution_set == 'manual':
+                kwargs['context'] = 'distribution'
 
-            kwargs.setdefault('distribution', fig_ps.get_value(qualifier='distributions', distributions=kwargs.get('distributions', None), **_skip_filter_checks))
-            if not len(kwargs.get('distribution')):
-                logger.warning("distributions not set, cannot plot")
-                return None, None
+                kwargs.setdefault('distribution', fig_ps.get_value(qualifier='distributions', distributions=kwargs.get('distributions', None), **_skip_filter_checks))
+                if not len(kwargs.get('distribution')):
+                    logger.warning("distributions not set, cannot plot")
+                    return None, None
 
-            kwargs['to_uniforms'] = fig_ps.get_value(qualifier='to_uniforms_sigma', to_uniforms_sigma=kwargs.get('to_uniforms_sigma', None), **_skip_filter_checks) if fig_ps.get_value(qualifier='to_uniforms', to_uniforms=kwargs.get('to_uniforms', None), **_skip_filter_checks) else False
-            kwargs['to_univariates'] = True if kwargs['to_uniforms'] else fig_ps.get_value(qualifier='to_univariates', to_univariates=kwargs.get('to_univariates', None), **_skip_filter_checks)
+                kwargs['to_uniforms'] = fig_ps.get_value(qualifier='to_uniforms_sigma', to_uniforms_sigma=kwargs.get('to_uniforms_sigma', None), **_skip_filter_checks) if fig_ps.get_value(qualifier='to_uniforms', to_uniforms=kwargs.get('to_uniforms', None), **_skip_filter_checks) else False
+                kwargs['to_univariates'] = True if kwargs['to_uniforms'] else fig_ps.get_value(qualifier='to_univariates', to_univariates=kwargs.get('to_univariates', None), **_skip_filter_checks)
 
-            for k in fig_ps.qualifiers:
-                if k in ['distributions', 'to_uniforms', 'to_univariates']:
-                    continue
-                kwargs.setdefault(k, fig_ps.get_value(qualifier=k, **_skip_filter_checks))
+                for k in fig_ps.qualifiers:
+                    if k in ['distributions', 'to_uniforms', 'to_univariates']:
+                        continue
+                    kwargs.setdefault(k, fig_ps.get_value(qualifier=k, **_skip_filter_checks))
+            else:
+                # distribution_sets should be something like priors@emcee@solver, sample_from@phoebe01@compute, etc
+                kwargs['twig'] = distribution_set
 
         elif 'solver' in fig_ps.qualifiers:
             kwargs['context'] = 'solver'
@@ -9322,16 +9348,6 @@ class Bundle(ParameterSet):
         # we'll only raise a warning
         self._kwargs_checks(kwargs, ['overwrite'], warning_only=True, ps=ret_ps)
 
-        if self.get_value(qualifier='auto_add_figure', context='setting') and ret_ps.kind not in self.filter(qualifier='solver', context='figure', **_skip_filter_checks).kinds:
-            # then we don't have a figure for this kind yet
-            if ret_ps.kind in dir(_figure.solver):
-                logger.info("calling add_figure(kind='solver.{}') since auto_add_figure@setting=True".format(ret_ps.kind))
-                new_fig_params = self.add_figure(kind='solver.{}'.format(ret_ps.kind), solver=kwargs['solver'])
-            else:
-                new_fig_params = []
-        else:
-            new_fig_params = []
-
         if kwargs.get('overwrite', False) and return_changes:
             ret_ps += overwrite_ps
 
@@ -9341,8 +9357,6 @@ class Bundle(ParameterSet):
             if k in qualifiers:
                 ret_ps.set_value_all(qualifier=k, value=v, **_skip_filter_checks)
             # TODO: else raise warning?
-
-        ret_ps += new_fig_params
 
         if return_changes:
             return ret_ps + ret_changes
