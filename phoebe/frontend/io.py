@@ -15,7 +15,7 @@ except ImportError:
         _use_phb1 = True
 else:
     _use_phb1 = True
-    
+
 
 if sys.version_info[0] >= 3:
     from io import IOBase as _IOBase
@@ -293,7 +293,7 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, bundle=None, 
         logger.warning("Could not load data file referenced at {}. Dataset will be empty.".format(load_file))
         return {}
     ncol = len(lcdata[0])
-    
+
     #check if there are enough columns for errors
     if ncol >= 3:
         sigma = True
@@ -776,7 +776,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             if fti_ts_ind != 'Mid-exposure':
                 logger.warning('Phoebe 2 only uses Mid-Exposure for calculating finite exposure times.')
-           
+
         except:
 
             logger.warning('Your .phoebe file was created using a version of phoebe which does not support dataset dependent finite integration time parameters')
@@ -788,7 +788,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             lcpt = np.vstack((lcpt,ftia,fti_expa,fti_ovsa))#, fti_tsa))
 
             fti_ind = False
-            
+
 
 #        if not fti_ind:
 
@@ -800,7 +800,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #            else:
 #                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = '0'
 
-            
+
 #            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = fti_exp
 
 #            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
@@ -929,26 +929,26 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             # deal with fti
             if 'cadence' in k:
-              
+
                 pieces = k.split('_')
-                
+
                 if pieces[-1] == 'switch':
                     pnew = 'fti_method'
                     bool_fti = {0:'none', 1:'oversample'}
                     val = int(lc_dict[k])
                     value = bool_fti[val]
                     d ={'qualifier': pnew, 'dataset':dataid, 'context':'compute', 'value':value}
-                
+
                 if pieces[-1] == 'rate':
                     pnew = 'fti_oversample'
                     value = int(lc_dict[k])
                     d ={'qualifier': pnew, 'dataset':dataid, 'context':'compute', 'value':value}
-                    
+
                 if pieces[-1] == 'timestamp':
                     pass
                 if pieces[-1] == 'cadence':
                     pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
-            
+
             else:
                 pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
 
@@ -973,8 +973,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                     raise ValueError(exc.args[0] + " ({})".format(d))
 
 #Now rvs
+    rvs = eb.get_dataset(kind='rv').datasets
     for x in range(1,rvno+1):
-        rvs = eb.get_dataset(kind='rv').datasets
 
     #list of parameters related to current dataset
         rvint = [list(rvpars[:,0]).index(s) for s in rvpars[:,0] if "["+str(x)+"]" in s]
@@ -1362,13 +1362,13 @@ def ret_parname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=N
 """
 create dictionary of parameters from phoebe bundle
 for loading into phoebe legacy
-bundle - 
+bundle -
 compute - compute parameters
 
 """
 def pass_to_legacy(eb, compute=None, **kwargs):
-    
-  
+
+
     #run checks which must pass before allowing use of function
     #l3_modes must all be the same
     l3_modes = [p.value for p in eb.filter(qualifier='l3_mode').to_list()]
@@ -1461,7 +1461,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
 #    parnames = ['phoebe_rvno', 'phoebe_spots_no', 'phoebe_lcno']
 #    parvals = [len(rvs)*2, len(spots), len(lcs)]
 #    types = ['int', 'int']
-    
+
     #Force the independent variable to be time
     legacy_dict['phoebe_indep'] = "Time (HJD)"
 #    parnames.append('phoebe_indep')
@@ -1506,7 +1506,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
         val, ptype = par_value(param)
         pname = ret_parname(param.qualifier)
         #load to array
-        for y in range(len(pname)): 
+        for y in range(len(pname)):
             legacy_dict[pname[y]] = val[y]
 #        parnames.extend(pname)
 #        parvals.extend(val)
@@ -1525,7 +1525,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
         #load to array
         for y in range(len(pname)):
             legacy_dict[pname[y]] = val[y]
-        
+
 
 #        parnames.extend(pname)
 #        parvals.extend(val)
@@ -1570,7 +1570,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
         ptype = 'float'
         # note here that phoebe1 assigns this to the primary, not envelope
         pname = ret_parname('pot', comp_int=comp_int, ptype=ptype)
-        for y in range(len(pname)):    
+        for y in range(len(pname)):
             legacy_dict[pname[y]] = val[y]
         #parnames.extend(pname)
         #parvals.extend(val)
@@ -1704,7 +1704,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
                 param = None
 
             if param != None:
-                
+
                 val, ptype = par_value(param)
 
                 if param.qualifier == 'pblum':
@@ -1739,10 +1739,10 @@ def pass_to_legacy(eb, compute=None, **kwargs):
                 else:
 
                     pname = ret_parname(param.qualifier, comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
-                
+
                 for y in range(len(pname)):
                     if pname[y] not in legacy_dict.keys():
-                        legacy_dict[pname[y]] = val[y]                
+                        legacy_dict[pname[y]] = val[y]
 
                     #parnames.extend(pname)
                     #parvals.extend(val)
@@ -1809,9 +1809,9 @@ def pass_to_legacy(eb, compute=None, **kwargs):
                         pname = ret_parname(param.qualifier, comp_int = comp_int, dtype='rv', dnum = num, ptype=ptype)
 
     # if is tries to append a value that already exists...stop that from happening
-                for y in range(len(pname)):
-                    if pname[y] not in legacy_dict.keys():
-                        legacy_dict[pname[y]] = val[y]       
+                for pi in range(len(pname)):
+                    if pname[pi] not in legacy_dict.keys():
+                        legacy_dict[pname[pi]] = val[pi]
 
                         #    parnames.extend(pname)
                         #    parvals.extend(val)
@@ -1851,7 +1851,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
                 val, ptype = par_value(param)
 
                 pname = ret_parname(param.qualifier, comp_int=None, dtype='spots', dnum = y+1, ptype=ptype)
-                for y in range(len(pname)):    
+                for y in range(len(pname)):
                     legacy_dict[pname[y]] = val[y]
             #    parnames.extend(pname)
             #    parvals.extend(val)
@@ -1877,7 +1877,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
 
 
             pname = ret_parname(param.qualifier,ptype=ptype)
-            for y in range(len(pname)):    
+            for y in range(len(pname)):
                 legacy_dict[pname[y]] = val[y]
 
 
@@ -1892,7 +1892,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
             comp_int = None
 
 
- 
+
         if param.qualifier == 'refl_num':
             if param.get_value(**kwargs) == 0:
                 #Legacy phoebe will calculate reflection no matter what.
@@ -1900,7 +1900,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
                 logger.warning('To completely remove irradiation effects in PHOEBE Legacy irrad_frac_refl_bol must be set to zero for both components')
                 pname = 'phoebe_reffect_switch'
                 val = '0'
-                for y in range(len(pname)):    
+                for y in range(len(pname)):
                     legacy_dict[pname] = val
 
 
@@ -1909,7 +1909,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
                 pname = 'phoebe_reffect_switch'
                 val = '1'
                 ptype = 'boolean'
-                for y in range(len(pname)):    
+                for y in range(len(pname)):
                     legacy_dict[pname] = val
 
         if param.qualifier == 'irrad_method':
@@ -1920,9 +1920,9 @@ def pass_to_legacy(eb, compute=None, **kwargs):
 
 
         try:
-            
+
             pnew = _2to1par[param.qualifier]
-  
+
             if param.qualifier in ['ld_func'] or param.dataset:
                 param = None
             elif param.component == '_default':
@@ -2005,14 +2005,14 @@ params - dictionary of parameters
 
 
 
-def import_to_legacy(params):    
+def import_to_legacy(params):
     #initiate phoebe legacy python wrapper
     if not _use_phb1:
         raise ImportError("phoebeBackend for phoebe legacy not found")
 
     #number of datasets must be loaded first
     rvno = params['phoebe_rvno']
-    lcno = params['phoebe_lcno'] 
+    lcno = params['phoebe_lcno']
     spno = params['phoebe_spots_no']
 
     phb1.setpar('phoebe_rvno', rvno, 0)
@@ -2022,10 +2022,10 @@ def import_to_legacy(params):
     params.pop('phoebe_rvno')
     params.pop('phoebe_lcno')
     params.pop('phoebe_spots_no')
-  
+
 
     keys = params.keys()
-    
+
     for key in keys:
         value = params[key]
         #remove VAL from key
@@ -2047,14 +2047,14 @@ def import_to_legacy(params):
         if '[' in key: #dataset
             num = int(key[-2])-1
             param = key[:-3]
-            
+
             try:
                 phb1.setpar(param, value, num)
             except:
                 print(param+', '+str(value)+', '+str(num)+' didnt get added')
         else:
             param = key
-            try: 
+            try:
                 phb1.setpar(param, value, 0)
             except:
                 print(param+', '+str(value)+' didnt get added')
