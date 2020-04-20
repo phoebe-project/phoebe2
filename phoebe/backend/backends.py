@@ -2025,8 +2025,6 @@ class JktebopBackend(BaseBackendByDataset):
         #         if b.get_value(qualifier='ld_func', component=comp, dataset=datset, context='dataset') == 'interp':
         #             raise ValueError("jktebop backend does not accept ld_func='interp'")
 
-        logger.warning("jktebop backend is still in development/testing and is VERY experimental")
-
 
     def _worker_setup(self, b, compute, infolist, **kwargs):
         """
@@ -2290,9 +2288,6 @@ class EllcBackend(BaseBackendByDataset):
         if len(starrefs) != 2 or len(orbitrefs) != 1:
             raise ValueError("ellc backend only accepts binary systems")
 
-        logger.warning("ellc backend is still in development/testing and is VERY experimental")
-
-
     def _worker_setup(self, b, compute, infolist, **kwargs):
         """
         """
@@ -2521,8 +2516,8 @@ class EllcBackend(BaseBackendByDataset):
                 raise NotImplementedError("ellc cannot compute flux-weighted RVs with irradiation")
 
             if flux_weighted and period == 1.0: # add VersionCheck once bug fixed (https://github.com/pmaxted/ellc/issues/4)
-                raise NotImplementedError("ellc has a bug with flux_weighed RVs with an orbital period of exactly 1.0 (see  https://github.com/pmaxted/ellc/issues/4)")
-
+                logger.warning("ellc does not allow period=1.0 with flux_weighted RVs (see  https://github.com/pmaxted/ellc/issues/4).  Overriding period to 1.0+1e-6 for {}@{}".format(info['component'], info['dataset']))
+                period += 1e-6
             # enable once exptime for RVs is supported in PHOEBE
             # t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
             t_exp = 0
