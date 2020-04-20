@@ -2042,22 +2042,22 @@ class JktebopBackend(BaseBackendByDataset):
 
         orbitref = orbitrefs[0]
 
-        ringsize = computeparams.get_value(qualifier='ringsize', unit=u.deg, **kwargs)
+        ringsize = computeparams.get_value(qualifier='ringsize', unit=u.deg, ringsize=kwargs.get('ringsize', None), **_skip_filter_checks)
 
-        rA = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)
-        rB = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)
-        sma = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad)
-        incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg)
-        q = b.get_value(qualifier='q', component=orbitref, context='component')
-        ecosw = b.get_value(qualifier='ecosw', component=orbitref, context='component')
-        esinw = b.get_value(qualifier='esinw', component=orbitref, context='component')
+        rA = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)
+        rB = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)
+        sma = b.get_value(qualifier='sma', component=orbitref, context='component', unit=u.solRad, **_skip_filter_checks)
+        incl = b.get_value(qualifier='incl', component=orbitref, context='component', unit=u.deg, **_skip_filter_checks)
+        q = b.get_value(qualifier='q', component=orbitref, context='component', **_skip_filter_checks)
+        ecosw = b.get_value(qualifier='ecosw', component=orbitref, context='component', **_skip_filter_checks)
+        esinw = b.get_value(qualifier='esinw', component=orbitref, context='component', **_skip_filter_checks)
 
-        gravbA = b.get_value(qualifier='gravb_bol', component=starrefs[0], context='component')
-        gravbB = b.get_value(qualifier='gravb_bol', component=starrefs[1], context='component')
+        gravbA = b.get_value(qualifier='gravb_bol', component=starrefs[0], context='component', **_skip_filter_checks)
+        gravbB = b.get_value(qualifier='gravb_bol', component=starrefs[1], context='component', **_skip_filter_checks)
 
 
-        period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d)
-        t0_supconj = b.get_value(qualifier='t0_supconj', component=orbitref, context='component', unit=u.d)
+        period = b.get_value(qualifier='period', component=orbitref, context='component', unit=u.d, **_skip_filter_checks)
+        t0_supconj = b.get_value(qualifier='t0_supconj', component=orbitref, context='component', unit=u.d, **_skip_filter_checks)
 
 
         return dict(compute=compute,
@@ -2094,18 +2094,18 @@ class JktebopBackend(BaseBackendByDataset):
         # get dataset-dependent things that we need
         l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
 
-        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset')
-        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset')
+        ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
+        ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
 
         # use check_visible=False to access the ld_coeffs from
         # compute_ld_coeffs(set_value=True) done in _worker_setup
-        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', check_visible=False)
-        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
+        ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
+        ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
 
-        irrad_method = b.get_value(qualifier="irrad_method", compute=compute, context='compute')
+        irrad_method = b.get_value(qualifier="irrad_method", compute=compute, context='compute', **_skip_filter_checks)
         if irrad_method == "biaxial-spheroid":
-            albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component')
-            albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component')
+            albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component', **_skip_filter_checks)
+            albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component', **_skip_filter_checks)
         elif irrad_method == 'none':
             albA = 0.0
             albB = 0.0
@@ -2305,16 +2305,16 @@ class EllcBackend(BaseBackendByDataset):
 
         orbitref = orbitrefs[0]
 
-        shape_1 = computeparams.get_value(qualifier='distortion_method', component=starrefs[0], **_skip_filter_checks)
-        shape_2 = computeparams.get_value(qualifier='distortion_method', component=starrefs[1], **_skip_filter_checks)
+        shape_1 = computeparams.get_value(qualifier='distortion_method', component=starrefs[0], distortion_method=kwargs.get('distortion_method', None), **_skip_filter_checks)
+        shape_2 = computeparams.get_value(qualifier='distortion_method', component=starrefs[1], distortion_method=kwargs.get('distortion_method', None), **_skip_filter_checks)
 
-        hf_1 = computeparams.get_value(qualifier='hf', component=starrefs[0], **_skip_filter_checks)
-        hf_2 = computeparams.get_value(qualifier='hf', component=starrefs[1], **_skip_filter_checks)
+        hf_1 = computeparams.get_value(qualifier='hf', component=starrefs[0], hf=kwargs.get('hf', None), **_skip_filter_checks)
+        hf_2 = computeparams.get_value(qualifier='hf', component=starrefs[1], hf=kwargs.get('hf', None), **_skip_filter_checks)
 
-        grid_1 = computeparams.get_value(qualifier='grid', component=starrefs[0], **_skip_filter_checks)
-        grid_2 = computeparams.get_value(qualifier='grid', component=starrefs[1], **_skip_filter_checks)
+        grid_1 = computeparams.get_value(qualifier='grid', component=starrefs[0], grid=kwargs.get('grid', None), **_skip_filter_checks)
+        grid_2 = computeparams.get_value(qualifier='grid', component=starrefs[1], grid=kwargs.get('grid', None), **_skip_filter_checks)
 
-        exact_grav = computeparams.get_value(qualifier='exact_grav', **_skip_filter_checks)
+        exact_grav = computeparams.get_value(qualifier='exact_grav', exact_grav=kwargs.get('grav', None), **_skip_filter_checks)
 
         comp_ps = b.filter(context='component')
 
@@ -2383,7 +2383,7 @@ class EllcBackend(BaseBackendByDataset):
         # The simplified reflection model is approximately equivalent to Lambert
         #     law scattering with the coefficients heat_1 and heat_2  being equal to
         #     A_g/2, where A_g is the geometric albedo.
-        irrad_method = computeparams.get_value(qualifier='irrad_method', **_skip_filter_checks)
+        irrad_method = computeparams.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
         if irrad_method == 'lambert':
             heat_1 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component') / 2.
             heat_2 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component') / 2.
