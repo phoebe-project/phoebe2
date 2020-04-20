@@ -545,6 +545,12 @@ def ellc(**kwargs):
     System:
     * vgamma
 
+    Feature (spots only):
+    * colat (passed as latitude=-colat)
+    * long
+    * radius
+    * relteff (passed as brightness_factor = relteff^4)
+
     Dataset (LC/RV only):
     * l3
     * ld_mode (cannot be 'interp'.  If 'lookup', coefficients are queried from PHOEBE tables and passed as ld_coeffs)
@@ -616,7 +622,7 @@ def ellc(**kwargs):
     params = _sampling_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
-    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
     # params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='method to pass passband luminosities to ellc from parameters in the bundle when pblum_mode is not \'decoupled\'.  Setting to \'phoebe\' will build the mesh at time t0 and compute luminosities.')]
 

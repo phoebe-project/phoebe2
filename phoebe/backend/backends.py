@@ -2345,6 +2345,41 @@ class EllcBackend(BaseBackendByDataset):
         rotfac_1 = comp_ps.get_value(qualifier='syncpar', component=starrefs[0], **_skip_filter_checks)
         rotfac_2 = comp_ps.get_value(qualifier='syncpar', component=starrefs[1], **_skip_filter_checks)
 
+        spots = b.filter(qualifier='enabled', compute=compute, value=True, **_skip_filter_checks).features
+        if len(spots):
+            # from ELLC docs:
+            # spots_1 : (4, n_spots_1) array_like
+            # Parameters of the spots on star 1. For each spot the parameters, in order,
+            # are longitude, latitude, size and brightness factor. All three angles are
+            # in degrees.
+
+            spots_1 = []
+            spots_2 = []
+            for spot in spots:
+                spot_ps = b.get_feature(feature=spot, **_skip_filter_checks)
+                spot_comp = spot_ps.component
+                spot_args = [-1*spot_ps.get_value(qualifier='long', unit=u.deg, **_skip_filter_checks),
+                             spot_ps.get_value(qualifier='colat', unit=u.deg, **_skip_filter_checks),
+                             spot_ps.get_value(qualifier='radius', unit=u.deg, **_skip_filter_checks),
+                             spot_ps.get_value(qualifier='relteff', **_skip_filter_checks)**4]
+                if spot_comp == starrefs[0]:
+                    spots_1.append(spot_args)
+                elif spot_comp == starrefs[1]:
+                    spots_2.append(spot_args)
+
+            if not len(spots_1):
+                spots_1 = None
+            else:
+                spots_1 = np.asarray(spots_1).T
+            if not len(spots_2):
+                spots_2 = None
+            else:
+                spots_2 = np.asarray(spots_2).T
+
+        else:
+            spots_1 = None
+            spots_2 = None
+
         # The simplified reflection model is approximately equivalent to Lambert
         #     law scattering with the coefficients heat_1 and heat_2  being equal to
         #     A_g/2, where A_g is the geometric albedo.
@@ -2385,6 +2420,7 @@ class EllcBackend(BaseBackendByDataset):
                     gdc_1=gdc_1, gdc_2=gdc_2,
                     rotfac_1=rotfac_1, rotfac_2=rotfac_2,
                     heat_1=heat_1, heat_2=heat_2,
+                    spots_1=spots_1, spots_2=spots_2,
                     vgamma=vgamma)
 
     def _run_single_dataset(self, b, info, **kwargs):
@@ -2432,6 +2468,9 @@ class EllcBackend(BaseBackendByDataset):
         heat_1 = kwargs.get('heat_1')
         heat_2 = kwargs.get('heat_2')
 
+        spots_1 = kwargs.get('spots_1')
+        spots_2 = kwargs.get('spots_2')
+
         ds_ps = b.get_dataset(dataset=info['dataset'], **_skip_filter_checks)
         # get dataset-dependent things that we need
         ldfuncA = ds_ps.get_value(qualifier='ld_func', component=starrefs[0], **_skip_filter_checks)
@@ -2459,7 +2498,7 @@ class EllcBackend(BaseBackendByDataset):
                 n_int = 1
 
             logger.info("calling ellc.lc for dataset='{}'".format(info['dataset']))
-            # print(info['times'], radius_1, radius_2, sbratio, incl, light_3, t_zero, period, a, q, f_c, f_s, ldc_1, ldc_2, gdc_1, gdc_2, didt, domdt, rotfac_1, rotfac_2, hf_1, hf_2, None, None, heat_1, heat_2, None, None, None, None, t_exp, n_int, grid_1, grid_2, ld_1, ld_2, shape_1, shape_2, None, None, exact_grav, 1)
+            # print(info['times'], radius_1, radius_2, sbratio, incl, light_3, t_zero, period, a, q, f_c, f_s, ld_1, ld_2, ldc_1, ldc_2, gdc_1, gdc_2, didt, domdt, rotfac_1, rotfac_2, hf_1, hf_2, None, None, heat_1, heat_2, None, None, None, None, t_exp, n_int, grid_1, grid_2, shape_1, shape_2, spots_1, spots_2, exact_grav, 1)
 
             fluxes = ellc.lc(t_obs=info['times'],
                              radius_1=radius_1, radius_2=radius_2,
@@ -2471,6 +2510,7 @@ class EllcBackend(BaseBackendByDataset):
                              a=a,
                              q=q,
                              f_c=f_c, f_s=f_s,
+                             ld_1=ld_1, ld_2=ld_2,
                              ldc_1=ldc_1, ldc_2=ldc_2,
                              gdc_1=gdc_1, gdc_2=gdc_2,
                              didt=didt, domdt=domdt,
@@ -2482,9 +2522,8 @@ class EllcBackend(BaseBackendByDataset):
                              vsini_1=None, vsini_2=None,
                              t_exp=t_exp, n_int=n_int,
                              grid_1=grid_1, grid_2=grid_2,
-                             ld_1=ld_1, ld_2=ld_2,
                              shape_1=shape_1, shape_2=shape_2,
-                             spots_1=None, spots_2=None,
+                             spots_1=spots_1, spots_2=spots_2,
                              exact_grav=exact_grav,
                              verbose=1)
 
@@ -2533,6 +2572,7 @@ class EllcBackend(BaseBackendByDataset):
                                  a=a,
                                  q=q,
                                  f_c=f_c, f_s=f_s,
+                                 ld_1=ld_1, ld_2=ld_2,
                                  ldc_1=ldc_1, ldc_2=ldc_2,
                                  gdc_1=gdc_1, gdc_2=gdc_2,
                                  didt=didt, domdt=domdt,
@@ -2544,9 +2584,8 @@ class EllcBackend(BaseBackendByDataset):
                                  vsini_1=0., vsini_2=0.,
                                  t_exp=t_exp, n_int=n_int,
                                  grid_1=grid_1, grid_2=grid_2,
-                                 ld_1=ld_1, ld_2=ld_2,
                                  shape_1=shape_1, shape_2=shape_2,
-                                 spots_1=None, spots_2=None,
+                                 spots_1=spots_1, spots_2=spots_2,
                                  flux_weighted=flux_weighted,
                                  verbose=1)
 
