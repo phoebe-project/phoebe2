@@ -1989,7 +1989,13 @@ class PhotodynamBackend(BaseBackendByDataset):
 
         return packetlist
 
-
+# According to jktebop's readme.txt:
+# The possible entries for the type of limb darkening law are 'lin' (for linear)
+# 'log' (logarithmic), 'sqrt' (square-root), 'quad' (quadratic) or 'cub' (cubic)
+_jktebop_ld_func = {'linear': 'lin',
+                    'logarithmic': 'log',
+                    'square_root': 'sqrt',
+                    'quadratic': 'quad'}
 
 class JktebopBackend(BaseBackendByDataset):
     """
@@ -2110,24 +2116,22 @@ class JktebopBackend(BaseBackendByDataset):
 
         logger.debug("estimating surface brightness ratio from pblum and requiv")
         # note: these aren't true surface brightnesses, but the ratio should be fine
-        sb_primary = b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2
-        sb_secondary = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2
-        sb_ratio =  sb_secondary / sb_primary
+        # sb_primary = b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2
+        # sb_secondary = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2
+        # sbratio =  sb_secondary / sb_primary
+        sbratio = (b.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K, **_skip_filter_checks)/b.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
 
-        # provide translation from phoebe's 'ld_func' to jktebop's 'LD law type'
-        ldfuncs = {'linear': 'lin',
-                   'logarithmic': 'log',
-                   'square_root': 'sqrt',
-                   'quadratic': 'quad'}
 
         # let's make sure we'll be able to make the translation later
-        if ldfuncA not in ldfuncs.keys() or ldfuncB not in ldfuncs.keys():
+        if ldfuncA not in _jktebop_ld_func.keys() or ldfuncB not in _jktebop_ld_func.keys():
             # NOTE: this is now handle in b.run_checks, so should never happen
             # TODO: provide a more useful error statement
             raise ValueError("jktebop only accepts the following options for ld_func: {}".format(ldfuncs.keys()))
 
         # create the input file for jktebop
-        fi = open('_tmp_jktebop_in', 'w')
+        tmpfilenamein = next(tempfile._get_candidate_names())
+        tmpfilenameout = next(tempfile._get_candidate_names())
+        fi = open(tmpfilenamein, 'w')
         #~ fi.write("# JKTEBOP input file created by PHOEBE\n")
 
         # We always want task 2 - according to jktebop's website:
@@ -2146,14 +2150,10 @@ class JktebopBackend(BaseBackendByDataset):
 
 
         fi.write('{:5} {:11} Gravity darkening (starA)  Grav darkening (starB)\n'.format(gravbA, gravbB))
-        fi.write('{:5} {:11} Surface brightness ratio   Amount of third light\n'.format(sb_ratio, l3))
+        fi.write('{:5} {:11} Surface brightness ratio   Amount of third light\n'.format(sbratio, l3))
 
 
-        # According to jktebop's readme.txt:
-        # The possible entries for the type of limb darkening law are 'lin' (for linear)
-        # 'log' (logarithmic), 'sqrt' (square-root), 'quad' (quadratic) or 'cub' (cubic)
-
-        fi.write('{:5} {:11} LD law type for star A     LD law type for star B\n'.format(ldfuncs[ldfuncA], ldfuncs[ldfuncB]))
+        fi.write('{:5} {:11} LD law type for star A     LD law type for star B\n'.format(_jktebop_ld_func[ldfuncA], _jktebop_ld_func[ldfuncB]))
         fi.write('{:5} {:11} LD star A (linear coeff)   LD star B (linear coeff)\n'.format(ldcoeffsA[0], ldcoeffsB[0]))
         fi.write('{:5} {:11} LD star A (nonlin coeff)   LD star B (nonlin coeff)\n'.format(ldcoeffsA[1] if len(ldcoeffsA)==2 else 0.0, ldcoeffsB[1] if len(ldcoeffsB)==2 else 0.0))
 
@@ -2223,7 +2223,7 @@ class JktebopBackend(BaseBackendByDataset):
         #~ flc.close()
 
         # run jktebop
-        out = commands.getoutput("jktebop _tmp_jktebop_in > _tmp_jktebop_lc_out")
+        out = commands.getoutput("jktebop {} > {}".format(tmpfilenamein, tmpfilenameout))
 
         # parse output
         phases_all, mags_all, l1, l2, l3 = np.loadtxt(str(period), unpack=True)
@@ -2238,7 +2238,8 @@ class JktebopBackend(BaseBackendByDataset):
         mags_interp = np.interp(info['times'], times_all, mags_all)
 
         logger.warning("converting from mags from jktebop to flux")
-        fluxes = 10**((0.0-mags_interp)/2.5) * b.get_value(qualifier='pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False)
+        fluxes = 10**((0.0-mags_interp)/2.5)
+        fluxes *= b.get_value(qualifier='pbflux', dataset=info['dataset'], context='dataset', unit=u.W/u.m**2, check_visible=False) / np.max(fluxes)
 
         packetlist.append(_make_packet('times',
                                        info['times']*u.d,
@@ -2249,6 +2250,9 @@ class JktebopBackend(BaseBackendByDataset):
                                        fluxes,
                                        None,
                                        info))
+
+        os.remove(tmpfilenamein)
+        os.remove(tmpfilenameout)
 
         return packetlist
 
@@ -2323,7 +2327,7 @@ class EllcBackend(BaseBackendByDataset):
         radius_1 = comp_ps.get_value(qualifier='requiv', component=starrefs[0], unit=u.solRad, **_skip_filter_checks) / a
         radius_2 = comp_ps.get_value(qualifier='requiv', component=starrefs[1], unit=u.solRad, **_skip_filter_checks) / a
 
-        sbratio = (comp_ps.get_value(qualifier='teff', component=starrefs[1], unit=u.K, **_skip_filter_checks)/comp_ps.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
+        sbratio = (comp_ps.get_value(qualifier='teff', component=starrefs[1], unit=u.K, **_skip_filter_checks)/comp_ps.get_value(qualifier='teff', component=starrefs[0], unit=u.K, **_skip_filter_checks))**4
 
         period = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
         q = comp_ps.get_value(qualifier='q', component=orbitref, **_skip_filter_checks)

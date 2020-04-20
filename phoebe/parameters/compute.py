@@ -387,10 +387,6 @@ def photodynam(**kwargs):
 
 def jktebop(**kwargs):
     """
-    **This backend is EXPERIMENTAL and requires developer mode to be enabled**
-
-    **DO NOT USE FOR SCIENCE**
-
     Create a <phoebe.parameters.ParameterSet> for compute options for John
     Southworth's [jktebop](http://www.astro.keele.ac.uk/jkt/codes/jktebop.html) code.
 
@@ -421,22 +417,30 @@ def jktebop(**kwargs):
     * requiv
     * gravb_bol
     * irrad_frac_refl_bol
-    * teff (currently used as an estimate for surface brightness ratio)
+    * teff (ratio^4 used as an estimate for surface brightness ratio)
 
     Orbit:
     * sma
     * incl
     * q
-    * ecos
+    * ecosw
     * esinw
     * period
     * t0_supconj
 
     Dataset (LC only):
-    * ld_func (must not be 'interp')
+    * ld_mode (cannot be 'interp'.  If 'lookup', coefficients are queried from PHOEBE tables and passed as ld_coeffs)
+    * ld_func (supports linear, logarithmic, square_root, quadratic)
     * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
     * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums> if necessary)
 
+    Note that jktebop works in magnitudes (not fluxes) and returns a phased synthetic
+    model sampled at 1001 evenly-spaced phases.  These are then converted to phases
+    and renormalized so that the maximum values matches the estimated total
+    eclipse flux determined by <phoebe.frontend.bundle.Bundle.compute_pblums>
+    and are then linearly interpolated onto the requested times.  This renormalization
+    is crude and should not be trusted to give absolute fluxes, but should behave
+    reasonably with plbum_mode='dataset-scaled'.
 
     The following parameters are populated in the resulting model when using the
     jktebop backend:
@@ -476,9 +480,6 @@ def jktebop(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    if not conf.devel:
-        raise NotImplementedError("'jktebop' backend not officially supported for this release.  Enable developer mode to test.")
-
     params = _sampling_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
@@ -495,10 +496,6 @@ def jktebop(**kwargs):
 
 def ellc(**kwargs):
     """
-    **This backend is EXPERIMENTAL and still NEEDS TESTING**
-
-    **DO NOT USE FOR SCIENCE**
-
     Create a <phoebe.parameters.ParameterSet> for compute options for Pierre
     Maxted's [ellc](https://github.com/pmaxted/ellc) code.
 
@@ -529,23 +526,29 @@ def ellc(**kwargs):
     backend:
 
     Star:
-    * requiv
+    * requiv (passed as relative radii by dividing by sma)
     * syncpar
     * gravb_bol
+    * teff (ratio^4 used as an estimate of surface brightness ratio)
+    * irrad_frac_refl_bol
 
     Orbit:
     * sma
     * period
     * q
     * incl
-    * ecc
-    * per0
+    * ecc (passed as sqrt(ecc) cos per0 and sqrt(ecc) sin per0)
+    * per0 (passed as sqrt(ecc) cos per0 and sqrt(ecc) sin per0)
     * dperdt
     * t0_supconj
 
+    System:
+    * vgamma
+
     Dataset (LC/RV only):
     * l3
-    * ld_func (must not be 'interp')
+    * ld_mode (cannot be 'interp'.  If 'lookup', coefficients are queried from PHOEBE tables and passed as ld_coeffs)
+    * ld_func (supports linear, quadratic, logarithmic, square_root, power)
     * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
     * pblum (will use <phoebe.frontend.bundle.Bundle.compute_pblums> if necessary)
 
