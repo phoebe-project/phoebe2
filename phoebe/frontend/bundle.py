@@ -3125,80 +3125,80 @@ class Bundle(ParameterSet):
 
         irrad_enabled = kwargs.get('irrad_method', True) != 'none' and np.any([p.get_value()!='none' for p in self.filter(qualifier='irrad_method', compute=computes, **kwargs).to_list()])
         for component in hier_stars:
-            if not irrad_enabled:
-                continue
-            # first check ld_coeffs_bol vs ld_func_bol
-            ld_mode = self.get_value(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks)
-            ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks))
-            ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source_bol', component=component, context='component', **_skip_filter_checks)
-            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
+            if irrad_enabled:
+                # first check ld_coeffs_bol vs ld_func_bol
+                ld_mode = self.get_value(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks)
+                ld_func = str(self.get_value(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks))
+                ld_coeffs_source = self.get_value(qualifier='ld_coeffs_source_bol', component=component, context='component', **_skip_filter_checks)
+                ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
 
-            if np.any(np.isnan(ld_coeffs)):
-                if ld_mode == 'lookup':
-                    report.add_item(self,
-                                    'ld_mode_bol=\'lookup\' resulted in nans for ld_coeffs_bol.  Check system parameters to be within grids or change ld_mode_bol to \'manual\' and provide ld_coeffs_bol',
-                                    [self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks),
-                                    self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
-                                    self.get_parameter(qualifier='logg', component=component, context='component', **_skip_filter_checks),
-                                    self.get_parameter(qualifier='abun', component=component, context='component', **_skip_filter_checks)
-                                    ],
-                                    True)
-                elif ld_mode == 'manual':
-                    report.add_item(self,
-                                    'nans in ld_coeffs_bol are forbidden',
-                                    [self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)],
-                                    True)
-                else:
-                    # if interp, then the previously set value won't be used anyways, so we'll ignore nans
-                    pass
-
-            if ld_mode == 'lookup':
-                if ld_coeffs_source != 'auto' and ld_coeffs_source not in all_pbs.get('Bolometric:900-40000', {}).get('atms_ld', []):
-                    report.add_item(self,
-                                    'Bolometric:900-40000 does not support ld_coeffs_source_bol={}.  Either change ld_coeffs_source_bol@{}@component or ld_mode_bol@{}@component'.format(pb, ld_coeffs_source, component, component),
-                                    [self.get_parameter(qualifier='ld_coeffs_source_bol', component=component, context='component', **_skip_filter_checks),
-                                     self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks)
-                                    ],
-                                    True)
-            elif ld_mode == 'manual':
-
-                check = ld_coeffs_len(ld_func, ld_coeffs)
-                if not check[0]:
-                    report.add_item(self,
-                                    check[1],
-                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
-                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
-                                    ],
-                                    True)
-
-
-                check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=False)
-                if not check:
-                    report.add_item(self,
-                                    'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
-                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
-                                     self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
-                                    ],
-                                    True)
-
-                else:
-                    # only need to do the strict check if the non-strict checks passes
-                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
-                    if not check:
+                if np.any(np.isnan(ld_coeffs)):
+                    if ld_mode == 'lookup':
                         report.add_item(self,
-                                        'ld_coeffs_bol={} result in limb-brightening.  Use with caution.'.format(ld_coeffs),
+                                        'ld_mode_bol=\'lookup\' resulted in nans for ld_coeffs_bol.  Check system parameters to be within grids or change ld_mode_bol to \'manual\' and provide ld_coeffs_bol',
+                                        [self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks),
+                                        self.get_parameter(qualifier='teff', component=component, context='component', **_skip_filter_checks),
+                                        self.get_parameter(qualifier='logg', component=component, context='component', **_skip_filter_checks),
+                                        self.get_parameter(qualifier='abun', component=component, context='component', **_skip_filter_checks)
+                                        ],
+                                        True)
+                    elif ld_mode == 'manual':
+                        report.add_item(self,
+                                        'nans in ld_coeffs_bol are forbidden',
+                                        [self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)],
+                                        True)
+                    else:
+                        # if interp, then the previously set value won't be used anyways, so we'll ignore nans
+                        pass
+
+                if ld_mode == 'lookup':
+                    if ld_coeffs_source != 'auto' and ld_coeffs_source not in all_pbs.get('Bolometric:900-40000', {}).get('atms_ld', []):
+                        report.add_item(self,
+                                        'Bolometric:900-40000 does not support ld_coeffs_source_bol={}.  Either change ld_coeffs_source_bol@{}@component or ld_mode_bol@{}@component'.format(pb, ld_coeffs_source, component, component),
+                                        [self.get_parameter(qualifier='ld_coeffs_source_bol', component=component, context='component', **_skip_filter_checks),
+                                         self.get_parameter(qualifier='ld_mode_bol', component=component, context='component', **_skip_filter_checks)
+                                        ],
+                                        True)
+                elif ld_mode == 'manual':
+
+                    check = ld_coeffs_len(ld_func, ld_coeffs)
+                    if not check[0]:
+                        report.add_item(self,
+                                        check[1],
                                         [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
                                          self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
                                         ],
                                         True)
 
-            for compute in computes:
-                if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
-                    report.add_item(self,
-                                    "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
-                                    [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
-                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
-                                    True)
+
+                    check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=False)
+                    if not check:
+                        report.add_item(self,
+                                        'ld_coeffs_bol={} not compatible for ld_func_bol=\'{}\'.'.format(ld_coeffs, ld_func),
+                                        [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
+                                         self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
+                                        ],
+                                        True)
+
+                    else:
+                        # only need to do the strict check if the non-strict checks passes
+                        check = libphoebe.ld_check(_bytes(ld_func), np.asarray(ld_coeffs), strict=True)
+                        if not check:
+                            report.add_item(self,
+                                            'ld_coeffs_bol={} result in limb-brightening.  Use with caution.'.format(ld_coeffs),
+                                            [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
+                                             self.get_parameter(qualifier='ld_coeffs_bol', component=component, context='component', **_skip_filter_checks)
+                                            ],
+                                            True)
+
+                for compute in computes:
+                    if self.get_compute(compute, **_skip_filter_checks).kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
+                        report.add_item(self,
+                                        "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
+                                        [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
+                                         self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
+                                        True)
+                    # other compute backends ignore bolometric limb-darkening
 
 
             for dataset in self.filter(context='dataset', kind=['lc', 'rv'], check_default=True).datasets:
