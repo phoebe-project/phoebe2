@@ -3381,8 +3381,8 @@ class Bundle(ParameterSet):
                         smallest_components = [comp for comp in areas.keys() if areas[comp] == min(areas.values())]
                         report.add_item(self,
                                         "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
-                                        self.filter(qualifier='requiv', component=smallest_components).to_list(),
-                                        self.get_parameter(qualifier='ntriangles', component=offending_components, compute=compute, **_skip_filter_checks).to_list()+[
+                                        self.filter(qualifier='requiv', component=smallest_components).to_list()+
+                                        self.filter(qualifier='ntriangles', component=offending_components, compute=compute, **_skip_filter_checks).to_list()+[
                                         self.get_parameter(qualifier='eclipse_method', compute=compute, eclipse_method=kwargs.get('eclipse_method', None), **_skip_filter_checks).
                                         self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                         False)
