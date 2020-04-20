@@ -8078,7 +8078,8 @@ class Bundle(ParameterSet):
             self.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True, skip_checks=True, **kwargs)
 
         # handle any necessary l3 computations
-        if computeparams.kind == 'ellc':
+        if computeparams.kind in ['ellc', 'jktebop']:
+            # ellc and jktebop take fractional l3, so any that are flux need to be translated
             dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='flux').datasets
         else:
             dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction').datasets

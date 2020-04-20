@@ -429,6 +429,7 @@ def jktebop(**kwargs):
     * t0_supconj
 
     Dataset (LC only):
+    * l3_frac (will be estimated if l3_mode=='flux', but will cost time)
     * ld_mode (cannot be 'interp'.  If 'lookup', coefficients are queried from PHOEBE tables and passed as ld_coeffs)
     * ld_func (supports linear, logarithmic, square_root, quadratic)
     * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)
@@ -552,7 +553,7 @@ def ellc(**kwargs):
     * relteff (passed as brightness_factor = relteff^4)
 
     Dataset (LC/RV only):
-    * l3
+    * l3_frac (will be estimated if l3_mode=='flux', but will cost time)
     * ld_mode (cannot be 'interp'.  If 'lookup', coefficients are queried from PHOEBE tables and passed as ld_coeffs)
     * ld_func (supports linear, quadratic, logarithmic, square_root, power)
     * ld_coeffs (will call <phoebe.frontend.bundle.Bundle.compute_ld_coeffs> if necessary)

@@ -2092,7 +2092,7 @@ class JktebopBackend(BaseBackendByDataset):
         t0_supconj = kwargs.get('t0_supconj')
 
         # get dataset-dependent things that we need
-        l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
+        l3 = b.get_value(qualifier='l3_frac', dataset=info['dataset'], context='dataset', **_skip_filter_checks)
 
         ldfuncA = b.get_value(qualifier='ld_func', component=starrefs[0], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
         ldfuncB = b.get_value(qualifier='ld_func', component=starrefs[1], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
