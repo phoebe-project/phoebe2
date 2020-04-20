@@ -825,7 +825,7 @@ class PhoebeBackend(BaseBackendByTime):
 
         if dynamics_method is None:
             computeparams = b.get_compute(compute, force_ps=True)
-            dynamics_method = computeparams.get_value(qualifier='dynamics_method', **kwargs)
+            dynamics_method = computeparams.get_value(qualifier='dynamics_method', dynamics_method=kwargs.get('dynamics_method', None), default='keplerian', **_skip_filter_checks)
 
         if hier is None:
             hier = b.get_hierarchy()

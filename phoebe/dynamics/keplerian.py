@@ -45,7 +45,7 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
     kwargs.setdefault('check_default', False)
 
     computeps = b.get_compute(compute, force_ps=True, **_skip_filter_checks)
-    ltte = computeps.get_value('ltte', **kwargs)
+    ltte = computeps.get_value('ltte', ltte=kwargs.get('ltte', None), default=False, **_skip_filter_checks)
 
     # make sure times is an array and not a list
     times = np.array(times)
