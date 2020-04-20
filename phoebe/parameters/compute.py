@@ -490,7 +490,7 @@ def jktebop(**kwargs):
     params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integration ring size')]
 
     params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'sphere/biaxial spheroid'), choices=["sphere/biaxial spheroid"], description='Method to use for distorting stars (jktebop only supports spheres for eclipse shapes and biaxial spheroid for calculation of ellipsoidal effects and reflection)')]
-    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'biaxial spheroid'), choices=['none', 'biaxial spheroid'], description='Which method to use to handle all irradiation effects')]
+    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'biaxial-spheroid'), choices=['none', 'biaxial-spheroid'], description='Which method to use to handle all irradiation effects')]
 
     return ParameterSet(params)
 
@@ -630,14 +630,14 @@ def ellc(**kwargs):
 
     # TODO: enable flux-weighted once fixed within ellc
     params += [ChoiceParameter(qualifier='rv_method', copy_for = {'component': {'kind': 'star'}, 'dataset': {'kind': 'rv'}}, component='_default', dataset='_default',
-                               value=kwargs.get('rv_method', 'dynamical'), choices=['dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
+                               value=kwargs.get('rv_method', 'dynamical'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin).  Note that \'flux-weighted\' is not allowed and will raise an error if irradiation is enabled (see irrad_method).')]
 
 
     # copy for RV datasets once exptime support for RVs in phoebe
     params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
     params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), limits=(1, None), default_unit=u.dimensionless_unscaled, description='number of integration points used to account for finite exposure time.')]
 
-    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'none'), choices=['none'], description='Which method to use to handle all irradiation effects (ellc does not support irradiation)')]
+    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'lambert'), choices=['lambert', 'none'], description='Which method to use to handle all irradiation effects.  Note that irradiation and rv_method=\'flux-weighted\' cannot be used together.')]
 
     return ParameterSet(params)
 

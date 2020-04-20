@@ -3387,6 +3387,26 @@ class Bundle(ParameterSet):
                                         self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                         False)
 
+            if compute_kind == 'ellc':
+                irrad_method = self.get_value(qualifier='irrad_method', compute=compute, context='compute', **_skip_filter_checks)
+                rv_datasets = self.filter(kind='rv', context='dataset', **_skip_filter_checks).datasets
+                if irrad_method != 'none' and len(self.filter(qualifier='enabled', dataset=rv_datasets, compute=compute, context='compute', value=True, **_skip_filter_checks).to_list()):
+                    # then we can't allow albedos with flux-weighted RVs
+                    offending_components = []
+                    for component in hier_stars:
+                        rv_method = self.get_value(qualifier='rv_method', compute=compute, component=component, context='compute', **_skip_filter_checks)
+                        if rv_method != 'dynamical' and self.get_value(qualifier='irrad_frac_refl_bol', component=component, context='component', **_skip_filter_checks) > 0:
+                            offending_components.append(component)
+
+                    if len(offending_components):
+                        report.add_item(self,
+                                        "ellc does not support irradiation with flux-weighted RVs.  Disable irradiation, use dynamical RVs, or set irrad_frac_refl_bol to 0.",
+                                        self.filter(qualifier='irrad_method', compute=compute, context='compute', **_skip_filter_checks).to_list()+
+                                        self.filter(qualifier='rv_method', compute=compute, component=offending_components, context='compute', **_skip_filter_checks).to_list()+
+                                        self.filter(qualifier='enabled', kind='rv', compute=compute, context='compute', value=True, **_skip_filter_checks).to_list()+
+                                        self.filter(qualifier='irrad_frac_refl_bol', component=offending_components, context='component', **_skip_filter_checks).to_list(),
+                                        True)
+
         # forbid pblum_mode='dataset-coupled' if no other valid datasets
         # forbid pblum_mode='dataset-coupled' with a dataset which is scaled to data or to another that is in-turn color-coupled
         for param in self.filter(qualifier='pblum_mode', value='dataset-coupled', **_skip_filter_checks).to_list():

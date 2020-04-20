@@ -2105,7 +2105,7 @@ class JktebopBackend(BaseBackendByDataset):
         ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', check_visible=False)
 
         irrad_method = b.get_value(qualifier="irrad_method", compute=compute, context='compute')
-        if irrad_method == "biaxial spheroid":
+        if irrad_method == "biaxial-spheroid":
             albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component')
             albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component')
         elif irrad_method == 'none':
@@ -2353,8 +2353,19 @@ class EllcBackend(BaseBackendByDataset):
         # The simplified reflection model is approximately equivalent to Lambert
         #     law scattering with the coefficients heat_1 and heat_2  being equal to
         #     A_g/2, where A_g is the geometric albedo.
-        heat_1 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component') / 2.
-        heat_2 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component') / 2.
+        irrad_method = computeparams.get_value(qualifier='irrad_method', **_skip_filter_checks)
+        if irrad_method == 'lambert':
+            heat_1 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component') / 2.
+            heat_2 = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component') / 2.
+            # let's save ourselves, and also allow for flux-weighted RVs
+            if heat_1 == 0 and heat_2 == 0:
+                heat_1 = None
+                heat_2 = None
+        elif irrad_method == 'none':
+            heat_1 = None
+            heat_2 = None
+        else:
+            raise NotImplementedError("irrad_method='{}' not supported".format(irrad_method))
 
         f_c = np.sqrt(ecc) * np.cos(w)
         f_s = np.sqrt(ecc) * np.sin(w)
@@ -2503,9 +2514,14 @@ class EllcBackend(BaseBackendByDataset):
             rv_method = b.get_value(qualifier='rv_method', compute=compute, dataset=info['dataset'], component=info['component'], context='compute', **_skip_filter_checks)
 
             flux_weighted = rv_method == 'flux-weighted'
-            if flux_weighted:
-                # TODO: may just be that we need to estimate and pass vsini
-                raise NotImplementedError("flux-weighted does not seem to work in ellc")
+            # if flux_weighted:
+            #     # TODO: may just be that we need to estimate and pass vsini
+            #     raise NotImplementedError("flux-weighted does not seem to work in ellc")
+            if flux_weighted and (heat_1 is not None or heat_2 is not None):
+                raise NotImplementedError("ellc cannot compute flux-weighted RVs with irradiation")
+
+            if flux_weighted and period == 1.0: # add VersionCheck once bug fixed (https://github.com/pmaxted/ellc/issues/4)
+                raise NotImplementedError("ellc has a bug with flux_weighed RVs with an orbital period of exactly 1.0 (see  https://github.com/pmaxted/ellc/issues/4)")
 
             # enable once exptime for RVs is supported in PHOEBE
             # t_exp = b.get_value(qualifier='exptime', dataset=info['dataset'], context='dataset')
@@ -2530,7 +2546,7 @@ class EllcBackend(BaseBackendByDataset):
                                  bfac_1=None, bfac_2=None,
                                  heat_1=heat_1, heat_2=heat_2,
                                  lambda_1=None, lambda_2=None,
-                                 vsini_1=None, vsini_2=None,
+                                 vsini_1=0., vsini_2=0.,
                                  t_exp=t_exp, n_int=n_int,
                                  grid_1=grid_1, grid_2=grid_2,
                                  ld_1=ld_1, ld_2=ld_2,
