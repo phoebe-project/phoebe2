@@ -8080,10 +8080,24 @@ class Bundle(ParameterSet):
         # handle any necessary l3 computations
         if computeparams.kind in ['ellc', 'jktebop']:
             # ellc and jktebop take fractional l3, so any that are flux need to be translated
-            dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='flux').datasets
+            dataset_need_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='flux', check_visible=True).datasets
+            dataset_compute_l3s = []
+            for ds in dataset_need_l3s:
+                if self.get_value(qualifier='l3_frac', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
+                    # then we don't really need to do any computations
+                    self.set_value(qualifier='l3', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
+                else:
+                    dataset_compute_l3s.append(ds)
         else:
-            dataset_compute_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction').datasets
-        if computeparams.kind == 'legacy':
+            dataset_need_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction', check_visible=True).datasets
+            dataset_compute_l3s = []
+            for ds in dataset_need_l3s:
+                if self.get_value(qualifier='l3', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
+                    # then we don't really need to do any computations
+                    self.set_value(qualifier='l3_frac', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
+                else:
+                    dataset_compute_l3s.append(ds)
+        if computeparams.kind == 'legacy' and len(dataset_compute_l3s):
             # legacy support either mode, but all must be the same
             l3_modes = [p.value for p in self.filter(qualifier='l3_mode').to_list()]
             if len(list(set(l3_modes))) <= 1:
