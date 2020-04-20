@@ -3239,8 +3239,12 @@ class Bundle(ParameterSet):
                         try:
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
                         except ValueError:
-                            # not all backends have atm as a parameter/option
-                            continue
+                            report.add_item(self,
+                                            "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{}.".format(self.get_compute(compute).kind, compute, component, dataset),
+                                            [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks),
+                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)
+                                            ],
+                                            True)
                         else:
                             if atm not in ['ck2004', 'phoenix']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks).choices:
@@ -3309,6 +3313,13 @@ class Bundle(ParameterSet):
                         if compute_kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
                             report.add_item(self,
                                             "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
+                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
+                                            True)
+
+                        if compute_kind in ['ellc'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic', 'power']:
+                            report.add_item(self,
+                                            "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root' or power.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
                                             [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
                                              self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                             True)
