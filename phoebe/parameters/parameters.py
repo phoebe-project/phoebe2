@@ -3474,8 +3474,7 @@ class ParameterSet(object):
         See also:
         * <phoebe.parameters.ParameterSet.calculate_residuals>
         * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
-        * <phoebe.frontend.bundle.Bundle.calculate_lnpriors>
-        * <phoebe.frontend.bundle.Bundle.calculate_lnprobability>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnp>
 
         Arguments
         -----------
@@ -3540,8 +3539,7 @@ class ParameterSet(object):
         See also:
         * <phoebe.parameters.ParameterSet.calculate_residuals>
         * <phoebe.parameters.ParameterSet.calculate_chi2>
-        * <phoebe.frontend.bundle.Bundle.calculate_lnpriors>
-        * <phoebe.frontend.bundle.Bundle.calculate_lnprobability>
+        * <phoebe.frontend.bundle.Bundle.calculate_lnp>
 
         Arguments
         -----------
@@ -3565,91 +3563,6 @@ class ParameterSet(object):
         """
 
         return -0.5 * self.calculate_chi2(model, dataset, component)
-
-    def calculate_lnp(self, distribution=None,
-                      combine='and', include_constrained=True,
-                      to_univariates=False,
-                      **kwargs):
-        """
-        Compute the log-probability between a distribution and the face values of
-        the corresponding parameters (if `distribution` are priors, then this
-        computes log-priors).
-
-        Only parameters (or distribution parameters) included in the ParameterSet
-        (after filtering with `**kwargs`) will be included in the summed
-        log-probability.
-
-        See also:
-        * <phoebe.parameters.DistributionParameter.calculate_lnprobability>
-        * <phoebe.parameters.ParameterSet.calculate_lnlikelihood>
-        * <phoebe.frontend.bundle.Bundle.calculate_lnprobability>
-        * <phoebe.frontend.bundle.Bundle.get_distribution_collection>
-
-        Arguments
-        -----------
-        * `distribution` (string or list of strings, optional, default=None):
-            label of the distribution.  Required if more than one
-            `distribution` available in the ParameterSet.  If distribution is
-            a list, duplicate entries will still be considered
-            (`calculate_lnp(distribution=['dist1', 'dist2']) = calculate_lnp(distribution='dist1')+calculate_lnp(distribution='dist2')`)
-        * `combine` (string, opjtional, default='add')
-        * `include_constrained` (bool, optional, default=True)
-        * `to_univariates` (bool, optional, default=False)
-        * `**kwargs` (optional): all additional keyword arguments are used
-            to filter the parameter set.
-
-        Returns
-        -----------
-        * (float) log-prior value
-
-        Raises
-        ----------
-        * ValueError: if `distribution` is not provided but more than one exists.
-        * ValueError: if no distributions can be found labeled `distribution`
-        """
-
-        # TODO: take same arguments as get_distribution_collection et al.
-        if distribution is None:
-            if len(self.distributions) == 1:
-                distribution = self.distributions[0]
-            else:
-                raise ValueError("distribution must be provided (one or list of {})".format(self.distributions))
-
-        if not len(distribution):
-            return 0.0 # (np.log(1))
-
-        if len(kwargs.items()):
-            kwargs.setdefault('check_visible', False)
-            return self.filter(**kwargs).calculate_lnp(distribution=distribution)
-
-        self._bundle.run_delayed_constraints()
-
-        # TODO: check to see if dist_param references a constrained parameter,
-        # and if so, raise a warning if all other parameters in the constraint
-        # also have attached distributions?
-
-        dc, uniqueids = self._bundle.get_distribution_collection(distribution=distribution,
-                                                                 combine=combine,
-                                                                 include_constrained=include_constrained,
-                                                                 to_univariates=to_univariates,
-                                                                 keys='uniqueid')
-
-        # remove any that are not in the current filter
-        uniqueids_keep = [uid for uid in uniqueids if uid in self.uniqueids]
-        if len(uniqueids_keep) != len(uniqueids):
-            dc.distributions = [dc.distributions[uniqueids.index(ui)] for uid in uniqueids_keep]
-
-        values = [self._bundle.get_value(uniqueid=uid, unit=dist.unit, **_skip_filter_checks) for uid, dist in zip(uniqueids_keep, dc.dists)]
-
-        # TODO: need to think about the as_univariate here... if we do
-        # include_constrained=False we shouldn't have to worry about math.
-        # But either way, we'll need to use dc.distributions_unpacked and
-        # somehow get the corresponding uniqueids (and go "up-the-tree" for
-        # any that were composite set by the user, not via or/and when
-        # combining).
-
-        # print("{} .logpdf(values={})".format(dc.distributions, values))
-        return dc.logpdf(values, as_univariates=True)
 
     def _unpack_plotting_kwargs(self, animate=False, **kwargs):
 
