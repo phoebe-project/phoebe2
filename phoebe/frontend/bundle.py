@@ -10039,6 +10039,7 @@ class Bundle(ParameterSet):
 
     def adopt_solution(self, solution=None,
                        adopt_parameters=None, adopt_distributions=None, adopt_values=None,
+                       trial_run=False,
                        remove_solution=False, return_changes=False,  **kwargs):
         """
 
@@ -10060,11 +10061,26 @@ class Bundle(ParameterSet):
         * `adopt_values` (bool, optional, default=None): whether to adopt the
             face-values from the solution.  If not provided or None, will default
             to the value of the `adopt_values` parameter in the solution.
+        * `trial_run` (bool, optional, default=False): if set to True, the
+            values in the bundle will not be set and distributions will not be
+            attached, but the returned ParameterSet will show the proposed changes.
+            This ParameterSet will be a copy of the relevant Parameters, and
+            will no longer be attached to the Bundle.  Note that if `adopt_values`
+            is True, the output will no longer contain values changed via constraints
+            as the Parameters are no longer attached to the Bundle.  If
+            `adopt_distributions` is True, `distribution_overwrite_all` will
+            still apply permanently (under-the-hood the distributions are still
+            attached but then removed before returning the copy).
         * `distribution` (string, optional, default=None): applicable only
             if `adopt_distributions=True` (or None and the `adopt_distributions`
-            parameter in the solution is True).
+            parameter in the solution is True).  Note that if `distribution`
+            already exists in the Bundle, you must pass `distribution_overwrite_all=True`
+            (support for appending to an existing distribution` is not allowed).
+        * `distribution_overwrite_all` (bool, optional, default=False): whether
+            to overwrite if `distribution` already exists.
         * `remove_solution` (bool, optional, default=False): whether to remove
             the `solution` once successfully adopted.  See <phoebe.frontend.bundle.Bundle.remove_solution>.
+            Note that this will be permanent, even if `trial_run` is True.
         * `return_changes` (bool, optional, default=False): whether to include
             changed/removed parameters in the returned ParameterSet.
 
@@ -10077,7 +10093,10 @@ class Bundle(ParameterSet):
             does not expose distributions.
         """
         # make sure we don't pass distribution to the filter
-        distribution = kwargs.pop('distribution', None)
+        kwargs.setdefault('distribution',
+                          self._default_label('dists',
+                                              **{'context': 'distribution'}))
+        distribution = kwargs.pop('distribution')
 
         solution_ps = self.get_solution(solution=solution, **kwargs)
         solver_kind = solution_ps.kind
@@ -10088,6 +10107,18 @@ class Bundle(ParameterSet):
         adopt_distributions = solution_ps.get_value(qualifier='adopt_distributions', adopt_distributions=adopt_distributions, **_skip_filter_checks)
         adopt_values = solution_ps.get_value(qualifier='adopt_values', adopt_values=adopt_values, **_skip_filter_checks)
 
+        ret_changes = ParameterSet([])
+        if adopt_distributions:
+            if distribution in self.distributions:
+                if distribution_overwrite_all:
+                    ret_changes += self.remove_distribution(distribution=distribution)
+                elif trial_run:
+                    raise ValueError("distribution='{}' already exists.  Use a different label or pass distribution_overwrite_all=True (note that the existing distribution will be permanently removed even though trial_run=True)".format(distribution))
+                else:
+                    raise ValueError("distribution='{}' already exists.  Use a different label or pass distribution_overwrite_all=True".format(distribution))
+            if distribution is not None and kwargs.pop('check_label', True):
+                # for now we will do allow_overwrite... we'll check that logic later
+                self._check_label(distribution, allow_overwrite=False)
 
         if not (adopt_distributions or adopt_values):
             raise ValueError('either adopt_distributions or adopt_values must be True for adopt_solution to do anything.')
@@ -10114,25 +10145,23 @@ class Bundle(ParameterSet):
             for i, uniqueid in enumerate(fitted_uniqueids[adopt_inds]):
                 if uniqueid in b_uniqueids:
                     if adopt_distributions:
-                        ps = self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
-                        if distribution is None:
-                            # use the generated distribution label for subsequent add_dist calls
-                            distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
+                        ps = self.add_distribution(uniqueid=uniqueid, value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
                     if adopt_values:
                         param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
                         # TODO: what to do if constrained?
+                        if trial_run:
+                            param = param.copy()
                         param.set_value(value=dist.slice(i).mean(), unit=dist.slice(i).unit)
                         changed_params.append(param)
                 else:
                     logger.warning("uniqueid not found, falling back on twig={}".format(fitted_twigs[i]))
                     if adopt_distributions:
-                        ps = self.add_distribution(twig=fitted_twigs[i], value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
-                        if distribution is None:
-                            # use the generated distribution label for subsequent add_dist calls
-                            distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
+                        ps = self.add_distribution(twig=fitted_twigs[i], value=dist.slice(i), distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
                     if adopt_values:
                         param = self.get_parameter(twig=fitted_twigs[i], **_skip_filter_checks)
                         # TODO: what to do if constrained?
+                        if trial_run:
+                            param = param.copy()
                         param.set_value(value=dist.slice(i).mean(), unit=dist.slice(i).unit)
                         changed_params.append(param)
 
@@ -10146,24 +10175,22 @@ class Bundle(ParameterSet):
                 if uniqueid in b_uniqueids:
                     if adopt_distributions:
                         dist = _distl.delta(value, unit=unit)
-                        ps = self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
-                        if distribution is None:
-                            # use the generated distribution label for subsequent add_distribution calls
-                            distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
+                        ps = self.add_distribution(uniqueid=uniqueid, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
                     if adopt_values:
                         param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                        if trial_run:
+                            param = param.copy()
                         changed_params.append(param)
                         param.set_value(value, unit=unit)
                 else:
                     logger.warning("uniqueid not found, falling back on twig={}".format(twig))
                     if adopt_distributions:
                         dist = _distl.delta(value, unit=unit)
-                        ps = self.add_distribution(twig=twig, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None))
-                        if distribution is None:
-                            # use the generated distribution label for subsequent add_dist calls
-                            distribution = ps.filter(context='distribution', **_skip_filter_checks).distribution
+                        ps = self.add_distribution(twig=twig, value=dist, distribution=distribution, auto_add_figure=kwargs.get('auto_add_figure', None), check_label=distribution is not None)
                     if adopt_values:
                         param = self.get_parameter(twig=twig, **_skip_filter_checks)
+                        if trial_run:
+                            param = param.copy()
                         changed_params.append(param)
                         param.set_value(value, unit=unit)
 
@@ -10175,15 +10202,18 @@ class Bundle(ParameterSet):
         ret_ps = ParameterSet([])
         if adopt_distributions:
             # TODO: do we want to only return newly added distributions?
-            ret_ps += self.get_distribution(distribution=distribution)
+            dist_ps = self.get_distribution(distribution=distribution)
+            if trial_run:
+                ret_ps += dist_ps.copy()
+                self.remove_distribution(distribution=distribution)
+            else:
+                ret_ps += dist_ps
         if adopt_values:
             ret_ps += changed_params
 
         if remove_solution:
             # TODO: add to the return if return_changes
-            ret_changes = self.remove_solution(solution=solution)
-        else:
-            ret_changes = []
+            ret_changes += self.remove_solution(solution=solution)
 
         if return_changes:
             return ret_ps + ret_changes

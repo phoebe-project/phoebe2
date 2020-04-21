@@ -5545,6 +5545,7 @@ class Parameter(object):
             cpy = parameter_from_json(s)
 
         cpy.set_uniqueid(_uniqueid())
+        cpy._bundle = None
         return cpy
 
     def to_string(self):
