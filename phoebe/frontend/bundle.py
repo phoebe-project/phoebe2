@@ -10420,7 +10420,7 @@ class Bundle(ParameterSet):
         --------
         * ValueError: if the value of `new_solution` is forbidden or already exists.
         """
-        # TODO: raise error if old_feature not found?
+        # TODO: raise error if old_solution not found?
         self._rename_label('solution', old_solution, new_solution, overwrite)
 
         ret_ps = self.filter(solution=new_solution)
