@@ -6944,15 +6944,17 @@ class Bundle(ParameterSet):
         -----------
         * (float) log-prior value
         """
-        self._bundle.run_delayed_constraints()
+        # TODO: should we require run_checks to pass?
+        self.run_delayed_constraints()
+        self.run_failed_constraints()
 
         # TODO: check to see if dist_param references a constrained parameter,
         # and if so, raise a warning if all other parameters in the constraint
         # also have attached distributions?
 
         kwargs['keys'] = 'uniqueid'
-        dc, uniqueids = self._bundle.get_distribution_collection(twig=twig,
-                                                                 **kwargs)
+        dc, uniqueids = self.get_distribution_collection(twig=twig,
+                                                         **kwargs)
 
 
         values = [self.get_value(uniqueid=uid, unit=dist.unit, **_skip_filter_checks) for uid, dist in zip(uniqueids, dc.dists)]
