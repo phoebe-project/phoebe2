@@ -8815,6 +8815,9 @@ class FloatParameter(Parameter):
         if value is not None and value.unit.physical_type == 'angle':
             # NOTE: this may fail for nparray types
             if value > (360*u.deg) or value < (0*u.deg):
+                if self._bundle is not None and self._bundle._within_sampling and not kwargs.get('from_constraint', False):
+                    if abs(value.to(u.deg).value - self._value.to(u.deg).value) > 180:
+                        raise ValueError("value further than 180 deg from {}".format(self._value.to(u.deg).value))
                 value = value % (360*u.deg)
                 logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
 

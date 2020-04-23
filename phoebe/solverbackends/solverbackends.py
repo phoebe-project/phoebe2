@@ -53,8 +53,15 @@ logger.addHandler(logging.NullHandler())
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
+def _wrap_central_values(b, dc, uniqueids):
+    ret = {}
+    for dist, uniqueid in zip(dc.dists, uniqueids):
+        param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+        if param.default_unit.physical_type == 'angle':
+            ret[uniqueid] = dist.median()
+    return ret
 
-def _bsolver(b, solver, compute, distributions):
+def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
     # TODO: OPTIMIZE exclude disabled datasets?
     # TODO: re-enable removing unused compute options - currently causes some constraints to fail
     # TODO: is it quicker to initialize a new bundle around b.exclude?  Or just leave everything?
@@ -63,6 +70,12 @@ def _bsolver(b, solver, compute, distributions):
     if len(b.solvers) > 1:
         bexcl.remove_parameters_all(solver=[f for f in b.solvers if f!=solver and solver is not None], **_skip_filter_checks)
     bexcl.remove_parameters_all(distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks)
+
+    # set face-values to be central values for any angle parameters in init_from
+    for uniqueid, value in wrap_central_values.items():
+        # TODO: what to do if continue_from was used but constraint has since been flipped?
+        bexcl.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+
 
     # handle solver_times
     for param in bexcl.filter(qualifier='solver_times', **_skip_filter_checks).to_list():
@@ -638,6 +651,7 @@ class EmceeBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
 
         solution_params = []
+        solution_params += [_parameters.DictParameter(qualifier='wrap_central_values', value={}, advanced=True, readonly=True, description='Central values adopted for all parameters in init_from that allow angle-wrapping.  Sampled values are not allowed beyond +/- pi of the central value.')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
@@ -675,7 +689,8 @@ class EmceeBackend(BaseSolverBackend):
     def run_worker(self, b, solver, compute, **kwargs):
 
         def _get_packetlist():
-            return_ = [{'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
+            return_ = [{'qualifier': 'wrap_central_values', 'value': wrap_central_values},
+                     {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
                      {'qualifier': 'fitted_units', 'value': params_units},
                      {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
@@ -743,6 +758,8 @@ class EmceeBackend(BaseSolverBackend):
                                                                      include_constrained=False,
                                                                      keys='uniqueid')
 
+                wrap_central_values = _wrap_central_values(b, dc, params_uniqueids)
+
                 p0 = dc.sample(size=nwalkers).T
                 params_units = [dist.unit.to_string() for dist in dc.dists]
 
@@ -752,6 +769,7 @@ class EmceeBackend(BaseSolverBackend):
                 # ignore the value from init_from (hidden parameter)
                 init_from = []
                 continue_from_ps = kwargs.get('continue_from_ps', b.filter(context='solution', solution=continue_from, **_skip_filter_checks))
+                wrap_central_values = continue_from_ps.get_value(qualifier='wrap_central_values', **_skip_filter_checks)
                 params_uniqueids = continue_from_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
                 params_units = continue_from_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
                 continued_samples = continue_from_ps.get_value(qualifier='samples', **_skip_filter_checks)
@@ -802,7 +820,7 @@ class EmceeBackend(BaseSolverBackend):
             # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
 
-            esargs['kwargs'] = {'b': _bsolver(b, solver, compute, init_from+priors),
+            esargs['kwargs'] = {'b': _bsolver(b, solver, compute, init_from+priors, wrap_central_values),
                                 'params_uniqueids': params_uniqueids,
                                 'compute': compute,
                                 'priors': priors,
@@ -932,6 +950,7 @@ class DynestyBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
 
         solution_params = []
+        solution_params += [_parameters.DictParameter(qualifier='wrap_central_values', value={}, advanced=True, readonly=True, description='Central values adopted for all parameters in init_from that allow angle-wrapping.  Sampled values are not allowed beyond +/- pi of the central value.')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
@@ -973,7 +992,8 @@ class DynestyBackend(BaseSolverBackend):
     def run_worker(self, b, solver, compute, **kwargs):
 
         def _get_packetlist(results):
-            return [[{'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
+            return [[{'qualifier': 'wrap_central_values', 'value': wrap_central_values},
+                     {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
                      {'qualifier': 'fitted_units', 'value': params_units},
                      {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
@@ -1036,13 +1056,15 @@ class DynestyBackend(BaseSolverBackend):
                                                                         keys='uniqueid',
                                                                         set_labels=False)
 
+            wrap_central_values = _wrap_central_values(b, priors_dc, params_uniqueids)
+
             params_units = [dist.unit.to_string() for dist in priors_dc.dists]
             params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
 
             # NOTE: in dynesty we draw from the priors and pass the prior-transforms,
             # but do NOT include the lnprior term in lnlikelihood, so we pass
             # priors as []
-            lnlikelihood_kwargs = {'b': _bsolver(b, solver, compute, []),
+            lnlikelihood_kwargs = {'b': _bsolver(b, solver, compute, [], wrap_central_values),
                                    'params_uniqueids': params_uniqueids,
                                    'compute': compute,
                                    'priors': [],

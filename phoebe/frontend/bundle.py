@@ -5913,7 +5913,7 @@ class Bundle(ParameterSet):
         if not isinstance(result, float) or result != constrained_param.get_value():
             logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
             try:
-                constrained_param.set_value(result, force=True)
+                constrained_param.set_value(result, from_constraint=True, force=True)
             except Exception as e:
                 if expression_param.uniqueid not in self._failed_constraints:
                     self._failed_constraints.append(expression_param.uniqueid)

@@ -66,6 +66,8 @@ def _simplify_error_message(msg):
     msg = str(msg) # in case an exception object
     if 'not within limits' in msg:
         msg = 'outside parameter limits'
+    elif 'value further than' in msg:
+        msg = 'outside angle wrapping limits'
     elif 'overflow' in msg:
         msg = 'roche overflow'
     elif 'lookup ld_coeffs' in msg:
