@@ -14,15 +14,16 @@ from phoebe import u, c
 from phoebe import conf, mpi
 from phoebe.backend.backends import _simplify_error_message
 from phoebe.utils import phase_mask_inds
+from phoebe import pool as _pool
 
 from distutils.version import LooseVersion, StrictVersion
 from copy import deepcopy as _deepcopy
+import multiprocessing
 
 from . import lc_eclipse_geometry
 
 try:
     import emcee
-    import schwimmbad
 except ImportError:
     _use_emcee = False
 else:
@@ -30,7 +31,6 @@ else:
 
 try:
     import dynesty
-    import schwimmbad
     import pickle
 except ImportError:
     _use_dynesty = False
@@ -146,14 +146,21 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
                   solution,
                   compute_kwargs={},
                   custom_lnprobability_callable=None,
-                  return_blob=False):
+                  failed_samples_buffer=False):
 
 
     def _return(lnprob, msg):
-        if return_blob:
-            return lnprob, (_simplify_error_message(msg), sampled_values) if msg != 'success' else (None, None)
-        else:
-            return lnprob
+        if msg != 'success' and failed_samples_buffer is not False:
+            msg_tuple = (_simplify_error_message(msg), sampled_values.tolist())
+            if failed_samples_buffer.__class__.__name__ == 'ListProxy':
+                failed_samples_buffer.append(msg_tuple)
+            else:
+                # TODO: right now this passes an empty list, just for ease on the creation... but we probably should check we're within MPI
+                # assume MPI
+                comm = _MPI.COMM_WORLD
+                comm.ssend(msg_tuple, 0, tag=99999999)
+
+        return lnprob
 
     # copy the bundle to make sure any changes by setting values/running models
     # doesn't affect the user-copy (or in other processors)
@@ -168,6 +175,20 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
             except ValueError as err:
                 logger.warning("received error while setting values: {}. lnprobability=-inf".format(err))
                 return _return(-np.inf, str(err))
+
+    # run delayed constraints and failed constraints would be run within calculate_lnp or run_compute,
+    # but here we can catch the error in advance and return it appropriately
+    try:
+        b.run_delayed_constraints()
+    except Exception as err:
+        logger.warning("received error while running constraints: {}. lnprobability=-inf".format(err))
+        return _return(-np.inf, str(err))
+
+    try:
+        b.run_failed_constraints()
+    except Exception as err:
+        logger.warning("received error while running constraints: {}. lnprobability=-inf".format(err))
+        return _return(-np.inf, str(err))
 
     lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine)
     if not np.isfinite(lnpriors):
@@ -196,14 +217,14 @@ def _lnprobability_negative(sampled_values, b, params_uniqueids, compute,
                            solution,
                            compute_kwargs={},
                            custom_lnprobability_callable=None,
-                           return_blob=False):
+                           failed_samples_buffer=None):
 
     return -1 * _lnprobability(sampled_values, b, params_uniqueids, compute,
                               priors, priors_combine,
                               solution,
                               compute_kwargs,
                               custom_lnprobability_callable,
-                              return_blob)
+                              failed_samples_buffer)
 
 def _sample_ppf(ppf_values, distributions_list):
     # NOTE: this will treat each item in the collection independently, ignoring any covariances
@@ -627,7 +648,7 @@ class EmceeBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_emcee:
-            raise ImportError("could not import emcee, schwimmbad")
+            raise ImportError("could not import emcee")
 
         if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
             raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
@@ -701,7 +722,7 @@ class EmceeBackend(BaseSolverBackend):
                      {'qualifier': 'thin', 'value': thin},
                      {'qualifier': 'progress', 'value': progress}]
 
-            if kwargs.get('expose_failed'):
+            if expose_failed:
                 return_ += [{'qualifier': 'failed_samples', 'value': failed_samples}]
 
             return [return_]
@@ -710,10 +731,24 @@ class EmceeBackend(BaseSolverBackend):
         # from our own waiting loop in phoebe's __init__.py and subscribe them
         # to emcee's pool.
         if mpi.within_mpirun:
-            pool = schwimmbad.MPIPool()
+            global failed_samples_buffer
+            failed_samples_buffer = []
+            global _MPI
+            from mpi4py import MPI as _MPI # needed for the cost-function to send failed samples
+
+            def mpi_failed_samples_callback(result):
+                global failed_samples_buffer
+                if isinstance(result, tuple):
+                    failed_samples_buffer.append(result)
+                    return False
+                else:
+                    return True
+
+            pool = _pool.MPIPool(callback=mpi_failed_samples_callback)
             is_master = pool.is_master()
         else:
-            pool = schwimmbad.MultiPool()
+            pool = _pool.MultiPool()
+            failed_samples_buffer = multiprocessing.Manager().list()
             is_master = True
 
         # temporarily disable MPI within run_compute to disabled parallelizing
@@ -774,6 +809,7 @@ class EmceeBackend(BaseSolverBackend):
                 params_units = continue_from_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
                 continued_samples = continue_from_ps.get_value(qualifier='samples', **_skip_filter_checks)
                 expose_failed = 'failed_samples' in continue_from_ps.qualifiers
+                kwargs['expose_failed'] = expose_failed # needed for _get_packet_and_solution
                 if expose_failed:
                     continued_failed_samples = continue_from_ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
                 else:
@@ -804,10 +840,6 @@ class EmceeBackend(BaseSolverBackend):
                 backend.log_prob = continued_lnprobabilities
                 backend.initialized = True
                 backend.random_state = None
-                # reconstructing blobs will be messy, so we'll just get the correct
-                # shape with nones, but add to the existing dictionary later
-                backend.blobs = np.full(tuple(list(continued_samples.shape[:-1])+[2]), fill_value=None)
-
                 esargs['backend'] = backend
 
             params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
@@ -828,7 +860,7 @@ class EmceeBackend(BaseSolverBackend):
                                 'solution': kwargs.get('solution', None),
                                 'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers},
                                 'custom_lnprobability_callable': kwargs.pop('custom_lnprobability_callable', None),
-                                'return_blob': kwargs.get('expose_failed')}
+                                'failed_samples_buffer': False if not expose_failed else failed_samples_buffer}
 
             # esargs['live_dangerously'] = kwargs.pop('live_dangerously', None)
             # esargs['runtime_sortingfn'] = kwargs.pop('runtime_sortingfn', None)
@@ -840,7 +872,6 @@ class EmceeBackend(BaseSolverBackend):
             sargs = {}
             sargs['iterations'] = niters
             sargs['progress'] = True
-            # TODO: remove this?  Or can we reproduce the logic in a warning?
             sargs['skip_initial_state_check'] = False
 
 
@@ -878,11 +909,9 @@ class EmceeBackend(BaseSolverBackend):
                         thin = 1
 
                     failed_samples = _deepcopy(continued_failed_samples)
-                    if kwargs.get('expose_failed'):
-                        for blob in sampler.get_blobs(flat=True):
-                            if blob is None or blob[0] is None:
-                                continue
-                            failed_samples[blob[0]] = failed_samples.get(blob[0], []) + [blob[1].tolist()]
+                    if expose_failed:
+                        for msg, fsamples in failed_samples_buffer:
+                            failed_samples[msg] = failed_samples.get(msg, []) + [fsamples]
 
                     if progress_every_niters > 0:
                         logger.info("emcee: saving output from iteration {}".format(sampler.iteration))
@@ -901,7 +930,6 @@ class EmceeBackend(BaseSolverBackend):
                                 fname = '{}.progress.ps'.format(solution)
 
                         solution_ps.save(fname, compact=True, sort_by_context=False)
-
 
         else:
             pool.wait()
@@ -934,7 +962,7 @@ class DynestyBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_dynesty:
-            raise ImportError("could not import dynesty, pickle, and schwimmbad")
+            raise ImportError("could not import dynesty, pickle")
 
         solver_ps = b.get_solver(solver)
         if not len(solver_ps.get_value(qualifier='priors', init_from=kwargs.get('priors', None))):
@@ -1019,10 +1047,10 @@ class DynestyBackend(BaseSolverBackend):
                     ]]
 
         if mpi.within_mpirun:
-            pool = schwimmbad.MPIPool()
+            pool = _pool.MPIPool()
             is_master = pool.is_master()
         else:
-            pool = schwimmbad.MultiPool()
+            pool = _pool.MultiPool()
             is_master = True
 
 
@@ -1338,10 +1366,10 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             return (dist.low, dist.high)
 
         if mpi.within_mpirun:
-            pool = schwimmbad.MPIPool()
+            pool = _pool.MPIPool()
             is_master = pool.is_master()
         else:
-            pool = schwimmbad.MultiPool()
+            pool = _pool.MultiPool()
             is_master = True
 
         # temporarily disable MPI within run_compute to disabled parallelizing

@@ -20,6 +20,7 @@ from phoebe.frontend import io
 import phoebe.frontend.bundle
 from phoebe import u, c
 from phoebe import conf, mpi
+from phoebe import pool as _pool
 
 
 try:
@@ -40,13 +41,6 @@ except ImportError:
     _use_ellc = False
 else:
     _use_ellc = True
-
-try:
-    import schwimmbad
-except ImportError:
-    _can_schwimmbad = False
-else:
-    _can_schwimmbad = True
 
 from scipy.stats import norm as _norm
 
@@ -669,20 +663,14 @@ class SampleOverModel(object):
         """
         if within mpirun, workers should call _run_worker instead of run
         """
-        if not _can_schwimmbad:
-            raise ImportError("schwimmbad required for sampling within run_compute")
-
         # TODO: can we run the checks of the requested backend?
         #self.run_checks(b, compute, times, **kwargs)
 
-
-        # TODO: use serial if not _can_schwimmbad? (can we use MPI even without schwimmbad)
-
         if mpi.within_mpirun:
-            pool = schwimmbad.MPIPool()
+            pool = _pool.MPIPool()
             is_master = pool.is_master()
         else:
-            pool = schwimmbad.MultiPool()
+            pool = _pool.MultiPool()
             # pool = schwimmbad.SerialPool()
             is_master = True
 
