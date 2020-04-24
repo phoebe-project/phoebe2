@@ -8505,6 +8505,13 @@ class FloatParameter(Parameter):
             # raise NotImplementedError("constraint propagation for distributions not yet implemented")
             dist = self.is_constraint.get_result(use_distribution=distribution)
 
+            if not isinstance(dist, distl._distl.BaseDistribution):
+                # then the constraint returned a value, which means none of the
+                # constraining parameters had matching distributions... so we'll
+                # fallback on the distribution directly attached to this parameter
+                # instead
+                dist = None
+
         if dist is None:
             dist = self._bundle.get_parameter(qualifier=self.qualifier,
                                               distribution=distribution,
