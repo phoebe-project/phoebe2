@@ -37,7 +37,13 @@ else:
 __version__ = '0.1.0.dev1'
 version = __version__
 
-_math_symbols = {'__mul__': '*', '__add__': '+', '__sub__': '-', '__div__': '/', '__and__': '&', '__or__': '|'}
+_math_symbols = {'__mul__': '*', '__add__': '+', '__sub__': '-',
+                '__div__': '/', '__rdiv__': '/',
+                '__truediv__': '/', '__rtruediv__': '/',
+                '__floordiv__': '//', '__rfloordiv': '//',
+                '__and__': '&',
+                '__or__': '|',
+                '__pow__': '**'}
 
 _builtin_attrs = ['unit', 'label', 'wrap_at', 'dimension', 'dist_constructor_argnames', 'dist_constructor_args', 'dist_constructor_func', 'dist_constructor_object']
 
@@ -233,8 +239,10 @@ def is_distribution_or_none(value):
         raise TypeError('must be a distl Distribution object or None')
 
 def is_math(value):
-    valid_maths = ['__add__', '__radd__', '__sub__', '__rsub__', '__mul__', '__pow__', '__rmul__', '__div__', '__rdiv__']
+    valid_maths = ['__add__', '__radd__', '__sub__', '__rsub__', '__mul__', '__pow__', '__rmul__', '__div__', '__rdiv__', '__truediv__', '__rtruediv__', '__floordiv__', '__rfloordiv__']
     valid_maths += ['sin', 'cos', 'tan']
+    valid_maths += ['arcsin', 'arccos', 'arctan', 'arctan2']
+    valid_maths += ['log', 'log10']
     valid_maths += ['__and__', '__or__']
     if value in valid_maths:
         return value
@@ -524,6 +532,38 @@ class BaseDistribution(BaseDistlObject):
         else:
             raise TypeError("cannot divide {} by type {}".format(self.__class__.__name__, type(other)))
 
+    def __truediv__(self, other):
+        if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            return Composite("__truediv__", (self, other))
+        elif isinstance(other, float) or isinstance(other, int):
+            return self.__div__(Delta(other))
+        else:
+            raise TypeError("cannot divide {} by type {}".format(self.__class__.__name__, type(other)))
+
+    def __rtruediv__(self, other):
+        if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            return Composite("__rtruediv__", (self, other))
+        elif isinstance(other, float) or isinstance(other, int):
+            return self.__div__(Delta(other))
+        else:
+            raise TypeError("cannot divide {} by type {}".format(self.__class__.__name__, type(other)))
+
+    def __floordiv__(self, other):
+        if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            return Composite("__floordiv__", (self, other))
+        elif isinstance(other, float) or isinstance(other, int):
+            return self.__div__(Delta(other))
+        else:
+            raise TypeError("cannot divide {} by type {}".format(self.__class__.__name__, type(other)))
+
+    def __rfloordiv__(self, other):
+        if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            return Composite("__floordiv__", (self, other))
+        elif isinstance(other, float) or isinstance(other, int):
+            return self.__div__(Delta(other))
+        else:
+            raise TypeError("cannot divide {} by type {}".format(self.__class__.__name__, type(other)))
+
     def __add__(self, other):
         if _all_in_types((self, other), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
             return Composite("__add__", (self, other))
@@ -590,6 +630,68 @@ class BaseDistribution(BaseDistlObject):
             dist = self
 
         return Composite("tan", (dist,))
+
+    def arcsin(self):
+        if not _all_in_types((self,), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            raise TypeError("cannot use arcsin with type {}".format(self.__class__.__name__))
+
+        if self.unit is not None:
+            dist = self.to(_units.rad)
+        else:
+            dist = self
+
+        return Composite("arcsin", (dist,), unit=_units.rad, wrap_at=2*_np.pi)
+
+    def arccos(self):
+        if not _all_in_types((self,), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            raise TypeError("cannot use arccos with type {}".format(self.__class__.__name__))
+
+        if self.unit is not None:
+            dist = self.to(_units.rad)
+        else:
+            dist = self
+
+        return Composite("arccos", (dist,), unit=_units.rad, wrap_at=2*_np.pi)
+
+    def arctan(self):
+        if not _all_in_types((self,), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            raise TypeError("cannot use arctan with type {}".format(self.__class__.__name__))
+
+        if self.unit is not None:
+            dist = self.to(_units.rad)
+        else:
+            dist = self
+
+        return Composite("arctan", (dist,), unit=_units.rad, wrap_at=2*_np.pi)
+
+    def arctan2(self, other):
+        if not _all_in_types((self,), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            raise TypeError("cannot use arctan2 with type {}".format(self.__class__.__name__))
+
+        if self.unit is not None:
+            dist = self.to(_units.rad)
+        else:
+            dist = self
+
+        if not _all_in_types((other,), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            raise TypeError("cannot use arctan2 with type {}".format(other.__class__.__name___))
+
+        if other.unit is not None:
+            other = other.to(_units.rad)
+
+        return Composite("arctan2", (dist,other), unit=_units.rad, wrap_at=2*_np.pi)
+
+    def log(self):
+        if not _all_in_types((self,), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            raise TypeError("cannot use log with type {}".format(self.__class__.__name__))
+
+        return Composite("log", (self,))
+
+    def log10(self):
+        if not _all_in_types((self,), (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
+            raise TypeError("cannot use log with type {}".format(self.__class__.__name__))
+
+        return Composite("log10", (self,))
 
     ### SAMPLE CACHING
     @property
@@ -3487,7 +3589,7 @@ class Composite(BaseUnivariateDistribution):
 
 
         def recursive_math(math, items):
-            if len(items) > 2:
+            if len(items) == 2:
                 return getattr(items[0], math)(items[1])
             return getattr(items[0], math)(recursive_math(math, items[1:]))
 
@@ -3504,6 +3606,10 @@ class Composite(BaseUnivariateDistribution):
                     else:
                         # TODO: if they're convertible, we should handle the scaling automatically?
                         raise ValueError("units do not match for {} operator".format(math))
+                elif math in ['sin', 'cos', 'tan']:
+                    self.unit = _units.dimensionless_unscaled
+                elif math in ['arcsin', 'arccos', 'arctan', 'arctan2']:
+                    self.unit = _units.rad
                 elif hasattr(dists[0].unit, math):
                     self.unit = recursive_math(math, [d.unit for d in dists])
                 else:
@@ -3554,7 +3660,7 @@ class Composite(BaseUnivariateDistribution):
         if not _all_in_types(value, (BaseUnivariateDistribution, BaseMultivariateSliceDistribution)):
             raise TypeError("dists must be a tuple or list of distributions (univariate or multivariate slices)")
 
-        if len(value)==1 and self.math not in ['sin', 'cos', 'tan']:
+        if len(value)==1 and self.math not in ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'log', 'log10']:
             raise ValueError("math with operator '{}' requires more than one distribution".format(self.math))
 
         self._dists = value
@@ -3564,10 +3670,18 @@ class Composite(BaseUnivariateDistribution):
         return "<distl.{} {} unit={}>".format(self.__class__.__name__.lower(), self.__str__(), self.unit if self.unit is not None else "None")
 
     def __str__(self):
+        def _subdist_str(d):
+            if isinstance(d, Composite) and d.math not in ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'log', 'log10']:
+                return "({})".format(d.__str__())
+            else:
+                return d.__str__()
+
         if len(self.dists) == 1:
-            return "{}({})".format(_math_symbols.get(self.math, self.math), self.dists[0].__str__())
+            return "{}({})".format(_math_symbols.get(self.math, self.math), _subdist_str(self.dists[0]) )
+        elif self.math in ['arctan2']:
+            return "{}({})".format(_math_symbols.get(self.math, self.math), ",".join(_subdist_str(d) for d in self.dists))
         else:
-            return " {} ".format(_math_symbols.get(self.math, self.math)).join(d.__str__() for d in self.dists)
+            return " {} ".format(_math_symbols.get(self.math, self.math)).join(_subdist_str(d) for d in self.dists)
 
     @property
     def hash(self):
@@ -3672,7 +3786,7 @@ class Composite(BaseUnivariateDistribution):
 
                 return _np.concatenate([d.sample(size=s, seed=seed, cache_sample=cache_sample, as_quantity=_has_astropy and self.unit not in [None, _units.dimensionless_unscaled]) for d,s in zip(dists, sizes)])
 
-        elif len(dists) > 1:
+        elif len(dists) > 1 and self.math not in ['arctan2']:
             # NOTE: this will account for multivariate, but only for THESE 2
             # if there are nested CompositeDistributions, then the seed will be lost
 
@@ -3688,7 +3802,9 @@ class Composite(BaseUnivariateDistribution):
             #     unit = _units.rad
             # else:
             #     unit = None
-            return getattr(_np, math)(dists[0].sample(size=size, seed=seed, cache_sample=cache_sample, as_quantity=_has_astropy and self.unit not in [None, _units.dimensionless_unscaled]))
+
+            # most will only have one dist, but arctan2 will have 2
+            return getattr(_np, math)(*[d.sample(size=size, seed=seed, cache_sample=cache_sample, as_quantity=_has_astropy and self.unit not in [None, _units.dimensionless_unscaled]) for d in dists])
 
 
     def sample(self, size=None, unit=None, as_quantity=False, wrap_at=None, seed={}, as_univariate=False, cache_sample=True):
@@ -6125,6 +6241,82 @@ class BaseAroundGenerator(BaseDistlObject):
         else:
             return self.__repr__()
 
+    def __math_if_resolved__(self, operator, *args):
+        if self.value is None:
+            raise ValueError("cannot do math without value set.  See .value")
+
+        return getattr(self.__call__(), operator)(*args)
+
+    def __mul__(self, other):
+        return self.__math_if_resolved__("__mul__", other)
+
+    def __rmul__(self, other):
+        return self.__math_if_resolved__("__rmul__", other)
+
+    def __pow__(self, other):
+        return self.__math_if_resolved__("__pow__", other)
+
+    def __div__(self, other):
+        return self.__math_if_resolved__("__div__", other)
+
+    def __rdiv__(self, other):
+        return self.__math_if_resolved__("__rdiv__", other)
+
+    def __truediv__(self, other):
+        return self.__math_if_resolved__("__truediv__", other)
+
+    def __rtruediv__(self, other):
+        return self.__math_if_resolved__("__rtruediv__", other)
+
+    def __floordiv__(self, other):
+        return self.__math_if_resolved__("__floordiv__", other)
+
+    def __rfloordiv__(self, other):
+        return self.__math_if_resolved__("__rfloordiv__", other)
+
+    def __add__(self, other):
+        return self.__math_if_resolved__("__add__", other)
+
+    # def __radd__(self, other):
+    #     return self.__math_if_resolved__("__radd__", other)
+
+    def __sub__(self, other):
+        return self.__math_if_resolved__("__sub__", other)
+
+    def __and__(self, other):
+        return self.__math_if_resolved__("__and__", other)
+
+    def __or__(self, other):
+        return self.__math_if_resolved__("__or__", other)
+
+    def sin(self):
+        return self.__math_if_resolved__("sin")
+
+    def cos(self):
+        return self.__math_if_resolved__("cos")
+
+    def tan(self):
+        return self.__math_if_resolved__("tan")
+
+    def arcsin(self):
+        return self.__math_if_resolved__("arcsin")
+
+    def arccos(self):
+        return self.__math_if_resolved__("arccos")
+
+    def arctan(self):
+        return self.__math_if_resolved__("arctan")
+
+    def arctan2(self, other):
+        return self.__math_if_resolved__("arctan2", other)
+
+    def log(self):
+        return self.__math_if_resolved__("log")
+
+    def log10(self):
+        return self.__math_if_resolved__("log")
+
+
     def to_dict(self):
         """
         Return the dictionary representation of the distribution object.
@@ -6360,26 +6552,6 @@ class Uniform_Around(BaseAroundGenerator):
     def width(self, value):
         self._width = is_float(value)
 
-    def __mul__(self, other):
-        if (isinstance(other, float) or isinstance(other, int)):
-            dist = self.copy()
-            if dist.value is not None:
-                dist.value *= other
-            dist.width *= other
-            return dist
-        else:
-            raise NotImplementedError()
-
-    def __pow__(self, other):
-        if (isinstance(other, float) or isinstance(other, int)):
-            dist = self.copy()
-            if dist.value is not None:
-                dist.value **= other
-            dist.width **= other
-            return dist
-        else:
-            raise NotImplementedError()
-
     def to_uniform(self, value=None):
         """
         Expose the "frozen" <Uniform> distribution at a certain
@@ -6426,25 +6598,6 @@ class Delta_Around(BaseAroundGenerator):
 
     def __create_distl__(self, value, unit, label, wrap_at):
         return Delta(value, unit, label, wrap_at)
-
-
-    def __mul__(self, other):
-        if (isinstance(other, float) or isinstance(other, int)):
-            dist = self.copy()
-            if dist.value is not None:
-                dist.value *= other
-            return dist
-        else:
-            raise NotImplementedError()
-
-    def __pow__(self, other):
-        if (isinstance(other, float) or isinstance(other, int)):
-            dist = self.copy()
-            if dist.value is not None:
-                dist.value **= other
-            return dist
-        else:
-            raise NotImplementedError()
 
     def to_delta(self, value=None):
         """
@@ -6500,27 +6653,6 @@ class Gaussian_Around(BaseAroundGenerator):
     @scale.setter
     def scale(self, value):
         self._scale = is_float(value)
-
-
-    def __mul__(self, other):
-        if (isinstance(other, float) or isinstance(other, int)):
-            dist = self.copy()
-            if dist.value is not None:
-                dist.value *= other
-            dist.scale *= other
-            return dist
-        else:
-            raise NotImplementedError()
-
-    def __pow__(self, other):
-        if (isinstance(other, float) or isinstance(other, int)):
-            dist = self.copy()
-            if dist.value is not None:
-                dist.value **= other
-            dist.scale **= other
-            return dist
-        else:
-            raise NotImplementedError()
 
     def to_gaussian(self, value=None):
         """
