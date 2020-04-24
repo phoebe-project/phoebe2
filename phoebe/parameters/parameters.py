@@ -8427,7 +8427,7 @@ class FloatParameter(Parameter):
         return direct_ps + indirect_params
 
 
-    def get_distribution(self, distribution=None, follow_constraints=True):
+    def get_distribution(self, distribution=None, follow_constraints=True, resolve_around_distributions=False):
         """
         Access the distribution object corresponding to this parameter
         tagged with distribution=`distribution`.  To access the
@@ -8459,6 +8459,8 @@ class FloatParameter(Parameter):
             distributions through constraints if this parameter is constrained.
             If False, the distribution directly attached to the parameter
             will be exposed instead.
+        * `resolve_around_distributions` (bool, optional, default=False): resolve
+            any "around" distributions to the current face-value.
 
         Returns
         ----------
@@ -8520,7 +8522,10 @@ class FloatParameter(Parameter):
                                               **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
 
         if isinstance(dist, distl.BaseAroundGenerator):
-            dist.value = self.get_value()
+            if resolve_around_distributions:
+                dist = dist.__call__(self.get_value())
+            else:
+                dist.value = self.get_value()
 
         if dist.label is None:
             dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
