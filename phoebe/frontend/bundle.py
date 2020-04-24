@@ -6390,9 +6390,11 @@ class Bundle(ParameterSet):
         kwargs = {k:v for k,v in kwargs.items() if k not in parameters._meta_fields_filter}
         # print("*** _distribution_collection_defaults twig={} kwargs={}, filter_kwargs={}".format(twig, kwargs, filter_kwargs))
 
+        if twig is None and not len(filter_kwargs.keys()):
+            filter_kwargs['context'] = 'distribution'
 
         if not isinstance(twig, list):
-            ps = self.filter(twig=twig, **filter_kwargs)
+            ps = self.filter(context=['distribution', 'solution', 'solver', 'compute'], **_skip_filter_checks).filter(twig=twig, **filter_kwargs)
 
             if ps.context == 'compute':
                 if ps.qualifier not in ['sample_from']:
@@ -6445,7 +6447,7 @@ class Bundle(ParameterSet):
         filters = []
 
         for twigi in twig:
-            ps = self.filter(twig=twigi, **filter_kwargs)
+            ps = self.filter(context=['distribution', 'solution', 'solver', 'compute'], **_skip_filter_checks).filter(twig=twigi, **filter_kwargs)
             for context in ps.contexts:
                 if context == 'distribution':
                     if filter_kwargs.get('distribution', None) is not None and len(filter_kwargs.get('distribution')) == len(ps.distributions):
