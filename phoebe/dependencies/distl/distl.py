@@ -2998,6 +2998,36 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         """
         return self.multivariate.to_univariate(dimension=self.dimension)
 
+    def to_samples(self):
+        """
+        """
+        # TODO: need to pass on any other args/kwargs?
+        return self.multivariate.to_samples(dimension=self.dimension)
+
+    def to_uniform(self):
+        """
+        """
+        # TODO: need to pass on any other args/kwargs?
+        return self.multivariate.to_uniform(dimension=self.dimension)
+
+    def to_gaussian(self):
+        """
+        """
+        # TODO: need to pass on any other args/kwargs?
+        return self.multivariate.to_gaussian(dimension=self.dimension)
+
+    def to_delta(self):
+        """
+        """
+        # TODO: need to pass on any other args/kwargs?
+        return self.multivariate.to_delta(dimension=self.dimension)
+
+    def to_histogram(self):
+        """
+        """
+        # TODO: need to pass on any other args/kwargs?
+        return self.multivariate.to_histogram(dimension=self.dimension)
+
 
 class DistributionCollection(object):
     """
