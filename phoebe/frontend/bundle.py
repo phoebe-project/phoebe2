@@ -3684,7 +3684,7 @@ class Bundle(ParameterSet):
                          'Andras (2012)': 'https://ui.adsabs.harvard.edu/abs/2012MNRAS.420.1630P',
                          'Maxted (2016)': 'https://ui.adsabs.harvard.edu/abs/2016A%26A...591A.111M',
                          'Foreman-Mackey et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F',
-                         'Speagle (2019)': 'https://ui.adsabs.harvard.edu/abs/2019arXiv190402180S',
+                         'Speagle (2020)': 'https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S',
                          'Skilling (2004)': 'https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S',
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
                          'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F'
@@ -3721,7 +3721,7 @@ class Bundle(ParameterSet):
             if solver_kind == 'emcee':
                 recs = _add_reason(recs, 'Foreman-Mackey et al. (2013)', 'emcee solver backend')
             elif solver_kind == 'dynesty':
-                recs = _add_reason(recs, 'Speagle (2019)', 'dynesty solver backend')
+                recs = _add_reason(recs, 'Speagle (2020)', 'dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2004)', 'nested sampling: dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2006)', 'nested sampling: dynesty solver backend')
 

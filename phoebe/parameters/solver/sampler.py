@@ -70,7 +70,7 @@ def dynesty(**kwargs):
     To install dynesty, see https://dynesty.readthedocs.io
 
     If using this backend for solver, consider citing:
-    * https://ui.adsabs.harvard.edu/abs/2019arXiv190402180S
+    * https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S
     * https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S
     * https://projecteuclid.org/euclid.ba/1340370944
 
