@@ -17,5 +17,5 @@ import logging
 log = logging.getLogger(__name__)
 _VERBOSE = 5
 
-from .multiprocessing import MultiPool
+from .multipool import MultiPool
 from .mpi import MPIPool

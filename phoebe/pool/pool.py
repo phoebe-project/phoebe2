@@ -10,7 +10,8 @@ def _callback_wrapper(callback, generator):
         yield element
 
 
-class BasePool(metaclass=abc.ABCMeta):
+class BasePool():
+    __metaclass__ = abc.ABCMeta
     """ A base class multiprocessing pool with a ``map`` method. """
 
     def __init__(self, **kwargs):

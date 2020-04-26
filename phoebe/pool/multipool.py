@@ -1,8 +1,13 @@
 # Standard library
 import signal
 import functools
-import multiprocessing
-from multiprocessing.pool import Pool
+try:
+    # python3?
+    from multiprocessing.pool import Pool
+except ImportError:
+    from multiprocessing import Pool
+
+from multiprocessing import TimeoutError
 
 __all__ = ['MultiPool']
 
@@ -104,7 +109,7 @@ class MultiPool(Pool):
             try:
                 return r.get(self.wait_timeout)
 
-            except multiprocessing.TimeoutError:
+            except TimeoutError:
                 pass
 
             except KeyboardInterrupt:
