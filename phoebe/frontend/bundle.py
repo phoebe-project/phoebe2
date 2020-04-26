@@ -8992,7 +8992,9 @@ class Bundle(ParameterSet):
                                     params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True)
 
 
-                self._attach_params(params, check_copy_for=False, **metawargs)
+                comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', computeparams.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')
+
+                self._attach_params(params+[comment_param], check_copy_for=False, **metawargs)
 
                 model_ps = self.get_model(model=model, **_skip_filter_checks)
 
@@ -10025,7 +10027,9 @@ class Bundle(ParameterSet):
                      'solution': solution}
 
 
-        self._attach_params(params, check_copy_for=False, **metawargs)
+        comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', solver_ps.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this solution.  Feel free to place any notes here.')
+
+        self._attach_params(params+[comment_param], check_copy_for=False, **metawargs)
 
         restore_conf()
 

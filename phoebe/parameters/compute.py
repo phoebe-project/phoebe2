@@ -27,6 +27,14 @@ def _sampling_params(**kwargs):
 
     return params
 
+def _comments_params(**kwargs):
+    """
+    """
+    params = []
+
+    params += [StringParameter(qualifier='comments', value=kwargs.get('comments', ''), description='User-provided comments for these compute-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting models.')]
+    return params
+
 def phoebe(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for the
@@ -98,6 +106,7 @@ def phoebe(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
@@ -234,6 +243,7 @@ def legacy(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'mesh'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
@@ -370,6 +380,7 @@ def photodynam(**kwargs):
         raise NotImplementedError("'photodynam' backend not officially supported for this release.  Enable developer mode to test.")
 
     params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
@@ -482,6 +493,7 @@ def jktebop(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
@@ -621,6 +633,7 @@ def ellc(**kwargs):
         # raise NotImplementedError("'ellc' backend not officially supported for this release.  Enable developer mode to test.")
 
     params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
