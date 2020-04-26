@@ -418,7 +418,7 @@ def jktebop(**kwargs):
     * requiv
     * gravb_bol
     * irrad_frac_refl_bol
-    * teff (ratio^4 used as an estimate for surface brightness ratio)
+    * teff (ratio^4 used as an estimate of surface brightness ratio, unless pblum_mode='decoupled' in which case pblum ratio is passed directly)
 
     Orbit:
     * sma
@@ -533,7 +533,7 @@ def ellc(**kwargs):
     * requiv (passed as relative radii by dividing by sma)
     * syncpar
     * gravb_bol
-    * teff (ratio^4 used as an estimate of surface brightness ratio)
+    * teff (ratio^4 used as an estimate of surface brightness ratio, unless pblum_mode='decoupled' in which case pblum ratio is passed directly)
     * irrad_frac_refl_bol
 
     Orbit:
