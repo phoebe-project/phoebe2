@@ -8170,18 +8170,18 @@ class Bundle(ParameterSet):
             dataset_need_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='flux', check_visible=True).datasets
             dataset_compute_l3s = []
             for ds in dataset_need_l3s:
-                if self.get_value(qualifier='l3_frac', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
+                if self.get_value(qualifier='l3', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
                     # then we don't really need to do any computations
-                    self.set_value(qualifier='l3', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
+                    self.set_value(qualifier='l3_frac', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
                 else:
                     dataset_compute_l3s.append(ds)
         else:
             dataset_need_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction', check_visible=True).datasets
             dataset_compute_l3s = []
             for ds in dataset_need_l3s:
-                if self.get_value(qualifier='l3', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
+                if self.get_value(qualifier='l3_frac', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
                     # then we don't really need to do any computations
-                    self.set_value(qualifier='l3_frac', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
+                    self.set_value(qualifier='l3', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
                 else:
                     dataset_compute_l3s.append(ds)
         if computeparams.kind == 'legacy' and len(dataset_compute_l3s):
@@ -8199,7 +8199,8 @@ class Bundle(ParameterSet):
             logger.warning("{} does not natively support pblum_mode={}.  pblum values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, [p.get_value() for p in self.filter(qualifier='pblum_mode').exclude(value=allowed_pblum_modes).to_list()], computeparams.kind))
             logger.debug("calling compute_pblums(compute={}, dataset={}, pblum=True, pblum_ext=False, pbflux={}, pbflux_ext=False, set_value=True, skip_checks=True, use_sb_approx={}, **{})".format(compute, dataset_compute_pblums, pbflux, use_sb_approx, kwargs))
             # we'll do pbflux here so that it doesn't need to be recomputed for l3s
-            pblums_dict = self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=len(dataset_compute_l3s), pbflux_ext=False, set_value=True, skip_checks=True, use_sb_approx=use_sb_approx, **kwargs)
+            needs_pbflux = len(dataset_compute_l3s) or computeparams.kind not in ['phoebe', 'legacy']
+            pblums_dict = self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=needs_pbflux, pbflux_ext=False, set_value=True, skip_checks=True, use_sb_approx=use_sb_approx, **kwargs)
         else:
             pblums_dict = {}
 
