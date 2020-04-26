@@ -10773,16 +10773,17 @@ class ConstraintParameter(Parameter):
         # trying to resolve the infinite loop.
         from phoebe.constraints import builtin
         _constraint_builtin_funcs = [f for f in dir(builtin) if isinstance(getattr(builtin, f), types.FunctionType)]
-        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'sqrt', 'log10']
+        _constraint_math_funcs = ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'sqrt', 'log10']
 
-        def eq_needs_builtin(eq):
-            for func in _constraint_builtin_funcs:
+        def eq_needs_builtin(eq, include_math=True):
+            builtin_funcs =  _constraint_builtin_funcs + _constraint_math_funcs if include_math else _constraint_builtin_funcs
+            for func in builtin_funcs:
                 if "{}(".format(func) in eq:
                     #print "*** eq_needs_builtin", func
                     return True
             return False
 
-        def get_values(vars, safe_label=True, string_safe_arrays=False, use_distribution=None):
+        def get_values(vars, safe_label=True, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
             # use np.float64 so that dividing by zero will result in a
             # np.inf
             def _single_value(quantity, string_safe_arrays=False):
@@ -10806,11 +10807,15 @@ class ConstraintParameter(Parameter):
                 else:
                     return quantity
 
-            def _value(var, string_safe_arrays=False, use_distribution=None):
+            def _value(var, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
                 if use_distribution:
                     param = var.get_parameter()
                     if use_distribution in param.in_distributions:
-                        return "distl_from_json('{}')".format(_single_value(param.get_distribution(use_distribution, follow_constraints=False)).to_json())
+                        dist = param.get_distribution(use_distribution, follow_constraints=False)
+                        if needs_builtin:
+                            return _single_value(dist)
+                        else:
+                            return "distl_from_json('{}')".format(_single_value(dist).to_json())
 
 
                 if var.get_parameter() != self.constrained_parameter:
@@ -10818,7 +10823,7 @@ class ConstraintParameter(Parameter):
                 else:
                     return _single_value(var.get_quantity(), string_safe_arrays)
 
-            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays, use_distribution) for var in vars}
+            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays, use_distribution, needs_builtin) for var in vars}
 
         eq = self.get_value()
 
@@ -10842,15 +10847,16 @@ class ConstraintParameter(Parameter):
             #     values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution)
             #     print("***", values)
             #     return
-
-            if eq_needs_builtin(eq) or use_distribution:
+            needs_builtin_or_math = eq_needs_builtin(eq)
+            if needs_builtin_or_math or use_distribution:
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
+                needs_builtin = eq_needs_builtin(eq, include_math=False)
 
-                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution)
+                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution, needs_builtin=needs_builtin)
 
                 # cannot do from builtin import *
-                for func in _constraint_builtin_funcs:
+                for func in _constraint_builtin_funcs + _constraint_math_funcs:
                     # I should be shot for doing this...
                     # in order for eval to work, the builtin functions need
                     # to be imported at the top-level, but I don't really want
@@ -10863,7 +10869,29 @@ class ConstraintParameter(Parameter):
                     # these require passing the bundle
                     # values['b'] = self._bundle
 
-                value = eval(eq.format(**values))
+                if needs_builtin and use_distribution:
+                    # need to parse {} in eq and get values in correct order as args (including non {}, like 1)
+                    # need to access callable func from eq
+                    funcname = eq.split("(")[0]
+                    argnames = eq.split("(")[1].split(")")[0].split(", ")
+                    args = []
+                    for argname in argnames:
+                        if argname[0] == "{":
+                            args.append(values.get(argname[1:-1]))
+                        else:
+                            args.append(float(argname) if "." in argname else int(argname))
+
+                    hist_samples = None
+                    vectorized = False
+                    if 'pot' in funcname or 'fillout_factor' in funcname:
+                        # these are particularly expensive, so we'll only use 1000 samples in the underlying histogram by default
+                        hist_samples = 1000
+                        vectorized = False
+                    if funcname[:2] == 't0':
+                        vectorized = True
+                    value = distl.function(locals().get(funcname), args, vectorized=vectorized, hist_samples=hist_samples)
+                else:
+                    value = eval(eq.format(**values))
 
                 if value is None:
                     if suppress_error:
