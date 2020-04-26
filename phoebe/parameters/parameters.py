@@ -5446,9 +5446,9 @@ class Parameter(object):
             quantity = self.get_value()
 
         if hasattr(self, 'constraint') and self.constraint is not None:
-            return "<Parameter: {}={} (constrained) | keys: {}>".format(self.qualifier, quantity, ', '.join(self._dict_fields_other))
+            return "<Parameter: {}={} (constrained) | keys: {}>".format(self.qualifier, quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity, ', '.join(self._dict_fields_other))
         else:
-            return "<Parameter: {}={} | keys: {}>".format(self.qualifier, quantity, ', '.join(self._dict_fields_other))
+            return "<Parameter: {}={} | keys: {}>".format(self.qualifier, quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity, ', '.join(self._dict_fields_other))
 
     def __str__(self):
         """
@@ -5463,7 +5463,7 @@ class Parameter(object):
         str_ = "{}: {}\n".format("Parameter", self.uniquetwig)
         str_ += "{:>32}: {}\n".format("Qualifier", self.qualifier)
         str_ += "{:>32}: {}\n".format("Description", self.description)
-        str_ += "{:>32}: {}\n".format("Value", quantity)
+        str_ += "{:>32}: {}\n".format("Value", quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity)
 
         if hasattr(self, 'choices'):
             str_ += "{:>32}: {}\n".format("Choices", ", ".join(self.choices))
@@ -5580,7 +5580,8 @@ class Parameter(object):
         else:
             prefix = '  '
 
-        return "{} {:>30}: {}".format(prefix, self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+        quantity = self.get_quantity() if hasattr(self, 'quantity') else self.get_value()
+        return "{} {:>30}: {}".format(prefix, self.uniquetwig_trunc, quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity)
 
     # @property
     # def __dict__(self):
@@ -8507,7 +8508,7 @@ class FloatParameter(Parameter):
             # raise NotImplementedError("constraint propagation for distributions not yet implemented")
             dist = self.is_constraint.get_result(use_distribution=distribution)
 
-            if not isinstance(dist, distl._distl.BaseDistribution):
+            if not isinstance(dist, distl._distl.BaseDistlObject):
                 # then the constraint returned a value, which means none of the
                 # constraining parameters had matching distributions... so we'll
                 # fallback on the distribution directly attached to this parameter
