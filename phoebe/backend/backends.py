@@ -1458,7 +1458,9 @@ class LegacyBackend(BaseBackendByDataset):
 
         # make phoebe 1 file
         # tmp_filename = temp_name = next(tempfile._get_candidate_names())
-
+        computeparams = b.get_compute(compute, force_ps=True)
+        pblum_method = computeparams.get_value(qualifier='pblum_method', pblum_method=kwargs.get('pblum_method', None), **_skip_filter_checks)
+        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=pblum_method=='stefan-boltzmann')
 
         phb1.init()
         try:
@@ -1491,8 +1493,6 @@ class LegacyBackend(BaseBackendByDataset):
             comp = phb1.getpar('phoebe_rv_dep', rvind).split(' ')[0].lower()
             rvcurve = rvid+'-'+comp
             rvinds[rvcurve] = rvind
-
-        computeparams = b.get_compute(compute, force_ps=True)
 
         #os.remove(tmp_filename)
 
@@ -2023,7 +2023,8 @@ class JktebopBackend(BaseBackendByDataset):
 
         computeparams = b.get_compute(compute, force_ps=True)
 
-        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=True)
+        pblum_method = computeparams.get_value(qualifier='pblum_method', pblum_method=kwargs.get('pblum_method', None), **_skip_filter_checks)
+        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=pblum_method=='stefan-boltzmann')
 
         hier = b.get_hierarchy()
 
@@ -2285,8 +2286,8 @@ class EllcBackend(BaseBackendByDataset):
 
         computeparams = b.get_compute(compute, force_ps=True, **_skip_filter_checks)
 
-        # TODO: toggle using use_sb_approx based on estimating the overfill amount?
-        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=True)
+        pblum_method = computeparams.get_value(qualifier='pblum_method', pblum_method=kwargs.get('pblum_method', None), **_skip_filter_checks)
+        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=pblum_method=='stefan-boltzmann')
 
         hier = b.get_hierarchy()
 

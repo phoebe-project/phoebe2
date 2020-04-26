@@ -3236,16 +3236,16 @@ class Bundle(ParameterSet):
                 if ld_mode == 'interp':
                     for compute in computes:
                         # TODO: should we ignore if the dataset is disabled?
-                        try:
-                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
-                        except ValueError:
+                        compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
+                        if compute_kind != 'phoebe':
                             report.add_item(self,
-                                            "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{}.".format(self.get_compute(compute).kind, compute, component, dataset),
+                                            "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{}.".format(compute_kind, compute, component, dataset),
                                             [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks),
                                              self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)
                                             ],
                                             True)
                         else:
+                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
                             if atm not in ['ck2004', 'phoenix']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks).choices:
                                     report.add_item(self,
@@ -3330,6 +3330,15 @@ class Bundle(ParameterSet):
                                             [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
                                              self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                             True)
+
+                atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                pblum_method = self.get_value(qualifier='pblum_method', compute=compute, context='compute', pblum_method=kwargs.get('pblum_method', None), default='phoebe', **_skip_filter_checks)
+                if atm=='blackbody' and pblum_method=='stefan-boltzmann':
+                    report.add_item(self,
+                                    "pblum_method@{}='stefan-boltzmann' not supported with atm@{}='blackbody'".format(compute, component),
+                                    self.filter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)+
+                                    self.filter(qualifier='pblum_method', compute=compute, context='compute', **_skip_filter_checks),
+                                    True)
 
 
         def _get_proj_area(comp):
@@ -7577,12 +7586,7 @@ class Bundle(ParameterSet):
                 else:
                     passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, check_visible=False)
 
-                try:
-                    atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, check_visible=False)
-                except ValueError:
-                    # not all backends have atm as an option
-                    logger.warning("backend compute='{}' has no 'atm' option: falling back on ck2004 for ld_coeffs{} interpolation".format(compute, bol_suffix))
-                    atm = 'ck2004'
+                atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, default='ck2004', atm=kwargs.get('atm', None), **_skip_filter_checks)
 
                 if ldcs == 'auto':
                     if atm in ['extern_atmx', 'extern_planckint', 'blackbody']:
@@ -7598,7 +7602,7 @@ class Bundle(ParameterSet):
                     photon_weighted = False
                 else:
                     photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
-                logger.info("interpolating {} ld_coeffs for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
+                logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
                 logger.debug("pb.interpole_ld_coeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} photon_weighted={})".format(teff, logg, abun, ldcs, ld_func, photon_weighted))
                 try:
                     ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
@@ -7633,10 +7637,10 @@ class Bundle(ParameterSet):
 
         compute_kind = self.get_compute(compute).kind
 
-        if compute_kind in ['legacy']:
+        if compute_kind not in ['phoebe']:
+            # then we'll override the compute options distortion_method and always use roche
+            # as phoebe may not support all the same distortion_methods for these backends
             kwargs.setdefault('distortion_method', 'roche')
-        elif compute_kind in ['jktebop']:
-            kwargs.setdefault('distortion_method', 'sphere')
 
         # temporarily disable interactive_checks, check_default, and check_visible
         conf_interactive_checks = conf.interactive_checks
@@ -8003,9 +8007,14 @@ class Bundle(ParameterSet):
                         ld_coeffs = self.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
 
                     if 'atm' in compute_ps.qualifiers:
-                        atm = compute_ps.get_value(qualifier='atm', component=component, **_skip_filter_checks)
+                        atm = compute_ps.get_value(qualifier='atm', component=component, atm=kwargs.get('atm', None), **_skip_filter_checks)
+                        if atm == 'extern_planckint':
+                            atm = 'blackbody'
+                        elif atm == 'extern_atmx':
+                            atm = 'ck2004'
+
                         if atm == 'blackbody' and ld_mode!='manual':
-                            raise NotImplementedError("use_sb_approx not currently implemented for atm='blackbody' unless ld_mode='manual'")
+                            raise NotImplementedError("use_sb_approx (pblum_method='stefan-boltzmann') not currently implemented for atm='blackbody' unless ld_mode='manual'")
                     else:
                         atm = 'blackbody' if ld_mode == 'manual' else 'ck2004'
                         logger.warning("no atm in compute='{}', falling back on atm='{}'".format(compute, atm))
@@ -8026,7 +8035,7 @@ class Bundle(ParameterSet):
                                      ldatm=atm, ld_func=ld_func, ld_coeffs=ld_coeffs,
                                      photon_weighted=intens_weighting=='photon')
 
-                    logger.info("estimating pblum for {}@{} using atm='{}'".format(dataset, component, atm))
+                    logger.info("estimating pblum for {}@{} using atm='{}' and stefan-boltzmann approximation".format(dataset, component, atm))
                     pblum_abs[dataset][component] = 4 * np.pi * requiv**2 * Inorm[0] * ldint
 
             pblum_scales = _universe._compute_pblum_scales(self, pblum_abs, components)
@@ -8066,6 +8075,7 @@ class Bundle(ParameterSet):
 
             return ret
 
+        # use_sb_approx = False
         l3s = None
         for compute_extrinsic in [True, False]:
             # we need to compute the extrinsic case if we're requesting pblum_ext
@@ -8160,7 +8170,7 @@ class Bundle(ParameterSet):
             dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_coeffs_source').exclude(value='none').datasets
 
         if len(dataset_compute_ld_coeffs):
-            logger.warning("{} does not natively support interpolating ld coefficients.  These will be interpolated by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+            logger.warning("{} does not natively support ld coefficients lookup.  These will be queried by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
             logger.debug("calling compute_ld_coeffs(compute={}, dataset={}, set_value=True, skip_checks=True, **{})".format(dataset_compute_ld_coeffs, compute, kwargs))
             self.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True, skip_checks=True, **kwargs)
 
