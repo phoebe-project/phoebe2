@@ -1726,6 +1726,16 @@ null
 {
 "kind": "phoebe", 
 "compute": "phoebe01", 
+"description": "User-provided comments for these compute-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting models.", 
+"value": "", 
+"context": "compute", 
+"copy_for": false, 
+"Class": "StringParameter", 
+"qualifier": "comments"
+}, 
+{
+"kind": "phoebe", 
+"compute": "phoebe01", 
 "description": "Whether to create synthetics in compute/solver run", 
 "value": true, 
 "dataset": "_default", 

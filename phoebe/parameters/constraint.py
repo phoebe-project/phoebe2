@@ -718,7 +718,7 @@ def mean_anom(b, orbit, solve_for=None, **kwargs):
     mean_anom = orbit_ps.get_parameter(qualifier='mean_anom', **_skip_filter_checks)
     t0_perpass = orbit_ps.get_parameter(qualifier='t0_perpass', **_skip_filter_checks)
     period = orbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
-    dpdt = orbit_ps.get_parameter(qualifier='period', **_skip_filter_checks)
+    dpdt = orbit_ps.get_parameter(qualifier='dpdt', **_skip_filter_checks)
     t0 = b.get_parameter(qualifier='t0', context='system', **_skip_filter_checks)
 
     if solve_for in [None, mean_anom]:

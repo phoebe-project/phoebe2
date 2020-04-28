@@ -335,7 +335,7 @@ setup (name = 'phoebe',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
        download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.2.1',
-       packages = ['phoebe', 'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.solverbackends', 'phoebe.utils', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.unitsiau2015'],
+       packages = ['phoebe', 'phoebe.parameters', 'phoebe.parameters.solver', 'phoebe.parameters.figure', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.solverbackends', 'phoebe.utils', 'phoebe.pool', 'phoebe.dependencies', 'phoebe.dependencies.autofig', 'phoebe.dependencies.nparray', 'phoebe.dependencies.distl', 'phoebe.dependencies.unitsiau2015'],
        install_requires=['numpy>=1.10','scipy>=1.7','astropy>=1.0,<3.0' if sys.version_info[0] < 3 else 'astropy>=1.0', 'pytest'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                      'phoebe.frontend':['default_bundles/*.bundle']

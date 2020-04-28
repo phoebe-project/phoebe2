@@ -4,6 +4,14 @@ from phoebe import conf
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
+def _comments_params(**kwargs):
+    """
+    """
+    params = []
+
+    params += [StringParameter(qualifier='comments', value=kwargs.get('comments', ''), description='User-provided comments for these solver-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting solutions.')]
+    return params
+
 def nelder_mead(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for solver options for the
@@ -31,7 +39,7 @@ def nelder_mead(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _comments_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial and final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
@@ -78,7 +86,7 @@ def powell(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _comments_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial and final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
@@ -124,7 +132,7 @@ def cg(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _comments_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial and final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]
@@ -169,7 +177,7 @@ def differential_evolution(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _comments_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
     params += [BoolParameter(qualifier='expose_lnlikelihoods', value=kwargs.get('expose_lnlikelihoods', False), description='whether to expose the initial and final lnlikelihoods in the solution (will result in 2 additional forward model calls)')]

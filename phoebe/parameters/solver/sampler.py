@@ -4,6 +4,14 @@ from phoebe import conf
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
+def _comments_params(**kwargs):
+    """
+    """
+    params = []
+
+    params += [StringParameter(qualifier='comments', value=kwargs.get('comments', ''), description='User-provided comments for these solver-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting solutions.')]
+    return params
+
 def emcee(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for solver options for the
@@ -39,7 +47,7 @@ def emcee(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _comments_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
 
@@ -58,7 +66,7 @@ def emcee(**kwargs):
 
     params += [IntParameter(qualifier='progress_every_niters', value=kwargs.get('progress_every_niters', 0), limits=(0,1e6), description='save the progress of the solution every n iterations.  The solution can only be recovered from an early termination by loading the bundle from a saved file and then calling b.import_solution(filename).  The filename of the saved file will default to solution.ps.progress within run_solver, or the output filename provided to export_solver prefixed with .progress.  If using detach=True within run_solver, attach job will load the progress and allow re-attaching until the job is completed.  If 0 will not save and will only return after completion.')]
 
-    params += [BoolParameter(visible_if='continue_from:None', qualifier='expose_failed', value=kwargs.get('expose_failed', True), description='whether to expose dictionary of failed samples and their error messages.')]
+    params += [BoolParameter(visible_if='continue_from:None', qualifier='expose_failed', value=kwargs.get('expose_failed', True), description='whether to expose dictionary of failed samples and their error messages.  Note: depending on the number of failed samples, this could add overhead.')]
 
     return ParameterSet(params)
 
@@ -70,7 +78,7 @@ def dynesty(**kwargs):
     To install dynesty, see https://dynesty.readthedocs.io
 
     If using this backend for solver, consider citing:
-    * https://ui.adsabs.harvard.edu/abs/2019arXiv190402180S
+    * https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S
     * https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S
     * https://projecteuclid.org/euclid.ba/1340370944
 
@@ -102,7 +110,7 @@ def dynesty(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _comments_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='compute', value=kwargs.get('compute', 'None'), choices=['None'], description='compute options to use for forward model')]
 

@@ -3236,16 +3236,16 @@ class Bundle(ParameterSet):
                 if ld_mode == 'interp':
                     for compute in computes:
                         # TODO: should we ignore if the dataset is disabled?
-                        try:
-                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
-                        except ValueError:
+                        compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
+                        if compute_kind != 'phoebe':
                             report.add_item(self,
-                                            "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{}.".format(self.get_compute(compute).kind, compute, component, dataset),
+                                            "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{}.".format(compute_kind, compute, component, dataset),
                                             [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks),
                                              self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)
                                             ],
                                             True)
                         else:
+                            atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
                             if atm not in ['ck2004', 'phoenix']:
                                 if 'ck2004' in self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks).choices:
                                     report.add_item(self,
@@ -3330,6 +3330,15 @@ class Bundle(ParameterSet):
                                             [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
                                              self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
                                             True)
+
+                atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
+                pblum_method = self.get_value(qualifier='pblum_method', compute=compute, context='compute', pblum_method=kwargs.get('pblum_method', None), default='phoebe', **_skip_filter_checks)
+                if atm=='blackbody' and pblum_method=='stefan-boltzmann':
+                    report.add_item(self,
+                                    "pblum_method@{}='stefan-boltzmann' not supported with atm@{}='blackbody'".format(compute, component),
+                                    self.filter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)+
+                                    self.filter(qualifier='pblum_method', compute=compute, context='compute', **_skip_filter_checks),
+                                    True)
 
 
         def _get_proj_area(comp):
@@ -3684,7 +3693,7 @@ class Bundle(ParameterSet):
                          'Andras (2012)': 'https://ui.adsabs.harvard.edu/abs/2012MNRAS.420.1630P',
                          'Maxted (2016)': 'https://ui.adsabs.harvard.edu/abs/2016A%26A...591A.111M',
                          'Foreman-Mackey et al. (2013)': 'https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F',
-                         'Speagle (2019)': 'https://ui.adsabs.harvard.edu/abs/2019arXiv190402180S',
+                         'Speagle (2020)': 'https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S',
                          'Skilling (2004)': 'https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S',
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
                          'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F'
@@ -3721,7 +3730,7 @@ class Bundle(ParameterSet):
             if solver_kind == 'emcee':
                 recs = _add_reason(recs, 'Foreman-Mackey et al. (2013)', 'emcee solver backend')
             elif solver_kind == 'dynesty':
-                recs = _add_reason(recs, 'Speagle (2019)', 'dynesty solver backend')
+                recs = _add_reason(recs, 'Speagle (2020)', 'dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2004)', 'nested sampling: dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2006)', 'nested sampling: dynesty solver backend')
 
@@ -5913,7 +5922,7 @@ class Bundle(ParameterSet):
         if not isinstance(result, float) or result != constrained_param.get_value():
             logger.debug("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
             try:
-                constrained_param.set_value(result, force=True)
+                constrained_param.set_value(result, from_constraint=True, force=True)
             except Exception as e:
                 if expression_param.uniqueid not in self._failed_constraints:
                     self._failed_constraints.append(expression_param.uniqueid)
@@ -6390,9 +6399,11 @@ class Bundle(ParameterSet):
         kwargs = {k:v for k,v in kwargs.items() if k not in parameters._meta_fields_filter}
         # print("*** _distribution_collection_defaults twig={} kwargs={}, filter_kwargs={}".format(twig, kwargs, filter_kwargs))
 
+        if twig is None and not len(filter_kwargs.keys()):
+            filter_kwargs['context'] = 'distribution'
 
         if not isinstance(twig, list):
-            ps = self.filter(twig=twig, **filter_kwargs)
+            ps = self.filter(context=['distribution', 'solution', 'solver', 'compute'], **_skip_filter_checks).filter(twig=twig, **filter_kwargs)
 
             if ps.context == 'compute':
                 if ps.qualifier not in ['sample_from']:
@@ -6445,7 +6456,7 @@ class Bundle(ParameterSet):
         filters = []
 
         for twigi in twig:
-            ps = self.filter(twig=twigi, **filter_kwargs)
+            ps = self.filter(context=['distribution', 'solution', 'solver', 'compute'], **_skip_filter_checks).filter(twig=twigi, **filter_kwargs)
             for context in ps.contexts:
                 if context == 'distribution':
                     if filter_kwargs.get('distribution', None) is not None and len(filter_kwargs.get('distribution')) == len(ps.distributions):
@@ -6944,15 +6955,17 @@ class Bundle(ParameterSet):
         -----------
         * (float) log-prior value
         """
-        self._bundle.run_delayed_constraints()
+        # TODO: should we require run_checks to pass?
+        self.run_delayed_constraints()
+        self.run_failed_constraints()
 
         # TODO: check to see if dist_param references a constrained parameter,
         # and if so, raise a warning if all other parameters in the constraint
         # also have attached distributions?
 
         kwargs['keys'] = 'uniqueid'
-        dc, uniqueids = self._bundle.get_distribution_collection(twig=twig,
-                                                                 **kwargs)
+        dc, uniqueids = self.get_distribution_collection(twig=twig,
+                                                         **kwargs)
 
 
         values = [self.get_value(uniqueid=uid, unit=dist.unit, **_skip_filter_checks) for uid, dist in zip(uniqueids, dc.dists)]
@@ -7573,12 +7586,7 @@ class Bundle(ParameterSet):
                 else:
                     passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, check_visible=False)
 
-                try:
-                    atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, check_visible=False)
-                except ValueError:
-                    # not all backends have atm as an option
-                    logger.warning("backend compute='{}' has no 'atm' option: falling back on ck2004 for ld_coeffs{} interpolation".format(compute, bol_suffix))
-                    atm = 'ck2004'
+                atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, default='ck2004', atm=kwargs.get('atm', None), **_skip_filter_checks)
 
                 if ldcs == 'auto':
                     if atm in ['extern_atmx', 'extern_planckint', 'blackbody']:
@@ -7594,7 +7602,7 @@ class Bundle(ParameterSet):
                     photon_weighted = False
                 else:
                     photon_weighted = self.get_value(qualifier='intens_weighting', dataset=ldcs_param.dataset, context='dataset', check_visible=False) == 'photon'
-                logger.info("interpolating {} ld_coeffs for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
+                logger.info("{} ld_coeffs lookup for dataset='{}' component='{}' passband='{}' from ld_coeffs_source='{}'".format(ld_func, ldcs_param.dataset, ldcs_param.component, passband, ldcs))
                 logger.debug("pb.interpole_ld_coeffs(teff={} logg={}, abun={}, ld_coeffs={} ld_func={} photon_weighted={})".format(teff, logg, abun, ldcs, ld_func, photon_weighted))
                 try:
                     ld_coeffs = pb.interpolate_ldcoeffs(teff, logg, abun, ldcs, ld_func, photon_weighted)
@@ -7629,10 +7637,10 @@ class Bundle(ParameterSet):
 
         compute_kind = self.get_compute(compute).kind
 
-        if compute_kind in ['legacy']:
+        if compute_kind not in ['phoebe']:
+            # then we'll override the compute options distortion_method and always use roche
+            # as phoebe may not support all the same distortion_methods for these backends
             kwargs.setdefault('distortion_method', 'roche')
-        elif compute_kind in ['jktebop']:
-            kwargs.setdefault('distortion_method', 'sphere')
 
         # temporarily disable interactive_checks, check_default, and check_visible
         conf_interactive_checks = conf.interactive_checks
@@ -7999,9 +8007,14 @@ class Bundle(ParameterSet):
                         ld_coeffs = self.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
 
                     if 'atm' in compute_ps.qualifiers:
-                        atm = compute_ps.get_value(qualifier='atm', component=component, **_skip_filter_checks)
+                        atm = compute_ps.get_value(qualifier='atm', component=component, atm=kwargs.get('atm', None), **_skip_filter_checks)
+                        if atm == 'extern_planckint':
+                            atm = 'blackbody'
+                        elif atm == 'extern_atmx':
+                            atm = 'ck2004'
+
                         if atm == 'blackbody' and ld_mode!='manual':
-                            raise NotImplementedError("use_sb_approx not currently implemented for atm='blackbody' unless ld_mode='manual'")
+                            raise NotImplementedError("use_sb_approx (pblum_method='stefan-boltzmann') not currently implemented for atm='blackbody' unless ld_mode='manual'")
                     else:
                         atm = 'blackbody' if ld_mode == 'manual' else 'ck2004'
                         logger.warning("no atm in compute='{}', falling back on atm='{}'".format(compute, atm))
@@ -8022,7 +8035,7 @@ class Bundle(ParameterSet):
                                      ldatm=atm, ld_func=ld_func, ld_coeffs=ld_coeffs,
                                      photon_weighted=intens_weighting=='photon')
 
-                    logger.info("estimating pblum for {}@{} using atm='{}'".format(dataset, component, atm))
+                    logger.info("estimating pblum for {}@{} using atm='{}' and stefan-boltzmann approximation".format(dataset, component, atm))
                     pblum_abs[dataset][component] = 4 * np.pi * requiv**2 * Inorm[0] * ldint
 
             pblum_scales = _universe._compute_pblum_scales(self, pblum_abs, components)
@@ -8062,6 +8075,7 @@ class Bundle(ParameterSet):
 
             return ret
 
+        # use_sb_approx = False
         l3s = None
         for compute_extrinsic in [True, False]:
             # we need to compute the extrinsic case if we're requesting pblum_ext
@@ -8156,7 +8170,7 @@ class Bundle(ParameterSet):
             dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_coeffs_source').exclude(value='none').datasets
 
         if len(dataset_compute_ld_coeffs):
-            logger.warning("{} does not natively support interpolating ld coefficients.  These will be interpolated by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
+            logger.warning("{} does not natively support ld coefficients lookup.  These will be queried by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
             logger.debug("calling compute_ld_coeffs(compute={}, dataset={}, set_value=True, skip_checks=True, **{})".format(dataset_compute_ld_coeffs, compute, kwargs))
             self.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True, skip_checks=True, **kwargs)
 
@@ -8166,18 +8180,18 @@ class Bundle(ParameterSet):
             dataset_need_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='flux', check_visible=True).datasets
             dataset_compute_l3s = []
             for ds in dataset_need_l3s:
-                if self.get_value(qualifier='l3_frac', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
+                if self.get_value(qualifier='l3', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
                     # then we don't really need to do any computations
-                    self.set_value(qualifier='l3', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
+                    self.set_value(qualifier='l3_frac', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
                 else:
                     dataset_compute_l3s.append(ds)
         else:
             dataset_need_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction', check_visible=True).datasets
             dataset_compute_l3s = []
             for ds in dataset_need_l3s:
-                if self.get_value(qualifier='l3', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
+                if self.get_value(qualifier='l3_frac', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
                     # then we don't really need to do any computations
-                    self.set_value(qualifier='l3_frac', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
+                    self.set_value(qualifier='l3', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
                 else:
                     dataset_compute_l3s.append(ds)
         if computeparams.kind == 'legacy' and len(dataset_compute_l3s):
@@ -8195,7 +8209,8 @@ class Bundle(ParameterSet):
             logger.warning("{} does not natively support pblum_mode={}.  pblum values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, [p.get_value() for p in self.filter(qualifier='pblum_mode').exclude(value=allowed_pblum_modes).to_list()], computeparams.kind))
             logger.debug("calling compute_pblums(compute={}, dataset={}, pblum=True, pblum_ext=False, pbflux={}, pbflux_ext=False, set_value=True, skip_checks=True, use_sb_approx={}, **{})".format(compute, dataset_compute_pblums, pbflux, use_sb_approx, kwargs))
             # we'll do pbflux here so that it doesn't need to be recomputed for l3s
-            pblums_dict = self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=len(dataset_compute_l3s), pbflux_ext=False, set_value=True, skip_checks=True, use_sb_approx=use_sb_approx, **kwargs)
+            needs_pbflux = len(dataset_compute_l3s) or computeparams.kind not in ['phoebe', 'legacy']
+            pblums_dict = self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=needs_pbflux, pbflux_ext=False, set_value=True, skip_checks=True, use_sb_approx=use_sb_approx, **kwargs)
         else:
             pblums_dict = {}
 
@@ -8988,7 +9003,9 @@ class Bundle(ParameterSet):
                                     params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True)
 
 
-                self._attach_params(params, check_copy_for=False, **metawargs)
+                comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', computeparams.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')
+
+                self._attach_params(params+[comment_param], check_copy_for=False, **metawargs)
 
                 model_ps = self.get_model(model=model, **_skip_filter_checks)
 
@@ -10021,7 +10038,9 @@ class Bundle(ParameterSet):
                      'solution': solution}
 
 
-        self._attach_params(params, check_copy_for=False, **metawargs)
+        comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', solver_ps.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this solution.  Feel free to place any notes here.')
+
+        self._attach_params(params+[comment_param], check_copy_for=False, **metawargs)
 
         restore_conf()
 
@@ -10420,7 +10439,7 @@ class Bundle(ParameterSet):
         --------
         * ValueError: if the value of `new_solution` is forbidden or already exists.
         """
-        # TODO: raise error if old_feature not found?
+        # TODO: raise error if old_solution not found?
         self._rename_label('solution', old_solution, new_solution, overwrite)
 
         ret_ps = self.filter(solution=new_solution)

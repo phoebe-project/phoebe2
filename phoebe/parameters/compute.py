@@ -27,6 +27,14 @@ def _sampling_params(**kwargs):
 
     return params
 
+def _comments_params(**kwargs):
+    """
+    """
+    params = []
+
+    params += [StringParameter(qualifier='comments', value=kwargs.get('comments', ''), description='User-provided comments for these compute-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting models.')]
+    return params
+
 def phoebe(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for compute options for the
@@ -98,6 +106,7 @@ def phoebe(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
@@ -234,30 +243,20 @@ def legacy(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'mesh'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
-    # params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='method to pass passband luminosities to legacy from parameters in the bundle when pblum_mode is not \'decoupled\' or \'component-coupled\'.  Setting to \'phoebe\' will build the mesh at time t0 and compute luminosities.')]
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'extern_atmx'), choices=['extern_atmx', 'extern_planckint'], description='Atmosphere table to use within legacy.  For estimating passband luminosities and flux scaling (see pblum_method), extern_atmx will use ck2004 and extern_planckint will use blackbody.')]
+    params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'phoebe'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from legacy.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
 
-
-    # TODO: the kwargs need to match the qualifier names!
-    # TODO: include MORE meshing options
-    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'extern_atmx'), choices=['extern_atmx', 'extern_planckint'], description='Atmosphere table')]
-#    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'kurucz'), choices=['kurucz', 'blackbody'], description='Atmosphere table')]
-#    params += [ChoiceParameter(qualifier='morphology', value=kwargs.get('morphology','Detached binary'), choices=['Unconstrained binary system', 'Detached binary', 'Overcontact binary of the W UMa type', 'Overcontact binary not in thermal contact'], description='System type constraint')]
-#    params += [BoolParameter(qualifier='cindex', value=kwargs.get('cindex', False), description='Color index constraint')]
-#    params += [IntParameter(visible_if='cindex_switch:True', qualifier='cindex', value=kwargs.get('cindex', np.array([1.0])), description='Number of reflections')]
-#    params += [BoolParameter(qualifier='heating', value=kwargs.get('heating', True), description='Allow irradiators to heat other components')]
     params += [IntParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 60), limits=(10, 200), description='Number of meshpoints for WD')]
 
     params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=["roche"], description='Method to use for distorting stars (legacy only supports roche distortion)')]
 
     params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'wilson'), choices=['none', 'wilson'], description='Which method to use to handle irradiation/reflection effects')]
     params += [IntParameter(visible_if='irrad_method:wilson', qualifier='refl_num', value=kwargs.get('refl_num', 1), limits=(0,None), description='Number of reflections')]
-
-#    params += [BoolParameter(qualifier='msc1', value=kwargs.get('msc1', False), description='Mainsequence Constraint for star 1')]
-#    params += [BoolParameter(qualifier='msc2', value=kwargs.get('msc2', False), description='Mainsequence Constraint for star 2')]
 
 
     # TODO: can we come up with a better qualifier for reddening (and be consistent when we enable in phoebe2)
@@ -370,11 +369,13 @@ def photodynam(**kwargs):
         raise NotImplementedError("'photodynam' backend not officially supported for this release.  Enable developer mode to test.")
 
     params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv', 'orb'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
-    # params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='method to pass passband luminosities to photodynam from parameters in the bundle when pblum_mode is not \'decoupled\'.  Setting to \'phoebe\' will build the mesh at time t0 and compute luminosities.')]
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note photodynam itself does not support atmospheres.')]
+    params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from photodynam.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
 
     params += [FloatParameter(qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='Stepsize to use for dynamics integration')]
     params += [FloatParameter(qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='Error to use for dynamics integraton')]
@@ -417,7 +418,7 @@ def jktebop(**kwargs):
     * requiv
     * gravb_bol
     * irrad_frac_refl_bol
-    * teff (ratio^4 used as an estimate for surface brightness ratio)
+    * teff (ratio^4 used as an estimate of surface brightness ratio, unless pblum_mode='decoupled' in which case pblum ratio is passed directly)
 
     Orbit:
     * sma
@@ -482,11 +483,13 @@ def jktebop(**kwargs):
         <phoebe.parameters.Parameter> objects.
     """
     params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
-    # params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='method to pass passband luminosities to jktebop from parameters in the bundle when pblum_mode is not \'decoupled\'.  Setting to \'phoebe\' will build the mesh at time t0 and compute luminosities.')]
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note jktebop itself does not support atmospheres.')]
+    params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from jktebop.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
 
     params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integration ring size')]
 
@@ -530,7 +533,7 @@ def ellc(**kwargs):
     * requiv (passed as relative radii by dividing by sma)
     * syncpar
     * gravb_bol
-    * teff (ratio^4 used as an estimate of surface brightness ratio)
+    * teff (ratio^4 used as an estimate of surface brightness ratio, unless pblum_mode='decoupled' in which case pblum ratio is passed directly)
     * irrad_frac_refl_bol
 
     Orbit:
@@ -621,11 +624,13 @@ def ellc(**kwargs):
         # raise NotImplementedError("'ellc' backend not officially supported for this release.  Enable developer mode to test.")
 
     params = _sampling_params(**kwargs)
+    params += _comments_params(**kwargs)
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': ['spot'], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
 
-    # params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='method to pass passband luminosities to ellc from parameters in the bundle when pblum_mode is not \'decoupled\'.  Setting to \'phoebe\' will build the mesh at time t0 and compute luminosities.')]
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note ellc itself does not support atmospheres.')]
+    params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from ellc.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]
 
     params += [ChoiceParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=["roche", "roche_v", "sphere", "poly1p5", "poly3p0", "love"], description='Method to use for distorting stars')]
     params += [FloatParameter(visible_if='distortion_method:love', copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='hf', value=kwargs.get('hf', 1.5), limits=(0,None), default_unit=u.dimensionless_unscaled, description='fluid second love number for radial displacement')]

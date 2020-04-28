@@ -163,6 +163,14 @@ def samples(samples, weights=None, bw_method=None, unit=None, label=None, wrap_a
                          unit=unit, label=label, wrap_at=wrap_at)
 
 
+def function(func, args=[], kwargs={}, vectorized=True, hist_samples=None, unit=None, label=None, wrap_at=None):
+    """
+    Create a <Function> distribution.
+    """
+    return _distl.Function(func, args, kwargs, vectorized, hist_samples,
+                           unit=unit, label=label, wrap_at=wrap_at)
+
+
 #### MULTIVARIATE DISTRIBUTJIONS ####
 
 def mvgaussian(mean, cov, allow_singular=False,

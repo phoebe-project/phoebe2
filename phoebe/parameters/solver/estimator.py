@@ -5,6 +5,14 @@ from phoebe import geomspace as _geomspace
 
 ### NOTE: if creating new parameters, add to the _forbidden_labels list in parameters.py
 
+def _comments_params(**kwargs):
+    """
+    """
+    params = []
+
+    params += [StringParameter(qualifier='comments', value=kwargs.get('comments', ''), description='User-provided comments for these solver-options.  Feel free to place any notes here - if not overridden, they will be copied to any resulting solutions.')]
+    return params
+
 def lc_eclipse_geometry(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for solver options for the
@@ -32,7 +40,7 @@ def lc_eclipse_geometry(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _comments_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='lc', value=kwargs.get('lc', ''), choices=[''], description='Light curve dataset to use to extract eclipse geometry')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the dataset parameter')]
@@ -74,7 +82,7 @@ def periodogram(**kwargs):
     * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
         <phoebe.parameters.Parameter> objects.
     """
-    params = []
+    params = _comments_params(**kwargs)
 
     params += [ChoiceParameter(qualifier='algorithm', value=kwargs.get('algorithm', 'bls'), choices=['bls', 'ls'], description='Algorithm to use to create the periodogram.  bls: BoxLeastSquares, ls: LombScargle.')]
 

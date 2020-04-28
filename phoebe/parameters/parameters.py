@@ -233,12 +233,13 @@ _forbidden_labels += ['times', 'fluxes', 'sigmas', 'sigmas_lnf',
 
 
 # from compute:
-_forbidden_labels += ['enabled', 'dynamics_method', 'ltte',
+_forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
                       'gr', 'stepsize', 'integrator',
                       'irrad_method', 'boosting_method', 'mesh_method', 'distortion_method',
                       'ntriangles', 'rv_grav',
                       'mesh_offset', 'mesh_init_phi', 'horizon_method', 'eclipse_method',
                       'atm', 'lc_method', 'rv_method', 'fti_method', 'fti_oversample',
+                      'pblum_method',
                       'etv_method', 'etv_tol',
                       'gridsize', 'refl_num', 'ie',
                       'stepsize', 'orbiterror', 'ringsize',
@@ -5446,9 +5447,9 @@ class Parameter(object):
             quantity = self.get_value()
 
         if hasattr(self, 'constraint') and self.constraint is not None:
-            return "<Parameter: {}={} (constrained) | keys: {}>".format(self.qualifier, quantity, ', '.join(self._dict_fields_other))
+            return "<Parameter: {}={} (constrained) | keys: {}>".format(self.qualifier, quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity, ', '.join(self._dict_fields_other))
         else:
-            return "<Parameter: {}={} | keys: {}>".format(self.qualifier, quantity, ', '.join(self._dict_fields_other))
+            return "<Parameter: {}={} | keys: {}>".format(self.qualifier, quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity, ', '.join(self._dict_fields_other))
 
     def __str__(self):
         """
@@ -5463,7 +5464,7 @@ class Parameter(object):
         str_ = "{}: {}\n".format("Parameter", self.uniquetwig)
         str_ += "{:>32}: {}\n".format("Qualifier", self.qualifier)
         str_ += "{:>32}: {}\n".format("Description", self.description)
-        str_ += "{:>32}: {}\n".format("Value", quantity)
+        str_ += "{:>32}: {}\n".format("Value", quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity)
 
         if hasattr(self, 'choices'):
             str_ += "{:>32}: {}\n".format("Choices", ", ".join(self.choices))
@@ -5580,7 +5581,8 @@ class Parameter(object):
         else:
             prefix = '  '
 
-        return "{} {:>30}: {}".format(prefix, self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+        quantity = self.get_quantity() if hasattr(self, 'quantity') else self.get_value()
+        return "{} {:>30}: {}".format(prefix, self.uniquetwig_trunc, quantity.__repr__() if isinstance(quantity, distl._distl.BaseDistlObject) else quantity)
 
     # @property
     # def __dict__(self):
@@ -8427,7 +8429,7 @@ class FloatParameter(Parameter):
         return direct_ps + indirect_params
 
 
-    def get_distribution(self, distribution=None, follow_constraints=True):
+    def get_distribution(self, distribution=None, follow_constraints=True, resolve_around_distributions=False):
         """
         Access the distribution object corresponding to this parameter
         tagged with distribution=`distribution`.  To access the
@@ -8459,6 +8461,8 @@ class FloatParameter(Parameter):
             distributions through constraints if this parameter is constrained.
             If False, the distribution directly attached to the parameter
             will be exposed instead.
+        * `resolve_around_distributions` (bool, optional, default=False): resolve
+            any "around" distributions to the current face-value.
 
         Returns
         ----------
@@ -8505,6 +8509,13 @@ class FloatParameter(Parameter):
             # raise NotImplementedError("constraint propagation for distributions not yet implemented")
             dist = self.is_constraint.get_result(use_distribution=distribution)
 
+            if not isinstance(dist, distl._distl.BaseDistlObject):
+                # then the constraint returned a value, which means none of the
+                # constraining parameters had matching distributions... so we'll
+                # fallback on the distribution directly attached to this parameter
+                # instead
+                dist = None
+
         if dist is None:
             dist = self._bundle.get_parameter(qualifier=self.qualifier,
                                               distribution=distribution,
@@ -8513,7 +8524,10 @@ class FloatParameter(Parameter):
                                               **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
 
         if isinstance(dist, distl.BaseAroundGenerator):
-            dist.value = self.get_value()
+            if resolve_around_distributions:
+                dist = dist.__call__(self.get_value())
+            else:
+                dist.value = self.get_value()
 
         if dist.label is None:
             dist.label = '{}@{}'.format(self.qualifier, getattr(self, self.context))
@@ -8815,6 +8829,9 @@ class FloatParameter(Parameter):
         if value is not None and value.unit.physical_type == 'angle':
             # NOTE: this may fail for nparray types
             if value > (360*u.deg) or value < (0*u.deg):
+                if self._bundle is not None and self._bundle._within_sampling and not kwargs.get('from_constraint', False):
+                    if abs(value.to(u.deg).value - self._value.to(u.deg).value) > 180:
+                        raise ValueError("value further than 180 deg from {}".format(self._value.to(u.deg).value))
                 value = value % (360*u.deg)
                 logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
 
@@ -10757,16 +10774,17 @@ class ConstraintParameter(Parameter):
         # trying to resolve the infinite loop.
         from phoebe.constraints import builtin
         _constraint_builtin_funcs = [f for f in dir(builtin) if isinstance(getattr(builtin, f), types.FunctionType)]
-        _constraint_builtin_funcs += ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'sqrt', 'log10']
+        _constraint_math_funcs = ['sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'arctan2', 'sqrt', 'log10']
 
-        def eq_needs_builtin(eq):
-            for func in _constraint_builtin_funcs:
+        def eq_needs_builtin(eq, include_math=True):
+            builtin_funcs =  _constraint_builtin_funcs + _constraint_math_funcs if include_math else _constraint_builtin_funcs
+            for func in builtin_funcs:
                 if "{}(".format(func) in eq:
                     #print "*** eq_needs_builtin", func
                     return True
             return False
 
-        def get_values(vars, safe_label=True, string_safe_arrays=False, use_distribution=None):
+        def get_values(vars, safe_label=True, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
             # use np.float64 so that dividing by zero will result in a
             # np.inf
             def _single_value(quantity, string_safe_arrays=False):
@@ -10790,11 +10808,15 @@ class ConstraintParameter(Parameter):
                 else:
                     return quantity
 
-            def _value(var, string_safe_arrays=False, use_distribution=None):
+            def _value(var, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
                 if use_distribution:
                     param = var.get_parameter()
                     if use_distribution in param.in_distributions:
-                        return "distl_from_json('{}')".format(_single_value(param.get_distribution(use_distribution, follow_constraints=False)).to_json())
+                        dist = param.get_distribution(use_distribution, follow_constraints=False)
+                        if needs_builtin:
+                            return _single_value(dist)
+                        else:
+                            return "distl_from_json('{}')".format(_single_value(dist).to_json())
 
 
                 if var.get_parameter() != self.constrained_parameter:
@@ -10802,7 +10824,7 @@ class ConstraintParameter(Parameter):
                 else:
                     return _single_value(var.get_quantity(), string_safe_arrays)
 
-            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays, use_distribution) for var in vars}
+            return {var.safe_label if safe_label else var.user_label: _value(var, string_safe_arrays, use_distribution, needs_builtin) for var in vars}
 
         eq = self.get_value()
 
@@ -10826,15 +10848,16 @@ class ConstraintParameter(Parameter):
             #     values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution)
             #     print("***", values)
             #     return
-
-            if eq_needs_builtin(eq) or use_distribution:
+            needs_builtin_or_math = eq_needs_builtin(eq)
+            if needs_builtin_or_math or use_distribution:
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
+                needs_builtin = eq_needs_builtin(eq, include_math=False)
 
-                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution)
+                values = get_values(self._vars+self._addl_vars, safe_label=False, string_safe_arrays=True, use_distribution=use_distribution, needs_builtin=needs_builtin)
 
                 # cannot do from builtin import *
-                for func in _constraint_builtin_funcs:
+                for func in _constraint_builtin_funcs + _constraint_math_funcs:
                     # I should be shot for doing this...
                     # in order for eval to work, the builtin functions need
                     # to be imported at the top-level, but I don't really want
@@ -10847,7 +10870,29 @@ class ConstraintParameter(Parameter):
                     # these require passing the bundle
                     # values['b'] = self._bundle
 
-                value = eval(eq.format(**values))
+                if needs_builtin and use_distribution:
+                    # need to parse {} in eq and get values in correct order as args (including non {}, like 1)
+                    # need to access callable func from eq
+                    funcname = eq.split("(")[0]
+                    argnames = eq.split("(")[1].split(")")[0].split(", ")
+                    args = []
+                    for argname in argnames:
+                        if argname[0] == "{":
+                            args.append(values.get(argname[1:-1]))
+                        else:
+                            args.append(float(argname) if "." in argname else int(argname))
+
+                    hist_samples = None
+                    vectorized = False
+                    if 'pot' in funcname or 'fillout_factor' in funcname:
+                        # these are particularly expensive, so we'll only use 1000 samples in the underlying histogram by default
+                        hist_samples = 1000
+                        vectorized = False
+                    if funcname[:2] == 't0':
+                        vectorized = True
+                    value = distl.function(locals().get(funcname), args, vectorized=vectorized, hist_samples=hist_samples)
+                else:
+                    value = eval(eq.format(**values))
 
                 if value is None:
                     if suppress_error:

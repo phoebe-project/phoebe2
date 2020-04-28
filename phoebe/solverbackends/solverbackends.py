@@ -14,15 +14,16 @@ from phoebe import u, c
 from phoebe import conf, mpi
 from phoebe.backend.backends import _simplify_error_message
 from phoebe.utils import phase_mask_inds
+from phoebe import pool as _pool
 
 from distutils.version import LooseVersion, StrictVersion
 from copy import deepcopy as _deepcopy
+import multiprocessing
 
 from . import lc_eclipse_geometry
 
 try:
     import emcee
-    import schwimmbad
 except ImportError:
     _use_emcee = False
 else:
@@ -30,7 +31,6 @@ else:
 
 try:
     import dynesty
-    import schwimmbad
     import pickle
 except ImportError:
     _use_dynesty = False
@@ -53,8 +53,15 @@ logger.addHandler(logging.NullHandler())
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
+def _wrap_central_values(b, dc, uniqueids):
+    ret = {}
+    for dist, uniqueid in zip(dc.dists, uniqueids):
+        param = b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+        if param.default_unit.physical_type == 'angle':
+            ret[uniqueid] = dist.median()
+    return ret
 
-def _bsolver(b, solver, compute, distributions):
+def _bsolver(b, solver, compute, distributions, wrap_central_values={}):
     # TODO: OPTIMIZE exclude disabled datasets?
     # TODO: re-enable removing unused compute options - currently causes some constraints to fail
     # TODO: is it quicker to initialize a new bundle around b.exclude?  Or just leave everything?
@@ -63,6 +70,12 @@ def _bsolver(b, solver, compute, distributions):
     if len(b.solvers) > 1:
         bexcl.remove_parameters_all(solver=[f for f in b.solvers if f!=solver and solver is not None], **_skip_filter_checks)
     bexcl.remove_parameters_all(distribution=[d for d in b.distributions if d not in distributions], **_skip_filter_checks)
+
+    # set face-values to be central values for any angle parameters in init_from
+    for uniqueid, value in wrap_central_values.items():
+        # TODO: what to do if continue_from was used but constraint has since been flipped?
+        bexcl.set_value(uniqueid=uniqueid, value=value, **_skip_filter_checks)
+
 
     # handle solver_times
     for param in bexcl.filter(qualifier='solver_times', **_skip_filter_checks).to_list():
@@ -133,14 +146,21 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
                   solution,
                   compute_kwargs={},
                   custom_lnprobability_callable=None,
-                  return_blob=False):
+                  failed_samples_buffer=False):
 
 
     def _return(lnprob, msg):
-        if return_blob:
-            return lnprob, (_simplify_error_message(msg), sampled_values) if msg != 'success' else (None, None)
-        else:
-            return lnprob
+        if msg != 'success' and failed_samples_buffer is not False:
+            msg_tuple = (_simplify_error_message(msg), sampled_values.tolist())
+            if failed_samples_buffer.__class__.__name__ == 'ListProxy':
+                failed_samples_buffer.append(msg_tuple)
+            else:
+                # TODO: right now this passes an empty list, just for ease on the creation... but we probably should check we're within MPI
+                # assume MPI
+                comm = _MPI.COMM_WORLD
+                comm.ssend(msg_tuple, 0, tag=99999999)
+
+        return lnprob
 
     # copy the bundle to make sure any changes by setting values/running models
     # doesn't affect the user-copy (or in other processors)
@@ -155,6 +175,20 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
             except ValueError as err:
                 logger.warning("received error while setting values: {}. lnprobability=-inf".format(err))
                 return _return(-np.inf, str(err))
+
+    # run delayed constraints and failed constraints would be run within calculate_lnp or run_compute,
+    # but here we can catch the error in advance and return it appropriately
+    try:
+        b.run_delayed_constraints()
+    except Exception as err:
+        logger.warning("received error while running constraints: {}. lnprobability=-inf".format(err))
+        return _return(-np.inf, str(err))
+
+    try:
+        b.run_failed_constraints()
+    except Exception as err:
+        logger.warning("received error while running constraints: {}. lnprobability=-inf".format(err))
+        return _return(-np.inf, str(err))
 
     lnpriors = b.calculate_lnp(distribution=priors, combine=priors_combine)
     if not np.isfinite(lnpriors):
@@ -183,14 +217,14 @@ def _lnprobability_negative(sampled_values, b, params_uniqueids, compute,
                            solution,
                            compute_kwargs={},
                            custom_lnprobability_callable=None,
-                           return_blob=False):
+                           failed_samples_buffer=None):
 
     return -1 * _lnprobability(sampled_values, b, params_uniqueids, compute,
                               priors, priors_combine,
                               solution,
                               compute_kwargs,
                               custom_lnprobability_callable,
-                              return_blob)
+                              failed_samples_buffer)
 
 def _sample_ppf(ppf_values, distributions_list):
     # NOTE: this will treat each item in the collection independently, ignoring any covariances
@@ -614,7 +648,7 @@ class EmceeBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_emcee:
-            raise ImportError("could not import emcee, schwimmbad")
+            raise ImportError("could not import emcee")
 
         if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
             raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
@@ -638,6 +672,7 @@ class EmceeBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
 
         solution_params = []
+        solution_params += [_parameters.DictParameter(qualifier='wrap_central_values', value={}, advanced=True, readonly=True, description='Central values adopted for all parameters in init_from that allow angle-wrapping.  Sampled values are not allowed beyond +/- pi of the central value.')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
@@ -675,7 +710,8 @@ class EmceeBackend(BaseSolverBackend):
     def run_worker(self, b, solver, compute, **kwargs):
 
         def _get_packetlist():
-            return_ = [{'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
+            return_ = [{'qualifier': 'wrap_central_values', 'value': wrap_central_values},
+                     {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
                      {'qualifier': 'fitted_units', 'value': params_units},
                      {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
@@ -686,7 +722,7 @@ class EmceeBackend(BaseSolverBackend):
                      {'qualifier': 'thin', 'value': thin},
                      {'qualifier': 'progress', 'value': progress}]
 
-            if kwargs.get('expose_failed'):
+            if expose_failed:
                 return_ += [{'qualifier': 'failed_samples', 'value': failed_samples}]
 
             return [return_]
@@ -695,10 +731,24 @@ class EmceeBackend(BaseSolverBackend):
         # from our own waiting loop in phoebe's __init__.py and subscribe them
         # to emcee's pool.
         if mpi.within_mpirun:
-            pool = schwimmbad.MPIPool()
+            global failed_samples_buffer
+            failed_samples_buffer = []
+            global _MPI
+            from mpi4py import MPI as _MPI # needed for the cost-function to send failed samples
+
+            def mpi_failed_samples_callback(result):
+                global failed_samples_buffer
+                if isinstance(result, tuple):
+                    failed_samples_buffer.append(result)
+                    return False
+                else:
+                    return True
+
+            pool = _pool.MPIPool(callback=mpi_failed_samples_callback)
             is_master = pool.is_master()
         else:
-            pool = schwimmbad.MultiPool()
+            pool = _pool.MultiPool()
+            failed_samples_buffer = multiprocessing.Manager().list()
             is_master = True
 
         # temporarily disable MPI within run_compute to disabled parallelizing
@@ -743,6 +793,8 @@ class EmceeBackend(BaseSolverBackend):
                                                                      include_constrained=False,
                                                                      keys='uniqueid')
 
+                wrap_central_values = _wrap_central_values(b, dc, params_uniqueids)
+
                 p0 = dc.sample(size=nwalkers).T
                 params_units = [dist.unit.to_string() for dist in dc.dists]
 
@@ -752,10 +804,12 @@ class EmceeBackend(BaseSolverBackend):
                 # ignore the value from init_from (hidden parameter)
                 init_from = []
                 continue_from_ps = kwargs.get('continue_from_ps', b.filter(context='solution', solution=continue_from, **_skip_filter_checks))
+                wrap_central_values = continue_from_ps.get_value(qualifier='wrap_central_values', **_skip_filter_checks)
                 params_uniqueids = continue_from_ps.get_value(qualifier='fitted_uniqueids', **_skip_filter_checks)
                 params_units = continue_from_ps.get_value(qualifier='fitted_units', **_skip_filter_checks)
                 continued_samples = continue_from_ps.get_value(qualifier='samples', **_skip_filter_checks)
                 expose_failed = 'failed_samples' in continue_from_ps.qualifiers
+                kwargs['expose_failed'] = expose_failed # needed for _get_packet_and_solution
                 if expose_failed:
                     continued_failed_samples = continue_from_ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
                 else:
@@ -786,10 +840,6 @@ class EmceeBackend(BaseSolverBackend):
                 backend.log_prob = continued_lnprobabilities
                 backend.initialized = True
                 backend.random_state = None
-                # reconstructing blobs will be messy, so we'll just get the correct
-                # shape with nones, but add to the existing dictionary later
-                backend.blobs = np.full(tuple(list(continued_samples.shape[:-1])+[2]), fill_value=None)
-
                 esargs['backend'] = backend
 
             params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
@@ -802,7 +852,7 @@ class EmceeBackend(BaseSolverBackend):
             # esargs['moves'] = kwargs.pop('moves', None)
             # esargs['args'] = None
 
-            esargs['kwargs'] = {'b': _bsolver(b, solver, compute, init_from+priors),
+            esargs['kwargs'] = {'b': _bsolver(b, solver, compute, init_from+priors, wrap_central_values),
                                 'params_uniqueids': params_uniqueids,
                                 'compute': compute,
                                 'priors': priors,
@@ -810,7 +860,7 @@ class EmceeBackend(BaseSolverBackend):
                                 'solution': kwargs.get('solution', None),
                                 'compute_kwargs': {k:v for k,v in kwargs.items() if k in b.get_compute(compute=compute, **_skip_filter_checks).qualifiers},
                                 'custom_lnprobability_callable': kwargs.pop('custom_lnprobability_callable', None),
-                                'return_blob': kwargs.get('expose_failed')}
+                                'failed_samples_buffer': False if not expose_failed else failed_samples_buffer}
 
             # esargs['live_dangerously'] = kwargs.pop('live_dangerously', None)
             # esargs['runtime_sortingfn'] = kwargs.pop('runtime_sortingfn', None)
@@ -822,7 +872,6 @@ class EmceeBackend(BaseSolverBackend):
             sargs = {}
             sargs['iterations'] = niters
             sargs['progress'] = True
-            # TODO: remove this?  Or can we reproduce the logic in a warning?
             sargs['skip_initial_state_check'] = False
 
 
@@ -860,11 +909,9 @@ class EmceeBackend(BaseSolverBackend):
                         thin = 1
 
                     failed_samples = _deepcopy(continued_failed_samples)
-                    if kwargs.get('expose_failed'):
-                        for blob in sampler.get_blobs(flat=True):
-                            if blob is None or blob[0] is None:
-                                continue
-                            failed_samples[blob[0]] = failed_samples.get(blob[0], []) + [blob[1].tolist()]
+                    if expose_failed:
+                        for msg, fsamples in failed_samples_buffer:
+                            failed_samples[msg] = failed_samples.get(msg, []) + [fsamples]
 
                     if progress_every_niters > 0:
                         logger.info("emcee: saving output from iteration {}".format(sampler.iteration))
@@ -883,7 +930,6 @@ class EmceeBackend(BaseSolverBackend):
                                 fname = '{}.progress.ps'.format(solution)
 
                         solution_ps.save(fname, compact=True, sort_by_context=False)
-
 
         else:
             pool.wait()
@@ -916,7 +962,7 @@ class DynestyBackend(BaseSolverBackend):
         # check whether emcee is installed
 
         if not _use_dynesty:
-            raise ImportError("could not import dynesty, pickle, and schwimmbad")
+            raise ImportError("could not import dynesty, pickle")
 
         solver_ps = b.get_solver(solver)
         if not len(solver_ps.get_value(qualifier='priors', init_from=kwargs.get('priors', None))):
@@ -932,6 +978,7 @@ class DynestyBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
 
         solution_params = []
+        solution_params += [_parameters.DictParameter(qualifier='wrap_central_values', value={}, advanced=True, readonly=True, description='Central values adopted for all parameters in init_from that allow angle-wrapping.  Sampled values are not allowed beyond +/- pi of the central value.')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the sampler')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of parameters fitted by the sampler')]
@@ -973,7 +1020,8 @@ class DynestyBackend(BaseSolverBackend):
     def run_worker(self, b, solver, compute, **kwargs):
 
         def _get_packetlist(results):
-            return [[{'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
+            return [[{'qualifier': 'wrap_central_values', 'value': wrap_central_values},
+                     {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
                      {'qualifier': 'fitted_units', 'value': params_units},
                      {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
@@ -999,10 +1047,10 @@ class DynestyBackend(BaseSolverBackend):
                     ]]
 
         if mpi.within_mpirun:
-            pool = schwimmbad.MPIPool()
+            pool = _pool.MPIPool()
             is_master = pool.is_master()
         else:
-            pool = schwimmbad.MultiPool()
+            pool = _pool.MultiPool()
             is_master = True
 
 
@@ -1036,13 +1084,15 @@ class DynestyBackend(BaseSolverBackend):
                                                                         keys='uniqueid',
                                                                         set_labels=False)
 
+            wrap_central_values = _wrap_central_values(b, priors_dc, params_uniqueids)
+
             params_units = [dist.unit.to_string() for dist in priors_dc.dists]
             params_twigs = [b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in params_uniqueids]
 
             # NOTE: in dynesty we draw from the priors and pass the prior-transforms,
             # but do NOT include the lnprior term in lnlikelihood, so we pass
             # priors as []
-            lnlikelihood_kwargs = {'b': _bsolver(b, solver, compute, []),
+            lnlikelihood_kwargs = {'b': _bsolver(b, solver, compute, [], wrap_central_values),
                                    'params_uniqueids': params_uniqueids,
                                    'compute': compute,
                                    'priors': [],
@@ -1316,10 +1366,10 @@ class Differential_EvolutionBackend(BaseSolverBackend):
             return (dist.low, dist.high)
 
         if mpi.within_mpirun:
-            pool = schwimmbad.MPIPool()
+            pool = _pool.MPIPool()
             is_master = pool.is_master()
         else:
-            pool = schwimmbad.MultiPool()
+            pool = _pool.MultiPool()
             is_master = True
 
         # temporarily disable MPI within run_compute to disabled parallelizing

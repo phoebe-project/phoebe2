@@ -20,6 +20,7 @@ from phoebe.frontend import io
 import phoebe.frontend.bundle
 from phoebe import u, c
 from phoebe import conf, mpi
+from phoebe import pool as _pool
 
 
 try:
@@ -41,13 +42,6 @@ except ImportError:
 else:
     _use_ellc = True
 
-try:
-    import schwimmbad
-except ImportError:
-    _can_schwimmbad = False
-else:
-    _can_schwimmbad = True
-
 from scipy.stats import norm as _norm
 
 
@@ -66,6 +60,8 @@ def _simplify_error_message(msg):
     msg = str(msg) # in case an exception object
     if 'not within limits' in msg:
         msg = 'outside parameter limits'
+    elif 'value further than' in msg:
+        msg = 'outside angle wrapping limits'
     elif 'overflow' in msg:
         msg = 'roche overflow'
     elif 'lookup ld_coeffs' in msg:
@@ -667,20 +663,14 @@ class SampleOverModel(object):
         """
         if within mpirun, workers should call _run_worker instead of run
         """
-        if not _can_schwimmbad:
-            raise ImportError("schwimmbad required for sampling within run_compute")
-
         # TODO: can we run the checks of the requested backend?
         #self.run_checks(b, compute, times, **kwargs)
 
-
-        # TODO: use serial if not _can_schwimmbad? (can we use MPI even without schwimmbad)
-
         if mpi.within_mpirun:
-            pool = schwimmbad.MPIPool()
+            pool = _pool.MPIPool()
             is_master = pool.is_master()
         else:
-            pool = schwimmbad.MultiPool()
+            pool = _pool.MultiPool()
             # pool = schwimmbad.SerialPool()
             is_master = True
 
@@ -1468,7 +1458,9 @@ class LegacyBackend(BaseBackendByDataset):
 
         # make phoebe 1 file
         # tmp_filename = temp_name = next(tempfile._get_candidate_names())
-
+        computeparams = b.get_compute(compute, force_ps=True)
+        pblum_method = computeparams.get_value(qualifier='pblum_method', pblum_method=kwargs.get('pblum_method', None), **_skip_filter_checks)
+        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=pblum_method=='stefan-boltzmann')
 
         phb1.init()
         try:
@@ -1501,8 +1493,6 @@ class LegacyBackend(BaseBackendByDataset):
             comp = phb1.getpar('phoebe_rv_dep', rvind).split(' ')[0].lower()
             rvcurve = rvid+'-'+comp
             rvinds[rvcurve] = rvind
-
-        computeparams = b.get_compute(compute, force_ps=True)
 
         #os.remove(tmp_filename)
 
@@ -2033,7 +2023,8 @@ class JktebopBackend(BaseBackendByDataset):
 
         computeparams = b.get_compute(compute, force_ps=True)
 
-        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=True)
+        pblum_method = computeparams.get_value(qualifier='pblum_method', pblum_method=kwargs.get('pblum_method', None), **_skip_filter_checks)
+        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=pblum_method=='stefan-boltzmann')
 
         hier = b.get_hierarchy()
 
@@ -2112,12 +2103,14 @@ class JktebopBackend(BaseBackendByDataset):
         else:
             raise NotImplementedError("irrad_method '{}' not supported".format(irrad_method))
 
-        logger.debug("estimating surface brightness ratio from pblum and requiv")
-        # note: these aren't true surface brightnesses, but the ratio should be fine
-        # sb_primary = b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad)**2
-        # sb_secondary = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, check_visible=False) / b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad)**2
-        # sbratio =  sb_secondary / sb_primary
-        sbratio = (b.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K, **_skip_filter_checks)/b.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
+        # NOTE: pblum_mode does not exist to RVs, so will default to absolute
+        pblum_mode = b.get_value(qualifier='pblum_mode', dataset=info['dataset'], context='dataset', default='absolute', **_skip_filter_checks)
+        if pblum_mode == 'decoupled':
+            logger.debug("using pblum ratio for sbratio (pblum_mode='decoupled')")
+            sbratio = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, **_skip_filter_checks)/b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, **_skip_filter_checks)
+        else:
+            logger.debug("using (T2/T1)^4 for sbratio (pblum_mode='{}')".format(pblum_mode))
+            sbratio = (b.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K, **_skip_filter_checks)/b.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
 
 
         # let's make sure we'll be able to make the translation later
@@ -2295,8 +2288,8 @@ class EllcBackend(BaseBackendByDataset):
 
         computeparams = b.get_compute(compute, force_ps=True, **_skip_filter_checks)
 
-        # TODO: toggle using use_sb_approx based on estimating the overfill amount?
-        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=True)
+        pblum_method = computeparams.get_value(qualifier='pblum_method', pblum_method=kwargs.get('pblum_method', None), **_skip_filter_checks)
+        b._compute_necessary_values(computeparams, pbflux=True, use_sb_approx=pblum_method=='stefan-boltzmann')
 
         hier = b.get_hierarchy()
 
@@ -2321,8 +2314,6 @@ class EllcBackend(BaseBackendByDataset):
         a = comp_ps.get_value(qualifier='sma', component=orbitref, unit=u.solRad, **_skip_filter_checks)
         radius_1 = comp_ps.get_value(qualifier='requiv', component=starrefs[0], unit=u.solRad, **_skip_filter_checks) / a
         radius_2 = comp_ps.get_value(qualifier='requiv', component=starrefs[1], unit=u.solRad, **_skip_filter_checks) / a
-
-        sbratio = (comp_ps.get_value(qualifier='teff', component=starrefs[1], unit=u.K, **_skip_filter_checks)/comp_ps.get_value(qualifier='teff', component=starrefs[0], unit=u.K, **_skip_filter_checks))**4
 
         period = comp_ps.get_value(qualifier='period', component=orbitref, unit=u.d, **_skip_filter_checks)
         q = comp_ps.get_value(qualifier='q', component=orbitref, **_skip_filter_checks)
@@ -2409,7 +2400,6 @@ class EllcBackend(BaseBackendByDataset):
                     grid_1=grid_1, grid_2=grid_2,
                     exact_grav=exact_grav,
                     radius_1=radius_1, radius_2=radius_2,
-                    sbratio=sbratio,
                     incl=incl,
                     t_zero=t_zero,
                     period=period,
@@ -2443,8 +2433,6 @@ class EllcBackend(BaseBackendByDataset):
 
         radius_1 = kwargs.get('radius_1')
         radius_2 = kwargs.get('radius_2')
-
-        sbratio = kwargs.get('sbratio')
 
         incl = kwargs.get('incl')
 
@@ -2485,6 +2473,16 @@ class EllcBackend(BaseBackendByDataset):
         ldc_1 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[0], **_skip_filter_checks)
         ld_2 = _ellc_ld_func.get(ds_ps.get_value(qualifier='ld_func', component=starrefs[1], **_skip_filter_checks))
         ldc_2 = ds_ps.get_value(qualifier='ld_coeffs', component=starrefs[1], **_skip_filter_checks)
+
+        # NOTE: pblum_mode doesn't exist for RVs, so will default to 'absolute'
+        pblum_mode = b.get_value(qualifier='pblum_mode', dataset=info['dataset'], context='dataset', default='absolute', **_skip_filter_checks)
+        if pblum_mode == 'decoupled':
+            logger.debug("using pblum ratio for sbratio (pblum_mode='decoupled')")
+            sbratio = b.get_value(qualifier='pblum', component=starrefs[1], dataset=info['dataset'], context='dataset', unit=u.W, **_skip_filter_checks)/b.get_value(qualifier='pblum', component=starrefs[0], dataset=info['dataset'], context='dataset', unit=u.W, **_skip_filter_checks)
+        else:
+            logger.debug("using (T2/T1)^4 for sbratio (pblum_mode='{}')".format(pblum_mode))
+            sbratio = (b.get_value(qualifier='teff', component=starrefs[1], context='component', unit=u.K, **_skip_filter_checks)/b.get_value(qualifier='teff', component=starrefs[0], context='component', unit=u.K, **_skip_filter_checks))**4
+
 
         if info['kind'] == 'lc':
             light_3 = ds_ps.get_value(qualifier='l3_frac', **_skip_filter_checks)
