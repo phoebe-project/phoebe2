@@ -188,7 +188,7 @@ def fit_lc(phases, fluxes, sigmas):
             'CG12E1': ['C', 'mu1', 'd1', 'sigma1', 'mu2', 'd2', 'sigma2', 'Aell'],
             'CG12E2': ['C', 'mu1', 'd1', 'sigma1', 'mu2', 'd2', 'sigma2', 'Aell']}
 
-    best_fit = list(models.keys())[np.argmax(list(bics.values()))]
+    best_fit = list(models.keys())[np.nanargmax(list(bics.values()))]
     return {'fits':fits, 'models':models, 'bics':bics, 'best_fit':best_fit, 'model_parameters': params}
 
 # REFINING THE FIT
