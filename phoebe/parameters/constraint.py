@@ -12,6 +12,7 @@ list_of_constraints_requiring_si = ['logg']
 
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
+_validsolvefor = {}
 
 def _get_system_ps(b, item, context='component'):
     """
@@ -283,6 +284,7 @@ def custom(b, *args, **kwargs):
 #}
 #{ Intra-orbit constraints
 
+_validsolvefor['asini'] = ['asini', 'incl', 'sma']
 def asini(b, orbit, solve_for=None):
     """
     Create a constraint for asini in an orbit.
@@ -356,6 +358,7 @@ def asini(b, orbit, solve_for=None):
     #- return lhs, rhs, args_as_pss
     return lhs, rhs, [], {'orbit': orbit}
 
+_validsolvefor['esinw'] = ['esinw', 'ecc', 'per0', 'ecosw']
 def esinw(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for esinw in an orbit.
@@ -451,6 +454,7 @@ def esinw(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
+_validsolvefor['ecosw'] = ['ecosw', 'ecc', 'per0', 'esinw']
 def ecosw(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for ecosw in an orbit.
@@ -546,6 +550,7 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
+_validsolvefor['t0_perpass_supconj'] = ['t0_perpass', 't0_supconj']
 def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for t0_perpass in an orbit - allowing translating between
@@ -616,6 +621,7 @@ def t0(*args, **kwargs):
     """
     return t0_perpass_supconj(*args, **kwargs)
 
+_validsolvefor['t0_ref_supconj'] = ['t0_ref', 't0_supconj']
 def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
     """
     Create a constraint for t0_ref in an orbit - allowing translating between
@@ -676,7 +682,7 @@ def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'orbit': orbit}
 
-
+_validsolvefor['mean_anom'] = ['mean_anom', 't0_perpass']
 def mean_anom(b, orbit, solve_for=None, **kwargs):
     """
 
@@ -747,6 +753,7 @@ def _true_anom_to_phase(true_anom, period, ecc, per0):
 
     return phase
 
+_validsolvefor['ph_supconj'] = ['ph_supconj']
 def ph_supconj(b, orbit, solve_for=None, **kwargs):
     """
     This is usually passed as an argument to
@@ -786,6 +793,7 @@ def ph_supconj(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'orbit': orbit}
 
+_validsolvefor['ph_infconj'] = ['ph_infconj']
 def ph_infconj(b, orbit, solve_for=None, **kwargs):
     """
     This constraint is automatically added for binary systems via
@@ -817,6 +825,7 @@ def ph_infconj(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'orbit': orbit}
 
+_validsolvefor['ph_perpass'] = ['ph_perpass']
 def ph_perpass(b, orbit, solve_for=None, **kwargs):
     """
     This is usually passed as an argument to
@@ -847,7 +856,7 @@ def ph_perpass(b, orbit, solve_for=None, **kwargs):
 
 
 
-
+_validsolvefor['freq'] = ['freq', 'period']
 def freq(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for frequency (either orbital or rotational) given a period.
@@ -952,6 +961,7 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
 #}
 #{ Intra-component constraints
 
+_validsolvefor['irrad_frac'] = ['irrad_frac_lost_bol', 'irrad_frac_refl_bol']
 def irrad_frac(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to ensure that energy is conserved and all incident
@@ -1003,6 +1013,7 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['semidetached'] = ['requiv']
 def semidetached(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to force requiv to be semidetached.
@@ -1045,6 +1056,7 @@ def semidetached(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['logg'] = ['logg', 'requiv', 'mass']
 def logg(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for logg at requiv for a star.
@@ -1212,6 +1224,7 @@ def logg(b, component, solve_for=None, **kwargs):
 #}
 #{ Inter-component constraints
 
+_validsolvefor['teffratio'] = ['teffratio', 'teff@hier.children_of(orbit)[0]', 'teff@hier.children_of(orbit)[1]']
 def teffratio(b, orbit=None, solve_for=None, **kwargs):
     """
     Create a constraint to for the teff ratio between two stars in the same orbit.
@@ -1281,7 +1294,7 @@ def teffratio(b, orbit=None, solve_for=None, **kwargs):
     return lhs, rhs, [], {'orbit': orbit}
 
 
-
+_validsolvefor['requivratio'] = ['requivratio', 'requiv@hier.children_of(orbit)[0]', 'requiv@hier.children_of(orbit)[1]']
 def requivratio(b, orbit=None, solve_for=None, **kwargs):
     """
     Create a constraint to for the requiv ratio between two stars in the same orbit.
@@ -1381,6 +1394,7 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
 
     return lhs, rhs, [requivratio, requivsum, requiv1, requiv2], {'orbit': orbit}
 
+_validsolvefor['requivsum'] = ['requivsum', 'requiv@hier.children_of(orbit)[0]', 'requiv@hier.children_of(orbit)[1]']
 def requivsum(b, orbit=None, solve_for=None, **kwargs):
     """
     Create a constraint to for the requiv sum of two stars in the same orbit.
@@ -1484,7 +1498,7 @@ def requivsum(b, orbit=None, solve_for=None, **kwargs):
 #}
 #{ Orbit-component constraints
 
-
+_validsolvefor['mass'] = ['mass', 'sma', 'period', 'q']
 def mass(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the mass of a star based on Kepler's third
@@ -1653,7 +1667,7 @@ def mass(b, component, solve_for=None, **kwargs):
     #
     # return lhs, rhs, [esinw, ecosw, ecc, per0], {'orbit': orbit}
 
-
+_validsolvefor['comp_sma'] = ['comp@star', 'comp@orbit']
 def comp_sma(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the star's semi-major axes WITHIN its
@@ -1732,7 +1746,7 @@ def comp_sma(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
-
+_validsolvefor['requiv_detached_max'] = ['requiv_max']
 def requiv_detached_max(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L1) value of
@@ -1807,6 +1821,7 @@ def requiv_detached_max(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['potential_contact_min'] = ['pot_min']
 def potential_contact_min(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L23) value of
@@ -1865,6 +1880,7 @@ def potential_contact_min(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['potential_contact_max'] = ['pot_max']
 def potential_contact_max(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L1) value of
@@ -1923,6 +1939,7 @@ def potential_contact_max(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['requiv_contact_min'] = ['requiv_min']
 def requiv_contact_min(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L1) value of
@@ -1982,6 +1999,7 @@ def requiv_contact_min(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['requiv_contact_max'] = ['requiv_max']
 def requiv_contact_max(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the critical (at L2/3) value of
@@ -2041,6 +2059,7 @@ def requiv_contact_max(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['fillout_factor'] = ['fillout_factor', 'pot']
 def fillout_factor(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to determine the fillout factor of a contact envelope.
@@ -2102,6 +2121,7 @@ def fillout_factor(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['rotation_period'] = ['period@star', 'syncpar', 'period@orbit']
 def rotation_period(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the rotation period of a star given its orbital
@@ -2168,6 +2188,7 @@ def rotation_period(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['pitch'] = ['incl@star', 'incl@orbit', 'pitch']
 def pitch(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the inclination of a star relative to its parent orbit.
@@ -2233,6 +2254,7 @@ def pitch(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component}
 
+_validsolvefor['yaw'] = ['long_an@star', 'long_an@orbit', 'yaw']
 def yaw(b, component, solve_for=None, **kwargs):
     """
     Create a constraint for the inclination of a star relative to its parent orbit.
@@ -2315,7 +2337,7 @@ def passband_ratio(b, *args, **kwargs):
 
 #}
 #{ Dataset constraints
-
+_validsolvefor['compute_phases'] = ['compute_phases', 'compute_times']
 def compute_phases(b, component, dataset, solve_for=None, **kwargs):
     """
     Create a constraint for the translation between compute_phases and compute_times.
@@ -2387,7 +2409,7 @@ def compute_phases(b, component, dataset, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'component': component, 'dataset': dataset}
 
-
+_validsolvefor['extinction'] = ['ebv', 'Av', 'Rv']
 def extinction(b, dataset, solve_for=None, **kwargs):
     """
     Create a constraint for the translation between ebv, Av, and Rv.
@@ -2442,6 +2464,7 @@ def extinction(b, dataset, solve_for=None, **kwargs):
 
     return lhs, rhs, [], {'dataset': dataset}
 
+_validsolvefor['time_ephem'] = ['time_ephem']
 def time_ephem(b, component, dataset, solve_for=None, **kwargs):
     """
     use the ephemeris of component to predict the expected times of eclipse (used

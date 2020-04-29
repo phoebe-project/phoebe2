@@ -10157,6 +10157,24 @@ class Bundle(ParameterSet):
         conf.interactive_constraints_off(suppress_warning=True)
 
         changed_params = []
+        constraint_revert_flip = {}
+
+        if adopt_values and not trial_run:
+            # check to make sure no constraint issues
+            for uniqueid in fitted_uniqueids[adopt_inds]:
+                param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                if len(param.constrained_by):
+                    constrained_by_ps = ParameterSet(param.constrained_by)
+                    validsolvefor = [v for v in _constraint._validsolvefor.get(param.is_constraint.constraint_func, []) if param.qualifier not in v]
+                    if len(validsolvefor) == 1:
+                        solve_for = constrained_by_ps.get_parameter(twig=validsolvefor[0], **_skip_filter_checks)
+                        constraint_revert_flip[solve_for.uniqueid] = param.uniqueid
+                    else:
+                        raise ValueError("cannot adopt value for {} as it is constrained by multiple parameters: {}.  Flip the constraint manually first, or remove {} from adopt_parameters.".format(param.twig, ", ".join([p.twig for p in param.constrained_by]), param.twig))
+
+            for solve_for_uniqueid, constrained_uniqueid in constraint_revert_flip.items():
+                logger.warning("temporarily flipping {} to solve for {}".format(self.get_parameter(uniqueid=constrained_uniqueid, **_skip_filter_checks).twig, self.get_parameter(uniqueid=solve_for_uniqueid, **_skip_filter_checks).twig))
+                self.get_parameter(uniqueid=constrained_uniqueid, **_skip_filter_checks).is_constraint.flip_for(uniqueid=solve_for_uniqueid)
 
         if solver_kind in ['emcee', 'dynesty']:
             dist, _ = self.get_distribution_collection(solution=solution, **{k:v for k,v in kwargs.items() if k in solution_ps.qualifiers})
@@ -10200,7 +10218,7 @@ class Bundle(ParameterSet):
                         if trial_run:
                             param = param.copy()
                         changed_params.append(param)
-                        param.set_value(value, unit=unit)
+                        param.set_value(value, unit=unit, force=trial_run)
                 else:
                     logger.warning("uniqueid not found, falling back on twig={}".format(twig))
                     if adopt_distributions:
@@ -10217,6 +10235,10 @@ class Bundle(ParameterSet):
         changed_params += self.run_delayed_constraints()
         if user_interactive_constraints:
             conf.interactive_constraints_on()
+
+        for constrained_uniqueid, solve_for_uniqueid in constraint_revert_flip.items():
+            logger.warning("reverting {} to solve for {}".format(self.get_parameter(uniqueid=constrained_uniqueid, **_skip_filter_checks).twig, self.get_parameter(uniqueid=solve_for_uniqueid, **_skip_filter_checks).twig))
+            self.get_parameter(uniqueid=constrained_uniqueid, **_skip_filter_checks).is_constraint.flip_for(uniqueid=solve_for_uniqueid)
 
         ret_ps = ParameterSet([])
         if adopt_distributions:
