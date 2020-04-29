@@ -257,7 +257,7 @@ _forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
                       'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
                       'strategy', 'popsize', 'continue_from', 'init_from_combine',
                       'burnin_factor', 'thin_factor', 'progress_every_niters',
-                      'nlive', 'maxcall', 'lc_eclipse_geometry', 'periodogram',
+                      'nlive', 'maxcall', 'lc_geometry', 'rv_geometry', 'lc_periodogram', 'rv_periodogram',
                       'nelder_mead', 'differential_evolution', 'emcee', 'dynesty']
 
 # from solution:
@@ -4229,7 +4229,7 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
-        elif ps.kind in ['emcee', 'dynesty', 'periodogram', 'lc_eclipse_geometry']:
+        elif ps.kind in ['emcee', 'dynesty', 'lc_periodogram', 'rv_periodogram', 'lc_geometry']:
             pass
             # handled below
         elif ps.context in ['distribution']:
@@ -4282,7 +4282,7 @@ class ParameterSet(object):
             kwargs['plot_package'] = 'distl'
             kwargs['dc'], _ = self._bundle.get_distribution_collection(twig=kwargs.get('distribution_twig', 'sample_from@{}'.format(ps.compute)))
             return (kwargs,)
-        elif ps.kind == 'periodogram':
+        elif ps.kind in ['lc_periodogram', 'rv_periodogram']:
             kwargs['plot_package'] = 'autofig'
             kwargs['x'] = ps.get_quantity(qualifier='period', **_skip_filter_checks)
             kwargs['xlabel'] = 'period'
@@ -4300,7 +4300,7 @@ class ParameterSet(object):
 
             return (kwargs, axvline_kwargs)
 
-        elif ps.kind == 'lc_eclipse_geometry':
+        elif ps.kind == 'lc_geometry':
             lc = ps.get_value(qualifier='lc', **_skip_filter_checks)
             orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
             primary, secondary = self._bundle.hierarchy.get_children_of(orbit)

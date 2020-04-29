@@ -14,13 +14,14 @@ from phoebe import u, c
 from phoebe import conf, mpi
 from phoebe.backend.backends import _simplify_error_message
 from phoebe.utils import phase_mask_inds
+from phoebe.dependencies import nparray
 from phoebe import pool as _pool
 
 from distutils.version import LooseVersion, StrictVersion
 from copy import deepcopy as _deepcopy
 import multiprocessing
 
-from . import lc_eclipse_geometry
+from . import lc_geometry, rv_geometry
 
 try:
     import emcee
@@ -378,9 +379,9 @@ class BaseSolverBackend(object):
         return self._fill_solution(solution_ps, rpacketlists_per_worker)
 
 
-class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
+class Lc_GeometryBackend(BaseSolverBackend):
     """
-    See <phoebe.parameters.solver.estimator.lc_eclipse_geometry>.
+    See <phoebe.parameters.solver.estimator.lc_geometry>.
 
     The run method in this class will almost always be called through the bundle, using
     * <phoebe.frontend.bundle.Bundle.add_solver>
@@ -389,7 +390,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
     def run_checks(self, b, solver, compute, **kwargs):
         solver_ps = b.get_solver(solver)
         if not len(solver_ps.get_value(qualifier='lc', lc=kwargs.get('lc', None))):
-            raise ValueError("cannot run lc_eclipse_geometry without any dataset in lc")
+            raise ValueError("cannot run lc_geometry without any dataset in lc")
 
         # TODO: check to make sure fluxes exist, etc
 
@@ -422,7 +423,7 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
 
     def run_worker(self, b, solver, compute=None, **kwargs):
         if mpi.within_mpirun:
-            raise NotImplementedError("mpi support for scipy.optimize not yet implemented")
+            raise NotImplementedError("mpi support for lc_geometry not yet implemented")
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
         lc = kwargs.get('lc')
@@ -469,19 +470,19 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
         t0_supconj_old = orbit_ps.get_value(qualifier='t0_supconj', **_skip_filter_checks)
 
         diagnose = kwargs.get('diagnose', False)
-        eclipse_dict = lc_eclipse_geometry.compute_eclipse_params(phases, fluxes, sigmas, diagnose=diagnose)
+        eclipse_dict = lc_geometry.compute_eclipse_params(phases, fluxes, sigmas, diagnose=diagnose)
 
         edges = eclipse_dict.get('eclipse_edges')
         mask_phases = [(edges[0], edges[1]), (edges[2], edges[3])]
 
         # TODO: update to use widths as well (or alternate based on ecc?)
-        ecc, per0 = lc_eclipse_geometry.ecc_w_from_geometry(eclipse_dict.get('secondary_position') - eclipse_dict.get('primary_position'), eclipse_dict.get('primary_width'), eclipse_dict.get('secondary_width'))
+        ecc, per0 = lc_geometry.ecc_w_from_geometry(eclipse_dict.get('secondary_position') - eclipse_dict.get('primary_position'), eclipse_dict.get('primary_width'), eclipse_dict.get('secondary_width'))
 
         # TODO: create parameters in the solver options if we want to expose these options to the user
         # if t0_near_times == True the computed t0 is adjusted to fall in time times array range
         t0_near_times = kwargs.get('t0_near_times', True)
 
-        t0_supconj_new = lc_eclipse_geometry.t0_from_geometry(eclipse_dict.get('primary_position'), times,
+        t0_supconj_new = lc_geometry.t0_from_geometry(eclipse_dict.get('primary_position'), times,
                                 period=period, t0_supconj=t0_supconj_old, t0_near_times=t0_near_times)
         # TODO: correct t0_supconj?
 
@@ -504,26 +505,126 @@ class Lc_Eclipse_GeometryBackend(BaseSolverBackend):
                 ]]
 
 
-
-class PeriodogramBackend(BaseSolverBackend):
+class Rv_GeometryBackend(BaseSolverBackend):
     """
-    See <phoebe.parameters.solver.estimator.periodogram>.
+    See <phoebe.parameters.solver.estimator.rvc_geometry>.
 
     The run method in this class will almost always be called through the bundle, using
     * <phoebe.frontend.bundle.Bundle.add_solver>
     * <phoebe.frontend.bundle.Bundle.run_solver>
     """
     def run_checks(self, b, solver, compute, **kwargs):
-        if not _use_astropy_timeseries:
-            raise ImportError("astropy.timeseries not installed (requires astropy 3.2+)")
-
         solver_ps = b.get_solver(solver)
-        if not len(solver_ps.get_value(qualifier='lc', lc=kwargs.get('lc', None))):
-            raise ValueError("cannot run periodogram without any dataset in lc")
+        if not len(solver_ps.get_value(qualifier='rv', lc=kwargs.get('rv', None))):
+            raise ValueError("cannot run rv_geometry without any dataset inrv")
 
-        # TODO: check to make sure fluxes exist, etc
+        # TODO: check to make sure rvs exist, etc
 
 
+    def _get_packet_and_solution(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
+        solution_params = []
+
+        solution_params += [_parameters.StringParameter(qualifier='rv', value='', readonly=True, description='dataset used for RV estimation')]
+        solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for RV estimation')]
+
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
+        solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=False, description='whether to create a distribution (of delta functions of all parameters in adopt_parameters) when calling adopt_solution.')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of all parameters in adopt_parameters) when calling adopt_solution.')]
+
+        return kwargs, _parameters.ParameterSet(solution_params)
+
+    def run_worker(self, b, solver, compute=None, **kwargs):
+        if mpi.within_mpirun:
+            raise NotImplementedError("mpi support for rv_geometry not yet implemented")
+            # TODO: we need to tell the workers to join the pool for time-parallelization?
+
+        rv = kwargs.get('rv')
+        orbit = kwargs.get('orbit')
+
+        rv_ps = b.get_dataset(dataset=rv, **_skip_filter_checks)
+        mask_enabled = rv_ps.get_value(qualifier='mask_enabled', default=False, **_skip_filter_checks)
+
+        rv1data = None
+        rv2data = None
+        starrefs = b.hierarchy.get_children_of(orbit)
+        for i,starref in enumerate(starrefs):
+            times = rv_ps.get_value(qualifier='times', component=starref, unit=u.d, **_skip_filter_checks)
+            if not len(times):
+                # allow for the SB1 case, rv?data will remain None
+                continue
+
+            rvs = rv_ps.get_value(qualifier='rvs', component=starref, unit=u.km/u.s, **_skip_filter_checks)
+            sigmas = rv_ps.get_value(qualifier='sigmas', component=starref, unit=u.km/u.s, **_skip_filter_checks)
+            if len(sigmas) == 0:
+                sigmas = 0.001*rvs.mean()*np.ones(len(rvs))
+
+            if len(times) != len(rvs):
+                raise ValueError("times and rvs must exist and be filled in the '{}' dataset".format(rv))
+
+            if mask_enabled:
+                mask_phases = rv_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
+                if len(mask_phases):
+                    logger.warning("applying mask_phases (may not be desired for finding geometry estimation - set mask_enabled=False to disable)")
+                    mask_t0 = rv_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+                    phases_for_mask = b.to_phase(times, component=orbit, t0=mask_t0)
+
+                    inds = phase_mask_inds(phases_for_mask, mask_phases)
+
+                    times = times[inds]
+                    rvs = rvs[inds]
+                    sigmas = sigmas[inds]
+
+            if i==0:
+                rv1data = np.vstack((times, rvs, sigmas)).T
+            else:
+                rv2data = np.vstack((times, rvs, sigmas)).T
+
+        period = b.get_value(qualifier='period', component=orbit, context='component', unit=u.d, **_skip_filter_checks)
+
+        est_dict = rv_geometry.estimate_rv_parameters(rv1data, rv2data, period=period)
+
+        # est_dict['period']
+        # est_dict['t0_supconj']
+        # est_dict['q']
+        # est_dict['asini']
+        # est_dict['vgamma']
+        # est_dict['ecc']
+        # est_dict['per0']
+
+        orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
+
+        t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
+        q_param = orbit_ps.get_parameter(qualifier='q', **_skip_filter_checks)
+        asini_param = orbit_ps.get_parameter(qualifier='asini', **_skip_filter_checks)
+        ecc_param = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
+        per0_param = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
+
+        vgamma_param = b.get_parameter(qualifier='vgamma', context='system', **_skip_filter_checks)
+
+        fitted_params = [t0_supconj_param, q_param, asini_param, ecc_param, per0_param]
+        fitted_uniqueids = [p.uniqueid for p in fitted_params]
+        fitted_twigs = [p.twig for p in fitted_params]
+        fitted_values = [est_dict.get(p.qualifier) for p in fitted_params]
+        # TODO: check units!
+        fitted_units = [u.d, u.dimensionless_unscaled, u.km, u.dimensionless_unscaled, u.rad]
+
+        return [[{'qualifier': 'rv', 'value': rv},
+                 {'qualifier': 'orbit', 'value': orbit},
+                 {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
+                 {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
+                 {'qualifier': 'fitted_values', 'value': fitted_values},
+                 {'qualifier': 'fitted_units', 'value': fitted_units},
+                 {'qualifier': 'adopt_parameters', 'value': '*', 'choices': fitted_twigs},
+                ]]
+
+
+
+class _PeriodogramBaseBackend(BaseSolverBackend):
     def _get_packet_and_solution(self, b, solver, **kwargs):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
@@ -543,27 +644,25 @@ class PeriodogramBackend(BaseSolverBackend):
 
         return kwargs, _parameters.ParameterSet(solution_params)
 
+    def get_observations(self, b, **kwargs):
+        raise NotImplementedError("get_observations not implemented for {}".format(self.__class__.__name__))
+        # return times, y, sigmas
+
     def run_worker(self, b, solver, compute=None, **kwargs):
         if mpi.within_mpirun:
-            raise NotImplementedError("mpi support for periodogram not yet implemented")
+            raise NotImplementedError("mpi support for periodograms not yet implemented")
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
         algorithm = kwargs.get('algorithm')
-        lc = kwargs.get('lc')
         component = kwargs.get('component')
 
-        lc_ps = b.get_dataset(dataset=lc, **_skip_filter_checks)
-        times = lc_ps.get_value(qualifier='times', unit='d', **_skip_filter_checks)
-        fluxes = lc_ps.get_value(qualifier='fluxes', **_skip_filter_checks)
-        sigmas = lc_ps.get_value(qualifier='sigmas', **_skip_filter_checks)
-        if not len(sigmas):
-            sigmas = None
+        times, y, sigmas = self.get_observations(b, **kwargs)
 
         sample_mode = kwargs.get('sample_mode')
 
         # TODO: options for duration to autopower/power (not sure what it does from the astropy docs)
         if algorithm == 'bls':
-            model = _BoxLeastSquares(times, fluxes, dy=sigmas)
+            model = _BoxLeastSquares(times, y, dy=sigmas)
             # TODO: expose duration to solver options
             # https://docs.astropy.org/en/stable/api/astropy.timeseries.BoxLeastSquares.html#astropy.timeseries.BoxLeastSquares.autoperiod
             # https://docs.astropy.org/en/stable/api/astropy.timeseries.BoxLeastSquares.html#astropy.timeseries.BoxLeastSquares.period
@@ -571,14 +670,23 @@ class PeriodogramBackend(BaseSolverBackend):
             autopower_kwargs = _deepcopy(power_kwargs)
             autopower_kwargs['minimum_n_transit'] = kwargs.get('minimum_n_cycles')
             sample = kwargs.get('sample_periods')
+            if isinstance(sample, nparray.ndarray):
+                sample = sample.array
         elif algorithm == 'ls':
-            model = _LombScargle(times, fluxes, dy=sigmas)
+            model = _LombScargle(times, y, dy=sigmas)
             # https://docs.astropy.org/en/stable/api/astropy.timeseries.LombScargle.html#astropy.timeseries.LombScargle.autopower
             # https://docs.astropy.org/en/stable/api/astropy.timeseries.LombScargle.html#astropy.timeseries.LombScargle.power
             power_kwargs = {}
             autopower_kwargs = _deepcopy(power_kwargs)
             autopower_kwargs['samples_per_peak'] = kwargs.get('samples_per_peak')
-            sample = 1./kwargs.get('sample_periods')
+            autopower_kwargs['nyquist_factor'] = kwargs.get('nyquist_factor')
+            # require at least 2 full cycles (assuming 2 eclipses or 2 RV crossings per cycle)
+            autopower_kwargs['minimum_frequency'] = 1./((times.max()-times.min())/4)
+            autopower_kwargs['maximum_frequency'] = 1./((times.max()-times.min())/len(times))
+            sample_periods = kwargs.get('sample_periods')
+            if isinstance(sample_periods, nparray.ndarray):
+                sample_periods = sample_periods.array
+            sample = 1./sample_periods
             sample_sort = sample.argsort()
             sample = sample[sample_sort]
         else:
@@ -630,6 +738,73 @@ class PeriodogramBackend(BaseSolverBackend):
                  {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs}
                   ]]
 
+class Lc_PeriodogramBackend(_PeriodogramBaseBackend):
+    """
+    See <phoebe.parameters.solver.estimator.lc_periodogram>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
+    def run_checks(self, b, solver, compute, **kwargs):
+        if not _use_astropy_timeseries:
+            raise ImportError("astropy.timeseries not installed (requires astropy 3.2+)")
+
+        solver_ps = b.get_solver(solver)
+        if not len(solver_ps.get_value(qualifier='lc', lc=kwargs.get('lc', None))):
+            raise ValueError("cannot run lc_periodogram without any dataset in lc")
+
+        # TODO: check to make sure fluxes exist, etc
+
+    def get_observations(self, b, **kwargs):
+        # TODO: add support for combining and re-normalizing multiple LCs
+        lc_ps = b.get_dataset(dataset=kwargs.get('lc'), **_skip_filter_checks)
+        times = lc_ps.get_value(qualifier='times', unit='d', **_skip_filter_checks)
+        fluxes = lc_ps.get_value(qualifier='fluxes', **_skip_filter_checks)
+        sigmas = lc_ps.get_value(qualifier='sigmas', **_skip_filter_checks)
+        if not len(sigmas):
+            sigmas = None
+
+        return times, fluxes, sigmas
+
+class Rv_PeriodogramBackend(_PeriodogramBaseBackend):
+    """
+    See <phoebe.parameters.solver.estimator.rv_periodogram>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
+    def run_checks(self, b, solver, compute, **kwargs):
+        if not _use_astropy_timeseries:
+            raise ImportError("astropy.timeseries not installed (requires astropy 3.2+)")
+
+        solver_ps = b.get_solver(solver)
+        if not len(solver_ps.get_value(qualifier='rv', rv=kwargs.get('rv', None))):
+            raise ValueError("cannot run rv_periodogram without any dataset in rv")
+
+        # TODO: check to make sure rvs exist, etc
+
+    def get_observations(self, b, **kwargs):
+        rv_ps = b.get_dataset(dataset=kwargs.get('rv'), **_skip_filter_checks)
+        times = np.array([])
+        rvs = np.array([])
+        sigmas = np.array([])
+        for i,comp in enumerate(rv_ps.filter(qualifier='rvs', check_visible=True).components):
+            mirror = [1,-1]
+            times = np.append(times, rv_ps.get_value(qualifier='times', component=comp, unit='d', **_skip_filter_checks))
+            rvs_this = rv_ps.get_value(qualifier='rvs', component=comp, unit=u.km/u.s, **_skip_filter_checks)
+            rvs = np.append(rvs, mirror[i]*rvs_this/abs(rvs_this).max())
+            sigmas_this = rv_ps.get_value(qualifier='sigmas', component=comp, unit=u.km/u.s, **_skip_filter_checks)
+            if not len(sigmas_this):
+                sigmas_this = np.full_like(rvs_this, fill_value=np.nan)
+            sigmas = np.append(sigmas, sigmas_this)
+
+        # import matplotlib.pyplot as plt
+        # plt.plot(times, rvs, '.')
+        # plt.show()
+
+        return times, rvs, sigmas
 
 
 class EmceeBackend(BaseSolverBackend):

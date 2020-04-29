@@ -2124,21 +2124,40 @@ class Bundle(ParameterSet):
 
         return affected_params
 
-    def _handle_lc_choiceparams(self, return_changes=False):
+    def _handle_lcrv_choiceparams(self, return_changes=False):
         affected_params = []
 
-        choices = self.filter(context='dataset', kind='lc', **_skip_filter_checks).datasets
+        lcchoices = self.filter(context='dataset', kind='lc', **_skip_filter_checks).datasets
+        rvchoices = self.filter(context='dataset', kind='rv', **_skip_filter_checks).datasets
 
         for param in self.filter(qualifier='lc', context='solver', **_skip_filter_checks).to_list():
             choices_changed = False
-            if return_changes and choices != param._choices:
+            if return_changes and lcchoices != param._choices:
                 choices_changed = True
-            param._choices = choices
+            param._choices = lcchoices
 
-            if param._value not in choices:
+            if param._value not in lcchoices:
                 changed = True
-                if param._value in ['', 'None'] and len(choices):
-                    param._value = choices[0]
+                if param._value in ['', 'None'] and len(lcchoices):
+                    param._value = lcchoices[0]
+                else:
+                    param._value = 'None'
+            else:
+                changed = False
+
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        for param in self.filter(qualifier='rv', context='solver', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and rvchoices != param._choices:
+                choices_changed = True
+            param._choices = rvchoices
+
+            if param._value not in rvchoices:
+                changed = True
+                if param._value in ['', 'None'] and len(rvchoices):
+                    param._value = rvchoices[0]
                 else:
                     param._value = 'None'
             else:
@@ -2177,7 +2196,7 @@ class Bundle(ParameterSet):
     def _handle_component_choiceparams(self, return_changes=False):
         affected_params = []
 
-        # currently assuming we want a component with period (which is the case for periodogram component parameter)
+        # currently assuming we want a component with period (which is the case for lc_periodogram component parameter)
         choices = self.filter(context='component', qualifier='period', **_skip_filter_checks).components
 
         for param in self.filter(qualifier='component', context='solver', **_skip_filter_checks).to_list():
@@ -5144,7 +5163,7 @@ class Bundle(ParameterSet):
         ret_changes = []
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
-        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_lcrv_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
         if return_changes:
@@ -5243,7 +5262,7 @@ class Bundle(ParameterSet):
         if not kwargs.get('during_overwrite', False):
             ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
             ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
-            ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
+            ret_changes += self._handle_lcrv_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
 
@@ -5318,7 +5337,7 @@ class Bundle(ParameterSet):
         ret_changes = []
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
-        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_lcrv_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
         for param in self.filter(context='solution', qualifier='lc', **_skip_filter_checks):
@@ -9490,7 +9509,7 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_compute_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_solver_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
-        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_lcrv_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_orbit_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_component_choiceparams(return_changes=return_changes)
 
@@ -10205,7 +10224,7 @@ class Bundle(ParameterSet):
         else:
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
 
-            if solver_kind == 'periodogram':
+            if solver_kind in ['lc_periodogram', 'rv_periodogram']:
                 fitted_values = fitted_values * solution_ps.get_value(qualifier='period_factor', period_factor=kwargs.get('period_factor', None), **_skip_filter_checks)
 
             for uniqueid, twig, value, unit in zip(fitted_uniqueids[adopt_inds], fitted_twigs[adopt_inds], fitted_values[adopt_inds], fitted_units[adopt_inds]):
