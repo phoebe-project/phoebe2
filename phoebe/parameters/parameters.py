@@ -257,7 +257,7 @@ _forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
                       'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
                       'strategy', 'popsize', 'continue_from', 'init_from_combine',
                       'burnin_factor', 'thin_factor', 'progress_every_niters',
-                      'nlive', 'maxcall', 'lc_geometry', 'rv_geometry', 'lc_periodogram', 'rv_periodogram',
+                      'nlive', 'maxcall', 'lc_geometry', 'rv_geometry', 'lc_periodogram', 'rv_periodogram', 'ebai',
                       'nelder_mead', 'differential_evolution', 'emcee', 'dynesty']
 
 # from solution:
@@ -4229,7 +4229,7 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
-        elif ps.kind in ['emcee', 'dynesty', 'lc_periodogram', 'rv_periodogram', 'lc_geometry', 'rv_geometry']:
+        elif ps.kind in ['emcee', 'dynesty', 'lc_periodogram', 'rv_periodogram', 'lc_geometry', 'rv_geometry', 'ebai']:
             pass
             # handled below
         elif ps.context in ['distribution']:
@@ -4333,7 +4333,11 @@ class ParameterSet(object):
             orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
             primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
 
-            # TODO: need to loop over components?  Or is that done outside here?
+            kwargs['xlabel'] = 'phase'
+            kwargs['ylabel'] = 'RVs'
+            kwargs['plot_package'] = 'autofig'
+            kwargs['autofig_method'] = 'plot'
+
             kwargss = [_deepcopy(kwargs), _deepcopy(kwargs), _deepcopy(kwargs), _deepcopy(kwargs)]
             for i,comp in enumerate([primary, secondary]):
                 phases = ps.get_value(qualifier='input_phases', component=comp, **_skip_filter_checks)
@@ -4342,14 +4346,8 @@ class ParameterSet(object):
 
                 phases_sort = phases.argsort()
 
-                for j in [i, i+2]:
-                    kwargss[j]['plot_package'] = 'autofig'
-                    kwargss[j]['autofig_method'] = 'plot'
-                    kwargss[j]['x'] = phases[phases_sort]
-                    kwargss[j]['xlabel'] = 'phase'
-                    kwargss[j]['ylabel'] = 'RVs'
-
-
+                kwargss[i]['x'] = phases[phases_sort]
+                kwargss[i+2]['x'] = phases[phases_sort]
                 kwargss[i]['y'] = input_rvs[phases_sort]
                 kwargss[i+2]['y'] = analytic_rvs[phases_sort]
                 kwargss[i]['marker'] = '.'
@@ -4358,6 +4356,37 @@ class ParameterSet(object):
                 kwargss[i+2]['linestyle'] = 'solid'
                 kwargss[i]['color'] = 'gray'
                 kwargss[i+2]['color'] = self._bundle.get_value(qualifier='color', component=comp, default=['blue', 'orange'][i])
+
+            return kwargss
+
+        elif ps.kind == 'ebai':
+            orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
+            primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
+
+            input_phases = ps.get_value(qualifier='input_phases', **_skip_filter_checks)
+            input_fluxes = ps.get_value(qualifier='input_fluxes', **_skip_filter_checks)
+            ebai_phases = ps.get_value(qualifier='ebai_phases', **_skip_filter_checks)
+            ebai_fluxes = ps.get_value(qualifier='ebai_fluxes', **_skip_filter_checks)
+
+            kwargs['plot_package'] = 'autofig'
+            kwargs['autofig_method'] = 'plot'
+            kwargs['xlabel'] = 'phase'
+            kwargs['ylabel'] = 'flux (normalized)'
+
+            kwargss = [_deepcopy(kwargs), _deepcopy(kwargs)]
+
+            kwargss[0]['x'] = input_phases
+            kwargss[1]['x'] = ebai_phases
+            kwargss[0]['y'] = input_fluxes
+            kwargss[1]['y'] = ebai_fluxes
+            kwargss[0]['z'] = 0.0
+            kwargss[1]['z'] = 1.0  # force ebai model on top of data
+            kwargss[0]['marker'] = '.'
+            kwargss[1]['marker'] = '+'
+            kwargss[0]['linestyle'] = 'None'
+            kwargss[1]['linestyle'] = 'solid'
+            kwargss[0]['color'] = 'gray'
+            kwargss[1]['color'] = 'blue'
 
             return kwargss
 

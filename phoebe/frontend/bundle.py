@@ -3698,7 +3698,8 @@ class Bundle(ParameterSet):
                          'Speagle (2020)': 'https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S',
                          'Skilling (2004)': 'https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S',
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
-                         'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F'
+                         'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F',
+                         'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P'
                         }
 
         # ref: [reasons] pairs
@@ -3725,16 +3726,31 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Carter et al. (2011)', 'photodynam compute backend')
                 recs = _add_reason(recs, 'Andras (2012)', 'photodynam compute backend')
             elif self.get_compute(compute).kind == 'ellc':
-                recs = _add_response(recs, 'Maxted (2016)', 'ellc compute backend')
+                recs = _add_reason(recs, 'Maxted (2016)', 'ellc compute backend')
+
+        # if len(solvers):
+            # recs = _add_reason(recs, 'Conroy et al. (2020)', 'general inverse problem framework in PHOEBE')
 
         for solver in solvers:
             solver_kind = self.get_solver(solver).kind
-            if solver_kind == 'emcee':
+            # estimators
+            if solver_kind in ['lc_periodogram', 'rv_periodogram']:
+                recs = _add_reason(recs, 'astropy', 'astropy.timeseries for periodograms')
+            # elif solver_kind in ['lc_geometry', 'rv_geometry']:
+                # recs = _add_reason(recs, 'Conroy et al. (2020)', '{} solver'.format(solver_kind))
+            elif solver_kind == 'ebai':
+                recs = _add_reason(recs, 'Prsa et al. (2008)', 'ebai solver backend')
+            # optimizers
+            elif solver_kind in ['nelder_mead', 'powell', 'cg', 'differential_evolution']:
+                recs = _add_reason(recs, 'numpy/scipy', '{} solver uses scipy.optimize'.format(solver_kind))
+            # samplers
+            elif solver_kind == 'emcee':
                 recs = _add_reason(recs, 'Foreman-Mackey et al. (2013)', 'emcee solver backend')
             elif solver_kind == 'dynesty':
                 recs = _add_reason(recs, 'Speagle (2020)', 'dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2004)', 'nested sampling: dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2006)', 'nested sampling: dynesty solver backend')
+
 
 
         # check for presence of datasets that require PHOEBE releases
@@ -9453,6 +9469,17 @@ class Bundle(ParameterSet):
                                                  'kind': func.__name__}))
 
         self._check_label(kwargs['solver'], allow_overwrite=kwargs.get('overwrite', False))
+
+        ## add any necessary constraints needed by the solver
+        solver_kind = func.__name__
+        if solver_kind in ['ebai']:
+            for orbit in self.hierarchy.get_orbits():
+                orbit_ps = self.get_orbit(component=orbit, **_skip_filter_checks)
+                for constraint in ['teffratio', 'requivsumfrac']:
+                    if constraint not in orbit_ps.qualifiers:
+                        logger.warning("adding {} constraint to {} orbit (needed for {} solver)".format(constraint, orbit, solver_kind))
+                        self.add_constraint(constraint, component=orbit)
+
 
         # NOTE: we don't pass kwargs here since so many require the choices
         # to be populated.  Instead, we loop through kwargs and set the values

@@ -21,7 +21,8 @@ from distutils.version import LooseVersion, StrictVersion
 from copy import deepcopy as _deepcopy
 import multiprocessing
 
-from . import lc_geometry, rv_geometry
+from . import lc_geometry, rv_geometry, pf_wrapper
+from .ebai import ebai_forward
 
 try:
     import emcee
@@ -878,6 +879,89 @@ class Rv_PeriodogramBackend(_PeriodogramBaseBackend):
         # plt.show()
 
         return times, rvs, sigmas
+
+class EbaiBackend(BaseSolverBackend):
+    """
+    See <phoebe.parameters.solver.estimator.ebai>.
+
+    The run method in this class will almost always be called through the bundle, using
+    * <phoebe.frontend.bundle.Bundle.add_solver>
+    * <phoebe.frontend.bundle.Bundle.run_solver>
+    """
+    def run_checks(self, b, solver, compute, **kwargs):
+        solver_ps = b.get_solver(solver)
+        if not len(solver_ps.get_value(qualifier='lc_datasets', expand=True, lc_datasets=kwargs.get('lc_datasets', None))):
+            raise ValueError("cannot run lc_geometry without any dataset in lc_datasets")
+
+        # TODO: check to make sure fluxes exist, etc
+
+
+    def _get_packet_and_solution(self, b, solver, **kwargs):
+        # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
+        solution_params = []
+
+        solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for phasing the input light curve(s)')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases used for determining ebai_phases/ebai_fluxes')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes used for determining ebai_phases/ebai_fluxes')]
+
+        solution_params += [_parameters.FloatArrayParameter(qualifier='ebai_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases to ebai')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='ebai_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes to ebai')]
+
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_values', value=[], readonly=True, description='final values returned by the minimizer (in current default units of each parameter)')]
+        solution_params += [_parameters.ArrayParameter(qualifier='fitted_units', value=[], advanced=True, readonly=True, description='units of the fitted_values')]
+        solution_params += [_parameters.SelectTwigParameter(qualifier='adopt_parameters', value=[], description='which of the parameters should be included when adopting the solution')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_distributions', value=False, description='whether to create a distribution (of delta functions of all parameters in adopt_parameters) when calling adopt_solution.')]
+        solution_params += [_parameters.BoolParameter(qualifier='adopt_values', value=True, description='whether to update the parameter face-values (of all parameters in adopt_parameters) when calling adopt_solution.')]
+
+        return kwargs, _parameters.ParameterSet(solution_params)
+
+    def run_worker(self, b, solver, compute=None, **kwargs):
+        if mpi.within_mpirun:
+            raise NotImplementedError("mpi support for ebai not yet implemented")
+            # TODO: we need to tell the workers to join the pool for time-parallelization?
+
+        lc_datasets = kwargs.get('lc_datasets') # NOTE: already expanded
+        orbit = kwargs.get('orbit')
+
+        orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
+
+        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, phase_component=orbit, mask=True, normalize=True, phase_sorted=True)
+
+        # run polyfit on phases, fluxes
+        ebai_phases, ebai_fluxes, pf_knots, pf_coeffs, pshift = pf_wrapper.pf_run(phases, fluxes, sigmas, vertices=200)
+
+        # update to t0_supconj based on pshift
+        t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
+        t0_supconj = t0_supconj_param.get_value(unit=u.d) + (pshift * orbit_ps.get_value(qualifier='period', unit=u.d, **_skip_filter_checks))
+
+        # run ebai on polyfit sampled fluxes
+        teffratio, requivsumfrac, esinw, ecosw, sini = ebai_forward(ebai_fluxes)
+
+        teffratio_param = orbit_ps.get_parameter(qualifier='teffratio', **_skip_filter_checks)
+        requivsumfrac_param = orbit_ps.get_parameter(qualifier='requivsumfrac', **_skip_filter_checks)
+        esinw_param = orbit_ps.get_parameter(qualifier='esinw', **_skip_filter_checks)
+        ecosw_param = orbit_ps.get_parameter(qualifier='ecosw', **_skip_filter_checks)
+        incl_param = orbit_ps.get_parameter(qualifier='incl', **_skip_filter_checks)
+
+        fitted_params = [t0_supconj_param, teffratio_param, requivsumfrac_param, esinw_param, ecosw_param, incl_param]
+        fitted_uniqueids = [p.uniqueid for p in fitted_params]
+        fitted_twigs = [p.twig for p in fitted_params]
+        fitted_values = [t0_supconj, teffratio, requivsumfrac, esinw, ecosw, np.arcsin(sini)]
+        fitted_units = [u.d, u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
+
+        return [[{'qualifier': 'orbit', 'value': orbit},
+                 {'qualifier': 'input_phases', 'value': b.to_phase(times, component=orbit, t0=t0_supconj)},
+                 {'qualifier': 'input_fluxes', 'value': fluxes},
+                 {'qualifier': 'ebai_phases', 'value': ebai_phases},
+                 {'qualifier': 'ebai_fluxes', 'value': ebai_fluxes},
+                 {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
+                 {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
+                 {'qualifier': 'fitted_values', 'value': fitted_values},
+                 {'qualifier': 'fitted_units', 'value': fitted_units},
+                 {'qualifier': 'adopt_parameters', 'value': fitted_twigs, 'choices': fitted_twigs},
+                ]]
 
 
 class EmceeBackend(BaseSolverBackend):

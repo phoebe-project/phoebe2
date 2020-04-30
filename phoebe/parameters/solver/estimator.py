@@ -196,3 +196,44 @@ def rv_geometry(**kwargs):
     # params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
 
     return ParameterSet(params)
+
+
+def ebai(**kwargs):
+    """
+    Create a <phoebe.parameters.ParameterSet> for solver options for the
+    ebai artificial neural network solver.
+
+    When using this solver, consider citing:
+    * https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P
+
+    See also:
+    * <phoebe.frontend.bundle.Bundle.references>
+
+    Generally, this will be used as an input to the kind argument in
+    <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
+    <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
+    passed on to set the values as described in the arguments below.  Alternatively,
+    see <phoebe.parameters.ParameterSet.set_value> to set/change the values
+    after creating the Parameters.
+
+    For example:
+
+    ```py
+    b.add_solver('estimator.ebai')
+    b.run_solver(kind='ebai')
+    ```
+
+    Arguments
+    ----------
+
+    Returns
+    --------
+    * (<phoebe.parameters.ParameterSet>): ParameterSet of all newly created
+        <phoebe.parameters.Parameter> objects.
+    """
+    params = _comments_params(**kwargs)
+
+    params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to use to extract eclipse geometry')]
+    params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the dataset parameter')]
+
+    return ParameterSet(params)
