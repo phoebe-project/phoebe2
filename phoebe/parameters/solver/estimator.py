@@ -56,7 +56,7 @@ def lc_periodogram(**kwargs):
 
     params += [ChoiceParameter(qualifier='algorithm', value=kwargs.get('algorithm', 'bls'), choices=['bls', 'ls'], description='Algorithm to use to create the periodogram.  bls: BoxLeastSquares, ls: LombScargle.')]
 
-    params += [ChoiceParameter(qualifier='lc', value=kwargs.get('lc', ''), choices=[''], description='Light curve dataset to use to run the periodogram algorithm')]
+    params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to use to run the periodogram algorithm')]
     params += [ChoiceParameter(qualifier='component', value=kwargs.get('component', ''), choices=[''], description='Component to apply the found period')]
 
     params += [ChoiceParameter(qualifier='sample_mode', value=kwargs.get('sample_mode', 'auto'), choices=['auto', 'manual'], description='Whether to automatically determine sampling periods/frequencies or set manually')]
@@ -111,7 +111,7 @@ def rv_periodogram(**kwargs):
 
     params += [ChoiceParameter(qualifier='algorithm', value=kwargs.get('algorithm', 'ls'), choices=['ls'], description='Algorithm to use to create the periodogram.  ls: LombScargle.')]
 
-    params += [ChoiceParameter(qualifier='rv', value=kwargs.get('rv', ''), choices=[''], description='Radial velocity dataset to use to run the periodgram algorithm')]
+    params += [SelectParameter(qualifier='rv_datasets', value=kwargs.get('rv_datasets', '*'), choices=[], description='Radial velocity dataset(s) to use to run the periodgram algorithm')]
     params += [ChoiceParameter(qualifier='component', value=kwargs.get('component', ''), choices=[''], description='Component to apply the found period')]
 
     params += [ChoiceParameter(qualifier='sample_mode', value=kwargs.get('sample_mode', 'auto'), choices=['auto', 'manual'], description='Whether to automatically determine sampling periods/frequencies or set manually')]
@@ -154,7 +154,7 @@ def lc_geometry(**kwargs):
     """
     params = _comments_params(**kwargs)
 
-    params += [ChoiceParameter(qualifier='lc', value=kwargs.get('lc', ''), choices=[''], description='Light curve dataset to use to extract eclipse geometry')]
+    params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to use to extract eclipse geometry')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the dataset parameter')]
 
     params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
@@ -190,7 +190,7 @@ def rv_geometry(**kwargs):
     """
     params = _comments_params(**kwargs)
 
-    params += [ChoiceParameter(qualifier='rv', value=kwargs.get('rv', ''), choices=[''], description='Radial velocity dataset to use to extract eclipse geometry')]
+    params += [SelectParameter(qualifier='rv_datasets', value=kwargs.get('rv_datasets', '*'), choices=[], description='Radial velocity dataset(s) to use to extract eclipse geometry')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for estimating orbital parameters')]
 
     # params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]

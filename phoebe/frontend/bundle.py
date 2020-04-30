@@ -1856,6 +1856,26 @@ class Bundle(ParameterSet):
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
+        lcchoices = self.filter(context='dataset', kind='lc', **_skip_filter_checks).datasets
+        for param in self.filter(qualifier='lc_datasets', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and lcchoices != param._choices:
+                choices_changed = True
+            param._choices = lcchoices
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        rvchoices = self.filter(context='dataset', kind='rv', **_skip_filter_checks).datasets
+        for param in self.filter(qualifier='rv_datasets', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and rvchoices != param._choices:
+                choices_changed = True
+            param._choices = rvchoices
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
         return affected_params
 
     def _handle_figure_time_source_params(self, rename={}, return_changes=False):
@@ -2119,50 +2139,6 @@ class Bundle(ParameterSet):
             param._choices = choices
 
             changed = param.handle_choice_rename(remove_not_valid=True, **rename)
-            if return_changes and (changed or choices_changed):
-                affected_params.append(param)
-
-        return affected_params
-
-    def _handle_lcrv_choiceparams(self, return_changes=False):
-        affected_params = []
-
-        lcchoices = self.filter(context='dataset', kind='lc', **_skip_filter_checks).datasets
-        rvchoices = self.filter(context='dataset', kind='rv', **_skip_filter_checks).datasets
-
-        for param in self.filter(qualifier='lc', context='solver', **_skip_filter_checks).to_list():
-            choices_changed = False
-            if return_changes and lcchoices != param._choices:
-                choices_changed = True
-            param._choices = lcchoices
-
-            if param._value not in lcchoices:
-                changed = True
-                if param._value in ['', 'None'] and len(lcchoices):
-                    param._value = lcchoices[0]
-                else:
-                    param._value = 'None'
-            else:
-                changed = False
-
-            if return_changes and (changed or choices_changed):
-                affected_params.append(param)
-
-        for param in self.filter(qualifier='rv', context='solver', **_skip_filter_checks).to_list():
-            choices_changed = False
-            if return_changes and rvchoices != param._choices:
-                choices_changed = True
-            param._choices = rvchoices
-
-            if param._value not in rvchoices:
-                changed = True
-                if param._value in ['', 'None'] and len(rvchoices):
-                    param._value = rvchoices[0]
-                else:
-                    param._value = 'None'
-            else:
-                changed = False
-
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
@@ -5170,7 +5146,6 @@ class Bundle(ParameterSet):
         ret_changes = []
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
-        ret_changes += self._handle_lcrv_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
         if return_changes:
@@ -5269,7 +5244,6 @@ class Bundle(ParameterSet):
         if not kwargs.get('during_overwrite', False):
             ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
             ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
-            ret_changes += self._handle_lcrv_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
 
@@ -5344,7 +5318,6 @@ class Bundle(ParameterSet):
         ret_changes = []
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
-        ret_changes += self._handle_lcrv_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
         for param in self.filter(context='solution', qualifier='lc', **_skip_filter_checks):
@@ -9516,7 +9489,7 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_compute_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_solver_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
-        ret_changes += self._handle_lcrv_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_orbit_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_component_choiceparams(return_changes=return_changes)
 

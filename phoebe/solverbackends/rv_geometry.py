@@ -169,4 +169,6 @@ def estimate_rv_parameters(rv1data=None, rv2data=None,
                  'vgamma': vgamma, 't0':t0})
 
     return {'period':period, 't0_supconj':t0, 'q':q, 'asini':sma,
-            'vgamma':vgamma, 'ecc':result.x[1], 'per0':result.x[0]}
+            'vgamma':vgamma, 'ecc':result.x[1], 'per0':result.x[0],
+            'rv1_analytic': rv_model(rv1data[:,0], t0, period, result.x[0], result.x[1], sma, q, vgamma, component=1),
+            'rv2_analytic': rv_model(rv2data[:,0], t0, period, result.x[0], result.x[1], sma, q, vgamma, component=2)}

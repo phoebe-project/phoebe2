@@ -240,6 +240,133 @@ def _sample_ppf(ppf_values, distributions_list):
 
     return x
 
+def _get_combined_lc(b, datasets, phase_component=None, mask=True, normalize=True, phase_sorted=False):
+    times = np.array([])
+    fluxes = np.array([])
+    sigmas = np.array([])
+
+    for dataset in datasets:
+        lc_ps = b.get_dataset(dataset=dataset, **_skip_filter_checks)
+        ds_fluxes = lc_ps.get_value(qualifier='fluxes', unit=u.W/u.m**2, **_skip_filter_checks)
+
+        if not len(ds_fluxes):
+            # then no observations here
+            continue
+
+        ds_times = lc_ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
+        if len(ds_times) != len(ds_fluxes):
+            raise ValueError("times and fluxes in dataset '{}' do not have same length".format(dataset))
+
+        ds_sigmas = lc_ps.get_value(qualifier='sigmas', unit=u.W/u.m**2, **_skip_filter_checks)
+
+        if len(ds_sigmas) == 0:
+            # TODO: option for this???
+            ds_sigmas = 0.001*fluxes.mean()*np.ones(len(fluxes))
+
+        if normalize:
+            flux_max = ds_fluxes.max()
+            ds_fluxes /= flux_max
+            ds_sigmas /= flux_max
+
+        mask_enabled = lc_ps.get_value(qualifier='mask_enabled', default=False, **_skip_filter_checks)
+        if mask and mask_enabled:
+            mask_phases = lc_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
+            if len(mask_phases):
+                logger.warning("applying mask_phases (may not be desired for finding eclipse edges - set mask_enabled=False to disable)")
+                mask_t0 = lc_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
+                # TODO:
+                phases_for_mask = b.to_phase(ds_times, component=None, t0=mask_t0)
+
+                inds = phase_mask_inds(phases_for_mask, mask_phases)
+
+                ds_times = ds_times[inds]
+                ds_fluxes = ds_fluxes[inds]
+                ds_sigmas = ds_sigmas[inds]
+
+        times = np.append(times, ds_times)
+        fluxes = np.append(fluxes, ds_fluxes)
+        sigmas = np.append(sigmas, ds_sigmas)
+
+
+    phases = b.to_phase(times, component=phase_component, t0='t0_supconj')
+
+    if phase_sorted:
+        s = phases.argsort()
+        times = times[s]
+        phases = phases[s]
+        fluxes = fluxes[s]
+        sigmas = sigmas[s]
+
+    return times, phases, fluxes, sigmas
+
+def _get_combined_rv(b, datasets, components, phase_component=None, mask=True, normalize=False, mirror_secondary=False, phase_sorted=False):
+    times = np.array([])
+    rvs = np.array([])
+    sigmas = np.array([])
+
+    hier = b.hierarchy
+
+    for i,comp in enumerate(components):
+        c_times = np.array([])
+        c_rvs = np.array([])
+        c_sigmas = np.array([])
+
+        for dataset in datasets:
+            rvc_ps = b.get_dataset(dataset=dataset, component=comp, **_skip_filter_checks)
+            rvc_rvs = rvc_ps.get_value(qualifier='rvs', unit=u.km/u.s, **_skip_filter_checks)
+            if not len(rvc_rvs):
+                # then no observations here
+                continue
+
+            rvc_times = rvc_ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
+            if len(rvc_rvs) != len(rvc_times):
+                raise ValueError("rv@{}@{} does not match length of times@{}@{}".format(comp, dataset, comp, dataset))
+
+            rvc_sigmas = rvc_ps.get_value(qualifier='sigmas', unit=u.km/u.s, **_skip_filter_checks)
+            if not len(rvc_sigmas):
+                rvc_sigmas = np.full_like(rvc_rvs, fill_value=np.nan)
+
+            mask_enabled = b.get_value(qualifier='mask_enabled', dataset=dataset, default=False, **_skip_filter_checks)
+            if mask and mask_enabled:
+                mask_phases = b.get_value(qualifier='mask_phases', dataset=dataset, **_skip_filter_checks)
+                if len(mask_phases):
+                    logger.warning("applying mask_phases - set mask_enabled=False to disable")
+                    mask_t0 = b.get_value(qualifier='phases_t0', dataset=dataset, **_skip_filter_checks)
+                    phases_for_mask = b.to_phase(rvc_times, component=None, t0=mask_t0)
+
+                    inds = phase_mask_inds(phases_for_mask, mask_phases)
+
+                    rvc_times = rvc_times[inds]
+                    rvc_rvs = rvc_rvs[inds]
+                    rvc_sigmas = rvc_sigmas[inds]
+
+            c_times = np.append(c_times, rvc_times)
+            c_rvs = np.append(c_rvs, rvc_rvs)
+            c_sigmas = np.append(c_sigmas, rvc_sigmas)
+
+        if normalize:
+            c_rvs_max = abs(c_rvs).max()
+            c_rvs /= c_rvs_max
+            c_sigmas /= c_rvs_max
+
+        if mirror_secondary and i==1:
+            c_rvs *= -1
+
+        times = np.append(times, c_times)
+        rvs = np.append(rvs, c_rvs)
+        sigmas = np.append(sigmas, c_sigmas)
+
+    phases = b.to_phase(times, component=phase_component, t0='t0_supconj')
+
+    if phase_sorted:
+        s = phases.argsort()
+        times = times[s]
+        phases = phases[s]
+        rvs = rvs[s]
+        sigmas = sigmas[s]
+
+    return times, phases, rvs, sigmas
+
 class BaseSolverBackend(object):
     def __init__(self):
         return
@@ -389,8 +516,8 @@ class Lc_GeometryBackend(BaseSolverBackend):
     """
     def run_checks(self, b, solver, compute, **kwargs):
         solver_ps = b.get_solver(solver)
-        if not len(solver_ps.get_value(qualifier='lc', lc=kwargs.get('lc', None))):
-            raise ValueError("cannot run lc_geometry without any dataset in lc")
+        if not len(solver_ps.get_value(qualifier='lc_datasets', expand=True, lc_datasets=kwargs.get('lc_datasets', None))):
+            raise ValueError("cannot run lc_geometry without any dataset in lc_datasets")
 
         # TODO: check to make sure fluxes exist, etc
 
@@ -399,8 +526,9 @@ class Lc_GeometryBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
 
-        solution_params += [_parameters.StringParameter(qualifier='lc', value='', readonly=True, description='dataset used to detect eclipses')]
-        solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for phasing the light curve')]
+        solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for phasing the input light curve(s)')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases used for geometry estimate')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes (normalized per-dataset) used for geometry estimate')]
 
         solution_params += [_parameters.FloatParameter(qualifier='primary_width', value=0, readonly=True, unit=u.dimensionless_unscaled, description='phase-width of primary eclipse')]
         solution_params += [_parameters.FloatParameter(qualifier='secondary_width', value=0, readonly=True, unit=u.dimensionless_unscaled, description='phase-width of secondary eclipse')]
@@ -426,45 +554,15 @@ class Lc_GeometryBackend(BaseSolverBackend):
             raise NotImplementedError("mpi support for lc_geometry not yet implemented")
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
-        lc = kwargs.get('lc')
+        lc_datasets = kwargs.get('lc_datasets') # NOTE: already expanded
         orbit = kwargs.get('orbit')
 
-
-        lc_ps = b.get_dataset(dataset=lc, **_skip_filter_checks)
-        times = lc_ps.get_value(qualifier='times', unit='d', **_skip_filter_checks)
-        phases = b.to_phase(times, component=orbit, t0='t0_supconj')
-        fluxes = lc_ps.get_value(qualifier='fluxes', **_skip_filter_checks)
-        sigmas = lc_ps.get_value(qualifier='sigmas', **_skip_filter_checks)
-        if len(sigmas) == 0:
-            sigmas = 0.001*fluxes.mean()*np.ones(len(fluxes))
-
-        if not len(times) or len(times) != len(fluxes):
-            raise ValueError("times and fluxes must exist and be filled in the '{}' dataset".format(lc))
-
-        mask_enabled = lc_ps.get_value(qualifier='mask_enabled', default=False, **_skip_filter_checks)
-        if mask_enabled:
-            mask_phases = lc_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
-            if len(mask_phases):
-                logger.warning("applying mask_phases (may not be desired for finding eclipse edges - set mask_enabled=False to disable)")
-                mask_t0 = lc_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
-                phases_for_mask = b.to_phase(times, component=orbit, t0=mask_t0)
-
-                inds = phase_mask_inds(phases_for_mask, mask_phases)
-
-                phases = phases[inds]
-                fluxes = fluxes[inds]
-                sigmas = sigmas[inds]
-
-        s = phases.argsort()
-        phases = phases[s]
-        fluxes = fluxes[s]
-        sigmas = sigmas[s]
+        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, phase_component=orbit, mask=True, normalize=True, phase_sorted=True)
 
         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
         ecc_param = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
         per0_param = orbit_ps.get_parameter(qualifier='per0', **_skip_filter_checks)
         t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)
-        mask_phases_param = lc_ps.get_parameter(qualifier='mask_phases', **_skip_filter_checks)
 
         period = orbit_ps.get_value(qualifier='period', **_skip_filter_checks)
         t0_supconj_old = orbit_ps.get_value(qualifier='t0_supconj', **_skip_filter_checks)
@@ -484,9 +582,16 @@ class Lc_GeometryBackend(BaseSolverBackend):
 
         t0_supconj_new = lc_geometry.t0_from_geometry(eclipse_dict.get('primary_position'), times,
                                 period=period, t0_supconj=t0_supconj_old, t0_near_times=t0_near_times)
-        # TODO: correct t0_supconj?
 
-        params_twigs = [t0_supconj_param.twig, ecc_param.twig, per0_param.twig, mask_phases_param.twig]
+        fitted_params = [t0_supconj_param, ecc_param, per0_param]
+        fitted_params += b.filter(qualifier='mask_phases', dataset=lc_datasets, **_skip_filter_checks).to_list()
+
+        fitted_uniqueids = [p.uniqueid for p in fitted_params]
+        fitted_twigs = [p.twig for p in fitted_params]
+        fitted_values = [t0_supconj_new, ecc, per0]
+        fitted_values += [mask_phases for ds in lc_datasets]
+        fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
+        fitted_units += [u.dimensionless_unscaled.to_string() for ds in lc_datasets]
 
         return [[{'qualifier': 'primary_width', 'value': eclipse_dict.get('primary_width')},
                  {'qualifier': 'secondary_width', 'value': eclipse_dict.get('secondary_width')},
@@ -495,13 +600,14 @@ class Lc_GeometryBackend(BaseSolverBackend):
                  {'qualifier': 'primary_depth', 'value': eclipse_dict.get('primary_depth')},
                  {'qualifier': 'secondary_depth', 'value': eclipse_dict.get('secondary_depth')},
                  {'qualifier': 'eclipse_edges', 'value': eclipse_dict.get('eclipse_edges')},
-                 {'qualifier': 'lc', 'value': lc},
                  {'qualifier': 'orbit', 'value': orbit},
-                 {'qualifier': 'fitted_uniqueids', 'value': [t0_supconj_param.uniqueid, ecc_param.uniqueid, per0_param.uniqueid, mask_phases_param.uniqueid]},
-                 {'qualifier': 'fitted_twigs', 'value': params_twigs},
-                 {'qualifier': 'fitted_values', 'value': [t0_supconj_new, ecc, per0, mask_phases]},
-                 {'qualifier': 'fitted_units', 'value': [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string(), u.dimensionless_unscaled.to_string()]},
-                 {'qualifier': 'adopt_parameters', 'value': params_twigs[:-1], 'choices': params_twigs},
+                 {'qualifier': 'input_phases', 'value': phases},
+                 {'qualifier': 'input_fluxes', 'value': fluxes},
+                 {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
+                 {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
+                 {'qualifier': 'fitted_values', 'value': fitted_values},
+                 {'qualifier': 'fitted_units', 'value': fitted_units},
+                 {'qualifier': 'adopt_parameters', 'value': fitted_twigs[:3], 'choices': fitted_twigs},
                 ]]
 
 
@@ -515,8 +621,8 @@ class Rv_GeometryBackend(BaseSolverBackend):
     """
     def run_checks(self, b, solver, compute, **kwargs):
         solver_ps = b.get_solver(solver)
-        if not len(solver_ps.get_value(qualifier='rv', lc=kwargs.get('rv', None))):
-            raise ValueError("cannot run rv_geometry without any dataset inrv")
+        if not len(solver_ps.get_value(qualifier='rv_datasets', expand=True, rv_datasets=kwargs.get('rv_datasets', None))):
+            raise ValueError("cannot run rv_geometry without any dataset in rv_datasets")
 
         # TODO: check to make sure rvs exist, etc
 
@@ -525,8 +631,16 @@ class Rv_GeometryBackend(BaseSolverBackend):
         # NOTE: b, solver, compute, backend will be added by get_packet_and_solution
         solution_params = []
 
-        solution_params += [_parameters.StringParameter(qualifier='rv', value='', readonly=True, description='dataset used for RV estimation')]
+        # solution_params += [_parameters.StringParameter(qualifier='rv', value='', readonly=True, description='dataset used for RV estimation')]
         solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for RV estimation')]
+
+        # TODO: one for each component
+        orbit = kwargs.get('orbit')
+        starrefs = b.hierarchy.get_children_of(orbit)
+        for starref in starrefs:
+            solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', component=starref, value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases for geometry estimate')]
+            solution_params += [_parameters.FloatArrayParameter(qualifier='input_rvs', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='input RVs used for geometry estimate')]
+            solution_params += [_parameters.FloatArrayParameter(qualifier='analytic_rvs', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='analytic RVs determined by geometry estimate')]
 
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
@@ -543,41 +657,11 @@ class Rv_GeometryBackend(BaseSolverBackend):
             raise NotImplementedError("mpi support for rv_geometry not yet implemented")
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
-        rv = kwargs.get('rv')
         orbit = kwargs.get('orbit')
-
-        rv_ps = b.get_dataset(dataset=rv, **_skip_filter_checks)
-        mask_enabled = rv_ps.get_value(qualifier='mask_enabled', default=False, **_skip_filter_checks)
-
-        rv1data = None
-        rv2data = None
         starrefs = b.hierarchy.get_children_of(orbit)
+
         for i,starref in enumerate(starrefs):
-            times = rv_ps.get_value(qualifier='times', component=starref, unit=u.d, **_skip_filter_checks)
-            if not len(times):
-                # allow for the SB1 case, rv?data will remain None
-                continue
-
-            rvs = rv_ps.get_value(qualifier='rvs', component=starref, unit=u.km/u.s, **_skip_filter_checks)
-            sigmas = rv_ps.get_value(qualifier='sigmas', component=starref, unit=u.km/u.s, **_skip_filter_checks)
-            if len(sigmas) == 0:
-                sigmas = 0.001*rvs.mean()*np.ones(len(rvs))
-
-            if len(times) != len(rvs):
-                raise ValueError("times and rvs must exist and be filled in the '{}' dataset".format(rv))
-
-            if mask_enabled:
-                mask_phases = rv_ps.get_value(qualifier='mask_phases', **_skip_filter_checks)
-                if len(mask_phases):
-                    logger.warning("applying mask_phases (may not be desired for finding geometry estimation - set mask_enabled=False to disable)")
-                    mask_t0 = rv_ps.get_value(qualifier='phases_t0', **_skip_filter_checks)
-                    phases_for_mask = b.to_phase(times, component=orbit, t0=mask_t0)
-
-                    inds = phase_mask_inds(phases_for_mask, mask_phases)
-
-                    times = times[inds]
-                    rvs = rvs[inds]
-                    sigmas = sigmas[inds]
+            times, phases, rvs, sigmas = _get_combined_rv(b, kwargs.get('rv_datasets'), components=[starref], phase_component=kwargs.get('orbit'), mask=True, normalize=False, mirror_secondary=False, phase_sorted=False)
 
             if i==0:
                 rv1data = np.vstack((times, rvs, sigmas)).T
@@ -613,7 +697,14 @@ class Rv_GeometryBackend(BaseSolverBackend):
         # TODO: check units!
         fitted_units = [u.d, u.dimensionless_unscaled, u.km, u.dimensionless_unscaled, u.rad]
 
-        return [[{'qualifier': 'rv', 'value': rv},
+        return [[
+                 {'qualifier': 'input_phases', 'component': starrefs[0], 'value': b.to_phase(rv1data[:,0], component=orbit, t0='t0_supconj')},
+                 {'qualifier': 'input_rvs', 'component': starrefs[0], 'value': rv1data[:,1]},
+                 {'qualifier': 'analytic_rvs', 'component': starrefs[0], 'value': est_dict.get('rv1_analytic')},
+                 {'qualifier': 'input_phases', 'component': starrefs[1], 'value': b.to_phase(rv2data[:,0], component=orbit, t0='t0_supconj')},
+                 {'qualifier': 'input_rvs', 'component': starrefs[1], 'value': rv2data[:,1]},
+                 {'qualifier': 'analytic_rvs', 'component': starrefs[1], 'value': est_dict.get('rv2_analytic')},
+                 # {'qualifier': 'rv', 'value': rv},
                  {'qualifier': 'orbit', 'value': orbit},
                  {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
                  {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
@@ -751,20 +842,13 @@ class Lc_PeriodogramBackend(_PeriodogramBaseBackend):
             raise ImportError("astropy.timeseries not installed (requires astropy 3.2+)")
 
         solver_ps = b.get_solver(solver)
-        if not len(solver_ps.get_value(qualifier='lc', lc=kwargs.get('lc', None))):
-            raise ValueError("cannot run lc_periodogram without any dataset in lc")
+        if not len(solver_ps.get_value(qualifier='lc_datasets', expand=True, lc_datasets=kwargs.get('lc_datasets', None))):
+            raise ValueError("cannot run lc_periodogram without any dataset in lc_datasets")
 
         # TODO: check to make sure fluxes exist, etc
 
     def get_observations(self, b, **kwargs):
-        # TODO: add support for combining and re-normalizing multiple LCs
-        lc_ps = b.get_dataset(dataset=kwargs.get('lc'), **_skip_filter_checks)
-        times = lc_ps.get_value(qualifier='times', unit='d', **_skip_filter_checks)
-        fluxes = lc_ps.get_value(qualifier='fluxes', **_skip_filter_checks)
-        sigmas = lc_ps.get_value(qualifier='sigmas', **_skip_filter_checks)
-        if not len(sigmas):
-            sigmas = None
-
+        times, phases, fluxes, sigmas = _get_combined_lc(b, kwargs.get('lc_datasets'), mask=False, normalize=True, phase_sorted=False)
         return times, fluxes, sigmas
 
 class Rv_PeriodogramBackend(_PeriodogramBaseBackend):
@@ -780,26 +864,15 @@ class Rv_PeriodogramBackend(_PeriodogramBaseBackend):
             raise ImportError("astropy.timeseries not installed (requires astropy 3.2+)")
 
         solver_ps = b.get_solver(solver)
-        if not len(solver_ps.get_value(qualifier='rv', rv=kwargs.get('rv', None))):
-            raise ValueError("cannot run rv_periodogram without any dataset in rv")
+        if not len(solver_ps.get_value(qualifier='rv_datasets', expand=True, rv_datasets=kwargs.get('rv_datasets', None))):
+            raise ValueError("cannot run rv_periodogram without any dataset in rv_datasets")
 
         # TODO: check to make sure rvs exist, etc
 
     def get_observations(self, b, **kwargs):
-        rv_ps = b.get_dataset(dataset=kwargs.get('rv'), **_skip_filter_checks)
-        times = np.array([])
-        rvs = np.array([])
-        sigmas = np.array([])
-        for i,comp in enumerate(rv_ps.filter(qualifier='rvs', check_visible=True).components):
-            mirror = [1,-1]
-            times = np.append(times, rv_ps.get_value(qualifier='times', component=comp, unit='d', **_skip_filter_checks))
-            rvs_this = rv_ps.get_value(qualifier='rvs', component=comp, unit=u.km/u.s, **_skip_filter_checks)
-            rvs = np.append(rvs, mirror[i]*rvs_this/abs(rvs_this).max())
-            sigmas_this = rv_ps.get_value(qualifier='sigmas', component=comp, unit=u.km/u.s, **_skip_filter_checks)
-            if not len(sigmas_this):
-                sigmas_this = np.full_like(rvs_this, fill_value=np.nan)
-            sigmas = np.append(sigmas, sigmas_this)
+        times, phases, rvs, sigmas = _get_combined_rv(b, kwargs.get('rv_datasets'), components=b.hierarchy.get_children_of(kwargs.get('component', None)), phase_component=kwargs.get('component'), mask=False, normalize=True, mirror_secondary=True, phase_sorted=False)
 
+        # print("***", times.shape, rvs.shape)
         # import matplotlib.pyplot as plt
         # plt.plot(times, rvs, '.')
         # plt.show()

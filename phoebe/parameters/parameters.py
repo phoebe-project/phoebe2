@@ -4229,7 +4229,7 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
-        elif ps.kind in ['emcee', 'dynesty', 'lc_periodogram', 'rv_periodogram', 'lc_geometry']:
+        elif ps.kind in ['emcee', 'dynesty', 'lc_periodogram', 'rv_periodogram', 'lc_geometry', 'rv_geometry']:
             pass
             # handled below
         elif ps.context in ['distribution']:
@@ -4301,17 +4301,19 @@ class ParameterSet(object):
             return (kwargs, axvline_kwargs)
 
         elif ps.kind == 'lc_geometry':
-            lc = ps.get_value(qualifier='lc', **_skip_filter_checks)
+            # lc = ps.get_value(qualifier='lc', **_skip_filter_checks)
             orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
             primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
-            phases = self._bundle.to_phase(self._bundle.get_value(qualifier='times', dataset=lc, context='dataset', **_skip_filter_checks))
-            fluxes = self._bundle.get_value(qualifier='fluxes', dataset=lc, context='dataset', **_skip_filter_checks)
+            # phases = self._bundle.to_phase(self._bundle.get_value(qualifier='times', dataset=lc, context='dataset', **_skip_filter_checks))
+            # fluxes = self._bundle.get_value(qualifier='fluxes', dataset=lc, context='dataset', **_skip_filter_checks)
+            phases = ps.get_value(qualifier='input_phases', **_skip_filter_checks)
+            fluxes = ps.get_value(qualifier='input_fluxes', **_skip_filter_checks)
             kwargs['plot_package'] = 'autofig'
             kwargs['autofig_method'] = 'plot'
             kwargs['x'] = phases
             kwargs['xlabel'] = 'phase'
             kwargs['y'] = fluxes
-            kwargs['ylabel'] = 'flux'
+            kwargs['ylabel'] = 'flux (normalized)'
             kwargs['marker'] = '.'
             kwargs['linestyle'] = 'None'
             kwargs['color'] = 'gray'
@@ -4326,6 +4328,38 @@ class ParameterSet(object):
             axvline_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='secondary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'color': self._bundle.get_value(qualifier='color', component=secondary, default='orange'), 'label': 'secondary ({}) eclipse'.format(secondary) if secondary!='secondary' else 'secondary eclipse', 'linestyle': 'solid'}]
 
             return [kwargs] + axvline_kwargss
+
+        elif ps.kind == 'rv_geometry':
+            orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
+            primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
+
+            # TODO: need to loop over components?  Or is that done outside here?
+            kwargss = [_deepcopy(kwargs), _deepcopy(kwargs), _deepcopy(kwargs), _deepcopy(kwargs)]
+            for i,comp in enumerate([primary, secondary]):
+                phases = ps.get_value(qualifier='input_phases', component=comp, **_skip_filter_checks)
+                input_rvs = ps.get_value(qualifier='input_rvs', component=comp, **_skip_filter_checks)
+                analytic_rvs = ps.get_value(qualifier='analytic_rvs', component=comp, **_skip_filter_checks)
+
+                phases_sort = phases.argsort()
+
+                for j in [i, i+2]:
+                    kwargss[j]['plot_package'] = 'autofig'
+                    kwargss[j]['autofig_method'] = 'plot'
+                    kwargss[j]['x'] = phases[phases_sort]
+                    kwargss[j]['xlabel'] = 'phase'
+                    kwargss[j]['ylabel'] = 'RVs'
+
+
+                kwargss[i]['y'] = input_rvs[phases_sort]
+                kwargss[i+2]['y'] = analytic_rvs[phases_sort]
+                kwargss[i]['marker'] = '.'
+                kwargss[i+2]['marker'] = 'None'
+                kwargss[i]['linestyle'] = 'None'
+                kwargss[i+2]['linestyle'] = 'solid'
+                kwargss[i]['color'] = 'gray'
+                kwargss[i+2]['color'] = self._bundle.get_value(qualifier='color', component=comp, default=['blue', 'orange'][i])
+
+            return kwargss
 
         elif ps.kind == 'dynesty':
             kwargs.setdefault('style', 'corner')
