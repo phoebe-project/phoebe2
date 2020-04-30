@@ -3069,10 +3069,17 @@ class Bundle(ParameterSet):
             missing_pb_content = []
 
             # NOTE: atms are not attached to datasets, but per-compute and per-component
-            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list():
+            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
 
                 # check to make sure passband supports the selected atm
                 atm = atmparam.get_value(**_skip_filter_checks)
+                if atmparam.qualifier == 'ld_coeffs_source' and atm == 'auto':
+                    # this might get us in trouble, we might have to reproduce
+                    # the auto logic here to make sure we have the necessary
+                    # tables for ld lookup
+                    # let's at least make sure we have the necessary ck2004 axes
+                    atm = 'ck2004'
+
                 if atm not in installed_pbs.get(pb, {}).get('atms', []):
                     if atm in online_pbs.get(pb, {}).get('atms', []):
                         missing_pb_content += ['{}:Inorm'.format(atm)]
