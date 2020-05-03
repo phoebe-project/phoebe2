@@ -169,10 +169,10 @@ def fit_twoGaussian_models(phases, fluxes, sigmas=None):
     phases, fluxes, sigmas = extend_phasefolded_lc(phases, fluxes, sigmas)
 
     for key in twogfuncs.keys():
-        # try:
-        fits[key] = curve_fit(twogfuncs[key], phases, fluxes, p0=init_params[key], sigma=sigmas, bounds=bounds[key])
-        # except:
-        #     fits[key] = np.array([np.nan*np.ones(len(init_params[key]))])
+        try:
+            fits[key] = curve_fit(twogfuncs[key], phases, fluxes, p0=init_params[key], sigma=sigmas, bounds=bounds[key])
+        except:
+            fits[key] = np.array([np.nan*np.ones(len(init_params[key]))])
 
     return fits
 
