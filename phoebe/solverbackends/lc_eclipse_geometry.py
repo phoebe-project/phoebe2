@@ -54,12 +54,16 @@ def cg12e2(phi, C, mu1, d1, sigma1, mu2, d2, sigma2, Aell):
 
 # PREPROCESSING
 
-def extend_phasefolded_lc(phases, fluxes, sigmas):
+def extend_phasefolded_lc(phases, fluxes, sigmas=None):
 
     #make new arrays that would span phase range -1 to 1:
     fluxes_extend = np.hstack((fluxes[(phases > 0)], fluxes, fluxes[phases < 0.]))
-    sigmas_extend = np.hstack((sigmas[phases > 0], sigmas, sigmas[phases < 0.]))
     phases_extend = np.hstack((phases[phases>0]-1, phases, phases[phases<0]+1))
+
+    if sigmas is not None:
+        sigmas_extend = np.hstack((sigmas[phases > 0], sigmas, sigmas[phases < 0.]))
+    else:
+        sigmas_extend = None
 
     return phases_extend, fluxes_extend, sigmas_extend
 
@@ -111,14 +115,20 @@ def estimate_eclipse_positions_widths(phases, fluxes, diagnose_init=False):
 # FITTING
 
 def lnlike(y, yerr, ymodel):
-    return -np.sum(np.log((2*np.pi)**0.5*yerr)+(y-ymodel)**2/(2*yerr**2))
+    if yerr is not None:
+        return -np.sum(np.log((2*np.pi)**0.5*yerr)+(y-ymodel)**2/(2*yerr**2))
+    else:
+        return -np.sum((y-ymodel)**2)
 
 
 def bic(y, yerr, ymodel, nparams):
-    return 2*lnlike(y,yerr,ymodel) - nparams*np.log(len(y))
+    if yerr is not None:
+        return 2*lnlike(y,yerr,ymodel) - nparams*np.log(len(y))
+    else:
+        return lnlike(y, yerr, ymodel)
 
 
-def fit_twoGaussian_models(phases, fluxes, sigmas):
+def fit_twoGaussian_models(phases, fluxes, sigmas=None):
     # setup the initial parameters
 
     # fit all of the models to the data
@@ -140,16 +150,29 @@ def fit_twoGaussian_models(phases, fluxes, sigmas):
         'CG12E1': [C0, mu10, d10, sigma10, mu20, d20, sigma20, Aell0],
         'CG12E2': [C0, mu10, d10, sigma10, mu20, d20, sigma20, Aell0]}
 
+    # parameters used frequently for bounds
+    fmax = fluxes.max()
+    fmin = fluxes.min()
+    fdiff = fmax - fmin
+
+    bounds = {'C': ((0),(fmax)),
+        'CE': ((0, 1e-6, -0.5),(fmax, fdiff, 0.5)),
+        'CG': ((0., -0.5, 0., 0.), (fmax, 0.5, fdiff, 0.5)),
+        'CGE': ((0., -0.5, 0., 0., 1e-6),(fmax, 0.5, fdiff, 0.5, fdiff)),
+        'CG12': ((0.,-0.5, 0., 0., -0.5, 0., 0.),(fmax, 0.5, fdiff, 0.5, 0.5, fdiff, 0.5)),
+        'CG12E1': ((0.,-0.5, 0., 0., -0.5, 0., 0., 1e-6),(fmax, 0.5, fdiff, 0.5, 0.5, fdiff, 0.5, fdiff)),
+        'CG12E2': ((0.,-0.5, 0., 0., -0.5, 0., 0., 1e-6),(fmax, 0.5, fdiff, 0.5, 0.5, fdiff, 0.5, fdiff))}
+
     fits = {}
 
     # extend light curve on phase range [-1,1]
     phases, fluxes, sigmas = extend_phasefolded_lc(phases, fluxes, sigmas)
 
     for key in twogfuncs.keys():
-        try:
-            fits[key] = curve_fit(twogfuncs[key], phases, fluxes, p0=init_params[key], sigma=sigmas)
-        except:
-            fits[key] = np.array([np.nan*np.ones(len(init_params[key]))])
+        # try:
+        fits[key] = curve_fit(twogfuncs[key], phases, fluxes, p0=init_params[key], sigma=sigmas, bounds=bounds[key])
+        # except:
+        #     fits[key] = np.array([np.nan*np.ones(len(init_params[key]))])
 
     return fits
 
