@@ -4,7 +4,7 @@ import numpy as np
 
 from .common import _use_autofig, _mplcmaps, _mplcolors, _mplmarkers, _mpllinestyles, MPLPropCycler, _label_units_lims, _figure_style_sources, _figure_style_nosources, _figure_uncover_highlight_animate
 
-def bls_period(b, **kwargs):
+def lc_periodogram(b, **kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]
@@ -18,7 +18,49 @@ def bls_period(b, **kwargs):
 
     return ParameterSet(params)
 
-def lc_eclipse_geometry(b, **kwargs):
+def rv_periodogram(b, **kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]
+
+    kwargs.setdefault('color', 'black' if _use_autofig else None)
+    kwargs.setdefault('marker', 'None' if _use_autofig else None)
+    kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
+    params += _figure_style_nosources(b, **kwargs)
+
+    # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
+
+    return ParameterSet(params)
+
+def lc_geometry(b, **kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]
+
+    # kwargs.setdefault('color', 'black' if _use_autofig else None)
+    # kwargs.setdefault('marker', 'None' if _use_autofig else None)
+    # kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
+    # params += _figure_style_nosources(b, **kwargs)
+
+    # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
+
+    return ParameterSet(params)
+
+def rv_geometry(b, **kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]
+
+    # kwargs.setdefault('color', 'black' if _use_autofig else None)
+    # kwargs.setdefault('marker', 'None' if _use_autofig else None)
+    # kwargs.setdefault('linestyle', 'solid' if _use_autofig else None)
+    # params += _figure_style_nosources(b, **kwargs)
+
+    # params += [BoolParameter(qualifier='legend', value=kwargs.get('legend', True), advanced=True, description='Whether to draw the legend')]
+
+    return ParameterSet(params)
+
+def ebai(b, **kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='solution', value=kwargs.get('solution', ''), choices=[''], description='Solution to include in the plot')]

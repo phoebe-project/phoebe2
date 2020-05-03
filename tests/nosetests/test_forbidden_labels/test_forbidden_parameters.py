@@ -26,6 +26,7 @@ def test_forbidden(verbose=False):
     b.add_solver('estimator.rv_periodogram')
     b.add_solver('estimator.lc_geometry')
     b.add_solver('estimator.rv_geometry')
+    b.add_solver('estimator.ebai')
     b.add_solver('optimizer.nelder_mead')
     b.add_solver('optimizer.differential_evolution')
     b.add_solver('sampler.emcee')

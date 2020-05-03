@@ -202,6 +202,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
                       'mass', 'dpdt', 'per0',
                       'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
                       't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
+                      'teffratio', 'requivratio', 'requivsumfrac', 'teffratio', 'requivsumfrac'
                       ]
 
 # from dataset:
@@ -249,6 +250,7 @@ _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
 
 # from solver:
 _forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
+                      'lc_datasets', 'rv_datasets',
                       'algorithm', 'duration', 'minimum_n_cycles', 'frequency_factor',
                       'samples_per_peak', 'nyquist_factor',
                       't0_near_times', 'sample_periods', 'sample_frequencies', 'objective',
