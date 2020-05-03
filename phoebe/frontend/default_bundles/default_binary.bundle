@@ -2177,7 +2177,7 @@ null
 "qualifier": "dict_set_all"
 }, 
 {
-"description": "Compute options to use when calling run_checks or within interactive checks.", 
+"description": "Compute options to use when calling run_checks/run_checks_compute or within interactive checks.", 
 "value": [
 "*"
 ], 
@@ -2188,6 +2188,35 @@ null
 "copy_for": false, 
 "Class": "SelectParameter", 
 "qualifier": "run_checks_compute"
+}, 
+{
+"description": "Solver options to use when calling run_checks/run_checks_solver or within interactive checks.", 
+"value": [
+"*"
+], 
+"choices": [], 
+"context": "setting", 
+"copy_for": false, 
+"Class": "SelectParameter", 
+"qualifier": "run_checks_solver"
+}, 
+{
+"description": "Solutions to use when calling run_checks/run_checks_solution or within interactive checks.", 
+"value": [], 
+"choices": [], 
+"context": "setting", 
+"copy_for": false, 
+"Class": "SelectParameter", 
+"qualifier": "run_checks_solution"
+}, 
+{
+"description": "Figures to use when calling run_checks/run_checks_figure or within interactive checks.", 
+"value": [], 
+"choices": [], 
+"context": "setting", 
+"copy_for": false, 
+"Class": "SelectParameter", 
+"qualifier": "run_checks_figure"
 }, 
 {
 "description": "Whether to automatically add figure parameters when a dataset is added with a new dataset type, or a solution is added.", 

@@ -768,9 +768,9 @@ class SampleOverModel(object):
             addl_params += [ArrayParameter(qualifier='sampled_uniqueids', value=list(sample_dict.keys()), advanced=True, readonly=True, description='uniqueids of sampled parameters')]
             addl_params += [ArrayParameter(qualifier='sampled_twigs', value=[b.get_parameter(uniqueid=uniqueid, **_skip_filter_checks).twig for uniqueid in sample_dict.keys()], readonly=True, description='twigs of sampled parameters')]
             if expose_samples:
-                addl_params += [ArrayParameter(qualifier='samples', value=success_samples, readonly=True, description='samples that were drawn and successfully computed.')]
+                addl_params += [ArrayParameter(qualifier='samples', value=success_samples, readonly=True, description='samples that were drawn and successfully computed (in the units at the time run_compute was called).')]
             if expose_failed:
-                addl_params += [DictParameter(qualifier='failed_samples', value=failed_samples, readonly=True, description='samples that were drawn but failed to compute.  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
+                addl_params += [DictParameter(qualifier='failed_samples', value=failed_samples, readonly=True, description='samples that were drawn but failed to compute (in the units at the time run_compute was called).  Dictionary keys are the messages with values being an array with shape (N, len(fitted_uniqueids))')]
 
             return ret_ps + ParameterSet(addl_params)
         return

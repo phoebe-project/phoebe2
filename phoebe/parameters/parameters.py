@@ -190,7 +190,9 @@ _forbidden_labels += ['t0', 'ra', 'dec', 'epoch', 'distance', 'vgamma', 'hierarc
 
 # from setting:
 _forbidden_labels += ['phoebe_version', 'log_history', 'dict_filter',
-                      'dict_set_all', 'run_checks_compute', 'auto_add_figure', 'auto_remove_figure']
+                      'dict_set_all', 'run_checks_compute', 'run_checks_solver',
+                      'run_checks_solution', 'run_checks_figure',
+                      'auto_add_figure', 'auto_remove_figure']
 
 # from component
 _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'logg',
