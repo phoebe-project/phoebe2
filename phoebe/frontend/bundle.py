@@ -1856,6 +1856,26 @@ class Bundle(ParameterSet):
             if return_changes and (changed or choices_changed):
                 affected_params.append(param)
 
+        lcchoices = self.filter(context='dataset', kind='lc', **_skip_filter_checks).datasets
+        for param in self.filter(qualifier='lc_datasets', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and lcchoices != param._choices:
+                choices_changed = True
+            param._choices = lcchoices
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
+        rvchoices = self.filter(context='dataset', kind='rv', **_skip_filter_checks).datasets
+        for param in self.filter(qualifier='rv_datasets', **_skip_filter_checks).to_list():
+            choices_changed = False
+            if return_changes and rvchoices != param._choices:
+                choices_changed = True
+            param._choices = rvchoices
+            changed = param.handle_choice_rename(remove_not_valid=True, **rename)
+            if return_changes and (changed or choices_changed):
+                affected_params.append(param)
+
         return affected_params
 
     def _handle_figure_time_source_params(self, rename={}, return_changes=False):
@@ -2124,31 +2144,6 @@ class Bundle(ParameterSet):
 
         return affected_params
 
-    def _handle_lc_choiceparams(self, return_changes=False):
-        affected_params = []
-
-        choices = self.filter(context='dataset', kind='lc', **_skip_filter_checks).datasets
-
-        for param in self.filter(qualifier='lc', context='solver', **_skip_filter_checks).to_list():
-            choices_changed = False
-            if return_changes and choices != param._choices:
-                choices_changed = True
-            param._choices = choices
-
-            if param._value not in choices:
-                changed = True
-                if param._value in ['', 'None'] and len(choices):
-                    param._value = choices[0]
-                else:
-                    param._value = 'None'
-            else:
-                changed = False
-
-            if return_changes and (changed or choices_changed):
-                affected_params.append(param)
-
-        return affected_params
-
     def _handle_orbit_choiceparams(self, return_changes=False):
         affected_params = []
 
@@ -2177,7 +2172,7 @@ class Bundle(ParameterSet):
     def _handle_component_choiceparams(self, return_changes=False):
         affected_params = []
 
-        # currently assuming we want a component with period (which is the case for periodogram component parameter)
+        # currently assuming we want a component with period (which is the case for lc_periodogram component parameter)
         choices = self.filter(context='component', qualifier='period', **_skip_filter_checks).components
 
         for param in self.filter(qualifier='component', context='solver', **_skip_filter_checks).to_list():
@@ -3050,10 +3045,17 @@ class Bundle(ParameterSet):
             missing_pb_content = []
 
             # NOTE: atms are not attached to datasets, but per-compute and per-component
-            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list():
+            for atmparam in self.filter(qualifier='atm', kind='phoebe', compute=computes, **_skip_filter_checks).to_list() + self.filter(qualifier='ld_coeffs_source').to_list():
 
                 # check to make sure passband supports the selected atm
                 atm = atmparam.get_value(**_skip_filter_checks)
+                if atmparam.qualifier == 'ld_coeffs_source' and atm == 'auto':
+                    # this might get us in trouble, we might have to reproduce
+                    # the auto logic here to make sure we have the necessary
+                    # tables for ld lookup
+                    # let's at least make sure we have the necessary ck2004 axes
+                    atm = 'ck2004'
+
                 if atm not in installed_pbs.get(pb, {}).get('atms', []):
                     if atm in online_pbs.get(pb, {}).get('atms', []):
                         missing_pb_content += ['{}:Inorm'.format(atm)]
@@ -3696,7 +3698,8 @@ class Bundle(ParameterSet):
                          'Speagle (2020)': 'https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S',
                          'Skilling (2004)': 'https://ui.adsabs.harvard.edu/abs/2004AIPC..735..395S',
                          'Skilling (2006)': 'https://projecteuclid.org/euclid.ba/1340370944',
-                         'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F'
+                         'Foreman-Mackey et al. (2017)': 'https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F',
+                         'Prsa et al. (2008)': 'https://ui.adsabs.harvard.edu/abs/2008ApJ...687..542P'
                         }
 
         # ref: [reasons] pairs
@@ -3723,16 +3726,31 @@ class Bundle(ParameterSet):
                 recs = _add_reason(recs, 'Carter et al. (2011)', 'photodynam compute backend')
                 recs = _add_reason(recs, 'Andras (2012)', 'photodynam compute backend')
             elif self.get_compute(compute).kind == 'ellc':
-                recs = _add_response(recs, 'Maxted (2016)', 'ellc compute backend')
+                recs = _add_reason(recs, 'Maxted (2016)', 'ellc compute backend')
+
+        # if len(solvers):
+            # recs = _add_reason(recs, 'Conroy et al. (2020)', 'general inverse problem framework in PHOEBE')
 
         for solver in solvers:
             solver_kind = self.get_solver(solver).kind
-            if solver_kind == 'emcee':
+            # estimators
+            if solver_kind in ['lc_periodogram', 'rv_periodogram']:
+                recs = _add_reason(recs, 'astropy', 'astropy.timeseries for periodograms')
+            # elif solver_kind in ['lc_geometry', 'rv_geometry']:
+                # recs = _add_reason(recs, 'Conroy et al. (2020)', '{} solver'.format(solver_kind))
+            elif solver_kind == 'ebai':
+                recs = _add_reason(recs, 'Prsa et al. (2008)', 'ebai solver backend')
+            # optimizers
+            elif solver_kind in ['nelder_mead', 'powell', 'cg', 'differential_evolution']:
+                recs = _add_reason(recs, 'numpy/scipy', '{} solver uses scipy.optimize'.format(solver_kind))
+            # samplers
+            elif solver_kind == 'emcee':
                 recs = _add_reason(recs, 'Foreman-Mackey et al. (2013)', 'emcee solver backend')
             elif solver_kind == 'dynesty':
                 recs = _add_reason(recs, 'Speagle (2020)', 'dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2004)', 'nested sampling: dynesty solver backend')
                 recs = _add_reason(recs, 'Skilling (2006)', 'nested sampling: dynesty solver backend')
+
 
 
         # check for presence of datasets that require PHOEBE releases
@@ -5144,7 +5162,6 @@ class Bundle(ParameterSet):
         ret_changes = []
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
-        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
         if return_changes:
@@ -5243,7 +5260,6 @@ class Bundle(ParameterSet):
         if not kwargs.get('during_overwrite', False):
             ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
             ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
-            ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
 
@@ -5318,7 +5334,6 @@ class Bundle(ParameterSet):
         ret_changes = []
         ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_figure_time_source_params(return_changes=return_changes)
-        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
 
         for param in self.filter(context='solution', qualifier='lc', **_skip_filter_checks):
@@ -9455,6 +9470,17 @@ class Bundle(ParameterSet):
 
         self._check_label(kwargs['solver'], allow_overwrite=kwargs.get('overwrite', False))
 
+        ## add any necessary constraints needed by the solver
+        solver_kind = func.__name__
+        if solver_kind in ['ebai']:
+            for orbit in self.hierarchy.get_orbits():
+                orbit_ps = self.get_orbit(component=orbit, **_skip_filter_checks)
+                for constraint in ['teffratio', 'requivsumfrac']:
+                    if constraint not in orbit_ps.qualifiers:
+                        logger.warning("adding {} constraint to {} orbit (needed for {} solver)".format(constraint, orbit, solver_kind))
+                        self.add_constraint(constraint, component=orbit)
+
+
         # NOTE: we don't pass kwargs here since so many require the choices
         # to be populated.  Instead, we loop through kwargs and set the values
         # later
@@ -9490,7 +9516,7 @@ class Bundle(ParameterSet):
         ret_changes += self._handle_compute_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_solver_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_fitparameters_selecttwigparams(return_changes=return_changes)
-        ret_changes += self._handle_lc_choiceparams(return_changes=return_changes)
+        ret_changes += self._handle_dataset_selectparams(return_changes=return_changes)
         ret_changes += self._handle_orbit_choiceparams(return_changes=return_changes)
         ret_changes += self._handle_component_choiceparams(return_changes=return_changes)
 
@@ -10157,6 +10183,24 @@ class Bundle(ParameterSet):
         conf.interactive_constraints_off(suppress_warning=True)
 
         changed_params = []
+        constraint_revert_flip = {}
+
+        if adopt_values and not trial_run:
+            # check to make sure no constraint issues
+            for uniqueid in fitted_uniqueids[adopt_inds]:
+                param = self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks)
+                if len(param.constrained_by):
+                    constrained_by_ps = ParameterSet(param.constrained_by)
+                    validsolvefor = [v for v in _constraint._validsolvefor.get(param.is_constraint.constraint_func, []) if param.qualifier not in v]
+                    if len(validsolvefor) == 1:
+                        solve_for = constrained_by_ps.get_parameter(twig=validsolvefor[0], **_skip_filter_checks)
+                        constraint_revert_flip[solve_for.uniqueid] = param.uniqueid
+                    else:
+                        raise ValueError("cannot adopt value for {} as it is constrained by multiple parameters: {}.  Flip the constraint manually first, or remove {} from adopt_parameters.".format(param.twig, ", ".join([p.twig for p in param.constrained_by]), param.twig))
+
+            for solve_for_uniqueid, constrained_uniqueid in constraint_revert_flip.items():
+                logger.warning("temporarily flipping {} to solve for {}".format(self.get_parameter(uniqueid=constrained_uniqueid, **_skip_filter_checks).twig, self.get_parameter(uniqueid=solve_for_uniqueid, **_skip_filter_checks).twig))
+                self.get_parameter(uniqueid=constrained_uniqueid, **_skip_filter_checks).is_constraint.flip_for(uniqueid=solve_for_uniqueid)
 
         if solver_kind in ['emcee', 'dynesty']:
             dist, _ = self.get_distribution_collection(solution=solution, **{k:v for k,v in kwargs.items() if k in solution_ps.qualifiers})
@@ -10187,7 +10231,7 @@ class Bundle(ParameterSet):
         else:
             fitted_values = solution_ps.get_value(qualifier='fitted_values', **_skip_filter_checks)
 
-            if solver_kind == 'periodogram':
+            if solver_kind in ['lc_periodogram', 'rv_periodogram']:
                 fitted_values = fitted_values * solution_ps.get_value(qualifier='period_factor', period_factor=kwargs.get('period_factor', None), **_skip_filter_checks)
 
             for uniqueid, twig, value, unit in zip(fitted_uniqueids[adopt_inds], fitted_twigs[adopt_inds], fitted_values[adopt_inds], fitted_units[adopt_inds]):
@@ -10200,7 +10244,7 @@ class Bundle(ParameterSet):
                         if trial_run:
                             param = param.copy()
                         changed_params.append(param)
-                        param.set_value(value, unit=unit)
+                        param.set_value(value, unit=unit, force=trial_run)
                 else:
                     logger.warning("uniqueid not found, falling back on twig={}".format(twig))
                     if adopt_distributions:
@@ -10217,6 +10261,10 @@ class Bundle(ParameterSet):
         changed_params += self.run_delayed_constraints()
         if user_interactive_constraints:
             conf.interactive_constraints_on()
+
+        for constrained_uniqueid, solve_for_uniqueid in constraint_revert_flip.items():
+            logger.warning("reverting {} to solve for {}".format(self.get_parameter(uniqueid=constrained_uniqueid, **_skip_filter_checks).twig, self.get_parameter(uniqueid=solve_for_uniqueid, **_skip_filter_checks).twig))
+            self.get_parameter(uniqueid=constrained_uniqueid, **_skip_filter_checks).is_constraint.flip_for(uniqueid=solve_for_uniqueid)
 
         ret_ps = ParameterSet([])
         if adopt_distributions:

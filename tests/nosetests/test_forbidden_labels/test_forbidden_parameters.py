@@ -22,8 +22,10 @@ def test_forbidden(verbose=False):
     b.add_spot(component='primary')
     b.add_gaussian_process(dataset='lc01')
 
-    b.add_solver('estimator.periodogram')
-    b.add_solver('estimator.lc_eclipse_geometry')
+    b.add_solver('estimator.lc_periodogram')
+    b.add_solver('estimator.rv_periodogram')
+    b.add_solver('estimator.lc_geometry')
+    b.add_solver('estimator.rv_geometry')
     b.add_solver('optimizer.nelder_mead')
     b.add_solver('optimizer.differential_evolution')
     b.add_solver('sampler.emcee')

@@ -257,7 +257,7 @@ _forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
                       'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
                       'strategy', 'popsize', 'continue_from', 'init_from_combine',
                       'burnin_factor', 'thin_factor', 'progress_every_niters',
-                      'nlive', 'maxcall', 'lc_eclipse_geometry', 'periodogram',
+                      'nlive', 'maxcall', 'lc_geometry', 'rv_geometry', 'lc_periodogram', 'rv_periodogram', 'ebai',
                       'nelder_mead', 'differential_evolution', 'emcee', 'dynesty']
 
 # from solution:
@@ -4229,7 +4229,7 @@ class ParameterSet(object):
                         'y': 'etvs',
                         'z': 0}
             sigmas_avail = ['etvs']
-        elif ps.kind in ['emcee', 'dynesty', 'periodogram', 'lc_eclipse_geometry']:
+        elif ps.kind in ['emcee', 'dynesty', 'lc_periodogram', 'rv_periodogram', 'lc_geometry', 'rv_geometry', 'ebai']:
             pass
             # handled below
         elif ps.context in ['distribution']:
@@ -4282,7 +4282,7 @@ class ParameterSet(object):
             kwargs['plot_package'] = 'distl'
             kwargs['dc'], _ = self._bundle.get_distribution_collection(twig=kwargs.get('distribution_twig', 'sample_from@{}'.format(ps.compute)))
             return (kwargs,)
-        elif ps.kind == 'periodogram':
+        elif ps.kind in ['lc_periodogram', 'rv_periodogram']:
             kwargs['plot_package'] = 'autofig'
             kwargs['x'] = ps.get_quantity(qualifier='period', **_skip_filter_checks)
             kwargs['xlabel'] = 'period'
@@ -4300,18 +4300,20 @@ class ParameterSet(object):
 
             return (kwargs, axvline_kwargs)
 
-        elif ps.kind == 'lc_eclipse_geometry':
-            lc = ps.get_value(qualifier='lc', **_skip_filter_checks)
+        elif ps.kind == 'lc_geometry':
+            # lc = ps.get_value(qualifier='lc', **_skip_filter_checks)
             orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
             primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
-            phases = self._bundle.to_phase(self._bundle.get_value(qualifier='times', dataset=lc, context='dataset', **_skip_filter_checks))
-            fluxes = self._bundle.get_value(qualifier='fluxes', dataset=lc, context='dataset', **_skip_filter_checks)
+            # phases = self._bundle.to_phase(self._bundle.get_value(qualifier='times', dataset=lc, context='dataset', **_skip_filter_checks))
+            # fluxes = self._bundle.get_value(qualifier='fluxes', dataset=lc, context='dataset', **_skip_filter_checks)
+            phases = ps.get_value(qualifier='input_phases', **_skip_filter_checks)
+            fluxes = ps.get_value(qualifier='input_fluxes', **_skip_filter_checks)
             kwargs['plot_package'] = 'autofig'
             kwargs['autofig_method'] = 'plot'
             kwargs['x'] = phases
             kwargs['xlabel'] = 'phase'
             kwargs['y'] = fluxes
-            kwargs['ylabel'] = 'flux'
+            kwargs['ylabel'] = 'flux (normalized)'
             kwargs['marker'] = '.'
             kwargs['linestyle'] = 'None'
             kwargs['color'] = 'gray'
@@ -4326,6 +4328,67 @@ class ParameterSet(object):
             axvline_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='secondary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'color': self._bundle.get_value(qualifier='color', component=secondary, default='orange'), 'label': 'secondary ({}) eclipse'.format(secondary) if secondary!='secondary' else 'secondary eclipse', 'linestyle': 'solid'}]
 
             return [kwargs] + axvline_kwargss
+
+        elif ps.kind == 'rv_geometry':
+            orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
+            primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
+
+            kwargs['xlabel'] = 'phase'
+            kwargs['ylabel'] = 'RVs'
+            kwargs['plot_package'] = 'autofig'
+            kwargs['autofig_method'] = 'plot'
+
+            kwargss = [_deepcopy(kwargs), _deepcopy(kwargs), _deepcopy(kwargs), _deepcopy(kwargs)]
+            for i,comp in enumerate([primary, secondary]):
+                phases = ps.get_value(qualifier='input_phases', component=comp, **_skip_filter_checks)
+                input_rvs = ps.get_value(qualifier='input_rvs', component=comp, **_skip_filter_checks)
+                analytic_rvs = ps.get_value(qualifier='analytic_rvs', component=comp, **_skip_filter_checks)
+
+                phases_sort = phases.argsort()
+
+                kwargss[i]['x'] = phases[phases_sort]
+                kwargss[i+2]['x'] = phases[phases_sort]
+                kwargss[i]['y'] = input_rvs[phases_sort]
+                kwargss[i+2]['y'] = analytic_rvs[phases_sort]
+                kwargss[i]['marker'] = '.'
+                kwargss[i+2]['marker'] = 'None'
+                kwargss[i]['linestyle'] = 'None'
+                kwargss[i+2]['linestyle'] = 'solid'
+                kwargss[i]['color'] = 'gray'
+                kwargss[i+2]['color'] = self._bundle.get_value(qualifier='color', component=comp, default=['blue', 'orange'][i])
+
+            return kwargss
+
+        elif ps.kind == 'ebai':
+            orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
+            primary, secondary = self._bundle.hierarchy.get_children_of(orbit)
+
+            input_phases = ps.get_value(qualifier='input_phases', **_skip_filter_checks)
+            input_fluxes = ps.get_value(qualifier='input_fluxes', **_skip_filter_checks)
+            ebai_phases = ps.get_value(qualifier='ebai_phases', **_skip_filter_checks)
+            ebai_fluxes = ps.get_value(qualifier='ebai_fluxes', **_skip_filter_checks)
+
+            kwargs['plot_package'] = 'autofig'
+            kwargs['autofig_method'] = 'plot'
+            kwargs['xlabel'] = 'phase'
+            kwargs['ylabel'] = 'flux (normalized)'
+
+            kwargss = [_deepcopy(kwargs), _deepcopy(kwargs)]
+
+            kwargss[0]['x'] = input_phases
+            kwargss[1]['x'] = ebai_phases
+            kwargss[0]['y'] = input_fluxes
+            kwargss[1]['y'] = ebai_fluxes
+            kwargss[0]['z'] = 0.0
+            kwargss[1]['z'] = 1.0  # force ebai model on top of data
+            kwargss[0]['marker'] = '.'
+            kwargss[1]['marker'] = '+'
+            kwargss[0]['linestyle'] = 'None'
+            kwargss[1]['linestyle'] = 'solid'
+            kwargss[0]['color'] = 'gray'
+            kwargss[1]['color'] = 'blue'
+
+            return kwargss
 
         elif ps.kind == 'dynesty':
             kwargs.setdefault('style', 'corner')
