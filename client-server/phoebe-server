@@ -1189,6 +1189,9 @@ def bundle_method(msg):
         # msg['cleanup'] = False
     elif method in ['kill_job']:
         msg['cleanup'] = False
+    elif method in ['add_distribution']:
+        # this will be safe since we're passing a list of uniqueids
+        msg['allow_multiple_matches'] = True
 
     # make sure to return parameters removed during overwrite so that we can
     # catch that and emit the necessary changes to the client(s)
