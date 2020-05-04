@@ -219,7 +219,7 @@ def _lnprobability_negative(sampled_values, b, params_uniqueids, compute,
                            solution,
                            compute_kwargs={},
                            custom_lnprobability_callable=None,
-                           failed_samples_buffer=None):
+                           failed_samples_buffer=False):
 
     return -1 * _lnprobability(sampled_values, b, params_uniqueids, compute,
                               priors, priors_combine,
