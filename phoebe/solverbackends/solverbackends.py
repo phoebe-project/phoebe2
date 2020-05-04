@@ -949,7 +949,7 @@ class EbaiBackend(BaseSolverBackend):
         fitted_uniqueids = [p.uniqueid for p in fitted_params]
         fitted_twigs = [p.twig for p in fitted_params]
         fitted_values = [t0_supconj, teffratio, requivsumfrac, esinw, ecosw, np.arcsin(sini)]
-        fitted_units = [u.d, u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
+        fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
 
         return [[{'qualifier': 'orbit', 'value': orbit},
                  {'qualifier': 'input_phases', 'value': b.to_phase(times, component=orbit, t0=t0_supconj)},
