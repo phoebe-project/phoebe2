@@ -204,7 +204,7 @@ _forbidden_labels += ['requiv', 'requiv_max', 'requiv_min', 'teff', 'abun', 'log
                       'mass', 'dpdt', 'per0',
                       'dperdt', 'ecc', 'deccdt', 't0_perpass', 't0_supconj',
                       't0_ref', 'mean_anom', 'q', 'sma', 'asini', 'ecosw', 'esinw',
-                      'teffratio', 'requivratio', 'requivsumfrac', 'teffratio', 'requivsumfrac'
+                      'teffratio', 'requivratio', 'requivsumfrac'
                       ]
 
 # from dataset:
@@ -10451,14 +10451,11 @@ class ConstraintParameter(Parameter):
 
         if self.qualifier:
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
-            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, feature=self.feature, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
+            ps = self._bundle.exclude(context='constraint', **_skip_filter_checks).filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, feature=self.feature, model=self.model, **_skip_filter_checks)
             if len(ps) == 1:
-                constrained_parameter = ps.get_parameter(check_visible=False,
-                                                         check_default=False,
-                                                         check_advanced=False,
-                                                         check_single=False)
+                constrained_parameter = ps.get_parameter(**_skip_filter_checks)
             else:
-                raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'feature': self.feature, 'model': self.model}))
+                raise KeyError("could not find single match for {} (found {})".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'feature': self.feature, 'model': self.model}, ps.twigs))
 
 
             var = ConstraintVar(self._bundle, constrained_parameter.twig)
