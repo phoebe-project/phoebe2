@@ -699,6 +699,26 @@ def adjustable_parameters(bundleid):
 
     return _get_response({'success': True, 'adjustable_parameters': adjustable_parameters}, api=True)
 
+@app.route('/run_checks/<string:bundleid>/<string:run_checks_method>/<string:label>', methods=['GET'])
+@crossdomain(origin='*')
+def run_checks(bundleid, run_checks_method, label):
+    """
+    """
+    if app._verbose:
+        print("run_checks(bundleid={}, run_checks_method={}, label={})".format(bundleid, run_checks_method, label))
+
+
+    if bundleid not in app._bundles.keys():
+        return _get_response({'success': False, 'error': 'bundle not found with bundleid={}'.format(bundleid)}, api=True)
+
+    b = app._bundles.get(bundleid)
+    app._last_access_per_bundle[bundleid] = datetime.now()
+
+    info = _run_checks(b, bundleid, run_checks_method=run_checks_method, run_checks_kwargs={run_checks_method.split('_')[-1]: label}, do_emit=False)
+    info['success'] = True
+
+    return _get_response(info, api=True)
+
 @app.route('/nparray/<string:input>', methods=['GET'])
 @crossdomain(origin='*')
 def nparray(input):
@@ -890,8 +910,8 @@ def deregister_client(msg):
     bundle_memory_cleanup()
 
 ########## BUNDLE METHODS
-def _run_checks(b, bundleid, do_emit=True):
-    report = b.run_checks()
+def _run_checks(b, bundleid, run_checks_method='run_checks', run_checks_kwargs={}, do_emit=True):
+    report = getattr(b, run_checks_method)(**run_checks_kwargs)
 
     if do_emit:
         emit('{}:checks:react'.format(bundleid), {'success': True, 'checks_status': report.status, 'checks_report': [item.to_dict() for item in report.items]}, broadcast=True)
