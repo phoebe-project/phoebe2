@@ -3313,7 +3313,7 @@ class Bundle(ParameterSet):
 
         return report
 
-    def run_checks_compute(self, raise_logger_warning=False, raise_error=False, run_checks_system=True, **kwargs):
+    def run_checks_compute(self, compute=None, raise_logger_warning=False, raise_error=False, run_checks_system=True, **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
@@ -3363,28 +3363,30 @@ class Bundle(ParameterSet):
             changed_params = self.run_delayed_constraints()
 
         report = kwargs.pop('report', RunChecksReport())
+        addl_parameters = kwargs.pop('addl_parameters', [])
 
         if run_checks_system:
             report = self.run_checks_system(raise_logger_warning=False, raise_error=False, report=report, **kwargs)
 
-        run_checks_compute = self.get_value(qualifier='run_checks_compute', context='setting', default='*', check_visible=False, check_default=False, expand=True)
-        computes = kwargs.pop('compute', run_checks_compute)
-        if computes is None:
-            computes = self.computes
+        run_checks_compute = self.get_value(qualifier='run_checks_compute', context='setting', default='*', expand=True, **_skip_filter_checks)
+        if compute is None:
+            computes = run_checks_compute
+            addl_parameters += [self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)]
         else:
+            computes = compute
             if isinstance(computes, str):
                 computes = [computes]
 
-            for compute in computes:
-                if compute not in self.computes:
-                    raise ValueError("compute='{}' not found".format(compute))
+        for compute in computes:
+            if compute not in self.computes:
+                raise ValueError("compute='{}' not found".format(compute))
 
-                if compute not in run_checks_compute:
-                    report.add_item(self,
-                                    "compute='{}' is not included in run_checks_compute@setting, so will not raise interactive warnings".format(compute),
-                                    [self.get_parameter(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False)],
-                                    False
-                                    )
+            if compute not in run_checks_compute:
+                report.add_item(self,
+                                "compute='{}' is not included in run_checks_compute@setting, so will not raise interactive warnings".format(compute),
+                                [self.get_parameter(qualifier='run_checks_compute', context='setting', check_visible=False, check_default=False)],
+                                False
+                                )
 
         hier = self.hierarchy
         if hier is None:
@@ -3571,7 +3573,7 @@ class Bundle(ParameterSet):
                         report.add_item(self,
                                         "ld_func_bol='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
                                         [self.get_parameter(qualifier='ld_func_bol', component=component, context='component', **_skip_filter_checks),
-                                         self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
+                                         self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)]+addl_parameters,
                                         True, 'run_compute')
                     # other compute backends ignore bolometric limb-darkening
 
@@ -3615,9 +3617,8 @@ class Bundle(ParameterSet):
                         if compute_kind != 'phoebe':
                             report.add_item(self,
                                             "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{}.".format(compute_kind, compute, component, dataset),
-                                            [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks),
-                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)
-                                            ],
+                                            [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks)
+                                            ]+addl_parameters,
                                             True, 'run_compute')
                         else:
                             atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
@@ -3626,16 +3627,14 @@ class Bundle(ParameterSet):
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by atm='{}'.  Either change atm@{}@{} or ld_mode@{}@{}.".format(atm, component, compute, component, dataset),
                                                     [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks),
-                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks),
-                                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)
-                                                    ],
+                                                     self.get_parameter(qualifier='atm', component=component, compute=compute, context='compute', **_skip_filter_checks)
+                                                    ]+addl_parameters,
                                                     True, 'run_compute')
                                 else:
                                     report.add_item(self,
                                                     "ld_mode='interp' not supported by '{}' backend used by compute='{}'.  Change ld_mode@{}@{} or use a backend that supports atm='ck2004'.".format(self.get_compute(compute).kind, compute, component, dataset),
-                                                    [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks),
-                                                     self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)
-                                                    ],
+                                                    [dataset_ps.get_parameter(qualifier='ld_mode', component=component, **_skip_filter_checks)
+                                                    ]+addl_parameters,
                                                     True, 'run_compute')
 
 
@@ -3688,22 +3687,19 @@ class Bundle(ParameterSet):
                         if compute_kind in ['legacy'] and ld_func not in ['linear', 'logarithmic', 'square_root']:
                             report.add_item(self,
                                             "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
-                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
-                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks)]+addl_parameters,
                                             True, 'run_compute')
 
                         if compute_kind in ['ellc'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic', 'power']:
                             report.add_item(self,
                                             "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root' or power.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
-                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
-                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks)]+addl_parameters,
                                             True, 'run_compute')
 
                         if compute_kind in ['jktebop'] and ld_func not in ['linear', 'logarithmic', 'square_root', 'quadratic']:
                             report.add_item(self,
                                             "ld_func='{}' not supported by '{}' backend used by compute='{}'.  Use 'linear', 'logarithmic', 'quadratic', or 'square_root'.".format(ld_func, self.get_compute(compute, **_skip_filter_checks).kind, compute),
-                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks),
-                                             self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
+                                            [dataset_ps.get_parameter(qualifier='ld_func', component=component, **_skip_filter_checks)]+addl_parameters,
                                             True, 'run_compute')
 
                 atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', atm=kwargs.get('atm', None), **_skip_filter_checks)
@@ -3755,7 +3751,8 @@ class Bundle(ParameterSet):
                                             [distribution_param,
                                             ref_param,
                                             ref_param.is_constraint,
-                                            self.get_parameter(qualifier='sample_from', compute=compute, context='compute', **_skip_filter_checks)],
+                                            self.get_parameter(qualifier='sample_from', compute=compute, context='compute', **_skip_filter_checks)
+                                            ]+addl_parameters,
                                             error, 'run_compute')
 
                 elif dist_or_solution in self.solutions:
@@ -3778,7 +3775,8 @@ class Bundle(ParameterSet):
                                             [param,
                                              param.is_constraint,
                                              solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks),
-                                             self.get_parameter(qualifier='sample_from', compute=compute, context='compute', **_skip_filter_checks)],
+                                             self.get_parameter(qualifier='sample_from', compute=compute, context='compute', **_skip_filter_checks)
+                                             ]+addl_parameters,
                                              error, 'run_compute')
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
@@ -3788,7 +3786,8 @@ class Bundle(ParameterSet):
             if compute_kind in ['phoebe'] and self.get_value(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks) != 'none':
                 report.add_item(self,
                                 "support for beaming/boosting has been removed from PHOEBE 2.2.  Set boosting_method to 'none'.",
-                                [self.get_parameter(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)],
+                                [self.get_parameter(qualifier='boosting_method', compute=compute, boosting_method=kwargs.get('boosting_method', None), **_skip_filter_checks)
+                                ]+addl_parameters,
                                 True, 'run_compute')
 
             # mesh-consistency checks
@@ -3797,7 +3796,7 @@ class Bundle(ParameterSet):
                 if len(set(mesh_methods)) > 1:
                     report.add_item(self,
                                     "all (or no) components must use mesh_method='wd'.",
-                                    self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()+[self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
+                                    self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()+addl_parameters,
                                     True, 'run_compute')
 
             # estimate if any body is smaller than any other body's triangles, using a spherical assumption
@@ -3817,8 +3816,8 @@ class Bundle(ParameterSet):
                                         "triangles on {} may be larger than the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
                                         self.filter(qualifier='requiv', component=smallest_components, **_skip_filter_checks).to_list()+
                                         self.filter(qualifier='ntriangles', component=offending_components, compute=compute, **_skip_filter_checks).to_list()+[
-                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **_skip_filter_checks),
-                                        self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
+                                        self.get_parameter(qualifier='eclipse_method', compute=compute, **_skip_filter_checks)
+                                        ]+addl_parameters,
                                         True, 'run_compute')
 
                     else:
@@ -3829,8 +3828,8 @@ class Bundle(ParameterSet):
                                         "triangles on {} are nearly the size of the entire bodies of {}, resulting in inaccurate eclipse detection.  Check values for requiv of {} and/or ntriangles of {}.  If your system is known to NOT eclipse, you can set eclipse_method to 'only_horizon' to circumvent this check.".format(offending_components, smallest_components, smallest_components, offending_components),
                                         self.filter(qualifier='requiv', component=smallest_components).to_list()+
                                         self.filter(qualifier='ntriangles', component=offending_components, compute=compute, **_skip_filter_checks).to_list()+[
-                                        self.get_parameter(qualifier='eclipse_method', compute=compute, eclipse_method=kwargs.get('eclipse_method', None), **_skip_filter_checks).
-                                        self.get_parameter(qualifier='run_checks_compute', context='setting', **_skip_filter_checks)],
+                                        self.get_parameter(qualifier='eclipse_method', compute=compute, eclipse_method=kwargs.get('eclipse_method', None), **_skip_filter_checks)
+                                        ]+addl_parameters,
                                         False, 'run_compute')
 
             if compute_kind == 'ellc':
@@ -3850,7 +3849,8 @@ class Bundle(ParameterSet):
                                         self.filter(qualifier='irrad_method', compute=compute, context='compute', **_skip_filter_checks).to_list()+
                                         self.filter(qualifier='rv_method', compute=compute, component=offending_components, context='compute', **_skip_filter_checks).to_list()+
                                         self.filter(qualifier='enabled', kind='rv', compute=compute, context='compute', value=True, **_skip_filter_checks).to_list()+
-                                        self.filter(qualifier='irrad_frac_refl_bol', component=offending_components, context='component', **_skip_filter_checks).to_list(),
+                                        self.filter(qualifier='irrad_frac_refl_bol', component=offending_components, context='component', **_skip_filter_checks).to_list()+
+                                        addl_parameters,
                                         True, 'run_compute')
 
         # dependency checks
@@ -3866,7 +3866,7 @@ class Bundle(ParameterSet):
 
         return report
 
-    def run_checks_solver(self, raise_logger_warning=False, raise_error=False, **kwargs):
+    def run_checks_solver(self, solver=None, raise_logger_warning=False, raise_error=False, **kwargs):
         """
         Check to for any expected errors/warnings to <phoebe.frontend.bundle.Bundle.run_solver>.
 
@@ -3920,35 +3920,35 @@ class Bundle(ParameterSet):
             changed_params = self.run_delayed_constraints()
 
         report = kwargs.pop('report', RunChecksReport())
+        addl_parameters = kwargs.pop('addl_parameters', [])
 
-        run_checks_solver = self.get_value(qualifier='run_checks_solver', context='setting', default='*', check_visible=False, check_default=False, expand=True)
-        solvers = kwargs.pop('solver', run_checks_solver)
-        if solvers is None:
-            solvers = self.solvers
+        run_checks_solver = self.get_value(qualifier='run_checks_solver', context='setting', default='*', expand=True, **_skip_filter_checks)
+        if solver is None:
+            solvers = run_checks_solver
+            addl_parameters += [self.get_parameter(qualifier='run_checks_solver', context='setting', **_skip_filter_checks)]
         else:
+            solvers = solver
             if isinstance(solvers, str):
                 solvers = [solvers]
 
-            for solver in solvers:
-                if solver not in self.solvers:
-                    raise ValueError("solver='{}' not found".format(solver))
+        for solver in solvers:
+            if solver not in self.solvers:
+                raise ValueError("solver='{}' not found".format(solver))
 
-                if solver not in run_checks_solver:
-                    report.add_item(self,
-                                    "solver='{}' is not included in run_checks_solver@setting, so will not raise interactive warnings".format(solver),
-                                    [self.get_parameter(qualifier='run_checks_solver', context='setting', check_visible=False, check_default=False)],
-                                    False
-                                    )
+            if solver not in run_checks_solver:
+                report.add_item(self,
+                                "solver='{}' is not included in run_checks_solver@setting, so will not raise interactive warnings".format(solver),
+                                [self.get_parameter(qualifier='run_checks_solver', context='setting', check_visible=False, check_default=False)],
+                                False
+                                )
 
-        kwargs.setdefault('check_visible', False)
-        kwargs.setdefault('check_default', False)
 
         for solver in solvers:
             solver_ps = self.get_solver(solver=solver)
             solver_kind = solver_ps.kind
             if 'compute' in solver_ps.qualifiers and kwargs.get('run_checks_compute', True):
                 compute = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), **_skip_filter_checks)
-                report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report)
+                report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report, addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)])
 
 
             if 'lc_datasets' in solver_ps.qualifiers:
@@ -3956,7 +3956,8 @@ class Bundle(ParameterSet):
                 if not len(lc_datasets):
                     report.add_item(self,
                                     "no valid datasets in lc_datasets",
-                                    [solver_ps.get_parameter(qualifier='lc_datasets', **_skip_filter_checks)],
+                                    [solver_ps.get_parameter(qualifier='lc_datasets', **_skip_filter_checks)
+                                    ]+addl_parameters,
                                     True, 'run_solver')
 
             if 'rv_datasets' in solver_ps.qualifiers:
@@ -3964,7 +3965,8 @@ class Bundle(ParameterSet):
                 if not len(rv_datasets):
                     report.add_item(self,
                                     "no valid datasets in rv_datasets",
-                                    [solver_ps.get_parameter(qualifier='rv_datasets', **_skip_filter_checks)],
+                                    [solver_ps.get_parameter(qualifier='rv_datasets', **_skip_filter_checks)
+                                    ]+addl_parameters,
                                     True, 'run_solver')
 
             if 'fit_parameters' in solver_ps.qualifiers:
@@ -3972,7 +3974,8 @@ class Bundle(ParameterSet):
                 if not len(fit_parameters):
                     report.add_item(self,
                                     "no valid parameters in fit_parameters",
-                                    [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)],
+                                    [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)
+                                    ]+addl_parameters,
                                     True, 'run_solver')
 
 
@@ -3982,7 +3985,8 @@ class Bundle(ParameterSet):
                 if not len(init_from_uniqueids):
                     report.add_item(self,
                                     "no valid distributions in init_from",
-                                    [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)],
+                                    [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)
+                                    ]+addl_parameters,
                                     True, 'run_solver')
 
 
@@ -3997,7 +4001,7 @@ class Bundle(ParameterSet):
                                     "nwalkers must be at least 2*init_from = {}".format(2*len(init_from_uniqueids)),
                                     [solver_ps.get_parameter(qualifier='nwalkers', **_skip_filter_checks),
                                      solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)
-                                    ],
+                                    ]+addl_parameters,
                                     True, 'run_solver')
 
 
@@ -4018,7 +4022,8 @@ class Bundle(ParameterSet):
                                             [distribution_param,
                                             ref_param,
                                             ref_param.is_constraint,
-                                            self.get_parameter(qualifier='init_from', solver=solver, context='solver', **_skip_filter_checks)],
+                                            self.get_parameter(qualifier='init_from', solver=solver, context='solver', **_skip_filter_checks)
+                                            ]+addl_parameters,
                                             False, 'run_solver')
 
                 elif dist_or_solution in self.solutions:
@@ -4037,7 +4042,8 @@ class Bundle(ParameterSet):
                                             msg,
                                             [param,
                                              param.is_constraint,
-                                             self.get_parameter(qualifier='init_from', solver=solver, context='solver', **_skip_filter_checks)],
+                                             self.get_parameter(qualifier='init_from', solver=solver, context='solver', **_skip_filter_checks)
+                                             ]+addl_parameters,
                                              False, 'run_solver')
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
@@ -4047,7 +4053,7 @@ class Bundle(ParameterSet):
 
         return report
 
-    def run_checks_solution(self, raise_logger_warning=False, raise_error=False, **kwargs):
+    def run_checks_solution(self, solution=None, raise_logger_warning=False, raise_error=False, **kwargs):
         """
         Check to for any expected errors/warnings to <phoebe.frontend.bundle.Bundle.adopt_solution>.
 
@@ -4097,25 +4103,27 @@ class Bundle(ParameterSet):
             changed_params = self.run_delayed_constraints()
 
         report = kwargs.pop('report', RunChecksReport())
+        addl_parameters = kwargs.pop('addl_parameters', [])
 
-        run_checks_solution = self.get_value(qualifier='run_checks_solution', context='setting', default='*', check_visible=False, check_default=False, expand=True)
-        solutions = kwargs.pop('solution', run_checks_solution)
-        if solutions is None:
-            solutions = self.solutions
+        run_checks_solution = self.get_value(qualifier='run_checks_solution', context='setting', default='*', expand=True, **_skip_filter_checks)
+        if solution is None:
+            solutions = run_checks_solution
+            addl_parameters += [self.get_parameter(qualifier='run_checks_solution', context='setting', **_skip_filter_checks)]
         else:
+            solutions = solution
             if isinstance(solutions, str):
                 solutions = [solutions]
 
-            for solution in solutions:
-                if solution not in self.solutions:
-                    raise ValueError("solution='{}' not found".format(solution))
+        for solution in solutions:
+            if solution not in self.solutions:
+                raise ValueError("solution='{}' not found".format(solution))
 
-                if solution not in run_checks_solution:
-                    report.add_item(self,
-                                    "solution='{}' is not included in run_checks_solution@setting, so will not raise interactive warnings".format(solution),
-                                    [self.get_parameter(qualifier='run_checks_solution', context='setting', check_visible=False, check_default=False)],
-                                    False
-                                    )
+            if solution not in run_checks_solution:
+                report.add_item(self,
+                                "solution='{}' is not included in run_checks_solution@setting, so will not raise interactive warnings".format(solution),
+                                [self.get_parameter(qualifier='run_checks_solution', context='setting', check_visible=False, check_default=False)],
+                                False
+                                )
 
         # kwargs.setdefault('check_visible', False)
         # kwargs.setdefault('check_default', False)
@@ -4136,7 +4144,7 @@ class Bundle(ParameterSet):
                         report.add_item(self,
                                         "no match for {} in 'adopt_parameters' could be found in 'fitted_uniqueids'".format(adopt_twig),
                                         [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks)
-                                        ],
+                                        ]+addl_parameters,
                                         False, 'adopt_solution')
                     elif not kwargs.get('trial_run', False):
                         adopt_param = adopt_ps.get_parameter(**_skip_filter_checks)
@@ -4150,7 +4158,7 @@ class Bundle(ParameterSet):
                                                 "{} is currently constrained but will temporarily flip to solve_for='{}'".format(adopt_twig, solve_for.twig),
                                                 [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks),
                                                  adopt_param.is_constraint
-                                                ],
+                                                ]+addl_parameters,
                                                 False, 'adopt_solution')
 
                             else:
@@ -4158,7 +4166,7 @@ class Bundle(ParameterSet):
                                                 "{} is currently constrained but cannot automatically temporarily flip as solve_for has several options ({}).  Flip the constraint manually first, or remove {} from adopt_parameters.".format(adopt_twig, ", ".join([p.twig for p in adopt_param.constrained_by]), adopt_twig),
                                                 [solution_ps.get_parameter(qualifier='adopt_parameters', **_skip_filter_checks),
                                                  adopt_param.is_constraint
-                                                ],
+                                                ]+addl_parameters,
                                                 True, 'adopt_solution')
 
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
@@ -4166,9 +4174,7 @@ class Bundle(ParameterSet):
         return report
 
 
-
-
-    def run_checks_figure(self, raise_logger_warning=False, raise_error=False, **kwargs):
+    def run_checks_figure(self, figure=None, raise_logger_warning=False, raise_error=False, **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
@@ -4215,25 +4221,27 @@ class Bundle(ParameterSet):
             changed_params = self.run_delayed_constraints()
 
         report = kwargs.pop('report', RunChecksReport())
+        addl_parameters = kwargs.pop('addl_parameters', [])
 
-        run_checks_figure = self.get_value(qualifier='run_checks_figure', context='setting', default='*', check_visible=False, check_default=False, expand=True)
-        figures = kwargs.pop('figure', run_checks_figure)
-        if figures is None:
-            figures = self.figures
+        run_checks_figure = self.get_value(qualifier='run_checks_figure', context='setting', default='*', expand=True, **_skip_filter_checks)
+        if figure is None:
+            figures = run_checks_figure
+            addl_parameters += [self.get_parameter(qualifier='run_checks_figure', context='setting', **_skip_filter_checks)]
         else:
+            figures = figure
             if isinstance(figures, str):
                 figures = [figures]
 
-            for figure in figures:
-                if figure not in self.figures:
-                    raise ValueError("figure='{}' not found".format(figure))
+        for figure in figures:
+            if figure not in self.figures:
+                raise ValueError("figure='{}' not found".format(figure))
 
-                if figure not in run_checks_figure:
-                    report.add_item(self,
-                                    "figure='{}' is not included in run_checks_figure@setting, so will not raise interactive warnings".format(figure),
-                                    [self.get_parameter(qualifier='run_checks_figure', context='setting', check_visible=False, check_default=False)],
-                                    False
-                                    )
+            if figure not in run_checks_figure:
+                report.add_item(self,
+                                "figure='{}' is not included in run_checks_figure@setting, so will not raise interactive warnings".format(figure),
+                                [self.get_parameter(qualifier='run_checks_figure', context='setting', check_visible=False, check_default=False)],
+                                False
+                                )
 
         for param in self.filter(context='figure', qualifier='*lim', **_skip_filter_checks).to_list():
             if len(param.get_value()) != 2 and param.is_visible:
@@ -4247,7 +4255,7 @@ class Bundle(ParameterSet):
 
                 report.add_item(self,
                                 "{} does not have length of 2 - will be ignored and {}_mode will revert to 'auto'".format(param.twig, param.qualifier),
-                                affected_params,
+                                affected_params+addl_parameters,
                                 False, 'run_figure')
 
 
@@ -4260,7 +4268,7 @@ class Bundle(ParameterSet):
                                     "cannot mix xyz and uvw coordinates in {} figure".format(figure),
                                     [self.get_parameter(qualifier='x', figure=figure, context='figure', **_skip_filter_checks),
                                      self.get_parameter(qualifier='y', figure=figure, context='figure', **_skip_filter_checks)
-                                    ],
+                                    ]+addl_parameters,
                                     False, 'run_figure')
 
         self._run_checks_warning_error(report, raise_logger_warning, raise_error)
