@@ -3951,16 +3951,50 @@ class Bundle(ParameterSet):
                 report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report)
 
 
+            if 'lc_datasets' in solver_ps.qualifiers:
+                lc_datasets = solver_ps.get_value(qualifier='lc_datasets', lc_datasets=kwargs.get('lc_datasets', None), expand=True, **_skip_filter_checks)
+                if not len(lc_datasets):
+                    report.add_item(self,
+                                    "no valid datasets in lc_datasets",
+                                    [solver_ps.get_parameter(qualifier='lc_datasets', **_skip_filter_checks)],
+                                    True, 'run_solver')
+
+            if 'rv_datasets' in solver_ps.qualifiers:
+                rv_datasets = solver_ps.get_value(qualifier='rv_datasets', rv_datasets=kwargs.get('rv_datasets', None), expand=True, **_skip_filter_checks)
+                if not len(rv_datasets):
+                    report.add_item(self,
+                                    "no valid datasets in rv_datasets",
+                                    [solver_ps.get_parameter(qualifier='rv_datasets', **_skip_filter_checks)],
+                                    True, 'run_solver')
+
+            if 'fit_parameters' in solver_ps.qualifiers:
+                fit_parameters = solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True, **_skip_filter_checks)
+                if not len(fit_parameters):
+                    report.add_item(self,
+                                    "no valid parameters in fit_parameters",
+                                    [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks)],
+                                    True, 'run_solver')
+
+
+            if 'init_from' in solver_ps.qualifiers:
+                _, init_from_uniqueids = self.get_distribution_collection('init_from@{}'.format(solver), keys='uniqueid', return_dc=False)
+
+                if not len(init_from_uniqueids):
+                    report.add_item(self,
+                                    "no valid distributions in init_from",
+                                    [solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)],
+                                    True, 'run_solver')
+
+
             if solver_kind in ['emcee']:
                 # check to make sure twice as many params as walkers
                 nwalkers = solver_ps.get_value(qualifier='nwalkers', nwalkers=kwargs.get('nwalkers', None), **_skip_filter_checks)
-                init_from = solver_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None), **_skip_filter_checks)
-                # TODO: is there a cheaper way to do this without having to build the distribution collection?
-                _, init_from_uniqueids = self.get_distribution_collection('init_from@{}'.format(solver), keys='uniqueid', return_dc=False)
+
+                # init_from_uniqueids should already be calculated above in call to get_distribution_collection
                 if nwalkers < 2*len(init_from_uniqueids):
                     # TODO: double check this logic
                     report.add_item(self,
-                                    "cannot have nwalkers less than 2*init_from",
+                                    "nwalkers must be at least 2*init_from = {}".format(2*len(init_from_uniqueids)),
                                     [solver_ps.get_parameter(qualifier='nwalkers', **_skip_filter_checks),
                                      solver_ps.get_parameter(qualifier='init_from', **_skip_filter_checks)
                                     ],
