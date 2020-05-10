@@ -1371,12 +1371,16 @@ def pass_to_legacy(eb, compute=None, **kwargs):
 
     #run checks which must pass before allowing use of function
     #l3_modes must all be the same
-    l3_modes = [p.value for p in eb.filter(qualifier='l3_mode').to_list()]
-    if len(list(set(l3_modes))) > 1:
-        logger.warning("legacy does not natively support mixed values of l3_mode, so all will be converted to 'flux' before passing to PHOEBE legacy.")
+    if kwargs.get('disable_l3', False):
         l3_mode_force_flux = True
     else:
-        l3_mode_force_flux = False
+        l3_modes = [p.value for p in eb.filter(qualifier='l3_mode').to_list()]
+        if len(list(set(l3_modes))) > 1:
+            logger.warning("legacy does not natively support mixed values of l3_mode, so all will be converted to 'flux' before passing to PHOEBE legacy.")
+            l3_mode_force_flux = True
+            eb.compute_l3s(compute=compute, set_value=True)
+        else:
+            l3_mode_force_flux = False
 
     eb.run_delayed_constraints()
 
@@ -1422,7 +1426,7 @@ def pass_to_legacy(eb, compute=None, **kwargs):
     # TODO: can we somehow merge these instead of needing to re-mesh between?
 
     # handle any limb-darkening interpolation
-    eb._compute_necessary_values(computeps)
+    eb.compute_ld_coeffs(compute=compute, set_value=True, **{k:v for k,v in kwargs.items() if k in computeps.qualifiers})
 
     # TODO: remove this check once https://github.com/phoebe-project/phoebe1/issues/4 is closed
     for pblum_param in eb.filter(qualifier='pblum', check_visible=False).to_list():
@@ -1733,6 +1737,8 @@ def pass_to_legacy(eb, compute=None, **kwargs):
                 elif param.qualifier == 'l3':
                     if param.is_visible or l3_mode_force_flux:
                         pname = ret_parname('l3', comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
+                        if kwargs.get('disable_l3', False):
+                            val = [0.0 for p in pname]
                     else:
                         continue
 

@@ -26,102 +26,6 @@ _basedir = os.path.dirname(os.path.abspath(__file__))
 _pbdir = os.path.abspath(os.path.join(_basedir, '..', 'atmospheres', 'tables', 'passbands'))
 _skip_filter_checks = {'check_default': False, 'check_visible': False}
 
-
-def l3_frac_to_flux(l3_frac, flux_tot):
-    return (l3_frac * flux_tot) / (1  - l3_frac) # u.W / u.m**2
-
-def l3_flux_to_frac(l3_flux, flux_tot):
-    return l3_flux / flux_tot
-
-def _compute_pblum_scales(b, abs_pblums, hier_stars):
-    # abs_pblums = {dataset: {component: abs_pblum}}
-    # hier_stars = list of components, probably b.hierarchy.get_stars()
-
-
-    # NOTE: we could copy abs_pblums here but then 'dataset-scaled'
-    # entries will need to be set to 1.0 and excluded manually later
-    pblum_scales = {}
-    pblum_scale_copy_ds = {}
-
-    for dataset in abs_pblums.keys():
-        pblum_scales[dataset] = {}
-
-        ds = b.get_dataset(dataset=dataset, **_skip_filter_checks)
-
-        try:
-            pblum_mode = ds.get_value(qualifier='pblum_mode', **_skip_filter_checks)
-        except ValueError:
-            # RVs etc don't have pblum_mode, but may still want luminosities
-            pblum_mode = 'absolute'
-
-        ds_components = hier_stars
-
-        if pblum_mode == 'decoupled':
-            for component in ds_components:
-                if component=='_default':
-                    continue
-
-                # then we want the pblum defined in the dataset, so the
-                # scale must be the requested pblum over the absolute value
-                # that was passed (which was likely either computed through
-                # a mesh or estimated using Stefan-Boltzmann/spherical
-                # approximation)
-                pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component, **_skip_filter_checks)
-                pblum_scales[dataset][component] = pblum / abs_pblums[dataset][component] if abs_pblums[dataset][component] != 0.0 else 0.0
-
-        elif pblum_mode == 'component-coupled':
-
-            # now for each component we need to store the scaling factor between
-            # absolute and relative intensities
-            pblum_scale_copy_comp = {}
-            pblum_component = ds.get_value(qualifier='pblum_component', **_skip_filter_checks)
-            for component in ds_components:
-                if component=='_default':
-                    continue
-                if pblum_component==component:
-                    # then we do the same as in the decoupled case
-                    # for this component
-                    pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component, **_skip_filter_checks)
-                    pblum_scales[dataset][component] = pblum / abs_pblums[dataset][component] if abs_pblums[dataset][component] != 0.0 else 0.0
-                else:
-                    # then this component wants to copy the scale from another component
-                    # in the system.  We'll just store this now so that we make sure the
-                    # component we're copying from has a chance to compute its scale
-                    # first.
-                    pblum_scale_copy_comp[component] = pblum_component
-
-            # now let's copy all the scales for those that are just referencing another component
-            for comp, comp_copy in pblum_scale_copy_comp.items():
-                pblum_scales[dataset][component] = pblum_scales[dataset][comp_copy]
-
-        elif pblum_mode == 'dataset-coupled':
-            pblum_ref = ds.get_value(qualifier='pblum_dataset', **_skip_filter_checks)
-            # similarly to the component-coupled case, we'll store
-            # the referenced dataset and apply the scalings to the
-            # dictionary once outside of the dataset loop.
-            pblum_scale_copy_ds[dataset] = pblum_ref
-
-        elif pblum_mode == 'dataset-scaled':
-            # for now we'll allow the scaling to fallback on 1.0, but not
-            # set the actual value so that these are EXCLUDED from b.compute_pblums
-            continue
-
-        elif pblum_mode == 'absolute':
-            # even those these will default to 1.0, we'll set them in the dictionary
-            # so the resulting pblums are available to b.compute_pblums()
-            for comp in ds_components:
-                pblum_scales[dataset][comp] = 1.0
-
-        else:
-            raise NotImplementedError("pblum_mode='{}' not supported".format(pblum_mode))
-
-
-        for ds, ds_copy in pblum_scale_copy_ds.items():
-            for comp in ds_components:
-                pblum_scales[ds][comp] = pblum_scales[ds_copy][comp]
-
-    return pblum_scales
-
 """
 Class/SubClass Structure of Universe.py:
 
@@ -200,7 +104,6 @@ class System(object):
                  dynamics_method='keplerian',
                  irrad_method='none',
                  boosting_method='none',
-                 l3s={},
                  parent_envelope_of={}):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
@@ -211,8 +114,6 @@ class System(object):
         self.horizon_method = horizon_method
         self.dynamics_method = dynamics_method
         self.irrad_method = irrad_method
-
-        self.l3s = l3s
 
         self.is_first_refl_iteration = True
 
@@ -291,16 +192,6 @@ class System(object):
 
         bodies_dict = {comp: globals()[_get_classname(hier.get_kind_of(comp), get_distortion_method(hier, compute_ps, comp, **kwargs))].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
 
-        l3s = {}
-        for ds in b.filter('l3_mode').datasets:
-            l3_mode = b.get_value(qualifier='l3_mode', dataset=ds, context='dataset')
-            if l3_mode == 'flux':
-                l3s[ds] = {'flux': b.get_value(qualifier='l3', dataset=ds, context='dataset', unit=u.W/u.m**2)}
-            elif l3_mode == 'fraction':
-                l3s[ds] = {'frac': b.get_value(qualifier='l3_frac', dataset=ds, context='dataset')}
-            else:
-                raise NotImplementedError("l3_mode='{}' not supported".format(l3_mode))
-
         # envelopes need to know their relationships with the underlying stars
         parent_envelope_of = {}
         for meshable in meshables:
@@ -313,7 +204,6 @@ class System(object):
                    dynamics_method=dynamics_method,
                    irrad_method=irrad_method,
                    boosting_method=boosting_method,
-                   l3s=l3s,
                    parent_envelope_of=parent_envelope_of)
 
     def items(self):
@@ -430,96 +320,6 @@ class System(object):
         for kind, dataset in zip(kinds, datasets):
             for starref, body in self.items():
                 body.populate_observable(time, kind, dataset, ignore_effects=ignore_effects)
-
-    def compute_pblum_scalings(self, b, datasets, t0,
-                               x0, y0, z0, vx0, vy0, vz0,
-                               etheta0, elongan0, eincl0,
-                               reset=True, lc_only=True):
-
-        logger.debug("system.compute_pblum_scalings")
-
-        self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
-
-        hier_stars = b.hierarchy.get_stars()
-
-
-        abs_pblums = {}
-        for dataset in datasets:
-            ds = b.get_dataset(dataset=dataset, **_skip_filter_checks)
-            kind = ds.kind
-            if kind not in ['lc'] and lc_only:
-                # only LCs need pblum scaling
-                continue
-
-            logger.debug("system.compute_pblum_scalings: populating observables for dataset={}".format(dataset))
-            self.populate_observables(t0, [kind], [dataset],
-                                        ignore_effects=True)
-
-
-            abs_pblums[dataset] = {component: self.get_body(component).compute_luminosity(dataset) for component in hier_stars}
-
-        # abs_pblums = {dataset: {component: abs_pblum}}
-        # pblum_scales = {dataset: {component: pblum_scales}}
-        pblum_scales = _compute_pblum_scales(b, abs_pblums, hier_stars)
-
-        for dataset in list(pblum_scales.keys()):
-            for comp, pblum_scale in pblum_scales[dataset].items():
-                self.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
-
-        if reset:
-            self.reset(force_recompute_instantaneous=True)
-
-    def compute_l3s(self, datasets, t0,
-                    x0, y0, z0, vx0, vy0, vz0,
-                    etheta0, elongan0, eincl0,
-                    compute_l3_frac=False, reset=True):
-
-        logger.debug("system.compute_l3s")
-        def _compute_flux_tot(dataset):
-            return np.sum([star.compute_luminosity(dataset, include_effects=True)/(4*np.pi) for star in self.values()])
-
-        # convert between l3(_flux) and l3_frac from the following definitions:
-        # flux_sys = sum(L_star/4pi for star in stars)
-        # flux_tot = flux_sys + l3_flux
-        # l3_frac = l3_flux / tot_flux
-
-        self.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=False)
-
-        # NOTE must have already called compute_pblum_scalings
-        for dataset, l3 in self.l3s.items():
-            populated = False
-            if datasets is not None and dataset not in datasets:
-                continue
-
-            # l3 is a dictionary with key 'flux' or 'frac' and value the l3 in that "units"
-            flux_tot = None
-            if 'flux' not in l3.keys():
-                logger.debug('system.compute_l3s: computing l3 in flux for datset={}'.format(dataset))
-                if not populated:
-                    self.populate_observables(t0, ['lc'], [dataset],
-                                                ignore_effects=False)
-                    populated = True
-
-                if flux_tot is None:
-                    flux_tot = _compute_flux_tot(dataset)
-                l3_frac = l3.get('frac')
-                self.l3s[dataset]['flux'] = l3_frac_to_flux(l3_frac, flux_tot)
-
-
-            if compute_l3_frac and 'frac' not in l3.keys():
-                logger.debug('system.compute_l3s: computing l3 in fraction for dataset={}'.format(dataset))
-                if not populated:
-                    self.populate_observables(t0, ['lc'], [dataset],
-                                                ignore_effects=False)
-                    populated = True
-                if flux_tot is None:
-                    flux_tot = _compute_flux_tot(dataset)
-                l3_flux = l3.get('flux')
-                self.l3s[dataset]['frac'] = l3_flux_to_frac(l3_flux, flux_tot)
-
-        if reset:
-            self.reset(force_recompute_instantaneous=True)
-
 
     def handle_reflection(self,  **kwargs):
         """
@@ -711,13 +511,11 @@ class System(object):
         return horizon
 
 
-    def observe(self, dataset, kind, components=None, distance=1.0, **kwargs):
+    def observe(self, dataset, kind, components=None, **kwargs):
         """
         TODO: add documentation
 
         Integrate over visible surface elements and return a dictionary of observable values
-
-        distance (m)
         """
 
         meshes = self.meshes
@@ -822,8 +620,7 @@ class System(object):
             # note that the intensities are already projected (Imu) but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
 
-            l3 = self.l3s.get(dataset).get('flux')
-            return {'flux': np.sum(intensities*areas*mus*visibilities)*ptfarea/(distance**2)+l3}
+            return {'flux': np.sum(intensities*areas*mus*visibilities)*ptfarea}
 
         else:
             raise NotImplementedError("observe for dataset with kind '{}' not implemented".format(kind))
@@ -1460,7 +1257,7 @@ class Star(Body):
         else:
             do_mesh_offset = True
 
-        if conf.devel and mesh_method=='marching':
+        if conf.devel and mesh_method=='marching' and compute is not None:
             kwargs.setdefault('mesh_init_phi', b.get_compute(compute).get_value(qualifier='mesh_init_phi', component=component, unit=u.rad, **kwargs))
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'lp'], context='dataset').datasets if ds != '_default']
@@ -1862,22 +1659,6 @@ class Star(Body):
             return abs_luminosity * self.get_pblum_scale(dataset)
         else:
             return abs_luminosity
-
-    def compute_pblum_scale(self, dataset, pblum, **kwargs):
-        """
-        intensities should already be computed for this dataset at the time for which pblum is being provided
-
-        TODO: add documentation
-        """
-        logger.debug("{}.compute_pblum_scale(dataset={}, pblum={})".format(self.component, dataset, pblum))
-
-        abs_luminosity = self.compute_luminosity(dataset, **kwargs)
-
-        # We now want to remember the scale for all intensities such that the
-        # luminosity in relative units gives the provided pblum
-        pblum_scale = pblum / abs_luminosity
-
-        self.set_pblum_scale(dataset, pblum_scale)
 
     def set_pblum_scale(self, dataset, pblum_scale, **kwargs):
         """
@@ -2973,9 +2754,6 @@ class Star_none(Star):
         self._mesh = None
 
 
-    def compute_pblum_scale(self, *args, **kwargs):
-        return
-
     def get_pblum_scale(self, *args, **kwargs):
         return 1.0
 
@@ -3193,6 +2971,11 @@ class Envelope(Body):
 
     def compute_luminosity(self, *args, **kwargs):
         return np.sum([half.compute_luminosity(*args, **kwargs) for half in self._halves])
+
+    def set_pblum_scale(self, *args, **kwargs):
+        # allow backends to attempt to set the scale for the envelope, but ignore
+        # as halves will each have their own scaling
+        return
 
     def populate_observable(self, time, kind, dataset, **kwargs):
         """

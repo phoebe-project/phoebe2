@@ -3185,9 +3185,9 @@ class Bundle(ParameterSet):
                                     True, ['system', 'run_compute'])
 
             pblum_mode = self.get_value(qualifier='pblum_mode', dataset=coupled_to, **_skip_filter_checks)
-            if pblum_mode in ['dataset-scaled', 'dataset-coupled']:
+            if pblum_mode =='dataset-coupled':
                 report.add_item(self,
-                                "cannot set pblum_dataset@{}='{}' as that dataset has pblum_mode@{}='{}'".format(param.dataset, coupled_to, coupled_to, pblum_mode),
+                                "cannot set pblum_dataset@{}='{}' as that dataset has pblum_mode@{}='dataset-coupled'.  Perhaps set to '{}' instead.".format(param.dataset, coupled_to, coupled_to, self.get_value(qualifier='pblum_dataset', dataset=coupled_to, context='dataset', **_skip_filter_checks)),
                                 [param,
                                 self.get_parameter(qualifier='pblum_mode', dataset=coupled_to, **_skip_filter_checks)],
                                 True, ['system', 'run_compute'])
@@ -8272,7 +8272,7 @@ class Bundle(ParameterSet):
 
         compute_ps = self.get_compute(compute)
         # we'll add 'bol' to the list of default datasets... but only if bolometric is needed for irradiation
-        needs_bol = 'irrad_method' in compute_ps.qualifiers and compute_ps.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks) != 'none'
+        needs_bol = compute_ps.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), default='none', **_skip_filter_checks) != 'none'
 
         datasets = kwargs.pop('dataset', self.datasets + ['bol'] if needs_bol else self.datasets)
         components = kwargs.pop('component', self.components)
@@ -8301,15 +8301,16 @@ class Bundle(ParameterSet):
             if ld_mode == 'interp':
                 logger.debug("skipping computing ld_coeffs{} for {}@{} because ld_mode{}='interp'".format(bol_suffix, ldcs_param.dataset, ldcs_param.component, bol_suffix))
             elif ld_mode == 'manual':
-                ld_coeffs_ret["{}@{}@{}".format('ld_coeffs{}'.format(bol_suffix), ldcs_param.component, 'component' if is_bol else ldcs_param.dataset)] = self.get_value(qualifier='ld_coeffs{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+                ld_coeffs_manual = self.get_value(qualifier='ld_coeffs{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, **_skip_filter_checks)
+                ld_coeffs_ret["{}@{}@{}".format('ld_coeffs{}'.format(bol_suffix), ldcs_param.component, 'component' if is_bol else ldcs_param.dataset)] = ld_coeffs_manual
                 continue
             elif ld_mode == 'lookup':
-                ldcs = ldcs_param.get_value(check_visible=False)
-                ld_func = self.get_value(qualifier='ld_func{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, check_visible=False)
+                ldcs = ldcs_param.get_value(**_skip_filter_checks)
+                ld_func = self.get_value(qualifier='ld_func{}'.format(bol_suffix), dataset=ldcs_param.dataset, component=ldcs_param.component, **_skip_filter_checks)
                 if is_bol:
                     passband = 'Bolometric:900-40000'
                 else:
-                    passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, check_visible=False)
+                    passband = self.get_value(qualifier='passband', dataset=ldcs_param.dataset, **_skip_filter_checks)
 
                 atm = self.get_value(qualifier='atm', compute=compute, component=ldcs_param.component, default='ck2004', atm=kwargs.get('atm', None), **_skip_filter_checks)
 
@@ -8320,9 +8321,9 @@ class Bundle(ParameterSet):
                         ldcs = atm
 
                 pb = get_passband(passband, content='{}:ld'.format(ldcs))
-                teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', check_visible=False)
-                logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', check_visible=False)
-                abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', check_visible=False)
+                teff = self.get_value(qualifier='teff', component=ldcs_param.component, context='component', unit='K', **_skip_filter_checks)
+                logg = self.get_value(qualifier='logg', component=ldcs_param.component, context='component', **_skip_filter_checks)
+                abun = self.get_value(qualifier='abun', component=ldcs_param.component, context='component', **_skip_filter_checks)
                 if is_bol:
                     photon_weighted = False
                 else:
@@ -8351,7 +8352,7 @@ class Bundle(ParameterSet):
 
         return ld_coeffs_ret
 
-    def _compute_system(self, compute=None, datasets=None, compute_l3=False, compute_l3_frac=False, compute_extrinsic=False, **kwargs):
+    def _compute_intrinsic_system_at_t0(self, compute=None, datasets=None, compute_l3=False, compute_l3_frac=False, compute_extrinsic=False, **kwargs):
         if compute is None:
             if len(self.computes)==1:
                 compute = self.computes[0]
@@ -8400,7 +8401,7 @@ class Bundle(ParameterSet):
         system_compute = compute if compute_kind=='phoebe' else None
         logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
         try:
-            system = backends.PhoebeBackend()._create_system_and_compute_pblums(self, system_compute, datasets=datasets, compute_l3=compute_l3, compute_l3_frac=compute_l3_frac, compute_extrinsic=compute_extrinsic, reset=False, lc_only=False, **kwargs)
+            system = backends.PhoebeBackend()._compute_intrinsic_system_at_t0(self, system_compute, datasets=datasets, reset=False, lc_only=False, **kwargs)
         except Exception as err:
             restore_conf()
             raise
@@ -8409,12 +8410,12 @@ class Bundle(ParameterSet):
 
         return system
 
-    def compute_l3s(self, compute=None, use_pbflux={},
+    def compute_l3s(self, compute=None, use_pbfluxes={},
                    set_value=False, **kwargs):
         """
         Compute third lights (`l3`) that will be applied to the system from
         fractional third light (`l3_frac`) and vice-versa by assuming that the
-        total system flux is equivalent to the sum of the extrinsic (including
+        total system flux (`pbflux`) is equivalent to the sum of the extrinsic (including
         any enabled irradiation and features) passband luminosities
         at t0 divided by 4*pi.  To see how passband luminosities are computed,
         see <phoebe.frontend.bundle.Bundle.compute_pblums>.
@@ -8429,7 +8430,7 @@ class Bundle(ParameterSet):
         * `dataset` (string or list of strings, optional): label of the
             dataset(s) requested.  If not provided, will be provided for all
             datasets in which an `l3_mode` Parameter exists.
-        * `use_pbflux` (dictionary, optional): dictionary of dataset-total
+        * `use_pbfluxes` (dictionary, optional): dictionary of dataset-total
             passband fluxes (in W/m**2) to use when converting between `l3` and
             `l3_flux`.  For any dataset not included in the dictionary, the pblums
             will be computed and adopted.  See also <phoebe.frontend.bundle.Bundle.compute_pblums>.
@@ -8440,7 +8441,9 @@ class Bundle(ParameterSet):
             <phoebe.frontend.bundle.Bundle.run_checks_compute> before computing the model.
             NOTE: some unexpected errors could occur for systems which do not
             pass checks.
-        * `**kwargs`: any additional kwargs are sent to override compute options.
+        * `**kwargs`: any additional kwargs are sent to override compute options
+            and are passed to <phoebe.frontend.bundle.Bundle.compute_pblums> if
+            necessary.
 
         Returns
         ----------
@@ -8454,10 +8457,7 @@ class Bundle(ParameterSet):
         if isinstance(datasets, str):
             datasets = [datasets]
 
-        # don't allow things like model='mymodel', etc
-        if not kwargs.get('skip_checks', False):
-            forbidden_keys = parameters._meta_fields_filter
-            self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks'], additional_forbidden_keys=forbidden_keys)
+
 
         if compute is None:
             if len(self.computes)==1:
@@ -8467,38 +8467,47 @@ class Bundle(ParameterSet):
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
 
-        if not kwargs.get('skip_checks', False):
+        datasets_need_pbflux = [d for d in datasets if d not in use_pbfluxes.keys()]
+        if len(datasets_need_pbflux):
+            _, _, _, _, compute_pblums_pbfluxes = self.compute_pblums(compute=compute, dataset=datasets_need_pbflux, ret_structured_dicts=True, **kwargs)
+            for dataset in datasets_need_pbflux:
+                use_pbfluxes[dataset] = compute_pblums_pbfluxes.get(dataset)
+
+        elif not kwargs.get('skip_checks', False):
             report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
                                              **kwargs)
 
-        datasets_need_pbflux = [d for d in datasets if d not in use_pbflux.keys()]
-        if len(datasets_need_pbflux):
-            system = kwargs.get('system', self._compute_system(compute=compute, datasets=datasets_need_pbflux, compute_l3=True, compute_l3_frac=True, **kwargs))
+            # don't allow things like model='mymodel', etc
+            if not kwargs.get('skip_checks', False):
+                forbidden_keys = parameters._meta_fields_filter
+                compute_ps = self.get_compute(compute, **_skip_filter_checks)
+                self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks', 'ret_structured_dicts', 'pblum_method']+compute_ps.qualifiers, additional_forbidden_keys=forbidden_keys)
 
+        ret_structured_dicts = kwargs.get('ret_structured_dicts', False)
         l3s = {}
         for dataset in datasets:
             l3_mode = self.get_value(qualifier='l3_mode', dataset=dataset, **_skip_filter_checks)
             if l3_mode == 'flux':
-                if dataset in use_pbflux.keys():
-                    l3_flux = self.get_value(qualifier='l3', dataset=dataset, unit=u.W/u.m**2, **_skip_filter_checks)
-                    l3_frac = _universe.l3_flux_to_frac(l3_flux, use_pbflux.get(dataset).value)
+                l3_flux = self.get_value(qualifier='l3', dataset=dataset, unit=u.W/u.m**2, **_skip_filter_checks)
+                # pbflux could be 0.0 for the distortion_method='none' case
+                l3_frac = l3_flux / use_pbfluxes.get(dataset) if use_pbfluxes.get(dataset) != 0.0 else 0.0
+                if ret_structured_dicts:
+                    l3s[dataset] = l3_flux
                 else:
-                    l3_frac = system.l3s[dataset]['frac']
-
-                l3s['l3_frac@{}'.format(dataset)] = l3_frac
+                    l3s['l3_frac@{}'.format(dataset)] = l3_frac
                 if set_value:
                     self.set_value(qualifier='l3_frac', dataset=dataset, check_visible=False, value=l3_frac)
 
             elif l3_mode == 'fraction':
-                if dataset in use_pbflux.keys():
-                    l3_frac = self.get_value(qualifier='l3_frac', dataset=dataset, **_skip_filter_checks)
-                    l3_flux = _universe.l3_frac_to_flux(l3_frac, use_pbflux.get(dataset).value) * (u.W / u.m**2)
-                else:
-                    l3_flux = system.l3s[dataset]['flux'] * (u.W / u.m**2)
+                l3_frac = self.get_value(qualifier='l3_frac', dataset=dataset, **_skip_filter_checks)
+                l3_flux = l3_frac * use_pbfluxes.get(dataset)
 
-                l3s['l3@{}'.format(dataset)] = l3_flux
+                if ret_structured_dicts:
+                    l3s[dataset] = l3_flux
+                else:
+                    l3s['l3@{}'.format(dataset)] = l3_flux
 
                 if set_value:
                     self.set_value(qualifier='l3', dataset=dataset, check_visible=False, value=l3_flux)
@@ -8508,38 +8517,32 @@ class Bundle(ParameterSet):
 
         return l3s
 
-    def compute_pblums(self, compute=None, pblum=True, pblum_ext=True,
-                       pbflux=False, pbflux_ext=False,
-                       use_sb_approx=False,
+    def compute_pblums(self, compute=None, pblum=True, pblum_abs=False,
+                       pblum_scale=False, pbflux=False,
                        set_value=False, **kwargs):
         """
         Compute the passband luminosities that will be applied to the system,
         following all coupling, etc, as well as all relevant compute options
-        (ntriangles, distortion_method, etc), third light, and distance.
+        (ntriangles, distortion_method, etc).
         The exposed passband luminosities (and any coupling) are computed at
         t0@system.
-
-        This method allows for computing both intrinsic and extrinsic luminosities.
-        Note that pblum scaling is computed (and applied to flux scaling) based
-        on intrinsic luminosities (`pblum`).
 
         Any `dataset` which does not support pblum scaling (rv or lp dataset,
         for example), will have their absolute intensities exposed.
 
-        Note that luminosities cannot be exposed for any dataset in which
-        `pblum_mode` is 'dataset-scaled' as the entire light curve must be
-        computed prior to scaling.  These will be excluded from the output
-        without error, but with a warning message in the <phoebe.logger>, if
-        enabled.
-
-        Additionally, an estimate for the total fluxes `pbflux` and `pbflux_ext`
+        Additionally, an estimate for the total fluxes `pbflux`
         can optionally be computed.  These will also be computed at t0@system,
-        under the spherical assumption where `pbflux = sum(pblum / (4 pi)) + l3`
-        or `pbflux_ext = sum(pblum_ext / (4 pi)) + l3`.  Note that in either case,
-        the translation from `l3_frac` to `l3` (when necessary) will include
-        extrinsic effects.  See also <phoebe.frontend.bundle.Bundle.compute_l3s>.
+        under the spherical assumption where `pbflux = sum(pblum / (4 pi))`.
+        The total flux from a light curve can then be estimated as `pbflux / d^2 + l3`
 
-        Note about eclipses: `pbflux` and `pbflux_ext` estimates will not include
+        For any dataset with `pblum_mode='dataset-scaled'` or `pblum_mode='dataset-coupled'`
+        where `pblum_dataset` references a dataset-scaled dataset, `pblum`,
+        `pblum_scale`, and `pbflux` are excluded from the output (but `pblum_abs`
+        can be exposed).  To translate from `pblum_abs` to relative `pblum`,
+        call <phoebe.frontend.bundle.Bundle.run_compute> and see the resulting
+        `flux_scale` parameter in the resulting model.
+
+        Note about eclipses: `pbflux` estimates will not include
         any eclipsing or ellipsoidal effects (even if an eclipse occurs at time
         `t0`) as they are estimated directly from the luminosities under the
         spherical assumption.
@@ -8568,7 +8571,6 @@ class Bundle(ParameterSet):
         be exposed (per-time).
 
         Note:
-        * for backends without `atm` compute options, 'ck2004' will be used.
         * for backends without `mesh_method` compute options, the most appropriate
             method will be chosen.  'roche' will be used whenever applicable,
             otherwise 'sphere' will be used.
@@ -8580,17 +8582,16 @@ class Bundle(ParameterSet):
         * `pblum` (bool, optional, default=True): whether to include
             intrinsic (excluding irradiation & features) pblums.  These
             will be exposed in the returned dictionary as pblum@component@dataset.
-        * `pblum_ext` (bool, optional, default=True): whether to include
-            extrinsic (irradiation & features) pblums.  These will
-            be exposed as pblum_ext@component@dataset.
+        * `pblum_abs` (bool, optional, default=True): whether to include
+            absolute intrinsic (excluding irradiation & features) pblums.  These
+            will be exposed in the returned dictionary as pblum_abs@component@dataset.
+        * `pblum_scale` (bool, optional, default=True): whether to include
+            the scaling factor between absolute and scaled pblums.  These
+            will be exposed in the returned dictionary as pblum_scale@component@dataset.
         * `pbflux` (bool, optional, default=False): whether to include
-            intrinsic per-system passband fluxes.  These include third-light
-            (from the l3 or l3_frac parameter), but are estimated based
-            on intrinsic `pblum`.  These will be exposed as pbflux@dataset.
-        * `pbflux_ext` (bool, optional, default=False): whether to include
-            extrinsic per-system passband fluxes.  These include third-light
-            (from the l3 or l3_frac parameter), and are estimated based on
-            extrinsic `pblum_ext`.  These will be exposed as pbflux_ext@dataset.
+            intrinsic per-system passband fluxes (before including third light
+            or distance).  These will be exposed as pbflux@dataset.
+            Note: this will sum over all components, regardless of `component`.
         * `component` (string or list of strings, optional): label of the
             component(s) requested. If not provided, will default to all stars
             and envelopes in the hierarchy (see
@@ -8604,14 +8605,9 @@ class Bundle(ParameterSet):
             with pblum_mode='dataset-scaled' will be ommitted from the output
             without raising an error (but will raise a <phoebe.logger> warning,
             if enabled).
-        * `use_sb_approx` (bool, optional, default=False): use stefan-boltzmann
-            approximation treating the whole star as a uniform sphere instead
-            of meshing the roche surface.
         * `set_value` (bool, optional, default=False): apply the computed
             values to the respective `pblum` parameters (even if not
-            currently visible).  Note that extrinsic values (`pblum_ext` and
-            `pbflux_ext`) are not input parameters to the
-            model, so are not set.  This is often used internally to handle
+            currently visible).  This is often used internally to handle
             various options for pblum_mode for alternate backends that require
             passband luminosities or surface brightnesses as input, but is not
             ever required to be called manually.
@@ -8624,8 +8620,7 @@ class Bundle(ParameterSet):
         Returns
         ----------
         * (dict) computed pblums in a dictionary with keys formatted as
-            pblum@component@dataset (for intrinsic pblums) or
-            pblum_ext@component@dataset (for extrinsic pblums) and the pblums
+            pblum@component@dataset (for intrinsic pblums) and the pblums
             as values (as quantity objects with default units of W).
 
         Raises
@@ -8659,11 +8654,6 @@ class Bundle(ParameterSet):
         else:
             components = valid_components
 
-        # don't allow things like model='mymodel', etc
-        forbidden_keys = parameters._meta_fields_filter
-        if not kwargs.get('skip_checks', False):
-            self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks', 'overwrite'], additional_forbidden_keys=forbidden_keys)
-
         # check to make sure value of passed compute is valid
         if compute is None:
             if len(self.computes)==1:
@@ -8672,6 +8662,17 @@ class Bundle(ParameterSet):
                 raise ValueError("must provide compute")
         if not isinstance(compute, str):
             raise TypeError("compute must be a single value (string)")
+
+        compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
+        # NOTE: this is flipped so that stefan-boltzmann can manually be used even if the compute-options have kind='phoebe' and don't have that choice
+        pblum_method = kwargs.pop('pblum_method', compute_ps.get_value(qualifier='pblum_method', default='phoebe', **_skip_filter_checks))
+        t0 = self.get_value(qualifier='t0', context='system', unit=u.d, t0=kwargs.pop('t0', None), **_skip_filter_checks)
+
+        # don't allow things like model='mymodel', etc
+        forbidden_keys = parameters._meta_fields_filter
+        if not kwargs.get('skip_checks', False):
+            self._kwargs_checks(kwargs, additional_allowed_keys=['system', 'skip_checks', 'ret_structured_dicts', 'overwrite', 'pblum_mode', 'pblum_method']+compute_ps.qualifiers, additional_forbidden_keys=forbidden_keys)
+
 
         # make sure we pass system checks
         if not kwargs.get('skip_checks', False):
@@ -8684,158 +8685,62 @@ class Bundle(ParameterSet):
         # sure all passed datasets are passband-dependent
         pblum_datasets = datasets
         for dataset in datasets:
-            if not len(self.filter(qualifier='passband', dataset=dataset)):
+            if not len(self.filter(qualifier='passband', dataset=dataset, **_skip_filter_checks)):
                 if dataset not in self.datasets:
                     raise ValueError("dataset '{}' is not a valid dataset attached to the bundle".format(dataset))
                 raise ValueError("dataset '{}' is not passband-dependent".format(dataset))
-            for pblum_ref_param in self.filter(qualifier='pblum_dataset', dataset=dataset).to_list():
+            for pblum_ref_param in self.filter(qualifier='pblum_dataset', dataset=dataset, check_visible=True).to_list():
                 ref_dataset = pblum_ref_param.get_value(**_skip_filter_checks)
                 if ref_dataset in self.datasets and ref_dataset not in pblum_datasets:
                     # then we need to compute the system at this dataset too,
                     # even though it isn't requested to be returned
                     pblum_datasets.append(ref_dataset)
 
-            ds_kind = self.get_dataset(dataset=dataset, check_visible=False).kind
-            if ds_kind == 'lc' and self.get_value(qualifier='pblum_mode', dataset=dataset, **_skip_filter_checks) == 'dataset-scaled':
-                logger.warning("cannot expose pblum for dataset={} with pblum_mode@{}='dataset-scaled'".format(dataset, dataset))
-                pblum_datasets.remove(dataset)
+        # preparation depending on method before looping over datasets/components
+        if pblum_method == 'phoebe':
+            # we'll need to make sure we've done any necessary interpolation if
+            # any ld_bol or ld_mode_bol are set to 'lookup'.
+            self.compute_ld_coeffs(compute=compute, set_value=True, **{k:v for k,v in kwargs.items() if k not in ['ret_structured_dicts', 'pblum_mode', 'pblum_method']})
+            # TODO: make sure this accepts all compute parameter overrides (distortion_method, etc)
+            system = kwargs.get('system', self._compute_intrinsic_system_at_t0(compute=compute, datasets=pblum_datasets, **kwargs))
+            logger.debug("computing observables with ignore_effects=True for {}".format(pblum_datasets))
+            system.populate_observables(t0, ['lc'], pblum_datasets, ignore_effects=True)
+        elif pblum_method == 'stefan-boltzmann':
+            requivs = {component: self.get_value(qualifier='requiv', component=component, context='component', unit='m', **_skip_filter_checks) for component in valid_components}
+            teffs = {component: self.get_value(qualifier='teff', component=component, context='component', unit='K', **_skip_filter_checks) for component in valid_components}
+            loggs = {component: self.get_value(qualifier='logg', component=component, context='component', **_skip_filter_checks) for component in valid_components}
+            abuns = {component: self.get_value(qualifier='abun', component=component, context='component', **_skip_filter_checks) for component in valid_components}
 
-        t0 = self.get_value(qualifier='t0', context='system', unit=u.d, **_skip_filter_checks)
+            atms = {}
+            for component in valid_components:
+                atm = compute_ps.get_value(qualifier='atm', component=component, atm=kwargs.get('atm', None), **_skip_filter_checks)
+                if atm == 'extern_planckint':
+                    atm = 'blackbody'
+                elif atm == 'extern_atmx':
+                    atm = 'ck2004'
 
-        # we'll need to make sure we've done any necessary interpolation if
-        # any ld_bol or ld_mode_bol are set to 'lookup'.
-        self.compute_ld_coeffs(compute=compute, set_value=True, **kwargs)
+                atms[component] = atm
 
+            system = None
+
+        else:
+            raise ValueError("pblum_method='{}' not supported".format(pblum_method))
+
+        ret_structured_dicts = kwargs.get('ret_structured_dicts', False)
         ret = {}
-        if use_sb_approx:
-            if pblum_ext or pbflux_ext:
-                raise NotImplementedError("cannot use use_sb_approx with pblum_ext or pbflux_ext")
 
-            compute_ps = self.filter(compute=compute, context='compute', **_skip_filter_checks)
-
-            # pblum_abs: {dataset: component: {pblum_abs}}
-            pblum_abs = {dataset: {} for dataset in datasets}
-
-            for dataset in datasets:
-                for component in components:
-                    # TODO cache these per component before dataset loop?
-                    requiv = self.get_value(qualifier='requiv', component=component, context='component', unit='solRad', **_skip_filter_checks)
-                    teff = self.get_value(qualifier='teff', component=component, context='component', unit='K', **_skip_filter_checks)
-                    logg = self.get_value(qualifier='logg', component=component, context='component', **_skip_filter_checks)
-                    abun = self.get_value(qualifier='abun', component=component, context='component', **_skip_filter_checks)
-
-                    passband = self.get_value(qualifier='passband', dataset=dataset, context='dataset', **_skip_filter_checks)
-                    # TODO: atm not in all compute options... what should we fallback on?
-
-                    ld_mode = self.get_value(qualifier='ld_mode', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
-                    intens_weighting = self.get_value(qualifier='intens_weighting', dataset=dataset, context='dataset', **_skip_filter_checks)
-                    if ld_mode == 'manual':
-                        ld_func = self.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
-                        ld_coeffs = self.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
-
-                    if 'atm' in compute_ps.qualifiers:
-                        atm = compute_ps.get_value(qualifier='atm', component=component, atm=kwargs.get('atm', None), **_skip_filter_checks)
-                        if atm == 'extern_planckint':
-                            atm = 'blackbody'
-                        elif atm == 'extern_atmx':
-                            atm = 'ck2004'
-
-                        if atm == 'blackbody' and ld_mode!='manual':
-                            raise NotImplementedError("use_sb_approx (pblum_method='stefan-boltzmann') not currently implemented for atm='blackbody' unless ld_mode='manual'")
-                    else:
-                        atm = 'blackbody' if ld_mode == 'manual' else 'ck2004'
-                        logger.warning("no atm in compute='{}', falling back on atm='{}'".format(compute, atm))
+        # pblum_*: {dataset: {component: value}}
+        pblums_abs = {dataset: {} for dataset in datasets}
+        pblums_scale = {dataset: {} for dataset in datasets}
+        pblums_rel = {dataset: {} for dataset in datasets}
+        # pbfluxes: {datasets: pbflux}
+        pbfluxes = {}
 
 
-                    ld_func=ld_func if ld_mode=='manual' else 'interp'
-                    ld_coeffs=ld_coeffs if ld_mode=='manual' else None
-                    required_content = ['{}:Inorm'.format(atm)]
-                    if atm != 'blackbody':
-                        required_content += ['{}:ldint'.format(atm)]
-                    pb = get_passband(passband, content=required_content)
-                    # TODO: why is Inorm returning an array when passing all floats but ldint isn't??
-                    Inorm = pb.Inorm(Teff=teff, logg=logg, abun=abun, atm=atm,
-                                     ldatm=atm, ldint=None, ld_func=ld_func, ld_coeffs=ld_coeffs,
-                                     photon_weighted=intens_weighting=='photon')
-
-                    ldint = pb.ldint(Teff=teff, logg=logg, abun=abun,
-                                     ldatm=atm, ld_func=ld_func, ld_coeffs=ld_coeffs,
-                                     photon_weighted=intens_weighting=='photon')
-
-                    logger.info("estimating pblum for {}@{} using atm='{}' and stefan-boltzmann approximation".format(dataset, component, atm))
-                    pblum_abs[dataset][component] = 4 * np.pi * requiv**2 * Inorm[0] * ldint
-
-            pblum_scales = _universe._compute_pblum_scales(self, pblum_abs, components)
-            # print("*** pblum_abs", pblum_abs)
-            # print("*** pblum_scales", pblum_scales)
-            for dataset in datasets:
-                pbflux_this_dataset = 0.0
-                for component in components:
-                    pblum = pblum_abs[dataset][component] * pblum_scales[dataset].get(component, 1.0)
-                    pbflux_this_dataset += pblum / (4*np.pi)
-
-                    if set_value:
-                        self.set_value(qualifier='pblum', component=component, dataset=dataset, context='dataset', value=pblum*u.W, **_skip_filter_checks)
-
-                    ret["{}@{}@{}".format('pblum', component, dataset)] = pblum*u.W
-
-
-                if pbflux:
-
-                    pbflux_this_dataset /= self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)**2
-
-                    l3_mode = self.get_value(qualifier='l3_mode', dataset=dataset, context='dataset', **_skip_filter_checks)
-                    if l3_mode == 'flux':
-                        l3_flux = self.get_value(qualifier='l3', dataset=dataset, context='dataset', unit=u.W/u.m**2, **_skip_filter_checks)
-                    elif l3_mode == 'fraction':
-                        l3_frac = self.get_value(qualifier='l3_frac', dataset=dataset, context='dataset', **_skip_filter_checks)
-                        l3_flux = _universe.l3_frac_to_flux(l3_frac, pbflux_this_dataset)
-                    else:
-                        raise NotImplementedError("not implemented for l3_mode='{}'".format(l3_mode))
-
-                    pbflux_this_dataset += l3_flux
-
-                    if set_value:
-                        self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', value=pbflux_this_dataset*u.W/u.m**2, **_skip_filter_checks)
-
-                    ret["{}@{}".format('pbflux', dataset)] = pbflux_this_dataset*u.W/u.m**2
-
-            return ret
-
-        # use_sb_approx = False
-        l3s = None
-        for compute_extrinsic in [True, False]:
-            # we need to compute the extrinsic case if we're requesting pblum_ext
-            # or pbflux_ext or if we're requesting pbflux but l3s need to be
-            # converted (as those need to be translated with extrinsic enabled)
-            if compute_extrinsic and not (pblum_ext or pbflux_ext or (pbflux and len(self.filter(qualifier='l3_mode', dataset=datasets, value='fraction')))):
-                continue
-            if not compute_extrinsic and not (pblum or pbflux):
-                continue
-
-            # TODO: can we prevent rebuilding the entire system the second time if both intrinsic and extrinsic are True?
-            compute_l3 = compute_extrinsic and (pbflux_ext or pbflux)
-            logger.debug("b._compute_system(compute={}, datasets={}, compute_l3={}, compute_extrinsic={}, kwargs={})".format(compute, pblum_datasets, compute_l3, compute_extrinsic, kwargs))
-            system = kwargs.get('system', self._compute_system(compute=compute, datasets=pblum_datasets, compute_l3=compute_l3, compute_extrinsic=compute_extrinsic, **kwargs))
-
-            if compute_l3:
-                # these needed to be computed with compute_extrinsic=True even for pbflux instrinsic
-                l3s = {dataset: system.l3s[dataset]['flux'] for dataset in datasets} # in u.W/u.m**2
-
-            for dataset in datasets:
-                pbflux_this_dataset = 0
-
-                # TODO: can we get away with skipping this in some cases?  If we
-                # skipped the compute_extrinsic=True case, then we should
-                # already have these with ignore_effects=True from computing the
-                # scaling
-                # Technically we only need to do this if compute_extrinsic as of
-                # right now, since there is nothing in _populate_lc which
-                # affects Inorms (though boosting affects Imus).
-                logger.debug("computing observables with ignore_effects={} for {}".format(not compute_extrinsic, dataset))
-                system.populate_observables(t0, ['lc'], [dataset],
-                                            ignore_effects=not compute_extrinsic)
-
+        # first we'll determine the absolute luminosities per-dataset, per-component
+        # by using pblum_method
+        for dataset in datasets:
+            if pblum_method == 'phoebe':
 
                 system_items = {}
                 for component, item in system.items():
@@ -8846,116 +8751,176 @@ class Bundle(ParameterSet):
                             system_items[half.component] = half
 
                 for component, star in system_items.items():
-                    if component not in components:
+                    if component not in valid_components:
                         continue
 
-                    pblum = float(star.compute_luminosity(dataset))
-                    pbflux_this_dataset += pblum / (4*np.pi)
+                    pblums_abs[dataset][component] = float(star.compute_luminosity(dataset, scaled=False))
 
-                    if (compute_extrinsic and pblum_ext) or (not compute_extrinsic and pblum):
-                        if not compute_extrinsic and set_value:
-                            self.set_value(qualifier='pblum', component=component, dataset=dataset, context='dataset', check_visible=False, value=pblum*u.W)
-
-                        ret["{}@{}@{}".format('pblum_ext' if compute_extrinsic else 'pblum', component, dataset)] = pblum*u.W
-
-                if (compute_extrinsic and pbflux_ext) or (not compute_extrinsic and pbflux):
-
-                    pbflux_this_dataset /= self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)**2
-
-                    if l3s is None:
-                        # then we didn't need to compute l3s, so we can pull straight from the parameter
-                        pbflux_this_dataset += self.get_value(qualifier='l3', dataset=dataset, context='dataset', unit=u.W/u.m**2, **_skip_filter_checks)
+            elif pblum_method == 'stefan-boltzmann':
+                for component in valid_components:
+                    passband = self.get_value(qualifier='passband', dataset=dataset, context='dataset', **_skip_filter_checks)
+                    ld_mode = self.get_value(qualifier='ld_mode', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
+                    intens_weighting = self.get_value(qualifier='intens_weighting', dataset=dataset, context='dataset', **_skip_filter_checks)
+                    if ld_mode == 'manual':
+                        ld_func = self.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
+                        ld_coeffs = self.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', **_skip_filter_checks)
                     else:
-                        pbflux_this_dataset += l3s[dataset]
+                        ld_func = 'interp'
+                        ld_coeffs = None
 
+                    if atms[component] == 'blackbody' and ld_mode!='manual':
+                        raise NotImplementedError("pblum_method='stefan-boltzmann' not currently implemented for atm='blackbody' unless ld_mode='manual'")
 
-                    if not compute_extrinsic and set_value:
-                        self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', value=pbflux_this_dataset*u.W/u.m**2, **_skip_filter_checks)
+                    required_content = ['{}:Inorm'.format(atms[component])]
+                    if atms[component] != 'blackbody':
+                        required_content += ['{}:ldint'.format(atms[component])]
+                    pb = get_passband(passband, content=required_content)
 
-                    ret["{}@{}".format('pbflux_ext' if compute_extrinsic else 'pbflux', dataset)] = pbflux_this_dataset*u.W/u.m**2
+                    # TODO: why is Inorm returning an array when passing all floats but ldint isn't??
+                    Inorm = pb.Inorm(Teff=teffs[component], logg=loggs[component],
+                                     abun=abuns[component], atm=atms[component],
+                                     ldatm=atms[component],
+                                     ldint=None, ld_func=ld_func, ld_coeffs=ld_coeffs,
+                                     photon_weighted=intens_weighting=='photon')[0]
 
-        return ret
+                    ldint = pb.ldint(Teff=teffs[component], logg=loggs[component],
+                                     abun=abuns[component],
+                                     ldatm=atms[component], ld_func=ld_func, ld_coeffs=ld_coeffs,
+                                     photon_weighted=intens_weighting=='photon')
 
-    def _compute_necessary_values(self, computeparams, pbflux=False, use_sb_approx=False, **kwargs):
-        # we'll manually disable skip_checks anyways to avoid them being done twice
-        _ = kwargs.pop('backend', None)
-        _ = kwargs.pop('skip_checks', None)
-        compute = computeparams.compute
+                    if intens_weighting=='photon':
+                        ptfarea = pb.ptf_photon_area/pb.h/pb.c
+                    else:
+                        ptfarea = pb.ptf_area
 
-        if computeparams.kind == 'phoebe' and computeparams.get_value(qualifier='irrad_method', **_skip_filter_checks) !='none':
-            # then all we need to do is handle any ld_mode_bol=='lookup'
-            self.compute_ld_coeffs(compute, dataset=['bol'], set_value=True, skip_checks=True)
-            return
+                    logger.info("estimating pblum for {}@{} using atm='{}' and stefan-boltzmann approximation".format(dataset, component, atm))
+                    # requiv in m, Inorm in W/m**3, ldint unitless, ptfarea in m -> pblum_abs in W
+                    pblums_abs[dataset][component] = 4 * np.pi * requivs[component]**2 * Inorm * ldint * ptfarea
 
-        enabled_datasets = computeparams.filter(qualifier='enabled', value=True).datasets
-
-        # handle any limb-darkening interpolation
-        if computeparams.kind == 'photodynam':
-            # then we're ignoring anything that isn't quadratic anyways
-            dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_func', value='quadratic').datasets
-        else:
-            dataset_compute_ld_coeffs = self.filter(dataset=enabled_datasets, qualifier='ld_coeffs_source').exclude(value='none').datasets
-
-        if len(dataset_compute_ld_coeffs):
-            logger.warning("{} does not natively support ld coefficients lookup.  These will be queried by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
-            logger.debug("calling compute_ld_coeffs(compute={}, dataset={}, set_value=True, skip_checks=True, **{})".format(dataset_compute_ld_coeffs, compute, kwargs))
-            self.compute_ld_coeffs(compute, dataset=dataset_compute_ld_coeffs, set_value=True, skip_checks=True, **kwargs)
-
-        # handle any necessary l3 computations
-        if computeparams.kind in ['ellc', 'jktebop']:
-            # ellc and jktebop take fractional l3, so any that are flux need to be translated
-            dataset_need_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='flux', check_visible=True).datasets
-            dataset_compute_l3s = []
-            for ds in dataset_need_l3s:
-                if self.get_value(qualifier='l3', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
-                    # then we don't really need to do any computations
-                    self.set_value(qualifier='l3_frac', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
-                else:
-                    dataset_compute_l3s.append(ds)
-        else:
-            dataset_need_l3s = self.filter(dataset=enabled_datasets, qualifier='l3_mode', value='fraction', check_visible=True).datasets
-            dataset_compute_l3s = []
-            for ds in dataset_need_l3s:
-                if self.get_value(qualifier='l3_frac', dataset=ds, context='dataset', **_skip_filter_checks) == 0:
-                    # then we don't really need to do any computations
-                    self.set_value(qualifier='l3', dataset=ds, context='dataset', value=0.0, **_skip_filter_checks)
-                else:
-                    dataset_compute_l3s.append(ds)
-        if computeparams.kind == 'legacy' and len(dataset_compute_l3s):
-            # legacy support either mode, but all must be the same
-            l3_modes = [p.value for p in self.filter(qualifier='l3_mode').to_list()]
-            if len(list(set(l3_modes))) <= 1:
-                dataset_compute_l3s = []
-
-        # handle any necessary pblum computations
-        allowed_pblum_modes = ['decoupled', 'component-coupled'] if computeparams.kind == 'legacy' else ['decoupled']
-        dataset_compute_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode', **_skip_filter_checks).exclude(value=allowed_pblum_modes, **_skip_filter_checks).datasets
-        dataset_compute_pblums += [ds for ds in dataset_compute_l3s if ds not in dataset_compute_pblums]
-
-        if len(dataset_compute_pblums):
-            logger.warning("{} does not natively support pblum_mode={}.  pblum values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, [p.get_value() for p in self.filter(qualifier='pblum_mode').exclude(value=allowed_pblum_modes).to_list()], computeparams.kind))
-            logger.debug("calling compute_pblums(compute={}, dataset={}, pblum=True, pblum_ext=False, pbflux={}, pbflux_ext=False, set_value=True, skip_checks=True, use_sb_approx={}, **{})".format(compute, dataset_compute_pblums, pbflux, use_sb_approx, kwargs))
-            # we'll do pbflux here so that it doesn't need to be recomputed for l3s
-            needs_pbflux = len(dataset_compute_l3s) or computeparams.kind not in ['phoebe', 'legacy']
-            pblums_dict = self.compute_pblums(compute, dataset=dataset_compute_pblums, pblum=True, pblum_ext=False, pbflux=needs_pbflux, pbflux_ext=False, set_value=True, skip_checks=True, use_sb_approx=use_sb_approx, **kwargs)
-        else:
-            pblums_dict = {}
-
-        if len(dataset_compute_l3s):
-            if computeparams.kind == 'legacy':
-                logger.warning("{} does not natively support mixed values for l3_mode.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
-            elif computeparams.kind == 'ellc':
-                logger.warning("{} does not natively support l3_mode='flux'.  l3_frac values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
             else:
-                logger.warning("{} does not natively support l3_mode='fraction'.  l3 values will be computed by PHOEBE 2 and then passed to {}.".format(computeparams.kind, computeparams.kind))
-            use_pbflux = {dataset: pblums_dict.get('pbflux@{}'.format(dataset)) for dataset in dataset_compute_pblums}
-            # for any that were dataset-scaled, we still want to pass pbflux to avoid needing to build a mesh
-            dataset_scaled_pblums = self.filter(dataset=enabled_datasets, qualifier='pblum_mode', value='dataset-scaled', **_skip_filter_checks).datasets
-            for dataset in dataset_scaled_pblums:
-                use_pbflux[dataset] = 1.0 * u.W/u.m**2
-            logger.debug("calling compute_l3s(compute={}, dataset={}, use_pbflux={}, set_value=True, skip_checks=True, **{})".format(compute, dataset_compute_l3s, use_pbflux, kwargs))
-            self.compute_l3s(compute, dataset=dataset_compute_l3s, use_pbflux=use_pbflux, set_value=True, skip_checks=True, **kwargs)
+                raise ValueError("pblum_method='{}' not supported".format(pblum_method))
 
+
+        # now based on pblum_mode, we'll determine the necessary scaling factors
+        # and therefore relative pblums
+        pblum_scale_copy_ds = {}
+        for dataset in datasets:
+            ds = self.get_dataset(dataset=dataset, **_skip_filter_checks)
+            pblum_mode = ds.get_value(qualifier='pblum_mode', pblum_mode=kwargs.get('pblum_mode', None), default='absolute', **_skip_filter_checks)
+
+            if pblum_mode == 'decoupled':
+                for component in valid_components:
+                    if component=='_default':
+                        continue
+
+                    # then we want the pblum defined in the dataset, so the
+                    # scale must be the requested pblum over the absolute value
+                    # that was passed (which was likely either computed through
+                    # a mesh or estimated using Stefan-Boltzmann/spherical
+                    # approximation)
+                    pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component, **_skip_filter_checks)
+                    pblums_scale[dataset][component] = pblum / pblums_abs[dataset][component] if pblums_abs[dataset][component] != 0.0 else 0.0
+
+            elif pblum_mode == 'component-coupled':
+                # now for each component we need to store the scaling factor between
+                # absolute and relative intensities
+                pblum_scale_copy_comp = {}
+                pblum_component = ds.get_value(qualifier='pblum_component', **_skip_filter_checks)
+                for component in valid_components:
+                    if component=='_default':
+                        continue
+                    if pblum_component==component:
+                        # then we do the same as in the decoupled case
+                        # for this component
+                        pblum = ds.get_value(qualifier='pblum', unit=u.W, component=component, **_skip_filter_checks)
+                        pblums_scale[dataset][component] = pblum / pblums_abs[dataset][component] if pblums_abs[dataset][component] != 0.0 else 0.0
+                    else:
+                        # then this component wants to copy the scale from another component
+                        # in the system.  We'll just store this now so that we make sure the
+                        # component we're copying from has a chance to compute its scale
+                        # first.
+                        pblum_scale_copy_comp[component] = pblum_component
+
+                # now let's copy all the scales for those that are just referencing another component
+                for comp, comp_copy in pblum_scale_copy_comp.items():
+                    pblums_scale[dataset][comp] = pblums_scale[dataset][comp_copy]
+
+            elif pblum_mode == 'dataset-coupled':
+                pblum_ref = ds.get_value(qualifier='pblum_dataset', **_skip_filter_checks)
+                # similarly to the component-coupled case, we'll store
+                # the referenced dataset and apply the scalings to the
+                # dictionary once outside of the dataset loop.
+                pblum_scale_copy_ds[dataset] = pblum_ref
+
+            elif pblum_mode in ['dataset-scaled', 'absolute']:
+                # even those these will default to 1.0, we'll set them in the dictionary
+                # so the resulting pblums are available to b.compute_pblums()
+                # we'll include logic later to exclude pblum, pblum_scale,
+                # and pbfluxes from the user output
+                for comp in valid_components:
+                    pblums_scale[dataset][comp] = 1.0
+
+            else:
+                raise NotImplementedError("pblum_mode='{}' not supported".format(pblum_mode))
+
+
+            for ds, ds_copy in pblum_scale_copy_ds.items():
+                for component in valid_components:
+                    pblums_scale[ds][component] = pblums_scale[ds_copy][component]
+
+        # finally, we'll loop through the datasets again to apply the scales to
+        # determine the relative pblums, compute pbfluxes, and expose/set whatever
+        # was requested
+        for dataset in datasets:
+            pblum_mode = self.get_value(qualifier='pblum_mode', dataset=dataset, pblum_mode=kwargs.get('pblum_mode', None), default='absolute', **_skip_filter_checks)
+            if pblum_mode == 'dataset-scaled':
+                ds_scaled = True
+            elif pblum_mode == 'dataset-coupled':
+                coupled_to = self.get_value(qualifier='pblum_dataset', dataset=dataset, **_skip_filter_checks)
+                if self.get_value(qualifier='pblum_mode', dataset=coupled_to, **_skip_filter_checks) == 'dataset-scaled':
+                    ds_scaled = True
+                else:
+                    ds_scaled = False
+            else:
+                ds_scaled = False
+
+            pbflux_this_dataset = 0.0
+            for component in valid_components:
+                pblum_rel = pblums_abs[dataset][component] * pblums_scale[dataset].get(component, 1.0)
+                pblums_rel[dataset][component] = pblum_rel
+
+                if set_value:
+                    self.set_value(qualifier='pblum', component=component, dataset=dataset, context='dataset', value=pblum_rel*u.W, **_skip_filter_checks)
+
+                if not ret_structured_dicts and component in components:
+                    if pblum and not ds_scaled:
+                        ret["{}@{}@{}".format('pblum', component, dataset)] = pblum_rel*u.W
+                    if pblum_scale and not ds_scaled:
+                        ret["{}@{}@{}".format('pblum_scale', component, dataset)] = pblums_scale[dataset].get(component, 1.0)
+                    if pblum_abs:
+                        ret["{}@{}@{}".format('pblum_abs', component, dataset)] = pblums_abs[dataset][component]*u.W
+
+                if self.hierarchy.get_kind_of(component) != 'envelope':
+                    # don't want to double count
+                    pbflux_this_dataset += pblum_rel / (4*np.pi)
+
+            if set_value:
+                self.set_value(qualifier='pbflux', dataset=dataset, context='dataset', value=pbflux_this_dataset*u.W/u.m**2, **_skip_filter_checks)
+
+            if pbflux and not ret_structured_dicts and not ds_scaled:
+                ret["{}@{}".format('pbflux', dataset)] = pbflux_this_dataset*u.W/u.m**2
+            elif ret_structured_dicts:
+                pbfluxes[dataset] = pbflux_this_dataset
+
+        if ret_structured_dicts:
+            # this is an internal output used by run_compute, generally not requested by the user
+            if system is not None:
+                system.reset(force_recompute_instantaneous=True)
+            return system, pblums_abs, pblums_scale, pblums_rel, pbfluxes
+
+        # users will see the twig dictionaries with the exposed values based on
+        # sent booleans
+        return ret
 
     @send_if_client
     def add_compute(self, kind='phoebe', return_changes=False, **kwargs):
@@ -9605,6 +9570,7 @@ class Bundle(ParameterSet):
                 return ParameterSet([job_param]) + ret_changes
             return job_param
 
+        # from here on, we do not need to detach
         # temporarily disable interactive_checks, check_default, and check_visible
         conf_interactive_checks = conf.interactive_checks
         if conf_interactive_checks:
@@ -9670,80 +9636,220 @@ class Bundle(ParameterSet):
 
                     self._attach_params(params, check_copy_for=False, **metawargs)
 
-                    # continue to the next iteration of the for-loop.  Any dataset-scaling,
-                    # etc, will be handled within each individual model run within the sampler.
+                    # continue to the next iteration of the computes for-loop.
+                    # Any dataset-scaling etc, will be handled within each
+                    # individual model run within the sampler.
                     continue
 
-                logger.info("running {} backend to create '{}' model".format(computeparams.kind, model))
-                compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
-                # compute_func = getattr(backends, computeparams.kind)
+                # we now need to handle any computations of ld_coeffs, pblums, l3s, etc
+                # TODO: skip lookups for phoebe, skip non-supported ld_func for photodynam, etc
+                # TODO: have this return a dictionary like pblums/l3s that we can pass on to the backend?
+                logger.info("run_compute: computing necessary ld_coeffs, pblums, l3s")
+                self.compute_ld_coeffs(compute=compute, skip_checks=True, set_value=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                # NOTE that if pblum_method != 'phoebe', then system will be None
+                # otherwise the system will be create which we can pass on to the backend
+                # the phoebe backend can then skip initializing the system at least on the master proc
+                # (workers will need to recreate the mesh)
+                system, pblums_abs, pblums_scale, pblums_rel, pbfluxes = self.compute_pblums(compute=compute, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
+                l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
 
-                params = compute_class().run(self, compute,
-                                             dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
-                                             times=times,
-                                             **kwargs)
+                logger.info("run_compute: calling {} backend to create '{}' model".format(computeparams.kind, model))
+                compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
+                if computeparams.kind == 'phoebe':
+                    kwargs['system'] = system
+                    kwargs['pblums_scale'] = pblums_scale
+                elif computeparams.kind in ['legacy', 'jktebop', 'ellc']:
+                    # legacy uses pblums directly
+                    # jktebop, ellc use pblums for sbratio if decoupled, otherwise will ignore and use teffs
+                    kwargs['pblums'] = pblums_rel
+
+                ml_params = compute_class().run(self, compute,
+                                                dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
+                                                times=times,
+                                                **kwargs)
+
+                ml_addl_params = []
+
+                # ml_params contain the raw synthetic model from the respective
+                # compute backend.  Now we need to do any post-processing that
+                # can act on any results (exposure-time, flux-scaling, GPs, etc)
 
                 # average over any exposure times before attaching parameters
-                if computeparams.kind == 'phoebe':
-                    # TODO: we could eventually do this for all backends - we would
-                    # just need to copy the computeoption parameters into each backend's
-                    # compute PS, and include similar logic for oversampling that is
-                    # currently in backends._extract_info_from_bundle_by_time into
-                    # backends._extract_info_from_bundle_by_dataset.  We'd also
-                    # need to make sure that exptime is not being passed to any
-                    # alternate backend - and ALWAYS handle it here
-                    for ds in params.datasets:
-                        # not all dataset-types currently support exposure times.
-                        # Once they do, this ugly if statement can be removed
-                        if len(self.filter(dataset=ds, qualifier='exptime')):
-                            exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
-                            if exptime > 0:
-                                logger.info("handling fti for dataset='{}'".format(ds))
-                                if self.get_value(qualifier='fti_method', dataset=ds, compute=compute, context='compute', **kwargs)=='oversample':
-                                    times_ds = self.get_value(qualifier='compute_times', dataset=ds, context='dataset')
-                                    if not len(times_ds):
-                                        times_ds = self.get_value(qualifier='times', dataset=ds, context='dataset')
-                                    # exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
-                                    fti_oversample = self.get_value(qualifier='fti_oversample', dataset=ds, compute=compute, context='compute', check_visible=False, **kwargs)
-                                    # NOTE: this is hardcoded for LCs which is the
-                                    # only dataset that currently supports oversampling,
-                                    # but this will need to be generalized if/when
-                                    # we expand that support to other dataset kinds
-                                    fluxes = np.zeros(times_ds.shape)
+                for ds in ml_params.datasets:
+                    # not all dataset-types currently support exposure times.
+                    # Once they do, this ugly if statement can be removed
+                    if len(self.filter(dataset=ds, qualifier='exptime')):
+                        exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
+                        if exptime > 0:
+                            logger.info("handling fti for dataset='{}'".format(ds))
+                            if self.get_value(qualifier='fti_method', dataset=ds, compute=compute, context='compute', fti_method=kwargs.get('fti_method', None), **_skip_filter_checks)=='oversample':
+                                times_ds = self.get_value(qualifier='compute_times', dataset=ds, context='dataset')
+                                if not len(times_ds):
+                                    times_ds = self.get_value(qualifier='times', dataset=ds, context='dataset')
+                                # exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
+                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=ds, compute=compute, context='compute', check_visible=False, **kwargs)
+                                # NOTE: this is hardcoded for LCs which is the
+                                # only dataset that currently supports oversampling,
+                                # but this will need to be generalized if/when
+                                # we expand that support to other dataset kinds
+                                fluxes = np.zeros(times_ds.shape)
 
-                                    # the oversampled times and fluxes will be
-                                    # sorted according to times this may cause
-                                    # exposures to "overlap" each other, so we'll
-                                    # later need to determine which times (and
-                                    # therefore fluxes) belong to which datapoint
-                                    times_oversampled_sorted = params.get_value(qualifier='times', dataset=ds)
-                                    fluxes_oversampled = params.get_value(qualifier='fluxes', dataset=ds)
+                                # the oversampled times and fluxes will be
+                                # sorted according to times this may cause
+                                # exposures to "overlap" each other, so we'll
+                                # later need to determine which times (and
+                                # therefore fluxes) belong to which datapoint
+                                times_oversampled_sorted = ml_params.get_value(qualifier='times', dataset=ds)
+                                fluxes_oversampled = ml_params.get_value(qualifier='fluxes', dataset=ds)
 
-                                    for i,t in enumerate(times_ds):
-                                        # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
-                                        # TODO: try to optimize this by having these indices returned by the backend itself
-                                        times_oversampled_this = np.linspace(t-exptime/2., t+exptime/2., fti_oversample)
-                                        sample_inds = np.searchsorted(times_oversampled_sorted, times_oversampled_this)
+                                for i,t in enumerate(times_ds):
+                                    # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
+                                    # TODO: try to optimize this by having these indices returned by the backend itself
+                                    times_oversampled_this = np.linspace(t-exptime/2., t+exptime/2., fti_oversample)
+                                    sample_inds = np.searchsorted(times_oversampled_sorted, times_oversampled_this)
 
-                                        fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
+                                    fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
 
-                                    params.set_value(qualifier='times', dataset=ds, value=times_ds, ignore_readonly=True)
-                                    params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True)
+                                ml_params.set_value(qualifier='times', dataset=ds, value=times_ds, ignore_readonly=True)
+                                ml_params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True)
 
+                # handle flux scaling for any pblum_mode == 'dataset-scaled'
+                # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset
+                datasets_dsscaled = []
 
-                comment_param = StringParameter(qualifier='comments', value=kwargs.get('comments', computeparams.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')
+                for pblum_mode_param in self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-scaled', **_skip_filter_checks).to_list():
+                    this_dsscale_datasets = [pblum_mode_param.dataset] + self.filter(qualifier='pblum_dataset', dataset=ml_params.datasets, value=pblum_mode_param.dataset, check_visible=True).datasets
+                    # keep track of all datasets that are scaled so we don't do distance/l3 corrections later
+                    datasets_dsscaled += this_dsscale_datasets
+                    logger.info("rescaling fluxes to data for dataset={}".format(this_dsscale_datasets))
 
-                self._attach_params(params+[comment_param], check_copy_for=False, **metawargs)
+                    ds_fluxess = np.array([])
+                    ds_sigmass = np.array([])
+                    l3_fluxes = np.array([])
+                    l3_fracs = np.array([])
+                    l3_pblum_abs_sums = np.array([])
+                    model_fluxess_interp = np.array([])
+
+                    for dataset in this_dsscale_datasets:
+                        ds_obs = self.get_dataset(dataset, **_skip_filter_checks)
+                        ds_times = ds_obs.get_value(qualifier='times')
+
+                        l3_mode = ds_obs.get_value(qualifier='l3_mode', **_skip_filter_checks)
+                        if l3_mode == 'flux':
+                            l3_flux = ds_obs.get_value(qualifier='l3', unit=u.W/u.m**2, **_skip_filter_checks)
+                            l3_fluxes = np.append(l3_fluxes, np.full_like(ds_times, fill_value=l3_flux))
+                            l3_fracs = np.append(l3_fracs, np.zeros_like(ds_times))
+                            l3_pblum_abs_sums = np.append(l3_pblum_abs_sums, np.zeros_like(ds_times))
+                        else:
+                            l3_frac = ds_obs.get_value(qualifier='l3_frac', **_skip_filter_checks)
+                            l3_fluxes = np.append(l3_fluxes, np.zeros_like(ds_times))
+                            l3_fracs = np.append(l3_fracs, np.full_like(ds_times, fill_value=l3_frac))
+                            l3_pblum_abs_sums = np.append(l3_pblum_abs_sums, np.full_like(ds_times, fill_value=np.sum(list(pblums_abs.get(dataset).values()))))
+
+                        ds_fluxes = ds_obs.get_value(qualifier='fluxes', unit=u.W/u.m**2)
+                        ds_fluxess = np.append(ds_fluxess, ds_fluxes)
+                        ds_sigmas = ds_obs.get_value(qualifier='sigmas')
+                        if len(ds_sigmas):
+                            ds_sigmass = np.append(ds_sigmass, ds_sigmas)
+                        else:
+                            sigma_est = 0.001*ds_fluxes.mean()
+                            logger.warning("dataset-scaling: adopting sigmas={} for dataset='{}'".format(sigma_est, dataset))
+                            ds_sigmass = np.append(ds_sigmass, sigma_est*np.ones(len(ds_fluxes)))
+
+                        ml_ds = ml_params.filter(dataset=dataset, **_skip_filter_checks)
+                        model_fluxes_interp = ml_ds.get_parameter(qualifier='fluxes', dataset=dataset, **_skip_filter_checks).interp_value(times=ds_times, parent_ps=ml_ds)
+                        model_fluxess_interp = np.append(model_fluxess_interp, model_fluxes_interp)
+
+                    scale_factor_approx = np.median(ds_fluxess / model_fluxess_interp)
+
+                    def _scale_fluxes(fluxes, scale_factor, l3_frac, l3_pblum_abs_sum, l3_flux):
+                        return scale_factor * (fluxes + l3_frac * l3_pblum_abs_sum) + l3_flux
+
+                    def _scale_fluxes_cfit(fluxes, scale_factor):
+                        # use values in this namespace rather than passing directly
+                        return _scale_fluxes(fluxes, scale_factor, l3_fracs, l3_pblum_abs_sums, l3_fluxes)
+
+                    # TODO: can we skip this if sigmas don't exist?
+                    logger.debug("calling curve_fit with estimated scale_factor={}".format(scale_factor_approx))
+                    popt, pcov = cfit(_scale_fluxes_cfit, model_fluxess_interp, ds_fluxess, p0=(scale_factor_approx), sigma=ds_sigmass)
+                    scale_factor = popt[0]
+
+                    for flux_param in ml_params.filter(qualifier='fluxes', dataset=this_dsscale_datasets, **_skip_filter_checks).to_list():
+                        logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, flux_param.dataset))
+
+                        ds_obs = self.get_dataset(dataset=flux_param.dataset, **_skip_filter_checks)
+                        l3_mode = ds_obs.get_value(qualifier='l3_mode', **_skip_filter_checks)
+                        # this time we can pass floats instead of arrays since only
+                        # one will apply to this single dataset
+                        if l3_mode == 'flux':
+                            l3_flux = ds_obs.get_value(qualifier='l3', unit=u.W/u.m**2, **_skip_filter_checks)
+                            l3_frac = 0.0
+                            l3_pblum_abs_sum = 0.0
+                        else:
+                            l3_frac = ds_obs.get_value(qualifier='l3_frac', **_skip_filter_checks)
+                            l3_flux = 0.0
+                            l3_pblum_abs_sum = np.sum(list(pblums_abs.get(dataset).values()))
+
+                        syn_fluxes = _scale_fluxes(flux_param.get_value(unit=u.W/u.m**2), scale_factor, l3_frac, l3_pblum_abs_sum, l3_flux)
+
+                        flux_param.set_value(qualifier='fluxes', value=syn_fluxes, ignore_readonly=True)
+
+                        ml_addl_params += [FloatParameter(qualifier='flux_scale', value=scale_factor, readonly=True, default_unit=u.dimensionless_unscaled, description='scaling applied to fluxes (intensities/luminosities) due to dataset-scaling')]
+
+                        for mesh_param in ml_params.filter(kind='mesh').to_list():
+                            if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
+                                logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, mesh_param.qualifier))
+                                mesh_param.set_value(mesh_param.get_value()*scale_factor, ignore_readonly=True)
+
+                # handle flux scaling based on pbflux, distance, l3
+                distance = self.get_value(qualifier='distance', context='system', unit=u.m, **_skip_filter_checks)
+                for flux_param in ml_params.filter(qualifier='fluxes', kind='lc', **_skip_filter_checks).to_list():
+                    dataset = flux_param.dataset
+                    if dataset in datasets_dsscaled:
+                        # then we already handle the scaling (including l3)
+                        # above in dataset-scaling
+                        continue
+
+                    fluxes = flux_param.get_value(unit=u.W/u.m**2)
+                    if computeparams.kind not in ['phoebe', 'legacy']:
+                        # then we need to scale the "normalized" fluxes to pbflux first
+                        fluxes *= pbfluxes.get(dataset)
+                    # otherwise fluxes are already correctly scaled by passing
+                    # relative pblums or pblums_scale to the respective backend
+
+                    fluxes = fluxes/distance**2 + l3s.get(dataset)
+
+                    flux_param.set_value(fluxes, ignore_readonly=True)
+
+                # handle vgamma and rv_offset
+                vgamma = self.get_value(qualifier='vgamma', context='system', unit=u.km/u.s, **_skip_filter_checks)
+                for rv_param in ml_params.filter(qualifier='rvs', kind='rv', **_skip_filter_checks).to_list():
+                    dataset = rv_param.dataset
+                    component = rv_param.component
+
+                    rv_offset = self.get_value(qualifier='rv_offset', dataset=dataset, component=component, context='dataset', unit=u.km/u.s, **_skip_filter_checks)
+
+                    if computeparams.kind in ['phoebe', 'legacy']:
+                        # we'll use native vgamma so ltte, etc, can be handled appropriately
+                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+rv_offset, ignore_readonly=True)
+                    else:
+                        rv_param.set_value(rv_param.get_value(unit=u.km/u.s)+vgamma+rv_offset, ignore_readonly=True)
+
+                ml_addl_params += [StringParameter(qualifier='comments', value=kwargs.get('comments', computeparams.get_value(qualifier='comments', default='', **_skip_filter_checks)), description='User-provided comments for this model.  Feel free to place any notes here.')]
+                self._attach_params(ml_params+ml_addl_params, check_copy_for=False, **metawargs)
 
                 model_ps = self.get_model(model=model, **_skip_filter_checks)
 
                 # add any GPs (gaussian processes) to the returned model
+                # NOTE: this has to happen after _attach_params as it uses
+                # several bundle methods that act on the model
                 enabled_features = self.filter(qualifier='enabled', compute=compute, context='compute', value=True, **_skip_filter_checks).features
-
 
                 for ds in model_ps.datasets:
                     gp_features = self.filter(feature=enabled_features, dataset=ds, kind='gaussian_process', **_skip_filter_checks).features
                     if len(gp_features):
+                        # NOTE: this is already in run_checks_compute, so this error
+                        # should never be raised
                         if not _use_celerite:
                             raise ImportError("gaussian processes require celerite to be installed")
 
@@ -9794,40 +9900,6 @@ class Bundle(ParameterSet):
 
                             # update the model to include the GP contribution
                             model_ps.set_value(qualifier=yqualifier, value=model_y.value+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
-
-
-                def _scale_fluxes(model_fluxes, scale_factor):
-                    return model_fluxes * scale_factor
-
-                # scale fluxes whenever pblum_mode = 'dataset-scaled'
-                for param in self.filter(qualifier='pblum_mode', dataset=model_ps.datasets, value='dataset-scaled').to_list():
-                    if not self.get_value(qualifier='enabled', compute=compute, dataset=param.dataset):
-                        continue
-
-                    logger.info("rescaling fluxes to data for dataset='{}'".format(param.dataset))
-                    ds_obs = self.get_dataset(param.dataset, check_visible=False)
-                    ds_times = ds_obs.get_value(qualifier='times')
-                    ds_fluxes = ds_obs.get_value(qualifier='fluxes')
-                    ds_sigmas = ds_obs.get_value(qualifier='sigmas')
-
-                    ds_model = model_ps.filter(dataset=param.dataset, check_visible=False)
-                    model_fluxes = ds_model.get_value(qualifier='fluxes')
-                    model_fluxes_interp = ds_model.get_parameter(qualifier='fluxes').interp_value(times=ds_times)
-                    scale_factor_approx = np.median(ds_fluxes / model_fluxes_interp)
-
-                    # TODO: can we skip this if sigmas don't exist?
-                    logger.debug("calling curve_fit with estimated scale_factor={}".format(scale_factor_approx))
-                    popt, pcov = cfit(_scale_fluxes, model_fluxes_interp, ds_fluxes, p0=(scale_factor_approx), sigma=ds_sigmas if len(ds_sigmas) else None)
-                    scale_factor = popt[0]
-
-                    logger.debug("applying scale_factor={} to fluxes@{}".format(scale_factor, param.dataset))
-                    ds_model.set_value(qualifier='fluxes', value=model_fluxes*scale_factor, ignore_readonly=True)
-
-                    for param in ds_model.filter(kind='mesh').to_list():
-                        if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
-                            logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, param.qualifier))
-                            param.set_value(param.get_value() * scale_factor, ignore_readonly=True)
-
 
 
             redo_kwargs = _deepcopy(kwargs)

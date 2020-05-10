@@ -9100,6 +9100,7 @@ class FloatArrayParameter(FloatParameter):
         # TODO: add support for non-linear interpolation (probably would need to use scipy)?
 
         return_quantity = kwargs.pop('return_quantity', False)
+        parent_ps = kwargs.pop('parent_ps', self.get_parent_ps())
 
         if len(kwargs.keys()) > 1:
             raise KeyError("interp_value only takes a single qualifier-value pair")
@@ -9115,7 +9116,6 @@ class FloatArrayParameter(FloatParameter):
             # for example: time='t0_supconj'
             qualifier_interp_value = self._bundle.get_value(qualifier=qualifier_interp_value, context=['system', 'component'], **_skip_filter_checks)
 
-        parent_ps = self.get_parent_ps()
 
         if qualifier not in parent_ps.qualifiers and not (qualifier=='phases' and 'times' in parent_ps.qualifiers):
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
