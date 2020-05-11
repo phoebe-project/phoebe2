@@ -2906,7 +2906,7 @@ class Bundle(ParameterSet):
                 msg = item.message
                 if item.fail:
                     if len(item.affects_methods):
-                        msg += "  If not addressed, this warning will continue to be raised and will throw an error at {}.".format(",".join(item.affects_methods))
+                        msg += "  If not addressed, this warning will continue to be raised and will throw an error at {}.".format(",".join([m for m in item.affects_methods if m!='system']))
                     else:
                         msg += "  If not addressed, this warning will continue to be raised may eventually throw an error."
                 logger.warning(msg)
