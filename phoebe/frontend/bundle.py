@@ -485,7 +485,10 @@ class Bundle(ParameterSet):
 
         if not len(params):
             # add position (only 1 allowed and required)
-            self._attach_params(_system.system(), context='system')
+            params, constraints = _system.system()
+            self._attach_params(params, context='system')
+            for constraint in constraints:
+                self.add_constraint(*constraint)
 
             # add default settings (only 1 allowed and required)
             self._attach_params(_setting.settings(), context='setting')
@@ -613,7 +616,7 @@ class Bundle(ParameterSet):
 
 
         if phoebe_version_import < StrictVersion("2.3.0"):
-            warning = "importing from an older version ({}) of PHOEBE which did not support sample_from, etc... all compute options will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
+            warning = "importing from an older version ({}) of PHOEBE which did not support sample_from, etc... all compute options will be migrated to include all new options.  Additionally, extinction parameters will be moved from the dataset to system context.  This may take some time.  Please check all values.".format(phoebe_version_import)
 
             for compute in b.filter(context='compute').computes:
                 logger.info("attempting to update compute='{}' to new version requirements".format(compute))
@@ -623,6 +626,29 @@ class Bundle(ParameterSet):
                 # NOTE: we will not remove (or update) the dataset from any existing models
                 b.remove_compute(compute, context=['compute'])
                 b.add_compute(compute_kind, compute=compute, check_label=False, **dict_compute)
+
+            # extinction parameters were moved from dataset to system, so we'll just add the new parameters
+            system, constraints = _system.system()
+            b._attach_params([p for p in system.to_list() if p.qualifier in ['ebv', 'Av', 'Rv']], context='system')
+
+            Avs = list(set([Av_param.get_value() for Av_param in b.filter(qualifier='Av', context='dataset', **_skip_filter_checks).to_list()]))
+            if len(Avs):
+                if len(Avs) > 1:
+                    logger.warning("PHOEBE no longer supports multiple values for Av, adopting Av={}".format(Avs[0]))
+                b.set_value(qualifier='Av', context='system', value=Avs[0], **_skip_filter_checks)
+            Rvs = list(set([Rv_param.get_value() for Rv_param in b.filter(qualifier='Rv', context='dataset', **_skip_filter_checks).to_list()]))
+            if len(Rvs):
+                if len(Rvs) > 1:
+                    logger.warning("PHOEBE no longer supports multiple values for Rv, adopting Rv={}".format(Rvs[0]))
+                b.set_value(qualifier='Rv', context='system', value=Rvs[0], **_skip_filter_checks)
+
+            b.remove_parameters_all(qualifier=['ebv', 'Av', 'Rv'], context='dataset', **_skip_filter_checks)
+            b.remove_parameters_all(constraint_func='extinction', context='constraint', **_skip_filter_checks)
+
+            for constraint in constraints:
+                # there were no constraints before
+                b.add_constraint(*constraint)
+
 
         if phoebe_version_import < StrictVersion("2.2.0"):
             warning = "importing from an older version ({}) of PHOEBE which did not support compute_times, ld_mode/ld_coeffs_source, pblum_mode, l3_mode, etc... all datasets will be migrated to include all new options.  This may take some time.  Please check all values.".format(phoebe_version_import)
@@ -657,7 +683,7 @@ class Bundle(ParameterSet):
                     param.set_value(new_value)
 
             existing_values_settings = {p.qualifier: p.get_value() for p in b.filter(context='setting').to_list()}
-            b.remove_parameters_all(context='setting')
+            b.remove_parameters_all(context='setting', **_skip_filter_checks)
             b._attach_params(_setting.settings(**existing_values_settings), context='setting')
 
             # overwriting the datasets during migration will clear the model, so
@@ -682,11 +708,11 @@ class Bundle(ParameterSet):
                         existing_values['pblum_component'] = b.filter(qualifier='pblum_ref', context='dataset', dataset=ds, check_visible=False).exclude(value='self', check_visible=False).get_parameter(check_visible=False).component
 
 
-                for qualifier in b.filter(context='dataset', dataset=ds, check_visible=False, check_default=False).qualifiers:
+                for qualifier in b.filter(context='dataset', dataset=ds, **_skip_filter_checks).qualifiers:
                     if qualifier in ['pblum_ref']:
                         # already handled these above
                         continue
-                    ps = b.filter(qualifier=qualifier, context='dataset', dataset=ds, check_visible=False)
+                    ps = b.filter(qualifier=qualifier, context='dataset', dataset=ds, **_skip_filter_checks)
                     if len(ps.to_list()) > 1:
                         existing_values[qualifier] = {}
                         for param in ps.to_list():
@@ -697,14 +723,14 @@ class Bundle(ParameterSet):
                                 existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'manual'
 
                     else:
-                        param = b.get_parameter(qualifier=qualifier, context='dataset', dataset=ds, check_visible=False, check_default=False)
+                        param = b.get_parameter(qualifier=qualifier, context='dataset', dataset=ds, **_skip_filter_checks)
                         existing_values[qualifier] = existing_value(param)
                         if qualifier=='ld_func':
                             existing_values['ld_mode']["{}@{}".format(param.time, param.component) if param.time is not None else param.component] = 'interp' if param.value == 'interp' else 'manual'
 
                 if ds_kind in ['lp']:
                     # then we need to pass the times from the attribute instead of parameter
-                    existing_values['times'] = b.filter(context='dataset', dataset=ds, check_visible=False, check_default=False).times
+                    existing_values['times'] = b.filter(context='dataset', dataset=ds, **_skip_filter_checks).times
 
                 existing_values['kind'] = ds_kind
 
@@ -717,8 +743,8 @@ class Bundle(ParameterSet):
                 logger.debug("applying existing values to {} dataset: {}".format(ds, existing_values))
                 b.add_dataset(ds_kind, dataset=ds, overwrite=True, **existing_values)
 
-            for component in b.filter(context='component', kind='star').components:
-                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component).to_list()}
+            for component in b.filter(context='component', kind='star', **_skip_filter_checks).components:
+                existing_values = {p.qualifier: p.get_value() for p in b.filter(context='component', component=component, **_skip_filter_checks).to_list()}
                 logger.warning("migrating '{}' component".format(component))
                 logger.debug("applying existing values to {} component: {}".format(component, existing_values))
                 b.add_component(kind='star', component=component, overwrite=True, **existing_values)
@@ -3403,6 +3429,8 @@ class Bundle(ParameterSet):
         all_pbs = list_passbands(full_dict=True)
         online_pbs = list_online_passbands(full_dict=True)
 
+        pb_needs_ext = self.get_value(qualifier='ebv', context='system', **_skip_filter_checks) != 0
+
         for pbparam in self.filter(qualifier='passband', **_skip_filter_checks).to_list():
 
             # we include this in the loop so that we get the most recent dict
@@ -3415,7 +3443,6 @@ class Bundle(ParameterSet):
             pb_needs_Imu = True
             pb_needs_ld = True #np.any([p.get_value()!='interp' for p in self.filter(qualifier='ld_mode', dataset=pbparam.dataset, context='dataset', **_skip_filter_checks).to_list()])
             pb_needs_ldint = True
-            pb_needs_ext = self.get_value(qualifier='ebv', dataset=pbparam.dataset, context='dataset', **_skip_filter_checks)
 
             missing_pb_content = []
 
@@ -4423,9 +4450,9 @@ class Bundle(ParameterSet):
         for component in self.hierarchy.get_stars():
             if self.get_value(qualifier='pitch', component=component, context='component') != 0. or self.get_value(qualifier='yaw', component=component, context='component') != 0.:
                 recs = _add_reason(recs, 'Horvat et al. (2018)', 'support for misaligned system')
-        for ebv_param in self.filter(qualifier='ebv', context='dataset').to_list():
-            if ebv_param.get_value() > 0:
-                recs = _add_reason(recs, 'Jones et al. (2020)', 'support for interstellar extinction')
+        if self.get_value(qualifier='ebv', context='system', **_skip_filter_checks) > 0:
+            recs = _add_reason(recs, 'Jones et al. (2020)', 'support for interstellar extinction')
+            recs = _add_reason(recs, 'Jones et al. (2020)', 'support for interstellar extinction')
 
         # provide any references from passband tables
         for pb_param in self.filter(qualifier='passband', dataset=datasets, component=self.hierarchy.get_stars()).to_list():
@@ -6561,7 +6588,7 @@ class Bundle(ParameterSet):
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset
         kwargs['feature'] = expression_param.feature
-        kwargs['context'] = []
+        kwargs['context'] = ['system']
         if kwargs['component'] is not None:
             kwargs['context'] += ['component']
         if kwargs['dataset'] is not None:
@@ -9830,7 +9857,7 @@ class Bundle(ParameterSet):
                     dataset = rv_param.dataset
                     component = rv_param.component
 
-                    rv_offset = self.get_value(qualifier='rv_offset', dataset=dataset, component=component, context='dataset', unit=u.km/u.s, **_skip_filter_checks)
+                    rv_offset = self.get_value(qualifier='rv_offset', dataset=dataset, component=component, context='dataset', default=0.0, unit=u.km/u.s, **_skip_filter_checks)
 
                     if computeparams.kind in ['phoebe', 'legacy']:
                         # we'll use native vgamma so ltte, etc, can be handled appropriately

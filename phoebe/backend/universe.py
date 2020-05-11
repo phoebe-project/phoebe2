@@ -1269,9 +1269,9 @@ class Star(Body):
         intens_weighting_override = kwargs.pop('intens_weighting', None)
         intens_weighting = {ds: b.get_value(qualifier='intens_weighting', dataset=ds, intens_weighting=intens_weighting_override) for ds in datasets_intens}
         ebv_override = kwargs.pop('ebv', None)
-        extinct = {ds: b.get_value('ebv', dataset=ds, context='dataset', ebv=ebv_override) for ds in datasets_intens}
+        extinct = b.get_value('ebv', context='system', ebv=ebv_override)
         Rv_override = kwargs.pop('Rv', None)
-        Rv = {ds: b.get_value('Rv', dataset=ds, context='dataset', Rv=Rv_override) for ds in datasets_intens}
+        Rv = b.get_value('Rv', context='system', Rv=Rv_override)
         ld_mode_override = kwargs.pop('ld_mode', None)
         ld_mode = {ds: b.get_value(qualifier='ld_mode', dataset=ds, component=component, ld_mode=ld_mode_override) for ds in datasets_intens}
         ld_func_override = kwargs.pop('ld_func', None)
@@ -1756,8 +1756,8 @@ class Star(Body):
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
         atm = kwargs.get('atm', self.atm)
-        extinct = kwargs.get('extinct', self.extinct.get(dataset, None))
-        Rv = kwargs.get('Rv', self.Rv.get(dataset, None))
+        extinct = kwargs.get('extinct', self.extinct)
+        Rv = kwargs.get('Rv', self.Rv)
         ld_mode = kwargs.get('ld_mode', self.ld_mode.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_mode == 'manual' else None

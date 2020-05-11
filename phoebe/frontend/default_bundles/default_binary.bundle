@@ -67,6 +67,45 @@ null
 "qualifier": "vgamma"
 }, 
 {
+"description": "Extinction E(B-V)", 
+"limits": [
+null, 
+null
+], 
+"default_unit": "", 
+"value": 0.0, 
+"context": "system", 
+"copy_for": false, 
+"Class": "FloatParameter", 
+"qualifier": "ebv"
+}, 
+{
+"description": "Extinction Av", 
+"limits": [
+null, 
+null
+], 
+"default_unit": "", 
+"value": 0.0, 
+"context": "system", 
+"copy_for": false, 
+"Class": "FloatParameter", 
+"qualifier": "Av"
+}, 
+{
+"description": "Extinction law parameter", 
+"limits": [
+null, 
+null
+], 
+"default_unit": "", 
+"value": 3.1, 
+"context": "system", 
+"copy_for": false, 
+"Class": "FloatParameter", 
+"qualifier": "Rv"
+}, 
+{
 "description": "Hierarchy representation", 
 "value": "orbit:binary(star:primary, star:secondary)", 
 "context": "system", 
@@ -1037,6 +1076,19 @@ null
 "qualifier": "sma"
 }, 
 {
+"kind": "extinction", 
+"qualifier": "ebv", 
+"constraint_kwargs": {}, 
+"in_solar_units": true, 
+"constraint_addl_vars": [], 
+"value": "{Av@system} / {Rv@system}", 
+"constraint_func": "extinction", 
+"context": "constraint", 
+"default_unit": "", 
+"Class": "ConstraintParameter", 
+"description": "expression that determines the constraint"
+}, 
+{
 "kind": "star", 
 "qualifier": "freq", 
 "constraint_kwargs": {
@@ -1744,26 +1796,6 @@ null
 }, 
 "Class": "ChoiceParameter", 
 "qualifier": "atm"
-}, 
-{
-"kind": "phoebe", 
-"compute": "phoebe01", 
-"description": "Method to use for computing LC fluxes", 
-"value": "numerical", 
-"dataset": "_default", 
-"context": "compute", 
-"copy_for": {
-"kind": [
-"lc"
-], 
-"dataset": "*"
-}, 
-"choices": [
-"numerical"
-], 
-"Class": "ChoiceParameter", 
-"advanced": true, 
-"qualifier": "lc_method"
 }, 
 {
 "kind": "phoebe", 
