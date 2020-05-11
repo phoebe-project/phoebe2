@@ -4262,7 +4262,7 @@ class ParameterSet(object):
                 param_list = [self._bundle.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='sampled_uniqueids', **_skip_filter_checks)]
             except:
                 logger.warning("could not match to sampled_uniqueids, falling back on sampled_twigs")
-                param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for uniqueid in ps.get_value(qualifier='sampled_twigs', **_skip_filter_checks)]
+                param_list = [self._bundle.get_parameter(twig=twig, **_skip_filter_checks) for twig in ps.get_value(qualifier='sampled_twigs', **_skip_filter_checks)]
 
             # TODO: use units from fitted_units instead of parameter?
             kwargs['labels'] = [_corner_label(param) for param in param_list]
