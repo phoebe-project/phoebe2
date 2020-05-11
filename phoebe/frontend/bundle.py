@@ -8368,6 +8368,9 @@ class Bundle(ParameterSet):
             # as phoebe may not support all the same distortion_methods for these backends
             kwargs.setdefault('distortion_method', 'roche')
 
+            atm_backend = {component: self.get_value(qualifier='atm', component=component, compute=compute, atm=kwargs.get('atm', None), default='ck2004', **_skip_filter_checks) for component in self.hierarchy.get_stars()}
+            kwargs.setdefault('atm', atm_backend)
+
         # temporarily disable interactive_checks, check_default, and check_visible
         conf_interactive_checks = conf.interactive_checks
         if conf_interactive_checks:
