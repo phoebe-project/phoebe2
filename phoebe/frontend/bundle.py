@@ -2782,10 +2782,18 @@ class Bundle(ParameterSet):
 
         return
 
-    def get_adjustable_parameters(self):
+    def get_adjustable_parameters(self, exclude_constrained=True):
         """
         Return a <phoebe.parameters.ParameterSet> of parameters that are
         current adjustable (ie. by a solver).
+
+        Arguments
+        ----------
+        * `exclude_constrained` (bool, optional, default=True): whether to exclude
+            constrained parameters.  This should be `True` if looking for parameters
+            that are directly adjustable, but `False` if looking for parameters
+            that can have priors placed on them or that could be adjusted if the
+            appropriate constraint(s) were flipped.
 
         Returns
         ---------
@@ -2796,7 +2804,7 @@ class Bundle(ParameterSet):
         # parameters that can be fitted are only in the component or dataset context,
         # must be float parameters and must not be constrained (and must be visible)
         ps = self.filter(context=['component', 'dataset', 'system', 'feature'], check_visible=True, check_default=True)
-        return ParameterSet([p for p in ps.to_list() if p.__class__.__name__=='FloatParameter' and not len(p.constrained_by)])
+        return ParameterSet([p for p in ps.to_list() if p.__class__.__name__=='FloatParameter' and (not exclude_constrained or not len(p.constrained_by))])
 
 
     def get_system(self, twig=None, **kwargs):
@@ -7191,6 +7199,7 @@ class Bundle(ParameterSet):
 
     def get_distribution_collection(self, twig=None,
                                     keys='twig', set_labels=True,
+                                    parameters=None,
                                     **kwargs):
         """
         Combine multiple distribution objects into a single
@@ -7236,6 +7245,15 @@ class Bundle(ParameterSet):
             and <phoebe.parameters.FloatParameter.get_distribution>.
         * `set_labels` (bool, optional, default=True): set the labels of the
             distribution objects to be the twigs of the referenced parameters.
+        * `parameters` (list, dict, or string, optional, default=None): if provided,
+            then `parameters` will be passed as a filter to the available adjustable
+            parameters (<phoebe.frontend.bundle.Bundle.get_adjustable_parameters>
+            with `exclude_constrained=False`), and these parameters will be exposed
+            in the resulting DistributionCollection (excluding any entries not
+            matching the filter, and propagating any additional entries through
+            constraints).  An error may be raised if any matching parameters
+            are not included in the original DistributionCollection or available
+            through propagated constraints.
         * `**kwargs`: additional keyword arguments are used for filtering.
             `twig` and `**kwargs` must result in either a single supported
             parameter in a solver ParameterSet, or a ParameterSet of distribution
@@ -7247,6 +7265,38 @@ class Bundle(ParameterSet):
         ------------
         * distl.DistributionCollection, list of `keys`
         """
+        if parameters is not None:
+            if isinstance(parameters, ParameterSet):
+                pass
+            elif isinstance(parameters, dict):
+                parameters = self.get_adjustable_parameters(exclude_constrained=False).filter(**parameters)
+            else:
+                parameters = self.get_adjustable_parameters(exclude_constrained=False).filter(parameters)
+
+            parameters_uniqueids = parameters.uniqueids
+
+
+            dc, uniqueids = self.get_distribution_collection(twig=twig, keys='uniqueid', set_labels=set_labels, parameters=None, allow_non_dc=False, **kwargs)
+
+            # first filter through the distributions already in dc
+            ret_dists = [dc.dists[i] for i,uniqueid in enumerate(uniqueids) if uniqueid in parameters_uniqueids]
+            ret_keys = [getattr(self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks), keys) for uniqueid in parameters_uniqueids if uniqueid in parameters_uniqueids]
+
+            # now we need to get any that weren't included in dc
+            new_params = [self.get_parameter(uniqueid=uniqueid, **_skip_filter_checks) for uniqueid in parameters_uniqueids if uniqueid not in uniqueids]
+            ret_dists += [param.get_distribution(distribution=dc, distribution_uniqueids=uniqueids) for param in new_params]
+            ret_keys += [getattr(param, keys) for param in new_params]
+            # TODO: do we need to set labels on the newly added dists?
+
+            if kwargs.get('return_dc', True):
+                dc = _distl.DistributionCollection(*ret_dists)
+            else:
+                dc = None
+
+            return dc, ret_keys
+
+
+
         if 'distribution_filters' not in kwargs.keys():
             distribution_filters, combine, include_constrained, to_univariates, to_uniforms = self._distribution_collection_defaults(twig=twig, **kwargs)
         else:
@@ -7375,7 +7425,7 @@ class Bundle(ParameterSet):
 
                 ret_keys += [getattr(self.get_parameter(twig=twig, **_skip_filter_checks), keys) for twig in fitted_twigs[adopt_inds]]
 
-                if len(distribution_filters) == 1:
+                if len(distribution_filters) == 1 and kwargs.get('allow_non_dc', True):
                     # then try to avoid slicing since we don't have to combine with anything else
                     return dist, ret_keys
 
@@ -7435,6 +7485,7 @@ class Bundle(ParameterSet):
     def sample_distribution_collection(self, twig=None, N=None,
                                        as_quantity=False,
                                        set_value=False, keys='twig',
+                                       parameters=None,
                                         **kwargs):
         """
         Sample from a [distl.DistributionCollection](https://distl.readthedocs.io/en/latest/api/DistributionCollection/).
@@ -7489,6 +7540,15 @@ class Bundle(ParameterSet):
         * `keys` (string, optional, default='twig'): attribute to use for dictionary
             keys ('twig', 'qualifier', 'uniqueid').  Only applicable if
             `set_value` is False.
+        * `parameters` (list, dict, or string, optional, default=None): if provided,
+            then `parameters` will be passed as a filter to the available adjustable
+            parameters (<phoebe.frontend.bundle.Bundle.get_adjustable_parameters>
+            with `exclude_constrained=False`), and these parameters will be exposed
+            in the resulting DistributionCollection (excluding any entries not
+            matching the filter, and propagating any additional entries through
+            constraints).  An error may be raised if any matching parameters
+            are not included in the original DistributionCollection or available
+            through propagated constraints.
         * `**kwargs`: additional keyword arguments are used for filtering.
             `twig` and `**kwargs` must result in either a single supported
             parameter in a solver ParameterSet, or a ParameterSet of distribution
@@ -7532,7 +7592,8 @@ class Bundle(ParameterSet):
                                                          include_constrained=include_constrained,
                                                          to_univariates=to_univariates,
                                                          to_uniforms=to_uniforms,
-                                                         keys='uniqueid')
+                                                         keys='uniqueid',
+                                                         parameters=parameters)
 
         if isinstance(dc, _distl._distl.DistributionCollection) and np.all([isinstance(dist, _distl._distl.Delta) for dist in dc.dists]):
             if N is not None and N > 1:
@@ -7567,6 +7628,7 @@ class Bundle(ParameterSet):
 
     def plot_distribution_collection(self, twig=None,
                                     set_labels=True,
+                                    parameters=None,
                                     show=False,
                                     **kwargs):
 
@@ -7607,6 +7669,15 @@ class Bundle(ParameterSet):
             solver backend.
         * `set_labels` (bool, optional, default=True): set the labels of the
             distribution objects to be the twigs of the referenced parameters.
+        * `parameters` (list, dict, or string, optional, default=None): if provided,
+            then `parameters` will be passed as a filter to the available adjustable
+            parameters (<phoebe.frontend.bundle.Bundle.get_adjustable_parameters>
+            with `exclude_constrained=False`), and these parameters will be exposed
+            in the resulting DistributionCollection (excluding any entries not
+            matching the filter, and propagating any additional entries through
+            constraints).  An error may be raised if any matching parameters
+            are not included in the original DistributionCollection or available
+            through propagated constraints.
         * `show` (boolean, optional, default=False): whether to call show on the
             resulting figure object
         * `**kwargs`: all additional keyword arguments are passed directly to
@@ -7617,7 +7688,7 @@ class Bundle(ParameterSet):
         * matplotlib figure object
         """
 
-        dc, _ = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', **kwargs)
+        dc, _ = self.get_distribution_collection(twig=twig, set_labels=set_labels, keys='uniqueid', parameters=parameters, **kwargs)
         return dc.plot(show=show)
 
     def calculate_lnp(self, twig=None,

@@ -3097,7 +3097,7 @@ class BaseMultivariateSliceDistribution(BaseUnivariateDistribution):
         return self.multivariate.to_histogram(dimension=self.dimension)
 
 
-class DistributionCollection(object):
+class DistributionCollection(BaseDistlObject):
     """
     <DistributionCollection> allows sampling from multiple distribution objects
     simultaneously, respecting all underlying covariances whenever possible.

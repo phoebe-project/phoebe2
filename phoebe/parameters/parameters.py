@@ -4274,7 +4274,7 @@ class ParameterSet(object):
         elif ps.context == 'distribution':
             kwargs['plot_package'] = 'distl'
             kwargs.setdefault('distribution', ps.distribution)
-            kwargs['dc'], _ = self._bundle.get_distribution_collection(context='distribution', **{k:v for k,v in kwargs.items() if k in ['distribution', 'combine', 'include_constrained', 'to_univariates', 'to_uniforms']})
+            kwargs['dc'], _ = self._bundle.get_distribution_collection(context='distribution', **{k:v for k,v in kwargs.items() if k in ['distribution', 'combine', 'include_constrained', 'to_univariates', 'to_uniforms', 'parameters']})
             return (kwargs,)
         elif ps.context == 'solver':
             kwargs['plot_package'] = 'distl'
@@ -4410,7 +4410,7 @@ class ParameterSet(object):
                 # kwargs['dynesty_method'] = 'cornerplot'
 
                 kwargs['plot_package'] = 'distl'
-                kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['distributions_convert', 'distributions_bins']})
+                kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['distributions_convert', 'distributions_bins', 'parameters']})
 
                 # if style=='failed':
                     # kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
@@ -4448,7 +4448,10 @@ class ParameterSet(object):
 
                 if style in ['corner', 'failed']:
                     kwargs['plot_package'] = 'distl'
-                    kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins']})
+                    if 'parameters' in kwargs.keys() and style=='failed':
+                        raise ValueError("cannot currently plot failed_samples while providing parameters")
+
+                    kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters']})
 
                     if style=='failed':
                         kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
@@ -8496,7 +8499,9 @@ class FloatParameter(Parameter):
         return direct_ps + indirect_params
 
 
-    def get_distribution(self, distribution=None, follow_constraints=True, resolve_around_distributions=False):
+    def get_distribution(self, distribution=None, follow_constraints=True,
+                              resolve_around_distributions=False,
+                              distribution_uniqueids=None):
         """
         Access the distribution object corresponding to this parameter
         tagged with distribution=`distribution`.  To access the
@@ -8521,15 +8526,23 @@ class FloatParameter(Parameter):
 
         Arguments
         ----------
-        * `distribution` (string, optional, default=None): distribution tag
-            of the <phoebe.parameters.DistributionParameter>.  Required if
-            more than one are available.
+        * `distribution` (string or DistributionCollection, optional, default=None):
+            distribution tag of the <phoebe.parameters.DistributionParameter>.
+            Required if more than one are available.  Alternatively, a
+            DistributionCollection (from <phoebe.frontend.bundle.Bundle.get_distribution_collection>)
+            can be passed to `distribution` along with the uniqueids (pass `keys='uniqueids'`)
+            passed to `distribution_uniqueids`.
         * `follow_constraints` (bool, optional, default=True): whether to propagate
             distributions through constraints if this parameter is constrained.
             If False, the distribution directly attached to the parameter
             will be exposed instead.
         * `resolve_around_distributions` (bool, optional, default=False): resolve
             any "around" distributions to the current face-value.
+        * `distribution_uniqueids` (list of str, optional, default=None): if
+            `distribution` is a DistributionCollection object, providing the uniqueids
+            (from <phoebe.frontend.bundle.Bundle.get_distribution_collection>)
+            is necessary to slice appropriately.  If `distribution` is not a
+            DistributionCollection, `distribution_uniqueids` is ignored.
 
         Returns
         ----------
@@ -8544,11 +8557,15 @@ class FloatParameter(Parameter):
         if self._bundle is None:
             raise ValueError("parameter must be attached to a Bundle to call get_distribution")
 
-        if not isinstance(distribution, str) and distribution is not None:
+        if not isinstance(distribution, str) and not isinstance(distribution, distl._distl.BaseDistlObject) and distribution is not None:
             if isinstance(distribution, list):
                 raise NotImplementedError()
             else:
-                raise TypeError("distribution must be of type string or None")
+                raise TypeError("distribution must be of type string, DistributionCollection, or None, got {}".format(type(distribution)))
+
+        if isinstance(distribution, str) and distribution not in self._bundle.distributions:
+            # then maybe pointing to a solution, etc
+            distribution, distribution_uniqueids = self._bundle.get_distribution_collection(distribution, keys='uniqueid', allow_non_dc=False)
 
         dist = None
         if follow_constraints and len(self.constrained_by):
@@ -8556,11 +8573,11 @@ class FloatParameter(Parameter):
             # any distributions through the constraint and return a CompositeDistribution
             # instead.
 
-            if len(self._bundle.filter(qualifier=self.qualifier,
-                                       distribution=distribution,
-                                       context='distribution',
-                                       check_visible=False,
-                                       **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})):
+            if isinstance(distribution, str) and len(self._bundle.filter(qualifier=self.qualifier,
+                                                     distribution=distribution,
+                                                     context='distribution',
+                                                     check_visible=False,
+                                                     **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']})):
 
                 logger.warning("{} is constrained but also has a distribution attached with distribution='{}'.  Returning the distribution propagated through the constraint instead (pass follow_constraints=False to disable this behavior).".format(self.twig, distribution))
 
@@ -8573,6 +8590,13 @@ class FloatParameter(Parameter):
                 else:
                     raise ValueError("no distributions found attached to bundle")
 
+            if isinstance(distribution, distl._distl.DistributionCollection):
+                if distribution_uniqueids is None:
+                    raise ValueError("must provide distribution_uniqueids if distribution is a DistributionCollection")
+                # attach the uniqueids so they're available within get_result
+                # for subsequent calls here
+                distribution.distribution_uniqueids = distribution_uniqueids
+
             # raise NotImplementedError("constraint propagation for distributions not yet implemented")
             dist = self.is_constraint.get_result(use_distribution=distribution)
 
@@ -8584,11 +8608,31 @@ class FloatParameter(Parameter):
                 dist = None
 
         if dist is None:
-            dist = self._bundle.get_parameter(qualifier=self.qualifier,
-                                              distribution=distribution,
-                                              context='distribution',
-                                              check_visible=False,
-                                              **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
+            if isinstance(distribution, str):
+                try:
+                    dist = self._bundle.get_parameter(qualifier=self.qualifier,
+                                                      distribution=distribution,
+                                                      context='distribution',
+                                                      check_visible=False,
+                                                      **{k:v for k,v in self.meta.items() if k in _contexts and k not in ['context', 'distribution']}).get_value()
+                except ValueError:
+                    return None
+            elif isinstance(distribution, distl._distl.DistributionCollection):
+                if distribution_uniqueids is None:
+                    if hasattr(distribution, 'distribution_uniqueids'):
+                        # will this be a problem when jsoned internally by constraints?
+                        distribution_uniqueids = distribution.distribution_uniqueids
+                    else:
+                        raise ValueError("must provide distribution_uniqueids if distribution is a DistributionCollection")
+
+                if self.uniqueid in distribution_uniqueids:
+                    dist = distribution.dists[distribution_uniqueids.index(self.uniqueid)]
+                else:
+                    dist = None
+
+
+        if dist is None:
+            return None
 
         if isinstance(dist, distl.BaseAroundGenerator):
             if resolve_around_distributions:
@@ -10875,13 +10919,14 @@ class ConstraintParameter(Parameter):
             def _value(var, string_safe_arrays=False, use_distribution=None, needs_builtin=False):
                 if use_distribution:
                     param = var.get_parameter()
-                    if use_distribution in param.in_distributions:
-                        dist = param.get_distribution(use_distribution, follow_constraints=False)
+                    dist = param.get_distribution(use_distribution, follow_constraints=False)
+
+                    if dist is not None:
                         if needs_builtin:
                             return _single_value(dist)
                         else:
+                            # will we need to force distribution_uniqueids to be included in the json?
                             return "distl_from_json('{}')".format(_single_value(dist).to_json())
-
 
                 if var.get_parameter() != self.constrained_parameter:
                     return _single_value(var.get_quantity(t=t), string_safe_arrays)
