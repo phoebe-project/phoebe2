@@ -4007,7 +4007,7 @@ class Bundle(ParameterSet):
 
 
             if 'init_from' in solver_ps.qualifiers:
-                _, init_from_uniqueids = self.get_distribution_collection('init_from@{}'.format(solver), keys='uniqueid', return_dc=False)
+                _, init_from_uniqueids = self.get_distribution_collection(kwargs.get('init_from', 'init_from@{}'.format(solver)), keys='uniqueid', return_dc=False)
 
                 if not len(init_from_uniqueids):
                     report.add_item(self,
