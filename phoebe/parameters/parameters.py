@@ -9173,6 +9173,7 @@ class FloatArrayParameter(FloatParameter):
 
         return_quantity = kwargs.pop('return_quantity', False)
         parent_ps = kwargs.pop('parent_ps', self.get_parent_ps())
+        bundle = kwargs.pop('bundle', self._bundle)
 
         if len(kwargs.keys()) > 1:
             raise KeyError("interp_value only takes a single qualifier-value pair")
@@ -9186,7 +9187,7 @@ class FloatArrayParameter(FloatParameter):
         if isinstance(qualifier_interp_value, str):
             # then assume its a twig and try to resolve
             # for example: time='t0_supconj'
-            qualifier_interp_value = self._bundle.get_value(qualifier=qualifier_interp_value, context=['system', 'component'], **_skip_filter_checks)
+            qualifier_interp_value = bundle.get_value(qualifier=qualifier_interp_value, context=['system', 'component'], **_skip_filter_checks)
 
 
         if qualifier not in parent_ps.qualifiers and not (qualifier=='phases' and 'times' in parent_ps.qualifiers):
@@ -9203,7 +9204,7 @@ class FloatArrayParameter(FloatParameter):
             if np.any(qualifier_interp_value < times.min()) or np.any(qualifier_interp_value > times.max()):
                 qualifier_interp_value_time = qualifier_interp_value
                 qualifier = 'phases'
-                qualifier_interp_value = self._bundle.to_phase(qualifier_interp_value_time, component=component, t0=t0)
+                qualifier_interp_value = bundle.to_phase(qualifier_interp_value_time, component=component, t0=t0)
 
                 qualifier_interp_value_time_str = "({} -> {})".format(min(qualifier_interp_value_time), max(qualifier_interp_value_time)) if hasattr(qualifier_interp_value_time, '__iter__') else qualifier_interp_value_time
                 qualifier_interp_value_str = "({} -> {})".format(min(qualifier_interp_value), max(qualifier_interp_value)) if hasattr(qualifier_interp_value, '__iter__') else qualifier_interp_value
@@ -9214,7 +9215,8 @@ class FloatArrayParameter(FloatParameter):
             # then we need to check to see if this is in a model with sample_mode set
             if self.context != 'model':
                 raise NotImplementedError("only 1D arrays supported unless in context='model' with sample_mode='n-sigma'")
-            sample_mode = self._bundle.get_value(qualifier='sample_mode', context='model', model=self.model, default='none', **_skip_filter_checks)
+            # do we want bundle or parent_ps here (for the case where doing scaling from run_compute)
+            sample_mode = bundle.get_value(qualifier='sample_mode', context='model', model=self.model, default='none', **_skip_filter_checks)
             if '-sigma' in sample_mode:
                 logger.warning("using median for interpolation for sample_mode='{}'".format(sample_mode))
                 self_value = self_value[1]
@@ -9222,11 +9224,11 @@ class FloatArrayParameter(FloatParameter):
                 raise NotImplementedError("iterpolation not supported for sample_mode='{}'".format(sample_mode))
 
         if qualifier=='phases':
-            if self._bundle.hierarchy.is_time_dependent():
+            if bundle.hierarchy.is_time_dependent():
                 raise ValueError("cannot interpolate in phase for time-dependent systems")
 
             times = parent_ps.get_value(qualifier='times', **_skip_filter_checks)
-            phases = self._bundle.to_phase(times, component=component, t0=t0)
+            phases = bundle.to_phase(times, component=component, t0=t0)
 
             sort = phases.argsort()
 

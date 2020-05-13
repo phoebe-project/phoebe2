@@ -9818,8 +9818,9 @@ class Bundle(ParameterSet):
                 # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset
                 datasets_dsscaled = []
 
+                coupled_datasets = self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-coupled', **_skip_filter_checks).datasets
                 for pblum_mode_param in self.filter(qualifier='pblum_mode', dataset=ml_params.datasets, value='dataset-scaled', **_skip_filter_checks).to_list():
-                    this_dsscale_datasets = [pblum_mode_param.dataset] + self.filter(qualifier='pblum_dataset', dataset=ml_params.datasets, value=pblum_mode_param.dataset, check_visible=True).datasets
+                    this_dsscale_datasets = [pblum_mode_param.dataset] + self.filter(qualifier='pblum_dataset', dataset=coupled_datasets, value=pblum_mode_param.dataset, **_skip_filter_checks).datasets
                     # keep track of all datasets that are scaled so we don't do distance/l3 corrections later
                     datasets_dsscaled += this_dsscale_datasets
                     logger.info("rescaling fluxes to data for dataset={}".format(this_dsscale_datasets))
@@ -9858,7 +9859,7 @@ class Bundle(ParameterSet):
                             ds_sigmass = np.append(ds_sigmass, sigma_est*np.ones(len(ds_fluxes)))
 
                         ml_ds = ml_params.filter(dataset=dataset, **_skip_filter_checks)
-                        model_fluxes_interp = ml_ds.get_parameter(qualifier='fluxes', dataset=dataset, **_skip_filter_checks).interp_value(times=ds_times, parent_ps=ml_ds)
+                        model_fluxes_interp = ml_ds.get_parameter(qualifier='fluxes', dataset=dataset, **_skip_filter_checks).interp_value(times=ds_times, parent_ps=ml_ds, bundle=self)
                         model_fluxess_interp = np.append(model_fluxess_interp, model_fluxes_interp)
 
                     scale_factor_approx = np.median(ds_fluxess / model_fluxess_interp)
