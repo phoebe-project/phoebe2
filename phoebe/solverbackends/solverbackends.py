@@ -21,7 +21,7 @@ from distutils.version import LooseVersion, StrictVersion
 from copy import deepcopy as _deepcopy
 import multiprocessing
 
-from . import lc_geometry, rv_geometry, pf_wrapper
+from . import lc_geometry, rv_geometry
 from .ebai import ebai_forward
 
 try:
@@ -624,12 +624,7 @@ class Lc_GeometryBackend(BaseSolverBackend):
             analytic_phases = np.linspace(-0.5, 0.5, 201)
             analytic_fluxes = {}
             for model, params in fit_result['fits'].items():
-                if model=='C':
-                    funcname = 'const'
-                else:
-                    funcname = model.lower()
-
-                analytic_fluxes[model] = getattr(lc_geometry, funcname)(analytic_phases, *params[0])
+                analytic_fluxes[model] = getattr(lc_geometry, 'const' if model=='C' else model.lower())(analytic_phases, *params[0])
 
             return_ += [{'qualifier': 'analytic_phases', 'value': analytic_phases},
                         {'qualifier': 'analytic_fluxes', 'value': analytic_fluxes},
@@ -975,8 +970,16 @@ class EbaiBackend(BaseSolverBackend):
 
         times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, phase_component=orbit, mask=True, normalize=True, phase_sorted=True)
 
-        # run polyfit on phases, fluxes
-        ebai_phases, ebai_fluxes, pf_knots, pf_coeffs, pshift = pf_wrapper.pf_run(phases, fluxes, sigmas, vertices=200)
+        # TODO: cleanup this logic a bit
+        ecl_positions = lc_geometry.estimate_eclipse_positions_widths(phases, fluxes)['ecl_positions']
+        # assume primary is close to zero?
+        pshift = ecl_positions[np.argmin(abs(np.array(ecl_positions)))]
+        fit_result = lc_geometry.fit_lc(phases-pshift, fluxes, sigmas)
+        best_fit = fit_result['best_fit']
+        ebai_phases = np.linspace(-0.5,0.5,201)
+        ebai_fluxes = getattr(lc_geometry, 'const' if best_fit=='C' else best_fit.lower())(ebai_phases, *fit_result['fits'][best_fit][0])
+        fluxes /= ebai_fluxes.max()
+        ebai_fluxes /= ebai_fluxes.max()
 
         # update to t0_supconj based on pshift
         t0_supconj_param = orbit_ps.get_parameter(qualifier='t0_supconj', **_skip_filter_checks)

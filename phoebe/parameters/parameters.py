@@ -4417,6 +4417,8 @@ class ParameterSet(object):
             kwargss[1]['linestyle'] = 'solid'
             kwargss[0]['color'] = 'gray'
             kwargss[1]['color'] = 'blue'
+            kwargss[0]['label'] = 'observations'
+            kwargss[1]['label'] = '2 gaussian model'
 
             return kwargss
 

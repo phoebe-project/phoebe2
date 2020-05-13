@@ -13,10 +13,10 @@ def _rescale(val, bounds):
     return bounds[:,0] + (val-0.1)/(0.9-0.1)*(bounds[:,1]-bounds[:,0])
 
 _dir = os.path.dirname(__file__)
-i2h = np.loadtxt(os.path.join(_dir, 'i2h.33k.weights'))
-h2o = np.loadtxt(os.path.join(_dir, 'h2o.33k.weights'))
+i2h = np.loadtxt(os.path.join(_dir, 'i2h.weights'))
+h2o = np.loadtxt(os.path.join(_dir, 'h2o.weights'))
 
-bounds = np.loadtxt(os.path.join(_dir, 'bounds.33k.data'))
+bounds = np.loadtxt(os.path.join(_dir, 'bounds.data'))
 
 def ebai_forward(fluxes):
 	if len(fluxes) != 201:
