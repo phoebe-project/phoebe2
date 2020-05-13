@@ -2417,7 +2417,7 @@ class CallDimension(object):
         if value is None:
             return value
 
-        if unit is not None:
+        if unit is not None and unit!=u.dimensionless_unscaled:
             unit = common._convert_unit(unit)
             value = value*self.unit.to(unit)
 

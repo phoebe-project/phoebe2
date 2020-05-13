@@ -159,6 +159,8 @@ def lc_geometry(**kwargs):
 
     params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
 
+    params += [BoolParameter(qualifier='expose_model', value=kwargs.get('expose_model', True), description='Whether to expose the 2-gaussian analytical models in the solution')]
+
     return ParameterSet(params)
 
 def rv_geometry(**kwargs):
@@ -194,6 +196,9 @@ def rv_geometry(**kwargs):
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for estimating orbital parameters')]
 
     # params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
+
+    params += [BoolParameter(qualifier='expose_model', value=kwargs.get('expose_model', True), description='Whether to expose the Keplerian analytical models in the solution')]
+
 
     return ParameterSet(params)
 

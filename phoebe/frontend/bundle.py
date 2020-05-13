@@ -9729,7 +9729,7 @@ class Bundle(ParameterSet):
                 # and per-sample calls to run_compute.
                 sample_from = computeparams.get_value(qualifier='sample_from', expand=True, sample_from=kwargs.pop('sample_from', None), **_skip_filter_checks)
                 if len(sample_from):
-                    params = backends.SampleOverModel().run(self, compute,
+                    params = backends.SampleOverModel().run(self, computeparams.compute,
                                                             dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
                                                             times=times,
                                                             sample_from=sample_from,
@@ -9764,7 +9764,7 @@ class Bundle(ParameterSet):
                     # jktebop, ellc use pblums for sbratio if decoupled, otherwise will ignore and use teffs
                     kwargs['pblums'] = pblums_rel
 
-                ml_params = compute_class().run(self, compute,
+                ml_params = compute_class().run(self, computeparams.compute,
                                                 dataset=dataset.get(compute) if isinstance(dataset, dict) else dataset,
                                                 times=times,
                                                 **kwargs)
@@ -10958,7 +10958,7 @@ class Bundle(ParameterSet):
 
 
         solver_class = getattr(_solverbackends, '{}Backend'.format(solver_ps.kind.title()))
-        params = solver_class().run(self, solver, compute, solution=solution, **kwargs)
+        params = solver_class().run(self, solver_ps.solver, compute, solution=solution, **kwargs)
         metawargs = {'context': 'solution',
                      'solver': solver_ps.solver,
                      'compute': compute,

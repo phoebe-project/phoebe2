@@ -516,7 +516,7 @@ class Lc_GeometryBackend(BaseSolverBackend):
     * <phoebe.frontend.bundle.Bundle.run_solver>
     """
     def run_checks(self, b, solver, compute, **kwargs):
-        solver_ps = b.get_solver(solver)
+        solver_ps = b.get_solver(solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='lc_datasets', expand=True, lc_datasets=kwargs.get('lc_datasets', None))):
             raise ValueError("cannot run lc_geometry without any dataset in lc_datasets")
 
@@ -530,6 +530,12 @@ class Lc_GeometryBackend(BaseSolverBackend):
         solution_params += [_parameters.StringParameter(qualifier='orbit', value='', readonly=True, description='orbit used for phasing the input light curve(s)')]
         solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases used for geometry estimate')]
         solution_params += [_parameters.FloatArrayParameter(qualifier='input_fluxes', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input fluxes (normalized per-dataset) used for geometry estimate')]
+        solution_params += [_parameters.FloatArrayParameter(qualifier='input_sigmas', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input sigmas used for geometry estimate')]
+
+        if kwargs.get('expose_model', True):
+            solution_params += [_parameters.FloatArrayParameter(qualifier='analytic_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='phases for analystic_fluxes')]
+            solution_params += [_parameters.DictParameter(qualifier='analytic_fluxes', value={}, readonly=True, description='all GP models used to determine geometry estimate')]
+            solution_params += [_parameters.StringParameter(qualifier='analytic_best_model', value='', readonly=True, description='which GP model was determined to be represent input_phases/fluxes')]
 
         solution_params += [_parameters.FloatParameter(qualifier='primary_width', value=0, readonly=True, unit=u.dimensionless_unscaled, description='phase-width of primary eclipse')]
         solution_params += [_parameters.FloatParameter(qualifier='secondary_width', value=0, readonly=True, unit=u.dimensionless_unscaled, description='phase-width of secondary eclipse')]
@@ -569,7 +575,8 @@ class Lc_GeometryBackend(BaseSolverBackend):
         t0_supconj_old = orbit_ps.get_value(qualifier='t0_supconj', **_skip_filter_checks)
 
         diagnose = kwargs.get('diagnose', False)
-        eclipse_dict = lc_geometry.compute_eclipse_params(phases, fluxes, sigmas, diagnose=diagnose)
+        fit_result = lc_geometry.fit_lc(phases, fluxes, sigmas)
+        eclipse_dict = lc_geometry.compute_eclipse_params(phases, fluxes, sigmas, fit_result=fit_result, diagnose=diagnose)
 
         edges = eclipse_dict.get('eclipse_edges')
         mask_phases = [(edges[0], edges[1]), (edges[2], edges[3])]
@@ -594,22 +601,43 @@ class Lc_GeometryBackend(BaseSolverBackend):
         fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
         fitted_units += [u.dimensionless_unscaled.to_string() for ds in lc_datasets]
 
-        return [[{'qualifier': 'primary_width', 'value': eclipse_dict.get('primary_width')},
-                 {'qualifier': 'secondary_width', 'value': eclipse_dict.get('secondary_width')},
-                 {'qualifier': 'primary_phase', 'value': eclipse_dict.get('primary_position')},
-                 {'qualifier': 'secondary_phase', 'value': eclipse_dict.get('secondary_position')},
-                 {'qualifier': 'primary_depth', 'value': eclipse_dict.get('primary_depth')},
-                 {'qualifier': 'secondary_depth', 'value': eclipse_dict.get('secondary_depth')},
-                 {'qualifier': 'eclipse_edges', 'value': eclipse_dict.get('eclipse_edges')},
-                 {'qualifier': 'orbit', 'value': orbit},
-                 {'qualifier': 'input_phases', 'value': phases},
-                 {'qualifier': 'input_fluxes', 'value': fluxes},
-                 {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
-                 {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
-                 {'qualifier': 'fitted_values', 'value': fitted_values},
-                 {'qualifier': 'fitted_units', 'value': fitted_units},
-                 {'qualifier': 'adopt_parameters', 'value': fitted_twigs[:3], 'choices': fitted_twigs},
-                ]]
+        return_ = [{'qualifier': 'primary_width', 'value': eclipse_dict.get('primary_width')},
+                   {'qualifier': 'secondary_width', 'value': eclipse_dict.get('secondary_width')},
+                   {'qualifier': 'primary_phase', 'value': eclipse_dict.get('primary_position')},
+                   {'qualifier': 'secondary_phase', 'value': eclipse_dict.get('secondary_position')},
+                   {'qualifier': 'primary_depth', 'value': eclipse_dict.get('primary_depth')},
+                   {'qualifier': 'secondary_depth', 'value': eclipse_dict.get('secondary_depth')},
+                   {'qualifier': 'eclipse_edges', 'value': eclipse_dict.get('eclipse_edges')},
+                   {'qualifier': 'orbit', 'value': orbit},
+                   {'qualifier': 'input_phases', 'value': phases},
+                   {'qualifier': 'input_fluxes', 'value': fluxes},
+                   {'qualifier': 'input_sigmas', 'value': sigmas},
+                   {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
+                   {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
+                   {'qualifier': 'fitted_values', 'value': fitted_values},
+                   {'qualifier': 'fitted_units', 'value': fitted_units},
+                   {'qualifier': 'adopt_parameters', 'value': fitted_twigs[:3], 'choices': fitted_twigs},
+                   ]
+
+        if kwargs.get('expose_model', True):
+            # then resample the models and store in the solution
+            analytic_phases = np.linspace(-0.5, 0.5, 201)
+            analytic_fluxes = {}
+            for model, params in fit_result['fits'].items():
+                if model=='C':
+                    funcname = 'const'
+                else:
+                    funcname = model.lower()
+
+                analytic_fluxes[model] = getattr(lc_geometry, funcname)(analytic_phases, *params[0])
+
+            return_ += [{'qualifier': 'analytic_phases', 'value': analytic_phases},
+                        {'qualifier': 'analytic_fluxes', 'value': analytic_fluxes},
+                        {'qualifier': 'analytic_best_model', 'value': fit_result['best_fit']}
+                        ]
+
+
+        return [return_]
 
 
 class Rv_GeometryBackend(BaseSolverBackend):
@@ -621,7 +649,7 @@ class Rv_GeometryBackend(BaseSolverBackend):
     * <phoebe.frontend.bundle.Bundle.run_solver>
     """
     def run_checks(self, b, solver, compute, **kwargs):
-        solver_ps = b.get_solver(solver)
+        solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='rv_datasets', expand=True, rv_datasets=kwargs.get('rv_datasets', None))):
             raise ValueError("cannot run rv_geometry without any dataset in rv_datasets")
 
@@ -641,7 +669,13 @@ class Rv_GeometryBackend(BaseSolverBackend):
         for starref in starrefs:
             solution_params += [_parameters.FloatArrayParameter(qualifier='input_phases', component=starref, value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='input phases for geometry estimate')]
             solution_params += [_parameters.FloatArrayParameter(qualifier='input_rvs', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='input RVs used for geometry estimate')]
-            solution_params += [_parameters.FloatArrayParameter(qualifier='analytic_rvs', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='analytic RVs determined by geometry estimate')]
+            solution_params += [_parameters.FloatArrayParameter(qualifier='input_sigmas', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='input sigmas used for geometry estimate')]
+
+            if kwargs.get('expose_model', True):
+                solution_params += [_parameters.FloatArrayParameter(qualifier='analytic_rvs', component=starref, value=[], readonly=True, default_unit=u.km/u.s, description='analytic RVs determined by geometry estimate')]
+
+        if kwargs.get('expose_model', True):
+            solution_params += [_parameters.FloatArrayParameter(qualifier='analytic_phases', value=[], readonly=True, default_unit=u.dimensionless_unscaled, description='phases for analytic_rvs')]
 
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_uniqueids', value=[], advanced=True, readonly=True, description='uniqueids of parameters fitted by the minimizer')]
         solution_params += [_parameters.ArrayParameter(qualifier='fitted_twigs', value=[], readonly=True, description='twigs of parameters fitted by the minimizer')]
@@ -698,21 +732,33 @@ class Rv_GeometryBackend(BaseSolverBackend):
         # TODO: check units!
         fitted_units = [u.d, u.dimensionless_unscaled, u.km, u.dimensionless_unscaled, u.rad]
 
-        return [[
-                 {'qualifier': 'input_phases', 'component': starrefs[0], 'value': b.to_phase(rv1data[:,0], component=orbit, t0='t0_supconj')},
-                 {'qualifier': 'input_rvs', 'component': starrefs[0], 'value': rv1data[:,1]},
-                 {'qualifier': 'analytic_rvs', 'component': starrefs[0], 'value': est_dict.get('rv1_analytic')},
-                 {'qualifier': 'input_phases', 'component': starrefs[1], 'value': b.to_phase(rv2data[:,0], component=orbit, t0='t0_supconj')},
-                 {'qualifier': 'input_rvs', 'component': starrefs[1], 'value': rv2data[:,1]},
-                 {'qualifier': 'analytic_rvs', 'component': starrefs[1], 'value': est_dict.get('rv2_analytic')},
-                 # {'qualifier': 'rv', 'value': rv},
-                 {'qualifier': 'orbit', 'value': orbit},
-                 {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
-                 {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
-                 {'qualifier': 'fitted_values', 'value': fitted_values},
-                 {'qualifier': 'fitted_units', 'value': fitted_units},
-                 {'qualifier': 'adopt_parameters', 'value': '*', 'choices': fitted_twigs},
-                ]]
+        return_ = [
+                     {'qualifier': 'input_phases', 'component': starrefs[0], 'value': b.to_phase(rv1data[:,0], component=orbit, t0='t0_supconj')},
+                     {'qualifier': 'input_rvs', 'component': starrefs[0], 'value': rv1data[:,1]},
+                     {'qualifier': 'input_sigmas', 'component': starrefs[0], 'value': rv1data[:,2]},
+                     {'qualifier': 'input_phases', 'component': starrefs[1], 'value': b.to_phase(rv2data[:,0], component=orbit, t0='t0_supconj')},
+                     {'qualifier': 'input_rvs', 'component': starrefs[1], 'value': rv2data[:,1]},
+                     {'qualifier': 'input_sigmas', 'component': starrefs[1], 'value': rv2data[:,2]},
+                     {'qualifier': 'orbit', 'value': orbit},
+                     {'qualifier': 'fitted_uniqueids', 'value': fitted_uniqueids},
+                     {'qualifier': 'fitted_twigs', 'value': fitted_twigs},
+                     {'qualifier': 'fitted_values', 'value': fitted_values},
+                     {'qualifier': 'fitted_units', 'value': fitted_units},
+                     {'qualifier': 'adopt_parameters', 'value': '*', 'choices': fitted_twigs},
+                    ]
+
+        if kwargs.get('expose_model', True):
+            analytic_phases = np.linspace(-0.5, 0.5, 201)
+            analytic_rv1 = rv_geometry.rv_model(analytic_phases, est_dict['t0_supconj'], period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['q'], est_dict['vgamma'], component=1)
+            analytic_rv2 = rv_geometry.rv_model(analytic_phases, est_dict['t0_supconj'], period, est_dict['per0'], est_dict['ecc'], est_dict['asini'], est_dict['q'], est_dict['vgamma'], component=2)
+
+            return_ += [
+                         {'qualifier': 'analytic_phases', 'value': analytic_phases},
+                         {'qualifier': 'analytic_rvs', 'component': starrefs[0], 'value': analytic_rv1},
+                         {'qualifier': 'analytic_rvs', 'component': starrefs[1], 'value': analytic_rv2},
+                        ]
+
+        return [return_]
 
 
 
@@ -842,7 +888,7 @@ class Lc_PeriodogramBackend(_PeriodogramBaseBackend):
         if not _use_astropy_timeseries:
             raise ImportError("astropy.timeseries not installed (requires astropy 3.2+)")
 
-        solver_ps = b.get_solver(solver)
+        solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='lc_datasets', expand=True, lc_datasets=kwargs.get('lc_datasets', None))):
             raise ValueError("cannot run lc_periodogram without any dataset in lc_datasets")
 
@@ -864,7 +910,7 @@ class Rv_PeriodogramBackend(_PeriodogramBaseBackend):
         if not _use_astropy_timeseries:
             raise ImportError("astropy.timeseries not installed (requires astropy 3.2+)")
 
-        solver_ps = b.get_solver(solver)
+        solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='rv_datasets', expand=True, rv_datasets=kwargs.get('rv_datasets', None))):
             raise ValueError("cannot run rv_periodogram without any dataset in rv_datasets")
 
@@ -889,9 +935,9 @@ class EbaiBackend(BaseSolverBackend):
     * <phoebe.frontend.bundle.Bundle.run_solver>
     """
     def run_checks(self, b, solver, compute, **kwargs):
-        solver_ps = b.get_solver(solver)
+        solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='lc_datasets', expand=True, lc_datasets=kwargs.get('lc_datasets', None))):
-            raise ValueError("cannot run lc_geometry without any dataset in lc_datasets")
+            raise ValueError("cannot run ebai without any dataset in lc_datasets")
 
         # TODO: check to make sure fluxes exist, etc
 
@@ -985,7 +1031,7 @@ class EmceeBackend(BaseSolverBackend):
         if LooseVersion(emcee.__version__) < LooseVersion("3.0.0"):
             raise ImportError("emcee backend requires emcee 3.0+, {} found".format(emcee.__version__))
 
-        solver_ps = b.get_solver(solver)
+        solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='init_from', init_from=kwargs.get('init_from', None))):
             raise ValueError("cannot run emcee without any distributions in init_from")
 
@@ -1296,7 +1342,7 @@ class DynestyBackend(BaseSolverBackend):
         if not _use_dynesty:
             raise ImportError("could not import dynesty, pickle")
 
-        solver_ps = b.get_solver(solver)
+        solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='priors', init_from=kwargs.get('priors', None))):
             raise ValueError("cannot run dynesty without any distributions in priors")
 
@@ -1518,7 +1564,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
     * <phoebe.frontend.bundle.Bundle.run_solver>
     """
     def run_checks(self, b, solver, compute, **kwargs):
-        solver_ps = b.get_solver(solver)
+        solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True)):
             raise ValueError("cannot run scipy.optimize.minimize(method='nelder-mead') without any parameters in fit_parameters")
 
@@ -1654,7 +1700,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
     * <phoebe.frontend.bundle.Bundle.run_solver>
     """
     def run_checks(self, b, solver, compute, **kwargs):
-        solver_ps = b.get_solver(solver)
+        solver_ps = b.get_solver(solver=solver, **_skip_filter_checks)
         if not len(solver_ps.get_value(qualifier='fit_parameters', fit_parameters=kwargs.get('fit_parameters', None), expand=True)):
             raise ValueError("cannot run scipy.optimize.differential_evolution without any parameters in fit_parameters")
 

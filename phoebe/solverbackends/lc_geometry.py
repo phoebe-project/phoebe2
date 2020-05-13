@@ -272,9 +272,10 @@ def refine_eclipse_widths(phases, fluxes, sigmas, pos1, pos2, width1, width2):
 
 # GEOMETRY SOLVER
 
-def compute_eclipse_params(phases, fluxes, sigmas, diagnose=False):
+def compute_eclipse_params(phases, fluxes, sigmas, fit_result=None, diagnose=False):
 
-    fit_result = fit_lc(phases, fluxes, sigmas)
+    if fit_result is None:
+        fit_result = fit_lc(phases, fluxes, sigmas)
     best_fit = fit_result['best_fit']
     model_params = fit_result['model_parameters'][best_fit]
 

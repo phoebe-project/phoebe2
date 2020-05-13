@@ -4312,26 +4312,49 @@ class ParameterSet(object):
             # fluxes = self._bundle.get_value(qualifier='fluxes', dataset=lc, context='dataset', **_skip_filter_checks)
             phases = ps.get_value(qualifier='input_phases', **_skip_filter_checks)
             fluxes = ps.get_value(qualifier='input_fluxes', **_skip_filter_checks)
+            sigmas = ps.get_value(qualifier='input_sigmas', **_skip_filter_checks)
             kwargs['plot_package'] = 'autofig'
             kwargs['autofig_method'] = 'plot'
             kwargs['x'] = phases
             kwargs['xlabel'] = 'phase'
             kwargs['y'] = fluxes
+            kwargs['yerror'] = sigmas
             kwargs['ylabel'] = 'flux (normalized)'
             kwargs['marker'] = '.'
             kwargs['linestyle'] = 'None'
-            kwargs['color'] = 'gray'
+            kwargs['c'] = 'gray'
 
             def _phase_wrap(phase):
                 if phase < -0.5:
                     phase += 1
                 return phase
 
-            axvline_kwargss = [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(phase)], 'xlabel': 'phase', 'color': 'black', 'linestyle': 'dashed'} for phase in ps.get_value(qualifier='eclipse_edges', **_skip_filter_checks)]
-            axvline_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='primary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'color': self._bundle.get_value(qualifier='color', component=primary, default='blue'), 'label': 'primary ({}) eclipse'.format(primary) if primary!='primary' else 'primary eclipse', 'linestyle': 'solid'}]
-            axvline_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='secondary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'color': self._bundle.get_value(qualifier='color', component=secondary, default='orange'), 'label': 'secondary ({}) eclipse'.format(secondary) if secondary!='secondary' else 'secondary eclipse', 'linestyle': 'solid'}]
+            addl_kwargss = []
 
-            return [kwargs] + axvline_kwargss
+            analytic_phases = ps.get_value(qualifier='analytic_phases', defualt=None, **_skip_filter_checks)
+            if analytic_phases is not None:
+                analytic_fluxes_dict = ps.get_value(qualifier='analytic_fluxes', **_skip_filter_checks)
+                analytic_best_model = ps.get_value(qualifier='analytic_best_model', **_skip_filter_checks)
+                analytic_fluxes = analytic_fluxes_dict[analytic_best_model]
+                addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'x': analytic_phases, 'y': analytic_fluxes, 'marker': 'None', 'c': 'k', 'linestyle': 'solid', 's': 0.04, 'label': analytic_best_model}]
+
+            ecl_edges = ps.get_value(qualifier='eclipse_edges', **_skip_filter_checks)
+
+            pcolor = self._bundle.get_value(qualifier='color', component=primary, default='blue', **_skip_filter_checks)
+            addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(phase)], 'xlabel': 'phase', 'c': pcolor, 'linestyle': 'dashed'} for phase in ecl_edges[:2]]
+            addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='primary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'c': pcolor, 'label': 'primary ({}) eclipse'.format(primary) if primary!='primary' else 'primary eclipse', 'linestyle': 'solid'}]
+
+            scolor = self._bundle.get_value(qualifier='color', component=secondary, default='orange', **_skip_filter_checks)
+            addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(phase)], 'xlabel': 'phase', 'c': scolor, 'linestyle': 'dashed'} for phase in ecl_edges[2:]]
+            addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'axvline': True, 'x': [_phase_wrap(ps.get_value(qualifier='secondary_phase', **_skip_filter_checks))], 'xlabel': 'phase', 'c': scolor, 'label': 'secondary ({}) eclipse'.format(secondary) if secondary!='secondary' else 'secondary eclipse', 'linestyle': 'solid'}]
+
+
+            # for model, analytic_fluxes in analytic_fluxes_dict.items():
+            #     addl_kwargss += [{'plot_package': 'autofig', 'autofig_method': 'plot', 'x': phases, 'y': analytic_fluxes, 'z': 1, 'marker': 'None', 'c': None if model==analytic_best_model else 'k', 'linestyle': 'solid' if model==analytic_best_model else 'dotted', 's': 0.04 if model==analytic_best_model else 0.02, 'label': model}]
+
+
+
+            return [kwargs] + addl_kwargss
 
         elif ps.kind == 'rv_geometry':
             orbit = ps.get_value(qualifier='orbit', **_skip_filter_checks)
@@ -4346,14 +4369,16 @@ class ParameterSet(object):
             for i,comp in enumerate([primary, secondary]):
                 phases = ps.get_value(qualifier='input_phases', component=comp, **_skip_filter_checks)
                 input_rvs = ps.get_value(qualifier='input_rvs', component=comp, **_skip_filter_checks)
-                analytic_rvs = ps.get_value(qualifier='analytic_rvs', component=comp, **_skip_filter_checks)
+                input_sigmas = ps.get_value(qualifier='input_sigmas', component=comp, **_skip_filter_checks)
 
-                phases_sort = phases.argsort()
+                analytic_phases = ps.get_value(qualifier='analytic_phases', default=[], **_skip_filter_checks)
+                analytic_rvs = ps.get_value(qualifier='analytic_rvs', component=comp, default=[], **_skip_filter_checks)
 
-                kwargss[i]['x'] = phases[phases_sort]
-                kwargss[i+2]['x'] = phases[phases_sort]
-                kwargss[i]['y'] = input_rvs[phases_sort]
-                kwargss[i+2]['y'] = analytic_rvs[phases_sort]
+                kwargss[i]['x'] = phases
+                kwargss[i+2]['x'] = analytic_phases
+                kwargss[i]['y'] = input_rvs
+                kwargss[i]['yerror'] = input_sigmas
+                kwargss[i+2]['y'] = analytic_rvs
                 kwargss[i]['marker'] = '.'
                 kwargss[i+2]['marker'] = 'None'
                 kwargss[i]['linestyle'] = 'None'
