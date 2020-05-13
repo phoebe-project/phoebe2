@@ -4362,17 +4362,18 @@ class ParameterSet(object):
 
             kwargs['xlabel'] = 'phase'
             kwargs['ylabel'] = 'RVs'
+            kwargs['yunit'] = 'km/s'
             kwargs['plot_package'] = 'autofig'
             kwargs['autofig_method'] = 'plot'
 
             kwargss = [_deepcopy(kwargs), _deepcopy(kwargs), _deepcopy(kwargs), _deepcopy(kwargs)]
             for i,comp in enumerate([primary, secondary]):
                 phases = ps.get_value(qualifier='input_phases', component=comp, **_skip_filter_checks)
-                input_rvs = ps.get_value(qualifier='input_rvs', component=comp, **_skip_filter_checks)
+                input_rvs = ps.get_value(qualifier='input_rvs', component=comp, unit='km/s', **_skip_filter_checks)
                 input_sigmas = ps.get_value(qualifier='input_sigmas', component=comp, **_skip_filter_checks)
 
                 analytic_phases = ps.get_value(qualifier='analytic_phases', default=[], **_skip_filter_checks)
-                analytic_rvs = ps.get_value(qualifier='analytic_rvs', component=comp, default=[], **_skip_filter_checks)
+                analytic_rvs = ps.get_value(qualifier='analytic_rvs', component=comp, default=[], unit='km/s', **_skip_filter_checks)
 
                 kwargss[i]['x'] = phases
                 kwargss[i+2]['x'] = analytic_phases
