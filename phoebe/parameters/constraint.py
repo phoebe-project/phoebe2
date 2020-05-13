@@ -1340,11 +1340,14 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
 
     comp1, comp2 = hier.get_stars_of_children_of(orbit)
 
+    orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
     comp1_ps = b.get_component(component=comp1, **_skip_filter_checks)
     comp2_ps = b.get_component(component=comp2, **_skip_filter_checks)
 
     requiv1 = comp1_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
     requiv2 = comp2_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
+
+    sma = orbit_ps.get_parameter(qualifier='sma', **_skip_filter_checks)
 
     requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
     requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, component=orbit, context='component')
@@ -1370,7 +1373,7 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
         if requivsumfrac_constrained:
             rhs = requiv2 / requivratio
         else:
-            rhs = requivsumfrac / (requivratio + 1)
+            rhs = (requivsumfrac * sma) / (requivratio + 1)
             # the other constraint needs to also follow the alternate equations
             if requiv2.is_constraint and 'requivratio_constrained' not in requiv2.is_constraint.constraint_kwargs.keys():
                 requiv2.is_constraint.constraint_kwargs['requivratio_constrained'] = False
@@ -1381,7 +1384,7 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
         if requivsumfrac_constrained:
             rhs = requivratio * requiv1
         else:
-            rhs = (requivratio * requivsumfrac) / (requivratio + 1)
+            rhs = (requivratio * requivsumfrac * sma) / (requivratio + 1)
             # the other constraint needs to also follow the alternate equations
             if requiv1.is_constraint and 'requivratio_constrained' not in requiv1.is_constraint.constraint_kwargs.keys():
                 requiv1.is_constraint.constraint_kwargs['requivratio_constrained'] = False
@@ -1392,108 +1395,7 @@ def requivratio(b, orbit=None, solve_for=None, **kwargs):
         raise NotImplementedError
 
 
-    return lhs, rhs, [requivratio, requivsumfrac, requiv1, requiv2], {'orbit': orbit}
-
-# _validsolvefor['requivsum'] = ['requivsum', 'requiv@hier.children_of(orbit)[0]', 'requiv@hier.children_of(orbit)[1]']
-# def requivsum(b, orbit=None, solve_for=None, **kwargs):
-#     """
-#     Create a constraint to for the requiv sum of two stars in the same orbit.
-#     Defined as requivsum = requiv@comp2 + requiv@comp1, where comp1 and comp2 are
-#     determined from the primary and secondary components of the orbit `orbit`.
-#
-#     This is usually passed as an argument to
-#     <phoebe.frontend.bundle.Bundle.add_constraint> as
-#     `b.add_constraint('requivsum', orbit='binary')`, where
-#     `orbit` is one of <phoebe.parameters.HierarchyParameter.get_orbits>.
-#
-#     Arguments
-#     -----------
-#     * `b` (phoebe.frontend.bundle.Bundle): the Bundle
-#     * `orbit` (string): the label of the orbit in which this constraint should be built.
-#         Optional if only one orbit exists in the hierarchy.
-#     * `solve_for` (<phoebe.parameters.Parameter>, optional, default=None): if
-#         'requivsum' should not be the derived/constrained parameter, provide which
-#         other parameter should be derived (ie 'requiv@...').
-#
-#     Returns
-#     ----------
-#     * (<phoebe.parameters.Parameter>, <phoebe.parameters.ConstraintParameter>, list):
-#         lhs (Parameter), rhs (ConstraintParameter), addl_params (list of additional
-#         parameters that may be included in the constraint), kwargs (dict of
-#         keyword arguments that were passed to this function).
-#
-#     Raises
-#     -------------
-#     * ValueError: if `orbit` is not provided, but more than one orbit exists
-#         in the hierarchy.
-#     * NotImplementedError: if the value of `solve_for` is not implemented.
-#     """
-#     # TODO: do we need to rebuild this if the hierarchy changes???
-#     hier = b.hierarchy
-#
-#     if orbit is None:
-#         orbits = hier.get_orbits()
-#         if len(orbits)==1:
-#             orbit = orbits[0]
-#         else:
-#             raise ValueError("must provide orbit since more than one orbit present in the hierarchy")
-#
-#     comp1, comp2 = hier.get_stars_of_children_of(orbit)
-#
-#     comp1_ps = b.get_component(component=comp1, **_skip_filter_checks)
-#     comp2_ps = b.get_component(component=comp2, **_skip_filter_checks)
-#
-#     requiv1 = comp1_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
-#     requiv2 = comp2_ps.get_parameter(qualifier='requiv', **_skip_filter_checks)
-#
-#     requivratio_def = FloatParameter(qualifier='requivratio', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='ratio between equivalent radii of children stars')
-#     requivratio, requivratio_created = b.get_or_create('requivratio', requivratio_def, component=orbit, context='component')
-#
-#     requivsum_def = FloatParameter(qualifier='requivsum', value=1.0, default_unit=u.dimensionless_unscaled, limits=[0, None], description='sum of equivalent radii of children stars')
-#     requivsum, requivsum_created = b.get_or_create('requivsum', requivsum_def, component=orbit, context='component')
-#
-#     requivratio_constrained = kwargs.get('requivratio_constrained', len(requivratio.constrained_by) > 0)
-#
-#     if solve_for in [requivsum, None]:
-#         lhs = requivsum
-#         rhs = requiv1 + requiv2
-#         if not requivratio_created and not requivratio_constrained:
-#             if requiv1.is_constraint:
-#                 requiv1.is_constraint.constraint_kwargs['requivsum_constrained'] = True
-#                 requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
-#             elif requiv2.is_constraint:
-#                 requiv2.is_constraint.constraint_kwargs['requivsum_constrained'] = True
-#                 requiv2.is_constraint.flip_for('requiv@'.format(requiv2.component), force=True)
-#
-#     elif solve_for in [requiv1]:
-#         lhs = requiv1
-#         if requivratio_constrained:
-#             rhs = requivsum - requiv2
-#         else:
-#             rhs = requivsum / (requivratio + 1)
-#             # the other constraint needs to also follow the alternate equations
-#             if requiv2.is_constraint and 'requivsum_constrained' not in requiv2.is_constraint.constraint_kwargs.keys():
-#                 requiv2.is_constraint.constraint_kwargs['requivsum_constrained'] = False
-#                 requiv2.is_constraint.flip_for('requiv@{}'.format(requiv2.component), force=True)
-#
-#     elif solve_for in [requiv2]:
-#         lhs = requiv2
-#         if requivratio_constrained:
-#             rhs = requivsum - requiv1
-#         else:
-#             rhs = (requivratio * requivsum) / (requivratio + 1)
-#             # the other constraint needs to also follow the alternate equations
-#             if requiv1.is_constraint and 'requivsum_constrained' not in requiv1.is_constraint.constraint_kwargs.keys():
-#                 requiv1.is_constraint.constraint_kwargs['requivsum_constrained'] = False
-#                 requiv1.is_constraint.flip_for('requiv@{}'.format(requiv1.component), force=True)
-#
-#     elif solve_for == requivratio:
-#         raise NotImplementedError("cannot solve this constraint for 'requivratio' since it was originally 'requivsum'")
-#     else:
-#         raise NotImplementedError
-#
-#
-#     return lhs, rhs, [requivratio, requivsum, requiv1, requiv2], {'orbit': orbit}
+    return lhs, rhs, [requivratio, requivsumfrac, requiv1, requiv2, sma], {'orbit': orbit}
 
 _validsolvefor['requivsumfrac'] = ['requivsumfrac', 'sma', 'requiv@hier.children_of(orbit)[0]', 'requiv@hier.children_of(orbit)[1]']
 def requivsumfrac(b, orbit=None, solve_for=None, **kwargs):
@@ -1601,7 +1503,7 @@ def requivsumfrac(b, orbit=None, solve_for=None, **kwargs):
         raise NotImplementedError
 
 
-    return lhs, rhs, [requivratio, requivsumfrac, requiv1, requiv2], {'orbit': orbit}
+    return lhs, rhs, [requivratio, requivsumfrac, requiv1, requiv2, sma], {'orbit': orbit}
 
 #}
 #{ Orbit-component constraints
