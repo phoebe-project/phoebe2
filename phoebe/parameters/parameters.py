@@ -3525,7 +3525,7 @@ class ParameterSet(object):
                     if sigmas_lnf != -np.inf:
                         sigmas2 += model_interp.value ** 2 * np.exp(2 * sigmas_lnf)
 
-                    chi2 += np.sum(residuals.value**2 / sigmas2)
+                    chi2 += np.sum((residuals.value**2 / sigmas2) + np.log(sigmas2))
                 else:
                     chi2 += np.sum(residuals.value**2)
 
