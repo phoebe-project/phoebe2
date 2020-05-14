@@ -1649,7 +1649,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
                 {'qualifier': 'fitted_twigs', 'value': params_twigs},
                 {'qualifier': 'initial_values', 'value': p0},
                 {'qualifier': 'fitted_values', 'value': res.x},
-                {'qualifier': 'fitted_units', 'value': [u.to_string() for u in fitted_units]},
+                {'qualifier': 'fitted_units', 'value': [u if isinstance(u, str) else u.to_string() for u in fitted_units]},
                 {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs}]
 
 
@@ -1827,7 +1827,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                        {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                        {'qualifier': 'fitted_twigs', 'value': params_twigs},
                        {'qualifier': 'fitted_values', 'value': res.x},
-                       {'qualifier': 'fitted_units', 'value': [u.to_string() for u in fitted_units]},
+                       {'qualifier': 'fitted_units', 'value': [u if isinstance(u, str) else u.to_string() for u in fitted_units]},
                        {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
                        {'qualifier': 'bounds', 'value': bounds}]
 

@@ -6925,7 +6925,7 @@ class Bundle(ParameterSet):
             overwrite_ps = None
 
 
-        adjustable_params_ps = self.get_adjustabled_parameters(exclude_constrained=False)
+        adjustable_params_ps = self.get_adjustable_parameters(exclude_constrained=False)
 
         # then we need to check for any conflicts FIRST, before adding any distributions
         already_exists = []
