@@ -725,7 +725,7 @@ class Rv_GeometryBackend(BaseSolverBackend):
         fitted_twigs = [p.twig for p in fitted_params]
         fitted_values = [est_dict.get(p.qualifier) for p in fitted_params]
         # TODO: check units!
-        fitted_units = [u.d, u.dimensionless_unscaled, u.km, u.dimensionless_unscaled, u.rad]
+        fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.km.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
 
         return_ = [
                      {'qualifier': 'input_phases', 'component': starrefs[0], 'value': b.to_phase(rv1data[:,0], component=orbit, t0='t0_supconj')},
@@ -1615,7 +1615,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
             params_uniqueids.append(p.uniqueid)
             params_twigs.append(p.twig)
             p0.append(p.get_value())
-            fitted_units.append(p.get_default_unit())
+            fitted_units.append(p.get_default_unit().to_string())
 
         # now override from initial values
         fitted_params_ps = b.filter(uniqueid=params_uniqueids, **_skip_filter_checks)
@@ -1772,7 +1772,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                 params.append(p)
                 params_uniqueids.append(p.uniqueid)
                 params_twigs.append(p.twig)
-                fitted_units.append(p.get_default_unit())
+                fitted_units.append(p.get_default_unit().to_string())
 
             bounds = kwargs.get('bounds')
             bounds_combine = kwargs.get('bounds_combine')
