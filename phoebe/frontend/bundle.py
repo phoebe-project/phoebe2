@@ -6934,7 +6934,7 @@ class Bundle(ParameterSet):
                 if k in ['uniqueid'] + list(self.meta.keys()):
                     dist_dict.setdefault(k, v)
 
-            ref_params = self.exclude(context=['distribution', 'constraint']).filter(check_visible=False, **{k:v for k,v in dist_dict.items() if k not in ['distribution', 'value']}).to_list()
+            ref_params = self.get_adjustable_parameters(exclude_constrained=False).filter(check_visible=False, **{k:v for k,v in dist_dict.items() if k not in ['distribution', 'value']}).to_list()
             if len(ref_params) == 0:
                 no_matches += [dist_dict]
             elif len(ref_params) > 1 and not kwargs.get('allow_multiple_matches', False):
@@ -7593,15 +7593,15 @@ class Bundle(ParameterSet):
                                                          to_univariates=to_univariates,
                                                          to_uniforms=to_uniforms,
                                                          keys='uniqueid',
-                                                         parameters=parameters)
+                                                         parameters=parameters,
+                                                         allow_non_dc=False)
 
         if isinstance(dc, _distl._distl.DistributionCollection) and np.all([isinstance(dist, _distl._distl.Delta) for dist in dc.dists]):
             if N is not None and N > 1:
                 logger.warning("all distributions are delta, using N=1 instead of N={}".format(N))
                 N = 1
 
-
-        sampled_values = dc.sample(size=N, as_quantity=False).T
+        sampled_values = dc.sample(size=N).T
 
         ret = {}
         changed_params = []
