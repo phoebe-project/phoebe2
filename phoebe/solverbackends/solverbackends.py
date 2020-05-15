@@ -1400,7 +1400,7 @@ class DynestyBackend(BaseSolverBackend):
 
     def run_worker(self, b, solver, compute, **kwargs):
 
-        def _get_packetlist(results):
+        def _get_packetlist(results, progress):
             return [[{'qualifier': 'wrap_central_values', 'value': wrap_central_values},
                      {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
@@ -1522,7 +1522,7 @@ class DynestyBackend(BaseSolverBackend):
                 if (progress_every_niters > 0 and (iter == 0 or iter % progress_every_niters == 0)) or iter == maxiter:
                     logger.info("dynesty: saving output from iteration {}".format(iter))
 
-                    solution_ps = self._fill_solution(solution_ps, [_get_packetlist(sampler.results)], metawargs)
+                    solution_ps = self._fill_solution(solution_ps, [_get_packetlist(sampler.results, progress)], metawargs)
 
                     if 'out_fname' in kwargs.keys():
                         if iter == maxiter:
@@ -1552,7 +1552,7 @@ class DynestyBackend(BaseSolverBackend):
         mpi._enabled = mpi_enabled
 
         if is_master:
-            return _get_packetlist(sampler.results)
+            return _get_packetlist(sampler.results, progress=100)
         return
 
 
