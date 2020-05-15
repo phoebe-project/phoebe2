@@ -4477,12 +4477,15 @@ class ParameterSet(object):
                 if style in ['corner', 'failed']:
                     kwargs['plot_package'] = 'distl'
                     if 'parameters' in kwargs.keys() and style=='failed':
-                        raise ValueError("cannot currently plot failed_samples while providing parameters")
+                        raise ValueError("cannot currently plot failed_samples while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters")
+                    if len(adopt_inds) < 2:
+                        raise ValueError("cannot plot failed_samples with < 2 parameters")
 
-                    kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters']})
+                    kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, adopt_parameters=adopt_parameters, **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters']})
 
                     if style=='failed':
-                        kwargs['failed_samples'] = ps.get_value(qualifier='failed_samples', **_skip_filter_checks)
+                        kwargs['failed_samples'] = {k: np.asarray(v)[:,adopt_inds] for k,v in ps.get_value(qualifier='failed_samples', **_skip_filter_checks).items()}
+
 
                     return_ += [kwargs]
 
@@ -4513,6 +4516,8 @@ class ParameterSet(object):
 
                 elif style in ['trace', 'walks']:
                     kwargs['plot_package'] = 'autofig'
+                    if 'parameters' in kwargs.keys():
+                        raise ValueError("cannot currently plot {} while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters".format(style))
                     kwargs['autofig_method'] = 'plot'
                     kwargs.setdefault('marker', 'None')
                     kwargs.setdefault('linestyle', 'solid')
@@ -5096,14 +5101,29 @@ class ParameterSet(object):
                         ax.plot(samples[:,axix], samples[:,axiy], marker='x', linestyle='none', color=color, label=msg)
 
             # may need to reset the axes limits that were defined by corner
+            xlims = {}
             for axi, ax in enumerate(mplaxes):
                 axix = int(axi % sqrt(len(mplaxes)))
                 axiy = int(axi / sqrt(len(mplaxes)))
                 if axix < axiy:
                     ax.autoscale(enable=True, tight=True)
+                    if axix not in xlims.keys():
+                        xlims[axix] = ax.get_xlim()
+                    if axiy not in xlims.keys():
+                        xlims[axiy] = ax.get_ylim()
+
+            # and one final loop to apply the same xlims to the hists on the diagonal
+            for axi, ax in enumerate(mplaxes):
+                axix = int(axi % sqrt(len(mplaxes)))
+                axiy = int(axi / sqrt(len(mplaxes)))
+                if axix==axiy:
+                    ax.set_xlim(xlims[axix])
 
             # and now attempt to draw a legend in an intelligent location in the upper-right of the figure
-            mplaxes[int(sqrt(len(mplaxes)))].legend(loc='lower left', bbox_to_anchor=(2.1, 0.1))
+            if len(mplaxes) > 1:
+                mplaxes[int(sqrt(len(mplaxes)))].legend(loc='lower left', bbox_to_anchor=(2.1, 0.1))
+            else:
+                raise ValueError("cannot plot failed samples with only one axes")
 
             return mplfig
 
