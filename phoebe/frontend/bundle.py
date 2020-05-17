@@ -8589,9 +8589,9 @@ class Bundle(ParameterSet):
         ret_structured_dicts = kwargs.get('ret_structured_dicts', False)
         l3s = {}
         for dataset in datasets:
-            l3_mode = self.get_value(qualifier='l3_mode', dataset=dataset, **_skip_filter_checks)
+            l3_mode = self.get_value(qualifier='l3_mode', context='dataset', dataset=dataset, **_skip_filter_checks)
             if l3_mode == 'flux':
-                l3_flux = self.get_value(qualifier='l3', dataset=dataset, unit=u.W/u.m**2, **_skip_filter_checks)
+                l3_flux = self.get_value(qualifier='l3', context='dataset', dataset=dataset, unit=u.W/u.m**2, **_skip_filter_checks)
                 # pbflux could be 0.0 for the distortion_method='none' case
                 l3_frac = l3_flux / use_pbfluxes.get(dataset) if use_pbfluxes.get(dataset) != 0.0 else 0.0
                 if ret_structured_dicts:
@@ -8599,10 +8599,10 @@ class Bundle(ParameterSet):
                 else:
                     l3s['l3_frac@{}'.format(dataset)] = l3_frac
                 if set_value:
-                    self.set_value(qualifier='l3_frac', dataset=dataset, check_visible=False, value=l3_frac)
+                    self.set_value(qualifier='l3_frac', context='dataset', dataset=dataset, check_visible=False, value=l3_frac)
 
             elif l3_mode == 'fraction':
-                l3_frac = self.get_value(qualifier='l3_frac', dataset=dataset, **_skip_filter_checks)
+                l3_frac = self.get_value(qualifier='l3_frac', context='dataset', dataset=dataset, **_skip_filter_checks)
                 l3_flux = l3_frac * use_pbfluxes.get(dataset)
 
                 if ret_structured_dicts:
@@ -8611,7 +8611,7 @@ class Bundle(ParameterSet):
                     l3s['l3@{}'.format(dataset)] = l3_flux
 
                 if set_value:
-                    self.set_value(qualifier='l3', dataset=dataset, check_visible=False, value=l3_flux)
+                    self.set_value(qualifier='l3', context='dataset', dataset=dataset, check_visible=False, value=l3_flux)
 
             else:
                 raise NotImplementedError("l3_mode='{}' not supported.".format(l3_mode))
