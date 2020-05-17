@@ -725,7 +725,7 @@ class Rv_GeometryBackend(BaseSolverBackend):
         fitted_twigs = [p.twig for p in fitted_params]
         fitted_values = [est_dict.get(p.qualifier) for p in fitted_params]
         # TODO: check units!
-        fitted_units = [u.d, u.dimensionless_unscaled, u.km, u.dimensionless_unscaled, u.rad]
+        fitted_units = [u.d.to_string(), u.dimensionless_unscaled.to_string(), u.km.to_string(), u.dimensionless_unscaled.to_string(), u.rad.to_string()]
 
         return_ = [
                      {'qualifier': 'input_phases', 'component': starrefs[0], 'value': b.to_phase(rv1data[:,0], component=orbit, t0='t0_supconj')},
@@ -1400,7 +1400,7 @@ class DynestyBackend(BaseSolverBackend):
 
     def run_worker(self, b, solver, compute, **kwargs):
 
-        def _get_packetlist(results):
+        def _get_packetlist(results, progress):
             return [[{'qualifier': 'wrap_central_values', 'value': wrap_central_values},
                      {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                      {'qualifier': 'fitted_twigs', 'value': params_twigs},
@@ -1522,7 +1522,7 @@ class DynestyBackend(BaseSolverBackend):
                 if (progress_every_niters > 0 and (iter == 0 or iter % progress_every_niters == 0)) or iter == maxiter:
                     logger.info("dynesty: saving output from iteration {}".format(iter))
 
-                    solution_ps = self._fill_solution(solution_ps, [_get_packetlist(sampler.results)], metawargs)
+                    solution_ps = self._fill_solution(solution_ps, [_get_packetlist(sampler.results, progress)], metawargs)
 
                     if 'out_fname' in kwargs.keys():
                         if iter == maxiter:
@@ -1552,7 +1552,7 @@ class DynestyBackend(BaseSolverBackend):
         mpi._enabled = mpi_enabled
 
         if is_master:
-            return _get_packetlist(sampler.results)
+            return _get_packetlist(sampler.results, progress=100)
         return
 
 
@@ -1615,7 +1615,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
             params_uniqueids.append(p.uniqueid)
             params_twigs.append(p.twig)
             p0.append(p.get_value())
-            fitted_units.append(p.get_default_unit())
+            fitted_units.append(p.get_default_unit().to_string())
 
         # now override from initial values
         fitted_params_ps = b.filter(uniqueid=params_uniqueids, **_skip_filter_checks)
@@ -1649,7 +1649,7 @@ class _ScipyOptimizeBaseBackend(BaseSolverBackend):
                 {'qualifier': 'fitted_twigs', 'value': params_twigs},
                 {'qualifier': 'initial_values', 'value': p0},
                 {'qualifier': 'fitted_values', 'value': res.x},
-                {'qualifier': 'fitted_units', 'value': [u.to_string() for u in fitted_units]},
+                {'qualifier': 'fitted_units', 'value': [u if isinstance(u, str) else u.to_string() for u in fitted_units]},
                 {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs}]
 
 
@@ -1772,7 +1772,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                 params.append(p)
                 params_uniqueids.append(p.uniqueid)
                 params_twigs.append(p.twig)
-                fitted_units.append(p.get_default_unit())
+                fitted_units.append(p.get_default_unit().to_string())
 
             bounds = kwargs.get('bounds')
             bounds_combine = kwargs.get('bounds_combine')
@@ -1827,7 +1827,7 @@ class Differential_EvolutionBackend(BaseSolverBackend):
                        {'qualifier': 'fitted_uniqueids', 'value': params_uniqueids},
                        {'qualifier': 'fitted_twigs', 'value': params_twigs},
                        {'qualifier': 'fitted_values', 'value': res.x},
-                       {'qualifier': 'fitted_units', 'value': [u.to_string() for u in fitted_units]},
+                       {'qualifier': 'fitted_units', 'value': [u if isinstance(u, str) else u.to_string() for u in fitted_units]},
                        {'qualifier': 'adopt_parameters', 'value': params_twigs, 'choices': params_twigs},
                        {'qualifier': 'bounds', 'value': bounds}]
 
