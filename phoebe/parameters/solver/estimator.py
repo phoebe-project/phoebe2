@@ -46,6 +46,42 @@ def lc_periodogram(**kwargs):
 
     Arguments
     ----------
+    * `algorithm` (string, optional, default='bls'): algorithm to use to create
+        the periodogram.  bls: BoxLeastSquares, ls: LombScargle.
+    * `lc_datasets` (string or list, optional, default='*'): Light curve
+        dataset(s) to use to run the periodogram algorithm.
+    * `component` (string, optional, default=top-level orbit): Component to
+        apply the found period.
+    * `sample_mode` (string, optional, default='auto'): Whether to automatically
+        determine sampling periods/frequencies ('auto') or set manually ('manual').
+    * `sample_periods` (array, optional, default=[]): only applicable if
+        `sample_mode` is 'manual'.  Manual period grid for sampling the periodogram.
+        Note: if `algorithm` is 'ls', these will be converted to frequencies and
+        will be more efficient if sampled evenly in frequency space (consider
+        using <phoebe.invspace> instead of <phoebe.linspace>).
+    * `duration` (array, optional, default=geomspace(0.01,0.3,5)): only applicable
+        if `algorithm` is 'bls'.  The set of durations (in phase-space) that
+        will be considered.  See
+        https://docs.astropy.org/en/stable/api/astropy.timeseries.BoxLeastSquares.html
+    * `objective` (string, optional, default='likelihood'): only applicable if
+        `algorithm` is 'bls'.  Objective to use for the periodogram.  See
+        https://docs.astropy.org/en/stable/timeseries/bls.html#objectives
+    * `minimum_n_cycles` (int, optional, default=3): only applicable if
+        `algorithm` is 'bls' and `sample_mode` is 'auto'.  Minimum number of
+        cycles/eclipses.  This is passed directly to autopower as
+        'minimum_n_transit'. See
+        https://docs.astropy.org/en/stable/api/astropy.timeseries.BoxLeastSquares.html#astropy.timeseries.BoxLeastSquares.autopower
+    * `samples_per_peak` (int, optional, default=10): only applicable if
+        `algorithm` is 'ls' and `sample_mode` is 'auto'.  The approximate number
+        of desired samples across the typical peak.  This is passed directly to
+        autopower. See
+        https://docs.astropy.org/en/stable/api/astropy.timeseries.LombScargle.html#astropy.timeseries.LombScargle.autopower
+    * `nyquist_factor` (int, optional, default=5): only applicable if
+        `algorithm` is 'ls' and `sample_mode` is 'auto'.  The multiple of the
+        average nyquist frequency used to choose the maximum frequency.  This is
+        passed directly to autopower. See
+        https://docs.astropy.org/en/stable/api/astropy.timeseries.LombScargle.html#astropy.timeseries.LombScargle.autopower
+
 
     Returns
     --------
@@ -101,6 +137,31 @@ def rv_periodogram(**kwargs):
 
     Arguments
     ----------
+    * `algorithm` (string, optional, default='bls'): algorithm to use to create
+        the periodogram.  ls: LombScargle.
+    * `rv_datasets` (string or list, optional, default='*'): Radial velocity
+        dataset(s) to use to run the periodogram algorithm.
+    * `component` (string, optional, default=top-level orbit): Component to
+        apply the found period.
+    * `sample_mode` (string, optional, default='auto'): Whether to automatically
+        determine sampling periods/frequencies ('auto') or set manually ('manual').
+    * `sample_periods` (array, optional, default=[]): only applicable if
+        `sample_mode` is 'manual'.  Manual period grid for sampling the periodogram.
+        Note: if `algorithm` is 'ls', these will be converted to frequencies and
+        will be more efficient if sampled evenly in frequency space (consider
+        using <phoebe.invspace> instead of <phoebe.linspace>).
+    * `samples_per_peak` (int, optional, default=10): only applicable if
+        `algorithm` is 'ls' and `sample_mode` is 'auto'.  The approximate number
+        of desired samples across the typical peak.  This is passed directly to
+        autopower. See
+        https://docs.astropy.org/en/stable/api/astropy.timeseries.LombScargle.html#astropy.timeseries.LombScargle.autopower
+    * `nyquist_factor` (int, optional, default=5): only applicable if
+        `algorithm` is 'ls' and `sample_mode` is 'auto'.  The multiple of the
+        average nyquist frequency used to choose the maximum frequency.  This is
+        passed directly to autopower. See
+        https://docs.astropy.org/en/stable/api/astropy.timeseries.LombScargle.html#astropy.timeseries.LombScargle.autopower
+
+
 
     Returns
     --------
@@ -146,6 +207,15 @@ def lc_geometry(**kwargs):
 
     Arguments
     ----------
+    * `lc_datasets` (string or list, optional, default='*'): Light curve
+        dataset(s) to use to extract eclipse geometry
+    * `orbit` (string, optional, default=top-level orbit): Orbit to use for
+        phasing the light curve referenced in the `lc_datasets` parameter
+    * `t0_near_times` (bool, optional, default=True): Whether the returned value
+        for t0_supconj should be forced to be in the range of the referenced
+        observations.
+    * `expose_model` (bool, optional, default=True): Whether to expose the
+        2-gaussian analytical models in the solution
 
     Returns
     --------
@@ -155,7 +225,7 @@ def lc_geometry(**kwargs):
     params = _comments_params(**kwargs)
 
     params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to use to extract eclipse geometry')]
-    params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the dataset parameter')]
+    params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the lc_datasets parameter')]
 
     params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
 
@@ -184,6 +254,12 @@ def rv_geometry(**kwargs):
 
     Arguments
     ----------
+    * `rv_datasets` (string or list, optional, default='*'): Radial velocity
+        dataset(s) to use to extract RV geometry
+    * `orbit` (string, optional, default=top-level orbit): Orbit to use for
+        estimating orbital parameters
+    * `expose_model` (bool, optional, default=True): Whether to expose the
+        Keplerian analytical models in the solution
 
     Returns
     --------
@@ -192,7 +268,7 @@ def rv_geometry(**kwargs):
     """
     params = _comments_params(**kwargs)
 
-    params += [SelectParameter(qualifier='rv_datasets', value=kwargs.get('rv_datasets', '*'), choices=[], description='Radial velocity dataset(s) to use to extract eclipse geometry')]
+    params += [SelectParameter(qualifier='rv_datasets', value=kwargs.get('rv_datasets', '*'), choices=[], description='Radial velocity dataset(s) to use to extract RV geometry')]
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for estimating orbital parameters')]
 
     # params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
@@ -230,6 +306,10 @@ def ebai(**kwargs):
 
     Arguments
     ----------
+    * `lc_datasets` (string or list, optional, default='*'): Light curve
+        dataset(s) to pass to ebai
+    * `orbit` (string, optional, default=top-level orbit): Orbit to use for
+        phasing the light curve referenced in the `lc_datasets` parameter
 
     Returns
     --------
@@ -238,7 +318,7 @@ def ebai(**kwargs):
     """
     params = _comments_params(**kwargs)
 
-    params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to use to extract eclipse geometry')]
-    params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the dataset parameter')]
+    params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to pass to ebai')]
+    params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the lc_datasets parameter')]
 
     return ParameterSet(params)

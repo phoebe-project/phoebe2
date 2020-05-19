@@ -94,6 +94,20 @@ def gaussian_process(feature, **kwargs):
 
     Arguments
     ----------
+    * `kernel` (string, optional, default='matern32'): Kernel for the gaussian
+        process (see https://celerite.readthedocs.io/en/stable/python/kernel/)
+    * `log_S0` (float, optional, default=0): only applicable if `kernel` is
+        'sho'. Log of the GP parameter S0.
+    * `log_Q` (float, optional, default=0): only applicable if `kernel` is
+        'sho'.  Log of the GP parameter Q.
+    * `log_omega0` (float, optional, default=0): only applicable if `kernel` is
+        'sho'.  Log of the GP parameter omega0.
+    * `log_sigma` (float, optional, default=0): only applicable if `kernel` is
+        'matern32'.  Log of the GP parameter sigma.
+    * `log_rho` (float, optional, default=0): only applicable if `kernel` is
+        'matern32'.  Log of the GP parameter rho.
+    * `eps` (float, optional, default=0): only applicable if `kernel` is
+        'matern32'.  Log of the GP parameter epsilon.
 
 
     Returns

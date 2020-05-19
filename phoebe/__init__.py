@@ -21,6 +21,7 @@ import os as _os
 import sys as _sys
 import inspect as _inspect
 import atexit
+import re
 
 # People shouldn't import Phoebe from the installation directory (inspired upon
 # pymc warning message).
@@ -760,11 +761,19 @@ atexit.register(mpi.shutdown_workers)
 
 # edit API docs for imported functions
 
+def strip_docstring_refs(matchobj):
+    text = matchobj.group(0)
+    path = text[1:-1]
+    return path
+
 def add_nparray_docstring(obj):
 
     docsprefix = """This is an included dependency from [nparray 1.1.0](https://nparray.readthedocs.io/en/1.1.0/).\n\n===============================================================\n\n"""
 
-    obj.__doc__ = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = re.sub(r"(?P<name>\<[0-9a-zA-Z_\.]*\>)", strip_docstring_refs, docstring)
+
+    obj.__doc__ = docstring
 
 add_nparray_docstring(array)
 add_nparray_docstring(linspace)
@@ -777,7 +786,10 @@ add_nparray_docstring(invspace)
 def add_distl_docstring(obj):
     docsprefix = """This is an included dependency from [distl](https://distl.readthedocs.io).\n\n===============================================================\n\n"""
 
-    obj.__doc__ = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = docsprefix + "\n".join([l.lstrip() for l in obj.__doc__.split("\n")])
+    docstring = re.sub(r"(?P<name>\<[0-9a-zA-Z_\.]*\>)", strip_docstring_refs, docstring)
+
+    obj.__doc__ = docstring
 
 add_distl_docstring(uniform)
 add_distl_docstring(boxcar)
@@ -962,4 +974,7 @@ del logging
 del Settings
 del MPI
 
+del re
+del strip_docstring_refs
 del add_nparray_docstring
+del add_distl_docstring
