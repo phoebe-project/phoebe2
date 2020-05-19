@@ -257,12 +257,13 @@ _forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
                       'samples_per_peak', 'nyquist_factor',
                       't0_near_times', 'sample_periods', 'sample_frequencies', 'objective',
                       'expose_lnlikelihoods', 'fit_parameters', 'initial_values',
+                      'expose_model', 'gtol', 'norm', 'xtol', 'ftol',
                       'priors_combine', 'maxiter', 'maxfev', 'adaptive',
                       'xatol', 'fatol', 'bounds', 'bounds_combine', 'bounds_sigma',
                       'strategy', 'popsize', 'continue_from', 'init_from_combine',
                       'burnin_factor', 'thin_factor', 'progress_every_niters',
                       'nlive', 'maxcall', 'lc_geometry', 'rv_geometry', 'lc_periodogram', 'rv_periodogram', 'ebai',
-                      'nelder_mead', 'differential_evolution', 'emcee', 'dynesty']
+                      'nelder_mead', 'differential_evolution', 'cg', 'powell', 'emcee', 'dynesty']
 
 # from solution:
 _forbidden_labels += ['primary_width', 'secondary_width',
@@ -4478,7 +4479,7 @@ class ParameterSet(object):
                     kwargs['plot_package'] = 'distl'
                     if 'parameters' in kwargs.keys() and style=='failed':
                         raise ValueError("cannot currently plot failed_samples while providing parameters.  Pass or set adopt_parameters to plot a subset of available parameters")
-                    if len(adopt_inds) < 2:
+                    if style=='failed' and len(adopt_inds) < 2:
                         raise ValueError("cannot plot failed_samples with < 2 parameters")
 
                     kwargs['dc'], _ = ps._bundle.get_distribution_collection(solution=ps.solution, adopt_parameters=adopt_parameters, **{k:v for k,v in kwargs.items() if k in ['burnin', 'thin', 'lnprob_cutoff', 'distributions_convert', 'distributions_bins', 'parameters']})
