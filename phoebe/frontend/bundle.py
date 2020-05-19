@@ -9340,12 +9340,14 @@ class Bundle(ParameterSet):
         return model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs
 
 
-    def _write_export_compute_script(self, script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, kwargs):
+    def _write_export_compute_script(self, script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs):
         """
         """
         f = open(script_fname, 'w')
         f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';\n")
         f.write("import phoebe; import json\n")
+        if log_level is not None:
+            f.write("phoebe.logger('{}')\n".format(log_level))
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_contexts = ['model', 'figure', 'constraint', 'solver']
@@ -9377,7 +9379,7 @@ class Bundle(ParameterSet):
 
     def export_compute(self, script_fname, out_fname=None,
                        compute=None, model=None, dataset=None,
-                       pause=False,
+                       pause=False, log_level=None,
                        import_from_older=False, **kwargs):
         """
         Export a script to call run_compute externally (in a different thread
@@ -9419,6 +9421,8 @@ class Bundle(ParameterSet):
             with instructions for running the exported script and calling
             <phoebe.frontend.bundle.Bundle.import_model>.  Particularly
             useful if running in an interactive notebook or a script.
+        * `log_level` (string, optional, default=None): `clevel` to set in the
+            logger in the exported script.  See <phoebe.logger>.
         * `import_from_older` (boolean, optional, default=False): whether to allow
             the script to run on a newer version of PHOEBE.  If True and executing
             the outputed script (`script_fname`) on a newer version of PHOEBE,
@@ -9440,7 +9444,7 @@ class Bundle(ParameterSet):
 
         """
         model, computes, datasets, do_create_fig_params, changed_params, overwrite_ps, kwargs = self._prepare_compute(compute, model, dataset, **kwargs)
-        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, kwargs)
+        script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -9612,7 +9616,7 @@ class Bundle(ParameterSet):
             script_fname = "_{}.py".format(jobid)
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
-            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, False, kwargs)
+            script_fname, out_fname = self._write_export_compute_script(script_fname, out_fname, compute, model, dataset, do_create_fig_params, False, None, kwargs)
 
             script_fname = os.path.abspath(script_fname)
             cmd = mpi.detach_cmd.format(script_fname)
@@ -10549,12 +10553,14 @@ class Bundle(ParameterSet):
         return solver, solution, compute, solver_ps
 
 
-    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, import_from_older, kwargs):
+    def _write_export_solver_script(self, script_fname, out_fname, solver, solution, import_from_older, log_level, kwargs):
         """
         """
         f = open(script_fname, 'w')
         f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE';\n")
         f.write("import phoebe; import json\n")
+        if log_level is not None:
+            f.write("phoebe.logger('{}')\n".format(log_level))
         # TODO: can we skip the history context?  And maybe even other models
         # or datasets (except times and only for run_compute but not run_solver)
         exclude_contexts = ['model', 'figure']
@@ -10594,6 +10600,7 @@ class Bundle(ParameterSet):
                       solver=None, solution=None,
                       pause=False,
                       import_from_older=False,
+                      log_level=None,
                       **kwargs):
         """
         Export a script to call run_solver externally (in a different thread
@@ -10625,6 +10632,8 @@ class Bundle(ParameterSet):
             the bundle will attempt to migrate to the newer version.  If False,
             an error will be raised when attempting to run the script.  See
             also: <phoebe.frontend.bundle.Bundle.open>.
+        * `log_level` (string, optional, default=None): `clevel` to set in the
+            logger in the exported script.  See <phoebe.logger>.
         * `custom_lnprobability_callable` (callable, optional, default=None):
             custom callable function which takes the following arguments:
             `b, model, lnpriors, priors, priors_combine` and returns the lnlikelihood
@@ -10644,7 +10653,7 @@ class Bundle(ParameterSet):
 
         """
         solver, solution, compute, solver_ps = self._prepare_solver(solver, solution, **kwargs)
-        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, import_from_older, kwargs)
+        script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, import_from_older, log_level, kwargs)
 
         if pause:
             input("* optional:  call b.save(...) to save the bundle to disk, you can then safely close the active python session and recover the bundle with phoebe.load(...)\n"+
@@ -10869,7 +10878,7 @@ class Bundle(ParameterSet):
             out_fname = "_{}.out".format(jobid)
             err_fname = "_{}.err".format(jobid)
             kill_fname = "_{}.kill".format(jobid)
-            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, kwargs)
+            script_fname, out_fname = self._write_export_solver_script(script_fname, out_fname, solver, solution, False, None, kwargs)
 
             script_fname = os.path.abspath(script_fname)
             cmd = mpi.detach_cmd.format(script_fname)
