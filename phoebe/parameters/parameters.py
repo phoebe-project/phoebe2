@@ -2519,11 +2519,11 @@ class ParameterSet(object):
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
         # handle hiding _default (cheaper than visible_if so let's do first)
-        if check_default and conf.check_default:
+        if check_default:
             params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default' and pi.feature != '_default']
 
         # handle visible_if
-        if check_visible and conf.check_visible:
+        if check_visible:
             params = [pi for pi in params if pi.is_visible]
 
         # handle hiding advanced parameters
@@ -3693,7 +3693,7 @@ class ParameterSet(object):
             # nothing to plot here... at least for now
             return []
 
-        if ps.kind in ['lp'] and not len(ps.filter(qualifier='flux_densities', check_visible=False)):
+        if ps.kind in ['lp'] and not len(ps.filter(qualifier='flux_densities', **_skip_filter_checks)):
             # then maybe we're in the dataset where just compute_times is defined
             return []
 
@@ -3822,14 +3822,14 @@ class ParameterSet(object):
 
                     if kwargs['autofig_method'] == 'mesh' and current_value in ['xs', 'ys', 'zs']:
                         # then we actually need to unpack from the xyz_elements
-                        verts = ps.get_quantity(qualifier='xyz_elements')
+                        verts = ps.get_quantity(qualifier='xyz_elements', **_skip_filter_checks)
                         if not verts.shape[0]:
                             return None
                         array_value = verts.value[:, :, ['xs', 'ys', 'zs'].index(current_value)] * verts.unit
 
                         if direction == 'z':
                             try:
-                                norms = ps.get_quantity(qualifier='xyz_normals')
+                                norms = ps.get_quantity(qualifier='xyz_normals', **_skip_filter_checks)
                             except ValueError:
                                 # if importing from 2.1, uvw_elements may exist, but uvw_normals won't
                                 array_value_norms = None
@@ -3842,14 +3842,14 @@ class ParameterSet(object):
 
                     elif kwargs['autofig_method'] == 'mesh' and current_value in ['us', 'vs', 'ws']:
                         # then we actually need to unpack from the uvw_elements
-                        verts = ps.get_quantity(qualifier='uvw_elements')
+                        verts = ps.get_quantity(qualifier='uvw_elements', **_skip_filter_checks)
                         if not verts.shape[0]:
                             return None
                         array_value = verts.value[:, :, ['us', 'vs', 'ws'].index(current_value)] * verts.unit
 
                         if direction == 'z':
                             try:
-                                norms = ps.get_quantity(qualifier='uvw_normals')
+                                norms = ps.get_quantity(qualifier='uvw_normals', **_skip_filter_checks)
                             except ValueError:
                                 # if importing from 2.1, uvw_elements may exist, but uvw_normals won't
                                 array_value_norms = None
@@ -3875,10 +3875,10 @@ class ParameterSet(object):
                         psff = psf.filter(twig=current_value)
                         if len(psff)==1:
                             array_value = psff.get_quantity()
-                        elif len(psff.times) > 1 and psff.get_value(time=psff.times[0]):
+                        elif len(psff.times) > 1 and psff.get_value(time=psff.times[0], **_skip_filter_checks):
                             # then we'll assume we have something like volume vs times.  If not, then there may be a length mismatch issue later
                             unit = psff.get_quantity(time=psff.times[0]).unit
-                            array_value = np.array([psff.get_quantity(time=time).to(unit).value for time in psff.times])*unit
+                            array_value = np.array([psff.get_quantity(time=time, **_skip_filter_checks).to(unit).value for time in psff.times])*unit
                         else:
                             raise ValueError("could not find Parameter for {} in {}".format(current_value, psf.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig'])))
 
@@ -3893,7 +3893,7 @@ class ParameterSet(object):
                         if isinstance(errors, np.ndarray) or isinstance(errors, float) or isinstance(errors, int):
                             kwargs[errorkey] = errors
                         elif isinstance(errors, str):
-                            errors = _handle_mask(ps, ps.get_quantity(kwargs.get(errorkey), check_visible=False), **kwargs)
+                            errors = _handle_mask(ps, ps.get_quantity(kwargs.get(errorkey), **_skip_filter_checks), **kwargs)
                             kwargs[errorkey] = errors
                         else:
                             sigmas = _handle_mask(ps, ps.get_quantity(qualifier='sigmas', **_skip_filter_checks), **kwargs)
@@ -3917,8 +3917,8 @@ class ParameterSet(object):
                 elif current_value in ['wavelengths'] and ps.time is not None:
                     # these are not tagged with the time, so we need to find them
                     full_dataset_meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig', 'qualifier', 'time'])
-                    full_dataset_ps = ps._bundle.filter(**full_dataset_meta)
-                    candidate_params = full_dataset_ps.filter(qualifier=current_value)
+                    full_dataset_ps = ps._bundle.filter(check_visible=False, **full_dataset_meta)
+                    candidate_params = full_dataset_ps.filter(qualifier=current_value, **_skip_filter_checks)
                     if len(candidate_params) == 1:
                         kwargs[direction] = candidate_params.get_quantity()
                         kwargs.setdefault('{}label'.format(direction), _plural_to_singular_get(current_value))
@@ -3942,10 +3942,10 @@ class ParameterSet(object):
                         times = ds_ps.get_value(qualifier='times', component=ps.component, **_skip_filter_checks)
                         times = _handle_mask(ds_ps, times, **kwargs)
                     elif ps.kind == 'etvs':
-                        times = ps.get_value(qualifier='time_ecls', unit=u.d)
+                        times = ps.get_value(qualifier='time_ecls', unit=u.d, **_skip_filter_checks)
                         times = _handle_mask(ps, times, **kwargs)
                     else:
-                        times = ps.get_value(qualifier='times', unit=u.d)
+                        times = ps.get_value(qualifier='times', unit=u.d, **_skip_filter_checks)
                         times = _handle_mask(ps, times, **kwargs)
 
                     kwargs[direction] = self._bundle.to_phase(times, component=component_phase, t0=kwargs.get('t0', 't0_supconj')) * u.dimensionless_unscaled
@@ -4008,11 +4008,11 @@ class ParameterSet(object):
                         kwargs[errorkey] = errors
                     elif isinstance(errors, str):
                         ds_ps = self._bundle.get_dataset(ps.dataset, **_skip_filter_checks)
-                        errors = ds_ps.get_quantity(qualifier=kwargs.get(errorkey), context='dataset', check_visible=False)
+                        errors = ds_ps.get_quantity(qualifier=kwargs.get(errorkey), context='dataset', **_skip_filter_checks)
                         kwargs[errorkey] = _handle_mask(ds_ps, errors, **kwargs)
                     else:
                         ds_ps = self._bundle.get_dataset(ps.dataset, **_skip_filter_checks)
-                        sigmas = ds_ps.get_quantity(qualifier='sigmas', component=ps.component, context='dataset', check_visible=False)
+                        sigmas = ds_ps.get_quantity(qualifier='sigmas', component=ps.component, context='dataset', **_skip_filter_checks)
                         sigmas = _handle_mask(ds_ps, sigmas, **kwargs)
                         if len(sigmas):
                             kwargs.setdefault(errorkey, sigmas)
@@ -4027,8 +4027,8 @@ class ParameterSet(object):
 
                     if ps.kind == 'mesh' and ps._bundle is not None:
                         full_mesh_meta = ps.get_meta(ignore=['uniqueid', 'uniquetwig', 'twig', 'qualifier', 'dataset'])
-                        full_mesh_ps = ps._bundle.filter(**full_mesh_meta)
-                        candidate_params = full_mesh_ps.filter(current_value)
+                        full_mesh_ps = ps._bundle.filter(check_visible=False, **full_mesh_meta)
+                        candidate_params = full_mesh_ps.filter(current_value, **_skip_filter_checks)
                         if len(candidate_params) == 1:
                             kwargs[direction] = candidate_params.get_quantity()
                             kwargs.setdefault('{}label'.format(direction), _plural_to_singular_get(current_value))
@@ -4633,23 +4633,23 @@ class ParameterSet(object):
                     raise NotImplementedError
             elif ps.kind == 'etv':
                 if iqualfier=='times':
-                    kwargs['i'] = ps.get_quantity(qualifier='time_ecls')
+                    kwargs['i'] = ps.get_quantity(qualifier='time_ecls', **_skip_filter_checks)
                     kwargs['iqualifier'] = 'time_ecls'
                 elif iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
-                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='time_ecls'), component=icomponent)
+                    kwargs['i'] = self._bundle.to_phase(ps.get_quantity(qualifier='time_ecls'), component=icomponent, **_skip_filter_checks)
                     kwargs['iqualifier'] = iqualifier
                 else:
                     raise NotImplementedError
             else:
                 if iqualifier=='times':
-                    kwargs['i'] = _handle_mask(ps, ps.get_quantity(qualifier='times'), **kwargs)
+                    kwargs['i'] = _handle_mask(ps, ps.get_quantity(qualifier='times', **_skip_filter_checks), **kwargs)
                     kwargs['iqualifier'] = 'times'
                 elif iqualifier.split(':')[0] == 'phases':
                     # TODO: need to test this
                     icomponent = iqualifier.split(':')[1] if len(iqualifier.split(':')) > 1 else None
-                    times = _handle_mask(ps, ps.get_quantity(qualifier='times'), **kwargs)
+                    times = _handle_mask(ps, ps.get_quantity(qualifier='times', **_skip_filter_checks), **kwargs)
                     kwargs['i'] = self._bundle.to_phase(times, component=icomponent)
                     kwargs['iqualifier'] = iqualifier
                 else:
@@ -5064,27 +5064,6 @@ class ParameterSet(object):
         if twig is not None:
             kwargs['twig'] = twig
 
-        # temporarily check_default, and check_visible
-        conf_check_default = conf.check_default
-        if conf_check_default:
-            logger.debug("temporarily disabling check_default")
-            conf.check_default_off()
-
-        conf_check_visible = conf.check_visible
-        if conf_check_visible:
-            logger.debug("temporarily disabling check_visible")
-            conf.check_visible_off()
-
-        def restore_conf():
-            if conf_check_visible:
-                logger.debug("restoring check_visible")
-                conf.check_visible_on()
-
-            if conf_check_default:
-                logger.debug("restoring check_default")
-                conf.check_default_on()
-
-
         def _plot_failed_samples(mplfig, failed_samples):
             mplaxes = mplfig.axes
 
@@ -5210,10 +5189,8 @@ class ParameterSet(object):
                     raise ValueError("plot_package={} not recognized".format(plot_package))
 
         except Exception as err:
-            restore_conf()
             raise
 
-        restore_conf()
 
         if save or show or animate:
             # NOTE: time, times, will all be included in kwargs

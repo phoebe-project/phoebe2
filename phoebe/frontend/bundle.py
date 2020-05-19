@@ -3615,7 +3615,6 @@ class Bundle(ParameterSet):
 
             for dataset in self.filter(context='dataset', kind=['lc', 'rv'], check_default=True).datasets:
                 if dataset=='_default':
-                    # just in case conf.check_default = False
                     continue
                 dataset_ps = self.get_dataset(dataset=dataset, check_visible=False)
 
@@ -8477,15 +8476,6 @@ class Bundle(ParameterSet):
             logger.debug("temporarily disabling interactive_checks")
             conf._interactive_checks = False
 
-        conf_check_default = conf.check_default
-        if conf_check_default:
-            logger.debug("temporarily disabling check_default")
-            conf.check_default_off()
-
-        conf_check_visible = conf.check_visible
-        if conf_check_visible:
-            logger.debug("temporarily disabling check_visible")
-            conf.check_visible_off()
 
         def restore_conf():
             # restore user-set interactive checks
@@ -8493,13 +8483,6 @@ class Bundle(ParameterSet):
                 logger.debug("restoring interactive_checks={}".format(conf_interactive_checks))
                 conf._interactive_checks = conf_interactive_checks
 
-            if conf_check_visible:
-                logger.debug("restoring check_visible")
-                conf.check_visible_on()
-
-            if conf_check_default:
-                logger.debug("restoring check_default")
-                conf.check_default_on()
 
         system_compute = compute if compute_kind=='phoebe' else None
         logger.debug("creating system with compute={} kwargs={}".format(system_compute, kwargs))
@@ -9685,16 +9668,6 @@ class Bundle(ParameterSet):
             logger.debug("temporarily disabling interactive_constraints")
             conf._interactive_constraints = False
 
-        conf_check_default = conf.check_default
-        if conf_check_default:
-            logger.debug("temporarily disabling check_default")
-            conf.check_default_off()
-
-        conf_check_visible = conf.check_visible
-        if conf_check_visible:
-            logger.debug("temporarily disabling check_visible")
-            conf.check_visible_off()
-
         def restore_conf():
             # restore user-set interactive checks
             if conf_interactive_checks:
@@ -9705,14 +9678,6 @@ class Bundle(ParameterSet):
                 logger.debug("restoring interactive_constraints={}".format(conf_interactive_constraints))
                 conf._interactive_constraints = conf_interactive_constraints
                 self.run_delayed_constraints()
-
-            if conf_check_visible:
-                logger.debug("restoring check_visible")
-                conf.check_visible_on()
-
-            if conf_check_default:
-                logger.debug("restoring check_default")
-                conf.check_default_on()
 
         ret_changes = []
 
@@ -10838,15 +10803,6 @@ class Bundle(ParameterSet):
             logger.debug("temporarily disabling interactive_constraints")
             conf._interactive_constraints = False
 
-        conf_check_default = conf.check_default
-        if conf_check_default:
-            logger.debug("temporarily disabling check_default")
-            conf.check_default_off()
-
-        conf_check_visible = conf.check_visible
-        if conf_check_visible:
-            logger.debug("temporarily disabling check_visible")
-            conf.check_visible_off()
 
         def restore_conf():
             # restore user-set interactive checks
@@ -10858,14 +10814,6 @@ class Bundle(ParameterSet):
                 logger.debug("restoring interactive_constraints={}".format(conf_interactive_constraints))
                 conf._interactive_constraints = conf_interactive_constraints
                 self.run_delayed_constraints()
-
-            if conf_check_visible:
-                logger.debug("restoring check_visible")
-                conf.check_visible_on()
-
-            if conf_check_default:
-                logger.debug("restoring check_default")
-                conf.check_default_on()
 
         if kwargs.get('overwrite', solution=='latest') and solution in self.solutions:
             # NOTE: default (instead of detached_job=) is correct here
