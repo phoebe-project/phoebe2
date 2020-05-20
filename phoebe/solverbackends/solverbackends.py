@@ -1122,7 +1122,7 @@ class EmceeBackend(BaseSolverBackend):
             global failed_samples_buffer
             failed_samples_buffer = []
 
-            if b.get_compute(compute=compute, **_skip_filter_checks).kind == 'phoebe':
+            if mpi.nprocs > kwargs.get('nwalkers') and b.get_compute(compute=compute, **_skip_filter_checks).kind == 'phoebe':
                 logger.info("nprocs > nwalkers: using per-time parallelization and emcee in serial")
 
                 # we'll keep MPI at the per-compute level, so we'll pass
