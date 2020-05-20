@@ -80,6 +80,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.2.2 - kwargs hotfix
+
+* fix overriding mesh_init_phi as kwarg to run_compute
+* fix pblum computation to not require irrad_method kwarg
+* fix bundle representation to exclude hidden parameters
+
 ### 2.2.1 - g++/gcc version check hotfix
 
 * Improves the detection of g++/gcc version to compare against requirements during setup.
