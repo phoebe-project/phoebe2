@@ -2115,7 +2115,9 @@ class Star_roche(Star):
 
                     mesh_init_phi = np.random.random()*2*np.pi
                     logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
-                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                    kwargs['mesh_init_phi_attempts'] = mesh_init_phi_attempts
+                    kwargs['mesh_init_phi'] = mesh_init_phi
+                    return self._build_mesh(mesh_method, **kwargs)
                 else:
                     raise err
 
@@ -2320,7 +2322,9 @@ class Star_roche_envelope_half(Star):
 
                     mesh_init_phi = np.random.random()*2*np.pi
                     logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
-                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                    kwargs['mesh_init_phi_attempts'] = mesh_init_phi_attempts
+                    kwargs['mesh_init_phi'] = mesh_init_phi
+                    return self._build_mesh(mesh_method, **kwargs)
                 else:
                     raise err
 
@@ -2503,7 +2507,9 @@ class Star_rotstar(Star):
 
                     mesh_init_phi = np.random.random()*2*np.pi
                     logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
-                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                    kwargs['mesh_init_phi_attempts'] = mesh_init_phi_attempts
+                    kwargs['mesh_init_phi'] = mesh_init_phi
+                    return self._build_mesh(mesh_method, **kwargs)
                 else:
                     raise err
 
@@ -2668,7 +2674,9 @@ class Star_sphere(Star):
 
                     mesh_init_phi = np.random.random()*2*np.pi
                     logger.warning("mesh failed to converge, trying attempt #{} with mesh_init_phi={}".format(mesh_init_phi_attempts, mesh_init_phi))
-                    return self._build_mesh(mesh_method, mesh_init_phi=mesh_init_phi, mesh_init_phi_attempts=mesh_init_phi_attempts, **kwargs)
+                    kwargs['mesh_init_phi_attempts'] = mesh_init_phi_attempts
+                    kwargs['mesh_init_phi'] = mesh_init_phi
+                    return self._build_mesh(mesh_method, **kwargs)
                 else:
                     raise err
 
