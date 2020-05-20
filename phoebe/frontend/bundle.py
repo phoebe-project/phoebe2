@@ -1385,10 +1385,12 @@ class Bundle(ParameterSet):
         self._last_client_update = datetime.now()
 
     def __repr__(self):
-        return super(Bundle, self).__repr__().replace('ParameterSet', 'PHOEBE Bundle')
+        # filter to handle any visibility checks, etc
+        return self.filter().__repr__().replace('ParameterSet', 'PHOEBE Bundle')
 
     def __str__(self):
-        return super(Bundle, self).__str__().replace('ParameterSet', 'PHOEBE Bundle')
+        # filter to handle any visibility checks, etc
+        return self.filter().__str__().replace('ParameterSet', 'PHOEBE Bundle')
 
     def _default_label(self, base, context, **kwargs):
         """
