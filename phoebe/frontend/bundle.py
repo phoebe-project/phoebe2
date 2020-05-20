@@ -6458,7 +6458,8 @@ class Bundle(ParameterSet):
 
         if computeparams.kind == 'phoebe':
             # then all we need to do is handle any ld_mode_bol=='lookup'
-            self.compute_ld_coeffs(compute, dataset=['bol'], set_value=True, skip_checks=True)
+            if computeparams.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), default='none') != 'none':
+                self.compute_ld_coeffs(compute, dataset=['bol'], set_value=True, skip_checks=True)
             return
 
         enabled_datasets = computeparams.filter(qualifier='enabled', value=True).datasets
