@@ -9755,16 +9755,16 @@ class Bundle(ParameterSet):
                 for ds in ml_params.datasets:
                     # not all dataset-types currently support exposure times.
                     # Once they do, this ugly if statement can be removed
-                    if len(self.filter(dataset=ds, qualifier='exptime')):
-                        exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
+                    if len(self.filter(dataset=ds, qualifier='exptime', **_skip_filter_checks)):
+                        exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d, **_skip_filter_checks)
                         if exptime > 0:
                             logger.info("handling fti for dataset='{}'".format(ds))
                             if self.get_value(qualifier='fti_method', dataset=ds, compute=compute, context='compute', fti_method=kwargs.get('fti_method', None), **_skip_filter_checks)=='oversample':
-                                times_ds = self.get_value(qualifier='compute_times', dataset=ds, context='dataset')
+                                times_ds = self.get_value(qualifier='compute_times', dataset=ds, context='dataset', **_skip_filter_checks)
                                 if not len(times_ds):
-                                    times_ds = self.get_value(qualifier='times', dataset=ds, context='dataset')
+                                    times_ds = self.get_value(qualifier='times', dataset=ds, context='dataset', **_skip_filter_checks)
                                 # exptime = self.get_value(qualifier='exptime', dataset=ds, context='dataset', unit=u.d)
-                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=ds, compute=compute, context='compute', check_visible=False, **kwargs)
+                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=ds, compute=compute, context='compute', fti_oversample=kwargs.get('fti_oversample', None), **_skip_filter_checks)
                                 # NOTE: this is hardcoded for LCs which is the
                                 # only dataset that currently supports oversampling,
                                 # but this will need to be generalized if/when
@@ -9776,8 +9776,8 @@ class Bundle(ParameterSet):
                                 # exposures to "overlap" each other, so we'll
                                 # later need to determine which times (and
                                 # therefore fluxes) belong to which datapoint
-                                times_oversampled_sorted = ml_params.get_value(qualifier='times', dataset=ds)
-                                fluxes_oversampled = ml_params.get_value(qualifier='fluxes', dataset=ds)
+                                times_oversampled_sorted = ml_params.get_value(qualifier='times', dataset=ds, **_skip_filter_checks)
+                                fluxes_oversampled = ml_params.get_value(qualifier='fluxes', dataset=ds, **_skip_filter_checks)
 
                                 for i,t in enumerate(times_ds):
                                     # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
@@ -9787,8 +9787,8 @@ class Bundle(ParameterSet):
 
                                     fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
 
-                                ml_params.set_value(qualifier='times', dataset=ds, value=times_ds, ignore_readonly=True)
-                                ml_params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True)
+                                ml_params.set_value(qualifier='times', dataset=ds, value=times_ds, ignore_readonly=True, **_skip_filter_checks)
+                                ml_params.set_value(qualifier='fluxes', dataset=ds, value=fluxes, ignore_readonly=True, **_skip_filter_checks)
 
                 # handle flux scaling for any pblum_mode == 'dataset-scaled'
                 # or for any dataset in which pblum_mode == 'dataset-coupled' and pblum_dataset points to a 'dataset-scaled' dataset
@@ -9824,9 +9824,9 @@ class Bundle(ParameterSet):
                             l3_fracs = np.append(l3_fracs, np.full_like(ds_times, fill_value=l3_frac))
                             l3_pblum_abs_sums = np.append(l3_pblum_abs_sums, np.full_like(ds_times, fill_value=np.sum(list(pblums_abs.get(dataset).values()))))
 
-                        ds_fluxes = ds_obs.get_value(qualifier='fluxes', unit=u.W/u.m**2)
+                        ds_fluxes = ds_obs.get_value(qualifier='fluxes', unit=u.W/u.m**2, **_skip_filter_checks)
                         ds_fluxess = np.append(ds_fluxess, ds_fluxes)
-                        ds_sigmas = ds_obs.get_value(qualifier='sigmas')
+                        ds_sigmas = ds_obs.get_value(qualifier='sigmas', **_skip_filter_checks)
                         if len(ds_sigmas):
                             ds_sigmass = np.append(ds_sigmass, ds_sigmas)
                         else:
@@ -9874,7 +9874,7 @@ class Bundle(ParameterSet):
 
                         ml_addl_params += [FloatParameter(qualifier='flux_scale', value=scale_factor, readonly=True, default_unit=u.dimensionless_unscaled, description='scaling applied to fluxes (intensities/luminosities) due to dataset-scaling')]
 
-                        for mesh_param in ml_params.filter(kind='mesh').to_list():
+                        for mesh_param in ml_params.filter(kind='mesh', **_skip_filter_checks).to_list():
                             if param.qualifier in ['intensities', 'abs_intensities', 'normal_intensities', 'abs_normal_intensities', 'pblum_ext']:
                                 logger.debug("applying scale_factor={} to {} parameter in mesh".format(scale_factor, mesh_param.qualifier))
                                 mesh_param.set_value(mesh_param.get_value()*scale_factor, ignore_readonly=True)
