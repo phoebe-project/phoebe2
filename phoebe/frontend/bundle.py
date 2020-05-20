@@ -6454,7 +6454,7 @@ class Bundle(ParameterSet):
         _ = kwargs.pop('skip_checks', None)
         compute = computeparams.compute
 
-        if computeparams.kind == 'phoebe' and computeparams.get_value(qualifier='irrad_method', **_skip_filter_checks) !='none':
+        if computeparams.kind == 'phoebe':
             # then all we need to do is handle any ld_mode_bol=='lookup'
             self.compute_ld_coeffs(compute, dataset=['bol'], set_value=True, skip_checks=True)
             return
