@@ -39,6 +39,11 @@ def emcee(**kwargs):
     b.run_solver(kind='emcee')
     ```
 
+    Parallelization support: emcee supports both MPI and multiprocessing.  If
+    using MPI and nprocs > nwalkers and `compute` is a phoebe backend, then MPI
+    will be handled at the compute-level (per-time).  In all other cases,
+    parallelization is handled at the solver-level (per-model).
+
     Arguments
     ----------
     * `compute` (string, optional): compute options to use for forward model
@@ -146,6 +151,10 @@ def dynesty(**kwargs):
     b.add_solver('sampler.dynesty')
     b.run_solver(kind='dynesty')
     ```
+
+    Parallelization support: dynesty supports both MPI and multiprocessing, always
+    at the solver-level (per-model).
+
 
     Arguments
     ----------

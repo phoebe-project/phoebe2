@@ -156,9 +156,12 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
             msg_tuple = (_simplify_error_message(msg), sampled_values.tolist())
             if failed_samples_buffer.__class__.__name__ == 'ListProxy':
                 failed_samples_buffer.append(msg_tuple)
+            elif mpi._within_mpirun:
+                # then emcee is in serial mode, run_compute is within mpi
+                failed_samples_buffer.append(msg_tuple)
             else:
-                # TODO: right now this passes an empty list, just for ease on the creation... but we probably should check we're within MPI
-                # assume MPI
+                # then emcee is using MPI so we need to pass the messages
+                # through the MPI pool
                 comm = _MPI.COMM_WORLD
                 comm.ssend(msg_tuple, 0, tag=99999999)
 
@@ -490,7 +493,7 @@ class BaseSolverBackend(object):
         self.run_checks(b, solver,  compute, **kwargs)
 
         logger.debug("rank:{}/{} calling get_packet_and_solution".format(mpi.myrank, mpi.nprocs))
-        packet, solution_ps = self.get_packet_and_solution(b, solver, **kwargs)
+        packet, solution_ps = self.get_packet_and_solution(b, solver, compute=compute, **kwargs)
 
         if mpi.enabled:
             # broadcast the packet to ALL workers
@@ -1039,8 +1042,7 @@ class EmceeBackend(BaseSolverBackend):
             raise ValueError("cannot run emcee without any distributions in init_from")
 
         # require sigmas for all enabled datasets
-        computes = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), **_skip_filter_checks)
-        datasets = b.filter(compute=computes, qualifier='enabled', value=True).datasets
+        datasets = b.filter(compute=compute, qualifier='enabled', value=True).datasets
         for sigma_param in b.filter(qualifier='sigmas', dataset=datasets, check_visible=True, check_default=True).to_list():
             if not len(sigma_param.get_value()):
                 times = b.get_value(qualifier='times', dataset=sigma_param.dataset, component=sigma_param.component, **_skip_filter_checks)
@@ -1108,36 +1110,58 @@ class EmceeBackend(BaseSolverBackend):
 
             return [return_]
 
+        within_mpirun = mpi.within_mpirun
+        mpi_enabled = mpi.enabled
+
         # emcee handles workers itself.  So here we'll just take the workers
         # from our own waiting loop in phoebe's __init__.py and subscribe them
         # to emcee's pool.
         if mpi.within_mpirun:
+            # TODO: decide whether to use MPI for emcee (via pool) or pass None
+            # to allow per-model parallelization
             global failed_samples_buffer
             failed_samples_buffer = []
-            global _MPI
-            from mpi4py import MPI as _MPI # needed for the cost-function to send failed samples
 
-            def mpi_failed_samples_callback(result):
-                global failed_samples_buffer
-                if isinstance(result, tuple):
-                    failed_samples_buffer.append(result)
-                    return False
-                else:
-                    return True
+            if b.get_compute(compute=compute, **_skip_filter_checks).kind == 'phoebe':
+                logger.info("nprocs > nwalkers: using per-time parallelization and emcee in serial")
 
-            pool = _pool.MPIPool(callback=mpi_failed_samples_callback)
-            is_master = pool.is_master()
+                # we'll keep MPI at the per-compute level, so we'll pass
+                # pool=None to emcee and immediately release all other processors
+                # to await compute jobs
+                pool = None
+                is_master = mpi.myrank == 0
+
+            else:
+                logger.info("nprocs <= nwalkers: handling MPI within emcee, disabling per-time parallelization")
+
+                global _MPI
+                from mpi4py import MPI as _MPI # needed for the cost-function to send failed samples
+
+                def mpi_failed_samples_callback(result):
+                    global failed_samples_buffer
+                    if isinstance(result, tuple):
+                        failed_samples_buffer.append(result)
+                        return False
+                    else:
+                        return True
+
+                pool = _pool.MPIPool(callback=mpi_failed_samples_callback)
+                is_master = pool.is_master()
+
+                # temporarily disable MPI within run_compute to disabled parallelizing
+                # per-time.
+                mpi._within_mpirun = False
+                mpi._enabled = False
+
+
         else:
+            logger.info("using multiprocessing pool for emcee")
+
             pool = _pool.MultiPool()
             failed_samples_buffer = multiprocessing.Manager().list()
             is_master = True
 
-        # temporarily disable MPI within run_compute to disabled parallelizing
-        # per-time.
-        within_mpirun = mpi.within_mpirun
-        mpi_enabled = mpi.enabled
-        mpi._within_mpirun = False
-        mpi._enabled = False
+
 
         if is_master:
             niters = kwargs.get('niters')
@@ -1313,7 +1337,10 @@ class EmceeBackend(BaseSolverBackend):
                         solution_ps.save(fname, compact=True, sort_by_context=False)
 
         else:
-            pool.wait()
+            if pool is not None:
+                pool.wait()
+            else:
+                return
 
         if pool is not None:
             pool.close()

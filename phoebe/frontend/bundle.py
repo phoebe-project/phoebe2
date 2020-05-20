@@ -3981,7 +3981,10 @@ class Bundle(ParameterSet):
             solver_ps = self.get_solver(solver=solver)
             solver_kind = solver_ps.kind
             if 'compute' in solver_ps.qualifiers and kwargs.get('run_checks_compute', True):
-                compute = solver_ps.get_value(qualifier='compute', compute=kwargs.get('compute', None), **_skip_filter_checks)
+                # NOTE: we can't pass compute as a kwarg to get_value or it will be used as a filter instead... which means technically we can't be sure compute is in self.computes
+                compute = kwargs.get('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
+                if compute not in self.computes:
+                    raise ValueError("compute='{}' not in computes".format(compute))
                 report = self.run_checks_compute(compute=compute, raise_logger_warning=False, raise_error=False, report=report, addl_parameters=[solver_ps.get_parameter(qualifier='compute', **_skip_filter_checks)])
 
 
@@ -9726,6 +9729,8 @@ class Bundle(ParameterSet):
                 l3s = self.compute_l3s(compute=compute, use_pbfluxes=pbfluxes, ret_structured_dicts=True, skip_checks=True, **{k:v for k,v in kwargs.items() if k in computeparams.qualifiers})
 
                 logger.info("run_compute: calling {} backend to create '{}' model".format(computeparams.kind, model))
+                if mpi.within_mpirun:
+                    logger.info("run_compute: within mpirun with nprocs={}".format(mpi.nprocs))
                 compute_class = getattr(backends, '{}Backend'.format(computeparams.kind.title()))
                 if computeparams.kind == 'phoebe':
                     kwargs['system'] = system
@@ -10526,10 +10531,10 @@ class Bundle(ParameterSet):
 
         self._check_label(solution, allow_overwrite=kwargs.get('overwrite', solution=='latest'))
 
-        kwargs['check_default'] = False
-        kwargs['check_visible'] = False
+        solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
+        if solver_ps is None:
+            raise ValueError("could not find solver with solver={} kwargs={}".format(solver, kwargs))
 
-        solver_ps = self.get_solver(solver=solver, **kwargs)
         if 'compute' in solver_ps.qualifiers:
             compute = kwargs.pop('compute', solver_ps.get_value(qualifier='compute', **_skip_filter_checks))
             compute_ps = self.get_compute(compute=compute, **_skip_filter_checks)
@@ -10542,7 +10547,7 @@ class Bundle(ParameterSet):
             compute = compute_ps.compute
 
         else:
-            compute = None
+            compute = kwargs.pop('compute', None)
 
         if not kwargs.get('skip_checks', False):
             report = self.run_checks_solver(solver=solver, run_checks_compute=True,
@@ -10918,7 +10923,7 @@ class Bundle(ParameterSet):
 
 
         solver_class = getattr(_solverbackends, '{}Backend'.format(solver_ps.kind.title()))
-        params = solver_class().run(self, solver_ps.solver, compute, solution=solution, **kwargs)
+        params = solver_class().run(self, solver_ps.solver, compute, solution=solution, **{k:v for k,v in kwargs.items() if k not in ['compute']})
         metawargs = {'context': 'solution',
                      'solver': solver_ps.solver,
                      'compute': compute,

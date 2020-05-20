@@ -31,6 +31,10 @@ def nelder_mead(**kwargs):
     b.run_solver(kind='nelder_mead')
     ```
 
+    Parallelization support: nelder_mead does not support parallelization.  If
+    within mpi, parallelization will be handled at the compute-level (per-time)
+    for the <phoebe.parameters.compute.phoebe> backend.
+
     Arguments
     ----------
     * `compute` (string, optional): compute options to use for the forward
@@ -111,6 +115,10 @@ def powell(**kwargs):
     b.run_solver(kind='powell')
     ```
 
+    Parallelization support: powell does not support parallelization.  If
+    within mpi, parallelization will be handled at the compute-level (per-time)
+    for the <phoebe.parameters.compute.phoebe> backend.
+
     Arguments
     ----------
     * `compute` (string, optional): compute options to use for the forward
@@ -187,6 +195,10 @@ def cg(**kwargs):
     b.run_solver(kind='cg')
     ```
 
+    Parallelization support: cg does not support parallelization.  If
+    within mpi, parallelization will be handled at the compute-level (per-time)
+    for the <phoebe.parameters.compute.phoebe> backend.
+
     Arguments
     ----------
     * `compute` (string, optional): compute options to use for the forward
@@ -255,6 +267,10 @@ def differential_evolution(**kwargs):
     b.add_solver('optimizer.differential_evolution')
     b.run_solver(kind='differential_evolution')
     ```
+
+    Parallelization support: differential_evolution supports both MPI and multiprocessing, always
+    at the solver-level (per-model).
+
 
     Arguments
     ----------
