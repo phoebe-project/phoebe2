@@ -3238,7 +3238,7 @@ class Bundle(ParameterSet):
                                 True, ['system', 'run_compute'])
 
             # also check to make sure that we'll be able to handle the interpolation in time if the system is time-dependent
-            if self.hierarchy.is_time_dependent():
+            if self.hierarchy.is_time_dependent(consider_gaussian_process=False):
                 compute_times = self.get_value(qualifier='compute_times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
                 times = self.get_value(qualifier='times', dataset=param.dataset, context='dataset', **_skip_filter_checks)
                 if len(times) and len(compute_times) and (min(times) < min(compute_times) or max(times) > max(compute_times)):
@@ -3764,6 +3764,10 @@ class Bundle(ParameterSet):
         for compute in computes:
             compute_kind = self.get_compute(compute=compute, **_skip_filter_checks).kind
 
+            gps = self.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features
+            compute_enabled_gps = self.filter(qualifier='enabled', feature=gps, value=True, **_skip_filter_checks).features
+            compute_enabled_datasets = self.filter(qualifier='enabled', dataset=self.datasets, value=True, **_skip_filter_checks)
+
             # sample_from and solution checks
             # check if any parameter is in sample_from but is constrained
             # NOTE: similar logic exists for init_from in run_checks_solver
@@ -3816,6 +3820,35 @@ class Bundle(ParameterSet):
                                              error, 'run_compute')
                 else:
                     raise ValueError("{} could not be found in distributions or solutions".format(dist_or_solution))
+
+            # check for time-dependency issues with GPs
+
+            if len(compute_enabled_gps):
+                # then if we're using compute_times/phases, compute_times must cover the range of the dataset times
+                for dataset in compute_enabled_datasets:
+                    compute_times = self.get_value(qualifier='compute_times', dataset=dataset, context='dataset', unit=u.d, **_skip_filter_checks)
+                    if len(compute_times):
+                        for time_param in self.filter(qualifier='times', dataset=dataset, context='dataset', check_visible=True).to_list():
+                            gp_warning = True
+                            if self.hierarchy.is_time_dependent(consider_gaussian_process=False):
+                                ds_times = time_param.get_value(unit=u.d)
+
+                                if min(ds_times) < min(compute_times) or max(ds_times) > max(compute_times):
+                                    gp_warning = False
+                                    report.add_item(self,
+                                                    "compute_times must cover full range of times for {} in order to include gaussian processes".format("@".join([time_param.dataset, time_param.component] if time_param.component is not None else [time_param.dataset])),
+                                                    [self.get_parameter(qualifier='compute_times', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                                     self.get_parameter(qualifier='compute_phases', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                                     time_param]+self.filter(qualifier='enabled', feature=compute_enabled_gps, **_skip_filter_checks).to_list()+addl_parameters,
+                                                     True, 'run_compute')
+                            if gp_warning:
+                                # then raise a warning to tell that the resulting model will be at different times
+                                report.add_item(self,
+                                                "underlying model will be computed at compute_times for {} but exposed at dataset times in order to include gaussian processes".format("@".join([time_param.dataset, time_param.component] if time_param.component is not None else [time_param.dataset])),
+                                                [self.get_parameter(qualifier='compute_times', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                                 self.get_parameter(qualifier='compute_phases', dataset=dataset, context='dataset', **_skip_filter_checks),
+                                                 time_param]+self.filter(qualifier='enabled', feature=compute_enabled_gps, **_skip_filter_checks).to_list()+addl_parameters,
+                                                 False, 'run_compute')
 
             # 2.2 disables support for boosting.  The boosting parameter in 2.2 only has 'none' as an option, but
             # importing a bundle from old releases may still have 'linear' as an option, so we'll check here
@@ -4824,6 +4857,8 @@ class Bundle(ParameterSet):
     def add_spot(self, component=None, feature=None, **kwargs):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='spot'.
+
+        For details on the resulting parameters, see <phoebe.parameters.feature.spot>.
         """
         if component is None:
             if len(self.hierarchy.get_stars())==1:
@@ -4860,6 +4895,8 @@ class Bundle(ParameterSet):
     def add_gaussian_process(self, dataset=None, feature=None, **kwargs):
         """
         Shortcut to <phoebe.frontend.bundle.Bundle.add_feature> but with kind='gaussian_process'.
+
+        For details on the resulting parameters, see <phoebe.parameters.feature.gaussian_process>.
         """
         if dataset is None:
             if len(self.datasets)==1:
@@ -9969,17 +10006,21 @@ class Bundle(ParameterSet):
                                 raise ValueError("gaussian_process requires sigma of same length as {}".format(xqualifier))
                             gp_kernel.compute(ds_x, ds_sigmas, check_sorted=True)
 
-                            residuals = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=False)
-                            gp_y = gp_kernel.predict(residuals, model_x, return_cov=False)
+                            residuals, model_y_dstimes = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, return_interp_model=True, as_quantity=False, consider_gaussian_process=False)
+                            gp_y = gp_kernel.predict(residuals, ds_x, return_cov=False)
                             model_y = model_ps.get_quantity(qualifier=yqualifier, dataset=ds, component=ds_comp, **_skip_filter_checks)
 
                             # store just the GP component in the model PS as well
                             gp_param = FloatArrayParameter(qualifier='gps', value=gp_y, default_unit=model_y.unit, readonly=True, description='GP contribution to the model {}'.format(yqualifier))
-                            y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
+                            y_nogp_param = FloatArrayParameter(qualifier='{}_nogps'.format(yqualifier), value=model_y_dstimes, default_unit=model_y.unit, readonly=True, description='{} before adding gps'.format(yqualifier))
+                            if not np.all(ds_x == model_x):
+                                logger.warning("model for dataset='{}' resampled at dataset times when adding GPs".format(ds))
+                                model_ps.set_value(qualifier=xqualifier, dataset=ds, component=ds_comp, value=ds_x, ignore_readonly=True, **_skip_filter_checks)
+
                             self._attach_params([gp_param, y_nogp_param], check_copy_for=False, **metawargs)
 
                             # update the model to include the GP contribution
-                            model_ps.set_value(qualifier=yqualifier, value=model_y.value+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
+                            model_ps.set_value(qualifier=yqualifier, value=model_y_dstimes+gp_y, dataset=ds, component=ds_comp, ignore_readonly=True, **_skip_filter_checks)
 
 
             redo_kwargs = _deepcopy(kwargs)

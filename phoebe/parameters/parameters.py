@@ -3330,6 +3330,7 @@ class ParameterSet(object):
         return self.get_parameter(twig=twig, **kwargs).get_description()
 
     def calculate_residuals(self, model=None, dataset=None, component=None,
+                            consider_gaussian_process=True,
                             as_quantity=True, return_interp_model=False,
                             mask_enabled=None, mask_phases=None):
         """
@@ -3359,6 +3360,9 @@ class ParameterSet(object):
         * `component` (string, optional, default=None): component for comparison.
             Required only if more than one component exist in the dataset (for
             RVs, for example)
+        * `consider_gaussian_process` (bool, optional, defult=True): whether
+            to consider a system with gaussian process(es) as time-dependent
+            for any required interpolation.
         * `as_quantity` (bool, default=True): whether to return a quantity object.
         * `return_interp_model` (bool, default=False): whether to also return
             the interpolated model used to compute the residuals.
@@ -3437,8 +3441,8 @@ class ParameterSet(object):
         if dataset_param.default_unit != model_param.default_unit:
             raise ValueError("model and dataset do not have the same default_unit, cannot interpolate")
 
-        model_interp = model_param.interp_value(times=times)
-        residuals = np.asarray(dataset_param.interp_value(times=times) - model_interp)
+        model_interp = model_param.interp_value(times=times, consider_gaussian_process=consider_gaussian_process)
+        residuals = np.asarray(dataset_param.interp_value(times=times, consider_gaussian_process=consider_gaussian_process) - model_interp)
 
         if as_quantity:
             if return_interp_model:
@@ -3451,7 +3455,8 @@ class ParameterSet(object):
             else:
                 return residuals
 
-    def calculate_chi2(self, model=None, dataset=None, component=None):
+    def calculate_chi2(self, model=None, dataset=None, component=None,
+                       consider_gaussian_process=True):
         """
         Compute the chi2 between a model and the observed values in the dataset(s).
 
@@ -3493,6 +3498,8 @@ class ParameterSet(object):
             comparison.  Required only if more than one component exist in the
             dataset (for RVs, for example) and not all should be included in
             the chi2
+        * `consider_gaussian_process` (bool, optional, defult=True): whether
+            to consider a system with gaussian process(es) as time-dependent
 
         Returns
         -----------
@@ -3516,7 +3523,10 @@ class ParameterSet(object):
                 ds_comps = [None]
 
             for ds_comp in ds_comps:
-                residuals, model_interp = self.calculate_residuals(model=model, dataset=ds, component=ds_comp, as_quantity=True, return_interp_model=True)
+                residuals, model_interp = self.calculate_residuals(model=model, dataset=ds, component=ds_comp,
+                                                                   return_interp_model=True,
+                                                                   consider_gaussian_process=consider_gaussian_process,
+                                                                   as_quantity=True)
                 ds_ps = self._bundle.get_dataset(dataset=ds, **_skip_filter_checks)
                 sigmas = ds_ps.get_value(qualifier='sigmas', component=ds_comp, unit=residuals.unit, **_skip_filter_checks)
                 sigmas_lnf = ds_ps.get_value(qualifier='sigmas_lnf', component=ds_comp, default=-np.inf, **_skip_filter_checks)
@@ -9083,7 +9093,8 @@ class FloatArrayParameter(FloatParameter):
         np.set_printoptions(**opt)
         return str_
 
-    def interp_value(self, unit=None, component=None, t0='t0_supconj', **kwargs):
+    def interp_value(self, unit=None, component=None, t0='t0_supconj',
+                     consider_gaussian_process=True, **kwargs):
         """
         Interpolate to find the value in THIS array given a value from
         ANOTHER array in the SAME parent <phoebe.parameters.ParameterSet>
@@ -9113,8 +9124,8 @@ class FloatArrayParameter(FloatParameter):
         case the 'times' qualifier must be found in the ParentPS.  Interpolating
         in phase-space is only allowed if there are no time derivatives present
         in the system.  This can be checked with
-        <phoebe.parameters.HierarchyParameter.is_time_dependent>.  To interpolate
-        in phases:
+        <phoebe.parameters.HierarchyParameter.is_time_dependent>(`consider_gaussian_process=consider_gaussian_process`).
+        To interpolate in phases:
 
         ```
         b['fluxes@lc01@model'].interp_value(phases=0.5)
@@ -9144,6 +9155,8 @@ class FloatArrayParameter(FloatParameter):
         * `t0` (string/float, optional, default='t0_supconj'): if interpolating
             in phases, `t0` will be passed along to
              <phoebe.frontend.bundle.Bundle.to_phase>.
+        * `consider_gaussian_process` (bool, optional, defult=True): whether
+            to consider a system with gaussian process(es) as time-dependent.
         * `**kwargs`: see examples above, must provide a single
             qualifier-value pair to use for interpolation.  In most cases
             this will probably be time=value or wavelength=value.  If the value
@@ -9222,7 +9235,7 @@ class FloatArrayParameter(FloatParameter):
                 raise NotImplementedError("iterpolation not supported for sample_mode='{}'".format(sample_mode))
 
         if qualifier=='phases':
-            if bundle.hierarchy.is_time_dependent():
+            if bundle.hierarchy.is_time_dependent(consider_gaussian_process=consider_gaussian_process):
                 raise ValueError("cannot interpolate in phase for time-dependent systems")
 
             times = parent_ps.get_value(qualifier='times', **_skip_filter_checks)
@@ -10328,7 +10341,7 @@ class HierarchyParameter(StringParameter):
 
         return False
 
-    def is_time_dependent(self):
+    def is_time_dependent(self, consider_gaussian_process=True):
         """
         Return whether the system has any time-dependent parameters (other than
         phase-dependence).
@@ -10338,7 +10351,13 @@ class HierarchyParameter(StringParameter):
         * `dperdt` is non-zero
         * a feature (eg. spot) is attached to an asynchronous star (with
             non-unity value for `syncpar`).
-        * a gaussian_process feature is attached to any dataset
+        * a gaussian_process feature is attached to any dataset, unless
+            `consider_gaussian_process` is False.
+
+        Arguments
+        ---------
+        * `consider_gaussian_process` (bool, optional, defult=True): whether
+            to consider a system with gaussian process(es) as time-dependent
 
         Returns
         ---------
@@ -10358,7 +10377,7 @@ class HierarchyParameter(StringParameter):
                 return True
 
         # TODO: allow passing compute to do only enabled features attached to enabled datasets?
-        if len(self._bundle.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features):
+        if consider_gaussian_process and len(self._bundle.filter(kind='gaussian_process', context='feature', **_skip_filter_checks).features):
             return True
 
         return False
