@@ -1990,6 +1990,8 @@ class JktebopBackend(BaseBackendByDataset):
         orbitref = orbitrefs[0]
 
         ringsize = computeparams.get_value(qualifier='ringsize', unit=u.deg, ringsize=kwargs.get('ringsize', None), **_skip_filter_checks)
+        distortion_method = computeparams.get_value(qualifier='distortion_method', distortion_method=kwargs.get('distortion_method', None), **_skip_filter_checks)
+        irrad_method = computeparams.get_value(qualifier='irrad_method', irrad_method=kwargs.get('irrad_method', None), **_skip_filter_checks)
 
         rA = b.get_value(qualifier='requiv', component=starrefs[0], context='component', unit=u.solRad, **_skip_filter_checks)
         rB = b.get_value(qualifier='requiv', component=starrefs[1], context='component', unit=u.solRad, **_skip_filter_checks)
@@ -2009,6 +2011,8 @@ class JktebopBackend(BaseBackendByDataset):
                     starrefs=starrefs,
                     oritref=orbitref,
                     ringsize=ringsize,
+                    distortion_method=distortion_method,
+                    irrad_method=irrad_method,
                     rA=rA, rB=rB,
                     sma=sma, incl=incl, q=q,
                     ecosw=ecosw, esinw=esinw,
@@ -2025,11 +2029,15 @@ class JktebopBackend(BaseBackendByDataset):
         starrefs = kwargs.get('starrefs')
         orbitref = kwargs.get('orbitref')
         ringsize = kwargs.get('ringsize')
+        distortion_method = kwargs.get('distortion_method')
+        irrad_method = kwargs.get('irrad_method')
         rA = kwargs.get('rA')
         rB = kwargs.get('rB')
         sma = kwargs.get('sma')
         incl = kwargs.get('incl')
         q = kwargs.get('q')
+        if distortion_method == 'sphere':
+            q *= -1
         ecosw = kwargs.get('ecosw')
         esinw = kwargs.get('esinw')
         gravbA = kwargs.get('gravbA')
@@ -2046,7 +2054,6 @@ class JktebopBackend(BaseBackendByDataset):
         ldcoeffsA = b.get_value(qualifier='ld_coeffs', component=starrefs[0], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
         ldcoeffsB = b.get_value(qualifier='ld_coeffs', component=starrefs[1], dataset=info['dataset'], context='dataset', **_skip_filter_checks)
 
-        irrad_method = b.get_value(qualifier="irrad_method", compute=compute, context='compute', **_skip_filter_checks)
         if irrad_method == "biaxial-spheroid":
             albA = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[0], context='component', **_skip_filter_checks)
             albB = b.get_value(qualifier='irrad_frac_refl_bol', component=starrefs[1], context='component', **_skip_filter_checks)
@@ -2074,16 +2081,63 @@ class JktebopBackend(BaseBackendByDataset):
             raise ValueError("jktebop only accepts the following options for ld_func: {}".format(ldfuncs.keys()))
 
         # create the input file for jktebop
-        tmpfilenamein = next(tempfile._get_candidate_names())
-        tmpfilenameout = next(tempfile._get_candidate_names())
-        fi = open(tmpfilenamein, 'w')
-        #~ fi.write("# JKTEBOP input file created by PHOEBE\n")
+        # uncomment this block, comment out the following block and the os.remove at the end
+        # for testing
+        # tmpfilenamein = 'jktebop.in'
+        # tmpfilenamelcin = 'jktebop.lc.in'
+        # tmpfilenamelcout = 'jktebop.lc.out'
+        # tmpfilenamervin = 'jktebop.rv.in'
+        # tmpfilenamervout = 'jktebop.rv.out'
+        # tmpfilenameparamout = 'jktebop.param.out'
+        # tmpfilenamemodelout = 'jktebop.model.out'
+        # tmpfilenameout = 'jktebop.out'
+        # try:
+        #     os.remove(tmpfilenamein)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenamelcin)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenamelcout)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenamervin)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenamervout)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenameparamout)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenamemodelout)
+        # except: pass
+        # try:
+        #     os.remove(tmpfilenameout)
+        # except: pass
 
-        # We always want task 2 - according to jktebop's website:
-        # Task 2 	This inputs a parameter file and calculates a
-        # synthetic light curve (10000 points between phases 0 and 1)
-        # using the parameters you put in the file.
-        fi.write('{:5} {:11} Task to do (from 1 to 9)   Integ. ring size (deg)\n'.format(2, ringsize))
+        tmpfilenamein = next(tempfile._get_candidate_names())
+        tmpfilenamelcin = next(tempfile._get_candidate_names())
+        tmpfilenamelcout = next(tempfile._get_candidate_names())
+        if info['kind'] == 'rv':
+            tmpfilenamervin = next(tempfile._get_candidate_names())
+            tmpfilenamervout = next(tempfile._get_candidate_names())
+        tmpfilenameparamout = next(tempfile._get_candidate_names())
+        tmpfilenamemodelout = next(tempfile._get_candidate_names())
+        tmpfilenameout = next(tempfile._get_candidate_names())
+
+
+        fi = open(tmpfilenamein, 'w')
+
+        # Task 3	This inputs a parameter file (containing estimated parameter
+        # values) and an observed light curve. It fits the light curve using
+        # Levenberg-Marquardt minimisation and produces an output parameter file,
+        # a file of residuals of the observations, and file containing the best
+        # fit to the light curve (as in Task 2). The parameter values have formal
+        # errors (from the covariance matrix found by the minimisation algorithm)
+        # but these are not overall uncertainties. You will need to run other
+        # tasks to get reliable parameter uncertainties.
+        fi.write('{:5} {:11} Task to do (from 1 to 9)   Integ. ring size (deg)\n'.format(3, ringsize))
         fi.write('{:5} {:11} Sum of the radii           Ratio of the radii\n'.format((rA+rB)/sma, rA/rB))
         fi.write('{:5} {:11} Orbital inclination (deg)  Mass ratio of the system\n'.format(incl, q))
 
@@ -2120,11 +2174,10 @@ class JktebopBackend(BaseBackendByDataset):
         fi.write(' {:d}  {:d}             Adjust PHASESHIFT or SCALE FACTOR (0, 1, 2, 3)\n'.format(0, 0))
         fi.write(' {:d}  {:d}             Adjust PERIOD or TZERO (min light) (0, 1, 2, 3)\n'.format(0, 0))
 
-        #~ fi.write('{}  Name of file containing light curve\n'.format("_tmp_jktebop_lc_in"))
-        #~ fi.write('{}  Name of output parameter file\n'.format("_tmp_jktebop_param"))
-        #~ fi.write('{}  Name of output light curve file\n'.format("_tmp_jktebop_lc_out"))
-        #~ fi.write('{}  Name of output model light curve fit file\n'.format("_tmp_jktebop_modelfit_out"))
-        #~ fi.write('{}\n')
+        fi.write('{}  Name of file containing light curve\n'.format(tmpfilenamelcin))
+        fi.write('{}  Name of output parameter file\n'.format(tmpfilenameparamout))
+        fi.write('{}  Name of output light curve file\n'.format(tmpfilenamelcout))
+        fi.write('{}  Name of output model light curve fit file\n'.format(tmpfilenamemodelout))
 
         # According to jktebop's readme.txt:
         # FITTING FOR RADIAL VELOCITIES:    the observed RVs should be in separate files
@@ -2139,8 +2192,12 @@ class JktebopBackend(BaseBackendByDataset):
         # The mass ratio parameter is not used for the RVs, only for the light curve.
         # If you want to fix the systemic velocity for star B to that for star A, simply
         # set vary(Vsys) for star B to be equal to -1
-        #~ fi.write('rv1 llaqr-rv1.dat llaqr-rv1.out 55.0 -10.0 1 1\n')
-        #~ fi.write('rv2 llaqr-rv2.dat llaqr-rv2.out 55.0 -10.0 1 1\n')
+        #~ fi.write('rv1 llaqr-rv1.dat llaqr-rv1.out 55.0 -10.0 0 0\n')
+        #~ fi.write('rv2 llaqr-rv2.dat llaqr-rv2.out 55.0 -10.0 0 0\n')
+        if info['kind'] == 'rv':
+            # NOTE: we disable systemic velocity as it will be added in bundle.run_compute
+            K = np.pi * (sma*u.solRad).to(u.km).value * np.sin((incl*u.deg).to(u.rad).value) / (period*u.d).to(u.s).value
+            fi.write('{} {} {} {} {} 0 0\n'.format('rv1' if info['component'] == starrefs[0] else 'rv2', tmpfilenamervin, tmpfilenamervout, K, 0.0))
 
 
         # According to jktebop's readme.txt:
@@ -2148,55 +2205,71 @@ class JktebopBackend(BaseBackendByDataset):
         # occupying a total time interval of NINTERVAL (seconds) by including this line:
         #   NUMI  [numint]  [ninterval]
 
-        # TODO: allow exposure times
+        # TODO: allow exposure times?
 
 
         fi.close()
 
-        # TODO: create_tmp_jktebop_lc_in - probably with times and dummy fluxes if none are in the obs
-        #~ flc = open('_tmp_jktebop_lc_in', 'w')
-        #~ times = b.get_value(qualifier='times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
-        #~ fluxes = b.get_value(qualifier='flux', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
-
-        #~ if len(fluxes) < len(times):
-            #~ # then just provide dummy fluxes - we're not using
-            #~ # jktebop for fitting anyways, it really just needs the times
-            #~ fluxes = [1.]*len(times)
-
-        #~ for t,f in zip(times, fluxes):
-            #~ flc.write('{}\t{}\n'.format(t,t))
-        #~ flc.close()
+        if info['kind'] == 'lc':
+            np.savetxt(tmpfilenamelcin, np.asarray([info['times'], np.ones_like(info['times'])]).T, fmt='%f')
+        elif info['kind'] == 'rv':
+            # we don't technically need them, but otherwise jktebop complains about not enough data to "fit" for task 3, even though we're holding everything fixed
+            np.savetxt(tmpfilenamelcin, np.asarray([info['times'], np.ones_like(info['times'])]).T, fmt='%f')
+            np.savetxt(tmpfilenamervin, np.asarray([info['times'], np.ones_like(info['times'])]).T, fmt='%f')
+        else:
+            raise NotImplementedError()
 
         # run jktebop
         out = commands.getoutput("jktebop {} > {}".format(tmpfilenamein, tmpfilenameout))
 
-        # parse output
-        phases_all, mags_all, l1, l2, l3 = np.loadtxt(str(period), unpack=True)
-        #~ time, flux = np.loadtxt("_tmp_jktebop_lc_out", unpack=True)
+
 
         # fill packets
         packetlist = []
 
-        # phases_all, mags_all are 10001 evenly-spaced phases, so we need to interpolate
-        # to get at the desired times
-        times_all = b.to_time(phases_all)  # in days
-        mags_interp = np.interp(info['times'], times_all, mags_all)
+        if info['kind'] == 'lc':
+            # parse output
+            times, _, _, _, mags, _ = np.loadtxt(tmpfilenamelcout, unpack=True)
 
-        logger.warning("converting from mags from jktebop to flux")
-        fluxes = 10**((0.0-mags_interp)/2.5)
-        fluxes /= np.max(fluxes)
+            logger.warning("converting from mags from jktebop to flux")
+            fluxes = 10**((0.0-mags)/2.5)
+            fluxes /= np.max(fluxes)
 
-        packetlist.append(_make_packet('times',
-                                       info['times']*u.d,
-                                       None,
-                                       info))
+            packetlist.append(_make_packet('times',
+                                           info['times']*u.d,
+                                           None,
+                                           info))
 
-        packetlist.append(_make_packet('fluxes',
-                                       fluxes,
-                                       None,
-                                       info))
+            packetlist.append(_make_packet('fluxes',
+                                           fluxes,
+                                           None,
+                                           info))
+
+        elif info['kind'] == 'rv':
+            times, _, _, _, rvs, _ = np.loadtxt(tmpfilenamervout, unpack=True)
+
+            packetlist.append(_make_packet('times',
+                                           info['times']*u.d,
+                                           None,
+                                           info))
+
+            packetlist.append(_make_packet('rvs',
+                                           rvs*u.km/u.s,
+                                           None,
+                                           info))
+
+        else:
+            raise NotImplementedError()
+
 
         os.remove(tmpfilenamein)
+        os.remove(tmpfilenamelcin)
+        os.remove(tmpfilenamelcout)
+        if info['kind'] == 'rv':
+            os.remove(tmpfilenamervin)
+            os.remove(tmpfilenamervout)
+        os.remove(tmpfilenameparamout)
+        os.remove(tmpfilenamemodelout)
         os.remove(tmpfilenameout)
 
         return packetlist
