@@ -2138,7 +2138,7 @@ class JktebopBackend(BaseBackendByDataset):
         # but these are not overall uncertainties. You will need to run other
         # tasks to get reliable parameter uncertainties.
         fi.write('{:5} {:11} Task to do (from 1 to 9)   Integ. ring size (deg)\n'.format(3, ringsize))
-        fi.write('{:5} {:11} Sum of the radii           Ratio of the radii\n'.format((rA+rB)/sma, rA/rB))
+        fi.write('{:5} {:11} Sum of the radii           Ratio of the radii\n'.format((rA+rB)/sma, rB/rA))
         fi.write('{:5} {:11} Orbital inclination (deg)  Mass ratio of the system\n'.format(incl, q))
 
         # we'll provide ecosw and esinw instead of ecc and long_an
