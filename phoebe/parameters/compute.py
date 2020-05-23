@@ -481,6 +481,9 @@ def jktebop(**kwargs):
     ----------
     * `enabled` (bool, optional, default=True): whether to create synthetics in
         compute/solver runs.
+    * `requiv_max_limit` (float, optional, default=0.5): Maximum allowed fraction
+        of requiv_max (as jktebop does not handle highly distorted systems)
+        before raising an error in <phoebe.frontend.bundle.Bundle.run_checks_compute>.
     * `atm` (string, optional, default='ck2003'): Atmosphere table to use when
         estimating passband luminosities and flux scaling (see pblum_method).
         Note jktebop itself does not support atmospheres.
@@ -514,6 +517,8 @@ def jktebop(**kwargs):
 
     params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['lc', 'rv'], 'dataset': '*'}, dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/solver run')]
     # params += [BoolParameter(qualifier='enabled', copy_for={'context': 'feature', 'kind': [], 'feature': '*'}, feature='_default', value=kwargs.get('enabled', True), description='Whether to enable the feature in compute/solver run')]
+
+    params += [FloatParameter(qualifier='requiv_max_limit', value=kwargs.get('requiv_max_limit', 0.5), limits=(0.01,1), default_unit=u.dimensionless_unscaled, advanced=True, description='Maximum allowed fraction of requiv_max (as jktebop does not handle highly distorted systems) before raising an error in run_checks_compute.')]
 
     params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), advanced=True, choices=_atm_choices, description='Atmosphere table to use when estimating passband luminosities and flux scaling (see pblum_method).  Note jktebop itself does not support atmospheres.')]
     params += [ChoiceParameter(qualifier='pblum_method', value=kwargs.get('pblum_method', 'stefan-boltzmann'), choices=['stefan-boltzmann', 'phoebe'], description='Method to estimate passband luminosities and handle scaling of returned fluxes from jktebop.  stefan-boltzmann: approximate the star as a uniform sphere and estimate the luminosities from teff, requiv, logg, and abun from the internal passband and atmosphere tables.  phoebe: build the mesh using roche distortion at time t0 and compute luminosities use the internal atmosphere tables (considerable overhead, but more accurate for distorted stars).')]

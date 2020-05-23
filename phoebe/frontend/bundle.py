@@ -3924,6 +3924,7 @@ class Bundle(ParameterSet):
                                         ]+addl_parameters,
                                         False, 'run_compute')
 
+            # ellc-specific checks
             if compute_kind == 'ellc':
                 irrad_method = self.get_value(qualifier='irrad_method', compute=compute, context='compute', **_skip_filter_checks)
                 rv_datasets = self.filter(kind='rv', context='dataset', **_skip_filter_checks).datasets
@@ -3942,6 +3943,22 @@ class Bundle(ParameterSet):
                                         self.filter(qualifier='rv_method', compute=compute, component=offending_components, context='compute', **_skip_filter_checks).to_list()+
                                         self.filter(qualifier='enabled', kind='rv', compute=compute, context='compute', value=True, **_skip_filter_checks).to_list()+
                                         self.filter(qualifier='irrad_frac_refl_bol', component=offending_components, context='component', **_skip_filter_checks).to_list()+
+                                        addl_parameters,
+                                        True, 'run_compute')
+
+            # jktebop-specific checks
+            if compute_kind == 'jktebop':
+                requiv_max_limit = self.get_value(qualifier='requiv_max_limit', compute=compute, context='compute', requiv_max_limit=kwargs.get('requiv_max_limit', None), **_skip_filter_checks)
+                for component in hier_stars:
+                    requiv = self.get_value(qualifier='requiv', component=component, context='component', unit=u.solRad, **_skip_filter_checks)
+                    requiv_max = self.get_value(qualifier='requiv_max', component=component, context='component', unit=u.solRad, **_skip_filter_checks)
+
+                    if requiv > requiv_max_limit * requiv_max:
+                        report.add_item(self,
+                                        "requiv@{} ({}) > requiv_max_limit ({}) * requiv_max ({}): past user-set limit for allowed distortion for jktebop (compute='{}')".format(component, requiv, requiv_max_limit, requiv_max, compute),
+                                        self.filter(qualifier='requiv_max_limit', compute=compute, context='compute', **_skip_filter_checks).to_list()+
+                                        self.filter(qualifier=['requiv', 'requiv_max'], component=component, context='component', **_skip_filter_checks).to_list()+
+                                        self.filter(qualifier=['sma'], component=self.hierarchy.get_parent_of(component), context='component', **_skip_filter_checks).to_list()+
                                         addl_parameters,
                                         True, 'run_compute')
 
