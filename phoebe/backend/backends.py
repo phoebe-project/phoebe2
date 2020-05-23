@@ -2415,6 +2415,12 @@ class EllcBackend(BaseBackendByDataset):
         f_c = np.sqrt(ecc) * np.cos(w)
         f_s = np.sqrt(ecc) * np.sin(w)
 
+        # lambda_1/2 : {None, float},  optional
+         # Sky-projected angle between orbital and rotation axes, star 1/2 [degrees]
+         # N.B. lambda_1/2 is only used if shape_1='sphere'
+        lambda_1 = b.get_value(qualifier='yaw', component=starrefs[0], context='component', unit=u.deg)
+        lambda_2 = b.get_value(qualifier='yaw', component=starrefs[1], context='component', unit=u.deg)
+
         return dict(compute=compute,
                     starrefs=starrefs,
                     oritref=orbitref,
@@ -2432,6 +2438,7 @@ class EllcBackend(BaseBackendByDataset):
                     gdc_1=gdc_1, gdc_2=gdc_2,
                     rotfac_1=rotfac_1, rotfac_2=rotfac_2,
                     heat_1=heat_1, heat_2=heat_2,
+                    lambda_1=lambda_1, lambda_2=lambda_2,
                     spots_1=spots_1, spots_2=spots_2,
                     pblums=kwargs.get('pblums'))
 
@@ -2583,6 +2590,9 @@ class EllcBackend(BaseBackendByDataset):
             t_exp = 0
             n_int = 1
 
+            lambda_1 = kwargs.get('lambda_1')
+            lambda_2 = kwargs.get('lambda_2')
+
             logger.info("calling ellc.rv for dataset='{}'".format(info['dataset']))
             rvs1, rvs2 = ellc.rv(t_obs=info['times'],
                                  radius_1=radius_1, radius_2=radius_2,
@@ -2601,7 +2611,7 @@ class EllcBackend(BaseBackendByDataset):
                                  hf_1=hf_1, hf_2=hf_2,
                                  bfac_1=None, bfac_2=None,
                                  heat_1=heat_1, heat_2=heat_2,
-                                 lambda_1=None, lambda_2=None,
+                                 lambda_1=lambda_1, lambda_2=lambda_2,
                                  vsini_1=0., vsini_2=0.,
                                  t_exp=t_exp, n_int=n_int,
                                  grid_1=grid_1, grid_2=grid_2,

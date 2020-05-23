@@ -3859,6 +3859,29 @@ class Bundle(ParameterSet):
                                 ]+addl_parameters,
                                 True, 'run_compute')
 
+            # misalignment checks
+            if compute_kind != 'phoebe' and np.any([p.get_value() != 0 for p in self.filter(qualifier=['pitch', 'yaw'], context='component', **_skip_filter_checks).to_list()]):
+                # then we have a misaligned system in an alternate backend
+                if compute_kind == 'ellc':
+                    if np.all([p.get_value(distortion_method=kwargs.get('distortion_method')) == 'sphere' for p in self.filter(qualifier='distortion_method', compute=compute, context='compute', **_skip_filter_checks).to_list()]):
+                        # then misalignment is supported, but we'll raise a warning that it only handles RM in RVs
+                        report.add_item(self,
+                                        "ellc (compute='{}') only considers misalginment for the Rossiter-McLaughlin contribution to RVs".format(compute),
+                                        self.filter(qualifier=['pitch', 'yaw'], context='component', **_skip_filter_checks).to_list()+addl_parameters,
+                                        False, 'run_compute')
+                    else:
+                        report.add_item(self,
+                                        "ellc (compute='{}') only supports misalignment (for Rossiter-McLaughlin contribution to RVs) with distortion_method='sphere'".format(compute),
+                                        self.filter(qualifier=['pitch', 'yaw'], context='component', **_skip_filter_checks).to_list()+
+                                        self.filter(qualifier='distortion_method', compute=compute, context='compute', **_skip_filter_checks).to_list()+addl_parameters,
+                                        True, 'run_compute')
+                else:
+                    report.add_item(self,
+                                    "compute='{}' with kind {} does not support misalignment".format(compute, compute_kind),
+                                    self.filter(qualifier=['pitch', 'yaw'], context='component', **_skip_filter_checks).to_list()+
+                                    self.filter(qualifier='distortion_method', compute=compute, context='compute', **_skip_filter_checks).to_list()+addl_parameters,
+                                    True, 'run_compute')
+
             # mesh-consistency checks
             mesh_methods = [p.get_value(mesh_method=kwargs.get('mesh_method', None)) for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True, check_default=True, check_visible=False).to_list()]
             if 'wd' in mesh_methods:
