@@ -9104,6 +9104,8 @@ class Bundle(ParameterSet):
         <phoebe.list_available_computes> and include:
         * <phoebe.parameters.compute.phoebe>
         * <phoebe.parameters.compute.legacy>
+        * <phoebe.parameters.compute.ellc>
+        * <phoebe.parameters.compute.jktebop>
 
         Arguments
         ----------
