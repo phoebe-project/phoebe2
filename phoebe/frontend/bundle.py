@@ -9104,6 +9104,8 @@ class Bundle(ParameterSet):
         <phoebe.list_available_computes> and include:
         * <phoebe.parameters.compute.phoebe>
         * <phoebe.parameters.compute.legacy>
+        * <phoebe.parameters.compute.ellc>
+        * <phoebe.parameters.compute.jktebop>
 
         Arguments
         ----------
@@ -9380,10 +9382,11 @@ class Bundle(ParameterSet):
         # any kwargs that were used just to filter for get_compute should  be
         # removed so that they aren't passed on to all future get_value(...
         # **kwargs) calls
-        computes_ps = self.get_compute(compute=compute, check_visible=False, **kwargs)
-        for k in parameters._meta_fields_filter:
-            if k in kwargs.keys():
-                dump = kwargs.pop(k)
+        for compute_ in computes:
+            computes_ps = self.get_compute(compute=compute_, check_visible=False, **kwargs)
+            for k in parameters._meta_fields_filter:
+                if k in kwargs.keys():
+                    dump = kwargs.pop(k)
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
@@ -9393,7 +9396,7 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, allowed_kwargs, ps=computes_ps)
 
         if not kwargs.get('skip_checks', False):
-            report = self.run_checks_compute(compute=compute, allow_skip_constraints=False,
+            report = self.run_checks_compute(compute=computes, allow_skip_constraints=False,
                                              raise_logger_warning=True, raise_error=True,
                                              run_checks_system=True,
                                              **kwargs)
