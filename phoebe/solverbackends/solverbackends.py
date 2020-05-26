@@ -244,7 +244,7 @@ def _sample_ppf(ppf_values, distributions_list):
 
     return x
 
-def _get_combined_lc(b, datasets, phase_component=None, mask=True, normalize=True, phase_sorted=False):
+def _get_combined_lc(b, datasets, combine, phase_component=None, mask=True, normalize=True, phase_sorted=False):
     times = np.array([])
     fluxes = np.array([])
     sigmas = np.array([])
@@ -268,9 +268,15 @@ def _get_combined_lc(b, datasets, phase_component=None, mask=True, normalize=Tru
             ds_sigmas = 0.001*fluxes.mean()*np.ones(len(fluxes))
 
         if normalize:
-            flux_max = ds_fluxes.max()
-            ds_fluxes /= flux_max
-            ds_sigmas /= flux_max
+            if combine == 'max':
+                flux_norm = np.nanmax(ds_fluxes)
+            elif combine == 'median':
+                flux_norm = np.nanmedian(ds_fluxes)
+            else:
+                raise NotImplementedError()
+
+            ds_fluxes /= flux_norm
+            ds_sigmas /= flux_norm
 
         mask_enabled = lc_ps.get_value(qualifier='mask_enabled', default=False, **_skip_filter_checks)
         if mask and mask_enabled:
@@ -565,9 +571,10 @@ class Lc_GeometryBackend(BaseSolverBackend):
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
         lc_datasets = kwargs.get('lc_datasets') # NOTE: already expanded
+        lc_combine = kwargs.get('lc_combine')
         orbit = kwargs.get('orbit')
 
-        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, phase_component=orbit, mask=True, normalize=True, phase_sorted=True)
+        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True)
 
         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
         ecc_param = orbit_ps.get_parameter(qualifier='ecc', **_skip_filter_checks)
@@ -893,7 +900,7 @@ class Lc_PeriodogramBackend(_PeriodogramBaseBackend):
         # TODO: check to make sure fluxes exist, etc
 
     def get_observations(self, b, **kwargs):
-        times, phases, fluxes, sigmas = _get_combined_lc(b, kwargs.get('lc_datasets'), mask=False, normalize=True, phase_sorted=False)
+        times, phases, fluxes, sigmas = _get_combined_lc(b, kwargs.get('lc_datasets'), kwargs.get('lc_combine'), mask=False, normalize=True, phase_sorted=False)
         return times, fluxes, sigmas
 
 class Rv_PeriodogramBackend(_PeriodogramBaseBackend):
@@ -967,11 +974,12 @@ class EbaiBackend(BaseSolverBackend):
             # TODO: we need to tell the workers to join the pool for time-parallelization?
 
         lc_datasets = kwargs.get('lc_datasets') # NOTE: already expanded
+        lc_combine = kwargs.get('lc_combine')
         orbit = kwargs.get('orbit')
 
         orbit_ps = b.get_component(component=orbit, **_skip_filter_checks)
 
-        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, phase_component=orbit, mask=True, normalize=True, phase_sorted=True)
+        times, phases, fluxes, sigmas = _get_combined_lc(b, lc_datasets, lc_combine, phase_component=orbit, mask=True, normalize=True, phase_sorted=True)
 
         # TODO: cleanup this logic a bit
         ecl_positions = lc_geometry.estimate_eclipse_positions_widths(phases, fluxes)['ecl_positions']

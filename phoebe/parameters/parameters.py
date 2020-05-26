@@ -252,7 +252,7 @@ _forbidden_labels += ['enabled', 'dynamics_method', 'ltte', 'comments',
 
 # from solver:
 _forbidden_labels += ['nwalkers', 'niters', 'priors', 'init_from',
-                      'lc_datasets', 'rv_datasets',
+                      'lc_datasets', 'rv_datasets', 'lc_combine',
                       'algorithm', 'duration', 'minimum_n_cycles', 'frequency_factor',
                       'samples_per_peak', 'nyquist_factor',
                       't0_near_times', 'sample_periods', 'sample_frequencies', 'objective',
@@ -6413,6 +6413,8 @@ class Parameter(object):
                     return param.get_value() in value.split("|")
                 elif value=='<notempty>':
                     return len(param.get_value(expand=True)) > 0
+                elif value=='<plural>':
+                    return len(param.get_value(expand=True)) > 1
                 elif value=='<empty>':
                     return len(param.get_value(expand=True)) == 0
                 elif isinstance(value, str) and value[0] == '<' and value[-1] == '>':

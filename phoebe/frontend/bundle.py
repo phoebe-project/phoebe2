@@ -9383,7 +9383,7 @@ class Bundle(ParameterSet):
         # removed so that they aren't passed on to all future get_value(...
         # **kwargs) calls
         for compute_ in computes:
-            computes_ps = self.get_compute(compute=compute_, check_visible=False, **kwargs)
+            computes_ps = self.get_compute(compute=compute_, kind=kwargs.get('kind'), **_skip_filter_checks)
             for k in parameters._meta_fields_filter:
                 if k in kwargs.keys():
                     dump = kwargs.pop(k)
@@ -10617,7 +10617,7 @@ class Bundle(ParameterSet):
 
         self._check_label(solution, allow_overwrite=kwargs.get('overwrite', solution=='latest'))
 
-        solver_ps = self.get_solver(solver=solver, **_skip_filter_checks)
+        solver_ps = self.get_solver(solver=solver, kind=kwargs.get('kind'), **_skip_filter_checks)
         if solver_ps is None:
             raise ValueError("could not find solver with solver={} kwargs={}".format(solver, kwargs))
 

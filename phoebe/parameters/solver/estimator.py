@@ -30,8 +30,9 @@ def lc_periodogram(**kwargs):
     requirements are not met, an error will be raised when attempting to call
     <phoebe.frontend.bundle.Bundle.run_solver>.
 
-    The input light curve datasets (`lc_datasets`) are each normalized and
-    combined.  These combined data are then sent to the respective periodgram
+    The input light curve datasets (`lc_datasets`) are each normalized
+    according to `lc_combine` and then combined.
+    These combined data are then sent to the respective periodgram
     `algorithm` and the resulting period
     corresponding to the strongest peak is proposed as an adopted value.  In
     addition, the periodgram itself is exposed in the solution and available
@@ -57,6 +58,8 @@ def lc_periodogram(**kwargs):
         the periodogram.  bls: BoxLeastSquares, ls: LombScargle.
     * `lc_datasets` (string or list, optional, default='*'): Light curve
         dataset(s) to use to run the periodogram algorithm.
+    * `lc_combine` (string, optional, default='median'): How to normalize each
+        light curve prior to combining.
     * `component` (string, optional, default=top-level orbit): Component to
         apply the found period.
     * `sample_mode` (string, optional, default='auto'): Whether to automatically
@@ -100,6 +103,8 @@ def lc_periodogram(**kwargs):
     params += [ChoiceParameter(qualifier='algorithm', value=kwargs.get('algorithm', 'bls'), choices=['bls', 'ls'], description='Algorithm to use to create the periodogram.  bls: BoxLeastSquares, ls: LombScargle.')]
 
     params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to use to run the periodogram algorithm')]
+    params += [ChoiceParameter(visible_if='lc_datasets:<plural>', qualifier='lc_combine', value=kwargs.get('lc_combine', 'median'), choices=['median', 'max'], advanced=True, description='How to normalize each light curve prior to combining.')]
+
     params += [ChoiceParameter(qualifier='component', value=kwargs.get('component', ''), choices=[''], description='Component to apply the found period')]
 
     params += [ChoiceParameter(qualifier='sample_mode', value=kwargs.get('sample_mode', 'auto'), choices=['auto', 'manual'], description='Whether to automatically determine sampling periods/frequencies or set manually')]
@@ -188,6 +193,7 @@ def rv_periodogram(**kwargs):
     params += [ChoiceParameter(qualifier='algorithm', value=kwargs.get('algorithm', 'ls'), choices=['ls'], description='Algorithm to use to create the periodogram.  ls: LombScargle.')]
 
     params += [SelectParameter(qualifier='rv_datasets', value=kwargs.get('rv_datasets', '*'), choices=[], description='Radial velocity dataset(s) to use to run the periodgram algorithm')]
+
     params += [ChoiceParameter(qualifier='component', value=kwargs.get('component', ''), choices=[''], description='Component to apply the found period')]
 
     params += [ChoiceParameter(qualifier='sample_mode', value=kwargs.get('sample_mode', 'auto'), choices=['auto', 'manual'], description='Whether to automatically determine sampling periods/frequencies or set manually')]
@@ -206,8 +212,9 @@ def lc_geometry(**kwargs):
     Create a <phoebe.parameters.ParameterSet> for solver options for the
     light curve geometry esimator.
 
-    The input light curve datasets (`lc_datasets`) are each normalized and
-    combined.  These combined data are then fitted with a 2-gaussian model
+    The input light curve datasets (`lc_datasets`) are each normalized
+    according to `lc_combine` and then combined.
+    These combined data are then fitted with a 2-gaussian model
     which is used to help determine phases of eclipse minima, ingress, and
     egress.  These are then used to estimate and propose values for `ecc`, `per0`,
     `t0_supconj` for the corresponding `orbit` as well as `mask_phases` (not included in `adopt_parameters`
@@ -233,6 +240,8 @@ def lc_geometry(**kwargs):
     ----------
     * `lc_datasets` (string or list, optional, default='*'): Light curve
         dataset(s) to use to extract eclipse geometry
+    * `lc_combine` (string, optional, default='median'): How to normalize each
+        light curve prior to combining.
     * `orbit` (string, optional, default=top-level orbit): Orbit to use for
         phasing the light curve referenced in the `lc_datasets` parameter
     * `t0_near_times` (bool, optional, default=True): Whether the returned value
@@ -249,6 +258,8 @@ def lc_geometry(**kwargs):
     params = _comments_params(**kwargs)
 
     params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to use to extract eclipse geometry')]
+    params += [ChoiceParameter(visible_if='lc_datasets:<plural>', qualifier='lc_combine', value=kwargs.get('lc_combine', 'median'), choices=['median', 'max'], advanced=True, description='How to normalize each light curve prior to combining.')]
+
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the lc_datasets parameter')]
 
     params += [BoolParameter(qualifier='t0_near_times', value=kwargs.get('t0_near_times', True), description='Whether the returned value for t0_supconj should be forced to be in the range of the referenced observations.')]
@@ -324,7 +335,8 @@ def ebai(**kwargs):
     See also:
     * <phoebe.frontend.bundle.Bundle.references>
 
-    The input light curves (`lc_datasets`) are normalized, combined, and
+    The input light curve datasets (`lc_datasets`) are each normalized
+    according to `lc_combine`, combined and
     fitted with a 2 gaussian model which is then itself
     normalized and used as input to `ebai`.  Any necessary phase-shift required
     to ensure the primary is at a phase of 0 is used to provide the proposed
@@ -350,7 +362,9 @@ def ebai(**kwargs):
     Arguments
     ----------
     * `lc_datasets` (string or list, optional, default='*'): Light curve
-        dataset(s) to pass to ebai
+        dataset(s) to pass to ebai.
+    * `lc_combine` (string, optional, default='median'): How to normalize each
+        light curve prior to combining.
     * `orbit` (string, optional, default=top-level orbit): Orbit to use for
         phasing the light curve referenced in the `lc_datasets` parameter
 
@@ -362,6 +376,8 @@ def ebai(**kwargs):
     params = _comments_params(**kwargs)
 
     params += [SelectParameter(qualifier='lc_datasets', value=kwargs.get('lc_datasets', '*'), choices=[], description='Light curve dataset(s) to pass to ebai')]
+    params += [ChoiceParameter(visible_if='lc_datasets:<plural>', qualifier='lc_combine', value=kwargs.get('lc_combine', 'median'), choices=['median', 'max'], advanced=True, description='How to normalize each light curve prior to combining.')]
+
     params += [ChoiceParameter(qualifier='orbit', value=kwargs.get('orbit', ''), choices=[''], description='Orbit to use for phasing the light curve referenced in the lc_datasets parameter')]
 
     return ParameterSet(params)
