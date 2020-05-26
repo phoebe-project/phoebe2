@@ -30,6 +30,13 @@ def lc_periodogram(**kwargs):
     requirements are not met, an error will be raised when attempting to call
     <phoebe.frontend.bundle.Bundle.run_solver>.
 
+    The input light curve datasets (`lc_datasets`) are each normalized and
+    combined.  These combined data are then sent to the respective periodgram
+    `algorithm` and the resulting period
+    corresponding to the strongest peak is proposed as an adopted value.  In
+    addition, the periodgram itself is exposed in the solution and available
+    for plotting via <phoebe.parameters.ParameterSet.plot>.
+
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
     <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
@@ -121,6 +128,14 @@ def rv_periodogram(**kwargs):
     requirements are not met, an error will be raised when attempting to call
     <phoebe.frontend.bundle.Bundle.run_solver>.
 
+    The input radial velocity datasets (`rv_datasets`) are combined and then
+    normalized by the absolute maximum value for the primary and secondary star
+    independently, with the secondary then mirrored.  These combined data are
+    then sent to the respective periodgram `algorithm` and the resulting period
+    corresponding to the strongest peak is proposed as an adopted value.  In
+    addition, the periodgram itself is exposed in the solution and available
+    for plotting via <phoebe.parameters.ParameterSet.plot>.
+
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
     <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
@@ -191,6 +206,15 @@ def lc_geometry(**kwargs):
     Create a <phoebe.parameters.ParameterSet> for solver options for the
     light curve geometry esimator.
 
+    The input light curve datasets (`lc_datasets`) are each normalized and
+    combined.  These combined data are then fitted with a 2-gaussian model
+    which is used to help determine phases of eclipse minima, ingress, and
+    egress.  These are then used to estimate and propose values for `ecc`, `per0`,
+    `t0_supconj` for the corresponding `orbit` as well as `mask_phases` (not included in `adopt_parameters`
+    by default).  If `expose_model` is True, the 2-gaussian model and the phases of minima,
+    ingress, and egress are exposed in the solution and available for
+    plotting with <phoebe.parameters.ParameterSet.plot>.
+
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
     <phoebe.frontend.bundle.Bundle.add_solver>, all `**kwargs` will be
@@ -237,6 +261,16 @@ def rv_geometry(**kwargs):
     """
     Create a <phoebe.parameters.ParameterSet> for solver options for the
     radial velocity geometry esimator.
+
+    The input radial velocity datasets (`rv_datasets`) are combined without
+    normalization.  These combined data are then used to estimate the
+    semi-amplitude and `t0_supconj` which are then used to fit a Keplerian
+    orbit using least-squares.  This results in proposed values for `t0_supconj`,
+    `q`, `asini`, `ecc`, and `per0` for the corresponding `orbit`.
+    If `expose_model` is True, the analytical Keplerian RVs are exposed in the
+    solution and available for
+    plotting with <phoebe.parameters.ParameterSet.plot>.
+
 
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
@@ -289,6 +323,15 @@ def ebai(**kwargs):
 
     See also:
     * <phoebe.frontend.bundle.Bundle.references>
+
+    The input light curves (`lc_datasets`) are normalized, combined, and
+    fitted with a 2 gaussian model which is then itself
+    normalized and used as input to `ebai`.  Any necessary phase-shift required
+    to ensure the primary is at a phase of 0 is used to provide the proposed
+    value for `t0_supconj`.  The normalized 2 gaussian model is then sent through
+    the matrix transformation for a pre-trained `ebai` artificial neural network
+    resulting in proposed values for `teffratio`, `requivsumfrac`, `esinw`,
+    `ecosw`, and `incl` for the corresponding `orbit`.
 
     Generally, this will be used as an input to the kind argument in
     <phoebe.frontend.bundle.Bundle.add_solver>.  If attaching through
