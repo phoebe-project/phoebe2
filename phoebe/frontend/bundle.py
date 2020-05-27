@@ -2218,7 +2218,7 @@ class Bundle(ParameterSet):
 
         # TODO: should we also check to make sure p.component in [None]+self.hierarchy.get_components()?  If so, we'll need to call this method in set_hierarchy as well.
 
-        choices = self.get_adjustable_parameters().twigs
+        choices = self.get_adjustable_parameters(exclude_constrained=False).twigs
         for param in params:
             choices_changed = False
             if return_changes and choices != param._choices:
@@ -4117,6 +4117,16 @@ class Bundle(ParameterSet):
                                     ]+addl_parameters,
                                     True, 'run_solver')
 
+                adjustable_parameters = self.get_adjustable_parameters(exclude_constrained=False)
+                for twig in fit_parameters:
+                    fit_parameter = adjustable_parameters.get_parameter(twig=twig, **_skip_filter_checks)
+                    if len(fit_parameter.constrained_by):
+                        report.add_item(self,
+                                        "fit_parameters contains the constrained parameter '{}'".format(twig),
+                                        [solver_ps.get_parameter(qualifier='fit_parameters', **_skip_filter_checks),
+                                         fit_parameter.is_constraint
+                                        ]+addl_parameters,
+                                        True, 'run_solver')
 
             if 'init_from' in solver_ps.qualifiers:
                 _, init_from_uniqueids = self.get_distribution_collection(kwargs.get('init_from', 'init_from@{}'.format(solver)), keys='uniqueid', return_dc=False)
