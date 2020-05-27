@@ -462,7 +462,7 @@ class Bundle(ParameterSet):
         self._last_client_update = None
         self._lock = False
 
-        self._within_sampling = False
+        self._within_solver = False
 
         super(Bundle, self).__init__(params=params)
 

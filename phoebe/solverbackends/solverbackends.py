@@ -172,7 +172,7 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
     b = b.copy()
     # prevent any *_around distributions from adjusting to the changes in
     # face-values
-    b._within_sampling = True
+    b._within_solver = True
     if sampled_values is not False:
         for uniqueid, value in zip(params_uniqueids, sampled_values):
             try:

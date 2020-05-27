@@ -8142,7 +8142,7 @@ class DistributionParameter(Parameter):
         if default is not None: return default
         dist = self._value
 
-        if isinstance(dist, distl.BaseAroundGenerator) and not self._bundle._within_sampling:
+        if isinstance(dist, distl.BaseAroundGenerator) and not self._bundle._within_solver:
             if dist.unit is not None:
                 value = self.get_referenced_parameter().get_quantity().to(dist.unit).value
             else:
@@ -8978,7 +8978,7 @@ class FloatParameter(Parameter):
         if value is not None and value.unit.physical_type == 'angle':
             # NOTE: this may fail for nparray types
             if value > (360*u.deg) or value < (0*u.deg):
-                if self._bundle is not None and self._bundle._within_sampling and not kwargs.get('from_constraint', False):
+                if self._bundle is not None and self._bundle._within_solver and not kwargs.get('from_constraint', False):
                     if abs(value.to(u.deg).value - self._value.to(u.deg).value) > 180:
                         raise ValueError("value further than 180 deg from {}".format(self._value.to(u.deg).value))
                 value = value % (360*u.deg)
