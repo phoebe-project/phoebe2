@@ -215,6 +215,9 @@ def _lnprobability(sampled_values, b, params_uniqueids, compute,
     else:
         lnprob = custom_lnprobability_callable(b, model=solution, lnpriors=lnpriors, priors=priors, priors_combine=priors_combine)
 
+    if np.isnan(lnprob):
+        return _return(-np.inf, 'lnprobability returned nan')
+
     return _return(lnprob, 'success')
 
 def _lnprobability_negative(sampled_values, b, params_uniqueids, compute,
